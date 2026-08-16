@@ -10,7 +10,7 @@ juce_add_plugin(OuariconTapestop
     PRODUCT_NAME "O-Tapestop${OUARICON_DEV_SUFFIX}"
     # JUCE reads VERSION (never PLUGIN_VERSION — that keyword is silently
     # ignored and the bundle ships as 1.0.0).
-    VERSION 0.1.0
+    VERSION 1.0.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -52,8 +52,43 @@ target_link_libraries(OuariconTapestop
 
 juce_generate_juce_header(OuariconTapestop)
 
-# Stage 3 adds the juce_add_binary_data UI-resources target here (distinct
-# NAMESPACE/HEADER_NAME — critical_dual_binary_data_namespace_collision).
+# Shared preset persistence (Stage 4) — include-path wiring, never a vendored
+# copy (O-AnalogEQ reference). Also configure-copies the module JS to
+# Source/ui/public/modules/, which is this plugin's real UI root — the copy is
+# the file juce_add_binary_data embeds below. Header-only module compiled into
+# the processor TU, so the render harness (which borrows this target's include
+# dirs) sees it too.
+ouaricon_add_module(OuariconTapestop preset-manager)
+
+# WebView UI resources (Stage 3). Distinct NAMESPACE/HEADER_NAME so a Stage-4
+# asset target defaulting to `BinaryData` can never duplicate-symbol
+# (critical_dual_binary_data_namespace_collision). NOTE: juce_add_binary_data
+# STRIPS hyphens from filenames — the envelope module is deliberately named
+# envelope_editor.js with an underscore so its symbol is envelope_editor_js
+# (critical_binary_data_strips_hyphens). Linked PRIVATE to the plugin target
+# only — the render harness never sees it.
+juce_add_binary_data(OuariconTapestop_UIResources
+    NAMESPACE UIBinaryData
+    HEADER_NAME UIBinaryData.h
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/envelope_editor.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        # Module JS (configure-copied by ouaricon_add_module above). Hyphen in
+        # the filename is the module's canonical name; juce_add_binary_data
+        # STRIPS it, so the symbol is UIBinaryData::presetmanager_js
+        # (critical_binary_data_strips_hyphens).
+        Source/ui/public/modules/preset-manager.js
+        Source/ui/public/img/shell.png
+)
+
+target_link_libraries(OuariconTapestop
+    PRIVATE
+        OuariconTapestop_UIResources
+)
 
 target_compile_definitions(OuariconTapestop
     PUBLIC

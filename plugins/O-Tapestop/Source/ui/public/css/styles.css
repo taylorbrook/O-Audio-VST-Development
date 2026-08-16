@@ -1,0 +1,737 @@
+/*
+   This file is part of O-Tapestop, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+/* ============================================================================
+   O-Tapestop — Ouaricon Naturalist (aesthetic ouaricon-naturalist-001)
+   Fixed 860 × 580. Header, 44 px preset band (disabled until Stage 4), ONE row
+   of three framed panels, footer. No viewport units — WebView hosts size the
+   frame, not the viewport. Vocabulary copied from O-ReverseDelay styles.css.
+
+   Size is mirrored in PluginEditor.cpp's setSize(860, 580) — keep in sync and
+   NEVER resize after Phase 3.1 (PLAN Locked Decisions).
+
+   Width budget:  frame chrome 50 (2×22 padding + 2×3 border)
+                  + 180 + 430 + 180 panels + 2 × 10 gaps = 810  →  860 total.
+   Height budget: frame chrome 38 (18 + 14 padding + 2×3 border)
+                  + header ~70.5 + preset band 44 + .groups (flex:1, holds the
+                  380 px panel row centred) + footer ~23 = 580.
+   ========================================================================= */
+
+:root {
+  /* Backgrounds */
+  --bg-paper-light: #FAF0E6;
+  --bg-paper:       #F5E6D3;
+  --bg-paper-mid:   #EBD9C7;
+  --bg-accent:      #D4C4B0;
+
+  /* Browns */
+  --brown-border: #8B7355;
+  --brown-frame:  #5C4033;
+  --brown-text:   #3C2F2F;
+
+  /* Greens (botanical accents) */
+  --green-light:   #8BA870;
+  --green-mid:     #6B8E4E;
+  --green-dark:    #3C5C1A;
+  --green-darkest: #2C3E10;
+
+  /* Reds (reverse zone / reverse fill — naturalist red-brown) */
+  --red-brown:      #9A4A32;
+  --red-brown-deep: #6E3020;
+
+  /* Knob (seed cross-section) */
+  --knob-ring:    #C9A27B;
+  --knob-seg-1:   #F5DEB3;
+  --knob-seg-2:   #E8D5B7;
+  --knob-divider: #8B7355;
+  --knob-core:    #FFF8DC;
+  --knob-border:  #8B7355;
+
+  /* Buttons */
+  --btn-default:       rgba(139, 168, 112, 0.3);
+  --btn-active:        rgba(107, 142, 35, 0.6);
+  --btn-border:        #3C5C1A;
+  --btn-border-active: #2C3E10;
+
+  /* Effects */
+  --shadow-light:  rgba(0, 0, 0, 0.15);
+  --shadow-medium: rgba(0, 0, 0, 0.25);
+  --shadow-heavy:  rgba(0, 0, 0, 0.5);
+  --text-emboss:   rgba(255, 255, 255, 0.5);
+  --fleuron-color: rgba(60, 47, 47, 0.3);
+
+  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 860px;
+  height: 580px;
+  overflow: hidden;
+}
+
+body {
+  position: relative;
+  font-family: var(--serif);
+  color: var(--brown-text);
+  background:
+    repeating-linear-gradient(0deg, rgba(92, 64, 51, 0.02) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, var(--bg-paper-light) 0%, var(--bg-paper) 45%, var(--bg-paper-mid) 100%);
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* ── Botanical overlay ───────────────────────────────────────────────────── */
+/* Height PINNED in px (ORD lesson: a percentage rescales with any frame edit
+   and turns a marginal specimen into clutter). */
+.botanical-overlay {
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 320px;
+  opacity: 0.28;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Framed specimen container ───────────────────────────────────────────── */
+.frame {
+  position: relative;
+  z-index: 2;
+  width: 860px;
+  height: 580px;
+  padding: 18px 22px 14px;
+  border: 3px solid var(--brown-frame);
+  box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: 2.5px;
+  color: var(--brown-frame);
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.title-accent {
+  font-style: italic;
+  color: var(--green-mid);
+}
+
+.subtitle {
+  margin-top: 3px;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+/* ── Preset bar (wired to modules/preset-manager.js in Stage 4) ──────────── */
+/* 32 px band + 12 px margin = 44 px, shipped in the Phase-3.1 layout so the
+   frame never grew when Stage 4 wired preset-manager.js (the ORD Stage-4
+   frame-grow avoided). Controls ship `disabled` in the markup; app.js
+   un-disables them once the manager's initialize() resolves. */
+.preset-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+}
+
+.preset-nav,
+.preset-btn {
+  font-family: var(--serif);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 5px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preset-nav {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.preset-btn {
+  padding: 5px 12px;
+  font-size: 10px;
+}
+
+.preset-nav:not(:disabled):hover,
+.preset-btn:not(:disabled):hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.preset-nav:not(:disabled):active,
+.preset-btn:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.preset-nav:disabled,
+.preset-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+}
+
+.preset-nav:focus-visible,
+.preset-btn:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+#preset-delete[data-armed="1"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.preset-name {
+  width: 300px;
+  padding: 5px 10px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  text-align: center;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.18), 2px 2px 5px var(--shadow-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Panel row ───────────────────────────────────────────────────────────── */
+.groups {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* 380 px panels: content box 348 tall (380 − 16 − 12 padding − 2×2 border). */
+.group {
+  position: relative;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 14px 12px;
+  border: 2px solid var(--brown-border);
+  border-radius: 5px;
+  background: rgba(212, 196, 176, 0.42);
+  box-shadow: 2px 2px 6px var(--shadow-light), inset 0 1px 0 rgba(255, 248, 220, 0.45);
+}
+
+.group-trigger { width: 180px; }
+.group-center  { width: 430px; }
+.group-output  { width: 180px; }
+
+.group-label {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 8px;
+  background: var(--bg-paper);
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.group-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* ── TRIGGER panel ───────────────────────────────────────────────────────── */
+.group-trigger .group-body {
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ENGAGE — the performance control (UI-02). A large latching press; active
+   state is the same cream-on-green + pressed inset the segments use, scaled
+   up so the state is unmistakable across the room. */
+.engage-btn {
+  width: 140px;
+  height: 58px;
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 6px;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.engage-btn:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 7px rgba(0, 0, 0, 0.3);
+}
+
+.engage-btn.active,
+.engage-btn.active:hover {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  transform: none;
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.engage-btn:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 3px;
+}
+
+/* MODE / SYNC segment pairs — horizontal in this panel, caption above.
+   Scoped: .segments is column-flex elsewhere by default (ORD vocabulary). */
+.pair-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.pair-caption {
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.segments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.group-trigger .segments {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.group-trigger .segment { width: 66px; }
+
+.segment {
+  width: 58px;
+  padding: 7px 0;
+  font-family: var(--serif);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 5px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.segment:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.segment.active {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.segment.active:hover {
+  background: var(--btn-active);
+  transform: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.segment:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── Playback-ratio indicator ────────────────────────────────────────────── */
+/* Zero mark at 40 % of the track: the negative half compresses −2..0 into
+   40 % while 0..+2 spreads over 60 % (Stop mode lives in [0, 1.25], so the
+   forward side earns the resolution). The FILL is zero-anchored and grows
+   toward the current ratio; reverse fill switches to the red-brown. All
+   geometry mirrored in app.js ratioToPct(). */
+.ratio-cell {
+  width: 148px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+
+.ratio-cell .pair-caption { text-align: center; }
+
+.ratio-bar {
+  position: relative;
+  height: 12px;
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  background: rgba(255, 248, 220, 0.35);
+  box-shadow: inset 1px 1px 3px var(--shadow-light);
+  overflow: hidden;
+}
+
+.ratio-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 40%;
+  width: 0;
+  background: var(--green-mid);
+  opacity: 0.75;
+}
+
+.ratio-fill.reverse { background: var(--red-brown); }
+
+.ratio-zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 40%;
+  width: 1px;
+  background: var(--brown-frame);
+}
+
+/* The labelled 1× mark: 40 % + (1/2)·60 % = 70 %. */
+.ratio-one {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 70%;
+  width: 1px;
+  background: rgba(92, 64, 51, 0.5);
+}
+
+.ratio-ticks {
+  position: relative;
+  height: 10px;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: var(--brown-border);
+}
+
+.ratio-ticks span { position: absolute; transform: translateX(-50%); }
+.ratio-ticks .tick-n1 { left: 20%; }
+.ratio-ticks .tick-0  { left: 40%; }
+.ratio-ticks .tick-1  { left: 70%; }
+.ratio-ticks .tick-2  { left: 97%; }
+
+.ratio-readout {
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── CENTER panel: mode-switched panes ───────────────────────────────────── */
+/* Fixed box; both panes absolutely positioned; MODE toggles .hidden —
+   instant, zero layout shift (ORD time-slot pattern at panel scale). */
+.center-body { position: relative; }
+
+.mode-pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stop pane: two columns (Spin Down | Spin Up). */
+#pane-stop { gap: 56px; }
+
+.stop-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.col-caption {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+/* ── Time slot: identical box for both wraps → zero layout shift ─────────── */
+.time-slot {
+  position: relative;
+  width: 88px;
+  height: 100px;
+}
+
+.slot-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hidden { display: none; }
+
+.select-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.division-select {
+  width: 82px;
+  padding: 7px 6px;
+  font-family: var(--serif);
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-align: center;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.18), 2px 2px 5px var(--shadow-light);
+  cursor: pointer;
+}
+
+.division-select:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* Scratch pane: canvas plate over the pass-length row.
+   Height budget in the 348 px content box:
+       env-plate  224 + 2×6 padding + 2×1 border = 238
+       gap                                       =   8
+       env-row (time-slot)                       = 100
+                                           total = 346  →  2 px spare. */
+#pane-scratch {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.env-plate {
+  padding: 6px;
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  background: rgba(255, 248, 220, 0.22);
+  box-shadow: inset 1px 1px 3px var(--shadow-light);
+}
+
+/* CSS sizes the element; JS owns the backing store (DPR). Replaced element —
+   explicit dimensions, never left+right stretch (o-textureforge-cursor-bug). */
+.env-plate canvas {
+  display: block;
+  width: 380px;
+  height: 224px;
+  cursor: crosshair;
+}
+
+.env-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.env-caption { align-self: center; }
+
+.env-hint {
+  font-size: 8.5px;
+  line-height: 1.5;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+  opacity: 0.8;
+}
+
+/* ── OUTPUT panel ────────────────────────────────────────────────────────── */
+.group-output .group-body {
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Knob cell ───────────────────────────────────────────────────────────── */
+.knob-cell {
+  width: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.knob-label {
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px var(--text-emboss);
+}
+
+.knob-value {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Seed cross-section knob (house 56 × 56) ─────────────────────────────── */
+.knob {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--knob-border);
+  cursor: ns-resize;
+  transition: transform 0.1s ease;
+  background:
+    radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
+    conic-gradient(from 0deg,
+      var(--knob-seg-1) 0deg,   var(--knob-seg-1) 18deg,  var(--knob-divider) 18deg,  var(--knob-divider) 19deg,
+      var(--knob-seg-2) 19deg,  var(--knob-seg-2) 36deg,  var(--knob-divider) 36deg,  var(--knob-divider) 37deg,
+      var(--knob-seg-1) 37deg,  var(--knob-seg-1) 54deg,  var(--knob-divider) 54deg,  var(--knob-divider) 55deg,
+      var(--knob-seg-2) 55deg,  var(--knob-seg-2) 72deg,  var(--knob-divider) 72deg,  var(--knob-divider) 73deg,
+      var(--knob-seg-1) 73deg,  var(--knob-seg-1) 90deg,  var(--knob-divider) 90deg,  var(--knob-divider) 91deg,
+      var(--knob-seg-2) 91deg,  var(--knob-seg-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+      var(--knob-seg-1) 109deg, var(--knob-seg-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+      var(--knob-seg-2) 127deg, var(--knob-seg-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+      var(--knob-seg-1) 145deg, var(--knob-seg-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+      var(--knob-seg-2) 163deg, var(--knob-seg-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+      var(--knob-seg-1) 181deg, var(--knob-seg-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+      var(--knob-seg-2) 199deg, var(--knob-seg-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+      var(--knob-seg-1) 217deg, var(--knob-seg-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+      var(--knob-seg-2) 235deg, var(--knob-seg-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+      var(--knob-seg-1) 253deg, var(--knob-seg-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+      var(--knob-seg-2) 271deg, var(--knob-seg-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+      var(--knob-seg-1) 289deg, var(--knob-seg-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+      var(--knob-seg-2) 307deg, var(--knob-seg-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+      var(--knob-seg-1) 325deg, var(--knob-seg-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+      var(--knob-seg-2) 343deg, var(--knob-seg-2) 360deg),
+    radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
+  box-shadow:
+    inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+    inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+    2px 2px 6px var(--shadow-medium);
+}
+
+.knob:hover  { transform: scale(1.05); }
+.knob:active { transform: scale(0.98); }
+
+.knob:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 3px;
+}
+
+.knob-stem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.5px;
+  height: 24px;
+  border-radius: 1.5px;
+  background: var(--brown-frame);
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(0deg);
+  pointer-events: none;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.fleuron {
+  font-size: 11px;
+  color: var(--fleuron-color);
+}
+
+.footer-text {
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+  opacity: 0.75;
+}

@@ -1,13 +1,13 @@
 ---
 plugin: O-Tapestop
 stage: 4
-phase: plan
-status: phase_complete
+phase: verify
+status: complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: execute stage 4 polish (/plugin-execute O-Tapestop 4-polish)
+next_action: plugin complete at v1.0.0 (/install-plugin O-Tapestop for lifecycle registration)
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:40122fb710669e6d72ca3e5f058c367ed665e8d07e2d8185bb891977da65bedd
@@ -20,14 +20,14 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 (Polish) — plan ✓ (2026-08-15) — stages/4-polish/PLAN.md
-Status: Stage 4 plan complete — 11 tasks: module wiring (include-path, JS relocation to ui/js/modules/ + UIBinaryData), processor manager member + customState callbacks via commitScratchEnvelopeJson, 8-preset factory bank (engineering units + convertTo0to1, every preset carries customState), 10 new native fns (13 total, savePresetWithDialog returns {success,name}), band un-disable via constructor + explicit DOM refs, CHANGELOG.md, parity gate 13↔13, harness 47/47 re-run, bit-transparency + round-trip probes, pluginval ×2–3 + auval + install. Version bump 0.1.0→1.0.0 deferred to verify. Next: execute phase
-Progress: [###################.] 93%
+Stage: 4 (Polish) — verify ✓ (2026-08-15) — stages/4-polish/VERIFICATION.md — **PLUGIN COMPLETE at v1.0.0**
+Status: Stage 4 VERIFIED. Task 11 executed at verify: VERSION 0.1.0→1.0.0, CHANGELOG dated 2026-08-15, full rebuild. All gates re-run live at 1.0.0: harness 47/47; pluginval s10 VST3 ×3 + AU ×3 SUCCESS; auval SUCCEEDED (one benign retain-default float-echo warning); native-fn parity 13↔13; factory sentinel + 8 presets auto-regenerated to v1.0.0 (14/14 params + customState each, skew spot-check exact 0.7842); installed via build-and-install.sh, both Info.plists 1.0.0. All 14 requirements complete. Human DAW checklists (stages 2/3 + preset click-through) remain open, user-driven, non-gating.
+Progress: [####################] 100%
 
 **Stage 1 phases:** discuss (skipped — no open questions; Stage-0 contracts + O-Bitrot precedent cover scope) → research ✓ → plan ✓ → execute ✓ → verify ✓ (stages/1-foundation/VERIFICATION.md)
 **Stage 2 phases:** discuss ✓ (stages/2-dsp/CONTEXT.md) → research ✓ (stages/2-dsp/RESEARCH.md) → plan ✓ (stages/2-dsp/PLAN.md) → execute ✓ (stages/2-dsp/SUMMARY.md) → verify ✓ (stages/2-dsp/VERIFICATION.md)
 **Stage 3 phases:** discuss ✓ (stages/3-gui/CONTEXT.md) → research ✓ (stages/3-gui/RESEARCH.md) → plan ✓ (stages/3-gui/PLAN.md) → execute ✓ (stages/3-gui/SUMMARY.md) → verify ✓ (stages/3-gui/VERIFICATION.md)
-**Stage 4 phases:** discuss ✓ (stages/4-polish/CONTEXT.md) → research ✓ (stages/4-polish/RESEARCH.md) → plan ✓ (stages/4-polish/PLAN.md) → execute → verify
+**Stage 4 phases:** discuss ✓ (stages/4-polish/CONTEXT.md) → research ✓ (stages/4-polish/RESEARCH.md) → plan ✓ (stages/4-polish/PLAN.md) → execute ✓ (stages/4-polish/SUMMARY.md) → verify ✓ (stages/4-polish/VERIFICATION.md)
 
 ## Completed So Far
 
@@ -48,8 +48,8 @@ Progress: [###################.] 93%
 
 ## Next Steps
 
-1. Stage 4 execute (`/plugin-execute O-Tapestop 4-polish`) — run the 11-task plan in stages/4-polish/PLAN.md (module wiring → processor callbacks → factory bank → native fns → JS band wiring → validation gate → install)
-2. Human checks from stages/3-gui/VERIFICATION.md (binding sweep, envelope interaction/persistence, DAW smoke) + stage-2 DAW listening checks — user-driven, NOT gating stage 4 (automated-only gate per CONTEXT.md)
+1. `/install-plugin O-Tapestop` — lifecycle registration (binaries already installed at 1.0.0 via build-and-install.sh)
+2. Human checks, user-driven (never gating): preset-band click-through in a DAW; stages/3-gui/VERIFICATION.md checklist (binding sweep, envelope interaction/persistence, DAW smoke); stage-2 DAW listening checks
 
 **Execute results (2026-08-15):** CMakeLists (OuariconTapestop/OTsp/0.1.0, WebView wired), 14-param APVTS exact to spec, guarded GenericAudioProcessorEditor; clean build both formats; memcmp bit-transparency PASS at 512+4096; state round-trip PASS; auval PASS; pluginval strictness 10 PASS on VST3 AND AU; installed via build-and-install.sh; gate 0→1 bypassed per documented pattern (logged)
 

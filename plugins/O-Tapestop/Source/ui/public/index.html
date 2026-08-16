@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Tapestop, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<!--
+  Stage 3 layout (PLAN Locked Decisions — never resize after Phase 3.1):
+    frame 860 x 580 == PluginEditor.cpp setSize(860, 580)
+    header ~73 | preset band 44 (markup shipped DISABLED, wired Stage 4) |
+    one panel row: TRIGGER 180 | mode-switched CENTER 430 | OUTPUT 180,
+    10 px gaps | footer.
+
+  All segment/button copy is HTML-authored (data-label); JS toggles classes and
+  aria only (pattern_js_state_updater_overwrites_html_labels). Readout elements
+  are born with an em-dash placeholder and are JS-owned from birth.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-Tapestop</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay — one specimen per plugin (spiral shell: the reel). -->
+  <img src="img/shell.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <header class="header">
+      <h1 class="title">O&#8202;&#8211;&#8202;Tape<span class="title-accent">stop</span></h1>
+      <p class="subtitle">Varispeed Transport &#183; A Field Guide</p>
+    </header>
+
+    <!-- ─── Preset bar (wired to modules/preset-manager.js in Stage 4) ────
+         Element IDs are exactly the ones preset-manager.js binds
+         (preset-prev/next/name/save/load/delete). Controls ship `disabled`;
+         app.js un-disables them once the manager's initialize() resolves, so
+         a dead bridge leaves them honestly disabled. Button copy lives in
+         data-label / data-confirm, never in JS. -->
+    <div class="preset-bar">
+      <span class="fleuron">&#10086;</span>
+      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
+      <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+      <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
+      <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+      <button type="button" class="preset-btn" id="preset-delete"
+              data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+      <span class="fleuron">&#10086;</span>
+    </div>
+
+    <main class="groups">
+      <div class="group-row">
+
+      <!-- TRIGGER ──────────────────────────────────────────────────────────
+           ENGAGE (large latching toggle, UI-02) over the MODE and SYNC
+           segment pairs, with the live playback-ratio indicator at the
+           bottom — "what the transport is doing" next to the control that
+           causes it. -->
+      <section class="group group-trigger">
+        <div class="group-label">Trigger</div>
+        <div class="group-body">
+
+          <button type="button" class="engage-btn" id="engage-btn"
+                  aria-pressed="false" data-label="Engage">Engage</button>
+
+          <div class="pair-cell">
+            <div class="pair-caption">Mode</div>
+            <div class="segments" id="modeSegments" role="group" aria-label="Mode">
+              <button type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true">Stop</button>
+              <button type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false">Scratch</button>
+            </div>
+          </div>
+
+          <div class="pair-cell">
+            <div class="pair-caption">Timing</div>
+            <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
+              <button type="button" class="segment" id="seg-sync-sync" data-choice="0" aria-pressed="true">Sync</button>
+              <button type="button" class="segment" id="seg-sync-free" data-choice="1" aria-pressed="false">Free</button>
+            </div>
+          </div>
+
+          <!-- Playback ratio: bipolar bar, zero mark at 40 % (negative half
+               compresses −2..0 into 40 %, positive spreads 0..+2 over 60 % —
+               Stop mode lives in [0, 1.25]). Reverse fill styled distinctly.
+               The readout span is JS-owned from birth (placeholder em-dash);
+               the caption and tick labels are HTML-authored and never
+               rewritten. -->
+          <div class="ratio-cell">
+            <div class="pair-caption">Playback</div>
+            <div class="ratio-bar" aria-hidden="true">
+              <div class="ratio-fill" id="ratio-fill"></div>
+              <div class="ratio-zero"></div>
+              <div class="ratio-one"></div>
+            </div>
+            <div class="ratio-ticks" aria-hidden="true">
+              <span class="tick-n1">&#8722;1&#215;</span>
+              <span class="tick-0">0</span>
+              <span class="tick-1">1&#215;</span>
+              <span class="tick-2">2&#215;</span>
+            </div>
+            <div class="ratio-readout" id="ratio-readout">&#8212;</div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- CENTER — mode-switched ───────────────────────────────────────────
+           Two absolutely-positioned panes in one fixed box; MODE toggles
+           .hidden (instant, zero layout shift — the ORD time-slot pattern at
+           panel scale). -->
+      <section class="group group-center">
+        <div class="group-label" id="center-label">Transport</div>
+        <div class="group-body center-body">
+
+          <!-- Stop pane: spin-down / spin-up columns, each a SYNC/FREE
+               time-slot over its curve knob. Both slot wraps stay relay-bound
+               at all times; only visibility moves. -->
+          <div class="mode-pane" id="pane-stop">
+            <div class="stop-col">
+              <div class="col-caption">Spin Down</div>
+              <div class="time-slot">
+                <div class="slot-wrap" id="wrap-STOP_SYNC_DIV">
+                  <div class="select-cell">
+                    <!-- Options built at runtime from properties.choices — the
+                         C++ StringArray is the single source (never hardcode). -->
+                    <select class="division-select" id="combo-STOP_SYNC_DIV" aria-label="Stop Time"></select>
+                    <div class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-STOP_FREE_MS">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-STOP_FREE_MS" data-param="STOP_FREE_MS"><div class="knob-stem"></div></div>
+                    <div class="knob-label">Time</div>
+                    <div class="knob-value" id="val-STOP_FREE_MS">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-STOP_CURVE" data-param="STOP_CURVE"><div class="knob-stem"></div></div>
+                <div class="knob-label">Curve</div>
+                <div class="knob-value" id="val-STOP_CURVE">&#8212;</div>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div class="col-caption">Spin Up</div>
+              <div class="time-slot">
+                <div class="slot-wrap" id="wrap-START_SYNC_DIV">
+                  <div class="select-cell">
+                    <select class="division-select" id="combo-START_SYNC_DIV" aria-label="Start Time"></select>
+                    <div class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-START_FREE_MS">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-START_FREE_MS" data-param="START_FREE_MS"><div class="knob-stem"></div></div>
+                    <div class="knob-label">Time</div>
+                    <div class="knob-value" id="val-START_FREE_MS">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-START_CURVE" data-param="START_CURVE"><div class="knob-stem"></div></div>
+                <div class="knob-label">Curve</div>
+                <div class="knob-value" id="val-START_CURVE">&#8212;</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scratch pane: the drawable speed-vs-time envelope (UI-01) over
+               the pass-length time-slot. The env slot's visibility is the AND
+               of MODE (this pane's .hidden) and SYNC_MODE (the slot wraps'
+               .hidden) — two independent nested class toggles, never one
+               computed flag. -->
+          <div class="mode-pane hidden" id="pane-scratch">
+            <div class="env-plate">
+              <!-- width/height attributes are the backing store; JS rewrites
+                   them for devicePixelRatio. CSS sizes the element — a canvas
+                   is a replaced element, so left+right would NOT stretch it
+                   (o-textureforge-cursor-bug). -->
+              <canvas id="envCanvas" width="380" height="224" role="img"
+                      aria-label="Scratch speed envelope"></canvas>
+            </div>
+            <div class="env-row">
+              <div class="col-caption env-caption">Pass Length</div>
+              <div class="time-slot env-slot">
+                <div class="slot-wrap" id="wrap-ENV_SYNC_DIV">
+                  <div class="select-cell">
+                    <select class="division-select" id="combo-ENV_SYNC_DIV" aria-label="Env Length"></select>
+                    <div class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-ENV_FREE_MS">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-ENV_FREE_MS" data-param="ENV_FREE_MS"><div class="knob-stem"></div></div>
+                    <div class="knob-label">Time</div>
+                    <div class="knob-value" id="val-ENV_FREE_MS">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+              <div class="env-hint">
+                Drag points &#183; double-click to add<br />
+                alt-click removes &#183; drag a diamond to bend
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- OUTPUT ──────────────────────────────────────────────────────────── -->
+      <section class="group group-output">
+        <div class="group-label">Output</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-TONE_TRACK" data-param="TONE_TRACK"><div class="knob-stem"></div></div>
+            <div class="knob-label">Tone Track</div>
+            <div class="knob-value" id="val-TONE_TRACK">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-MIX" data-param="MIX"><div class="knob-stem"></div></div>
+            <div class="knob-label">Mix</div>
+            <div class="knob-value" id="val-MIX">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-OUTPUT_GAIN" data-param="OUTPUT_GAIN"><div class="knob-stem"></div></div>
+            <div class="knob-label">Gain</div>
+            <div class="knob-value" id="val-OUTPUT_GAIN">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      </div><!-- /.group-row -->
+    </main>
+
+    <footer class="footer">
+      <span class="fleuron">&#10086;</span>
+      <span class="footer-text">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
+      <span class="fleuron">&#10086;</span>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

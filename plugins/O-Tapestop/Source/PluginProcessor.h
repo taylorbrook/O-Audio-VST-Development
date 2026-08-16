@@ -22,11 +22,17 @@
 #include <JuceHeader.h>
 
 #include <atomic>
+#include <cstdint>
 
 #include "dsp/CaptureBuffer.h"
 #include "dsp/VarispeedVoice.h"
 #include "dsp/TapestopTransport.h"
 #include "dsp/ScratchEnvelope.h"
+
+// Shared preset persistence (Stage 4) — header-only, juce_core +
+// juce_audio_processors only, no WebView types: safe in the render-harness
+// build (JUCE_WEB_BROWSER=0), which compiles this TU.
+#include <OuariconPresetManager.h>
 
 static_assert (TapestopTransport::ScratchLutSize == ScratchEnvelope::kLutSize,
                "transport LUT read and envelope bake must agree on the table size");
@@ -86,6 +92,15 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    // Preset persistence (Stage 4). The name is a LITERAL — it is the presets
+    // directory ~/Library/Ouaricon Tapestop/Presets/, and dev (-dev) and
+    // release builds must share one preset library. Declared after
+    // `parameters` (holds a reference to it). Custom-state callbacks carry
+    // the scratch-envelope blob; wired in the constructor. Session
+    // save/restore does NOT go through this member — getStateInformation /
+    // setStateInformation keep the Stage-1 format untouched.
+    OuariconPresetManager presetManager { parameters, "Ouaricon Tapestop" };
+
     /** MESSAGE THREAD — the UI's envelope-commit path (WebView native fn in
         Stage 3; the render harness drives the SAME method). Parses, sanitizes,
         bakes and publishes; invalid JSON falls back to the default envelope
@@ -93,8 +108,27 @@ public:
         edge (latch contract). */
     bool commitScratchEnvelopeJson (const juce::String& json)
     {
-        return scratchEnvelope.setFromJson (json);
+        const bool ok = scratchEnvelope.setFromJson (json);
+        uiEnvGeneration.fetch_add (1, std::memory_order_relaxed);
+        return ok;
     }
+
+    /** MESSAGE THREAD — current envelope as the persisted JSON blob (the
+        Stage-3 requestEnvelope native fn and the commitEnvelope echo). */
+    juce::String getScratchEnvelopeJson() const { return scratchEnvelope.toJson(); }
+
+    // ── UI readback (Stage 3, editor-timer consumers) ───────────────────────
+    // The audio thread PUBLISHES (relaxed stores once per block at the end of
+    // processBlock) and never reads; the editor's 30 Hz juce::Timer reads
+    // relaxed. uiState mirrors (int) TapestopTransport::State; uiRatio is the
+    // carrier's last per-sample ratio (1.0 while Bypassed); uiScratchPhase is
+    // φ ∈ [0,1] during a scratch pass, 0 otherwise. uiEnvGeneration bumps on
+    // every envelope commit/restore so the editor can push the sanitized JSON
+    // to the page without any JS promise that could be dropped while hidden.
+    std::atomic<float>         uiRatio         { 1.0f };
+    std::atomic<float>         uiScratchPhase  { 0.0f };
+    std::atomic<int>           uiState         { 0 };
+    std::atomic<std::uint32_t> uiEnvGeneration { 0 };
 
     // ── Ring sizing (research/ARCHITECTURE.md "Ring Sizing", BINDING) ────────
     // Worst-case debt growth is Scratch full-reverse: d(debt)/dt = 1 − r with
