@@ -357,6 +357,120 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     crushJitterParam = apvts.getRawParameterValue("CRUSH_JITTER");
     crushEnvAmtParam = apvts.getRawParameterValue("CRUSH_ENV_AMT");
     crushDitherParam = apvts.getRawParameterValue("CRUSH_DITHER");
+
+    // ── Factory bank (Stage 4): 8 presets ───────────────────────────────────
+    // Authored in ENGINEERING units, then batch-converted through each
+    // parameter's own NormalisableRange below — raw-fraction authoring would
+    // ignore the skew on CLOCK_FREE_RATE (centre 1.414 Hz) and CRUSH_RATE
+    // (centre 3162 Hz). Choice params are authored as the INDEX; bools as
+    // 0/1; SEED as the integer. Every preset lists all 31 param IDs (defense
+    // in depth over the module's WR-01 reset-to-defaults). No customState —
+    // SEED is an APVTS param and O-Bitrot has no non-parameter state.
+    // Coverage: one showcase per family (1-6), sync (2,4,5,7) + free (1,3,8)
+    // clocking, extreme (7) + subtle (8) combos, HARD_EDGES exercised (7),
+    // both codec modes (5 GSM, 7 Mu-law).
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
+        { "Worn Cassette",   // Tape showcase — wow, drag, occasional full stop
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.2f },
+            { "SEED", 1111.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 45.0f }, { "TAPE_STOP_PROB", 12.0f }, { "TAPE_RAMP", 260.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+
+        { "Skipping Disc",   // CD showcase — machine-gun buffer loops, restart chirps
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 2222.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "CD_ENABLE", 1.0f }, { "CD_PROB", 55.0f }, { "CD_SEVERITY", 0.8f }, { "CD_SEGMENT", 45.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+
+        { "Locked Groove",   // Vinyl showcase — revolution jumps, heavy pops, groove holds
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.4f },
+            { "SEED", 3333.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 40.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 70.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+
+        { "Dropped Call",    // Packet showcase — bursty robotic loss
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 4444.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 45.0f }, { "PACKET_BURST", 65.0f }, { "PACKET_CONCEAL", 1.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+
+        { "Cellphone 1998",  // Codec showcase — GSM crunch with a whiff of loss
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 4.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 5555.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 12.0f }, { "PACKET_BURST", 40.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 1.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+
+        { "Eight-Bit Ruin",  // Crush showcase — quantize + SRR + jitter, ducking envelope
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 6666.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 6.0f }, { "CRUSH_RATE", 11025.0f },
+            { "CRUSH_JITTER", 15.0f }, { "CRUSH_ENV_AMT", -35.0f }, { "CRUSH_DITHER", 0.6f } } },
+
+        { "Total Media Failure",  // Extreme combo — everything failing at once, hard splices
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 7777.0f }, { "HARD_EDGES", 1.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 60.0f }, { "TAPE_STOP_PROB", 25.0f }, { "TAPE_RAMP", 80.0f },
+            { "CD_ENABLE", 1.0f }, { "CD_PROB", 50.0f }, { "CD_SEVERITY", 0.9f }, { "CD_SEGMENT", 25.0f },
+            { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 50.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 85.0f },
+            { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 55.0f }, { "PACKET_BURST", 70.0f }, { "PACKET_CONCEAL", 0.0f },
+            { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 4.0f }, { "CRUSH_RATE", 6000.0f },
+            { "CRUSH_JITTER", 40.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 1.0f } } },
+
+        { "Gentle Rot",      // Subtle physical-media patina — mixable default-plus
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.7f },
+            { "SEED", 8888.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 85.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 12.0f }, { "TAPE_STOP_PROB", 8.0f }, { "TAPE_RAMP", 300.0f },
+            { "CD_ENABLE", 1.0f }, { "CD_PROB", 10.0f }, { "CD_SEVERITY", 0.25f }, { "CD_SEGMENT", 120.0f },
+            { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 15.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 35.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+    };
+
+    // Engineering units → normalized through each parameter's
+    // NormalisableRange, once, here. initializeFactoryPresets stores the
+    // values verbatim and applyPresetJson feeds them back through
+    // setValueNotifyingHost (normalized domain).
+    for (auto& preset : factoryPresets)
+        for (auto& [paramId, value] : preset.parameters)
+            if (auto* p = apvts.getParameter(paramId))
+                value = p->convertTo0to1(value);
+
+    // Sentinel-gated (v1.0.5): file writes happen only when
+    // JucePlugin_VersionString changes — auval/pluginval scan-storm safe.
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 OBitrotAudioProcessor::~OBitrotAudioProcessor()

@@ -122,6 +122,69 @@
     color: rgba(92,64,51,0.8);
   }
 
+  /* ============ preset band (header center, Stage 4) ============
+     Third flex child in the header's empty center — zero grid/global
+     geometry cost. Controls ship `disabled`; the inline script un-disables
+     them once preset-manager's initialize() resolves. */
+  .preset-band {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-end;
+    padding-bottom: 1px;
+  }
+  .preset-nav,
+  .preset-btn {
+    font-family: var(--serif);
+    font-variant: small-caps;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--brown-text);
+    background: rgba(250,240,230,0.75);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .preset-nav {
+    width: 22px;
+    height: 22px;
+    padding: 0 0 1px;
+    font-size: 8px;
+    line-height: 1;
+  }
+  .preset-btn { padding: 2px 9px 3px; }
+  .preset-nav:not(:disabled):hover,
+  .preset-btn:not(:disabled):hover {
+    background: var(--knob-core);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 5px rgba(0,0,0,0.25);
+  }
+  .preset-nav:disabled,
+  .preset-btn:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  #preset-delete[data-armed="1"] {
+    background: rgba(139,69,19,0.3);
+    border-color: var(--brown-frame);
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+  }
+  .preset-name {
+    width: 140px;
+    padding: 3px 8px 4px;
+    font-style: italic;
+    font-size: 11.5px;
+    letter-spacing: 0.4px;
+    text-align: center;
+    color: var(--brown-text);
+    background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* ============ panel grid ============ */
   .grid {
     flex: 1 1 auto;
@@ -463,6 +526,19 @@
       <!-- ================= header ================= -->
       <div class="hdr">
         <div class="wordmark"><span class="fleuron">❦</span>O-BITROT</div>
+        <!-- Preset band — element IDs are exactly the ones preset-manager.js
+             binds. #preset-name stays childless (_updateDisplay writes
+             textContent). Button copy lives in data-label / data-confirm,
+             never in JS. -->
+        <div class="preset-band">
+          <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+          <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
+          <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+          <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
+          <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+          <button type="button" class="preset-btn" id="preset-delete"
+                  data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+        </div>
         <div class="hdr-right">
           <div class="brand">Ouaricon Audio</div>
           <div class="plate">A Catalogue of Failing Media · Plate XLVII</div>
@@ -730,6 +806,7 @@
   // JUCE 8 frontend library — always pass the Juce ES-module namespace for
   // parameter binding (NEVER window.__JUCE__ for params; repo pattern).
   import * as Juce from "./js/juce/index.js";
+  import { PresetManager } from "./modules/preset-manager.js";
 
   // Native application feel
   document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
@@ -927,6 +1004,72 @@
 
     // Decay tick — turns LEDs off once the pulse-stretch window has elapsed
     setInterval(renderLeds, 50);
+  }
+
+  // ================= preset band (Stage 4) — modules/preset-manager.js =========
+  // Constructor + EXPLICIT DOM refs for all six band elements, plus
+  // getNativeFunction — omitting it leaves the band rendered but silently
+  // inert. NEVER createPresetBar() (innerHTML-wipes, no delete button).
+  // This block runs LAST in the module script: the page is loaded in a
+  // visible WebView, so native-fn completions are not dropped
+  // (a hidden view drops them and initialize() would hang).
+  {
+    let deleteArmTimer = null;
+
+    // Two-click armed delete — first call arms the button and shows its
+    // data-confirm copy; a second call within 2.5 s confirms. Never
+    // window.confirm() — native confirm dialogs inside a JUCE WebView are
+    // unreliable. Button copy comes from data-label / data-confirm, never
+    // JS literals (pattern_js_state_updater_overwrites_html_labels).
+    const armedConfirmDelete = () => {
+      const btn = document.getElementById("preset-delete");
+      if (!btn) return false;
+
+      const disarm = () => {
+        if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
+        btn.dataset.armed = "0";
+        btn.textContent = btn.dataset.label || "Delete";
+      };
+
+      if (btn.dataset.armed === "1") {
+        disarm();
+        return true;          // second click within the window — confirmed
+      }
+
+      btn.dataset.armed = "1";
+      btn.textContent = btn.dataset.confirm || "Confirm?";
+      deleteArmTimer = setTimeout(disarm, 2500);
+      return false;           // first click — armed only
+    };
+
+    const byId = (id) => document.getElementById(id);
+    const els = ["preset-prev", "preset-next", "preset-name",
+                 "preset-save", "preset-load", "preset-delete"].map(byId);
+
+    if (els.some((el) => !el)) {
+      console.error("Missing preset-band elements — preset band disabled");
+    } else {
+      const [prevEl, nextEl, nameEl, saveEl, loadEl, deleteEl] = els;
+
+      const presetManager = new PresetManager({
+        displayElement: nameEl,   // stays childless — _updateDisplay writes textContent
+        prevButton: prevEl,
+        nextButton: nextEl,
+        saveButton: saveEl,
+        loadButton: loadEl,
+        deleteButton: deleteEl,
+        getNativeFunction: Juce.getNativeFunction,
+        onConfirmDelete: () => armedConfirmDelete(),
+      });
+
+      // The band ships disabled in the markup. Un-disable only after
+      // initialize() resolves (native fns bound, first refresh done) — if
+      // the bridge never comes up, the buttons stay honestly disabled
+      // instead of enabled-but-inert.
+      presetManager.initialize().then(() => {
+        [prevEl, nextEl, saveEl, loadEl, deleteEl].forEach((el) => { el.disabled = false; });
+      });
+    }
   }
 </script>
 </body>

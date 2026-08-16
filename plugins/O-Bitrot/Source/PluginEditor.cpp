@@ -63,8 +63,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     hardEdgesRelay     = std::make_unique<juce::WebToggleButtonRelay>("HARD_EDGES");
     mixRelay           = std::make_unique<juce::WebSliderRelay>("MIX");
 
-    // 2. Create WebView with relay options (NO native functions in this plugin)
-    webView = std::make_unique<juce::WebBrowserComponent>(
+    // 2. Build WebView options: relays + the 10 preset native functions
+    auto options =
         juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
@@ -106,8 +106,159 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*clockFreeRateRelay)
             .withOptionsFrom(*seedRelay)
             .withOptionsFrom(*hardEdgesRelay)
-            .withOptionsFrom(*mixRelay)
-    );
+            .withOptionsFrom(*mixRelay);
+
+    // ── PRESET NATIVE FUNCTIONS — 10 (Stage 4) ─────────────────────────────
+    // Exactly the names modules/preset-manager.js requests; the grep-diff
+    // parity gate runs at 10↔10. The synchronous eight capture `this`
+    // (completion never outlives the call). The two DIALOG fns defer their
+    // completion into a FileChooser callback: shared_ptr chooser captured
+    // into its own callback, SafePointer HOISTED to a local (MSVC rejects
+    // SafePointer(this) init-captures in nested lambdas), and on a dead
+    // editor the callback RETURNS — even complete(false) would UAF the dead
+    // WebView impl (pattern_webview_launchasync_safepointer_no_complete).
+    // Both dialog fns complete with {success, name} OBJECTS — the JS reads
+    // result.success / result.name; a bare bool reads as failure even when
+    // the file was written.
+
+    options = options.withNativeFunction("savePreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.savePreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    options = options.withNativeFunction("savePresetWithDialog",
+        [this](auto&, auto complete)
+        {
+            auto userDir = audioProcessor.presetManager.getUserPresetsDirectory();
+            userDir.createDirectory();
+
+            auto chooser = std::make_shared<juce::FileChooser>("Save Preset", userDir, "*.json");
+            juce::Component::SafePointer<OBitrotAudioProcessorEditor> safeThis(this);
+
+            chooser->launchAsync(
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete](const juce::FileChooser& fc)
+                {
+                    if (safeThis == nullptr)
+                        return;   // dead editor — never touch complete
+
+                    auto* result = new juce::DynamicObject();
+                    const auto results = fc.getResults();
+
+                    if (results.size() > 0)
+                    {
+                        // savePresetToFile HONORS the chosen path (the
+                        // O-DigiDelay bug was a dialog whose destination a
+                        // savePreset(name) call ignored).
+                        const auto file = results.getReference(0);
+                        const bool ok = safeThis->audioProcessor.presetManager.savePresetToFile(file);
+                        result->setProperty("success", ok);
+                        result->setProperty("name", file.getFileNameWithoutExtension());
+                    }
+                    else
+                    {
+                        result->setProperty("success", false);
+                        result->setProperty("name", juce::String());
+                    }
+
+                    complete(juce::var(result));
+                });
+        });
+
+    options = options.withNativeFunction("loadPreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.loadPreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    options = options.withNativeFunction("loadPresetFromFile",
+        [this](auto&, auto complete)
+        {
+            auto presetsDir = audioProcessor.presetManager.getPresetsDirectory();
+
+            auto chooser = std::make_shared<juce::FileChooser>("Load Preset", presetsDir, "*.json");
+            juce::Component::SafePointer<OBitrotAudioProcessorEditor> safeThis(this);
+
+            chooser->launchAsync(
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete](const juce::FileChooser& fc)
+                {
+                    if (safeThis == nullptr)
+                        return;   // dead editor — never touch complete
+
+                    auto* result = new juce::DynamicObject();
+                    const auto results = fc.getResults();
+
+                    if (results.size() > 0)
+                    {
+                        const auto file = results.getReference(0);
+                        const bool ok = safeThis->audioProcessor.presetManager.loadPresetFromFile(file);
+                        result->setProperty("success", ok);
+                        result->setProperty("name", file.getFileNameWithoutExtension());
+                    }
+                    else
+                    {
+                        result->setProperty("success", false);
+                        result->setProperty("name", juce::String());
+                    }
+
+                    complete(juce::var(result));
+                });
+        });
+
+    options = options.withNativeFunction("getPresetList",
+        [this](auto&, auto complete)
+        {
+            juce::Array<juce::var> list;
+            for (const auto& name : audioProcessor.presetManager.getPresetList())
+                list.add(juce::var(name));
+            complete(juce::var(list));
+        });
+
+    options = options.withNativeFunction("getCurrentPreset",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.presetManager.getCurrentPresetName()));
+        });
+
+    options = options.withNativeFunction("selectNextPreset",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.presetManager.getNextPreset()));
+        });
+
+    options = options.withNativeFunction("selectPreviousPreset",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.presetManager.getPreviousPreset()));
+        });
+
+    options = options.withNativeFunction("deletePreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.deletePreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    options = options.withNativeFunction("isFactoryPreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.isFactoryPreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    webView = std::make_unique<juce::WebBrowserComponent>(options);
 
     addAndMakeVisible(*webView);
 
@@ -250,6 +401,13 @@ OBitrotAudioProcessorEditor::getResource(const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("application/javascript")};
+    }
+
+    if (url == "/modules/preset-manager.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
             juce::String("application/javascript")};
     }
 
