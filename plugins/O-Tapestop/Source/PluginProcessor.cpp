@@ -200,8 +200,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout TapestopProcessor::createPar
 
 void TapestopProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused(samplesPerBlock);
-
     currentFs = sampleRate;
 
     // The ONLY allocation on any audio-adjacent path (PERF-01). processBlock
@@ -214,6 +212,19 @@ void TapestopProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     voices[0] = VarispeedVoice{};
     voices[1] = VarispeedVoice{};
 
+    // toneTrack: TPT one-pole, wet-path only. Prepared stereo; reset + first
+    // cutoff happen again at every engage edge.
+    {
+        juce::dsp::ProcessSpec spec;
+        spec.sampleRate       = sampleRate;
+        spec.maximumBlockSize = (juce::uint32) juce::jmax(1, samplesPerBlock);
+        spec.numChannels      = 2;
+        toneFilter.prepare(spec);
+        toneFilter.setType(juce::dsp::FirstOrderTPTFilterType::lowpass);
+        toneFilter.setCutoffFrequency((float) juce::jmin(20000.0, 0.47 * sampleRate));
+        toneFilter.reset();
+    }
+
     mixSmoothed.reset(sampleRate, 0.02);
     mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
     gainSmoothed.reset(sampleRate, 0.02);
@@ -224,6 +235,7 @@ void TapestopProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     // parameter as a fresh engage edge (research/ARCHITECTURE.md, Sample Rate
     // Handling).
     lastEngage = false;
+    tonePrimePending = false;
 
     // Zero latency — no setLatencySamples call anywhere (Stage-0 constraint).
 }
@@ -252,7 +264,8 @@ bool TapestopProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
     return true;
 }
 
-double TapestopProcessor::gestureDurationSamples(bool isStopGesture) const noexcept
+double TapestopProcessor::durationFromParams(const std::atomic<float>* divParam,
+                                             const std::atomic<float>* msParam) const noexcept
 {
     // SYNC_MODE choice index 0 = Sync, 1 = Free. Only the gesture-edge latch
     // reads this pair — mid-gesture flips are inert (latch contract).
@@ -260,14 +273,17 @@ double TapestopProcessor::gestureDurationSamples(bool isStopGesture) const noexc
 
     if (sync)
     {
-        const auto* divParam = isStopGesture ? pStopSyncDiv : pStartSyncDiv;
-        const int   div      = juce::jlimit(0, 6, (int) std::lround((double) divParam->load()));
-
+        const int div = juce::jlimit(0, 6, (int) std::lround((double) divParam->load()));
         return juce::jmax(1.0, kDivisionBeats[div] * (60.0 / currentBpm) * currentFs);
     }
 
-    const auto* msParam = isStopGesture ? pStopFreeMs : pStartFreeMs;
     return juce::jmax(1.0, (double) msParam->load() * 0.001 * currentFs);
+}
+
+double TapestopProcessor::gestureDurationSamples(bool isStopGesture) const noexcept
+{
+    return isStopGesture ? durationFromParams(pStopSyncDiv, pStopFreeMs)
+                         : durationFromParams(pStartSyncDiv, pStartFreeMs);
 }
 
 void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
@@ -306,8 +322,33 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     {
         if (engagedNow)
         {
-            const double curveP = std::exp2(2.0 * (double) pStopCurve->load() * 0.01);
-            transport.engage(gestureDurationSamples(true), curveP, voices, capture);
+            // toneTrack restarts wide open at every engage edge. The state is
+            // NOT reset to zero here: a TPT one-pole near Nyquist RINGS from
+            // zero state for a few samples (±0.1·x flutter — a P6 metric
+            // violation at the edge). Instead the first engaged sample PRIMES
+            // the state to the wet sample itself (aa-prime pattern), making
+            // the first filtered sample a bitwise pass-through — and the full
+            // state overwrite means nothing sticks across gestures (QUAL-01).
+            toneFilter.setCutoffFrequency((float) juce::jmin(20000.0, 0.47 * currentFs));
+            tonePrimePending = true;
+
+            // MODE is latched HERE (mid-gesture flips inert; disengaged
+            // switches touch nothing — the Bypassed path never looks at it).
+            const bool scratchMode = pMode->load() > 0.5f;
+
+            if (scratchMode)
+            {
+                // Scratch (FUNC-02): latch the envelope LUT pointer ONCE at
+                // this edge (load-acquire) and the pass length.
+                const auto* lut = scratchEnvelope.acquireLut();
+                transport.engageScratch(durationFromParams(pEnvSyncDiv, pEnvFreeMs),
+                                        lut->data(), voices, capture);
+            }
+            else
+            {
+                const double curveP = std::exp2(2.0 * (double) pStopCurve->load() * 0.01);
+                transport.engage(gestureDurationSamples(true), curveP, voices, capture);
+            }
         }
         else
         {
@@ -320,6 +361,10 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     mixSmoothed.setTargetValue(pMix->load() * 0.01f);
     gainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(pOutputGain->load()));
+
+    const double toneAmt = (double) pToneTrack->load() * 0.01;   // a ∈ [0, 1]
+    const double fcCeil  = juce::jmin(20000.0, 0.47 * currentFs);
+    bool engagedAny = false;
 
     // Capture is stereo-fixed; mono buses write/read channel 0 twice
     // (bounded by the BUFFER's channel count, never the layout's —
@@ -360,6 +405,8 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             if (! transport.isBypassed())
             {
+                engagedAny = true;
+
                 float wetL = voices[t.carrierIdx].read(capture, 0)   * t.carrierWetGain;
                 float wetR = voices[t.carrierIdx].read(capture, chR) * t.carrierWetGain;
 
@@ -372,6 +419,37 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     wetL = voices[t.fadingIdx].read(capture, 0)   * t.fadeOutGain + wetL * t.fadeInGain;
                     wetR = voices[t.fadingIdx].read(capture, chR) * t.fadeOutGain + wetR * t.fadeInGain;
                 }
+
+                // toneTrack (DSP-05): fc = 20000·(150/20000)^(a·(1−min(|r|,1))).
+                // a = 0 pins fc = fMax with NO conditional path (pow(x,0)=1);
+                // |r| > 1 clamps open. One pow + one tan only when the update
+                // fires on the ABSOLUTE 16-sample grid (totalWritten % 16 —
+                // never a per-block counter). Cutoff follows the CARRIER's r.
+                if ((capture.getTotalWritten() & 15) == 0)
+                {
+                    const double speed = juce::jmin(std::abs(t.carrierR), 1.0);
+                    const double fc    = 20000.0 * std::pow(150.0 / 20000.0,
+                                                            toneAmt * (1.0 - speed));
+                    toneFilter.setCutoffFrequency((float) juce::jmin(fc, fcCeil));
+                }
+
+                // Both voices pass through the same filter (wet-path only,
+                // engaged-only). Mono buses (chR == 0) filter once — a second
+                // processSample on channel 0 would double-advance its state.
+                if (tonePrimePending)
+                {
+                    // Prime ALL channel states to the first wet sample: the
+                    // TPT steady state for input x is s1 = x, so this sample
+                    // passes bitwise and no zero-state ring ever fires.
+                    // (Stereo caveat: R primes to L's value — a 2-sample
+                    // ~0.2·|R−L| flutter on decorrelated material, far below
+                    // the zero-state ring it replaces.)
+                    toneFilter.reset(wetL);
+                    tonePrimePending = false;
+                }
+
+                wetL = toneFilter.processSample(0, wetL);
+                wetR = (chR == 1) ? toneFilter.processSample(1, wetR) : wetL;
 
                 // MIX blend, then OUTPUT_GAIN last — ENGAGED CHAIN ONLY. The
                 // trim rides the transport's engaged-trim blend: it releases
@@ -396,6 +474,10 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         dL[n] = outL;
         dR[n] = outR;
     }
+
+    // Denormal hygiene on the TPT state while engaged (per-block, cheap).
+    if (engagedAny)
+        toneFilter.snapToZero();
 }
 
 juce::AudioProcessorEditor* TapestopProcessor::createEditor()
@@ -437,9 +519,10 @@ void TapestopProcessor::changeProgramName(int index, const juce::String& newName
 
 void TapestopProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    // Standard APVTS XML round-trip. Stage 2.3's scratchEnvelopeJson property
-    // rides this same ValueTree — nothing extra needed now.
+    // Standard APVTS XML round-trip; the drawn scratch envelope rides the
+    // same tree as ONE string property (NOT a parameter — not automatable).
     auto state = parameters.copyState();
+    state.setProperty("scratchEnvelopeJson", scratchEnvelope.toJson(), nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
@@ -448,8 +531,23 @@ void TapestopProcessor::getStateInformation(juce::MemoryBlock& destData)
 void TapestopProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xmlState = getXmlFromBinary(data, sizeInBytes))
+    {
         if (xmlState->hasTagName(parameters.state.getType()))
+        {
             parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+
+            // Envelope restore + bake (MESSAGE THREAD). Missing or invalid
+            // JSON falls back to the default wobble, silently — a Stage-1
+            // session with no property restores cleanly. The audio thread
+            // picks the LUT up at the next engage edge.
+            const juce::var blob = parameters.state.getProperty("scratchEnvelopeJson");
+
+            if (blob.isString())
+                scratchEnvelope.setFromJson(blob.toString());
+            else
+                scratchEnvelope.resetToDefault();
+        }
+    }
 }
 
 // This creates new instances of the plugin.

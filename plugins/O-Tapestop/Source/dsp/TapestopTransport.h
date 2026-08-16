@@ -101,11 +101,14 @@ public:
         Stopped,
         SpinUp,
         Catchup,
-        ResyncXfade
-        // Phase 2.3: ScratchPass
+        ResyncXfade,
+        ScratchPass
     };
 
     enum class SpliceLaw { EqualPower, Linear };
+
+    // Must match ScratchEnvelope::kLutSize (static_assert in PluginProcessor.h).
+    static constexpr int ScratchLutSize = 2048;
 
     static constexpr double kStopEps       = 0.001;
     static constexpr double kStoppedFadeMs = 10.0;
@@ -137,6 +140,10 @@ public:
         rFading  = 1.0;
         gFading  = 1.0f;
         catchupElapsed = 0;
+        scratchLut = nullptr;
+        scratchPos = 0;
+        scratchLenSamples = 1;
+        lastScratchR = 1.0;
     }
 
     State getState() const noexcept        { return state; }
@@ -193,6 +200,7 @@ public:
 
             case State::SpinDown:
             case State::Stopped:
+            case State::ScratchPass:
             default:
                 return;   // already engaged — a true edge cannot arrive here
         }
@@ -202,12 +210,46 @@ public:
         state = State::SpinDown;
     }
 
+    /** ENGAGE=true edge with MODE = Scratch (latched at the edge). Starts one
+        pass of the drawn envelope on the CARRIER voice IMMEDIATELY in every
+        state — an r slope change, never a position jump (FUNC-02). The LUT
+        pointer was load(acquire)d by the caller at this edge; edits mid-pass
+        affect the next pass only. A running crossfade continues untouched. */
+    void engageScratch (double envLengthSamples, const float* lut2048,
+                        VarispeedVoice* v, const CaptureBuffer& ring) noexcept
+    {
+        jassert (lut2048 != nullptr);
+
+        if (state == State::Bypassed)
+        {
+            v[carrier].active      = true;
+            v[carrier].readAbsFrac = (double) (ring.getTotalWritten() - 1);
+        }
+        // Every other state: the pass drives the carrier from its CURRENT
+        // position (mid-resync/mid-catchup/mid-ramp/Stopped re-engage).
+
+        scratchLut        = lut2048;
+        scratchLenSamples = juce::jmax (1, (int) std::lround (envLengthSamples));
+        scratchPos        = 0;
+        lastScratchR      = (double) lut2048[0];
+        state             = State::ScratchPass;
+    }
+
     /** ENGAGE=false edge (block header). Starts the spin-up from the current
         ratio (SpinDown reversal) or from 0 (Stopped). Applies the Stopped-
         hold debt clamp at SpinUp entry (CONTEXT decision 1). */
     void release (double durationSamples, double curveP,
                   VarispeedVoice* v, const CaptureBuffer& ring) noexcept
     {
+        // Scratch abort (FUNC-02): disengage mid-pass goes STRAIGHT to
+        // ResyncXfade — forcing the pass complete makes the next tick take
+        // the φ = 1 → resync path in its correct in-tick context.
+        if (state == State::ScratchPass)
+        {
+            scratchPos = scratchLenSamples;
+            return;
+        }
+
         double r0 = 0.0;
 
         switch (state)
@@ -224,6 +266,7 @@ public:
             case State::SpinUp:
             case State::Catchup:
             case State::ResyncXfade:
+            case State::ScratchPass:
             default:
                 return;   // already disengaged — a false edge cannot arrive here
         }
@@ -245,13 +288,14 @@ public:
 
     struct Tick
     {
-        int   carrierIdx;      // may have flipped THIS sample (resync entry)
-        float carrierWetGain;  // stopped-silence fade (exact 0.0f while parked)
-        float trimAmount;      // 0..1 — processor applies 1 + (g-1)*trimAmount
-        bool  xfActive;
-        int   fadingIdx;
-        float fadeOutGain;     // includes the fading voice's latched wet gain
-        float fadeInGain;
+        int    carrierIdx;      // may have flipped THIS sample (resync entry)
+        double carrierR;        // the ratio applied to the carrier this sample
+        float  carrierWetGain;  // stopped-silence fade (exact 0.0f while parked)
+        float  trimAmount;      // 0..1 — processor applies 1 + (g-1)*trimAmount
+        bool   xfActive;
+        int    fadingIdx;
+        float  fadeOutGain;     // includes the fading voice's latched wet gain
+        float  fadeInGain;
     };
 
     /** Advances one sample: state machine -> carrier ratio -> voice position
@@ -301,7 +345,7 @@ public:
 
                 if (debt <= kCatchupRatio || catchupElapsed > catchupCapSamples)
                 {
-                    enterResync (v, live);
+                    enterResync (v, live, kCatchupRatio);
                     r = 1.0;   // the rider (new carrier) advances at 1
                 }
                 break;
@@ -310,15 +354,55 @@ public:
             case State::ResyncXfade:
                 r = 1.0;   // rider: integer live read — bitwise dry
                 break;
+
+            case State::ScratchPass:
+            {
+                if (scratchPos >= scratchLenSamples)
+                {
+                    // φ = 1 (natural completion) or forced by a mid-pass
+                    // disengage — straight to ResyncXfade (no Catchup); the
+                    // fading scratch voice keeps its last speed (sign and
+                    // all) through the fade.
+                    enterResync (v, live, lastScratchR);
+                    r = 1.0;
+                    break;
+                }
+
+                // r = lut[φ·2047] with linear interp; r ∈ [−2, +2]. A sign
+                // flip is a palindrome corner (position stays continuous) —
+                // NOT a Stopped entry; the stop-fade never fires here.
+                const double phi  = (double) scratchPos / (double) scratchLenSamples;
+                const double fpos = phi * (double) (ScratchLutSize - 1);
+                const int    i0   = (int) fpos;
+                const int    i1   = juce::jmin (i0 + 1, ScratchLutSize - 1);
+                const double fr   = fpos - (double) i0;
+
+                r = (double) scratchLut[i0] + fr * ((double) scratchLut[i1] - (double) scratchLut[i0]);
+                lastScratchR = r;
+                ++scratchPos;
+                break;
+            }
         }
 
-        // Advance the carrier; never past the write head. The rider's
-        // position stays integer-valued (spawned at live-1, +1.0/sample), so
-        // its reads take the integer fast path — the DSP-03 null carrier.
-        v[carrier].readAbsFrac = juce::jmin (v[carrier].readAbsFrac + r, (double) live);
+        // Advance the carrier: never past the write head, and never further
+        // behind it than the ring can serve (release-build debt clamp at the
+        // SOURCE — keeps the stored position, and therefore the debt
+        // accessor, provably in bounds under full-reverse scratch and
+        // > kCaptureSeconds Stopped holds alike). At the lower rail the
+        // playhead rides the oldest valid material — specified behavior.
+        {
+            const double maxDebt = (double) ring.getBufferSize()
+                                 - (double) VarispeedVoice::kInterpGuard;
+
+            double pos = v[carrier].readAbsFrac + r;
+            pos = juce::jmin (pos, (double) live);
+            pos = juce::jmax (pos, (double) live - maxDebt);
+            v[carrier].readAbsFrac = pos;
+        }
 
         Tick out;
         out.carrierIdx  = carrier;
+        out.carrierR    = r;
         out.xfActive    = xfActive;
         out.fadingIdx   = fadingIdx;
         out.fadeOutGain = 0.0f;
@@ -339,9 +423,18 @@ public:
                 out.fadeInGain  = phi;
             }
 
-            // The fading voice keeps doing what it was doing (latched rate).
-            v[fadingIdx].readAbsFrac = juce::jmin (v[fadingIdx].readAbsFrac + rFading,
-                                                   (double) live);
+            // The fading voice keeps doing what it was doing (latched rate,
+            // sign included — an aborted reverse scratch keeps reversing
+            // through its fade-out). Same double-ended clamp as the carrier.
+            {
+                const double maxDebt = (double) ring.getBufferSize()
+                                     - (double) VarispeedVoice::kInterpGuard;
+
+                double pos = v[fadingIdx].readAbsFrac + rFading;
+                pos = juce::jmin (pos, (double) live);
+                pos = juce::jmax (pos, (double) live - maxDebt);
+                v[fadingIdx].readAbsFrac = pos;
+            }
 
             if (++xfPos >= xfLenSamples)
             {
@@ -381,11 +474,12 @@ public:
     }
 
 private:
-    void enterResync (VarispeedVoice* v, juce::int64 live) noexcept
+    /** Spawn the rider at the live head and start the skip crossfade. The old
+        carrier fades out continuing at `rLatchForFading` (catchup rate from
+        Stop mode; last scratch speed — sign included — from a scratch pass). */
+    void enterResync (VarispeedVoice* v, juce::int64 live, double rLatchForFading) noexcept
     {
-        // Old carrier fades out continuing at the catchup rate. (Phase 2.3's
-        // scratch abort latches the scratch rate here instead.)
-        startXfade (carrier, kCatchupRatio, wetFade, v);
+        startXfade (carrier, rLatchForFading, wetFade, v);
 
         const int rider = 1 - carrier;
         v[rider].active      = true;
@@ -434,6 +528,12 @@ private:
 
     int    catchupElapsed    = 0;
     int    catchupCapSamples = 1;
+
+    // Scratch pass (latched at the engage edge — LUT pointer, length).
+    const float* scratchLut      = nullptr;
+    int          scratchPos      = 0;
+    int          scratchLenSamples = 1;
+    double       lastScratchR    = 1.0;
 
     SpliceLaw spliceLaw = SpliceLaw::EqualPower;
     WindowLut hann;
