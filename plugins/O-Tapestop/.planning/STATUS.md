@@ -1,13 +1,13 @@
 ---
 plugin: O-Tapestop
-stage: 3
+stage: 4
 phase: research
 status: phase_complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plan stage 3 GUI (/plugin-plan O-Tapestop 3-gui)
+next_action: plan stage 4 polish (/plugin-plan O-Tapestop 4-polish)
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:40122fb710669e6d72ca3e5f058c367ed665e8d07e2d8185bb891977da65bedd
@@ -20,13 +20,14 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — research ✓ (2026-08-15) — stages/3-gui/RESEARCH.md
-Status: Stage 3 research complete — 860×580 frame (TRIGGER 180 / mode-switched CENTER 430 / OUTPUT 180); horizontal bipolar ratio bar + numeric readout at 30 Hz via one editor Timer emitting a transportFrame event; preset band ships disabled markup in 3.1, wired in Stage 4 (frame height final day one); instant .hidden mode switch; Stage 3 must add processor readback surface (getScratchEnvelopeJson, uiRatio/uiScratchPhase/uiState atomics, uiEnvGeneration) — harness re-run mandatory after touching PluginProcessor.cpp; next: plan phase
-Progress: [###############.....] 75%
+Stage: 4 (Polish) — research ✓ (2026-08-15) — stages/4-polish/RESEARCH.md
+Status: Stage 4 research complete — open questions resolved: envelope blob rides the module's setCustomStateCallbacks opaque hook (no schema extension; every factory preset must carry customState); preset band already shipped disabled in stage-3 UI (44px band, IDs match preset-manager.js — no layout work). Key findings: 10 native fns required incl. undocumented savePresetWithDialog returning {success,name}; constructor path not createPresetBar; keep session-state format untouched; module JS copy path needs relocation to ui/js/modules/; harness 47/47 re-run mandatory (processor TU changes); next: plan phase
+Progress: [##################..] 90%
 
 **Stage 1 phases:** discuss (skipped — no open questions; Stage-0 contracts + O-Bitrot precedent cover scope) → research ✓ → plan ✓ → execute ✓ → verify ✓ (stages/1-foundation/VERIFICATION.md)
 **Stage 2 phases:** discuss ✓ (stages/2-dsp/CONTEXT.md) → research ✓ (stages/2-dsp/RESEARCH.md) → plan ✓ (stages/2-dsp/PLAN.md) → execute ✓ (stages/2-dsp/SUMMARY.md) → verify ✓ (stages/2-dsp/VERIFICATION.md)
-**Stage 3 phases:** discuss ✓ (stages/3-gui/CONTEXT.md) → research ✓ (stages/3-gui/RESEARCH.md) → plan (next) → execute → verify
+**Stage 3 phases:** discuss ✓ (stages/3-gui/CONTEXT.md) → research ✓ (stages/3-gui/RESEARCH.md) → plan ✓ (stages/3-gui/PLAN.md) → execute ✓ (stages/3-gui/SUMMARY.md) → verify ✓ (stages/3-gui/VERIFICATION.md)
+**Stage 4 phases:** discuss ✓ (stages/4-polish/CONTEXT.md) → research ✓ (stages/4-polish/RESEARCH.md) → plan → execute → verify
 
 ## Completed So Far
 
@@ -47,8 +48,8 @@ Progress: [###############.....] 75%
 
 ## Next Steps
 
-1. Stage 3 plan (`/plugin-plan O-Tapestop 3-gui`) — task breakdown from RESEARCH.md recommendations
-2. Human DAW checks from VERIFICATION.md (splice on real program material, scratch aliasing character)
+1. Stage 4 plan (`/plugin-plan O-Tapestop 4-polish`) — task breakdown from stages/4-polish/RESEARCH.md (module wiring, 10 native fns, band un-disable, 8-preset factory bank, CHANGELOG, validation gate)
+2. Human checks from stages/3-gui/VERIFICATION.md (binding sweep, envelope interaction/persistence, DAW smoke) + stage-2 DAW listening checks — user-driven, NOT gating stage 4 (automated-only gate per CONTEXT.md)
 
 **Execute results (2026-08-15):** CMakeLists (OuariconTapestop/OTsp/0.1.0, WebView wired), 14-param APVTS exact to spec, guarded GenericAudioProcessorEditor; clean build both formats; memcmp bit-transparency PASS at 512+4096; state round-trip PASS; auval PASS; pluginval strictness 10 PASS on VST3 AND AU; installed via build-and-install.sh; gate 0→1 bypassed per documented pattern (logged)
 
