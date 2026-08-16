@@ -19,20 +19,20 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Engage param triggers spin-down; disengage triggers spin-up with resync to live audio | must | pending | stage-2 |
-| FUNC-02 | Stop and Scratch modes selectable; Scratch plays the drawn speed envelope once per engage | must | pending | stage-2 |
-| FUNC-03 | Stop/start times settable as tempo divisions (1/16–4 bars) or free ms (10 ms–8 s) via syncMode | must | pending | stage-2 |
-| FUNC-04 | Output is silent while fully stopped and engaged | should | pending | stage-2 |
+| FUNC-01 | Engage param triggers spin-down; disengage triggers spin-up with resync to live audio | must | complete (stage-2, 2026-08-15) | stage-2 |
+| FUNC-02 | Stop and Scratch modes selectable; Scratch plays the drawn speed envelope once per engage | must | complete (stage-2, 2026-08-15) | stage-2 |
+| FUNC-03 | Stop/start times settable as tempo divisions (1/16–4 bars) or free ms (10 ms–8 s) via syncMode | must | complete (stage-2, 2026-08-15) | stage-2 |
+| FUNC-04 | Output is silent while fully stopped and engaged | should | complete (stage-2, 2026-08-15) | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Varispeed playback (pitch+time coupled) over grain engine; no clicks across speed ramps or direction flips | must | pending | stage-2 |
-| DSP-02 | stopCurve/startCurve morph ramp shape linear↔exponential; default matches x² tape physics | must | pending | stage-2 |
-| DSP-03 | Spin-up uses fall-behind → accelerate → crossfade-skip resync; post-resync output is sample-aligned with dry | must | pending | stage-2 |
-| DSP-04 | Bipolar scratch envelope supports reverse playback | should | pending | stage-2 |
-| DSP-05 | toneTrack LPF tracks playback ratio with RT-safe coefficient updates | should | pending | stage-2 |
+| DSP-01 | Varispeed playback (pitch+time coupled) over grain engine; no clicks across speed ramps or direction flips | must | complete (stage-2, 2026-08-15) | stage-2 |
+| DSP-02 | stopCurve/startCurve morph ramp shape linear↔exponential; default matches x² tape physics | must | complete (stage-2, 2026-08-15) | stage-2 |
+| DSP-03 | Spin-up uses fall-behind → accelerate → crossfade-skip resync; post-resync output is sample-aligned with dry | must | complete (stage-2, 2026-08-15) | stage-2 |
+| DSP-04 | Bipolar scratch envelope supports reverse playback | should | complete (stage-2, 2026-08-15) | stage-2 |
+| DSP-05 | toneTrack LPF tracks playback ratio with RT-safe coefficient updates | should | complete (stage-2, 2026-08-15) | stage-2 |
 
 ### UI (UI)
 
@@ -45,7 +45,7 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | complete (stage-2, 2026-08-15) | stage-2 |
 
 ### Compatibility (COMPAT)
 
@@ -57,7 +57,7 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges; block-size invariant output | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges; block-size invariant output | must | complete (stage-2, 2026-08-15) | stage-2 |
 
 ## Acceptance Criteria Details
 

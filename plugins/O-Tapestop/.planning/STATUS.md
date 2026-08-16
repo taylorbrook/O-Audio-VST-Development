@@ -1,14 +1,14 @@
 ---
 plugin: O-Tapestop
 stage: 2
-phase: execute
-status: phase_complete
+phase: verify
+status: stage_complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: verify stage 2 (/plugin-verify O-Tapestop 2-dsp)
-next_stage: 2
+next_action: start stage 3 GUI (/plugin-discuss O-Tapestop 3-gui)
+next_stage: 3
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:40122fb710669e6d72ca3e5f058c367ed665e8d07e2d8185bb891977da65bedd
@@ -21,12 +21,12 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 (DSP) — execute ✓ (2026-08-15)
-Status: Stage 2 execute complete — all 15 tasks / 3 phases done (2.1 `bae01154`, 2.2 `5c3a7cde`, 2.3 `a6e0cf85`); render harness 47/47 probes exit 0; equal-power splice ships (A/B evidence in NOTES.md); all 14 params wired; PERF-01 audit clean; next: verify phase
-Progress: [#############.......] 62%
+Stage: 2 (DSP) — VERIFIED ✓ (2026-08-15) — stages/2-dsp/VERIFICATION.md
+Status: Stage 2 complete — all 11 stage-2 requirements verified (FUNC-01..04, DSP-01..05, PERF-01, QUAL-01); harness independently re-run at verify: 47/47 probes exit 0; independent allocation/lock grep clean; next: Stage 3 (GUI)
+Progress: [##############......] 70%
 
 **Stage 1 phases:** discuss (skipped — no open questions; Stage-0 contracts + O-Bitrot precedent cover scope) → research ✓ → plan ✓ → execute ✓ → verify ✓ (stages/1-foundation/VERIFICATION.md)
-**Stage 2 phases:** discuss ✓ (stages/2-dsp/CONTEXT.md) → research ✓ (stages/2-dsp/RESEARCH.md) → plan ✓ (stages/2-dsp/PLAN.md) → execute ✓ (stages/2-dsp/SUMMARY.md) → verify ← next
+**Stage 2 phases:** discuss ✓ (stages/2-dsp/CONTEXT.md) → research ✓ (stages/2-dsp/RESEARCH.md) → plan ✓ (stages/2-dsp/PLAN.md) → execute ✓ (stages/2-dsp/SUMMARY.md) → verify ✓ (stages/2-dsp/VERIFICATION.md)
 
 ## Completed So Far
 
@@ -47,8 +47,8 @@ Progress: [#############.......] 62%
 
 ## Next Steps
 
-1. Stage 2 execute phase (`/plugin-execute O-Tapestop 2-dsp`)
-2. Create UI mockup (envelope editor is the design centerpiece; parameter set fixed — parameter-spec.md already promoted, mockup owns layout only)
+1. Stage 3 GUI (`/plugin-discuss O-Tapestop 3-gui`) — envelope editor is the design centerpiece; parameter set fixed (parameter-spec.md already promoted, mockup owns layout only)
+2. Human DAW checks from VERIFICATION.md (splice on real program material, scratch aliasing character)
 
 **Execute results (2026-08-15):** CMakeLists (OuariconTapestop/OTsp/0.1.0, WebView wired), 14-param APVTS exact to spec, guarded GenericAudioProcessorEditor; clean build both formats; memcmp bit-transparency PASS at 512+4096; state round-trip PASS; auval PASS; pluginval strictness 10 PASS on VST3 AND AU; installed via build-and-install.sh; gate 0→1 bypassed per documented pattern (logged)
 
