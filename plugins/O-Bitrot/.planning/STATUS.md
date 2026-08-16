@@ -1,14 +1,14 @@
 ---
 plugin: O-Bitrot
-stage: 3
-phase: execute
-status: complete
+stage: 4
+phase: discuss
+status: pending
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: verify_stage_3
+next_action: discuss_stage_4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -21,12 +21,12 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — execute phase ✓ complete
-Status: SUMMARY.md created — 14/14 tasks; WebView UI 900×620 live (mockup v1 finalized);
-31 params two-way bound; dice/clock-swap/dimming/LED bridge working; harness 44/44 after
-processor telemetry edits; auval + pluginval s10 ×3 pass; installed. DAW LED/listening
-checks carried to verify.
-Progress: [################>...] 80%
+Stage: 3 of 4 (GUI) — ✓ VERIFIED; Stage 4 (Polish) next
+Status: VERIFICATION.md — ✅ VERIFIED; UI-01/UI-02 complete; independent re-runs this
+session: harness 44/44, pluginval s10 SUCCESS, build current, texture md5 + provenance,
+31-relay audit diff-identical to spec, native-fn grep-diff clean. Manual DAW LED/listening
+items carried (non-blocking) to the Stage-4 session.
+Progress: [#################>..] 85%
 
 ## Phase Progress
 
@@ -37,7 +37,7 @@ Progress: [################>...] 80%
 | research | ✓ | 2026-08-15 | RESEARCH.md — LED bridge: timer + emitEventIfBrowserIsVisible + atomic mask (reject native-fn polling); per-family semantics (Vinyl/Packet need 1-line accessors; Codec/Crush JS-only); 31-param relay map; clean-texture md5 gate; harness re-run required after processor edits |
 | plan | ✓ | 2026-08-15 | PLAN.md — 14 tasks / 3 phase gates; LED bridge folded into 3.3; mockup is Phase 3.1 entry; harness re-run is Task 13 gate |
 | execute | ✓ | 2026-08-15 | SUMMARY.md — 14/14 tasks; mockup v1 finalized; 31 relays/attachments; LED bridge (atomic mask + 30 Hz emit); dice/swap/dimming verified headless + Standalone; harness 44/44 ×2; auval + pluginval s10 ×3; installed. One justified deviation: vinyl LED bit = isLocked() ‖ popActive() (plan's popLevel test would latch) |
-| verify | | | |
+| verify | ✓ | 2026-08-15 | VERIFICATION.md — ✅ VERIFIED; UI-01/UI-02 complete; independent harness 44/44 + pluginval s10 + relay/ID audit + md5/provenance gates; vinyl-LED deviation accepted; DAW LED/listening items carried to Stage 4 (non-blocking) |
 
 ### Stage 2: DSP
 | Phase | Status | Date | Notes |
@@ -77,11 +77,11 @@ Progress: [################>...] 80%
 
 ## Next Steps
 
-1. Stage 3 verify — `/plugin-verify O-Bitrot 3-gui`
-2. Manual DAW items for the verify session (need audio + Logic): per-family LED semantics
+1. Stage 4 (Polish) discuss — `/plugin-discuss O-Bitrot 4-polish`
+2. Manual DAW items for the Stage-4 session (need audio + Logic): per-family LED semantics
    soloed; dice/seed persistence in a project; sync-mode clocking; Stage-2 carried
    listening items (Logic smoke, MIX 50%/0% + HARD_EDGES, ENV_AMT voicing, Standalone
-   SEED persistence)
+   SEED persistence); optional EB Garamond woff2 bundling
 
 ## Context to Preserve
 

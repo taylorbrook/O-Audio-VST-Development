@@ -6,6 +6,7 @@ plugin: O-Bitrot
 created: 2026-08-14
 lastUpdated: 2026-08-15
 stage2Verified: 2026-08-15
+stage3Verified: 2026-08-15
 ---
 
 ## Overview
@@ -44,8 +45,8 @@ stage2Verified: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Six per-module panels plus global strip (clock, seed/dice, hard edges, mix) | should | pending | stage-3 |
-| UI-02 | Reseed dice button and clock sync/free toggle | should | pending | stage-3 |
+| UI-01 | Six per-module panels plus global strip (clock, seed/dice, hard edges, mix) | should | complete | stage-3 |
+| UI-02 | Reseed dice button and clock sync/free toggle | should | complete | stage-3 |
 
 ### Performance (PERF)
 
