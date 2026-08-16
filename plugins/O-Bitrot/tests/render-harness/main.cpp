@@ -65,6 +65,19 @@
                                 bit-identical fresh-instance renders; plus
                                 all-fire ragged-blocksize bit-identity.
 
+    Probes (Phase 2.3: packet loss):
+
+      O  DSP-04 GE statistics — 60 s render, Silence concealment: lost
+                                packets detected from OUTPUT RMS on the
+                                packet grid; run-length statistics match the
+                                geometric expectation (ratio bounds).
+      P  DSP-04 concealment   — four modes pairwise distinct on a periodic
+                                input; Substitute==Decay prints an explicit
+                                FLAG (auto-degrade) instead of silently
+                                passing.
+      Q  QUAL-02 packet grid  — 512-vs-4096 + ragged bit-identity with the
+                                packet stage ACTIVE (high loss, fixed seed).
+
     Conventions (all have shipped-bug war stories):
       * position-deterministic noiseAt(n) — NEVER a sequential RNG
         (pattern_rng_stream_interleave_blocksize);
@@ -500,7 +513,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI juceInit;
 
     const int kComp = (int) std::ceil (0.020 * kFs);   // 960 @ 48 kHz
-    std::printf ("O-Bitrot render-harness (Phases 2.1 + 2.2) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
+    std::printf ("O-Bitrot render-harness (Phases 2.1-2.3) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
 
     //==========================================================================
     // A — latency reported once, equal to ceil(0.020 * fs).
@@ -1307,6 +1320,196 @@ int main()
             check ("N all-fire-ragged", identical && live,
                    (identical ? juce::String ("512 vs 1,7,64,333,4096: bit-identical under all-fire")
                               : firstDifference (outA, outC))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+    }
+
+    //==========================================================================
+    // O — DSP-04 Gilbert-Elliott statistics. 60 s render, Silence
+    // concealment, transports off: lost packets are detected from the OUTPUT
+    // (packet-aligned RMS windows that collapse), never by peeking internal
+    // state. With PACKET_LOSS 40 / PACKET_BURST 30: piB = 0.24,
+    // E[B] = 3.1 => pBG = 0.3226, and the lost-run continuation probability
+    // r = P(next lost | lost) ~= 0.325 (state-weighted: 0.5(1-pBG) + ...).
+    // Ratio bounds are generous but reject gross mapping errors (an inverted
+    // burst mapping reads r ~= 0.9; no burstiness reads N2 ~= 0).
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",    0.0f);
+        setParam (*p, "CD_ENABLE",      0.0f);
+        setParam (*p, "VINYL_ENABLE",   0.0f);
+        setParam (*p, "PACKET_ENABLE",  1.0f);
+        setParam (*p, "PACKET_CONCEAL", 0.0f);   // Silence
+        setParam (*p, "PACKET_LOSS",    40.0f);
+        setParam (*p, "PACKET_BURST",   30.0f);
+        setParam (*p, "SEED",           4242.0f);
+
+        const int packetLen = (int) std::ceil (0.020 * kFs);   // grid, 960 @ 48k
+        const int total     = 3000 * packetLen;                // 60 s
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 4096 }, noiseStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        // Packet k occupies output [kComp + k*packetLen, ...); measure the
+        // middle (clear of the 3 ms boundary crossfades). Skip 25 packets of
+        // warmup (enable fade + latency).
+        std::vector<bool> lost;
+        for (int k = 25; ; ++k)
+        {
+            const int start = kComp + k * packetLen + 200;
+            const int len   = packetLen - 400;
+            if (start + len >= total)
+                break;
+
+            double e = 0.0;
+            for (int i = 0; i < len; ++i) { const double x = o[start + i]; e += x * x; }
+            lost.push_back (std::sqrt (e / len) < 0.05);
+        }
+
+        int numLost = 0, numRuns = 0, n1 = 0, n2 = 0, runLen = 0;
+        for (size_t i = 0; i < lost.size(); ++i)
+        {
+            if (lost[i])
+            {
+                ++numLost;
+                ++runLen;
+                if (runLen == 1)
+                    ++numRuns;
+            }
+            if ((! lost[i] || i + 1 == lost.size()) && runLen > 0)
+            {
+                if (runLen == 1) ++n1;
+                if (runLen == 2) ++n2;
+                runLen = 0;
+            }
+        }
+
+        const double lostFrac = (double) numLost / (double) juce::jmax ((size_t) 1, lost.size());
+        const double rHat     = numLost > 0 ? (double) (numLost - numRuns) / (double) numLost : -1.0;
+        const double n1n2     = n2 > 0 ? (double) n1 / (double) n2 : -1.0;
+
+        const bool live    = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool enough  = numRuns >= 100 && numLost >= 150;
+        const bool fracOk  = lostFrac >= 0.08 && lostFrac <= 0.18;          // expected 0.128
+        const bool rOk     = rHat >= 0.15 && rHat <= 0.50;                  // expected 0.325
+        const bool histOk  = n2 > 0 && n1n2 >= 1.5 && n1n2 <= 6.5;          // expected ~3.1
+
+        check ("O DSP-04 ge-statistics", live && enough && fracOk && rOk && histOk,
+               juce::String ((int) lost.size()) + " packets, lostFrac "
+                   + juce::String (lostFrac, 3) + " (exp 0.128, [0.08,0.18]), r^ "
+                   + juce::String (rHat, 3) + " (exp 0.325, [0.15,0.50]), N1/N2 "
+                   + juce::String (n1n2, 2) + " (exp 3.1, [1.5,6.5]), runs "
+                   + juce::String (numRuns)
+                   + (enough ? "" : " — TOO FEW LOSSES, probe vacuous"));
+    }
+
+    //==========================================================================
+    // P — DSP-04 concealment distinctness. Same seed/schedule (the loss
+    // pattern is independent of PACKET_CONCEAL — the chain draws
+    // unconditionally), periodic input: the four modes must render pairwise
+    // distinct. Substitute may auto-degrade to Decay when AMDF finds no
+    // periodicity — on a clean sine it must not, but if it does, FLAG
+    // explicitly and pass on 3-distinct (PLAN: never silently pass).
+    {
+        auto render = [&] (int concealMode, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",    0.0f);
+            setParam (*p, "CD_ENABLE",      0.0f);
+            setParam (*p, "VINYL_ENABLE",   0.0f);
+            setParam (*p, "PACKET_ENABLE",  1.0f);
+            setParam (*p, "PACKET_CONCEAL", (float) concealMode);
+            setParam (*p, "PACKET_LOSS",    60.0f);
+            setParam (*p, "PACKET_BURST",   60.0f);
+            setParam (*p, "SEED",           4242.0f);
+            renderInto (*p, out, total, { 512 }, sineStereo);
+        };
+
+        const int total = 192000;   // 4 s
+        juce::AudioBuffer<float> modes[4];
+        for (int m = 0; m < 4; ++m)
+            render (m, modes[m], total);
+
+        bool   pairOk[4][4] = {};
+        double subVsDecay   = 0.0;
+        bool   allOthers    = true;
+
+        for (int a2 = 0; a2 < 4; ++a2)
+        {
+            for (int b2 = a2 + 1; b2 < 4; ++b2)
+            {
+                const double d = maxAbsDiff (modes[a2], modes[b2]);
+                pairOk[a2][b2] = d > 1.0e-3;
+
+                if (a2 == 2 && b2 == 3)
+                    subVsDecay = d;
+                else if (! pairOk[a2][b2])
+                    allOthers = false;
+            }
+        }
+
+        const bool live       = modes[0].getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool subDistinct = pairOk[2][3];
+
+        if (! subDistinct)
+            std::printf ("  [FLAG] Substitute degraded to Decay on the sine test signal "
+                         "(AMDF found no periodicity) — DSP-04 'four audibly distinct "
+                         "modes' needs verify re-scope.\n");
+
+        check ("P DSP-04 conceal-distinct", live && allOthers,
+               juce::String (subDistinct ? "4 modes pairwise distinct"
+                                         : "3 modes distinct + Substitute==Decay FLAGGED")
+                   + ", Substitute-vs-Decay maxAbsDiff " + juce::String (subVsDecay, 5)
+                   + (allOthers ? "" : " — NON-SUBSTITUTE PAIR IDENTICAL (loss dead or "
+                                       "modes not reaching DSP)"));
+    }
+
+    //==========================================================================
+    // Q — QUAL-02 with the packet grid ACTIVE: high loss + Decay concealment
+    // + all transport families rolling, across block-size regimes.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 10.0f);
+            setParam (proc, "TAPE_PROB",       50.0f);
+            setParam (proc, "CD_PROB",         50.0f);
+            setParam (proc, "VINYL_PROB",      50.0f);
+            setParam (proc, "PACKET_ENABLE",   1.0f);
+            setParam (proc, "PACKET_LOSS",     60.0f);
+            setParam (proc, "PACKET_BURST",    50.0f);
+            setParam (proc, "PACKET_CONCEAL",  2.0f);   // Decay
+            setParam (proc, "SEED",            777.0f);
+        };
+
+        const int total = 32768;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+        auto c = makeProc();  configure (*c);
+
+        juce::AudioBuffer<float> outA, outB, outC;
+        renderInto (*a, outA, total, { 512 },              noiseStereo);
+        renderInto (*b, outB, total, { 4096 },             noiseStereo);
+        renderInto (*c, outC, total, { 1, 7, 64, 333, 4096 }, noiseStereo);
+
+        {
+            const bool identical = bitIdentical (outA, outB);
+            const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("Q QUAL-02 packet-512-4096", identical && live,
+                   (identical ? juce::String ("packet grid active: bit-identical by memcmp")
+                              : firstDifference (outA, outB))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+
+        {
+            const bool identical = bitIdentical (outB, outC);
+            const bool live      = outC.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("Q QUAL-02 packet-ragged", identical && live,
+                   (identical ? juce::String ("packet grid active, ragged: bit-identical")
+                              : firstDifference (outB, outC))
                        + (live ? "" : " — SILENT, probe vacuous"));
         }
     }

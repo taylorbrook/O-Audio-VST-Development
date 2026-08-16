@@ -39,6 +39,7 @@
 #include "dsp/CDSkip.h"
 #include "dsp/VinylTransport.h"
 #include "dsp/Arbitration.h"
+#include "dsp/PacketLossStage.h"
 #include "dsp/CodecStage.h"
 
 class OBitrotAudioProcessor : public juce::AudioProcessor
@@ -143,8 +144,9 @@ private:
     CDSkip         cdSkip;           // Phase 2.2
     VinylTransport vinylTransport;   // Phase 2.2
     ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps
-    Arbitration    arbitration;
-    CodecStage     codecStage;
+    Arbitration     arbitration;
+    PacketLossStage packetStage;     // Phase 2.3: GE loss over its own 20 ms grid
+    CodecStage      codecStage;
 
     juce::dsp::DryWetMixer<float> dryWetMixer { kMaxWetLatencySamples };
 

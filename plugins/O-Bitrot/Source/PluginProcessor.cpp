@@ -379,6 +379,7 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     cdSkip.prepare(sampleRate);
     vinylTransport.prepare(sampleRate);
     artifactSynth.prepare(sampleRate);
+    packetStage.prepare(sampleRate, packetEnableParam->load() > 0.5f);
     codecStage.prepare(compLatencySamples);
 
     juce::dsp::ProcessSpec spec { sampleRate,
@@ -460,6 +461,16 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     arbParams.vinylRpmIndex = (int) vinylRpmParam->load();
     arbParams.vinylPop01    = vinylPopParam->load() * 0.01f;
 
+    // Packet stage per-block snapshot. The grid + GE chain run
+    // unconditionally (documented determinism convention in
+    // PacketLossStage.h); PACKET_ENABLE only gates audibility via a ~10 ms
+    // fade — off is bit-transparent.
+    packetStage.setParams(packetLossParam->load() * 0.01f,
+                          packetBurstParam->load() * 0.01f,
+                          (int) packetConcealParam->load(),
+                          packetEnableParam->load() > 0.5f,
+                          hardEdges);
+
     // Mid-event disable releases gracefully (ramp back / recovery jump /
     // stop re-jumping), never teleports.
     if (! arbParams.tapeEnabled)
@@ -540,7 +551,11 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         wetL += artifact;
         wetR += artifact;
 
-        // 7. Packet / Crush / Quant: unity until Phases 2.3 / 2.4.
+        // 7. Packet loss (own 20 ms grid, GE Markov, concealment). RNG
+        //    (packet stream) consumed only at packet boundaries.
+        packetStage.processSample(rngBank, wetL, wetR);
+
+        // 7b. Crush / Quant: unity until Phase 2.4.
 
         // 8. CodecStage: pure kCompLatency alignment delay until Phase 2.5.
         codecStage.processSample(wetL, wetR);
