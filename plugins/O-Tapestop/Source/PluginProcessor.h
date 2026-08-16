@@ -23,13 +23,20 @@
 
 #include <atomic>
 
+#include "dsp/CaptureBuffer.h"
+#include "dsp/VarispeedVoice.h"
+#include "dsp/TapestopTransport.h"
+
 // O-Tapestop — varispeed tapestop/tapestart + drawable-envelope scratch mode.
 //
-// Stage 1 (foundation): build system + full 14-parameter APVTS + stereo
-// bitwise pass-through shell. NO DSP — varispeed/transport/scratch land in
-// Stage 2. MIX and OUTPUT_GAIN exist as parameters but stay unwired; the
-// disengaged path must never touch samples (Stage-0 decision #6 — Stage 2's
-// null probes depend on bit-transparency here).
+// Stage 2 / Phase 2.1: 26 s capture ring + single interpolated varispeed
+// voice + Stop-mode transport (Free timing). The Bypassed state is a TRUE
+// hard pass-through — out = in with NO arithmetic, bitwise dry regardless of
+// MIX/OUTPUT_GAIN (Stage-0 decision #6; the DSP-03 null probes depend on
+// it — and the 0 dB "unity" trim is NOT exactly 1.0f after the APVTS
+// normalized round-trip, so it must never ride the bypass path). MIX and
+// OUTPUT_GAIN act on the engaged chain only. Resync (Catchup / ResyncXfade)
+// lands in Phase 2.2; scratch + toneTrack in Phase 2.3.
 //
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only
 // includes — the Stage-2 render harness compiles the processor with
@@ -68,6 +75,31 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    // ── Ring sizing (research/ARCHITECTURE.md "Ring Sizing", BINDING) ────────
+    // Worst-case debt growth is Scratch full-reverse: d(debt)/dt = 1 − r with
+    // r = −2 ⇒ 3 s of debt per second of pass. Over the longest gesture
+    // (STOP/START/ENV_FREE_MS max = kMaxGestureSeconds = 8 s) that is 24 s of
+    // debt; + 2 s margin = 26 s. The Stop-mode bound is smaller (spin-down 8 s
+    // ≤ 8 s debt; a full stop+start cycle ≤ ~16 s). Pre-history reads return
+    // the cleared ring's zeros, so the debt clamp's worst case (playing the
+    // oldest valid material) is safe even in the first 26 s after load.
+    // Memory cost: 26 s stereo float = 9.2 MB @ 44.1 kHz, 40 MB @ 192 kHz.
+    static constexpr double kMaxGestureSeconds = 8.0;   // freeMsRange() max derives from this
+    static constexpr double kCaptureSeconds    = (1.0 - (-2.0)) * kMaxGestureSeconds + 2.0;
+
+    static_assert(kCaptureSeconds >= 3.0 * kMaxGestureSeconds + 2.0,
+                  "capture ring must cover worst-case scratch full-reverse debt "
+                  "(3 s of debt per second over the longest gesture) plus margin");
+
+#if OUARICON_RENDER_HARNESS
+    // Harness-only debt inspection (probe P4, Phase 2.3; API stable from 2.1).
+    // Debt d = live head − voice position, in samples.
+    double getDebtSamplesForTest() const noexcept
+    {
+        return (double) (capture.getTotalWritten() - 1) - voiceA.readAbsFrac;
+    }
+#endif
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -89,6 +121,20 @@ private:
     std::atomic<float>* pToneTrack    = nullptr;
     std::atomic<float>* pMix          = nullptr;
     std::atomic<float>* pOutputGain   = nullptr;
+
+    // ── Stage-2 DSP state (Phase 2.1) ───────────────────────────────────────
+    // The ring is written every sample in EVERY state (including Bypassed) so
+    // an engage gesture always has history. The single voice A is the gesture
+    // carrier; voice B arrives with Phase 2.2's ResyncXfade.
+    CaptureBuffer     capture;
+    VarispeedVoice    voiceA;
+    TapestopTransport transport;
+
+    juce::SmoothedValue<float> mixSmoothed;    // MIX/100, 20 ms
+    juce::SmoothedValue<float> gainSmoothed;   // OUTPUT_GAIN dB → linear, 20 ms
+
+    double currentFs  = 48000.0;
+    bool   lastEngage = false;   // block-header ENGAGE edge detector
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TapestopProcessor)
 };
