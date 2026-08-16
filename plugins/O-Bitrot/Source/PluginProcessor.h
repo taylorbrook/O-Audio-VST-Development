@@ -76,6 +76,13 @@ public:
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
 
+    // UI activity telemetry (event LEDs). Bits 0-3: tape, cd, vinyl, packet.
+    // OR-accumulated per sample inside processBlock (short events survive any
+    // block size), published once per block; editor timer reads at 30 Hz.
+    enum ActivityBits { kTapeActive = 1, kCdActive = 2,
+                        kVinylActive = 4, kPacketActive = 8 };
+    std::atomic<uint32_t> uiActivityMask { 0 };
+
 private:
     // ------------------------------------------------------------------------
     // Cached parameter pointers (atomic, real-time safe).

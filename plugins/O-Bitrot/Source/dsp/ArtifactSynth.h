@@ -104,6 +104,9 @@ public:
         popAge = 0;
     }
 
+    // UI telemetry only: a pop impulse is being injected this-or-next sample.
+    bool popActive() const noexcept { return popAge >= 0; }
+
     // CD mute residual tick. Consumes 1 draw.
     void triggerTick (juce::Random& rng) noexcept
     {

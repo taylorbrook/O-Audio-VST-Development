@@ -1,0 +1,178 @@
+# O-Bitrot — UI Mockup v1 (design specification)
+# Aesthetic: Ouaricon Naturalist (ouaricon-naturalist-001)
+# Parameter IDs/types/ranges/defaults are BINDING from .planning/parameter-spec.md — do not alter.
+# Layout teaches the processing chain: top row = transport families (Tape → CD Skip → Vinyl),
+# bottom row = signal-chain families (Packet → Codec → Crush), global strip last.
+
+window:
+  width: 900
+  height: 620
+  resizable: false
+
+frame:
+  outer_border: "3px solid #5C4033"          # matted specimen frame
+  padding: 14                                 # content inset from frame
+  background:
+    texture: "img/paper.jpg"                  # aged paper, cover
+    tint: "rgba(245, 230, 211, 0.42)"         # warms/evens the photo texture
+
+header:
+  rect: { x: 14, y: 14, width: 872, height: 46 }
+  wordmark:
+    text: "O-Bitrot"
+    treatment: "Garamond serif, 26px, letter-spacing 3px, #3C2F2F, fleuron ❦ lead-in"
+  subtitle:
+    text: "OUARICON AUDIO · A CATALOGUE OF FAILING MEDIA · PLATE XLVII"
+    treatment: "9px small-caps, letter-spacing 2px, #5C4033"
+  rule: "double hairline (1px #8B7355 over 1px rgba(139,115,85,.35)) under header"
+
+specimen_overlay:
+  image: "img/specimen.webp"                  # Sowerby t.189, Coprinus comatus (deliquescing ink-caps)
+  # Ghosted BEHIND the panel grid, right-of-centre, bleeding off the right frame edge.
+  # Panels are semi-opaque paper so the plate reads in margins/gaps and faintly through panels;
+  # it never competes with control legibility.
+  placement: { right: -48, top: "54%", translateY: "-50%", height: "88%" }
+  opacity: 0.9
+  z: "above background, below panels"
+  pointer_events: none
+
+# ---------------------------------------------------------------- panel grid
+# 3 × 2 grid, 10px gutters. Column width 284, row height 209.
+panel_grid:
+  columns: 3
+  rows: 2
+  gutter: 10
+  panel_size: { width: 284, height: 209 }
+  panel_rects:
+    tape:   { x: 14,  y: 68,  width: 284, height: 209 }
+    cd:     { x: 308, y: 68,  width: 284, height: 209 }
+    vinyl:  { x: 602, y: 68,  width: 284, height: 209 }
+    packet: { x: 14,  y: 287, width: 284, height: 209 }
+    codec:  { x: 308, y: 287, width: 284, height: 209 }
+    crush:  { x: 602, y: 287, width: 284, height: 209 }
+
+panel_style:
+  background: "rgba(250, 240, 230, 0.66)"     # translucent paper — specimen ghosts through
+  border: "2px solid #8B7355"
+  inner_rule: "1px rgba(139,115,85,.35) inset 3px"   # naturalist plate double-rule
+  radius: 6
+  padding: "8px 12px 10px"
+  shadow: "2px 3px 8px rgba(0,0,0,0.18)"
+  header:
+    caption_style: "small-caps Garamond, 11px, letter-spacing 1.5px, #5C4033"
+    led:                                       # spore-print event mark, not a hardware LED
+      size: 9
+      active: "radial #8BA870 core with 6px moss glow (box-shadow 0 0 6px rgba(139,168,112,.8)), slow 3s pulse"
+      idle: "#8B7355 at 30% opacity, no glow"
+    enable_toggle: "right-aligned 40×20 green botanical toggle (see states)"
+
+states:
+  panel_enabled: "full opacity; LED active"
+  panel_disabled: "panel body dimmed to 0.45 opacity + pointer-events none; header caption dims; enable toggle stays 1.0 opacity and clickable; LED idle"
+  defaults_shown_in_mockup: "Tape/CD/Vinyl enabled; Packet/Codec/Crush disabled (per spec defaults)"
+
+knobs:
+  style: "Ouaricon botanical seed cross-section — 10-segment conic (F5DEB3/E8D5B7, 8B7355 dividers), C9A27B outer ring, FFF8DC core, 2px 8B7355 border, dark-green stem indicator, −135°…+135° travel"
+  sizes:
+    panel: 58        # standard family-panel knob
+    crush: 50        # dense panel, two rows
+    mix: 56          # global strip
+    clock_free: 40   # mini knob in clock swap slot (44px-tall swap slot)
+  bipolar: "CRUSH_ENV_AMT gets a centre tick above the knob; indicator rests at 12 o'clock at 0"
+  readout: "every knob shows a 10px value readout beneath (production: SliderState.getScaledValue())"
+
+# ---------------------------------------------------------------- controls
+# type mapping: Float/Int → slider (knob rendering), Bool → toggle, Choice → combo
+controls:
+
+  # --- Tab. I — TAPE (enabled by default) -------------------------------
+  - { id: TAPE_ENABLE,    type: toggle, panel: tape, slot: header,  default: true,  label: "On" }
+  - { id: TAPE_PROB,      type: slider, panel: tape, slot: body-1,  range: [0.0, 100.0],   default: 25.0,  unit: "%",  label: "Prob",    knob: 58 }
+  - { id: TAPE_STOP_PROB, type: slider, panel: tape, slot: body-2,  range: [0.0, 100.0],   default: 10.0,  unit: "%",  label: "Stop",    knob: 58 }
+  - { id: TAPE_RAMP,      type: slider, panel: tape, slot: body-3,  range: [20.0, 500.0],  default: 150.0, unit: "ms", label: "Ramp",    knob: 58 }
+
+  # --- Tab. II — CD SKIP (enabled by default) ---------------------------
+  - { id: CD_ENABLE,      type: toggle, panel: cd,   slot: header,  default: true,  label: "On" }
+  - { id: CD_PROB,        type: slider, panel: cd,   slot: body-1,  range: [0.0, 100.0],   default: 25.0,  unit: "%",  label: "Prob",    knob: 58 }
+  - { id: CD_SEVERITY,    type: slider, panel: cd,   slot: body-2,  range: [0.0, 1.0],     default: 0.5,   unit: "",   label: "Severity", knob: 58 }
+  - { id: CD_SEGMENT,     type: slider, panel: cd,   slot: body-3,  range: [10.0, 400.0],  default: 100.0, unit: "ms", label: "Segment", knob: 58 }
+
+  # --- Tab. III — VINYL (enabled by default) ----------------------------
+  - { id: VINYL_ENABLE,   type: toggle, panel: vinyl, slot: header, default: true,  label: "On" }
+  - { id: VINYL_PROB,     type: slider, panel: vinyl, slot: body-1, range: [0.0, 100.0],   default: 25.0,  unit: "%",  label: "Prob",    knob: 58 }
+  - { id: VINYL_RPM,      type: combo,  panel: vinyl, slot: body-2, choices: ["33 1/3", "45"], default: 0, label: "Speed",
+      render: "two-segment toggle, UI glyphs 33⅓ / 45 (host strings stay ASCII)" }
+  - { id: VINYL_POP,      type: slider, panel: vinyl, slot: body-3, range: [0.0, 100.0],   default: 50.0,  unit: "%",  label: "Pop",     knob: 58 }
+
+  # --- Tab. IV — PACKET (disabled by default) ---------------------------
+  - { id: PACKET_ENABLE,  type: toggle, panel: packet, slot: header, default: false, label: "On" }
+  - { id: PACKET_LOSS,    type: slider, panel: packet, slot: body-1, range: [0.0, 100.0],  default: 20.0,  unit: "%",  label: "Loss",    knob: 58 }
+  - { id: PACKET_BURST,   type: slider, panel: packet, slot: body-2, range: [0.0, 100.0],  default: 30.0,  unit: "%",  label: "Burst",   knob: 58 }
+  - { id: PACKET_CONCEAL, type: combo,  panel: packet, slot: body-3, choices: ["Silence", "Repeat", "Decay", "Substitute"], default: 2, label: "Conceal",
+      render: "styled dropdown (paper field, walnut border, serif)" }
+
+  # --- Tab. V — CODEC (disabled by default) -----------------------------
+  - { id: CODEC_ENABLE,   type: toggle, panel: codec, slot: header, default: false, label: "On" }
+  - { id: CODEC_MODE,     type: combo,  panel: codec, slot: body-1, choices: ["Mu-law", "GSM"], default: 0, label: "Line",
+      render: "two-segment toggle, UI glyph μ-law / GSM (host strings stay ASCII)" }
+  - { id: CODEC_MIX,      type: slider, panel: codec, slot: body-2, range: [0.0, 100.0],   default: 100.0, unit: "%",  label: "Blend",   knob: 58 }
+
+  # --- Tab. VI — CRUSH (disabled by default; dense panel, 2 knob rows) --
+  - { id: CRUSH_ENABLE,   type: toggle, panel: crush, slot: header,  default: false, label: "On" }
+  - { id: CRUSH_BITS,     type: slider, panel: crush, slot: row1-1,  range: [1.0, 16.0],       default: 16.0,  unit: "bit", label: "Bits",   knob: 50 }
+  - { id: CRUSH_RATE,     type: slider, panel: crush, slot: row1-2,  range: [500.0, 20000.0],  default: 20000.0, unit: "Hz", label: "Rate",  knob: 50, skew: exponential }
+  - { id: CRUSH_JITTER,   type: slider, panel: crush, slot: row1-3,  range: [0.0, 100.0],      default: 0.0,   unit: "%",  label: "Jitter", knob: 50 }
+  - { id: CRUSH_ENV_AMT,  type: slider, panel: crush, slot: row2-1,  range: [-100.0, 100.0],   default: 0.0,   unit: "%",  label: "Env",    knob: 50, bipolar: true }
+  - { id: CRUSH_DITHER,   type: slider, panel: crush, slot: row2-2,  range: [0.0, 2.0],        default: 0.0,   unit: "LSB", label: "Dither", knob: 50 }
+
+  # --- GLOBAL strip ------------------------------------------------------
+  - { id: CLOCK_MODE,     type: combo,  panel: global, slot: clock-mode, choices: ["Sync", "Free"], default: 0, label: "Clock",
+      render: "two-segment toggle; ALSO drives the swap slot below it" }
+  - { id: CLOCK_SYNC_DIV, type: combo,  panel: global, slot: clock-swap, choices: ["1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1 bar"], default: 2, label: "Division",
+      render: "styled dropdown; visible ONLY when CLOCK_MODE = Sync" }
+  - { id: CLOCK_FREE_RATE, type: slider, panel: global, slot: clock-swap, range: [0.1, 20.0], default: 2.0, unit: "Hz", label: "Rate", knob: 40, skew: exponential,
+      render: "mini knob + Hz readout; visible ONLY when CLOCK_MODE = Free; 150ms crossfade swap" }
+  - { id: SEED,           type: slider, panel: global, slot: seed, range: [0, 9999], default: 0, unit: "", label: "Seed",
+      render: "engraved 4-digit ledger readout (0000) + reseed die button — carved-bone die glyph (⚄ family), click rolls a new SEED value; die face changes and readout pulses. UI trigger writes SEED, not a separate param." }
+  - { id: HARD_EDGES,     type: toggle, panel: global, slot: edges, default: false, label: "Hard Edges" }
+  - { id: MIX,            type: slider, panel: global, slot: mix, range: [0.0, 100.0], default: 100.0, unit: "%", label: "Mix", knob: 56,
+      render: "label + readout column at left of knob (horizontal cell — fits the 100px strip)" }
+
+global_strip:
+  rect: { x: 14, y: 506, width: 872, height: 100 }
+  style: "same panel treatment; caption 'Tab. VII — GLOBAL · CLOCK & PROVENANCE'"
+  layout: "horizontal flex — [clock group | rule | seed group | rule | hard edges | rule | mix], thin vertical rules rgba(139,115,85,.3) between groups"
+  clock_swap_affordance: "CLOCK_MODE segmented toggle sits directly above the swap slot; selecting Sync/Free crossfades (150ms opacity) between the division dropdown and the free-rate mini knob occupying the same slot"
+
+styling:
+  colors:
+    background: "#F5E6D3"
+    panel: "rgba(250, 240, 230, 0.66)"
+    border: "#8B7355"
+    frame: "#5C4033"
+    text: "#3C2F2F"
+    text_secondary: "#5C4033"
+    accent_green: "#8BA870"
+    green_mid: "#6B8E4E"
+    green_dark: "#3C5C1A"
+    green_darkest: "#2C3E10"
+    knob_ring: "#C9A27B"
+    knob_seg_a: "#F5DEB3"
+    knob_seg_b: "#E8D5B7"
+    knob_core: "#FFF8DC"
+  fonts:
+    primary: "'Garamond', 'EB Garamond', 'Times New Roman', serif"
+    labels: "9–11px uppercase, letter-spacing 0.5–1.5px"
+    title: "26px, letter-spacing 3px"
+
+notes:
+  - "31 parameters + reseed UI trigger; all IDs verbatim from binding parameter-spec.md."
+  - "Edge padding ≥14px everywhere; 10px gutters; panels internally use 12px side padding."
+  - "Disabled-by-default digital families shown dimmed in mockup to demonstrate state design."
+  - "CLOCK_FREE_RATE and CRUSH_RATE use exponential skew in the JS mock, matching spec."
+
+finalization:
+  status: finalized
+  date: 2026-08-15
+  approved_by: plugin-execute 3-gui (autonomous; all design decisions pre-locked in CONTEXT.md/PLAN.md)
+  window: 900x620 fixed

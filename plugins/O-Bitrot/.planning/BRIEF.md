@@ -91,9 +91,9 @@ Per-module control sections (explicit enable + parameters per family), not macro
 
 ## UI Concept
 
-**Layout:** Per-module sections — six labeled panels (Tape / CD / Vinyl / Packet / Codec / Crush) each with enable + its parameters, plus a global strip (clock, seed/dice, hard edges, mix).
-**Visual Style:** TBD in mockup phase.
-**Key Elements:** Reseed dice button; clock sync/free toggle.
+**Layout:** Finalized in mockup v1 (2026-08-15): fixed 900×620; 3×2 chain-ordered specimen-plate grid (Tab. I–VI: Tape / CD Skip / Vinyl top, Packet / Codec / Crush bottom) + Tab. VII global strip (clock, seed ledger + bone-die reseed, Hard Edges, Mix).
+**Visual Style:** Ouaricon Naturalist (`ouaricon-naturalist-001`) — aged paper (clean O-Tremolo texture), walnut/moss palette, small-caps plate captions, ghosted Sowerby *Coprinus comatus* plate (t. 189, public domain, provenance in `Source/ui/public/img/PROVENANCE.md`) behind the right column.
+**Key Elements:** Bone-die reseed button + 4-digit seed ledger; Sync/Free segmented toggle swapping division dropdown ↔ free-rate mini knob in a fixed slot; spore-print event LEDs per family panel (moss `#8BA870` active / ~30% brown idle); disabled panels dim to 0.45 with the enable tag still live; μ-law and 33⅓ glyphs rendered in HTML only (host strings stay ASCII).
 
 ## Use Cases
 
