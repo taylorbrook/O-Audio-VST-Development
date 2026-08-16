@@ -48,6 +48,44 @@ target_link_libraries(OBitrot
         juce::juce_recommended_warning_flags
 )
 
+# Vendored libgsm (GSM 06.10) — own C static lib with relaxed warnings so the
+# 1992 C sources never touch the plugin target's flags. License: TU-Berlin
+# permissive, recorded in NOTES.md + third_party/libgsm/COPYRIGHT.
+# SASR: signed arithmetic shift right (required, clang and MSVC both provide
+# it); NDEBUG stubs debug.c; NeedFunctionPrototypes=1 expands the P() macro
+# to ANSI prototypes (what makes it compile cleanly as C17, incl. MSVC).
+# Never WAV49 (MS-GSM packing) / FAST / USE_FLOAT_MUL / LTP_CUT.
+add_library(OBitrot_gsm STATIC
+    third_party/libgsm/src/add.c
+    third_party/libgsm/src/code.c
+    third_party/libgsm/src/debug.c
+    third_party/libgsm/src/decode.c
+    third_party/libgsm/src/long_term.c
+    third_party/libgsm/src/lpc.c
+    third_party/libgsm/src/preprocess.c
+    third_party/libgsm/src/rpe.c
+    third_party/libgsm/src/gsm_create.c
+    third_party/libgsm/src/gsm_decode.c
+    third_party/libgsm/src/gsm_destroy.c
+    third_party/libgsm/src/gsm_encode.c
+    third_party/libgsm/src/gsm_explode.c
+    third_party/libgsm/src/gsm_implode.c
+    third_party/libgsm/src/gsm_option.c
+    third_party/libgsm/src/gsm_print.c
+    third_party/libgsm/src/short_term.c
+    third_party/libgsm/src/table.c
+)
+target_include_directories(OBitrot_gsm PUBLIC third_party/libgsm/inc)
+target_compile_definitions(OBitrot_gsm PRIVATE SASR NDEBUG NeedFunctionPrototypes=1)
+if(MSVC)
+    target_compile_options(OBitrot_gsm PRIVATE /w)
+else()
+    target_compile_options(OBitrot_gsm PRIVATE -w)
+endif()
+set_target_properties(OBitrot_gsm PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_link_libraries(OBitrot PRIVATE OBitrot_gsm)
+
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OBitrot)
 
