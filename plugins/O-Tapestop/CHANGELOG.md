@@ -2,6 +2,39 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.2.0] — 2026-08-16
+
+### Changed
+- **Glitch character overhauled — sudden, extreme, dense.** Root cause of
+  the tame v1.1 sound: one event per grid cell, always full-cell length,
+  with a mostly-smooth palette (shaped dips, flat half-speed holds).
+  - **Sub-cell scheduling** — 1→4 event slots per cell unlock as CHAOS
+    rises past 0.4, and event lengths draw from {1, ½, ¼}×cell with short
+    bursts favored at high chaos: max-chaos Glitch is now a rapid-fire
+    barrage instead of one texture per cell.
+  - **New events** (unlock above CHAOS 0.5): dead-stop **freeze** (r = 0,
+    instant resume), **slam** (holds the +2× engine rail), square-wave
+    **chatter** (1 ± depth at 10–30 Hz), buffer-**shuffle** (spliced
+    back-jump of 1–4 cells, replaying recent audio), and stutter
+    **halving-roll** / **±2-semitone pitch-ramp** variants with per-event
+    random slice depth (event/2..event/8 — micro-buzz at the bottom).
+  - **Reverse-flick boosted** — chaos pushes the flick toward the −2 rail
+    (was capped at −depth).
+  - **Chaos remap** — tame-family weights fade 50 % as extremes ramp, so
+    the top quarter of CHAOS reads as mayhem, not decorated wobble.
+    CHAOS ≤ 0.4 keeps the v1.1 cadence; existing Glitch presets at high
+    chaos ("Glitch", "Total Meltdown") now sound substantially wilder.
+  - Debt safety unchanged: new events carry Δdebt signs in the exp bias
+    (shuffle capped at 2 s + hard-budget headroom); 3 s soft / 6 s
+    hard-snap budgets as before. Measured 40 s worst-case debt: 2.12 s.
+- Render harness 62 → 65 checks: new C-P0x max-chaos probes (two-instance
+  determinism, 512-vs-4096 bit-identity, post-release bitwise null with
+  the full v1.2 palette reachable); C-P6 glitch continuity bound
+  recalibrated from the r = 1.85 precedent to the ±2 rail (slam + ramped
+  stutter splices legitimately exceed the old bound: measured 0.0576 vs
+  old 0.0553 / new 0.0904 — click-detection power intact, a real click
+  sits ~10× above the new bound).
+
 ## [1.1.0] — 2026-08-16
 
 ### Added

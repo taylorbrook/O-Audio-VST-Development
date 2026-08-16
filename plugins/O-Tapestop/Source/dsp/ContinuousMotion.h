@@ -33,9 +33,15 @@
       Random  — Ornstein-Uhlenbeck octave stack (τ, τ/4, τ/16 — weights
                 1, 0.5·chaos, 0.25·chaos²), tanh excursion shaping, 20 Hz
                 post-LP so r stays C1 ("digital zipper" guard).
-      Glitch  — grid scheduler: one Bernoulli draw per cell (p = chaos²),
-                monophonic events (tapestop-dip, half-speed drag, speed-jump,
-                reverse-flick, stutter-repeat, resync-snap).
+      Glitch  — grid scheduler: monophonic events, one Bernoulli draw per
+                slot (p = chaos²; 1→4 slots per cell unlock as chaos rises
+                past 0.4, and event lengths shorten with chaos, so high
+                chaos is a rapid-fire barrage instead of one texture per
+                cell). Tame family from chaos 0 (tapestop-dip, half-speed
+                drag, speed-jump, stutter-repeat); extreme family unlocks
+                above 0.5 (reverse-flick, dead-stop freeze, +2-rail slam,
+                square-wave chatter, buffer-shuffle back-jump, stutter
+                halving-roll / pitch-ramp variants, resync-snap).
 
     CONTINUITY INVARIANT: r may step; position may not. Rate discontinuities
     are C1 corners (click-free — the ScratchPass palindrome-corner precedent),
@@ -50,7 +56,9 @@
     one-sided debt: selection weights carry exp(−λ·debt·sign) bias, debt-
     positive events are suppressed above kSoftDebtSeconds, and above
     kHardDebtSeconds a resync-snap splice is forced at the next boundary —
-    the safety mechanism doubles as an event type.
+    the safety mechanism doubles as an event type. The shuffle back-jump
+    adds position debt directly, so its amount is capped at 2 s AND the
+    remaining hard-budget headroom.
 
     DETERMINISM: three dedicated xorshift64* streams (noise / event-timing /
     event-pick — one stream per purpose, never shared), re-seeded from fixed
@@ -128,6 +136,8 @@ public:
         rCur = 1.0;
         cellLen = 1;
         cellPos = 0;
+        slotCount = 1;
+        slotLen = 1;
         eventActive = false;
         eventForcedSnap = false;
         eventType = 0;
@@ -135,6 +145,13 @@ public:
         eventTargetR = 1.0;
         sliceLen = slicePos = 0;
         sliceXf = 0;
+        stutterRate = stutterRateMult = 1.0;
+        stutterRoll = false;
+        chatterHalf = 1;
+        chatterAmp = 0.0;
+        shuffleAmount = 0.0;
+        shuffleXf = 0;
+        shuffleEmitted = false;
     }
 
     /** ENGAGE edge (audio thread). Latches character/targets and RE-SEEDS all
@@ -169,6 +186,7 @@ public:
 
         cellLen = (int) juce::jmax (2.0, periodCur);
         cellPos = 0;
+        recomputeSlots();
         eventActive = false;
         eventForcedSnap = false;
         samplesSinceJump = 1 << 30;
@@ -320,13 +338,14 @@ private:
 
     // ── Glitch ──────────────────────────────────────────────────────────────
     // Event types (Δdebt sign drives the selection bias):
-    enum EventType { evDip = 0, evHalf, evJumpUp, evReverse, evStutter, evSnap, evCount };
+    enum EventType { evDip = 0, evHalf, evJumpUp, evReverse, evStutter, evSnap,
+                     evFreeze, evSlam, evChatter, evShuffle, evCount };
 
     void tickGlitch (double debtSamples, Out& out) noexcept
     {
         const double debtSec = debtSamples / fs;
 
-        if (! eventActive && cellPos == 0)
+        if (! eventActive && cellPos % slotLen == 0)
             maybeStartEvent (debtSec);
 
         double rTarget = 1.0;
@@ -350,7 +369,35 @@ private:
 
                 case evHalf:    rTarget = 1.0 - 0.5 * depth01;  break;
                 case evJumpUp:  rTarget = 1.0 + depth01;        break;   // ≤ 2 by depth ≤ 1
-                case evReverse: rTarget = -depth01;             break;
+
+                case evReverse:   // chaos boosts the flick toward the −2 rail
+                    rTarget = -juce::jmin (2.0, depth01 * (1.0 + 2.0 * juce::jmax (0.0, chaos - 0.5)));
+                    break;
+
+                case evFreeze:  rTarget = 0.0;  break;   // dead stop, instant resume
+                case evSlam:    rTarget = 2.0;  break;   // hold the engine rail
+
+                case evChatter:  // square-wave 1 ± depth; the 2 ms slew keeps edges C1
+                    rTarget = ((eventPos / chatterHalf) & 1) != 0 ? 1.0 - chatterAmp
+                                                                  : 1.0 + chatterAmp;
+                    break;
+
+                case evShuffle:
+                {
+                    // Single back-jump through the splice path (same previous-
+                    // fade guard as stutter/snap); replays recent audio.
+                    rTarget = 1.0;
+                    if (! shuffleEmitted && samplesSinceJump >= lastXfLen)
+                    {
+                        out.jumpKind     = 1;             // loop back
+                        out.jumpAmount   = shuffleAmount;
+                        out.xfLen        = shuffleXf;
+                        lastXfLen        = shuffleXf;
+                        shuffleEmitted   = true;
+                        samplesSinceJump = 0;
+                    }
+                    break;
+                }
 
                 case evStutter:
                 {
@@ -361,7 +408,7 @@ private:
                     // audible amplitude step, caught by C-P6). slicePos keeps
                     // counting past sliceLen, so a deferred jump fires on the
                     // first clean sample.
-                    rTarget = 1.0;
+                    rTarget = stutterRate;
                     if (++slicePos >= sliceLen && samplesSinceJump >= lastXfLen)
                     {
                         slicePos       = 0;
@@ -370,6 +417,21 @@ private:
                         out.xfLen      = sliceXf;
                         lastXfLen      = sliceXf;
                         samplesSinceJump = 0;
+
+                        // Variants: halving roll shrinks the slice each repeat
+                        // (stops while ≥ 2 fades fit); pitch ramp walks the
+                        // repeat rate ±2 semitones per loop-back.
+                        if (stutterRoll)
+                        {
+                            const int minSlice = 2 * (int) std::lround (0.003 * fs);
+                            if (sliceLen / 2 >= minSlice)
+                            {
+                                sliceLen /= 2;
+                                sliceXf   = (int) juce::jlimit (0.003 * fs, 0.05 * fs,
+                                                                (double) sliceLen / 4.0);
+                            }
+                        }
+                        stutterRate = juce::jlimit (0.25, 2.0, stutterRate * stutterRateMult);
                     }
                     break;
                 }
@@ -404,6 +466,7 @@ private:
         {
             cellPos = 0;
             cellLen = (int) juce::jmax (2.0, periodTarget);   // per-cell latch
+            recomputeSlots();
         }
 
         // 2 ms rate slew: C1 corners → C2 (faint-tick guard on bright
@@ -419,36 +482,50 @@ private:
         out.r = r;
     }
 
+    void recomputeSlots() noexcept
+    {
+        // 1 slot ≤ chaos 0.4 (v1.1 cadence), then 2/3/4 as chaos rises —
+        // event DENSITY, not just event character, scales with chaos.
+        slotCount = 1 + (int) std::floor (3.0 * juce::jmax (0.0, chaos - 0.4) / 0.6);
+        slotLen   = juce::jmax (1, cellLen / slotCount);
+    }
+
     void maybeStartEvent (double debtSec) noexcept
     {
         // Hard budget: force the resync-snap regardless of the draw.
         if (debtSec > kHardDebtSeconds)
         {
-            startEvent (evSnap);
+            startEvent (evSnap, debtSec);
             eventForcedSnap = true;
             return;
         }
         eventForcedSnap = false;
 
-        if (nextUniform (timeRng) >= chaos * chaos)   // p(event) = chaos²
+        if (nextUniform (timeRng) >= chaos * chaos)   // p(event) = chaos² per slot
             return;
 
-        // Weights: tame events from chaos 0; extremes unlock above 0.5.
-        // Δdebt sign s: dip/half/reverse/stutter +1, jumpUp/snap −1; bias
-        // w·exp(−λ·debt·s) self-centres net drift (λ = 0.5 /s).
-        const double xGate = juce::jmax (0.0, chaos - 0.5) * 2.0;
-        const double lam   = 0.5;
-        const double bPos  = std::exp (-lam * debtSec);   // debt-positive events
-        const double bNeg  = std::exp ( lam * debtSec);   // debt-negative events
-        const bool   soft  = debtSec > kSoftDebtSeconds;
+        // Weights: tame events from chaos 0 (fading 50 % as chaos maxes);
+        // extremes unlock above 0.5 and ramp hard. Δdebt sign s: dip/half/
+        // reverse/stutter/freeze/shuffle +1, jumpUp/slam/snap −1, chatter
+        // rate-neutral; bias w·exp(−λ·debt·s) self-centres net drift
+        // (λ = 0.5 /s).
+        const double g    = juce::jmax (0.0, chaos - 0.5) * 2.0;
+        const double lam  = 0.5;
+        const double bPos = std::exp (-lam * debtSec);   // debt-positive events
+        const double bNeg = std::exp ( lam * debtSec);   // debt-negative events
+        const bool   soft = debtSec > kSoftDebtSeconds;
 
         double w[evCount];
-        w[evDip]     = (soft ? 0.0 : 1.0) * bPos;
-        w[evHalf]    = (soft ? 0.0 : 0.8) * bPos;
+        w[evDip]     = (soft ? 0.0 : 1.0 - 0.5 * g) * bPos;
+        w[evHalf]    = (soft ? 0.0 : 0.8 * (1.0 - 0.5 * g)) * bPos;
         w[evJumpUp]  = 0.6 * bNeg;
-        w[evReverse] = (soft ? 0.0 : 0.5 * xGate) * bPos;
-        w[evStutter] = (soft ? 0.0 : 1.0) * bPos;
-        w[evSnap]    = 0.3 * xGate * bNeg;
+        w[evReverse] = (soft ? 0.0 : 0.7 * g) * bPos;
+        w[evStutter] = (soft ? 0.0 : 1.0 + 0.5 * g) * bPos;
+        w[evSnap]    = 0.3 * g * bNeg;
+        w[evFreeze]  = (soft ? 0.0 : 0.9 * g) * bPos;
+        w[evSlam]    = 0.8 * g * bNeg;
+        w[evChatter] = (soft ? 0.0 : 0.8 * g);           // neutral: no debt bias
+        w[evShuffle] = (soft ? 0.0 : 0.9 * g) * bPos;
 
         double total = 0.0;
         for (double wi : w)
@@ -464,15 +541,18 @@ private:
             if (pick < 0.0) { type = i; break; }
         }
 
-        // Reverse below depth 0.4 would be a barely-negative crawl — retarget
-        // it as a dip (same debt sign, similar audible family).
-        if (type == evReverse && depth01 < 0.4)
-            type = evDip;
+        // Low-depth retargets: an extreme drawn at low depth would be a
+        // barely-audible crawl — swap to the same-debt-sign tame cousin
+        // (the v1.1 reverse→dip precedent).
+        if (type == evReverse && depth01 < 0.4)  type = evDip;
+        if (type == evFreeze  && depth01 < 0.3)  type = evHalf;
+        if (type == evSlam    && depth01 < 0.3)  type = evJumpUp;
+        if (type == evChatter && depth01 < 0.25) type = evHalf;
 
-        startEvent (type);
+        startEvent (type, debtSec);
     }
 
-    void startEvent (int type) noexcept
+    void startEvent (int type, double debtSec) noexcept
     {
         eventActive = true;
         eventType   = type;
@@ -480,14 +560,59 @@ private:
         eventLen    = juce::jmax (2, cellLen);
         snapEmitted = false;
 
+        // Event length: full cell at chaos 0 (v1.1 behavior); ½ and ¼
+        // fractions unlock with chaos so high-chaos events land as bursts.
+        // Snap keeps the full cell (it only waits for the fade guard).
+        if (type != evSnap)
+        {
+            const double wLong  = 1.0;
+            const double wMid   = 1.5 * chaos;
+            const double wShort = 2.2 * chaos * chaos;
+            double u = nextUniform (timeRng) * (wLong + wMid + wShort);
+            const double frac = u < wLong ? 1.0 : (u < wLong + wMid ? 0.5 : 0.25);
+            eventLen = juce::jmax (2, (int) ((double) cellLen * frac));
+        }
+
+        const double g = juce::jmax (0.0, chaos - 0.5) * 2.0;
+
         if (type == evStutter)
         {
-            // Slice = cell/4, spliced at clamp(slice/4, 3 ms, 50 ms); slice is
-            // kept ≥ 2 fades so a force-complete never carries real residual
-            // gain (the 2-voice pool stays structural).
-            sliceXf  = (int) juce::jlimit (0.003 * fs, 0.05 * fs, (double) cellLen / 16.0);
-            sliceLen = juce::jmax (2 * sliceXf, cellLen / 4);
+            // Slice = eventLen/2^k (k = 1..3 — deeper cuts read as micro-
+            // buzz), spliced at clamp(slice/4, 3 ms, 50 ms); slice is kept
+            // ≥ 2 fades so a force-complete never carries real residual
+            // gain (the 2-voice pool stays structural). Chaos-gated
+            // variants: halving roll, ±2-semitone-per-repeat pitch ramp.
+            const int k = 1 + (int) (nextUniform (pickRng) * 3.0);
+            const int slice = juce::jmax (2, eventLen >> k);
+            sliceXf  = (int) juce::jlimit (0.003 * fs, 0.05 * fs, (double) slice / 4.0);
+            sliceLen = juce::jmax (2 * sliceXf, slice);
+            if (eventLen < 2 * sliceLen)
+                eventLen = 2 * sliceLen;
             slicePos = 0;
+
+            const double uv = nextUniform (pickRng) * (1.0 + 1.8 * g);
+            stutterRoll     = uv >= 1.0 && uv < 1.0 + 0.9 * g;
+            const bool ramp = uv >= 1.0 + 0.9 * g;
+            stutterRate     = 1.0;
+            stutterRateMult = ! ramp ? 1.0
+                                     : (nextUniform (pickRng) < 0.5 ? 1.12246 : 1.0 / 1.12246);
+        }
+        else if (type == evChatter)
+        {
+            const double f = 10.0 + 20.0 * nextUniform (timeRng);   // 10–30 Hz
+            chatterHalf = juce::jmax (1, (int) std::lround (fs / (2.0 * f)));
+            chatterAmp  = juce::jlimit (0.0, 1.0, depth01);
+        }
+        else if (type == evShuffle)
+        {
+            // Back-jump 1–4 cells, capped at 2 s AND the remaining hard-
+            // budget headroom (a shuffle must never jump the debt past the
+            // snap rail). Too little headroom degrades to a plain hold.
+            const int m = 1 + (int) (nextUniform (timeRng) * 4.0);
+            const double headroom = juce::jmax (0.0, (kHardDebtSeconds - debtSec) * fs * 0.9);
+            shuffleAmount  = juce::jmin ((double) m * cellLen, 2.0 * fs, headroom);
+            shuffleXf      = (int) juce::jlimit (0.003 * fs, 0.05 * fs, (double) cellLen / 16.0);
+            shuffleEmitted = shuffleAmount < 2.0 * shuffleXf;
         }
     }
 
@@ -516,10 +641,18 @@ private:
 
     // Glitch scheduler
     int    cellLen = 1, cellPos = 0;
+    int    slotCount = 1, slotLen = 1;
     bool   eventActive = false, eventForcedSnap = false;
     int    eventType = 0, eventPos = 0, eventLen = 0;
     double eventTargetR = 1.0;
     int    sliceLen = 0, slicePos = 0, sliceXf = 0;
+    double stutterRate = 1.0, stutterRateMult = 1.0;
+    bool   stutterRoll = false;
+    int    chatterHalf = 1;
+    double chatterAmp = 0.0;
+    double shuffleAmount = 0.0;
+    int    shuffleXf = 0;
+    bool   shuffleEmitted = false;
     int    samplesSinceJump = 1 << 30;
     int    lastXfLen = 0;          // previous jump's fade length (jump guard)
     bool   snapEmitted = false;

@@ -46,7 +46,32 @@ Progress: [####################] 100%
 - Complexity score 5.0 (capped) → staged implementation (DSP 3 phases, GUI 3 phases)
 - ARCHITECTURE.md + ROADMAP.md + Stage-0 CONTEXT.md written
 
-## Active Improvement Plan — v1.1.0 "Continuous Mode" (approved 2026-08-16) — COMPLETE
+## Active Improvement Plan — v1.2.0 "Glitch Overhaul" (approved 2026-08-16) — COMPLETE
+
+All gates green 2026-08-16: harness 65/65, pluginval s10 VST3 ×2 + AU ×2 SUCCESS,
+auval SUCCEEDED, installed v1.2.0 both formats (Info.plists verified 1.2.0).
+
+Goal: Glitch character way crazier — sudden, extreme, denser. Scope: `ContinuousMotion.h`
+scheduler + event palette only; no new params (CHAOS is the mayhem knob), no UI changes.
+Baseline commit eae14f88 (v1.1.0); backup backups/O-Tapestop/v1.1.0/ verified.
+
+- [x] Task 1 — Sub-cell scheduling: 1→4 event slots/cell as chaos rises past 0.4;
+      event lengths drawn {1, ½, ¼}·cell, short favored at high chaos
+- [x] Task 2 — New events: freeze (r=0), slam (+2 rail), chatter (square 1±depth @ 10–30 Hz),
+      shuffle (back-jump 1–4 cells via jumpKind splice, capped 2 s + hard-budget headroom),
+      stutter variants (slice = event/2^k, halving roll, ±2-semitone pitch ramp),
+      reverse boosted to −depth·(1+xGate)
+- [x] Task 3 — Chaos remap: extreme weights ramp above 0.5, tame family fades 50%;
+      low-depth retargets (freeze→half, slam→jumpUp, chatter→half)
+- [x] Task 4 — Debt: new Δdebt signs in exp bias (freeze/shuffle/chatter-suppress +,
+      slam −); soft/hard budget unchanged (measured 40 s worst-case debt 2.12 s)
+- [x] Task 5 — Harness: C-P0x-glitch-max (determinism/blocksize/null at 100/100),
+      C-P6 glitch bound recalibrated to the ±2 rail (kP6BoundGlitch; measured 0.0576
+      vs old bound 0.0553 — recalibration was load-bearing, not precautionary)
+- [x] Task 6 — Ship: VERSION 1.2.0, CHANGELOG (high-chaos Glitch presets sound wilder),
+      build-and-install, pluginval s10 ×2 each format, auval
+
+## Previous Improvement Plan — v1.1.0 "Continuous Mode" (approved 2026-08-16) — COMPLETE
 
 All gates green 2026-08-16: harness 62/62, pluginval s10 VST3 x2 + AU x2 SUCCESS, auval SUCCEEDED,
 factory bank regenerated at 1.1.0 (14 presets, 19 params + customState each), installed v1.1.0.
