@@ -82,9 +82,14 @@
 
           <div class="pair-cell">
             <div class="pair-caption">Mode</div>
+            <!-- Three-way since v1.1. "Motion" is the UI face of the MODE
+                 choice "Continuous" — it matches the Motion Rate/Depth/Chaos
+                 knob family it reveals. -->
             <div class="segments" id="modeSegments" role="group" aria-label="Mode">
               <button type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true">Stop</button>
               <button type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false">Scratch</button>
+              <button type="button" class="segment" id="seg-mode-cont"    data-choice="2" aria-pressed="false"
+                      aria-label="Continuous motion">Motion</button>
             </div>
           </div>
 
@@ -218,6 +223,58 @@
               <div class="env-hint">
                 Drag points &#183; double-click to add<br />
                 alt-click removes &#183; drag a diamond to bend
+              </div>
+            </div>
+          </div>
+
+          <!-- Continuous pane (v1.1): CHARACTER segment stack | RATE time-slot
+               (Sync division / free Hz, gated by the global SYNC_MODE like
+               every other slot) | DEPTH and CHAOS knobs. Same instant .hidden
+               pane swap; both rate controls stay relay-bound at all times. -->
+          <div class="mode-pane hidden" id="pane-continuous">
+            <div class="stop-col">
+              <div class="col-caption">Character</div>
+              <div class="segments" id="characterSegments" role="group" aria-label="Character">
+                <button type="button" class="segment" id="seg-char-wobble" data-choice="0" aria-pressed="true">Wobble</button>
+                <button type="button" class="segment" id="seg-char-random" data-choice="1" aria-pressed="false">Random</button>
+                <button type="button" class="segment" id="seg-char-glitch" data-choice="2" aria-pressed="false">Glitch</button>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div class="col-caption">Rate</div>
+              <div class="time-slot">
+                <div class="slot-wrap" id="wrap-CONT_RATE_SYNC_DIV">
+                  <div class="select-cell">
+                    <select class="division-select" id="combo-CONT_RATE_SYNC_DIV" aria-label="Motion Rate"></select>
+                    <div class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-CONT_RATE_HZ">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-CONT_RATE_HZ" data-param="CONT_RATE_HZ"><div class="knob-stem"></div></div>
+                    <div class="knob-label">Rate</div>
+                    <div class="knob-value" id="val-CONT_RATE_HZ">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div class="col-caption">Motion</div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-CONT_DEPTH" data-param="CONT_DEPTH"><div class="knob-stem"></div></div>
+                <div class="knob-label">Depth</div>
+                <div class="knob-value" id="val-CONT_DEPTH">&#8212;</div>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div class="col-caption">&#8203;</div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-CONT_CHAOS" data-param="CONT_CHAOS"><div class="knob-stem"></div></div>
+                <div class="knob-label">Chaos</div>
+                <div class="knob-value" id="val-CONT_CHAOS">&#8212;</div>
               </div>
             </div>
           </div>

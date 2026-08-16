@@ -88,6 +88,7 @@
 #include <cmath>
 
 #include "CaptureBuffer.h"
+#include "ContinuousMotion.h"
 #include "VarispeedVoice.h"
 #include "WindowLut.h"
 
@@ -102,7 +103,8 @@ public:
         SpinUp,
         Catchup,
         ResyncXfade,
-        ScratchPass
+        ScratchPass,
+        ContinuousMotionState   // v1.1: r driven per sample by `motion`
     };
 
     enum class SpliceLaw { EqualPower, Linear };
@@ -122,6 +124,7 @@ public:
         xfLenSamples      = juce::jmax (2, (int) std::lround (kSkipXfadeMs  * 0.001 * sampleRate));
         catchupCapSamples = juce::jmax (1, (int) std::lround (kMaxCatchupMs * 0.001 * sampleRate));
         trimStep          = (float) (1.0 / (double) xfLenSamples);
+        motion.prepare (sampleRate);
         reset();
     }
 
@@ -144,6 +147,8 @@ public:
         scratchPos = 0;
         scratchLenSamples = 1;
         lastScratchR = 1.0;
+        motion.reset();
+        lastContinuousR = 1.0;
     }
 
     State getState() const noexcept        { return state; }
@@ -191,7 +196,7 @@ public:
                 // the SAME position via a 50 ms crossfade; the new ramp
                 // starts from r matched to 1.0 (u0 = 0). A at 1.25x and B at
                 // <=1x from the same origin skew <=12 ms across the fade.
-                startXfade (carrier, kCatchupRatio, wetFade, v);
+                startXfade (carrier, kCatchupRatio, wetFade, v, xfLenSamples);
 
                 const int newIdx = 1 - carrier;
                 v[newIdx].active      = true;
@@ -212,6 +217,7 @@ public:
             case State::SpinDown:
             case State::Stopped:
             case State::ScratchPass:
+            case State::ContinuousMotionState:
             default:
                 return;   // already engaged — a true edge cannot arrive here
         }
@@ -246,6 +252,38 @@ public:
         state             = State::ScratchPass;
     }
 
+    /** ENGAGE=true edge with MODE = Continuous (v1.1, latched at the edge).
+        Follows the engageScratch takeover contract: Bypassed spawns the
+        carrier at the live head; every other state drives the carrier from
+        its CURRENT position (an r change, never a position jump). A running
+        crossfade continues untouched. The generator re-seeds its RNG streams
+        here — every engage replays the same stochastic sequence. */
+    void engageContinuous (const ContinuousMotion::Params& mp,
+                           VarispeedVoice* v, const CaptureBuffer& ring) noexcept
+    {
+        if (state == State::Bypassed)
+        {
+            v[carrier].active      = true;
+            v[carrier].readAbsFrac = (double) (ring.getTotalWritten() - 1);
+        }
+
+        auto mpLatched = mp;
+        mpLatched.debtNowSamples = (double) (ring.getTotalWritten() - 1) - v[carrier].readAbsFrac;
+        motion.engage (mpLatched);
+
+        lastContinuousR = 1.0;
+        state           = State::ContinuousMotionState;
+    }
+
+    /** Live DEPTH/RATE updates while in Continuous mode (audio thread,
+        absolute 16-sample grid — the toneTrack cadence). Inert in every
+        other state. */
+    void setContinuousTargets (double mPeak, double depth01, double periodSamples) noexcept
+    {
+        if (state == State::ContinuousMotionState)
+            motion.setTargets (mPeak, depth01, periodSamples);
+    }
+
     /** ENGAGE=false edge (block header). Starts the spin-up from the current
         ratio (SpinDown reversal) or from 0 (Stopped). Applies the Stopped-
         hold debt clamp at SpinUp entry (CONTEXT decision 1). */
@@ -271,6 +309,15 @@ public:
 
             case State::Stopped:
                 r0 = 0.0;
+                break;
+
+            case State::ContinuousMotionState:
+                // Continuous release rides the FULL resync path (SpinUp →
+                // Catchup → ResyncXfade) so START time/curve shape the return
+                // and the debt clamp below applies. Mid-reverse (r < 0) seeds
+                // from 0 — a spin-up from stopped, speed-continuous enough
+                // behind the 2 ms glitch slew.
+                r0 = juce::jlimit (0.0, 1.0, lastContinuousR);
                 break;
 
             case State::Bypassed:
@@ -393,6 +440,30 @@ public:
                 ++scratchPos;
                 break;
             }
+
+            case State::ContinuousMotionState:
+            {
+                // The generator owns r; the transport owns POSITION. A
+                // requested jump (stutter loop-back / resync-snap) is executed
+                // here through the same 2-voice splice machinery as every
+                // other position discontinuity — r may step, P may not.
+                const double debt = (double) live - v[carrier].readAbsFrac;
+                const auto   mo   = motion.tick (debt);
+
+                if (mo.jumpKind != 0)
+                {
+                    const double target = (mo.jumpKind == 1)
+                        ? v[carrier].readAbsFrac - mo.jumpAmount   // loop back one slice
+                        : (double) live - mo.jumpAmount;           // snap toward the live head
+
+                    spliceCarrierTo (v, ring, target, lastContinuousR,
+                                     juce::jmax (2, mo.xfLen));
+                }
+
+                r = mo.r;
+                lastContinuousR = r;
+                break;
+            }
         }
 
         // Advance the carrier: never past the write head, and never further
@@ -421,7 +492,7 @@ public:
 
         if (xfActive)
         {
-            const float phi = (float) xfPos / (float) (xfLenSamples - 1);
+            const float phi = (float) xfPos / (float) (xfLenCur - 1);
 
             if (spliceLaw == SpliceLaw::EqualPower)
             {
@@ -447,7 +518,7 @@ public:
                 v[fadingIdx].readAbsFrac = pos;
             }
 
-            if (++xfPos >= xfLenSamples)
+            if (++xfPos >= xfLenCur)
             {
                 v[fadingIdx].active = false;
                 xfActive = false;
@@ -490,7 +561,7 @@ private:
         Stop mode; last scratch speed — sign included — from a scratch pass). */
     void enterResync (VarispeedVoice* v, juce::int64 live, double rLatchForFading) noexcept
     {
-        startXfade (carrier, rLatchForFading, wetFade, v);
+        startXfade (carrier, rLatchForFading, wetFade, v, xfLenSamples);
 
         const int rider = 1 - carrier;
         v[rider].active      = true;
@@ -499,7 +570,30 @@ private:
         state   = State::ResyncXfade;
     }
 
-    void startXfade (int idx, double rLatch, float gLatch, VarispeedVoice* v) noexcept
+    /** Continuous-mode position jump (stutter loop-back / resync-snap): the
+        same voice-swap-through-a-splice as enterResync, but the STATE does not
+        change — the fade completing while ContinuousMotionState never touches
+        Bypassed (the ResyncXfade guard in tick() sees to that). Target is
+        clamped to the ring's serviceable span before it lands in a voice. */
+    void spliceCarrierTo (VarispeedVoice* v, const CaptureBuffer& ring,
+                          double targetAbs, double rLatchForFading, int xfLen) noexcept
+    {
+        const juce::int64 live    = ring.getTotalWritten() - 1;
+        const double      maxDebt = (double) ring.getBufferSize()
+                                  - (double) VarispeedVoice::kInterpGuard;
+
+        targetAbs = juce::jmin (targetAbs, (double) live);
+        targetAbs = juce::jmax (targetAbs, (double) live - maxDebt);
+
+        startXfade (carrier, rLatchForFading, wetFade, v, xfLen);
+
+        const int rider = 1 - carrier;
+        v[rider].active      = true;
+        v[rider].readAbsFrac = targetAbs;
+        carrier = rider;
+    }
+
+    void startXfade (int idx, double rLatch, float gLatch, VarispeedVoice* v, int xfLen) noexcept
     {
         if (xfActive)
         {
@@ -515,6 +609,7 @@ private:
         rFading   = rLatch;
         gFading   = gLatch;
         xfPos     = 0;
+        xfLenCur  = juce::jmax (2, xfLen);
         xfActive  = true;
     }
 
@@ -533,7 +628,8 @@ private:
     bool   xfActive = false;  // skip-splice crossfade (orthogonal to state)
     int    fadingIdx = 1;
     int    xfPos    = 0;
-    int    xfLenSamples = 2;
+    int    xfLenSamples = 2;  // default 50 ms length (prepare)
+    int    xfLenCur = 2;      // THIS fade's length (stutter splices are shorter)
     double rFading  = 1.0;    // fading voice's latched rate
     float  gFading  = 1.0f;   // fading voice's latched wet gain
 
@@ -545,6 +641,11 @@ private:
     int          scratchPos      = 0;
     int          scratchLenSamples = 1;
     double       lastScratchR    = 1.0;
+
+    // Continuous mode (v1.1): per-sample rate generator + the last r it
+    // produced (release seed; latched fading rate for its own splices).
+    ContinuousMotion motion;
+    double           lastContinuousR = 1.0;
 
     SpliceLaw spliceLaw = SpliceLaw::EqualPower;
     WindowLut hann;

@@ -177,7 +177,7 @@ void setParam (TapestopProcessor& proc, const char* id, float engineeringValue)
         p->setValueNotifyingHost (p->convertTo0to1 (engineeringValue));
 }
 
-/** Resets ALL 14 parameters to the shipped defaults (createParameterLayout()).
+/** Resets ALL 19 parameters to the shipped defaults (createParameterLayout()).
     Traps: MIX neutral = 100 (not 0); ENGAGE explicitly forced OFF; the
     shipped SYNC_MODE default is Sync — probes that assert Free-ms timing must
     set SYNC_MODE = 1 explicitly after this. */
@@ -194,6 +194,11 @@ void setBaseline (TapestopProcessor& proc)
     setParam (proc, "START_CURVE",   50.0f);
     setParam (proc, "ENV_SYNC_DIV",   4.0f);   // 1 bar
     setParam (proc, "ENV_FREE_MS", 1000.0f);
+    setParam (proc, "CHARACTER",      0.0f);   // Wobble (v1.1)
+    setParam (proc, "CONT_RATE_SYNC_DIV", 2.0f);   // 1/4
+    setParam (proc, "CONT_RATE_HZ",   1.2f);
+    setParam (proc, "CONT_DEPTH",    35.0f);
+    setParam (proc, "CONT_CHAOS",    20.0f);
     setParam (proc, "TONE_TRACK",    60.0f);
     setParam (proc, "MIX",          100.0f);   // neutral is 100, NOT 0
     setParam (proc, "OUTPUT_GAIN",    0.0f);
@@ -1462,6 +1467,244 @@ int main()
         check ("scratch-mode-switch-silent", bad < 0,
                bad < 0 ? "48000 samples memcmp-equal to input"
                        : "first diff @" + juce::String (bad));
+    }
+
+    //==========================================================================
+    // ── v1.1 Continuous mode ─────────────────────────────────────────────────
+
+    // C-P0/P1a/P2 per character: determinism (two fresh instances bitwise),
+    // 512-vs-4096 bit-identity (this probe IS the enforcement of the seeded
+    // per-purpose RNG discipline), liveness (the engaged span must deviate
+    // from dry — a generator wired to nothing passes every other bound
+    // vacuously), and post-release bitwise dry through the full SpinUp →
+    // Catchup → ResyncXfade path. Edges at multiples of 4096.
+    {
+        const char* charNames[] = { "wobble", "random", "glitch" };
+
+        for (int c = 0; c < 3; ++c)
+        {
+            auto run = [c] (int blk)
+            {
+                TapestopProcessor p;
+                prepareAndSettle (p, blk);
+                setParam (p, "SYNC_MODE",    1.0f);   // Free
+                setParam (p, "MODE",         2.0f);   // Continuous
+                setParam (p, "CHARACTER",    (float) c);
+                setParam (p, "CONT_RATE_HZ", c == 2 ? 8.0f : 2.0f);   // glitch: 6000-sample cells
+                setParam (p, "CONT_DEPTH",  60.0f);
+                setParam (p, "CONT_CHAOS",  60.0f);
+                return renderTimeline (p, 122880, { blk },
+                                       { { 8192, "ENGAGE", 1.0f }, { 57344, "ENGAGE", 0.0f } },
+                                       noiseFill);
+            };
+
+            auto a = run (512);
+            auto b = run (512);
+            auto l = run (4096);
+
+            juce::String d0, d1;
+            const bool det = identicalVec (a.L, b.L, d0) && identicalVec (a.R, b.R, d1);
+
+            juce::String dL, dR;
+            const bool inv = identicalVec (a.L, l.L, dL) && identicalVec (a.R, l.R, dR);
+
+            double dev = 0.0;
+            for (int n = 16000; n < 50000; ++n)
+                dev = juce::jmax (dev, (double) std::abs (a.L[(size_t) n] - noiseFill (0, n)));
+
+            check ((juce::String ("C-P0-determinism-") + charNames[c]).toRawUTF8(),
+                   det && dev > 0.01,
+                   "runs " + d0 + "; engagedDev=" + juce::String (dev, 4));
+
+            check ((juce::String ("C-P1a-blocksize-") + charNames[c]).toRawUTF8(),
+                   inv, "L " + dL + "; R " + dR);
+
+            // Release @57344: spin-up ≤ 12000 (250 ms), catchup capped 12000,
+            // fade 2400 → dry well before 57344 + 32768.
+            const int bad = firstNonDry (a, noiseFill, 57344 + 32768, 122880);
+
+            check ((juce::String ("C-P2-null-after-release-") + charNames[c]).toRawUTF8(),
+                   bad < 0,
+                   bad < 0 ? "tail memcmp-equal to input"
+                           : "first diff @" + juce::String (bad));
+        }
+    }
+
+    // C-P4c: debt stays bounded under a LONG worst-case hold. Random at max
+    // depth/chaos random-walks its position debt (rate mean-reverts, the
+    // integral does not) — the ±0.2 % servo must pin it; Glitch's one-sided
+    // event debt must be recentred by the debt-biased scheduler + soft budget
+    // + hard resync-snap. 40 s spans ≫ every modulation period in play
+    // (pattern_metric_window_vs_modulation_period). Bound: hard budget (6 s)
+    // + one glitch cell + margin, and NEVER the ring rail (the rail is the
+    // pitch-snap artifact; measured against the ACTUAL allocated span —
+    // pattern_test_fixture_mirrors_drift_silently).
+    for (int c = 1; c <= 2; ++c)
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE",    1.0f);
+        setParam (p, "MODE",         2.0f);
+        setParam (p, "CHARACTER",    (float) c);
+        setParam (p, "CONT_RATE_HZ", c == 2 ? 8.0f : 4.0f);
+        setParam (p, "CONT_DEPTH", 100.0f);
+        setParam (p, "CONT_CHAOS", 100.0f);
+        setParam (p, "ENGAGE",       1.0f);
+
+        const int total = (int) (40.0 * kFs);
+        juce::AudioBuffer<float> block (2, 512);
+        juce::MidiBuffer midi;
+
+        double maxDebt = 0.0;
+        int    n       = 0;
+        bool   finite  = true;
+
+        while (n < total)
+        {
+            const int chunk = juce::jmin (512, total - n);
+            juce::AudioBuffer<float> view (block.getArrayOfWritePointers(), 2, chunk);
+
+            for (int s = 0; s < chunk; ++s)
+            {
+                view.setSample (0, s, noiseAt (n + s));
+                view.setSample (1, s, noiseAt (n + s + 7919));
+            }
+
+            p.processBlock (view, midi);
+            finite = finite && std::isfinite (view.getSample (0, chunk - 1));
+
+            n += chunk;
+            maxDebt = juce::jmax (maxDebt, p.getDebtSamplesForTest());
+        }
+
+        const double hardBound = (6.0 + 2.0) * kFs;
+        const double rail      = (double) p.getRingSpanForTest()
+                               - (double) VarispeedVoice::kInterpGuard;
+
+        check ((juce::String ("C-P4c-debt-bound-") + (c == 1 ? "random" : "glitch")).toRawUTF8(),
+               finite && maxDebt < hardBound && maxDebt < rail,
+               "maxDebt=" + juce::String (maxDebt / kFs, 3) + " s (bound "
+                 + juce::String (hardBound / kFs, 1) + " s, rail "
+                 + juce::String (rail / kFs, 1) + " s)");
+    }
+
+    // C-P6: continuity. Wobble at full depth is C1 by construction (sines +
+    // filtered noise + 50 ms depth slew); Glitch may STEP r (2 ms slew) and
+    // splice positions (3–50 ms fades) but the WAVEFORM must stay inside the
+    // same first-difference bound the scratch r = ±1.8 precedent set. Depth
+    // 60 keeps peak |r| ≤ 1.6 — inside the bound's validity range on a
+    // 440 Hz probe tone.
+    for (int c = 0; c <= 2; c += 2)
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE",    1.0f);
+        setParam (p, "MODE",         2.0f);
+        setParam (p, "CHARACTER",    (float) c);
+        setParam (p, "CONT_RATE_HZ", c == 2 ? 8.0f : 1.2f);
+        setParam (p, "CONT_DEPTH",  c == 2 ? 60.0f : 100.0f);
+        setParam (p, "CONT_CHAOS",  c == 2 ? 100.0f : 40.0f);
+
+        const int total = 192000;   // 4 s — ≥ 25 glitch cells at 8 Hz
+        auto y = renderTimeline (p, total, { 512 },
+                                 { { 4096, "ENGAGE", 1.0f } },
+                                 sine440);
+
+        const double diff = juce::jmax (maxFirstDiff (y.L, 8192, total),
+                                        maxFirstDiff (y.R, 8192, total));
+
+        double dev = 0.0;
+        for (int n2 = 48000; n2 < 96000; ++n2)
+            dev = juce::jmax (dev, (double) std::abs (y.L[(size_t) n2] - sine440 (0, n2)));
+
+        check ((juce::String ("C-P6-continuity-") + (c == 0 ? "wobble" : "glitch")).toRawUTF8(),
+               allFinite (y.L) && allFinite (y.R) && diff <= kP6Bound && dev > 0.01,
+               "maxDiff=" + juce::String (diff, 5) + " (bound "
+                 + juce::String (kP6Bound, 5) + "), dev=" + juce::String (dev, 3));
+    }
+
+    // C-zipper: DEPTH is LIVE (16-sample-grid latch — two renders differing
+    // only in depth must diverge while engaged: liveness gate first,
+    // pattern_zipper_sweep_probe_needs_liveness_gate), and a mid-engage
+    // depth jump must ride the 50 ms slew with no step in the output.
+    {
+        auto run = [] (float depthLate)
+        {
+            TapestopProcessor p;
+            prepareAndSettle (p, 512);
+            setParam (p, "SYNC_MODE",    1.0f);
+            setParam (p, "MODE",         2.0f);
+            setParam (p, "CHARACTER",    0.0f);
+            setParam (p, "CONT_RATE_HZ", 1.2f);
+            setParam (p, "CONT_DEPTH",  35.0f);
+            setParam (p, "CONT_CHAOS",   0.0f);
+            return renderTimeline (p, 144000, { 512 },
+                                   { { 4096,  "ENGAGE",     1.0f },
+                                     { 72704, "CONT_DEPTH", depthLate } },
+                                   sine440);
+        };
+
+        auto swept  = run (100.0f);
+        auto steady = run (35.0f);
+
+        bool live = false;
+        for (int n = 80000; n < 130000 && ! live; ++n)
+            live = ! bitExact (swept.L[(size_t) n], steady.L[(size_t) n]);
+
+        const double stepDiff = juce::jmax (maxFirstDiff (swept.L, 72704 - 2400, 72704 + 4800),
+                                            maxFirstDiff (swept.R, 72704 - 2400, 72704 + 4800));
+
+        check ("C-zipper-depth-live-and-smooth",
+               live && stepDiff <= kP6Bound,
+               juce::String (live ? "live" : "DEAD PARAM") + "; step maxDiff="
+                 + juce::String (stepDiff, 5) + " (bound " + juce::String (kP6Bound, 5) + ")");
+    }
+
+    // C-preset-migration: a pre-1.1 preset stored MODE NORMALIZED over 2
+    // choices (Scratch = 1.0); over 3 choices the same fraction decodes as
+    // Continuous. The registered migration callback must remap it — and must
+    // NOT touch a 1.1.0-format preset (0.5 already = Scratch).
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+
+        auto tmpDir = juce::File::getSpecialLocation (juce::File::tempDirectory);
+
+        auto writePreset = [&tmpDir] (const char* name, const char* version, double modeNorm)
+        {
+            auto* params = new juce::DynamicObject();
+            params->setProperty ("MODE",   modeNorm);
+            params->setProperty ("ENGAGE", 0.0);
+
+            auto* preset = new juce::DynamicObject();
+            preset->setProperty ("name",       name);
+            preset->setProperty ("version",    version);
+            preset->setProperty ("parameters", juce::var (params));
+
+            auto f = tmpDir.getChildFile (juce::String (name) + ".json");
+            f.replaceWithText (juce::JSON::toString (juce::var (preset), true));
+            return f;
+        };
+
+        auto oldFile = writePreset ("ot-mig-old", "1.0.0", 1.0);
+        auto newFile = writePreset ("ot-mig-new", "1.1.0", 0.5);
+
+        const bool loadedOld = p.presetManager.loadPresetFromFile (oldFile);
+        const int  modeOld   = (int) std::lround (
+            (double) p.parameters.getRawParameterValue ("MODE")->load());
+
+        const bool loadedNew = p.presetManager.loadPresetFromFile (newFile);
+        const int  modeNew   = (int) std::lround (
+            (double) p.parameters.getRawParameterValue ("MODE")->load());
+
+        oldFile.deleteFile();
+        newFile.deleteFile();
+
+        check ("C-preset-migration-mode",
+               loadedOld && modeOld == 1 && loadedNew && modeNew == 1,
+               "v1.0.0 n=1.0 -> index " + juce::String (modeOld)
+                 + " (want 1=Scratch); v1.1.0 n=0.5 -> index " + juce::String (modeNew)
+                 + " (want 1)");
     }
 
     //==========================================================================

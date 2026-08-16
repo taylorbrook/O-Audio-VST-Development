@@ -1,0 +1,532 @@
+/*
+   This file is part of O-Tapestop, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+/*
+  ==============================================================================
+
+    O-Tapestop - ContinuousMotion (v1.1 Continuous mode)
+
+    Per-sample rate generator for MODE = Continuous: while ENGAGE is latched,
+    the carrier's rate r moves continuously instead of running one gesture.
+    Three characters (research/o-tapestop-continuous-mode.md):
+
+      Wobble  — deterministic wow sine + ChowTapeModel 3-harmonic flutter
+                stack (0.56/0.20/0.24 of 230:80:99); CHAOS morphs order →
+                disorder (per-cycle freq/amp jitter, OU drift, filtered-noise
+                band above 0.6).
+      Random  — Ornstein-Uhlenbeck octave stack (τ, τ/4, τ/16 — weights
+                1, 0.5·chaos, 0.25·chaos²), tanh excursion shaping, 20 Hz
+                post-LP so r stays C1 ("digital zipper" guard).
+      Glitch  — grid scheduler: one Bernoulli draw per cell (p = chaos²),
+                monophonic events (tapestop-dip, half-speed drag, speed-jump,
+                reverse-flick, stutter-repeat, resync-snap).
+
+    CONTINUITY INVARIANT: r may step; position may not. Rate discontinuities
+    are C1 corners (click-free — the ScratchPass palindrome-corner precedent),
+    softened by a 2 ms slew; position jumps (stutter loop-back, resync-snap)
+    are ONLY ever requested via Out::jumpKind so the transport splices them
+    with the 2-voice crossfade.
+
+    DEBT SAFETY (26 s ring): zero-mean wobble is bounded by construction;
+    Random's position debt random-walks even though its rate mean-reverts, so
+    a weak servo (kServo = 0.2 /s, contribution clamped to ±0.2 % ≈ 3.5 cents)
+    recenters debt on the engage-latched target. Glitch events accumulate
+    one-sided debt: selection weights carry exp(−λ·debt·sign) bias, debt-
+    positive events are suppressed above kSoftDebtSeconds, and above
+    kHardDebtSeconds a resync-snap splice is forced at the next boundary —
+    the safety mechanism doubles as an event type.
+
+    DETERMINISM: three dedicated xorshift64* streams (noise / event-timing /
+    event-pick — one stream per purpose, never shared), re-seeded from fixed
+    constants at every engage edge. All state advances per sample inside
+    tick(), so output is a pure function of samples-since-engage: P0
+    determinism and 512-vs-4096 bit-identity hold by construction.
+
+    RT-safe: no allocation, no locks; everything latched in engage() or set
+    via setTargets() (plain doubles written from the audio thread's own
+    16-sample grid).
+
+  ==============================================================================
+*/
+
+#pragma once
+
+#include <JuceHeader.h>
+
+#include <cmath>
+#include <cstdint>
+
+class ContinuousMotion
+{
+public:
+    enum class Character { Wobble = 0, Random = 1, Glitch = 2 };
+
+    struct Params
+    {
+        Character character       = Character::Wobble;
+        double    mPeak           = 0.004;  // peak fractional speed deviation
+        double    depth01         = 0.5;    // raw DEPTH 0..1 (Glitch intensity)
+        double    chaos           = 0.0;    // 0..1
+        double    periodSamples   = 48000;  // wobble LFO period / glitch cell
+        double    debtNowSamples  = 0.0;    // carrier debt at the engage edge
+    };
+
+    struct Out
+    {
+        double r          = 1.0;
+        int    jumpKind   = 0;    // 0 none, 1 loop-back by jumpAmount, 2 snap to (live − jumpAmount)
+        double jumpAmount = 0.0;  // samples
+        int    xfLen      = 0;    // splice length in samples (jumpKind != 0 only)
+    };
+
+    // Servo / debt policy (research doc "Debt management").
+    static constexpr double kServoPerSecond   = 0.2;
+    static constexpr double kServoClamp       = 0.002;  // ±0.2 % ≈ ±3.5 cents
+    static constexpr double kSoftDebtSeconds  = 3.0;
+    static constexpr double kHardDebtSeconds  = 6.0;    // ≪ 26 s ring
+    static constexpr double kSlewSeconds      = 0.002;  // glitch r-step softening
+    static constexpr double kDepthSlewSeconds = 0.05;   // ChowTape 50 ms precedent
+
+    void prepare (double sampleRate) noexcept
+    {
+        fs = sampleRate;
+        depthSlewCoeff = std::exp (-1.0 / (kDepthSlewSeconds * fs));
+        noiseLpCoeff   = std::exp (-2.0 * juce::MathConstants<double>::pi * 20.0 / fs);
+        bandLpCoeff    = std::exp (-2.0 * juce::MathConstants<double>::pi * 30.0 / fs);
+        driftCoeff     = std::exp (-1.0 / (5.0 * fs));          // τ = 5 s wow drift
+        slewStep       = 2.0 / (kSlewSeconds * fs);             // full ±1→∓1 swing in 2 ms
+        reset();
+    }
+
+    void reset() noexcept
+    {
+        character = Character::Wobble;
+        mPeakCur = mPeakTarget = 0.0;
+        depth01 = chaos = 0.0;
+        periodCur = periodTarget = 48000.0;
+        debtTarget = 0.0;
+        phaseW = phaseF = 0.0;
+        wowJitter = 0.0;
+        wowAmpJitter = 1.0;
+        ou1 = ou2 = ou3 = ouDrift = bandState = mLp = 0.0;
+        rCur = 1.0;
+        cellLen = 1;
+        cellPos = 0;
+        eventActive = false;
+        eventForcedSnap = false;
+        eventType = 0;
+        eventPos = eventLen = 0;
+        eventTargetR = 1.0;
+        sliceLen = slicePos = 0;
+        sliceXf = 0;
+    }
+
+    /** ENGAGE edge (audio thread). Latches character/targets and RE-SEEDS all
+        three RNG streams from fixed constants — every engage replays the same
+        stochastic sequence (repeatable bounces; P0 two-instance bitwise). */
+    void engage (const Params& p) noexcept
+    {
+        character    = p.character;
+        depth01      = p.depth01;
+        chaos        = p.chaos;
+        mPeakTarget  = p.mPeak;
+        mPeakCur     = p.mPeak;          // no slew-in from 0 — depth is latched live afterwards
+        periodTarget = juce::jmax (2.0, p.periodSamples);
+        periodCur    = periodTarget;
+        recomputeOuCoeffs();
+
+        // Debt target: engage-edge debt, floored at 50 ms so wobble/random
+        // r > 1 half-cycles have headroom instead of clipping at the live head
+        // forever (the FIRST upswing from a Bypassed engage still clips —
+        // accepted; the servo builds headroom within seconds).
+        debtTarget = juce::jmax (p.debtNowSamples, 0.05 * fs);
+
+        noiseRng = kSeedNoise;
+        timeRng  = kSeedTime;
+        pickRng  = kSeedPick;
+
+        phaseW = phaseF = 0.0;
+        wowJitter = 0.0;
+        wowAmpJitter = 1.0;
+        ou1 = ou2 = ou3 = ouDrift = bandState = mLp = 0.0;
+        rCur = 1.0;
+
+        cellLen = (int) juce::jmax (2.0, periodCur);
+        cellPos = 0;
+        eventActive = false;
+        eventForcedSnap = false;
+        samplesSinceJump = 1 << 30;
+    }
+
+    /** Live target updates (audio thread, absolute 16-sample grid — the
+        toneTrack cadence). Depth slews over 50 ms; period is consumed at the
+        next LFO wrap / cell boundary (per-cycle latch, so a mid-cycle tempo
+        or rate move never bends a running cycle). */
+    void setTargets (double mPeakNew, double depth01New, double periodNew) noexcept
+    {
+        mPeakTarget  = mPeakNew;
+        depth01      = depth01New;
+        periodTarget = juce::jmax (2.0, periodNew);
+        if (character == Character::Random)
+            recomputeOuCoeffs();
+    }
+
+    /** One sample of continuous motion. `debtSamples` = live − carrier pos. */
+    Out tick (double debtSamples) noexcept
+    {
+        Out out;
+        ++samplesSinceJump;
+
+        // 50 ms one-pole depth slew (every sample, every character).
+        mPeakCur = mPeakTarget + (mPeakCur - mPeakTarget) * depthSlewCoeff;
+
+        switch (character)
+        {
+            case Character::Wobble: out.r = tickWobble (debtSamples); break;
+            case Character::Random: out.r = tickRandom (debtSamples); break;
+            case Character::Glitch: tickGlitch (debtSamples, out);    break;
+        }
+
+        // Hard rail: the engine's historical rate bound (scratch precedent).
+        out.r = juce::jlimit (-2.0, 2.0, out.r);
+        rCur  = out.r;
+        return out;
+    }
+
+private:
+    // ── shared helpers ──────────────────────────────────────────────────────
+
+    // xorshift64* — three independent streams, one per purpose
+    // (pattern_rng_stream_interleave_blocksize).
+    static constexpr std::uint64_t kSeedNoise = 0x9E3779B97F4A7C15ull;
+    static constexpr std::uint64_t kSeedTime  = 0xBF58476D1CE4E5B9ull;
+    static constexpr std::uint64_t kSeedPick  = 0x94D049BB133111EBull;
+
+    static double nextUniform (std::uint64_t& s) noexcept   // [0, 1)
+    {
+        s ^= s >> 12;
+        s ^= s << 25;
+        s ^= s >> 27;
+        return (double) ((s * 0x2545F4914F6CDD1Dull) >> 11)
+             * (1.0 / 9007199254740992.0);
+    }
+
+    static double nextBipolar (std::uint64_t& s) noexcept   // (−1, 1)
+    {
+        return 2.0 * nextUniform (s) - 1.0;
+    }
+
+    // Unit-variance excitation: uniform on (−√3, √3). The exact distribution
+    // is irrelevant after the OU/LP filtering; uniform avoids Box-Muller's
+    // log/sqrt per sample.
+    static double nextUnitVar (std::uint64_t& s) noexcept
+    {
+        return 1.7320508075688772 * nextBipolar (s);
+    }
+
+    void recomputeOuCoeffs() noexcept
+    {
+        // τ = period/(2π) samples; octave stack at τ, τ/4, τ/16.
+        const double tau = juce::jmax (2.0, periodTarget / juce::MathConstants<double>::twoPi);
+        a1 = std::exp (-1.0 / tau);
+        a2 = std::exp (-4.0 / tau);
+        a3 = std::exp (-16.0 / tau);
+        e1 = std::sqrt (juce::jmax (0.0, 1.0 - a1 * a1));
+        e2 = std::sqrt (juce::jmax (0.0, 1.0 - a2 * a2));
+        e3 = std::sqrt (juce::jmax (0.0, 1.0 - a3 * a3));
+    }
+
+    double servo (double debtSamples) const noexcept
+    {
+        return juce::jlimit (-kServoClamp, kServoClamp,
+                             kServoPerSecond * (debtTarget - debtSamples) / fs);
+    }
+
+    // ── Wobble ──────────────────────────────────────────────────────────────
+    double tickWobble (double debtSamples) noexcept
+    {
+        // Per-cycle latch: frequency (and its chaos jitter) changes only at
+        // the wrap — phase-continuous by construction (ChowTape wow drift).
+        phaseW += (1.0 + wowJitter) / periodCur;
+        if (phaseW >= 1.0)
+        {
+            phaseW -= 1.0;
+            periodCur    = periodTarget;
+            wowJitter    = 0.5 * chaos * std::pow (nextUniform (timeRng), 1.25);
+            wowAmpJitter = juce::jmax (0.1, 1.0 + 0.6 * chaos * nextBipolar (timeRng));
+        }
+
+        // Flutter stack rides at 6×wow, clamped to the 6–40 Hz flutter band
+        // (research: motor/pulley harmonics at 1×/2×/3× — 230:80:99 → 0.56/0.20/0.24).
+        const double fWow  = fs / periodCur;
+        const double fFlut = juce::jlimit (6.0, 40.0, 6.0 * fWow);
+        phaseF += fFlut / fs;
+        if (phaseF >= 1.0)
+            phaseF -= 1.0;
+
+        const double pw = juce::MathConstants<double>::twoPi * phaseW;
+        const double pf = juce::MathConstants<double>::twoPi * phaseF;
+
+        double m = mPeakCur * (0.8 * wowAmpJitter * std::sin (pw)
+                               + 0.2 * (0.56 * std::sin (pf)
+                                        + 0.20 * std::sin (2.0 * pf)
+                                        + 0.24 * std::sin (3.0 * pf)));
+
+        // Chaos: slow OU drift (τ = 5 s) + filtered-noise flutter band above 0.6.
+        ouDrift = driftCoeff * ouDrift
+                + std::sqrt (juce::jmax (0.0, 1.0 - driftCoeff * driftCoeff)) * nextUnitVar (noiseRng);
+        m += (0.5 * chaos * mPeakCur) * ouDrift;
+
+        if (chaos > 0.6)
+        {
+            bandState = bandLpCoeff * bandState + (1.0 - bandLpCoeff) * nextBipolar (noiseRng);
+            m += (0.5 * (chaos - 0.6) / 0.4) * mPeakCur * bandState * 10.0; // LP(30 Hz) gain makeup
+        }
+
+        return 1.0 + juce::jlimit (-2.0 * mPeakCur, 2.0 * mPeakCur, m) + servo (debtSamples);
+    }
+
+    // ── Random ──────────────────────────────────────────────────────────────
+    double tickRandom (double debtSamples) noexcept
+    {
+        ou1 = a1 * ou1 + e1 * nextUnitVar (noiseRng);
+        ou2 = a2 * ou2 + e2 * nextUnitVar (noiseRng);
+        ou3 = a3 * ou3 + e3 * nextUnitVar (noiseRng);
+
+        const double s = ou1 + 0.5 * chaos * ou2 + 0.25 * chaos * chaos * ou3;
+        const double m = mPeakCur * std::tanh ((0.5 + chaos) * s);
+
+        // 20 Hz post-LP: raw OU is nowhere-differentiable — this keeps r C1.
+        mLp = noiseLpCoeff * mLp + (1.0 - noiseLpCoeff) * m;
+
+        return 1.0 + mLp + servo (debtSamples);
+    }
+
+    // ── Glitch ──────────────────────────────────────────────────────────────
+    // Event types (Δdebt sign drives the selection bias):
+    enum EventType { evDip = 0, evHalf, evJumpUp, evReverse, evStutter, evSnap, evCount };
+
+    void tickGlitch (double debtSamples, Out& out) noexcept
+    {
+        const double debtSec = debtSamples / fs;
+
+        if (! eventActive && cellPos == 0)
+            maybeStartEvent (debtSec);
+
+        double rTarget = 1.0;
+
+        if (eventActive)
+        {
+            const double u = (double) eventPos / (double) juce::jmax (1, eventLen);
+
+            switch (eventType)
+            {
+                case evDip:
+                {
+                    // Tapestop dip: down x² to the floor, back up x² (the
+                    // Stop-mode curve law at its physics default p = 2).
+                    const double floorR = juce::jmax (0.0, 1.0 - depth01);
+                    const double shape  = u < 0.5 ? (1.0 - 2.0 * u) * (1.0 - 2.0 * u)
+                                                  : (2.0 * u - 1.0) * (2.0 * u - 1.0);
+                    rTarget = floorR + (1.0 - floorR) * shape;
+                    break;
+                }
+
+                case evHalf:    rTarget = 1.0 - 0.5 * depth01;  break;
+                case evJumpUp:  rTarget = 1.0 + depth01;        break;   // ≤ 2 by depth ≤ 1
+                case evReverse: rTarget = -depth01;             break;
+
+                case evStutter:
+                {
+                    // The jump waits for the PREVIOUS fade (whatever kind) to
+                    // fully complete — a force-complete inside startXfade
+                    // drops a voice at its residual gain, and a fade only a
+                    // few samples in still carries ~all of the signal (an
+                    // audible amplitude step, caught by C-P6). slicePos keeps
+                    // counting past sliceLen, so a deferred jump fires on the
+                    // first clean sample.
+                    rTarget = 1.0;
+                    if (++slicePos >= sliceLen && samplesSinceJump >= lastXfLen)
+                    {
+                        slicePos       = 0;
+                        out.jumpKind   = 1;                 // loop back one slice
+                        out.jumpAmount = (double) sliceLen;
+                        out.xfLen      = sliceXf;
+                        lastXfLen      = sliceXf;
+                        samplesSinceJump = 0;
+                    }
+                    break;
+                }
+
+                case evSnap:
+                {
+                    // Same previous-fade guard as the stutter jump: a snap
+                    // drawn on the cell boundary right after a stutter's last
+                    // loop-back must not force-complete that fade.
+                    rTarget = 1.0;
+                    if (! snapEmitted && samplesSinceJump >= lastXfLen)
+                    {
+                        const int xf   = (int) std::lround (0.05 * fs);
+                        out.jumpKind   = 2;                 // snap to live − target debt
+                        out.jumpAmount = debtTarget;
+                        out.xfLen      = xf;
+                        lastXfLen      = xf;
+                        snapEmitted    = true;
+                        samplesSinceJump = 0;
+                    }
+                    break;
+                }
+
+                default: break;
+            }
+
+            if (++eventPos >= eventLen)
+                eventActive = false;
+        }
+
+        if (++cellPos >= cellLen)
+        {
+            cellPos = 0;
+            cellLen = (int) juce::jmax (2.0, periodTarget);   // per-cell latch
+        }
+
+        // 2 ms rate slew: C1 corners → C2 (faint-tick guard on bright
+        // material); perceptually still an instant switch.
+        const double d = rTarget - rCur;
+        double r = (std::abs (d) <= slewStep) ? rTarget
+                                              : rCur + (d > 0.0 ? slewStep : -slewStep);
+
+        // Between events only, the weak servo recenters leftover debt.
+        if (! eventActive)
+            r += servo (debtSamples);
+
+        out.r = r;
+    }
+
+    void maybeStartEvent (double debtSec) noexcept
+    {
+        // Hard budget: force the resync-snap regardless of the draw.
+        if (debtSec > kHardDebtSeconds)
+        {
+            startEvent (evSnap);
+            eventForcedSnap = true;
+            return;
+        }
+        eventForcedSnap = false;
+
+        if (nextUniform (timeRng) >= chaos * chaos)   // p(event) = chaos²
+            return;
+
+        // Weights: tame events from chaos 0; extremes unlock above 0.5.
+        // Δdebt sign s: dip/half/reverse/stutter +1, jumpUp/snap −1; bias
+        // w·exp(−λ·debt·s) self-centres net drift (λ = 0.5 /s).
+        const double xGate = juce::jmax (0.0, chaos - 0.5) * 2.0;
+        const double lam   = 0.5;
+        const double bPos  = std::exp (-lam * debtSec);   // debt-positive events
+        const double bNeg  = std::exp ( lam * debtSec);   // debt-negative events
+        const bool   soft  = debtSec > kSoftDebtSeconds;
+
+        double w[evCount];
+        w[evDip]     = (soft ? 0.0 : 1.0) * bPos;
+        w[evHalf]    = (soft ? 0.0 : 0.8) * bPos;
+        w[evJumpUp]  = 0.6 * bNeg;
+        w[evReverse] = (soft ? 0.0 : 0.5 * xGate) * bPos;
+        w[evStutter] = (soft ? 0.0 : 1.0) * bPos;
+        w[evSnap]    = 0.3 * xGate * bNeg;
+
+        double total = 0.0;
+        for (double wi : w)
+            total += wi;
+        if (total <= 0.0)
+            return;
+
+        double pick = nextUniform (pickRng) * total;
+        int    type = evCount - 1;
+        for (int i = 0; i < evCount; ++i)
+        {
+            pick -= w[i];
+            if (pick < 0.0) { type = i; break; }
+        }
+
+        // Reverse below depth 0.4 would be a barely-negative crawl — retarget
+        // it as a dip (same debt sign, similar audible family).
+        if (type == evReverse && depth01 < 0.4)
+            type = evDip;
+
+        startEvent (type);
+    }
+
+    void startEvent (int type) noexcept
+    {
+        eventActive = true;
+        eventType   = type;
+        eventPos    = 0;
+        eventLen    = juce::jmax (2, cellLen);
+        snapEmitted = false;
+
+        if (type == evStutter)
+        {
+            // Slice = cell/4, spliced at clamp(slice/4, 3 ms, 50 ms); slice is
+            // kept ≥ 2 fades so a force-complete never carries real residual
+            // gain (the 2-voice pool stays structural).
+            sliceXf  = (int) juce::jlimit (0.003 * fs, 0.05 * fs, (double) cellLen / 16.0);
+            sliceLen = juce::jmax (2 * sliceXf, cellLen / 4);
+            slicePos = 0;
+        }
+    }
+
+    // ── state ───────────────────────────────────────────────────────────────
+    double fs = 48000.0;
+
+    Character character = Character::Wobble;
+    double mPeakCur = 0.0, mPeakTarget = 0.0;
+    double depth01 = 0.0, chaos = 0.0;
+    double periodCur = 48000.0, periodTarget = 48000.0;
+    double debtTarget = 0.0;
+
+    double depthSlewCoeff = 0.0, noiseLpCoeff = 0.0, bandLpCoeff = 0.0, driftCoeff = 0.0;
+    double slewStep = 1.0;
+
+    // Wobble
+    double phaseW = 0.0, phaseF = 0.0;
+    double wowJitter = 0.0, wowAmpJitter = 1.0;
+    double ouDrift = 0.0, bandState = 0.0;
+
+    // Random (OU octave stack + post-LP)
+    double ou1 = 0.0, ou2 = 0.0, ou3 = 0.0;
+    double a1 = 0.0, a2 = 0.0, a3 = 0.0;
+    double e1 = 0.0, e2 = 0.0, e3 = 0.0;
+    double mLp = 0.0;
+
+    // Glitch scheduler
+    int    cellLen = 1, cellPos = 0;
+    bool   eventActive = false, eventForcedSnap = false;
+    int    eventType = 0, eventPos = 0, eventLen = 0;
+    double eventTargetR = 1.0;
+    int    sliceLen = 0, slicePos = 0, sliceXf = 0;
+    int    samplesSinceJump = 1 << 30;
+    int    lastXfLen = 0;          // previous jump's fade length (jump guard)
+    bool   snapEmitted = false;
+
+    double rCur = 1.0;
+
+    std::uint64_t noiseRng = kSeedNoise;
+    std::uint64_t timeRng  = kSeedTime;
+    std::uint64_t pickRng  = kSeedPick;
+};

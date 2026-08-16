@@ -381,6 +381,17 @@ body {
 
 .group-trigger .segment { width: 66px; }
 
+/* MODE is 3-up since v1.1 — stacked vertically at full ENGAGE width (140px).
+   Three side-by-side thirds of the 148px content box can't hold SCRATCH at
+   legible type, so the stack trades ~74px of the panel's vertical slack for
+   the standard 10px segment face. 140px matches ENGAGE and the SYNC pair's
+   total (66 + 8 + 66), keeping one aligned column. */
+.group-trigger #modeSegments {
+  flex-direction: column;
+  gap: 6px;
+}
+.group-trigger #modeSegments .segment { width: 140px; }
+
 .segment {
   width: 58px;
   padding: 7px 0;
@@ -515,6 +526,9 @@ body {
 
 /* Stop pane: two columns (Spin Down | Spin Up). */
 #pane-stop { gap: 56px; }
+
+/* Continuous pane (v1.1): character stack | rate slot | depth | chaos. */
+#pane-continuous { gap: 34px; }
 
 .stop-col {
   display: flex;
