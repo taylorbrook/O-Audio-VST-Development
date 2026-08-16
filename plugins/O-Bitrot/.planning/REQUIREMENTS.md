@@ -5,6 +5,7 @@ version: 1.0.0
 plugin: O-Bitrot
 created: 2026-08-14
 lastUpdated: 2026-08-15
+stage2Verified: 2026-08-15
 ---
 
 ## Overview
@@ -19,25 +20,25 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Clocked stochastic state machine re-rolls degradation state per clock tick over a shared circular buffer | must | pending | stage-2 |
-| FUNC-02 | All six degradation families implemented: tape, CD skip, vinyl, packet loss, codec, crush | must | pending | stage-2 |
-| FUNC-03 | Clock runs tempo-synced (1/16–1 bar) by default with a free-running Hz mode | must | pending | stage-2 |
-| FUNC-04 | Seeded deterministic randomness: identical seed + input + params produces identical output; reseed control rolls new variations | must | pending | stage-2 |
-| FUNC-05 | Per-module enable + parameter sections (no macro dice knobs) | must | pending | stage-2 |
-| FUNC-06 | Global dry/wet mix and hardEdges (crossfade bypass) toggle | should | pending | stage-2 |
+| FUNC-01 | Clocked stochastic state machine re-rolls degradation state per clock tick over a shared circular buffer | must | complete | stage-2 |
+| FUNC-02 | All six degradation families implemented: tape, CD skip, vinyl, packet loss, codec, crush | must | complete | stage-2 |
+| FUNC-03 | Clock runs tempo-synced (1/16–1 bar) by default with a free-running Hz mode | must | complete | stage-2 |
+| FUNC-04 | Seeded deterministic randomness: identical seed + input + params produces identical output; reseed control rolls new variations | must | complete | stage-2 |
+| FUNC-05 | Per-module enable + parameter sections (no macro dice knobs) | must | complete | stage-2 |
+| FUNC-06 | Global dry/wet mix and hardEdges (crossfade bypass) toggle | should | complete | stage-2 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Tape: interval-table speed bends and tape-stops, all rate transitions ramped (default ~150 ms, adjustable) | must | pending | stage-2 |
-| DSP-02 | CD skip: severity ladder — LPF concealment dip, ms mute + tick, hard-edged segment loop with synthesized restart chirp | must | pending | stage-2 |
-| DSP-03 | Vinyl: revolution-quantized jumps (1.8 s @ 33⅓ / 1.33 s @ 45) with synthesized pops; pitch never changes | must | pending | stage-2 |
-| DSP-04 | Packet loss: Gilbert–Elliott 2-state Markov over 20 ms packets with 4 concealment modes | must | pending | stage-2 |
-| DSP-05 | Codec: 300–3400 Hz BP → 8 kHz downsample → μ-law round trip; GSM 06.10 mode via vendored libgsm with latency reported | must | pending | stage-2 |
-| DSP-06 | Crush: fractional-bit quantization + fractional-hold SRR with interpolated latch; all sweeps zipper-free (smoothed targets, no phase resets) | must | pending | stage-2 |
-| DSP-07 | Envelope-driven dynamic bit depth with duck/pump polarity, per-sample follower | should | pending | stage-2 |
-| DSP-08 | TPDF dither knob (0–2 LSB) and S&H jitter on the crush stage | nice | pending | stage-2 |
+| DSP-01 | Tape: interval-table speed bends and tape-stops, all rate transitions ramped (default ~150 ms, adjustable) | must | complete | stage-2 |
+| DSP-02 | CD skip: severity ladder — LPF concealment dip, ms mute + tick, hard-edged segment loop with synthesized restart chirp | must | complete | stage-2 |
+| DSP-03 | Vinyl: revolution-quantized jumps (1.8 s @ 33⅓ / 1.33 s @ 45) with synthesized pops; pitch never changes | must | complete | stage-2 |
+| DSP-04 | Packet loss: Gilbert–Elliott 2-state Markov over 20 ms packets with 4 concealment modes | must | complete | stage-2 |
+| DSP-05 | Codec: 300–3400 Hz BP → 8 kHz downsample → μ-law round trip; GSM 06.10 mode via vendored libgsm with latency reported | must | complete | stage-2 |
+| DSP-06 | Crush: fractional-bit quantization + fractional-hold SRR with interpolated latch; all sweeps zipper-free (smoothed targets, no phase resets) | must | complete | stage-2 |
+| DSP-07 | Envelope-driven dynamic bit depth with duck/pump polarity, per-sample follower | should | complete | stage-2 |
+| DSP-08 | TPDF dither knob (0–2 LSB) and S&H jitter on the crush stage | nice | complete | stage-2 |
 
 ### UI (UI)
 
@@ -50,7 +51,7 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
@@ -62,8 +63,8 @@ lastUpdated: 2026-08-15
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No unintended audio artifacts: jumps crossfaded 1–5 ms unless hardEdges; no NaN/Inf under pathological input | must | pending | stage-2 |
-| QUAL-02 | Block-size invariance: 512-vs-4096 renders match (per-sample followers, per-subsystem RNG streams) | should | pending | stage-2 |
+| QUAL-01 | No unintended audio artifacts: jumps crossfaded 1–5 ms unless hardEdges; no NaN/Inf under pathological input | must | complete | stage-2 |
+| QUAL-02 | Block-size invariance: 512-vs-4096 renders match (per-sample followers, per-subsystem RNG streams) | should | complete | stage-2 |
 
 ## Acceptance Criteria Details
 

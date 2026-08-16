@@ -1,14 +1,14 @@
 ---
 plugin: O-Bitrot
 stage: 2
-phase: execute
+phase: verify
 status: complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: run_verify_phase
+next_action: begin_stage_3
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -21,11 +21,12 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — execute phase complete
-Status: All 18 tasks done across 5 phase commits — 13 DSP components + vendored libgsm; render
-harness 44/44 probes green (FUNC-01..04, DSP-01..08, PERF-01 ratio 0.0042, QUAL-01/02); pluginval
-s10 clean x2 both formats; installed + auval-registered; ready for verify
-Progress: [###########.........] 54%
+Stage: 2 of 4 (DSP) — ✅ COMPLETE (verified)
+Status: VERIFICATION.md ✅ VERIFIED — all 17 stage-2 requirements complete (12 must, 4 should,
+1 nice); independent verify re-run: 44/44 probes, pluginval s10 SUCCESS both formats (3rd clean
+run), RT-safety scan clean, all 6 dsp-agent flags adjudicated (accepted, documented); ready for
+Stage 3 (GUI)
+Progress: [############........] 60%
 
 ## Phase Progress
 
@@ -36,7 +37,7 @@ Progress: [###########.........] 54%
 | research | ✓ | 2026-08-15 | RESEARCH.md — harness template + probe recipes; reuse deltas (3 pieces are new code); latency bookkeeping resolved (CodecStage owns it); libgsm CMake/MSVC/license spec |
 | plan | ✓ | 2026-08-15 | PLAN.md — 18 tasks / 5 phase gates; harness is Task 1; license-first libgsm vendoring; GSM round-trip gate before integration |
 | execute | ✓ | 2026-08-15 | SUMMARY.md — 18/18 tasks, 5 phase commits, 44/44 probes, libgsm vendored license-first + GSM round-trip gated (no fallback needed), pluginval s10 x2 both formats, installed |
-| verify | — | | |
+| verify | ✓ | 2026-08-15 | VERIFICATION.md — ✅ VERIFIED; 17/17 stage-2 requirements complete; independent 44/44 harness re-run + pluginval s10 both formats; 6 flags adjudicated (all accepted); DAW listening items carried to Stage 3 |
 
 ### Stage 1: Foundation
 | Phase | Status | Date | Notes |
@@ -67,11 +68,12 @@ Progress: [###########.........] 54%
 
 ## Next Steps
 
-1. Stage 2 (DSP) verify phase — `/plugin-verify O-Bitrot 2-dsp`
-2. Residual manual nicety (non-blocking): Standalone SEED persistence eyeball
-   (set seed → quit → relaunch); pluginval state tests already cover the round-trip
-3. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
+1. Stage 3 (GUI) — `/plugin-discuss O-Bitrot 3-gui`
+2. UI mockup (six panels + global strip) — layout/UI-label refinement only; parameter-spec.md
    is BINDING (IDs/types/ranges/defaults locked at Stage 1 discuss)
+3. Non-blocking listening items carried from Stage-2 verify (see VERIFICATION.md Human
+   Verification): DAW smoke check, MIX 50%/0% + HARD_EDGES on, ENV_AMT voicing, Standalone
+   SEED persistence eyeball
 
 ## Context to Preserve
 
