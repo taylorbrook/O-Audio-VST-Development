@@ -29,14 +29,18 @@
 
 // O-Tapestop — varispeed tapestop/tapestart + drawable-envelope scratch mode.
 //
-// Stage 2 / Phase 2.1: 26 s capture ring + single interpolated varispeed
-// voice + Stop-mode transport (Free timing). The Bypassed state is a TRUE
-// hard pass-through — out = in with NO arithmetic, bitwise dry regardless of
+// Stage 2 / Phase 2.2: 26 s capture ring + 2-voice varispeed pool + Stop-mode
+// transport with Signalsmith resync (fall-behind → 1.25× catchup → 50 ms
+// crossfade-skip, bitwise post-resync null) + tempo sync (edge-latched
+// divisions, O-Polystutter BPM fallbacks). The Bypassed state is a TRUE hard
+// pass-through — out = in with NO arithmetic, bitwise dry regardless of
 // MIX/OUTPUT_GAIN (Stage-0 decision #6; the DSP-03 null probes depend on
 // it — and the 0 dB "unity" trim is NOT exactly 1.0f after the APVTS
 // normalized round-trip, so it must never ride the bypass path). MIX and
-// OUTPUT_GAIN act on the engaged chain only. Resync (Catchup / ResyncXfade)
-// lands in Phase 2.2; scratch + toneTrack in Phase 2.3.
+// OUTPUT_GAIN act on the engaged chain only; the trim releases to unity
+// across the resync fade (transport engaged-trim blend), so a non-default
+// trim cannot step at the Bypassed handoff. Scratch + toneTrack land in
+// Phase 2.3.
 //
 // NOTE: this file (and PluginProcessor.cpp) must stay free of editor-only
 // includes — the Stage-2 render harness compiles the processor with
@@ -93,15 +97,29 @@ public:
 
 #if OUARICON_RENDER_HARNESS
     // Harness-only debt inspection (probe P4, Phase 2.3; API stable from 2.1).
-    // Debt d = live head − voice position, in samples.
+    // Debt d = live head − CARRIER voice position, in samples.
     double getDebtSamplesForTest() const noexcept
     {
-        return (double) (capture.getTotalWritten() - 1) - voiceA.readAbsFrac;
+        return (double) (capture.getTotalWritten() - 1)
+             - voices[transport.getCarrierIndex()].readAbsFrac;
+    }
+
+    // Harness-only skip-splice law selector (Task 8/11 A/B — both laws
+    // compiled; the DAW build ships the default set in TapestopTransport).
+    void setSpliceLawForTest (bool linear) noexcept
+    {
+        transport.setSpliceLaw (linear ? TapestopTransport::SpliceLaw::Linear
+                                       : TapestopTransport::SpliceLaw::EqualPower);
     }
 #endif
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Gesture duration in samples, latched at the ENGAGE edge (Task 10).
+    // SYNC_MODE gates which of the SYNC_DIV/FREE_MS pair is read; the BPM was
+    // read into currentBpm at the block header (O-Polystutter fallback+clamp).
+    double gestureDurationSamples (bool isStopGesture) const noexcept;
 
     // Cached raw parameter atomics — resolved once in the constructor
     // (getRawParameterValue), read per block on the audio thread
@@ -122,18 +140,20 @@ private:
     std::atomic<float>* pMix          = nullptr;
     std::atomic<float>* pOutputGain   = nullptr;
 
-    // ── Stage-2 DSP state (Phase 2.1) ───────────────────────────────────────
+    // ── Stage-2 DSP state ───────────────────────────────────────────────────
     // The ring is written every sample in EVERY state (including Bypassed) so
-    // an engage gesture always has history. The single voice A is the gesture
-    // carrier; voice B arrives with Phase 2.2's ResyncXfade.
+    // an engage gesture always has history. Fixed 2-voice pool: the transport
+    // drives the CARRIER; the other slot exists only during skip crossfades
+    // (resync, catchup-retrigger).
     CaptureBuffer     capture;
-    VarispeedVoice    voiceA;
+    VarispeedVoice    voices[2];
     TapestopTransport transport;
 
     juce::SmoothedValue<float> mixSmoothed;    // MIX/100, 20 ms
     juce::SmoothedValue<float> gainSmoothed;   // OUTPUT_GAIN dB → linear, 20 ms
 
     double currentFs  = 48000.0;
+    double currentBpm = 120.0;   // per-block host read; consumed at edges only
     bool   lastEngage = false;   // block-header ENGAGE edge detector
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TapestopProcessor)

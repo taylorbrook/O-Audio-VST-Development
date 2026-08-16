@@ -54,6 +54,11 @@ namespace
     {
         return { 0.0f, 100.0f, 0.0f, 1.0f };
     }
+
+    // Division table {1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars, 4 bars} → beats.
+    // ASSUMES 4/4 (suite precedent — recorded in stages/2-dsp/NOTES.md).
+    // Indices match syncDivisionChoices() above.
+    constexpr double kDivisionBeats[7] = { 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0 };
 } // namespace
 
 TapestopProcessor::TapestopProcessor()
@@ -204,9 +209,10 @@ void TapestopProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     capture.prepare(sampleRate, kCaptureSeconds);
 
     // Transport → Bypassed; no cached sample counts survive a rate change
-    // (durations are converted from ms at gesture edges using currentFs).
+    // (durations are converted from ms/beats at gesture edges using currentFs).
     transport.prepare(sampleRate);
-    voiceA = VarispeedVoice{};
+    voices[0] = VarispeedVoice{};
+    voices[1] = VarispeedVoice{};
 
     mixSmoothed.reset(sampleRate, 0.02);
     mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
@@ -246,6 +252,24 @@ bool TapestopProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
     return true;
 }
 
+double TapestopProcessor::gestureDurationSamples(bool isStopGesture) const noexcept
+{
+    // SYNC_MODE choice index 0 = Sync, 1 = Free. Only the gesture-edge latch
+    // reads this pair — mid-gesture flips are inert (latch contract).
+    const bool sync = pSyncMode->load() < 0.5f;
+
+    if (sync)
+    {
+        const auto* divParam = isStopGesture ? pStopSyncDiv : pStartSyncDiv;
+        const int   div      = juce::jlimit(0, 6, (int) std::lround((double) divParam->load()));
+
+        return juce::jmax(1.0, kDivisionBeats[div] * (60.0 / currentBpm) * currentFs);
+    }
+
+    const auto* msParam = isStopGesture ? pStopFreeMs : pStartFreeMs;
+    return juce::jmax(1.0, (double) msParam->load() * 0.001 * currentFs);
+}
+
 void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                      juce::MidiBuffer& midiMessages)
 {
@@ -262,25 +286,33 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int channel = numInputChannels; channel < numOutputChannels; ++channel)
         buffer.clear(channel, 0, numSamples);
 
-    // ── Block header: read atomics, detect the ENGAGE edge, update transport
-    // (research/ARCHITECTURE.md Processing Order step 1). Durations and curves
-    // are LATCHED at the edge — mid-gesture parameter moves are inert.
-    // Phase 2.1 reads the Free times only; SYNC_MODE routing lands in 2.2.
+    // ── Block header: read atomics + host BPM, detect the ENGAGE edge, update
+    // transport (research/ARCHITECTURE.md Processing Order step 1). Durations
+    // and curves are LATCHED at the edge — mid-gesture parameter/tempo moves
+    // are inert (latch contract; a live ramp never retargets).
+    //
+    // BPM: O-Polystutter fallback+clamp pattern — no playhead / offline host /
+    // missing getBpm() → 120; clamp 20–999. Read per block; the ONLY consumer
+    // is the gesture-edge conversion in gestureDurationSamples().
+    currentBpm = 120.0;
+    if (auto* playHead = getPlayHead())
+        if (auto posInfo = playHead->getPosition())
+            if (auto bpm = posInfo->getBpm())
+                currentBpm = juce::jlimit(20.0, 999.0, *bpm);
+
     const bool engagedNow = pEngage->load() > 0.5f;
 
     if (engagedNow != lastEngage)
     {
         if (engagedNow)
         {
-            const double durSamples = juce::jmax(1.0, (double) pStopFreeMs->load() * 0.001 * currentFs);
-            const double curveP     = std::exp2(2.0 * (double) pStopCurve->load() * 0.01);
-            transport.engage(durSamples, curveP, voiceA, capture);
+            const double curveP = std::exp2(2.0 * (double) pStopCurve->load() * 0.01);
+            transport.engage(gestureDurationSamples(true), curveP, voices, capture);
         }
         else
         {
-            const double durSamples = juce::jmax(1.0, (double) pStartFreeMs->load() * 0.001 * currentFs);
-            const double curveP     = std::exp2(2.0 * (double) pStartCurve->load() * 0.01);
-            transport.release(durSamples, curveP, voiceA, capture);
+            const double curveP = std::exp2(2.0 * (double) pStartCurve->load() * 0.01);
+            transport.release(gestureDurationSamples(false), curveP, voices, capture);
         }
 
         lastEngage = engagedNow;
@@ -318,25 +350,39 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         if (! transport.isBypassed())
         {
-            const auto t = transport.tick();
+            // Transport advances the carrier (and any fading voice) and
+            // returns per-sample gains. On the crossfade-complete tick the
+            // state flips to Bypassed and this sample renders dry — the
+            // previous sample's blend was already within ~1e-6 of dry
+            // (fadeIn ≈ 1, fadeOut ≈ 0), so the handoff is continuous and
+            // every sample from here is bitwise dry (DSP-03).
+            const auto t = transport.tick(voices, capture);
 
-            if (transport.isBypassed())
+            if (! transport.isBypassed())
             {
-                // Spin-up completed on this very sample → back to dry.
-                // (Phase 2.1 splice; Phase 2.2's resync replaces this edge.)
-                voiceA.active = false;
-            }
-            else
-            {
-                voiceA.readAbsFrac += t.r;
+                float wetL = voices[t.carrierIdx].read(capture, 0)   * t.carrierWetGain;
+                float wetR = voices[t.carrierIdx].read(capture, chR) * t.carrierWetGain;
 
-                const float wetL = voiceA.read(capture, 0)   * t.wetGain;
-                const float wetR = voiceA.read(capture, chR) * t.wetGain;
+                if (t.xfActive)
+                {
+                    // Skip-splice crossfade: the old voice fades out at its
+                    // latched rate while the carrier fades in. During resync
+                    // the carrier is the integer live-rider, so the fade
+                    // lands on bitwise-dry content (DSP-03).
+                    wetL = voices[t.fadingIdx].read(capture, 0)   * t.fadeOutGain + wetL * t.fadeInGain;
+                    wetR = voices[t.fadingIdx].read(capture, chR) * t.fadeOutGain + wetR * t.fadeInGain;
+                }
 
-                // MIX blend, then OUTPUT_GAIN last — ENGAGED CHAIN ONLY.
-                const float dry = 1.0f - m;
-                outL = (inL * dry + wetL * m) * g;
-                outR = (inR * dry + wetR * m) * g;
+                // MIX blend, then OUTPUT_GAIN last — ENGAGED CHAIN ONLY. The
+                // trim rides the transport's engaged-trim blend: it releases
+                // to trimAmount = 0 (gain EXACTLY 1.0) across the resync
+                // fade, so a non-default trim cannot step at the Bypassed
+                // handoff, and glides back in over 50 ms on engage.
+                const float dry      = 1.0f - m;
+                const float trimGain = 1.0f + (g - 1.0f) * t.trimAmount;
+
+                outL = (inL * dry + wetL * m) * trimGain;
+                outR = (inR * dry + wetR * m) * trimGain;
             }
         }
         // Bypassed: TRUE hard pass-through — out = in, NO arithmetic at all
