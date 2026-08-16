@@ -1,12 +1,13 @@
 # O-Bitrot Notes
 
 ## Status
-- **Current Status:** 💡 Ideated
-- **Version:** N/A
+- **Current Status:** 📦 Installed
+- **Version:** 1.0.0
 - **Type:** Audio Effect (Broken-Media Degradation)
 
 ## Lifecycle Timeline
 
+- **2026-08-16:** Installed to system folders (VST3 + AU, dev branding `O-Bitrot-dev`). Stages 1–4 complete.
 - **2026-08-14:** Ideation complete — creative brief and requirements created from `research/glitch-effects/` (concept 2). Six degradation families (tape/CD/vinyl/packet/codec/crush), per-module controls, tempo-synced stochastic clock, seeded randomness.
 
 ## Third-Party Code
@@ -43,3 +44,7 @@ path misaligns by < 1 sample versus the plain delay — accepted.
 ## Known Issues
 
 None
+
+**Installation Locations:**
+- VST3: `~/Library/Audio/Plug-Ins/VST3/O-Bitrot-dev.vst3`
+- AU: `~/Library/Audio/Plug-Ins/Components/O-Bitrot-dev.component`

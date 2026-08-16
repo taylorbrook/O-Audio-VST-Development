@@ -30,6 +30,8 @@
 #pragma once
 #include <JuceHeader.h>
 
+#include <OuariconPresetManager.h>
+
 #include "dsp/CaptureRing.h"
 #include "dsp/RngBank.h"
 #include "dsp/MediaClock.h"
@@ -75,6 +77,11 @@ public:
 
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
+
+    // Preset manager (Stage 4) — declared AFTER apvts (member init order).
+    // LITERAL plugin name: dev and release variants must share one preset
+    // library (~/Library/Ouaricon Bitrot/Presets/).
+    OuariconPresetManager presetManager { apvts, "Ouaricon Bitrot" };
 
     // UI activity telemetry (event LEDs). Bits 0-3: tape, cd, vinyl, packet.
     // OR-accumulated per sample inside processBlock (short events survive any
