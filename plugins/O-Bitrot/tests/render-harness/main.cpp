@@ -321,6 +321,47 @@ void renderInto (OBitrotAudioProcessor& proc, juce::AudioBuffer<float>& dest,
     }
 }
 
+/** Layout variant of renderInto (v1.1.0 mono probes): the block carries
+    `bufCh` channels, `input` fills the first `inCh`; any remaining channels
+    are junk-filled with a constant the processor MUST ignore (mono->stereo
+    clears then copies ch0 over ch1). */
+void renderIntoLayout (OBitrotAudioProcessor& proc, juce::AudioBuffer<float>& dest,
+                       int totalSamples, const std::vector<int>& sizes, InputFn input,
+                       int inCh, int bufCh)
+{
+    juce::MidiBuffer midi;
+
+    dest.setSize (bufCh, totalSamples);
+    dest.clear();
+
+    juce::AudioBuffer<float> scratch (bufCh, kMaxBlock);
+
+    int    n  = 0;
+    size_t si = 0;
+
+    while (n < totalSamples)
+    {
+        int chunk = sizes[si % sizes.size()];
+        ++si;
+        chunk = juce::jmin (chunk, totalSamples - n);
+        if (chunk <= 0)
+            chunk = 1;
+
+        juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), bufCh, chunk);
+
+        for (int ch = 0; ch < bufCh; ++ch)
+            for (int s = 0; s < chunk; ++s)
+                block.setSample (ch, s, ch < inCh ? input (ch, n + s) : 0.777f);
+
+        proc.processBlock (block, midi);
+
+        for (int ch = 0; ch < bufCh; ++ch)
+            dest.copyFrom (ch, n, block, ch, 0, chunk);
+
+        n += chunk;
+    }
+}
+
 /** memcmp, NOT a tolerance — QUAL-02 says bit-identical. */
 bool bitIdentical (const juce::AudioBuffer<float>& a, const juce::AudioBuffer<float>& b)
 {
@@ -708,6 +749,24 @@ std::unique_ptr<OBitrotAudioProcessor> makeProc()
     p->prepareToPlay (kFs, kMaxBlock);
     setBaseline (*p);
     return p;
+}
+
+/** As makeProc but on a non-stereo main-bus layout (v1.1.0 mono probes). */
+std::unique_ptr<OBitrotAudioProcessor> makeProcLayout (int inCh, int outCh)
+{
+    auto p = std::make_unique<OBitrotAudioProcessor>();
+    p->setPlayConfigDetails (inCh, outCh, kFs, kMaxBlock);
+    p->prepareToPlay (kFs, kMaxBlock);
+    setBaseline (*p);
+    return p;
+}
+
+/** Dual-mono input: same signal on every channel, so a (1,1) run and a (2,2)
+    run see literally identical per-sample engine inputs. */
+float noiseDualMono (int ch, int n) noexcept
+{
+    juce::ignoreUnused (ch);
+    return noiseAt (n);
 }
 
 } // namespace
@@ -2384,6 +2443,151 @@ int main()
         check ("P1 PERF-01 cpu-ratio", live && ratio <= 0.15,
                juce::String ("ratio ") + juce::String (ratio, 4) + " (bound 0.15)"
                    + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M1 — v1.1.0 mono->mono FUNC-02 null. Same delay-compensated bit-exact
+    // null as B, on a 1-channel buffer through the mono main-bus layout.
+    {
+        auto p = makeProcLayout (1, 1);
+        setParam (*p, "TAPE_ENABLE",  0.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 0.0f);
+
+        const int total = 48000;
+        juce::AudioBuffer<float> out;
+        renderIntoLayout (*p, out, total, { 512 }, noiseDualMono, 1, 1);
+
+        const int  startAt = kComp + (int) (0.2 * kFs);
+        bool       ok      = true;
+        juce::String detail;
+
+        const auto* o = out.getReadPointer (0);
+        for (int n = startAt; n < total; ++n)
+        {
+            if (! bitExact (o[n], noiseDualMono (0, n - kComp)))
+            {
+                ok = false;
+                detail = juce::String ("first mismatch @") + juce::String (n)
+                       + " (" + juce::String (o[n], 9) + " vs "
+                       + juce::String (noiseDualMono (0, n - kComp), 9) + ")";
+                break;
+            }
+        }
+
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        if (ok && live)
+            detail = juce::String ("bit-exact null over [")
+                   + juce::String (startAt) + ", " + juce::String (total) + ")";
+
+        check ("M1 mono-null", ok && live,
+               detail + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M2 — mono->mono engine equivalence: ch0 of a (1,1) run must be
+    // BIT-IDENTICAL to ch0 of a (2,2) run fed dual-mono input. The mono path
+    // still computes the full L/R engine (wetR discarded), so every RNG draw
+    // aligns; any divergence means the mono adapter changed the engine.
+    // Heavy settings: all transport families forced, packet Substitute
+    // concealment, crush + jitter/dither/env, GSM codec.
+    {
+        auto setHeavy = [] (OBitrotAudioProcessor& p)
+        {
+            setParam (p, "CLOCK_MODE",      1.0f);
+            setParam (p, "CLOCK_FREE_RATE", 10.0f);
+            setParam (p, "TAPE_PROB",       100.0f);
+            setParam (p, "CD_PROB",         100.0f);
+            setParam (p, "VINYL_PROB",      100.0f);
+            setParam (p, "PACKET_ENABLE",   1.0f);
+            setParam (p, "PACKET_LOSS",     60.0f);
+            setParam (p, "PACKET_BURST",    50.0f);
+            setParam (p, "PACKET_CONCEAL",  3.0f);
+            setParam (p, "CRUSH_ENABLE",    1.0f);
+            setParam (p, "CRUSH_BITS",      6.0f);
+            setParam (p, "CRUSH_RATE",      6000.0f);
+            setParam (p, "CRUSH_JITTER",    50.0f);
+            setParam (p, "CRUSH_DITHER",    1.0f);
+            setParam (p, "CRUSH_ENV_AMT",   -50.0f);
+            setParam (p, "CODEC_ENABLE",    1.0f);
+            setParam (p, "CODEC_MODE",      1.0f);
+            setParam (p, "CODEC_MIX",       100.0f);
+            setParam (p, "SEED",            999.0f);
+        };
+
+        auto pm = makeProcLayout (1, 1);
+        auto ps = makeProc();
+        setHeavy (*pm);
+        setHeavy (*ps);
+
+        const int total = 96000;                   // 2 s @ 48 kHz
+        juce::AudioBuffer<float> outM, outS;
+        renderIntoLayout (*pm, outM, total, { 512 }, noiseDualMono, 1, 1);
+        renderInto       (*ps, outS, total, { 512 }, noiseDualMono);
+
+        const bool identical = std::memcmp (outM.getReadPointer (0), outS.getReadPointer (0),
+                                            sizeof (float) * (size_t) total) == 0;
+        const bool live = outM.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        juce::String detail = identical
+            ? juce::String ("mono ch0 bit-identical to dual-mono stereo ch0 by memcmp")
+            : [&]
+              {
+                  for (int n = 0; n < total; ++n)
+                      if (! bitExact (outM.getSample (0, n), outS.getSample (0, n)))
+                          return juce::String ("first diff @") + juce::String (n)
+                               + " (" + juce::String (outM.getSample (0, n), 9) + " vs "
+                               + juce::String (outS.getSample (0, n), 9) + ")";
+                  return juce::String ("identical");
+              }();
+
+        check ("M2 mono-vs-stereo-engine", identical && live,
+               detail + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M3 — mono->stereo FUNC-02 null. Buffer is 2-wide but the INPUT bus is
+    // mono; the harness junk-fills ch1 (0.777f), which the processor must
+    // discard (clear + copy ch0). BOTH output channels bit-equal the delayed
+    // mono input.
+    {
+        auto p = makeProcLayout (1, 2);
+        setParam (*p, "TAPE_ENABLE",  0.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 0.0f);
+
+        const int total = 48000;
+        juce::AudioBuffer<float> out;
+        renderIntoLayout (*p, out, total, { 512 }, noiseDualMono, 1, 2);
+
+        const int  startAt = kComp + (int) (0.2 * kFs);
+        bool       ok      = true;
+        juce::String detail;
+
+        for (int ch = 0; ch < 2 && ok; ++ch)
+        {
+            const auto* o = out.getReadPointer (ch);
+            for (int n = startAt; n < total; ++n)
+            {
+                if (! bitExact (o[n], noiseDualMono (0, n - kComp)))
+                {
+                    ok = false;
+                    detail = juce::String ("first mismatch ch") + juce::String (ch)
+                           + " @" + juce::String (n)
+                           + " (" + juce::String (o[n], 9) + " vs "
+                           + juce::String (noiseDualMono (0, n - kComp), 9) + ")";
+                    break;
+                }
+            }
+        }
+
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        if (ok && live)
+            detail = juce::String ("both channels bit-exact null over [")
+                   + juce::String (startAt) + ", " + juce::String (total) + ")";
+
+        check ("M3 mono-to-stereo-null", ok && live,
+               detail + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
     }
 
     //==========================================================================

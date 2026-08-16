@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.0
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Broken-Media Degradation)
 
 ## Lifecycle Timeline
 
+- **2026-08-16 (v1.1.0):** Mono compatibility — mono→mono and mono→stereo bus layouts added (stereo→mono still rejected, no downmix rule). Stereo path bit-identical; harness 47/47 (3 new mono probes incl. mono-vs-stereo engine bit-identity under max degradation), pluginval s10 SUCCESS, auval SUCCEEDED with capabilities exactly [1,1] [1,2] [2,2]. Installed.
 - **2026-08-16:** Installed to system folders (VST3 + AU, dev branding `O-Bitrot-dev`). Stages 1–4 complete.
 - **2026-08-14:** Ideation complete — creative brief and requirements created from `research/glitch-effects/` (concept 2). Six degradation families (tape/CD/vinyl/packet/codec/crush), per-module controls, tempo-synced stochastic clock, seeded randomness.
 

@@ -527,9 +527,18 @@ void OBitrotAudioProcessor::releaseResources()
 
 bool OBitrotAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    // Stereo-in / stereo-out only
-    return layouts.getMainInputChannelSet() == juce::AudioChannelSet::stereo()
-        && layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+    // v1.1.0: mono->mono, mono->stereo, stereo->stereo. Stereo->mono stays
+    // rejected — the engine has no downmix rule and hosts offer better ones.
+    const auto in  = layouts.getMainInputChannelSet();
+    const auto out = layouts.getMainOutputChannelSet();
+
+    if (in != juce::AudioChannelSet::mono() && in != juce::AudioChannelSet::stereo())
+        return false;
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
+        return false;
+
+    return in == out
+        || (in == juce::AudioChannelSet::mono() && out == juce::AudioChannelSet::stereo());
 }
 
 void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -550,9 +559,13 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         buffer.clear(channel, 0, numSamples);
     }
 
-    // Defensive: layout is locked stereo/stereo, and the engine needs
-    // prepareToPlay to have run (ring sized, latency reported).
-    if (numSamples == 0 || buffer.getNumChannels() < 2 || captureRing.getSize() == 0)
+    // Defensive: the engine needs prepareToPlay to have run (ring sized,
+    // latency reported). Channel bounds come from the BUFFER, not the bus
+    // layout (Standalone canonical-channelset trap).
+    const int numChannels = buffer.getNumChannels();
+    const bool stereoOut  = numChannels >= 2;
+
+    if (numSamples == 0 || numChannels < 1 || captureRing.getSize() == 0)
         return;
 
     // Scrub non-finite INPUT at the boundary (QUAL-01). Downstream state that
@@ -562,13 +575,19 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // alpha == 0, since 0 * NaN == NaN) — cannot recover from a NaN era on
     // its own. Finite samples are never written, so the all-off path stays
     // bit-exact (FUNC-02).
-    for (int channel = 0; channel < 2; ++channel)
+    for (int channel = 0; channel < juce::jmin(2, numChannels); ++channel)
     {
         auto* d = buffer.getWritePointer(channel);
         for (int n = 0; n < numSamples; ++n)
             if (! std::isfinite(d[n]))
                 d[n] = 0.0f;
     }
+
+    // Mono->stereo: ch1 was cleared above (no input behind it). Duplicate the
+    // scrubbed mono input into it so the dry push and the L/R wet pipeline
+    // below see dual-mono — the rest of the block runs unchanged.
+    if (totalNumInputChannels == 1 && stereoOut)
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
 
     // ── Block-start bookkeeping (never inside the sample loop) ──────────────
 
@@ -647,10 +666,13 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     mediaClock.processBlock(getPlayHead(), numSamples, clockMode, divIndex, freeRate);
 
     // ── Wet path: per-sample write-then-read (blockSize-invariance trap) ────
+    // Mono buffer: inR aliases inL (the ring captures dual-mono) and outR is
+    // absent — wetR is computed and discarded. Aliasing is safe: each
+    // iteration reads in*[n] (ring push, step 1) before writing out*[n].
     const float* inL  = buffer.getReadPointer(0);
-    const float* inR  = buffer.getReadPointer(1);
+    const float* inR  = stereoOut ? buffer.getReadPointer(1) : inL;
     float*       outL = buffer.getWritePointer(0);
-    float*       outR = buffer.getWritePointer(1);
+    float*       outR = stereoOut ? buffer.getWritePointer(1) : nullptr;
 
     int tickIndex = 0;
 
@@ -732,7 +754,8 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         quantStage.processSample(rngBank, wetL, wetR);
 
         outL[n] = wetL;
-        outR[n] = wetR;
+        if (stereoOut)
+            outR[n] = wetR;
 
         if (! tapeTransport.isIdle())        activity |= kTapeActive;
         if (cdSkip.isActive())               activity |= kCdActive;

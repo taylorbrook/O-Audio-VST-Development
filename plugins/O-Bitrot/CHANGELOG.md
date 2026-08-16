@@ -2,6 +2,30 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.1.0] — 2026-08-16
+
+### Added
+- **Mono compatibility** — the plugin now loads on mono→mono and
+  mono→stereo bus layouts in addition to stereo→stereo. Root cause of the
+  previous behavior: the layout was hard-locked stereo in three places
+  (bus constructor, `isBusesLayoutSupported`, and a `< 2`-channel
+  early-return in `processBlock` that passed audio through untouched).
+  Mono input is captured dual-mono into the ring; mono output takes the
+  left engine channel; mono→stereo duplicates the input and runs the
+  stereo path unchanged. Stereo→mono remains rejected (no downmix rule).
+
+### Changed
+- Nothing in the stereo path — verified bit-identical (all 44 pre-existing
+  harness probes unchanged and green).
+
+### Testing
+- Three new harness probes (47/47 green): M1 mono→mono delay-compensated
+  bit-exact null; M2 mono ch0 bit-identical to a dual-mono stereo render
+  under maximum degradation (all families forced, GSM codec, crush with
+  jitter/dither — proves RNG stream alignment between layouts); M3
+  mono→stereo null on both output channels with junk-filled ch1 input the
+  processor must discard.
+
 ## [1.0.0] — 2026-08-16
 
 Initial release.
