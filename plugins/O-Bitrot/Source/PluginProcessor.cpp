@@ -381,6 +381,10 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     artifactSynth.prepare(sampleRate);
     packetStage.prepare(sampleRate, packetEnableParam->load() > 0.5f);
     codecStage.prepare(compLatencySamples);
+    crushStage.prepare(sampleRate, crushEnableParam->load() > 0.5f,
+                       (double) crushRateParam->load());
+    quantStage.prepare(sampleRate, crushEnableParam->load() > 0.5f,
+                       (double) crushBitsParam->load());
 
     juce::dsp::ProcessSpec spec { sampleRate,
                                   (juce::uint32) juce::jmax(1, samplesPerBlock),
@@ -431,6 +435,21 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     if (numSamples == 0 || buffer.getNumChannels() < 2 || captureRing.getSize() == 0)
         return;
 
+    // Scrub non-finite INPUT at the boundary (QUAL-01). Downstream state that
+    // is fed signal — the capture ring, packet history, and especially the
+    // DryWetMixer's Thiran dry-delay (whose allpass state v computes
+    // `alpha * (x - v)` and holds NaN FOREVER once poisoned, even at
+    // alpha == 0, since 0 * NaN == NaN) — cannot recover from a NaN era on
+    // its own. Finite samples are never written, so the all-off path stays
+    // bit-exact (FUNC-02).
+    for (int channel = 0; channel < 2; ++channel)
+    {
+        auto* d = buffer.getWritePointer(channel);
+        for (int n = 0; n < numSamples; ++n)
+            if (! std::isfinite(d[n]))
+                d[n] = 0.0f;
+    }
+
     // ── Block-start bookkeeping (never inside the sample loop) ──────────────
 
     // Seed-change detection: reseed all streams deterministically at the
@@ -470,6 +489,18 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                           (int) packetConcealParam->load(),
                           packetEnableParam->load() > 0.5f,
                           hardEdges);
+
+    // Crush + Quant per-block snapshot (one section enable gates both).
+    // Determinism convention as PacketLossStage: latch/follower + jitter and
+    // dither draws run unconditionally; CRUSH_ENABLE gates audibility.
+    const bool crushEnabled = crushEnableParam->load() > 0.5f;
+    crushStage.setParams(crushRateParam->load(),
+                         crushJitterParam->load() * 0.01f,
+                         crushEnabled);
+    quantStage.setParams(crushBitsParam->load(),
+                         crushDitherParam->load(),
+                         crushEnvAmtParam->load() * 0.01f,
+                         crushEnabled);
 
     // Mid-event disable releases gracefully (ramp back / recovery jump /
     // stop re-jumping), never teleports.
@@ -555,10 +586,15 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         //    (packet stream) consumed only at packet boundaries.
         packetStage.processSample(rngBank, wetL, wetR);
 
-        // 7b. Crush / Quant: unity until Phase 2.4.
-
         // 8. CodecStage: pure kCompLatency alignment delay until Phase 2.5.
+        //    ARCHITECTURE chain order: Packet -> Codec -> Crush -> Quant.
         codecStage.processSample(wetL, wetR);
+
+        // 9. Crush (fractional-hold SRR + jitter) then Quant (fractional
+        //    bits + TPDF + env-driven depth) — the "output converter"
+        //    position. Jitter/dither streams draw unconditionally per sample.
+        crushStage.processSample(rngBank, wetL, wetR);
+        quantStage.processSample(rngBank, wetL, wetR);
 
         outL[n] = wetL;
         outR[n] = wetR;

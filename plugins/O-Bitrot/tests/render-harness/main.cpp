@@ -78,6 +78,28 @@
       Q  QUAL-02 packet grid  — 512-vs-4096 + ragged bit-identity with the
                                 packet stage ACTIVE (high loss, fixed seed).
 
+    Probes (Phase 2.4: crush + quant):
+
+      R  DSP-06 crush sweeps  — CRUSH_RATE liveness + hold-interval trace
+                                glides (no zipper step) across a full-range
+                                param step; CRUSH_BITS liveness + smoothed
+                                staircase (>= 3 intermediate levels on DC);
+                                fractional rate renders without warble
+                                (envelope flatness).
+      S  DSP-07 duck vs pump  — burst/tail signal: duck crushes the tail
+                                harder, pump crushes the transient harder
+                                (normalized quantization-error energy per
+                                segment vs an env-amt-0 reference); plus
+                                QUAL-02 bit-identity with crush+quant active
+                                (per-sample follower is the load-bearing
+                                piece).
+      T  DSP-08 dither        — CRUSH_DITHER 0 vs 2 renders differ (same
+                                seed/schedule — dither draws are
+                                unconditional).
+      U  QUAL-01 pathological — DC, silence, full-scale square, NaN
+                                injection, then clean input: output recovers,
+                                never sticky NaN/Inf.
+
     Conventions (all have shipped-bug war stories):
       * position-deterministic noiseAt(n) — NEVER a sequential RNG
         (pattern_rng_stream_interleave_blocksize);
@@ -98,6 +120,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -456,6 +479,88 @@ double medianOf (std::vector<double> v)
 }
 
 //==============================================================================
+// ── Phase 2.4 helpers ─────────────────────────────────────────────────────────
+
+float dcStereo (int ch, int n) noexcept
+{
+    juce::ignoreUnused (ch, n);
+    return 0.3f;
+}
+
+/** Burst/tail signal for the duck-vs-pump probe: 0.5 s loud (0.9), 0.5 s
+    quiet (0.09 = -20 dB), 220 Hz carrier. Position-deterministic. */
+float burstSine (int ch, int n) noexcept
+{
+    juce::ignoreUnused (ch);
+    const float amp = ((n % 48000) < 24000) ? 0.9f : 0.09f;
+    return amp * static_cast<float> (
+               std::sin (2.0 * juce::MathConstants<double>::pi * kSineHz
+                         * static_cast<double> (n) / kFs));
+}
+
+/** QUAL-01 pathological input: DC, silence, full-scale square, a NaN
+    stretch, then clean sine — recovery is the criterion. */
+float pathologicalStereo (int ch, int n) noexcept
+{
+    juce::ignoreUnused (ch);
+    if (n < 24000) return 0.8f;                                   // DC
+    if (n < 48000) return 0.0f;                                   // silence
+    if (n < 72000) return ((n / 120) & 1) ? -1.0f : 1.0f;         // FS square, ~200 Hz
+    if (n < 76800) return std::numeric_limits<float>::quiet_NaN();// 100 ms of NaN
+    return 0.5f * static_cast<float> (
+               std::sin (2.0 * juce::MathConstants<double>::pi * kSineHz
+                         * static_cast<double> (n - 76800) / kFs));
+}
+
+/** renderInto with ONE parameter step applied at the first block boundary at
+    or after `stepAt` (fixed chunk size). */
+void renderWithStep (OBitrotAudioProcessor& proc, juce::AudioBuffer<float>& dest,
+                     int totalSamples, int chunk, InputFn input,
+                     int stepAt, const char* id, float value)
+{
+    juce::MidiBuffer midi;
+
+    dest.setSize (2, totalSamples);
+    dest.clear();
+
+    juce::AudioBuffer<float> scratch (2, kMaxBlock);
+
+    int  n       = 0;
+    bool stepped = false;
+
+    while (n < totalSamples)
+    {
+        if (! stepped && n >= stepAt)
+        {
+            setParam (proc, id, value);
+            stepped = true;
+        }
+
+        const int len = juce::jmin (chunk, totalSamples - n);
+        juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), 2, len);
+
+        for (int ch = 0; ch < 2; ++ch)
+            for (int s = 0; s < len; ++s)
+                block.setSample (ch, s, input (ch, n + s));
+
+        proc.processBlock (block, midi);
+
+        for (int ch = 0; ch < 2; ++ch)
+            dest.copyFrom (ch, n, block, ch, 0, len);
+
+        n += len;
+    }
+}
+
+bool allFiniteRange (const float* x, int from, int to)
+{
+    for (int n = from; n < to; ++n)
+        if (! std::isfinite (x[n]))
+            return false;
+    return true;
+}
+
+//==============================================================================
 /** First INPUT-TIME sample (>= startAt in output time) where channel 0
     deviates from the expected delayed-sine passthrough by more than `thresh`.
     -1 if none. The all-off / pre-event path is EXACT, so this locates the
@@ -513,7 +618,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI juceInit;
 
     const int kComp = (int) std::ceil (0.020 * kFs);   // 960 @ 48 kHz
-    std::printf ("O-Bitrot render-harness (Phases 2.1-2.3) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
+    std::printf ("O-Bitrot render-harness (Phases 2.1-2.4) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
 
     //==========================================================================
     // A — latency reported once, equal to ceil(0.020 * fs).
@@ -1512,6 +1617,337 @@ int main()
                               : firstDifference (outB, outC))
                        + (live ? "" : " — SILENT, probe vacuous"));
         }
+    }
+
+    //==========================================================================
+    // R — DSP-06 CRUSH_RATE: liveness + zipper-free sweep. A crushed signal
+    // is inherently steppy, so a raw sample-delta bound is vacuous — instead
+    // the HOLD-INTERVAL TRACE (spacing between output value changes) must
+    // GLIDE across a full-range param step. The 50 ms per-sample-smoothed
+    // target bounds consecutive interval ratios (< ~1.7 analytically); an
+    // unsmoothed 20 kHz -> 500 Hz step reads ratio ~40.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",   0.0f);
+        setParam (*p, "CD_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",  0.0f);
+        setParam (*p, "CRUSH_ENABLE",  1.0f);
+        setParam (*p, "CRUSH_RATE",    20000.0f);
+
+        const int total = 96000;
+        juce::AudioBuffer<float> out;
+        renderWithStep (*p, out, total, 512, sineStereo, 24000, "CRUSH_RATE", 500.0f);
+
+        const auto* o = out.getReadPointer (0);
+        const int startAt = kComp + (int) (0.2 * kFs);
+
+        std::vector<int> intervals;
+        int lastChange = -1;
+        for (int n = startAt + 1; n < total; ++n)
+        {
+            if (! bitExact (o[n], o[n - 1]))
+            {
+                if (lastChange >= 0)
+                    intervals.push_back (n - lastChange);
+                lastChange = n;
+            }
+        }
+
+        int    minIv = 1 << 30, maxIv = 0;
+        double worstRatio = 1.0;
+        for (size_t i = 1; i < intervals.size(); ++i)
+        {
+            minIv = juce::jmin (minIv, intervals[i]);
+            maxIv = juce::jmax (maxIv, intervals[i]);
+
+            const int a2 = intervals[i - 1], b2 = intervals[i];
+            if (a2 >= 4 && a2 <= 300 && b2 >= 4 && b2 <= 300)
+                worstRatio = juce::jmax (worstRatio,
+                                         (double) juce::jmax (a2, b2) / (double) juce::jmin (a2, b2));
+        }
+
+        const bool live      = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool spanned   = minIv <= 4 && maxIv >= 80;    // sweep actually moved the DSP
+        const bool noZipper  = worstRatio <= 2.5;
+
+        check ("R DSP-06 rate-sweep", live && spanned && noZipper,
+               juce::String ("hold intervals [") + juce::String (minIv) + ", " + juce::String (maxIv)
+                   + "] samples, worst consecutive ratio " + juce::String (worstRatio, 3)
+                   + " (bound 2.5; unsmoothed step ~40)"
+                   + (spanned ? "" : " — PARAM DID NOT MOVE THE DSP, probe vacuous"));
+    }
+
+    //==========================================================================
+    // R2 — DSP-06 CRUSH_BITS: liveness + smoothed staircase. On DC input a
+    // hard (unsmoothed) 16 -> 2 bits step yields exactly TWO output values;
+    // the per-sample-smoothed target glides delta through many intermediate
+    // quantization levels.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",   0.0f);
+        setParam (*p, "CD_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",  0.0f);
+        setParam (*p, "CRUSH_ENABLE",  1.0f);
+        setParam (*p, "CRUSH_BITS",    16.0f);
+
+        const int total = 48000;
+        juce::AudioBuffer<float> out;
+        renderWithStep (*p, out, total, 512, dcStereo, 24000, "CRUSH_BITS", 2.0f);
+
+        const auto* o = out.getReadPointer (0);
+
+        const float before = o[24000 + kComp - 200];
+        const float after  = o[total - 100];
+
+        int changes = 0;
+        for (int n = 24000 + kComp - 100 + 1; n < 24000 + kComp + 9600; ++n)
+            if (! bitExact (o[n], o[n - 1]))
+                ++changes;
+
+        const bool moved    = std::abs ((double) after - (double) before) > 0.05;   // liveness
+        const bool staired  = changes >= 2;                                          // >= 3 levels
+        const bool finiteOk = allFiniteRange (o, 0, total);
+
+        check ("R2 DSP-06 bits-staircase", moved && staired && finiteOk,
+               juce::String ("DC 0.3: ") + juce::String (before, 5) + " -> " + juce::String (after, 5)
+                   + " through " + juce::String (changes + 1) + " levels (hard step = 2)"
+                   + (moved ? "" : " — BITS DID NOT MOVE THE DSP, probe vacuous"));
+    }
+
+    //==========================================================================
+    // R3 — DSP-06 fractional rate, no warble: at 6857 Hz (fs/7.0001 — the
+    // classic integer-latch beat position) the interpolated hold keeps the
+    // steady-state envelope flat.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",   0.0f);
+        setParam (*p, "CD_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",  0.0f);
+        setParam (*p, "CRUSH_ENABLE",  1.0f);
+        setParam (*p, "CRUSH_RATE",    6857.0f);
+
+        const int total = 72000;
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto* o = out.getReadPointer (0);
+        const int win = (int) (0.025 * kFs);   // 25 ms (5.5 sine cycles)
+
+        std::vector<double> winRms;
+        for (int w = (int) (0.3 * kFs); w + win <= total; w += win)
+        {
+            double e = 0.0;
+            for (int i = 0; i < win; ++i) { const double x = o[w + i]; e += x * x; }
+            winRms.push_back (std::sqrt (e / win));
+        }
+
+        const double mn = *std::min_element (winRms.begin(), winRms.end());
+        const double mx = *std::max_element (winRms.begin(), winRms.end());
+        const bool   live   = medianOf (winRms) > 0.1;
+        const bool   flat   = mn > 0.0 && mx / mn <= 1.3;
+
+        check ("R3 DSP-06 fractional-rate", live && flat,
+               juce::String ("25ms RMS envelope max/min ") + juce::String (mx / juce::jmax (1.0e-12, mn), 3)
+                   + " (bound 1.3 — integer-latch warble beats)"
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // S — DSP-07 duck vs pump. Burst/tail signal, quantization-error energy
+    // per segment measured against the env-amt-0 reference render. Duck (-)
+    // concentrates error in the QUIET tails (errQ/errL >> 1); pump (+)
+    // concentrates it in the LOUD transients (errQ/errL << 1). The
+    // cross-segment ratio is used (not energy-normalized rates) because
+    // quantization error does not scale with signal level.
+    {
+        auto render = [&] (float envAmt, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",   0.0f);
+            setParam (*p, "CD_ENABLE",     0.0f);
+            setParam (*p, "VINYL_ENABLE",  0.0f);
+            setParam (*p, "CRUSH_ENABLE",  1.0f);
+            setParam (*p, "CRUSH_BITS",    12.0f);
+            setParam (*p, "CRUSH_ENV_AMT", envAmt);
+            renderInto (*p, out, total, { 512 }, burstSine);
+        };
+
+        const int total = 192000;   // 4 x 1 s burst/tail periods
+        juce::AudioBuffer<float> outRef, outDuck, outPump;
+        render (0.0f,    outRef,  total);
+        render (-100.0f, outDuck, total);
+        render (100.0f,  outPump, total);
+
+        auto segErr = [&] (const juce::AudioBuffer<float>& a, bool loud)
+        {
+            const auto* xa = a.getReadPointer (0);
+            const auto* xr = outRef.getReadPointer (0);
+            double acc = 0.0;
+            int    cnt = 0;
+
+            for (int period = 1; period < 4; ++period)
+            {
+                // Second half of each segment (follower most settled).
+                const int segBase = period * 48000 + (loud ? 12000 : 36000);
+                for (int i = 0; i < 12000; ++i)
+                {
+                    const int n = kComp + segBase + i;
+                    const double d = (double) xa[n] - (double) xr[n];
+                    acc += d * d;
+                    ++cnt;
+                }
+            }
+            return acc / (double) juce::jmax (1, cnt);   // mean squared error
+        };
+
+        const double duckL = segErr (outDuck, true),  duckQ = segErr (outDuck, false);
+        const double pumpL = segErr (outPump, true),  pumpQ = segErr (outPump, false);
+
+        const double duckRatio = duckQ / juce::jmax (1.0e-18, duckL);
+        const double pumpRatio = pumpQ / juce::jmax (1.0e-18, pumpL);
+
+        const bool liveD = duckQ > 1.0e-12;   // duck actually crushed the tails
+        const bool liveP = pumpL > 1.0e-12;   // pump actually crushed the bursts
+        const bool ok    = duckRatio > 4.0 && pumpRatio < 0.5;
+
+        check ("S DSP-07 duck-vs-pump", liveD && liveP && ok,
+               juce::String ("duck errQ/errL ") + juce::String (duckRatio, 2)
+                   + " (need > 4), pump errQ/errL " + juce::String (pumpRatio, 4)
+                   + " (need < 0.5)"
+                   + ((liveD && liveP) ? "" : " — ENV DEPTH INERT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // S2 — QUAL-02 with crush + quant ACTIVE (jitter + dither streams drawing
+    // per sample, per-sample follower engaged) plus transports rolling.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 10.0f);
+            setParam (proc, "TAPE_PROB",       50.0f);
+            setParam (proc, "CD_PROB",         50.0f);
+            setParam (proc, "VINYL_PROB",      50.0f);
+            setParam (proc, "CRUSH_ENABLE",    1.0f);
+            setParam (proc, "CRUSH_BITS",      6.0f);
+            setParam (proc, "CRUSH_RATE",      6000.0f);
+            setParam (proc, "CRUSH_JITTER",    40.0f);
+            setParam (proc, "CRUSH_DITHER",    1.0f);
+            setParam (proc, "CRUSH_ENV_AMT",   -50.0f);
+            setParam (proc, "SEED",            777.0f);
+        };
+
+        const int total = 32768;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+        auto c = makeProc();  configure (*c);
+
+        juce::AudioBuffer<float> outA, outB, outC;
+        renderInto (*a, outA, total, { 512 },              noiseStereo);
+        renderInto (*b, outB, total, { 4096 },             noiseStereo);
+        renderInto (*c, outC, total, { 1, 7, 64, 333, 4096 }, noiseStereo);
+
+        {
+            const bool identical = bitIdentical (outA, outB);
+            const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("S2 QUAL-02 crush-512-4096", identical && live,
+                   (identical ? juce::String ("crush+quant active: bit-identical by memcmp")
+                              : firstDifference (outA, outB))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+
+        {
+            const bool identical = bitIdentical (outB, outC);
+            const bool live      = outC.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("S2 QUAL-02 crush-ragged", identical && live,
+                   (identical ? juce::String ("crush+quant active, ragged: bit-identical")
+                              : firstDifference (outB, outC))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+    }
+
+    //==========================================================================
+    // T — DSP-08 dither functional: CRUSH_DITHER 0 vs 2 differ. The dither
+    // draws are unconditional, so both renders share the identical stream —
+    // ONLY the dither amplitude differs.
+    {
+        auto render = [&] (float dither, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "CRUSH_ENABLE", 1.0f);
+            setParam (*p, "CRUSH_BITS",   8.0f);
+            setParam (*p, "CRUSH_DITHER", dither);
+            renderInto (*p, out, total, { 512 }, sineStereo);
+        };
+
+        const int total = 48000;
+        juce::AudioBuffer<float> outA, outB;
+        render (0.0f, outA, total);
+        render (2.0f, outB, total);
+
+        const double diff = maxAbsDiff (outA, outB);
+        const bool   live = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("T DSP-08 dither-audible", live && diff > 0.003,
+               juce::String ("maxAbsDiff dither-0-vs-2 = ") + juce::String (diff, 5)
+                   + " (need > 0.003 = ~0.4 LSB @ 8 bits)");
+    }
+
+    //==========================================================================
+    // U — QUAL-01 pathological input with crush + quant fully engaged
+    // (env-driven depth ON — the follower is the sticky-NaN target): DC,
+    // silence, full-scale square, 100 ms of NaN, then clean sine. The output
+    // must be finite before the NaN window and must RECOVER after it —
+    // finite, bounded and live.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",   0.0f);
+        setParam (*p, "CD_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",  0.0f);
+        setParam (*p, "CRUSH_ENABLE",  1.0f);
+        setParam (*p, "CRUSH_BITS",    5.0f);
+        setParam (*p, "CRUSH_RATE",    8000.0f);
+        setParam (*p, "CRUSH_JITTER",  30.0f);
+        setParam (*p, "CRUSH_DITHER",  1.0f);
+        setParam (*p, "CRUSH_ENV_AMT", 80.0f);
+
+        const int total = 144000;
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, pathologicalStereo);
+
+        bool preOk = true, postOk = true;
+        double postPeak = 0.0, postMag = 0.0;
+
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            const auto* o = out.getReadPointer (ch);
+
+            // Before the NaN window reaches the output (input NaN starts at
+            // 72000; +kComp latency; stop a little early for safety).
+            preOk = preOk && allFiniteRange (o, 0, 72000 + kComp - 64);
+
+            // Recovery region: 0.4 s after clean input resumed.
+            postOk = postOk && allFiniteRange (o, 96000, total);
+            for (int n = 96000; n < total; ++n)
+            {
+                postPeak = juce::jmax (postPeak, (double) std::abs (o[n]));
+                postMag  = juce::jmax (postMag,  (double) std::abs (o[n]));
+            }
+        }
+
+        const bool bounded = postPeak <= 2.0;
+        const bool live    = postMag > 1.0e-4;
+
+        check ("U QUAL-01 pathological", preOk && postOk && bounded && live,
+               juce::String ("pre-NaN finite: ") + (preOk ? "yes" : "NO")
+                   + ", recovery finite: " + (postOk ? "yes" : "NO")
+                   + ", post peak " + juce::String (postPeak, 4) + " (bound 2.0)"
+                   + (live ? "" : " — RECOVERY SILENT (sticky state?)"));
     }
 
     //==========================================================================
