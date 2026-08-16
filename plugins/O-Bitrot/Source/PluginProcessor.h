@@ -40,6 +40,8 @@
 #include "dsp/VinylTransport.h"
 #include "dsp/Arbitration.h"
 #include "dsp/PacketLossStage.h"
+#include "dsp/CrushStage.h"
+#include "dsp/QuantStage.h"
 #include "dsp/CodecStage.h"
 
 class OBitrotAudioProcessor : public juce::AudioProcessor
@@ -147,6 +149,8 @@ private:
     Arbitration     arbitration;
     PacketLossStage packetStage;     // Phase 2.3: GE loss over its own 20 ms grid
     CodecStage      codecStage;
+    CrushStage      crushStage;      // Phase 2.4: fractional-hold SRR + jitter
+    QuantStage      quantStage;      // Phase 2.4: fractional bits + TPDF + env depth
 
     juce::dsp::DryWetMixer<float> dryWetMixer { kMaxWetLatencySamples };
 
