@@ -35,6 +35,9 @@
 #include "dsp/MediaClock.h"
 #include "dsp/ReadHead.h"
 #include "dsp/TapeTransport.h"
+#include "dsp/ArtifactSynth.h"
+#include "dsp/CDSkip.h"
+#include "dsp/VinylTransport.h"
 #include "dsp/Arbitration.h"
 #include "dsp/CodecStage.h"
 
@@ -132,13 +135,16 @@ private:
     // ------------------------------------------------------------------------
     static constexpr int kMaxWetLatencySamples = 8192;  // covers 0.020*fs up to 400 kHz
 
-    CaptureRing   captureRing;
-    ReadHead      readHead;
-    MediaClock    mediaClock;
-    RngBank       rngBank;
-    TapeTransport tapeTransport;
-    Arbitration   arbitration;
-    CodecStage    codecStage;
+    CaptureRing    captureRing;
+    ReadHead       readHead;
+    MediaClock     mediaClock;
+    RngBank        rngBank;
+    TapeTransport  tapeTransport;
+    CDSkip         cdSkip;           // Phase 2.2
+    VinylTransport vinylTransport;   // Phase 2.2
+    ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps
+    Arbitration    arbitration;
+    CodecStage     codecStage;
 
     juce::dsp::DryWetMixer<float> dryWetMixer { kMaxWetLatencySamples };
 

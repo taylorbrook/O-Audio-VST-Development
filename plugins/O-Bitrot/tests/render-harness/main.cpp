@@ -45,6 +45,26 @@
                                 BPM (120 vs 240); stopped transport emits
                                 nothing (negative control for the detector).
 
+    Probes (Phase 2.2: CD skip + vinyl):
+
+      J  DSP-02 conceal       — severity 0 forces rung 1: HF-energy dip on a
+                                noise input, level never collapses (no mute).
+      K  DSP-02 mute          — severity 0.45: a 5 ms RMS window collapses
+                                (hard mute engaged), level otherwise intact.
+      L  DSP-02 loop          — severity 1.0 forces the buffer loop on a
+                                position-marker saw: restarts at EXACT
+                                CD_SEGMENT intervals, first onset on the
+                                clock grid (FUNC-01), chirp energy at every
+                                restart, recovery jumps FORWARD to live.
+      M  DSP-03 vinyl         — saw marker: backward jump distances are
+                                integer revolution multiples, forward jumps
+                                land at live, onsets on the clock grid
+                                (FUNC-01); sine: pitch never changes across
+                                jumps; pops audible (A/B vs VINYL_POP 0).
+      N  collision determinism— all three families at 100%: same seed =>
+                                bit-identical fresh-instance renders; plus
+                                all-fire ragged-blocksize bit-identity.
+
     Conventions (all have shipped-bug war stories):
       * position-deterministic noiseAt(n) — NEVER a sequential RNG
         (pattern_rng_stream_interleave_blocksize);
@@ -61,6 +81,7 @@
 
 #include "PluginProcessor.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -335,6 +356,93 @@ std::vector<float> channelToVector (const juce::AudioBuffer<float>& b, int ch)
     return std::vector<float> (p, p + b.getNumSamples());
 }
 
+//==============================================================================
+// ── Phase 2.2 helpers: position-marker saw + jump-event scanner ──────────────
+
+/** Saw period, samples. Power of two so the marker value k/period is EXACT in
+    float (k < 2^18 fits the 24-bit mantissa), and > 2x the ring's maximum lag
+    (120000 @ 48 kHz) so signed distances never alias. */
+constexpr int kSawPeriod = 262144;
+
+/** Position-marker saw: value encodes the ABSOLUTE input sample index, so a
+    read-head jump of d samples shows up as a value step of d/kSawPeriod
+    (mod 1). Linear, so the head's fractional-position lerp is transparent —
+    values stay ON the saw line between jumps. Requires n >= 0. */
+float sawAt (int n) noexcept
+{
+    return static_cast<float> (n & (kSawPeriod - 1)) / static_cast<float> (kSawPeriod);
+}
+
+float sawStereo (int ch, int n) noexcept
+{
+    juce::ignoreUnused (ch);
+    return sawAt (n);
+}
+
+struct SawEvent
+{
+    int    outIndex;      // output-time sample where the deviation started
+    double distSamples;   // + = jumped BACKWARD by dist; - = jumped FORWARD
+    int    postIndex;     // where vPost was read (past fades/chirps)
+    float  vPost;
+};
+
+/** Scans channel 0 of a saw-marker render for read-head jumps. A jump is a
+    per-sample delta deviating from the nominal slope by > `thresh`; the
+    distance is recovered from the value `skipAfter` samples later (past the
+    crossfade and any restart chirp), mod the saw period, mapped into
+    (-period/2, period/2]. |dist| <= 100 events (the saw's own wrap maps to
+    ~0) are discarded. */
+std::vector<SawEvent> scanSawEvents (const std::vector<float>& out,
+                                     int startAt, int skipAfter, double thresh)
+{
+    std::vector<SawEvent> events;
+    const double slope = 1.0 / static_cast<double> (kSawPeriod);
+
+    for (int n = startAt; n - 1 + skipAfter < (int) out.size(); ++n)
+    {
+        const double d = (double) out[(size_t) n] - (double) out[(size_t) (n - 1)];
+
+        if (std::abs (d - slope) > thresh)
+        {
+            const int   postIndex = n - 1 + skipAfter;
+            const float vPre      = out[(size_t) (n - 1)];
+            const float vPost     = out[(size_t) postIndex];
+
+            double delta = ((double) vPre + skipAfter * slope) - (double) vPost;
+            delta -= std::floor (delta);              // mod 1 -> [0, 1)
+            if (delta > 0.5)
+                delta -= 1.0;                         // -> (-0.5, 0.5]
+
+            const double dist = delta * (double) kSawPeriod;
+
+            if (std::abs (dist) > 100.0)
+                events.push_back ({ n, dist, postIndex, vPost });
+
+            n += skipAfter + 32;                      // continue past the smear
+        }
+    }
+    return events;
+}
+
+/** Read-head lag (samples) recovered from a saw-marker value at output index
+    n: live material would read sawAt(n - kComp). */
+double lagFromSaw (float v, int outIndex, int kComp)
+{
+    double delta = (double) sawAt (outIndex - kComp) - (double) v;
+    delta -= std::floor (delta);
+    return delta * (double) kSawPeriod;
+}
+
+double medianOf (std::vector<double> v)
+{
+    if (v.empty())
+        return 0.0;
+    std::sort (v.begin(), v.end());
+    return v[v.size() / 2];
+}
+
+//==============================================================================
 /** First INPUT-TIME sample (>= startAt in output time) where channel 0
     deviates from the expected delayed-sine passthrough by more than `thresh`.
     -1 if none. The all-off / pre-event path is EXACT, so this locates the
@@ -392,7 +500,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI juceInit;
 
     const int kComp = (int) std::ceil (0.020 * kFs);   // 960 @ 48 kHz
-    std::printf ("O-Bitrot render-harness (Phase 2.1) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
+    std::printf ("O-Bitrot render-harness (Phases 2.1 + 2.2) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
 
     //==========================================================================
     // A — latency reported once, equal to ceil(0.020 * fs).
@@ -747,6 +855,459 @@ int main()
             check ("I FUNC-03 sync-stopped", onset == -1,
                    onset == -1 ? juce::String ("no events while transport stopped (detector sane)")
                                : juce::String ("SPURIOUS deviation @") + juce::String (onset));
+        }
+    }
+
+    //==========================================================================
+    // J — DSP-02 rung 1 (concealment): severity 0 forces the LPF dip. On a
+    // noise input the windowed HF/total energy ratio must dip well below its
+    // median (dip liveness) while the level never collapses (severity 0 must
+    // never mute — negative control for K).
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 4.0f);
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "CD_SEVERITY",     0.0f);
+        setParam (*p, "SEED",            42.0f);
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const auto* o = out.getReadPointer (0);
+        const int startAt = kComp + (int) (0.2 * kFs);
+        constexpr int win = 1024;
+
+        std::vector<double> hfRatio, winRms;
+        for (int w = startAt; w + win <= total; w += win)
+        {
+            double eTot = 0.0, eDiff = 0.0;
+            for (int i = 1; i < win; ++i)
+            {
+                const double x = o[w + i];
+                const double d = x - (double) o[w + i - 1];
+                eTot  += x * x;
+                eDiff += d * d;
+            }
+            hfRatio.push_back (eDiff / juce::jmax (1.0e-12, eTot));
+            winRms.push_back (std::sqrt (eTot / (win - 1)));
+        }
+
+        const double medRatio = medianOf (hfRatio);
+        const double minRatio = *std::min_element (hfRatio.begin(), hfRatio.end());
+        const double medRms   = medianOf (winRms);
+        const double minRms   = *std::min_element (winRms.begin(), winRms.end());
+
+        const bool live    = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool dipped  = minRatio < 0.5 * medRatio;
+        const bool noMute  = minRms > 0.1 * medRms;
+
+        check ("J DSP-02 conceal-dip", live && dipped && noMute,
+               juce::String ("HF ratio min/median ") + juce::String (minRatio, 4) + "/"
+                   + juce::String (medRatio, 4) + " (need < 0.5x), RMS min/median "
+                   + juce::String (minRms, 4) + "/" + juce::String (medRms, 4)
+                   + (dipped ? "" : " — NO DIP, probe vacuous")
+                   + (noMute ? "" : " — LEVEL COLLAPSED at severity 0"));
+    }
+
+    //==========================================================================
+    // K — DSP-02 rung 2 (mute): severity 0.45 rolls mostly mutes. Some 5 ms
+    // RMS window must collapse (hard mute engaged) while the median stays
+    // healthy.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 4.0f);
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "CD_SEVERITY",     0.45f);
+        setParam (*p, "SEED",            42.0f);
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const auto* o = out.getReadPointer (0);
+        const int startAt = kComp + (int) (0.2 * kFs);
+        const int win     = (int) (0.005 * kFs);   // 5 ms
+
+        std::vector<double> winRms;
+        for (int w = startAt; w + win <= total; w += win)
+        {
+            double e = 0.0;
+            for (int i = 0; i < win; ++i) { const double x = o[w + i]; e += x * x; }
+            winRms.push_back (std::sqrt (e / win));
+        }
+
+        const double medRms = medianOf (winRms);
+        const double minRms = *std::min_element (winRms.begin(), winRms.end());
+
+        const bool live  = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool muted = minRms < 0.1 * medRms;
+
+        check ("K DSP-02 mute-notch", live && muted,
+               juce::String ("5ms RMS min/median ") + juce::String (minRms, 5) + "/"
+                   + juce::String (medRms, 5) + " (need < 0.1x)"
+                   + (muted ? "" : " — NO MUTE ENGAGED, probe vacuous"));
+    }
+
+    //==========================================================================
+    // L — DSP-02 rung 3 (buffer loop) on the position-marker saw: severity
+    // 1.0 forces the loop. Restarts land at EXACT CD_SEGMENT intervals with
+    // chirp energy at each restart; the first onset sits on the clock grid
+    // (FUNC-01); dropping CD_PROB to 0 releases the loop with a FORWARD
+    // recovery jump back to live material.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 2.0f);   // ticks every 24000
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "CD_SEVERITY",     1.0f);
+        setParam (*p, "CD_SEGMENT",      100.0f); // 4800 samples
+        setParam (*p, "SEED",            42.0f);
+
+        const int total = 144000;
+        juce::AudioBuffer<float> out (2, total);
+        out.clear();
+
+        // Chunk 500 divides 24000, so the CD_PROB write at n == 96000 lands
+        // exactly on the tick that must see it (release => recovery).
+        {
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> scratch (2, 512);
+            int n = 0;
+            bool dropped = false;
+            while (n < total)
+            {
+                if (! dropped && n >= 96000)
+                {
+                    setParam (*p, "CD_PROB", 0.0f);
+                    dropped = true;
+                }
+
+                const int chunk = juce::jmin (500, total - n);
+                juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), 2, chunk);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int s = 0; s < chunk; ++s)
+                        block.setSample (ch, s, sawStereo (ch, n + s));
+                p->processBlock (block, midi);
+                for (int ch = 0; ch < 2; ++ch)
+                    out.copyFrom (ch, n, block, ch, 0, chunk);
+                n += chunk;
+            }
+        }
+
+        const auto mono = channelToVector (out, 0);
+        const int  startAt = kComp + (int) (0.2 * kFs);
+
+        // Threshold 5e-5: a 4800-sample loop jump moves the saw by only
+        // 0.018, spread over the 144-sample fade (~1.3e-4/sample) — the 1e-3
+        // vinyl threshold would ride on the chirp alone. skipAfter 600 clears
+        // fade (144) + chirp (384).
+        const auto events = scanSawEvents (mono, startAt, 600, 5.0e-5);
+
+        // Classify: wrap-region events (< 95990 input-time) and the recovery
+        // (the first FORWARD event after the release region — a +/-1 sample
+        // slop in the free-clock accumulator can let one more wrap land at
+        // ~96000 before the release tick, so position alone is not enough).
+        std::vector<int>    wrapOnsets;    // input-time
+        int recoveryOnset = -1; double recoveryDist = 0.0;
+        for (const auto& e : events)
+        {
+            const int onset = e.outIndex - kComp;
+            if (onset < 95990)
+                wrapOnsets.push_back (onset);
+            else if (e.distSamples < -1000.0 && recoveryOnset < 0)
+            {
+                recoveryOnset = onset;
+                recoveryDist  = e.distSamples;
+            }
+        }
+
+        bool spacingOk = wrapOnsets.size() >= 10;
+        int  worstGap  = 0;
+        for (size_t i = 1; i < wrapOnsets.size(); ++i)
+        {
+            const int gap = wrapOnsets[i] - wrapOnsets[i - 1];
+            worstGap = juce::jmax (worstGap, std::abs (gap - 4800));
+            if (std::abs (gap - 4800) > 8)
+                spacingOk = false;
+        }
+
+        const bool firstOnGrid = ! wrapOnsets.empty()
+                                 && std::abs (wrapOnsets.front() - 24000) <= 8;
+
+        // Chirp liveness: 2nd-difference energy at each restart vs mid-loop.
+        std::vector<double> chirpRatios;
+        for (const auto& e : events)
+        {
+            const int onset = e.outIndex - kComp;
+            if (onset >= 95000 || e.outIndex + 2400 >= (int) mono.size())
+                continue;
+            auto d2energy = [&] (int from, int len)
+            {
+                double acc = 0.0;
+                for (int i = from; i < from + len; ++i)
+                    acc += std::abs ((double) mono[(size_t) i] - 2.0 * mono[(size_t) (i - 1)]
+                                     + (double) mono[(size_t) (i - 2)]);
+                return acc;
+            };
+            const double atRestart = d2energy (e.outIndex, 400);
+            const double midLoop   = d2energy (e.outIndex + 2000, 400);
+            chirpRatios.push_back (atRestart / juce::jmax (1.0e-12, midLoop));
+        }
+        const double medChirp = medianOf (chirpRatios);
+
+        // Recovery: forward jump (negative dist) near the release tick, and
+        // the tail of the render tracks LIVE material again.
+        const bool recoveredForward = recoveryOnset >= 95990 && recoveryOnset <= 120100
+                                      && recoveryDist < -1000.0;
+        double tailErr = 0.0;
+        for (int n2 = total - 8000; n2 < total; ++n2)
+            tailErr = juce::jmax (tailErr,
+                                  std::abs ((double) mono[(size_t) n2] - (double) sawAt (n2 - kComp)));
+
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("L DSP-02 loop-grid", live && firstOnGrid && wrapOnsets.size() >= 10,
+               juce::String ("first restart @") + juce::String (wrapOnsets.empty() ? -1 : wrapOnsets.front())
+                   + " expected 24000 +/-8, " + juce::String ((int) wrapOnsets.size()) + " restarts");
+
+        check ("L DSP-02 loop-spacing", spacingOk,
+               juce::String ("worst |gap - 4800| = ") + juce::String (worstGap)
+                   + " samples (bound 8) over " + juce::String ((int) wrapOnsets.size()) + " restarts");
+
+        check ("L DSP-02 loop-chirps", medChirp > 5.0 && ! chirpRatios.empty(),
+               juce::String ("median restart/mid-loop HF ratio ") + juce::String (medChirp, 2)
+                   + " (need > 5) over " + juce::String ((int) chirpRatios.size()) + " restarts");
+
+        check ("L DSP-02 loop-recovery", recoveredForward && tailErr < 1.0e-3,
+               juce::String ("recovery @") + juce::String (recoveryOnset) + " dist "
+                   + juce::String (recoveryDist, 1) + " (forward), tail err "
+                   + juce::String (tailErr, 6) + " (need < 1e-3)");
+    }
+
+    //==========================================================================
+    // M — DSP-03 vinyl on the saw marker: backward jumps are integer
+    // revolution multiples (45 RPM => 64000 samples @ 48 kHz), forward jumps
+    // land at live, every onset sits on the clock grid (FUNC-01). Pops are
+    // silenced (VINYL_POP 0) so the marker stays clean — the pop draws are
+    // still consumed, so M2/M3 share this event schedule.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 2.0f);   // ticks every 24000
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_PROB",      100.0f);
+        setParam (*p, "VINYL_RPM",       1.0f);   // 45 => 4/3 s = 64000 samples
+        setParam (*p, "VINYL_POP",       0.0f);
+        setParam (*p, "SEED",            99.0f);
+
+        const int total = 288000;                 // 6 s => 11 ticks
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sawStereo);
+
+        const auto mono   = channelToVector (out, 0);
+        const int  startAt = kComp + (int) (0.2 * kFs);
+        const auto events  = scanSawEvents (mono, startAt, 160, 1.0e-3);
+
+        constexpr int rev = 64000;
+
+        int  backward = 0, forward = 0;
+        bool distOk = true, gridOk = true, liveOk = true;
+        juce::String detail;
+
+        for (const auto& e : events)
+        {
+            const int onset = e.outIndex - kComp;
+            const int mod   = ((onset % 24000) + 24000) % 24000;
+            if (! (mod <= 8 || mod >= 24000 - 8))
+            {
+                gridOk = false;
+                detail << " OFF-GRID @" << onset;
+            }
+
+            if (e.distSamples > 100.0)
+            {
+                ++backward;
+                const int k = juce::jmax (1, juce::roundToInt (e.distSamples / rev));
+                if (std::abs (e.distSamples - (double) k * rev) > 8.0)
+                {
+                    distOk = false;
+                    detail << " NON-REV back dist " << juce::String (e.distSamples, 1);
+                }
+            }
+            else
+            {
+                ++forward;
+                const double lagAfter = lagFromSaw (e.vPost, e.postIndex, kComp);
+                if (lagAfter > 100.0)
+                {
+                    liveOk = false;
+                    detail << " FORWARD NOT LIVE lag " << juce::String (lagAfter, 1);
+                }
+            }
+        }
+
+        const bool counts = backward >= 2 && forward >= 2 && (int) events.size() >= 8;
+        const bool live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("M DSP-03 vinyl-jumps", live && counts && distOk && gridOk && liveOk,
+               juce::String ((int) events.size()) + " events (" + juce::String (backward)
+                   + " back / " + juce::String (forward) + " fwd), back dists = k*64000 +/-8, "
+                   + "onsets on 24000-grid +/-8" + detail
+                   + (counts ? "" : " — TOO FEW EVENTS, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M2 — DSP-03 pitch: same schedule (same seed/params) on a sine — the
+    // revolution jumps must never move the pitch (rate stays 1.0; only the
+    // <= +2% re-approach trim is allowed). Pops ON for realism.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 2.0f);
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_PROB",      100.0f);
+        setParam (*p, "VINYL_RPM",       1.0f);
+        setParam (*p, "VINYL_POP",       50.0f);
+        setParam (*p, "SEED",            99.0f);
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto mono  = channelToVector (out, 0);
+        const auto trace = pitchTrace (mono, kSineHz);
+        const int  hopStart = 14400 / 256;
+
+        /* DSP-03's criterion is STEADY-STATE pitch across jumps. A window that
+           straddles the jump instant itself sees a phase-discontinuous
+           crossfade plus the pop transient and reads a false pitch — exclude
+           windows overlapping [tick - window, tick + 2400) around each clock
+           tick (ticks every 24000 input samples, emerging at +kComp; jumps
+           happen only at ticks, so the exclusion is exact and deterministic). */
+        constexpr int kTickPeriod = 24000;
+        constexpr int kWin        = 1024;
+        constexpr int kHop        = 256;
+        const auto nearTick = [&] (int winStartOut)
+        {
+            const int rel = ((winStartOut - kComp) % kTickPeriod + kTickPeriod) % kTickPeriod;
+            // window [rel, rel + kWin) vs exclusion (tick - kWin, tick + 2400)
+            return rel < 2400 || rel > kTickPeriod - kWin;
+        };
+
+        int valid = 0, evaluated = 0;
+        double minF = 1.0e9, maxF = 0.0;
+        for (int i = hopStart; i < (int) trace.size(); ++i)
+        {
+            if (nearTick (i * kHop))
+                continue;
+            ++evaluated;
+            const double f = trace[(size_t) i];
+            if (f <= 0.0) continue;
+            ++valid;
+            minF = juce::jmin (minF, f);
+            maxF = juce::jmax (maxF, f);
+        }
+
+        const bool live      = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool inBand    = minF >= 213.0 && maxF <= 227.0;
+        const bool trackable = evaluated > 0 && valid > (evaluated * 3) / 5;
+
+        check ("M2 DSP-03 vinyl-pitch", live && inBand && trackable,
+               juce::String ("pitch [") + juce::String (minF, 1) + ", " + juce::String (maxF, 1)
+                   + "] Hz (bounds [213, 227]), valid " + juce::String (valid) + "/"
+                   + juce::String (evaluated));
+    }
+
+    //==========================================================================
+    // M3 — vinyl pops audible: identical seed/schedule, VINYL_POP 50 vs 0.
+    // triggerPop consumes its RNG draws at level 0 too, so ONLY the pop audio
+    // differs between the renders.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc, float pop)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 2.0f);
+            setParam (proc, "TAPE_ENABLE",     0.0f);
+            setParam (proc, "CD_ENABLE",       0.0f);
+            setParam (proc, "VINYL_PROB",      100.0f);
+            setParam (proc, "VINYL_RPM",       1.0f);
+            setParam (proc, "VINYL_POP",       pop);
+            setParam (proc, "SEED",            99.0f);
+        };
+
+        const int total = 96000;
+        auto a = makeProc();  configure (*a, 50.0f);
+        auto b = makeProc();  configure (*b, 0.0f);
+
+        juce::AudioBuffer<float> outA, outB;
+        renderInto (*a, outA, total, { 512 }, sineStereo);
+        renderInto (*b, outB, total, { 512 }, sineStereo);
+
+        const double diff = maxAbsDiff (outA, outB);
+        const bool   live = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("M3 vinyl-pop-audible", live && diff > 1.0e-3,
+               juce::String ("maxAbsDiff pop-50-vs-0 = ") + juce::String (diff, 5)
+                   + " (need > 1e-3)");
+    }
+
+    //==========================================================================
+    // N — collision determinism + all-fire block-size invariance: all three
+    // families at 100% => arbitration collisions every tick. Same seed on
+    // fresh instances must render bit-identically, and the ragged block
+    // chopping must not move a single bit (loop wraps, jumps and artifact
+    // synthesis all under split blocks).
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+            setParam (proc, "TAPE_PROB",       100.0f);
+            setParam (proc, "CD_PROB",         100.0f);
+            setParam (proc, "VINYL_PROB",      100.0f);
+            setParam (proc, "SEED",            555.0f);
+        };
+
+        const int total = 96000;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+        auto c = makeProc();  configure (*c);
+
+        juce::AudioBuffer<float> outA, outB, outC;
+        renderInto (*a, outA, total, { 512 }, noiseStereo);
+        renderInto (*b, outB, total, { 512 }, noiseStereo);
+        renderInto (*c, outC, total, { 1, 7, 64, 333, 4096 }, noiseStereo);
+
+        {
+            const bool identical = bitIdentical (outA, outB);
+            const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("N collision-determinism", identical && live,
+                   (identical ? juce::String ("all-fire same-seed fresh instances: bit-identical")
+                              : firstDifference (outA, outB))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+
+        {
+            const bool identical = bitIdentical (outA, outC);
+            const bool live      = outC.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("N all-fire-ragged", identical && live,
+                   (identical ? juce::String ("512 vs 1,7,64,333,4096: bit-identical under all-fire")
+                              : firstDifference (outA, outC))
+                       + (live ? "" : " — SILENT, probe vacuous"));
         }
     }
 
