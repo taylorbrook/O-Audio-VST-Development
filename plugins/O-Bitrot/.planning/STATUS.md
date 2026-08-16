@@ -1,14 +1,14 @@
 ---
 plugin: O-Bitrot
 stage: 4
-phase: discuss
-status: pending
+phase: research
+status: complete
 last_updated: 2026-08-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: discuss_stage_4
+next_action: plan_stage_4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -29,6 +29,12 @@ items carried (non-blocking) to the Stage-4 session.
 Progress: [#################>..] 85%
 
 ## Phase Progress
+
+### Stage 4: Polish
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-08-15 | CONTEXT.md — preset-manager v1.0.5 + ~8 factory presets; automated-only gate (pluginval s10 ×2–3 + auval + harness 44/44); manual DAW checklist stays non-gating; local install only; 1.0.0 at verify; EB Garamond declined |
+| research | ✓ | 2026-08-15 | RESEARCH.md — presets store normalized 0..1 (no choice/bool adapter); factory defs in engineering units via batch convertTo0to1 (Tapestop PluginProcessor.cpp:232-242 pattern); 10 native fns (incl. undocumented savePresetWithDialog) parity 10↔10; band fits header's ~400 px empty center (grid has no vertical slack); no AsyncUpdater → cancelPendingUpdate gate N/A; module JS lands in Source/ui/public/modules/ (no 2nd binary-data target); draft 8-preset bank, slash-free names |
 
 ### Stage 3: GUI
 | Phase | Status | Date | Notes |
@@ -77,11 +83,11 @@ Progress: [#################>..] 85%
 
 ## Next Steps
 
-1. Stage 4 (Polish) discuss — `/plugin-discuss O-Bitrot 4-polish`
-2. Manual DAW items for the Stage-4 session (need audio + Logic): per-family LED semantics
+1. Stage 4 (Polish) plan — `/plugin-plan O-Bitrot 4-polish`
+2. Manual DAW checklist (NON-GATING, user-driven follow-ups): per-family LED semantics
    soloed; dice/seed persistence in a project; sync-mode clocking; Stage-2 carried
    listening items (Logic smoke, MIX 50%/0% + HARD_EDGES, ENV_AMT voicing, Standalone
-   SEED persistence); optional EB Garamond woff2 bundling
+   SEED persistence). EB Garamond woff2 bundling declined at 4-polish discuss.
 
 ## Context to Preserve
 
