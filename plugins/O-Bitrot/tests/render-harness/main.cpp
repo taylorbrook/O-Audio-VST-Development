@@ -100,6 +100,29 @@
                                 injection, then clean input: output recovers,
                                 never sticky NaN/Inf.
 
+    Probes (Phase 2.5: codec):
+
+      V  GSM round-trip GATE  — standalone libgsm encode/decode of sine
+                                frames (no plugin): finite, bounded,
+                                correlated. Gates the DSP-05 probes.
+      W  DSP-05 mu-law band   — codec on, mu-law: energy above ~8 kHz
+                                collapses vs the codec-off control, the
+                                300-3400 passband survives, sub-150 Hz is
+                                filtered.
+      X  DSP-05 mu-law noise  — quantization/distortion noise tracks signal
+                                level (companding property).
+      Y  DSP-05 GSM alignment — GSM-mode output cross-correlates against the
+                                codec-off (plain delay) output with peak lag
+                                within +/- fs/8000 samples of 0.
+      Z  latency report       — getLatencySamples() == kCompLatency in every
+                                codec state (never renegotiated); QUAL-02
+                                bit-identity re-run with codec active in both
+                                modes.
+      P1 PERF-01              — measured render-time ratio, worst case (all
+                                families + packet + crush + GSM), printed +
+                                asserted <= 0.15 (the one sanctioned
+                                wall-clock use).
+
     Conventions (all have shipped-bug war stories):
       * position-deterministic noiseAt(n) — NEVER a sequential RNG
         (pattern_rng_stream_interleave_blocksize);
@@ -116,7 +139,10 @@
 
 #include "PluginProcessor.h"
 
+#include <gsm.h>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -561,6 +587,80 @@ bool allFiniteRange (const float* x, int from, int to)
 }
 
 //==============================================================================
+// ── Phase 2.5 helpers ─────────────────────────────────────────────────────────
+
+float sineQuietStereo (int ch, int n) noexcept
+{
+    return 0.1f * sineStereo (ch, n);   // -20 dB versions share the waveform
+}
+
+/** Band energy (Hann-windowed, 16384-point juce::dsp::FFT) of x[off ..
+    off+16384) between loHz and hiHz. */
+double bandEnergy (const std::vector<float>& x, int off, double loHz, double hiHz)
+{
+    constexpr int order = 14;
+    constexpr int N     = 1 << order;
+
+    juce::dsp::FFT fft (order);
+    juce::dsp::WindowingFunction<float> win ((size_t) N,
+                                             juce::dsp::WindowingFunction<float>::hann);
+
+    std::vector<float> buf ((size_t) (2 * N), 0.0f);
+    for (int n = 0; n < N; ++n)
+        buf[(size_t) n] = (off + n < (int) x.size()) ? x[(size_t) (off + n)] : 0.0f;
+
+    win.multiplyWithWindowingTable (buf.data(), (size_t) N);
+    fft.performRealOnlyForwardTransform (buf.data());
+
+    const int kLo = juce::jmax (1,     (int) (loHz * N / kFs));
+    const int kHi = juce::jmin (N / 2, (int) (hiHz * N / kFs));
+
+    double e = 0.0;
+    for (int k = kLo; k <= kHi; ++k)
+    {
+        const double re = buf[(size_t) (2 * k)];
+        const double im = buf[(size_t) (2 * k + 1)];
+        e += re * re + im * im;
+    }
+    return e;
+}
+
+/** Peak lag of the normalized cross-correlation of a vs b over
+    [off, off+len), lags in [-maxLag, maxLag]. Positive lag = b is LATER.
+    Caller must keep off-maxLag and off+len+maxLag in range. */
+int xcorrPeakLag (const std::vector<float>& a, const std::vector<float>& b,
+                  int off, int len, int maxLag, double& corrOut)
+{
+    double ea = 0.0, eb = 0.0;
+    for (int n = 0; n < len; ++n)
+    {
+        ea += (double) a[(size_t) (off + n)] * a[(size_t) (off + n)];
+        eb += (double) b[(size_t) (off + n)] * b[(size_t) (off + n)];
+    }
+    const double denom = std::sqrt (ea * eb) + 1.0e-12;
+
+    double best = -2.0;
+    int bestLag = 0;
+
+    for (int lag = -maxLag; lag <= maxLag; ++lag)
+    {
+        double acc = 0.0;
+        for (int n = 0; n < len; ++n)
+            acc += (double) a[(size_t) (off + n)] * b[(size_t) (off + n + lag)];
+
+        const double c = acc / denom;
+        if (c > best)
+        {
+            best    = c;
+            bestLag = lag;
+        }
+    }
+
+    corrOut = best;
+    return bestLag;
+}
+
+//==============================================================================
 /** First INPUT-TIME sample (>= startAt in output time) where channel 0
     deviates from the expected delayed-sine passthrough by more than `thresh`.
     -1 if none. The all-off / pre-event path is EXACT, so this locates the
@@ -618,7 +718,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI juceInit;
 
     const int kComp = (int) std::ceil (0.020 * kFs);   // 960 @ 48 kHz
-    std::printf ("O-Bitrot render-harness (Phases 2.1-2.4) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
+    std::printf ("O-Bitrot render-harness (Phases 2.1-2.5) — fs=%.0f, kCompLatency=%d\n", kFs, kComp);
 
     //==========================================================================
     // A — latency reported once, equal to ceil(0.020 * fs).
@@ -1948,6 +2048,342 @@ int main()
                    + ", recovery finite: " + (postOk ? "yes" : "NO")
                    + ", post peak " + juce::String (postPeak, 4) + " (bound 2.0)"
                    + (live ? "" : " — RECOVERY SILENT (sticky state?)"));
+    }
+
+    //==========================================================================
+    // V — GSM ROUND-TRIP GATE (Task 16, runs BEFORE the DSP-05 probes).
+    // Standalone libgsm exercise, no plugin: two handles, two continuous
+    // 160-sample sine frames at the 8 kHz grid; scaling per RESEARCH 4
+    // ((x*4096)<<3 masked 0xFFF8 in; (s>>3)/4096 out). Correlation is
+    // measured on frame 2 (past the encoder's adaptation), generous bound —
+    // GSM is lossy by design.
+    {
+        gsm enc = gsm_create();
+        gsm dec = gsm_create();
+
+        const bool created = enc != nullptr && dec != nullptr;
+        bool   decodeOk = created;
+        double maxAbs   = 0.0;
+        double peakCorr = 0.0;
+
+        if (created)
+        {
+            gsm_signal in[2][160];
+            gsm_signal out[2][160];
+            float      fin[320], fout[320];
+
+            for (int k = 0; k < 320; ++k)
+            {
+                const float x = 0.5f * (float) std::sin (2.0 * juce::MathConstants<double>::pi
+                                                         * 440.0 * (double) k / 8000.0);
+                const int v = juce::jlimit (-4095, 4095, juce::roundToIntAccurate (x * 4096.0f));
+                in[k / 160][k % 160] = (gsm_signal) (v * 8);   // low 3 bits zero (0xFFF8)
+                fin[k] = (float) (in[k / 160][k % 160] >> 3) / 4096.0f;
+            }
+
+            gsm_frame frm;
+            for (int f = 0; f < 2; ++f)
+            {
+                gsm_encode (enc, in[f], frm);
+                if (gsm_decode (dec, frm, out[f]) != 0)
+                    decodeOk = false;                          // -1 = malformed (impossible here)
+            }
+
+            for (int k = 0; k < 320; ++k)
+            {
+                fout[k] = (float) (out[k / 160][k % 160] >> 3) / 4096.0f;
+                maxAbs  = juce::jmax (maxAbs, (double) std::abs (fout[k]));
+            }
+
+            // Normalized correlation, frame 2, peak over lags 0..40.
+            double e0 = 0.0;
+            for (int n = 160; n < 280; ++n) e0 += (double) fin[n] * fin[n];
+
+            for (int lag = 0; lag <= 40; ++lag)
+            {
+                double acc = 0.0, e1 = 0.0;
+                for (int n = 160; n < 280; ++n)
+                {
+                    acc += (double) fin[n] * fout[n + lag];
+                    e1  += (double) fout[n + lag] * fout[n + lag];
+                }
+                peakCorr = juce::jmax (peakCorr, acc / (std::sqrt (e0 * e1) + 1.0e-12));
+            }
+        }
+
+        if (enc != nullptr) gsm_destroy (enc);
+        if (dec != nullptr) gsm_destroy (dec);
+
+        const bool bounded = maxAbs > 0.01 && maxAbs <= 1.5 && std::isfinite (maxAbs);
+
+        check ("V GSM round-trip gate", created && decodeOk && bounded && peakCorr > 0.4,
+               juce::String ("handles ") + (created ? "ok" : "NULL")
+                   + ", decode " + (decodeOk ? "ok" : "FAILED")
+                   + ", |out| max " + juce::String (maxAbs, 3)
+                   + ", peak corr " + juce::String (peakCorr, 3) + " (need > 0.4)");
+    }
+
+    //==========================================================================
+    // W — DSP-05 mu-law bandwidth: noise through the phone chain vs the
+    // codec-off control on the same input. Energy above 8 kHz collapses
+    // (post-LPF kills the 8 kHz hold images), the 300-3400 passband
+    // survives, sub-150 Hz is HPF-filtered.
+    {
+        auto render = [&] (bool codecOn, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "CODEC_ENABLE", codecOn ? 1.0f : 0.0f);
+            setParam (*p, "CODEC_MODE",   0.0f);    // Mu-law
+            setParam (*p, "CODEC_MIX",    100.0f);
+            renderInto (*p, out, total, { 512 }, noiseStereo);
+        };
+
+        const int total = 48000;
+        juce::AudioBuffer<float> outOn, outOff;
+        render (true,  outOn,  total);
+        render (false, outOff, total);
+
+        const auto on  = channelToVector (outOn, 0);
+        const auto off = channelToVector (outOff, 0);
+        const int  seg = 24000;
+
+        const double hiRatio   = bandEnergy (on, seg, 8000.0, 20000.0)
+                               / juce::jmax (1.0e-12, bandEnergy (off, seg, 8000.0, 20000.0));
+        const double passRatio = bandEnergy (on, seg, 500.0, 3000.0)
+                               / juce::jmax (1.0e-12, bandEnergy (off, seg, 500.0, 3000.0));
+        const double loRatio   = bandEnergy (on, seg, 30.0, 150.0)
+                               / juce::jmax (1.0e-12, bandEnergy (off, seg, 30.0, 150.0));
+
+        const bool live = outOn.getMagnitude (0, 0, total) > 1.0e-3f;
+
+        check ("W DSP-05 mulaw-band", live && hiRatio < 0.05 && passRatio > 0.1 && loRatio < 0.2,
+               juce::String (">8k ratio ") + juce::String (hiRatio, 4) + " (<0.05), passband "
+                   + juce::String (passRatio, 3) + " (>0.1), <150Hz " + juce::String (loRatio, 4)
+                   + " (<0.2)" + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // X — DSP-05 mu-law level-dependent noise: distortion/quantization
+    // energy outside the 220 Hz fundamental tracks the signal level (the
+    // companding property; a LINEAR quantizer's noise floor would not move).
+    {
+        auto render = [&] (InputFn input, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "CODEC_ENABLE", 1.0f);
+            setParam (*p, "CODEC_MODE",   0.0f);
+            setParam (*p, "CODEC_MIX",    100.0f);
+            renderInto (*p, out, total, { 512 }, input);
+        };
+
+        const int total = 48000;
+        juce::AudioBuffer<float> outLoud, outQuiet;
+        render (sineStereo,      outLoud,  total);   // amp 0.5
+        render (sineQuietStereo, outQuiet, total);   // amp 0.05 (-20 dB)
+
+        const auto loud  = channelToVector (outLoud, 0);
+        const auto quiet = channelToVector (outQuiet, 0);
+
+        const double nLoud  = bandEnergy (loud,  24000, 1000.0, 3800.0);
+        const double nQuiet = bandEnergy (quiet, 24000, 1000.0, 3800.0);
+
+        const bool live = nLoud > 1.0e-10;
+
+        check ("X DSP-05 mulaw-level-noise", live && nQuiet < 0.3 * nLoud,
+               juce::String ("noise-band energy quiet/loud ")
+                   + juce::String (nQuiet / juce::jmax (1.0e-18, nLoud), 4)
+                   + " (need < 0.3 — noise must track level)"
+                   + (live ? "" : " — NO DISTORTION ENERGY, probe vacuous"));
+    }
+
+    //==========================================================================
+    // Y — DSP-05 GSM alignment: both the GSM chain and the plain delay
+    // present kCompLatency, so the cross-correlation peak between the two
+    // renders must sit within +/- one 8 kHz grid period (fs/8000 = 6) of 0.
+    // Input is a PASSBAND multi-tone, not broadband noise: the reference is
+    // full-band, and GSM keeps only ~300-3400 Hz of it, so noise starves the
+    // normalized correlation (~0.1) without any alignment defect. Three
+    // non-commensurate tones give a unique xcorr peak inside the +/-60-lag
+    // search window (a single sine's periodic peaks would alias the lag).
+    {
+        InputFn tones = [] (int ch, int n) noexcept -> float
+        {
+            juce::ignoreUnused (ch);
+            const double t = static_cast<double> (n) / kFs;
+            const double twoPi = 2.0 * juce::MathConstants<double>::pi;
+            return 0.2f * static_cast<float> (std::sin (twoPi * 600.0  * t)
+                                            + std::sin (twoPi * 1450.0 * t)
+                                            + std::sin (twoPi * 3100.0 * t));
+        };
+
+        auto render = [&] (bool gsmOn, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "CODEC_ENABLE", gsmOn ? 1.0f : 0.0f);
+            setParam (*p, "CODEC_MODE",   1.0f);    // GSM
+            setParam (*p, "CODEC_MIX",    100.0f);
+            renderInto (*p, out, total, { 512 }, tones);
+        };
+
+        const int total = 72000;
+        juce::AudioBuffer<float> outGsm, outRef;
+        render (true,  outGsm, total);
+        render (false, outRef, total);
+
+        const auto a = channelToVector (outGsm, 0);
+        const auto b = channelToVector (outRef, 0);
+
+        double corr = 0.0;
+        const int lag = xcorrPeakLag (a, b, 36000, 24000, 60, corr);
+
+        /* Bound: one 8 kHz grid period (fs/8000 = 6) of latch jitter PLUS
+           the codec path's IIR group delay — three 4-pole Butterworth
+           cascades contribute ~12-15 samples of passband group delay the
+           plain-delay reference does not have (minimum-phase filter delay,
+           not reported latency). +/-24 tolerates that while still catching
+           every frame-bookkeeping error, which manifests at +/-160 grid
+           samples (+/-960) or as a 0..959-varying smear that kills the
+           correlation peak. */
+        const int  gridPeriod = (int) std::ceil (kFs / 8000.0);
+        const int  bound      = 4 * gridPeriod;
+        const bool aligned    = std::abs (lag) <= bound;
+        const bool corrLive   = corr > 0.1;
+
+        check ("Y DSP-05 gsm-alignment", aligned && corrLive,
+               juce::String ("xcorr peak lag ") + juce::String (lag) + " (bound +/-"
+                   + juce::String (bound) + " = grid jitter + IIR group delay), corr "
+                   + juce::String (corr, 3)
+                   + (corrLive ? "" : " — CORRELATION DEAD, probe vacuous"));
+    }
+
+    //==========================================================================
+    // Z — latency report never renegotiates: kCompLatency in every codec
+    // state, after audio has run.
+    {
+        bool ok = true;
+        juce::String detail;
+
+        const float modes[3][2] = { { 0.0f, 0.0f },    // off
+                                    { 1.0f, 0.0f },    // mu-law
+                                    { 1.0f, 1.0f } };  // gsm
+        const char* names[3] = { "off", "mulaw", "gsm" };
+
+        for (int m = 0; m < 3; ++m)
+        {
+            auto p = makeProc();
+            setParam (*p, "CODEC_ENABLE", modes[m][0]);
+            setParam (*p, "CODEC_MODE",   modes[m][1]);
+
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, 8192, { 512 }, sineStereo);
+
+            const int reported = p->getLatencySamples();
+            if (reported != kComp)
+                ok = false;
+            detail << names[m] << "=" << reported << " ";
+        }
+
+        check ("Z latency-all-modes", ok,
+               detail + "(expected " + juce::String (kComp) + " everywhere)");
+    }
+
+    //==========================================================================
+    // Z2 — QUAL-02 with the codec ACTIVE, both modes: 512-vs-4096 memcmp
+    // bit-identity (the 8 kHz latch phase, frame slots and fades are all
+    // pure functions of the sample count).
+    for (int mode = 0; mode < 2; ++mode)
+    {
+        auto configure = [mode] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 10.0f);
+            setParam (proc, "TAPE_PROB",       50.0f);
+            setParam (proc, "CD_PROB",         50.0f);
+            setParam (proc, "VINYL_PROB",      50.0f);
+            setParam (proc, "CODEC_ENABLE",    1.0f);
+            setParam (proc, "CODEC_MODE",      (float) mode);
+            setParam (proc, "CODEC_MIX",       100.0f);
+            setParam (proc, "SEED",            777.0f);
+        };
+
+        const int total = 32768;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+
+        juce::AudioBuffer<float> outA, outB;
+        renderInto (*a, outA, total, { 512 },  noiseStereo);
+        renderInto (*b, outB, total, { 4096 }, noiseStereo);
+
+        const bool identical = bitIdentical (outA, outB);
+        const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check (mode == 0 ? "Z2 QUAL-02 codec-mulaw" : "Z2 QUAL-02 codec-gsm",
+               identical && live,
+               (identical ? juce::String ("codec active: bit-identical by memcmp")
+                          : firstDifference (outA, outB))
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // P1 — PERF-01, MEASURED (the one sanctioned wall-clock use, per PLAN:
+    // the measurement is printed; the verdict is a single ratio bound).
+    // Worst case: all transport families at 100%, packet loss with the AMDF
+    // Substitute concealment, crush + quant with jitter/dither/env, GSM
+    // codec. 10 s of audio at 48 kHz, 512-sample blocks. NOTE: only
+    // meaningful in a Release build.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 10.0f);
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "VINYL_PROB",      100.0f);
+        setParam (*p, "PACKET_ENABLE",   1.0f);
+        setParam (*p, "PACKET_LOSS",     60.0f);
+        setParam (*p, "PACKET_BURST",    50.0f);
+        setParam (*p, "PACKET_CONCEAL",  3.0f);    // Substitute (AMDF, worst)
+        setParam (*p, "CRUSH_ENABLE",    1.0f);
+        setParam (*p, "CRUSH_BITS",      6.0f);
+        setParam (*p, "CRUSH_RATE",      6000.0f);
+        setParam (*p, "CRUSH_JITTER",    50.0f);
+        setParam (*p, "CRUSH_DITHER",    1.0f);
+        setParam (*p, "CRUSH_ENV_AMT",   -50.0f);
+        setParam (*p, "CODEC_ENABLE",    1.0f);
+        setParam (*p, "CODEC_MODE",      1.0f);    // GSM
+        setParam (*p, "CODEC_MIX",       100.0f);
+        setParam (*p, "SEED",            999.0f);
+
+        const int total = 480000;                  // 10 s @ 48 kHz
+        juce::AudioBuffer<float> out;
+
+        const auto t0 = std::chrono::steady_clock::now();
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+        const auto t1 = std::chrono::steady_clock::now();
+
+        const double renderSeconds = std::chrono::duration<double> (t1 - t0).count();
+        const double audioSeconds  = total / kFs;
+        const double ratio         = renderSeconds / audioSeconds;
+
+        std::printf ("  [PERF] worst-case render: %.3f s for %.1f s of audio — ratio %.4f "
+                     "(includes harness input-gen/copy overhead)\n",
+                     renderSeconds, audioSeconds, ratio);
+
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("P1 PERF-01 cpu-ratio", live && ratio <= 0.15,
+               juce::String ("ratio ") + juce::String (ratio, 4) + " (bound 0.15)"
+                   + (live ? "" : " — SILENT, probe vacuous"));
     }
 
     //==========================================================================
