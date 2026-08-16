@@ -11,6 +11,8 @@ juce_add_plugin(OBitrot
     VERSION 0.1.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
+    NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Source files
@@ -89,10 +91,24 @@ target_link_libraries(OBitrot PRIVATE OBitrot_gsm)
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OBitrot)
 
+# WebView UI Resources (no hyphenated filenames — BinaryData strips hyphens)
+juce_add_binary_data(OBitrot_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper.jpg
+        Source/ui/public/img/specimen.webp
+)
+
+target_link_libraries(OBitrot PRIVATE OBitrot_UIResources)
+
 # Compile definitions
 target_compile_definitions(OBitrot
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
 

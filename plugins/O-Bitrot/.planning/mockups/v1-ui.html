@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>O-Bitrot</title>
+<style>
+  /* ============ WebView constraints ============ */
+  html, body { height: 100%; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg-paper: #F5E6D3;
+    --bg-paper-light: #FAF0E6;
+    --panel: rgba(250, 240, 230, 0.66);
+    --brown-border: #8B7355;
+    --brown-frame: #5C4033;
+    --brown-text: #3C2F2F;
+    --green-light: #8BA870;
+    --green-mid: #6B8E4E;
+    --green-dark: #3C5C1A;
+    --green-darkest: #2C3E10;
+    --knob-ring: #C9A27B;
+    --seg-a: #F5DEB3;
+    --seg-b: #E8D5B7;
+    --knob-core: #FFF8DC;
+    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  }
+
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+    overflow: hidden;
+    font-family: var(--serif);
+    color: var(--brown-text);
+    background: var(--bg-paper);
+  }
+
+  /* ============ plugin frame — WebView is exactly 900 × 620 ============ */
+  .plugin {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: 3px solid var(--brown-frame);
+    background:
+      linear-gradient(rgba(245,230,211,0.42), rgba(240,222,200,0.5)),
+      url("img/paper.jpg") center / cover no-repeat, var(--bg-paper);
+    overflow: hidden;
+  }
+
+  /* ghosted deliquescing specimen — Sowerby t.189, Coprinus comatus */
+  .specimen {
+    position: absolute;
+    right: -48px;
+    top: 54%;
+    transform: translateY(-50%);
+    height: 88%;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 1;
+    filter: sepia(0.25) saturate(0.85);
+  }
+
+  .corner-fleuron {
+    position: absolute;
+    font-size: 13px;
+    color: rgba(60,47,47,0.28);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .corner-fleuron.bl { left: 8px; bottom: 4px; }
+  .corner-fleuron.tr { right: 8px; top: 4px; transform: scaleX(-1); }
+
+  .inner {
+    position: absolute;
+    inset: 0;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    z-index: 2;
+  }
+
+  /* ============ header ============ */
+  .hdr {
+    height: 46px;
+    flex: 0 0 46px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--brown-border);
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .hdr::after {  /* second rule of the double hairline */
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -4px;
+    height: 1px;
+    background: rgba(139,115,85,0.4);
+  }
+  .wordmark {
+    font-size: 25px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--brown-text);
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+  }
+  .wordmark .fleuron { font-size: 15px; color: rgba(60,47,47,0.55); margin-right: 8px; vertical-align: 3px; }
+  .hdr-right { text-align: right; line-height: 1.45; padding-bottom: 1px; }
+  .hdr-right .brand {
+    font-variant: small-caps;
+    letter-spacing: 2.5px;
+    font-size: 11px;
+    color: var(--brown-frame);
+  }
+  .hdr-right .plate {
+    font-style: italic;
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    color: rgba(92,64,51,0.8);
+  }
+
+  /* ============ panel grid ============ */
+  .grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    position: relative;
+  }
+
+  .panel { min-height: 0; }
+  #panel-crush .ctl { gap: 3px; }
+
+  .panel {
+    position: relative;
+    background: var(--panel);
+    border: 2px solid var(--brown-border);
+    border-radius: 6px;
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.18);
+    padding: 8px 12px 10px;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel::after {  /* naturalist plate double-rule */
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(139,115,85,0.35);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  .p-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 22px;
+  }
+  .caption {
+    font-variant: small-caps;
+    letter-spacing: 1.5px;
+    font-size: 12px;
+    color: var(--brown-frame);
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+    white-space: nowrap;
+  }
+  .caption em { font-style: italic; letter-spacing: 0.5px; }
+  .p-head .gap { flex: 1; }
+
+  /* spore-print event mark — .lit is driven by JS:
+     Tape/CD/Vinyl/Packet from the ledUpdate event bridge (pulse-stretched),
+     Codec/Crush steady from their enable toggles. */
+  .led {
+    width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px;
+    background: var(--brown-border);
+    opacity: 0.3;
+    box-shadow: none;
+  }
+  .led.lit {
+    background: radial-gradient(circle at 38% 32%, #b3cc97, var(--green-light) 55%, var(--green-mid) 95%);
+    box-shadow: 0 0 6px rgba(139,168,112,0.85), 0 0 2px rgba(107,142,53,0.9);
+    opacity: 1;
+    animation: sporePulse 3s ease-in-out infinite;
+  }
+  @keyframes sporePulse {
+    0%, 100% { box-shadow: 0 0 3px rgba(139,168,112,0.5); }
+    50%      { box-shadow: 0 0 8px rgba(139,168,112,0.95); }
+  }
+
+  /* enable toggle — stays interactive when panel disabled */
+  .en {
+    font-family: var(--serif);
+    font-variant: small-caps;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--green-darkest);
+    background: rgba(139,168,112,0.22);
+    border: 1.5px solid var(--green-dark);
+    border-radius: 4px;
+    padding: 1px 10px 2px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 4;
+  }
+  .en:hover { transform: translateY(-1px); box-shadow: 1px 2px 5px rgba(0,0,0,0.25); }
+  .en.on { background: rgba(107,142,35,0.55); border-color: var(--green-darkest); }
+
+  .p-body {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    transition: opacity 0.25s;
+  }
+  .panel.off .p-body { opacity: 0.45; pointer-events: none; }
+  .panel.off .caption { opacity: 0.55; }
+  .panel.off .led { opacity: 0.3; }
+
+  /* ============ control cells ============ */
+  .ctl { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .ctl-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--brown-frame);
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+  }
+  .ro {
+    font-size: 10.5px;
+    color: var(--brown-text);
+    letter-spacing: 0.3px;
+    min-height: 13px;
+    font-feature-settings: "tnum";
+  }
+  .annot {
+    font-style: italic;
+    font-size: 8.5px;
+    letter-spacing: 0.4px;
+    color: rgba(92,64,51,0.7);
+    margin-top: 2px;
+  }
+
+  /* ============ botanical seed cross-section knobs ============ */
+  .knob {
+    position: relative;
+    border-radius: 50%;
+    border: 2px solid var(--brown-border);
+    cursor: ns-resize;
+    touch-action: none;
+    background:
+      radial-gradient(circle, var(--knob-core) 0 20%, transparent 20.5%),
+      radial-gradient(circle, transparent 57%, var(--knob-ring) 57.5% 67%, rgba(139,115,85,0.85) 67% 70%, transparent 70.5%),
+      repeating-conic-gradient(from -90deg,
+        var(--seg-a) 0 34deg, var(--brown-border) 34deg 36deg,
+        var(--seg-b) 36deg 70deg, var(--brown-border) 70deg 72deg);
+    box-shadow:
+      inset 1px 1px 3px rgba(0,0,0,0.3),
+      inset -1px -1px 2px rgba(255,248,220,0.5),
+      2px 2px 6px rgba(0,0,0,0.25);
+    transition: transform 0.1s ease-out;
+  }
+  .knob:hover { transform: scale(1.05); }
+  .knob:active { transform: scale(0.98); }
+  .k58 { width: 58px; height: 58px; }
+  .k50 { width: 50px; height: 50px; }
+  .k56 { width: 56px; height: 56px; }
+  .k42 { width: 40px; height: 40px; }
+
+  .stem { position: absolute; inset: 0; transform: rotate(0deg); pointer-events: none; }
+  .stem::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 7%;
+    width: 2.5px; height: 30%;
+    margin-left: -1.25px;
+    background: var(--green-dark);
+    border-radius: 2px;
+    box-shadow: 0 0 1px rgba(255,248,220,0.6);
+  }
+  .knob.bipolar::after {  /* centre tick for ± knobs */
+    content: '';
+    position: absolute;
+    top: -9px; left: 50%;
+    width: 2px; height: 5px;
+    background: var(--brown-frame);
+    transform: translateX(-50%);
+  }
+
+  /* ============ segmented 2-choice toggles ============ */
+  .seg {
+    display: inline-flex;
+    border: 1.5px solid var(--green-dark);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .seg button {
+    font-family: var(--serif);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: var(--green-darkest);
+    background: rgba(139,168,112,0.15);
+    border: none;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .seg button + button { border-left: 1px solid rgba(60,92,26,0.5); }
+  .seg button.sel { background: rgba(107,142,35,0.55); }
+  .seg button:hover:not(.sel) { background: rgba(139,168,112,0.3); }
+
+  /* ============ dropdown (4+ choices) ============ */
+  select.field {
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: var(--serif);
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: var(--brown-text);
+    background-color: rgba(255,248,220,0.85);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5'><path d='M0 0l4 5 4-5z' fill='%235C4033'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    padding: 4px 22px 4px 9px;
+    cursor: pointer;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.12), 1px 1px 3px rgba(0,0,0,0.12);
+  }
+  select.field:hover { background-color: rgba(255,248,220,1); }
+
+  /* ============ global strip ============ */
+  .global {
+    flex: 0 0 100px;
+    margin-top: 10px;
+    position: relative;
+    background: var(--panel);
+    border: 2px solid var(--brown-border);
+    border-radius: 6px;
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.18);
+    padding: 7px 16px 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .global::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(139,115,85,0.35);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  .g-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .vr { width: 1px; align-self: stretch; margin: 5px 0; background: rgba(139,115,85,0.3); }
+
+  .g-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .g-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--brown-frame);
+  }
+
+  /* clock swap slot — division dropdown and free-rate knob share this space */
+  .clock-row { display: flex; align-items: center; gap: 10px; }
+  .swap-slot { position: relative; width: 122px; height: 44px; }
+  .swap-view {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .swap-view.active { opacity: 1; pointer-events: auto; }
+
+  /* seed ledger + carved-bone die */
+  .seed-row { display: flex; align-items: center; gap: 8px; }
+  .seed-ro {
+    width: 62px;
+    text-align: center;
+    font-size: 16px;
+    letter-spacing: 4px;
+    padding: 3px 0 4px 4px;
+    color: var(--brown-text);
+    background: rgba(255,248,220,0.8);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2);
+    font-feature-settings: "tnum";
+  }
+  .seed-ro.pulse { animation: seedPulse 0.35s ease; }
+  @keyframes seedPulse {
+    0% { background: rgba(139,168,112,0.5); }
+    100% { background: rgba(255,248,220,0.8); }
+  }
+  .die {
+    width: 30px; height: 30px;
+    font-size: 26px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brown-frame);
+    background: linear-gradient(145deg, #FBF3E4, #EBD9C7);
+    border: 1.5px solid var(--brown-frame);
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 1px 2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+    transition: transform 0.15s, box-shadow 0.2s;
+    padding: 0;
+  }
+  .die:hover { transform: translateY(-1px) rotate(-6deg); box-shadow: 1px 3px 6px rgba(0,0,0,0.3); }
+  .die:active { transform: translateY(0) rotate(4deg) scale(0.95); }
+
+  /* hard edges toggle */
+  .edge-btn {
+    position: relative;
+    font-family: var(--serif);
+    font-variant: small-caps;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    color: var(--green-darkest);
+    background: rgba(139,168,112,0.22);
+    border: 1.5px solid var(--green-dark);
+    border-radius: 4px;
+    padding: 5px 16px 6px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .edge-btn:hover { transform: translateY(-1px); }
+  .edge-btn.on { background: rgba(107,142,35,0.55); border-color: var(--green-darkest); }
+  .edge-btn .flr { position: absolute; right: 3px; bottom: 0; font-size: 8px; opacity: 0.3; }
+
+  .mix-group { flex-direction: row; align-items: center; gap: 10px; }
+  .mix-text { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+</style>
+</head>
+<body>
+  <div class="plugin">
+    <img class="specimen" src="img/specimen.webp" alt="" draggable="false" />
+    <span class="corner-fleuron bl">❦</span>
+    <span class="corner-fleuron tr">❦</span>
+
+    <div class="inner">
+      <!-- ================= header ================= -->
+      <div class="hdr">
+        <div class="wordmark"><span class="fleuron">❦</span>O-BITROT</div>
+        <div class="hdr-right">
+          <div class="brand">Ouaricon Audio</div>
+          <div class="plate">A Catalogue of Failing Media · Plate XLVII</div>
+        </div>
+      </div>
+
+      <!-- ================= 3×2 family grid ================= -->
+      <div class="grid">
+
+        <!-- Tab. I — TAPE -->
+        <div class="panel on" id="panel-tape">
+          <div class="p-head">
+            <span class="led" id="led-tape"></span>
+            <span class="caption"><em>Tab. I</em> — Tape</span>
+            <span class="gap"></span>
+            <button class="en on" data-param="TAPE_ENABLE" data-panel="panel-tape">On</button>
+          </div>
+          <div class="p-body">
+            <div class="ctl">
+              <div class="ctl-label">Prob</div>
+              <div class="knob k58" data-param="TAPE_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Stop</div>
+              <div class="knob k58" data-param="TAPE_STOP_PROB" data-default="10" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Ramp</div>
+              <div class="knob k58" data-param="TAPE_RAMP" data-default="150" data-unit="ms" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab. II — CD SKIP -->
+        <div class="panel on" id="panel-cd">
+          <div class="p-head">
+            <span class="led" id="led-cd"></span>
+            <span class="caption"><em>Tab. II</em> — CD Skip</span>
+            <span class="gap"></span>
+            <button class="en on" data-param="CD_ENABLE" data-panel="panel-cd">On</button>
+          </div>
+          <div class="p-body">
+            <div class="ctl">
+              <div class="ctl-label">Prob</div>
+              <div class="knob k58" data-param="CD_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Severity</div>
+              <div class="knob k58" data-param="CD_SEVERITY" data-default="0.5" data-unit="" data-dec="2"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Segment</div>
+              <div class="knob k58" data-param="CD_SEGMENT" data-default="100" data-unit="ms" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab. III — VINYL -->
+        <div class="panel on" id="panel-vinyl">
+          <div class="p-head">
+            <span class="led" id="led-vinyl"></span>
+            <span class="caption"><em>Tab. III</em> — Vinyl</span>
+            <span class="gap"></span>
+            <button class="en on" data-param="VINYL_ENABLE" data-panel="panel-vinyl">On</button>
+          </div>
+          <div class="p-body">
+            <div class="ctl">
+              <div class="ctl-label">Prob</div>
+              <div class="knob k58" data-param="VINYL_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Speed</div>
+              <div class="seg" data-param="VINYL_RPM">
+                <button data-value="0">33⅓</button>
+                <button data-value="1">45</button>
+              </div>
+              <div class="annot">rev. quantum</div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Pop</div>
+              <div class="knob k58" data-param="VINYL_POP" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab. IV — PACKET -->
+        <div class="panel off" id="panel-packet">
+          <div class="p-head">
+            <span class="led" id="led-packet"></span>
+            <span class="caption"><em>Tab. IV</em> — Packet</span>
+            <span class="gap"></span>
+            <button class="en" data-param="PACKET_ENABLE" data-panel="panel-packet">Off</button>
+          </div>
+          <div class="p-body">
+            <div class="ctl">
+              <div class="ctl-label">Loss</div>
+              <div class="knob k58" data-param="PACKET_LOSS" data-default="20" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Burst</div>
+              <div class="knob k58" data-param="PACKET_BURST" data-default="30" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Conceal</div>
+              <select class="field" data-param="PACKET_CONCEAL">
+                <option value="0">Silence</option>
+                <option value="1">Repeat</option>
+                <option value="2">Decay</option>
+                <option value="3">Substitute</option>
+              </select>
+              <div class="annot">20 ms packets</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab. V — CODEC -->
+        <div class="panel off" id="panel-codec">
+          <div class="p-head">
+            <span class="led" id="led-codec"></span>
+            <span class="caption"><em>Tab. V</em> — Codec</span>
+            <span class="gap"></span>
+            <button class="en" data-param="CODEC_ENABLE" data-panel="panel-codec">Off</button>
+          </div>
+          <div class="p-body">
+            <div class="ctl">
+              <div class="ctl-label">Line</div>
+              <div class="seg" data-param="CODEC_MODE">
+                <button data-value="0">μ-law</button>
+                <button data-value="1">GSM</button>
+              </div>
+              <div class="annot">300–3400 Hz · 8 kHz round-trip</div>
+            </div>
+            <div class="ctl">
+              <div class="ctl-label">Blend</div>
+              <div class="knob k58" data-param="CODEC_MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
+              <div class="ro"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab. VI — CRUSH (dense: two knob rows) -->
+        <div class="panel off" id="panel-crush">
+          <div class="p-head">
+            <span class="led" id="led-crush"></span>
+            <span class="caption"><em>Tab. VI</em> — Crush</span>
+            <span class="gap"></span>
+            <button class="en" data-param="CRUSH_ENABLE" data-panel="panel-crush">Off</button>
+          </div>
+          <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
+              <div class="ctl">
+                <div class="ctl-label">Bits</div>
+                <div class="knob k50" data-param="CRUSH_BITS" data-default="16" data-unit="bit" data-dec="1"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Rate</div>
+                <div class="knob k50" data-param="CRUSH_RATE" data-default="20000" data-unit="Hz" data-dec="0" data-fmt="hzk"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Jitter</div>
+                <div class="knob k50" data-param="CRUSH_JITTER" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-evenly; width: 74%;">
+              <div class="ctl">
+                <div class="ctl-label">Env</div>
+                <div class="knob k50 bipolar" data-param="CRUSH_ENV_AMT" data-default="0" data-unit="%" data-dec="0" data-signed="1"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Dither</div>
+                <div class="knob k50" data-param="CRUSH_DITHER" data-default="0" data-unit="LSB" data-dec="2"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= global strip ================= -->
+      <div class="global">
+        <div class="p-head" style="flex: 0 0 18px;">
+          <span class="caption" style="font-size: 11px;"><em>Tab. VII</em> — Global · Clock &amp; Provenance</span>
+        </div>
+        <div class="g-body">
+
+          <!-- clock: mode toggle drives the swap slot -->
+          <div class="g-group">
+            <div class="g-label">Clock</div>
+            <div class="clock-row">
+              <div class="seg" data-param="CLOCK_MODE" id="clockModeSeg">
+                <button data-value="0">Sync</button>
+                <button data-value="1">Free</button>
+              </div>
+              <div class="swap-slot">
+                <div class="swap-view active" id="viewSync">
+                  <select class="field" data-param="CLOCK_SYNC_DIV">
+                    <option value="0">1/16</option>
+                    <option value="1">1/8T</option>
+                    <option value="2">1/8</option>
+                    <option value="3">1/4T</option>
+                    <option value="4">1/4</option>
+                    <option value="5">1/2</option>
+                    <option value="6">1 bar</option>
+                  </select>
+                </div>
+                <div class="swap-view" id="viewFree">
+                  <div class="knob k42" data-param="CLOCK_FREE_RATE" data-default="2" data-unit="Hz" data-dec="1"><div class="stem"></div></div>
+                  <div class="ro" style="width: 46px; text-align: left;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="vr"></div>
+
+          <!-- seed ledger + die -->
+          <div class="g-group">
+            <div class="g-label">Seed</div>
+            <div class="seed-row">
+              <div class="seed-ro" id="seedRo">0000</div>
+              <button class="die" id="diceBtn" title="Reseed">⚄</button>
+            </div>
+          </div>
+
+          <div class="vr"></div>
+
+          <!-- hard edges -->
+          <div class="g-group">
+            <div class="g-label">Splices</div>
+            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn">Hard Edges<span class="flr">❦</span></button>
+            <div class="annot">crossfades bypassed when lit</div>
+          </div>
+
+          <div class="vr"></div>
+
+          <!-- mix -->
+          <div class="g-group mix-group">
+            <div class="mix-text">
+              <div class="ctl-label">Mix</div>
+              <div class="ro"></div>
+            </div>
+            <div class="knob k56" data-param="MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  // JUCE 8 frontend library — always pass the Juce ES-module namespace for
+  // parameter binding (NEVER window.__JUCE__ for params; repo pattern).
+  import * as Juce from "./js/juce/index.js";
+
+  // Native application feel
+  document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
+  document.addEventListener("dragstart", (e) => e.preventDefault());
+
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+  // Invert C++ NormalisableRange using the state's own properties (start/end/skew
+  // arrive from the backend), so skewed knobs (CLOCK_FREE_RATE, CRUSH_RATE) reset
+  // correctly without any JS min/max math.
+  const scaledToNormalised = (state, scaled) => {
+    const p = state.properties;
+    if (!p || p.end === p.start) return 0;
+    return clamp01(Math.pow((scaled - p.start) / (p.end - p.start), p.skew));
+  };
+
+  // Readout formatting only — the VALUE always comes from getScaledValue().
+  const fmtValue = (el, v) => {
+    const dec = +(el.dataset.dec || 0);
+    const unit = el.dataset.unit || "";
+    if (el.dataset.fmt === "hzk" && v >= 1000) return (v / 1000).toFixed(1) + " kHz";
+    let s = v.toFixed(dec);
+    if (el.dataset.signed && v > 0) s = "+" + s;
+    return unit ? s + " " + unit : s;
+  };
+
+  // ================= knobs (18 floats; SEED is bound separately) =================
+  const setupKnob = (el) => {
+    const state = Juce.getSliderState(el.dataset.param);
+    const stem = el.querySelector(".stem");
+    const ro = el.closest(".ctl, .swap-view, .mix-group")?.querySelector(".ro");
+
+    const render = () => {
+      stem.style.transform = `rotate(${-135 + state.getNormalisedValue() * 270}deg)`;
+      if (ro) ro.textContent = fmtValue(el, state.getScaledValue());
+    };
+    state.valueChangedEvent.addListener(render);
+    state.propertiesChangedEvent.addListener(render);
+    render();
+
+    let dragY = null, dragNorm = 0;
+    el.addEventListener("pointerdown", (e) => {
+      dragY = e.clientY;
+      dragNorm = state.getNormalisedValue();
+      state.sliderDragStarted();
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (dragY === null) return;
+      const fine = e.shiftKey ? 0.001 : 0.005;
+      state.setNormalisedValue(clamp01(dragNorm + (dragY - e.clientY) * fine));
+    });
+    const endDrag = (e) => {
+      if (dragY === null) return;
+      dragY = null;
+      state.sliderDragEnded();
+      el.releasePointerCapture(e.pointerId);
+    };
+    el.addEventListener("pointerup", endDrag);
+    el.addEventListener("pointercancel", endDrag);
+    el.addEventListener("dblclick", () => {
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNormalised(state, +el.dataset.default));
+      state.sliderDragEnded();
+    });
+    el.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      state.sliderDragStarted();
+      state.setNormalisedValue(clamp01(state.getNormalisedValue() + (e.deltaY < 0 ? 0.02 : -0.02)));
+      state.sliderDragEnded();
+    }, { passive: false });
+  };
+  document.querySelectorAll(".knob[data-param]").forEach(setupKnob);
+
+  // ================= panel enable toggles (6) + steady LEDs =================
+  // Codec/Crush have no event bit — their spore-print LED is lit steadily
+  // whenever the family is enabled.
+  const steadyLedPanels = { "panel-codec": "led-codec", "panel-crush": "led-crush" };
+
+  document.querySelectorAll(".en[data-panel]").forEach((btn) => {
+    const state = Juce.getToggleState(btn.dataset.param);
+    const panel = document.getElementById(btn.dataset.panel);
+    const steadyLed = steadyLedPanels[btn.dataset.panel]
+      ? document.getElementById(steadyLedPanels[btn.dataset.panel]) : null;
+
+    const render = () => {
+      const on = state.getValue();
+      panel.classList.toggle("on", on);
+      panel.classList.toggle("off", !on);
+      btn.classList.toggle("on", on);
+      btn.textContent = on ? "On" : "Off";
+      if (steadyLed) steadyLed.classList.toggle("lit", on);
+    };
+    state.valueChangedEvent.addListener(render);
+    render();
+
+    btn.addEventListener("click", () => state.setValue(!state.getValue()));
+  });
+
+  // ================= hard edges toggle =================
+  {
+    const state = Juce.getToggleState("HARD_EDGES");
+    const btn = document.getElementById("edgeBtn");
+    const render = () => btn.classList.toggle("on", state.getValue());
+    state.valueChangedEvent.addListener(render);
+    render();
+    btn.addEventListener("click", () => state.setValue(!state.getValue()));
+  }
+
+  // ================= segmented 2-choice combos (VINYL_RPM, CODEC_MODE, CLOCK_MODE)
+  document.querySelectorAll(".seg[data-param]").forEach((seg) => {
+    const state = Juce.getComboBoxState(seg.dataset.param);
+    const buttons = seg.querySelectorAll("button");
+    const render = () => {
+      const idx = state.getChoiceIndex();
+      buttons.forEach((b) => b.classList.toggle("sel", +b.dataset.value === idx));
+    };
+    state.valueChangedEvent.addListener(render);
+    render();
+    buttons.forEach((b) =>
+      b.addEventListener("click", () => state.setChoiceIndex(+b.dataset.value)));
+  });
+
+  // CLOCK_MODE also drives the swap slot (listener-driven, so host automation
+  // and preset recall swap the views too; both controls stay bound at all times).
+  {
+    const state = Juce.getComboBoxState("CLOCK_MODE");
+    const swap = () => {
+      const free = state.getChoiceIndex() === 1;
+      document.getElementById("viewSync").classList.toggle("active", !free);
+      document.getElementById("viewFree").classList.toggle("active", free);
+    };
+    state.valueChangedEvent.addListener(swap);
+    swap();
+  }
+
+  // ================= dropdown combos (CLOCK_SYNC_DIV, PACKET_CONCEAL) =================
+  document.querySelectorAll("select.field[data-param]").forEach((sel) => {
+    const state = Juce.getComboBoxState(sel.dataset.param);
+    const render = () => { sel.selectedIndex = state.getChoiceIndex(); };
+    state.valueChangedEvent.addListener(render);
+    render();
+    sel.addEventListener("change", () => state.setChoiceIndex(sel.selectedIndex));
+  });
+
+  // ================= seed ledger + reseed die (SEED is an Int slider param) ====
+  {
+    const state = Juce.getSliderState("SEED");
+    const ro = document.getElementById("seedRo");
+    const die = document.getElementById("diceBtn");
+    const dieFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+
+    const render = () =>
+      ro.textContent = String(Math.round(state.getScaledValue())).padStart(4, "0");
+    state.valueChangedEvent.addListener(render);
+    render();
+
+    die.addEventListener("click", () => {
+      // One host gesture: reseed writes the SEED param (no separate trigger param)
+      state.sliderDragStarted();
+      state.setNormalisedValue(Math.random());
+      state.sliderDragEnded();
+      die.textContent = dieFaces[Math.floor(Math.random() * 6)];
+      ro.classList.remove("pulse"); void ro.offsetWidth; ro.classList.add("pulse");
+    });
+  }
+
+  // ================= event LED bridge (Tape / CD / Vinyl / Packet) =============
+  // The ONE legitimate window.__JUCE__ use: receiving backend-emitted events.
+  // Payload: JSON {"mask": N}, bits 0-3 = tape, cd, vinyl, packet (30 Hz timer).
+  // Stateless render with per-family pulse-stretch: an LED stays lit for at
+  // least 120 ms after the last tick on which its family was active.
+  {
+    const PULSE_MS = 120;
+    const families = ["tape", "cd", "vinyl", "packet"];
+    const leds = families.map((f) => document.getElementById("led-" + f));
+    const lastActiveMs = [0, 0, 0, 0];
+
+    const renderLeds = () => {
+      const now = performance.now();
+      families.forEach((_, i) =>
+        leds[i].classList.toggle("lit", now - lastActiveMs[i] < PULSE_MS));
+    };
+
+    window.__JUCE__.backend.addEventListener("ledUpdate", (payload) => {
+      let data = payload;
+      if (typeof payload === "string") {
+        try { data = JSON.parse(payload); } catch { return; }
+      }
+      const mask = (data && data.mask) >>> 0;
+      const now = performance.now();
+      families.forEach((_, i) => { if (mask & (1 << i)) lastActiveMs[i] = now; });
+      renderLeds();
+    });
+
+    // Decay tick — turns LEDs off once the pulse-stretch window has elapsed
+    setInterval(renderLeds, 50);
+  }
+</script>
+</body>
+</html>

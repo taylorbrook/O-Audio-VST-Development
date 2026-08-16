@@ -76,6 +76,9 @@
 class PacketLossStage
 {
 public:
+    // UI telemetry only: current packet is lost or the GE chain is in a burst.
+    bool isConcealing() const noexcept { return lostCur || stateBad; }
+
     // The only allocation.
     void prepare (double sampleRate, bool initiallyEnabled)
     {

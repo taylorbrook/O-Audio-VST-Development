@@ -1,0 +1,44 @@
+# ============================================================================
+# O-Bitrot — WebView UI build configuration snippet (mockup v1)
+#
+# NOTE: plugins/O-Bitrot/CMakeLists.txt ALREADY contains all of these blocks
+# (added by the Stage-3 scaffold). This file is the reference spec — verify the
+# in-tree CMakeLists matches; do NOT append duplicates.
+# ============================================================================
+
+# --- juce_add_plugin() must declare WebView support -------------------------
+#   NEEDS_WEB_BROWSER TRUE
+#   NEEDS_WEBVIEW2 TRUE
+
+# --- juce::juce_gui_extra must be linked (WebBrowserComponent) --------------
+# (already present in the standard target_link_libraries block)
+
+# --- WebView UI Resources ---------------------------------------------------
+# No hyphenated filenames — juce_add_binary_data STRIPS hyphens (repo pattern).
+juce_add_binary_data(OBitrot_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper.jpg
+        Source/ui/public/img/specimen.webp
+)
+
+target_link_libraries(OBitrot PRIVATE OBitrot_UIResources)
+
+# --- WebView compile definitions --------------------------------------------
+# JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1 is REQUIRED on Windows —
+# without it the WebView is silently blank (repo pattern).
+target_compile_definitions(OBitrot
+    PUBLIC
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+        JUCE_USE_CURL=0
+)
+
+# Expected BinaryData symbols (for the resource provider):
+#   BinaryData::index_html / index_htmlSize                       (text/html)
+#   BinaryData::index_js / index_jsSize                           (application/javascript)
+#   BinaryData::check_native_interop_js / ..._jsSize              (application/javascript)
+#   BinaryData::paper_jpg / paper_jpgSize                         (image/jpeg)
+#   BinaryData::specimen_webp / specimen_webpSize                 (image/webp)

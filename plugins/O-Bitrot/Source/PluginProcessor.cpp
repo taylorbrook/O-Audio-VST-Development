@@ -540,6 +540,11 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     int tickIndex = 0;
 
+    // UI telemetry: per-sample OR so ms-scale events (CD mutes, pops) are
+    // never missed at large block sizes. Read-only const accessors — no RNG,
+    // no DSP state touched (harness bit-identity preserved).
+    uint32_t activity = 0;
+
     for (int n = 0; n < numSamples; ++n)
     {
         // 1. Write the ring FIRST — the NORMAL read head sits at lag 0.
@@ -614,7 +619,15 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         outL[n] = wetL;
         outR[n] = wetR;
+
+        if (! tapeTransport.isIdle())        activity |= kTapeActive;
+        if (cdSkip.isActive())               activity |= kCdActive;
+        if (vinylTransport.isLocked()
+            || artifactSynth.popActive())    activity |= kVinylActive;
+        if (packetStage.isConcealing())      activity |= kPacketActive;
     }
+
+    uiActivityMask.store(activity, std::memory_order_relaxed);
 
     // ── Dry/wet blend (dry is delayed inside the mixer by setWetLatency) ────
     dryWetMixer.mixWetSamples(block);
