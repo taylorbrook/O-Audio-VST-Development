@@ -84,6 +84,7 @@ public:
     }
 
     double getPosition() const noexcept { return pos; }
+    double getMaxLag() const noexcept   { return maxLagSamples; }
 
     // Lag in samples behind the last-written ring sample (>= 0 in practice).
     double getLag (juce::int64 totalWritten) const noexcept

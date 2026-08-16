@@ -376,6 +376,9 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     readHead.prepare(sampleRate, captureRing.getSize());
     mediaClock.prepare(sampleRate, samplesPerBlock);
     tapeTransport.prepare(sampleRate);
+    cdSkip.prepare(sampleRate);
+    vinylTransport.prepare(sampleRate);
+    artifactSynth.prepare(sampleRate);
     codecStage.prepare(compLatencySamples);
 
     juce::dsp::ProcessSpec spec { sampleRate,
@@ -452,10 +455,19 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     arbParams.vinylProb     = (double) vinylProbParam->load() * 0.01;
     arbParams.tapeStopShare = (double) tapeStopProbParam->load() * 0.01;
     arbParams.tapeRampMs    = (double) tapeRampParam->load();
+    arbParams.cdSeverity    = (double) cdSeverityParam->load();
+    arbParams.cdSegmentMs   = (double) cdSegmentParam->load();
+    arbParams.vinylRpmIndex = (int) vinylRpmParam->load();
+    arbParams.vinylPop01    = vinylPopParam->load() * 0.01f;
 
-    // Mid-event disable releases gracefully (ramp back), never teleports.
+    // Mid-event disable releases gracefully (ramp back / recovery jump /
+    // stop re-jumping), never teleports.
     if (! arbParams.tapeEnabled)
         tapeTransport.release(arbParams.tapeRampMs);
+    if (! arbParams.cdEnabled)
+        cdSkip.release(readHead, captureRing, hardEdges);
+    if (! arbParams.vinylEnabled)
+        vinylTransport.release();
 
     // ── Dry path (before any mutation) ──────────────────────────────────────
     dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
@@ -483,22 +495,32 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         while (tickIndex < mediaClock.getNumTicks()
                && mediaClock.getTickOffset(tickIndex) == n)
         {
-            arbitration.onTick(rngBank, tapeTransport, arbParams, lastAppliedRate);
+            Arbitration::TickContext ctx { tapeTransport, cdSkip, vinylTransport,
+                                           readHead, captureRing, artifactSynth,
+                                           lastAppliedRate, hardEdges };
+            arbitration.onTick(rngBank, arbParams, ctx);
             ++tickIndex;
         }
 
-        // 3. Rate for this sample: tape state machine while an event is in
-        //    flight, gentle re-approach trim (<= +2%, ramped) when NORMAL.
+        // 3. Rate for this sample: tape state machine while a tape event is
+        //    in flight; EXACTLY 1.0 while a CD loop or locked groove runs
+        //    (exact repeat intervals; pitch never changes); gentle
+        //    re-approach trim (<= +2%, ramped) only when fully NORMAL.
         const double lag = readHead.getLag(captureRing.getTotalWritten());
         double rate;
-        if (tapeTransport.isIdle())
-        {
-            rate = readHead.reapproachRate(lag);
-        }
-        else
+        if (! tapeTransport.isIdle())
         {
             readHead.clearTrim();               // NORMAL trim restarts from 0
             rate = tapeTransport.nextRate(lag);
+        }
+        else if (cdSkip.isLooping() || vinylTransport.isLocked())
+        {
+            readHead.clearTrim();
+            rate = 1.0;
+        }
+        else
+        {
+            rate = readHead.reapproachRate(lag);
         }
         lastAppliedRate = rate;
 
@@ -506,9 +528,21 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         float wetL = 0.0f, wetR = 0.0f;
         readHead.renderSample(captureRing, rate, hardEdges, wetL, wetR);
 
-        // 5. Packet / Crush / Quant: unity in Phase 2.1 (land 2.3 / 2.4).
+        // 5. CD ladder (conceal dip / mute / loop wrap) then vinyl locked-
+        //    groove wrap — both operate on the head/rendered signal.
+        cdSkip.processSample(readHead, captureRing, hardEdges, artifactSynth, wetL, wetR);
+        vinylTransport.processSample(readHead, captureRing, hardEdges, artifactSynth, rngBank);
 
-        // 6. CodecStage: pure kCompLatency alignment delay in Phase 2.1.
+        // 6. Artifact bus (pops / ticks / chirps): mono, both channels, runs
+        //    every sample so the IIR state stays continuous. Exact 0.0f when
+        //    nothing was ever triggered (FUNC-02 preserved).
+        const float artifact = artifactSynth.renderSample();
+        wetL += artifact;
+        wetR += artifact;
+
+        // 7. Packet / Crush / Quant: unity until Phases 2.3 / 2.4.
+
+        // 8. CodecStage: pure kCompLatency alignment delay until Phase 2.5.
         codecStage.processSample(wetL, wetR);
 
         outL[n] = wetL;
