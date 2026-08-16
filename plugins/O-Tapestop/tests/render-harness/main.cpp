@@ -484,6 +484,12 @@ double hfRatio (const std::vector<float>& v, int lo, int hi) noexcept
 const double kDrySineDiffBound = 0.5 * juce::MathConstants<double>::twoPi * 440.0 / kFs;
 const double kP6Bound          = kDrySineDiffBound * 1.85 + 0.002;
 
+// v1.2 Glitch bound: slam holds the ±2 engine rail and a stutter pitch-ramp
+// can splice two voices both near |r| = 2 (equal-power sum → √(2²+2²) ≈ 2.83·d).
+// 3.0× covers that plus fade-slope margin; a genuine click is first-diff
+// ≈ 2A ≈ 1.0, still ~10× above this bound, so detection power is intact.
+const double kP6BoundGlitch    = kDrySineDiffBound * 3.0 + 0.004;
+
 // Shared resync timing constants (48 kHz): 250 ms catchup cap, 50 ms fade.
 constexpr int kCatchupLen = 12001;   // cap ticks (elapsed > cap → enter resync)
 constexpr int kFadeLen    = 2400;
@@ -1530,6 +1536,53 @@ int main()
         }
     }
 
+    // C-P0x (v1.2): glitch at CHAOS/DEPTH 100 — the everything-unlocked path
+    // (4 slots/cell, freeze/slam/chatter/shuffle, stutter roll + pitch-ramp
+    // all reachable). Same three gates as C-P0/P1a/P2: two fresh instances
+    // bitwise, 512-vs-4096 bit-identity, post-release bitwise dry. This is
+    // the enforcement that every NEW event type keeps all state inside
+    // tick() and every draw on the seeded per-purpose streams.
+    {
+        auto run = [] (int blk)
+        {
+            TapestopProcessor p;
+            prepareAndSettle (p, blk);
+            setParam (p, "SYNC_MODE",    1.0f);
+            setParam (p, "MODE",         2.0f);
+            setParam (p, "CHARACTER",    2.0f);
+            setParam (p, "CONT_RATE_HZ", 8.0f);
+            setParam (p, "CONT_DEPTH", 100.0f);
+            setParam (p, "CONT_CHAOS", 100.0f);
+            return renderTimeline (p, 122880, { blk },
+                                   { { 8192, "ENGAGE", 1.0f }, { 57344, "ENGAGE", 0.0f } },
+                                   noiseFill);
+        };
+
+        auto a = run (512);
+        auto b = run (512);
+        auto l = run (4096);
+
+        juce::String d0, d1;
+        const bool det = identicalVec (a.L, b.L, d0) && identicalVec (a.R, b.R, d1);
+
+        juce::String dL, dR;
+        const bool inv = identicalVec (a.L, l.L, dL) && identicalVec (a.R, l.R, dR);
+
+        double dev = 0.0;
+        for (int n = 16000; n < 50000; ++n)
+            dev = juce::jmax (dev, (double) std::abs (a.L[(size_t) n] - noiseFill (0, n)));
+
+        check ("C-P0x-glitch-max-determinism", det && dev > 0.01,
+               "runs " + d0 + "; engagedDev=" + juce::String (dev, 4));
+
+        check ("C-P0x-glitch-max-blocksize", inv, "L " + dL + "; R " + dR);
+
+        const int bad = firstNonDry (a, noiseFill, 57344 + 32768, 122880);
+        check ("C-P0x-glitch-max-null-after-release", bad < 0,
+               bad < 0 ? "tail memcmp-equal to input"
+                       : "first diff @" + juce::String (bad));
+    }
+
     // C-P4c: debt stays bounded under a LONG worst-case hold. Random at max
     // depth/chaos random-walks its position debt (rate mean-reverts, the
     // integral does not) — the ±0.2 % servo must pin it; Glitch's one-sided
@@ -1590,10 +1643,10 @@ int main()
 
     // C-P6: continuity. Wobble at full depth is C1 by construction (sines +
     // filtered noise + 50 ms depth slew); Glitch may STEP r (2 ms slew) and
-    // splice positions (3–50 ms fades) but the WAVEFORM must stay inside the
-    // same first-difference bound the scratch r = ±1.8 precedent set. Depth
-    // 60 keeps peak |r| ≤ 1.6 — inside the bound's validity range on a
-    // 440 Hz probe tone.
+    // splice positions (3–50 ms fades) but the WAVEFORM must stay inside a
+    // first-difference bound on a 440 Hz probe tone. Wobble uses the scratch
+    // r = ±1.8 precedent bound; Glitch (v1.2) uses the ±2-rail bound — slam
+    // holds r = 2 and ramped-stutter splices can sum two near-rail voices.
     for (int c = 0; c <= 2; c += 2)
     {
         TapestopProcessor p;
@@ -1617,10 +1670,12 @@ int main()
         for (int n2 = 48000; n2 < 96000; ++n2)
             dev = juce::jmax (dev, (double) std::abs (y.L[(size_t) n2] - sine440 (0, n2)));
 
+        const double p6bound = c == 2 ? kP6BoundGlitch : kP6Bound;
+
         check ((juce::String ("C-P6-continuity-") + (c == 0 ? "wobble" : "glitch")).toRawUTF8(),
-               allFinite (y.L) && allFinite (y.R) && diff <= kP6Bound && dev > 0.01,
+               allFinite (y.L) && allFinite (y.R) && diff <= p6bound && dev > 0.01,
                "maxDiff=" + juce::String (diff, 5) + " (bound "
-                 + juce::String (kP6Bound, 5) + "), dev=" + juce::String (dev, 3));
+                 + juce::String (p6bound, 5) + "), dev=" + juce::String (dev, 3));
     }
 
     // C-zipper: DEPTH is LIVE (16-sample-grid latch — two renders differing
