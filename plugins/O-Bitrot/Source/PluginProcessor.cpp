@@ -380,7 +380,10 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     vinylTransport.prepare(sampleRate);
     artifactSynth.prepare(sampleRate);
     packetStage.prepare(sampleRate, packetEnableParam->load() > 0.5f);
-    codecStage.prepare(compLatencySamples);
+    codecStage.prepare(sampleRate, compLatencySamples,
+                       codecEnableParam->load() > 0.5f,
+                       ((int) codecModeParam->load()) == 1,
+                       codecMixParam->load() * 0.01f);
     crushStage.prepare(sampleRate, crushEnableParam->load() > 0.5f,
                        (double) crushRateParam->load());
     quantStage.prepare(sampleRate, crushEnableParam->load() > 0.5f,
@@ -402,7 +405,10 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 void OBitrotAudioProcessor::releaseResources()
 {
     // Ring / delay buffers stay allocated (< 5 MB at 192 kHz); prepareToPlay
-    // re-sizes them on the next start.
+    // re-sizes them on the next start. GSM handles are freed here (guarded;
+    // prepareToPlay recreates them, and processBlock skips codec work on
+    // null handles).
+    codecStage.releaseHandles();
 }
 
 bool OBitrotAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -502,6 +508,13 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                          crushEnvAmtParam->load() * 0.01f,
                          crushEnabled);
 
+    // Codec per-block snapshot. No RNG in the codec path; the 8 kHz latch
+    // phase and alignment rings run unconditionally (pure functions of the
+    // sample count); CODEC_ENABLE rides the EnableFade rails.
+    codecStage.setParams(codecEnableParam->load() > 0.5f,
+                         ((int) codecModeParam->load()) == 1,
+                         codecMixParam->load() * 0.01f);
+
     // Mid-event disable releases gracefully (ramp back / recovery jump /
     // stop re-jumping), never teleports.
     if (! arbParams.tapeEnabled)
@@ -586,8 +599,11 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         //    (packet stream) consumed only at packet boundaries.
         packetStage.processSample(rngBank, wetL, wetR);
 
-        // 8. CodecStage: pure kCompLatency alignment delay until Phase 2.5.
-        //    ARCHITECTURE chain order: Packet -> Codec -> Crush -> Quant.
+        // 8. CodecStage: phone chain (mono -> BP -> 8 kHz latch -> mu-law |
+        //    GSM -> post-LPF -> equal-power blend), presenting exactly
+        //    kCompLatency delay in every state — bit-transparent alignment
+        //    delay when disabled. ARCHITECTURE chain order:
+        //    Packet -> Codec -> Crush -> Quant.
         codecStage.processSample(wetL, wetR);
 
         // 9. Crush (fractional-hold SRR + jitter) then Quant (fractional

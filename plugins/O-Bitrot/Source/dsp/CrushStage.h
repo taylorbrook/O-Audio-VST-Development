@@ -72,15 +72,21 @@ public:
         lastL = lastR = 0.0f;
     }
 
-    void processSample (float inL, float inR, double rate, double jitterFactor,
+    // Returns true when a grid crossing latched a new value this sample
+    // (CodecStage's 8 kHz grid uses this to clock its frame slots; CrushStage
+    // ignores it).
+    bool processSample (float inL, float inR, double rate, double jitterFactor,
                         float& outL, float& outR) noexcept
     {
         const double step = rate * jitterFactor;
         phase += step;
 
+        bool crossed = false;
+
         if (phase >= 1.0)
         {
             phase -= 1.0;
+            crossed = true;
 
             // Fractional crossing position: 0 = crossing exactly now,
             // 1 = crossing happened a full sample ago.
@@ -94,6 +100,8 @@ public:
         lastR = inR;
         outL  = heldL;
         outR  = heldR;
+
+        return crossed;
     }
 
 private:

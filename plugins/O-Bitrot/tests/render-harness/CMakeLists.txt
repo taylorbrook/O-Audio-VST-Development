@@ -89,6 +89,10 @@ target_compile_definitions(O-Bitrot-render-test PRIVATE
 
 target_link_libraries(O-Bitrot-render-test
     PRIVATE
+        # The harness compiles PluginProcessor.cpp directly and does NOT
+        # inherit OBitrot's PRIVATE links — the vendored GSM lib must be
+        # linked here too (its PUBLIC include dir provides <gsm.h>).
+        OBitrot_gsm
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
