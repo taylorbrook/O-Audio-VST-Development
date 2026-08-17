@@ -2,11 +2,16 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed)
 
 ## Lifecycle Timeline
 
+- **2026-08-16 (v1.2.1):** Glitch pushed further off the grid — slot-start
+  jitter (0–35 % of a slot), 1→5 slots per cell, ⅛-cell micro-bursts,
+  tame-family fade 65 %. All gated above CHAOS 0.5 (≤ 0.5 bit-identical to
+  v1.2.0). No new params. Harness 65/65; pluginval s10 VST3 ×2 + AU ×2
+  SUCCESS; auval SUCCEEDED. Installed.
 - **2026-08-16 (v1.2.0):** Glitch character overhauled — sub-cell event
   slots (1→4 with chaos), burst-length events, new palette (freeze, slam,
   chatter, shuffle, stutter roll/pitch-ramp), chaos remap. No new params.

@@ -2,6 +2,29 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.2.1] — 2026-08-16
+
+### Changed
+- **Glitch pushed further off the grid — more erratic at high CHAOS.**
+  v1.2.0's barrage was dense but still grid-locked: every event started
+  exactly on a slot boundary, which reads as rhythmic rather than erratic.
+  All four changes are gated on `g = 2·max(0, chaos − 0.5)` (no RNG draw at
+  g = 0), so CHAOS ≤ 0.5 stays bit-identical to v1.2.0:
+  - **Slot-start jitter** — each slot's event attempt is deferred by a
+    random 0–35 % of a slot (scaled by g), so high-chaos events fall
+    off the tempo grid instead of quantizing to it.
+  - **Density** — slots per cell now unlock 1→5 above CHAOS 0.4 (was
+    1→4), max-chaos cadence up 25 %.
+  - **⅛-cell micro-bursts** — a fourth event-length tier below the ¼
+    fraction (weight 1.4·g·chaos²), and the ¼ weight itself rises with g
+    (2.2 → 3.8 at max): more blink-length freezes/slams/stutter blips.
+  - **Tame fade deepened** — dip/half-speed weights fade 65 % at max
+    chaos (was 50 %), so the top of the CHAOS range is dominated by the
+    extreme family.
+  - Debt safety unchanged (3 s soft / 6 s hard budgets); measured 40 s
+    worst-case debt 1.77 s (bound 8 s). Render harness: 65/65 pass with
+    no bound recalibration — C-P6 glitch continuity 0.0576 vs 0.0904.
+
 ## [1.2.0] — 2026-08-16
 
 ### Changed
