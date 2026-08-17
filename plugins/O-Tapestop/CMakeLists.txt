@@ -10,7 +10,7 @@ juce_add_plugin(OuariconTapestop
     PRODUCT_NAME "O-Tapestop${OUARICON_DEV_SUFFIX}"
     # JUCE reads VERSION (never PLUGIN_VERSION — that keyword is silently
     # ignored and the bundle ships as 1.0.0).
-    VERSION 1.2.1
+    VERSION 1.2.2
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
