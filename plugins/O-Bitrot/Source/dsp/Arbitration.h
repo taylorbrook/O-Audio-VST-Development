@@ -36,8 +36,14 @@
          conceal/mute rungs finish naturally).
       4. No firer => everything ramps back toward NORMAL.
 
+    A tape win installs one of THREE things as of v1.4.0: a stop, a dropout,
+    or a bend. The dropout roll is skipped when its share is 0, which keeps the
+    tape stream's draw pattern — and every pre-v1.4.0 render — bit-identical at
+    the default.
+
     RNG is consumed ONLY here (at ticks) plus at deterministic jump instants
-    (pops) — never per-sample, never per-block
+    (pops) and on the wow bed's own private sample counter — never per-sample
+    on a SHARED stream, never per-block
     (pattern_rng_stream_interleave_blocksize).
 
   ==============================================================================
@@ -48,6 +54,7 @@
 #include <JuceHeader.h>
 #include "RngBank.h"
 #include "TapeTransport.h"
+#include "TapeDropout.h"
 #include "CDSkip.h"
 #include "VinylTransport.h"
 #include "ReadHead.h"
@@ -104,6 +111,7 @@ public:
         double cdProb        = 0.25;   // 0..1
         double vinylProb     = 0.25;   // 0..1
         double tapeStopShare = 0.10;   // 0..1
+        double tapeDropShare = 0.0;    // 0..1, share of NON-stop tape wins
         double tapeRampMs    = 150.0;
         double cdSeverity    = 0.5;    // 0..1
         double cdSegmentMs   = 100.0;
@@ -114,6 +122,7 @@ public:
     struct TickContext
     {
         TapeTransport&     tape;
+        TapeDropout&       tapeDropout;
         CDSkip&            cd;
         VinylTransport&    vinyl;
         ReadHead&          head;
@@ -169,6 +178,22 @@ public:
                 if (rng.get (RngBank::tape).nextFloat() < static_cast<float> (p.tapeStopShare))
                 {
                     ctx.tape.installStop (p.tapeRampMs, ctx.currentRate);
+                }
+                // Dropout (v1.4.0) takes a share of the NON-stop tape wins.
+                // The roll is skipped entirely at share 0 — which is the
+                // default — so the tape stream's draw pattern, and therefore
+                // every render made before this feature existed, is
+                // bit-identical until the knob is turned up.
+                //
+                // Unlike a stop or a bend, a dropout installs no rate event:
+                // it is gain and filter domain only, so a bend already in
+                // flight keeps ramping underneath it (the OVERLAY class that
+                // brief item 6 generalises). The cd/vinyl releases above still
+                // apply — single-winner arbitration is unchanged.
+                else if (p.tapeDropShare > 0.0
+                         && rng.get (RngBank::tape).nextFloat() < static_cast<float> (p.tapeDropShare))
+                {
+                    ctx.tapeDropout.trigger (rng.get (RngBank::tape));
                 }
                 else
                 {

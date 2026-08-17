@@ -67,6 +67,7 @@ public:
         rampRemaining    = 0;
         rampMs           = 150.0;
         releaseCompleted = false;
+        stopInstalled    = false;
     }
 
     bool isIdle() const noexcept { return state == State::Idle; }
@@ -92,9 +93,22 @@ public:
         beginRamp (interval, newRampMs, fromRate);
     }
 
+    // One-shot: true for the single sample on which a stop was installed.
+    // TapeStopGain consumes it to ARM the output-dies-with-speed law (v1.4.0).
+    // The latch lives here rather than in the gain stage because only this
+    // class knows a stop from a bend — rate alone cannot tell them apart, and
+    // the 0.5x bend interval sits below the gain law's own threshold.
+    bool consumeStopInstalled() noexcept
+    {
+        const bool r = stopInstalled;
+        stopInstalled = false;
+        return r;
+    }
+
     void installStop (double newRampMs, double fromRate) noexcept
     {
-        state = State::Stop;
+        state         = State::Stop;
+        stopInstalled = true;
         beginRamp (0.0, newRampMs, fromRate);
     }
 
@@ -180,4 +194,5 @@ private:
     double rampMs        = 150.0;
 
     bool   releaseCompleted = false;   // one-shot, see consumeReleaseComplete()
+    bool   stopInstalled    = false;   // one-shot, see consumeStopInstalled()
 };

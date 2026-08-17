@@ -197,7 +197,9 @@
   }
 
   .panel { min-height: 0; }
-  #panel-crush .ctl { gap: 3px; }
+  /* the two dense two-row panels */
+  #panel-crush .ctl,
+  #panel-tape .ctl { gap: 3px; }
 
   .panel {
     position: relative;
@@ -548,7 +550,7 @@
       <!-- ================= 3×2 family grid ================= -->
       <div class="grid">
 
-        <!-- Tab. I — TAPE -->
+        <!-- Tab. I — TAPE (dense: two knob rows, as Tab. VI) -->
         <div class="panel on" id="panel-tape">
           <div class="p-head">
             <span class="led" id="led-tape"></span>
@@ -556,21 +558,35 @@
             <span class="gap"></span>
             <button class="en on" data-param="TAPE_ENABLE" data-panel="panel-tape">On</button>
           </div>
-          <div class="p-body">
-            <div class="ctl">
-              <div class="ctl-label">Prob</div>
-              <div class="knob k58" data-param="TAPE_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
+          <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
+              <div class="ctl">
+                <div class="ctl-label">Prob</div>
+                <div class="knob k50" data-param="TAPE_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Stop</div>
+                <div class="knob k50" data-param="TAPE_STOP_PROB" data-default="10" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Drop</div>
+                <div class="knob k50" data-param="TAPE_DROP" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
-            <div class="ctl">
-              <div class="ctl-label">Stop</div>
-              <div class="knob k58" data-param="TAPE_STOP_PROB" data-default="10" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
-            </div>
-            <div class="ctl">
-              <div class="ctl-label">Ramp</div>
-              <div class="knob k58" data-param="TAPE_RAMP" data-default="150" data-unit="ms" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
+            <div style="display: flex; justify-content: space-evenly; width: 74%;">
+              <div class="ctl">
+                <div class="ctl-label">Wow</div>
+                <div class="knob k50" data-param="TAPE_WOW" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Ramp</div>
+                <div class="knob k50" data-param="TAPE_RAMP" data-default="150" data-unit="ms" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
           </div>
         </div>

@@ -27,6 +27,8 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 | TAPE_PROB | Tape Probability | Float | 0.0 - 100.0 | 25.0 | % | Probability of a tape event per clock tick. |
 | TAPE_STOP_PROB | Tape-Stop Share | Float | 0.0 - 100.0 | 10.0 | % | Share of tape events that are full stops. |
 | TAPE_RAMP | Tape Ramp | Float | 20.0 - 500.0 | 150.0 | ms | Speed-transition ramp time — the ramp IS the glide sound and the click-safety. |
+| TAPE_DROP | Tape Dropout Share | Float | 0.0 - 100.0 | 0.0 | % | *(v1.4.0)* Share of NON-stop tape events that are oxide-shed dropouts — a level dip to a random 10–70% floor over 5–150 ms with a concurrent HF cutoff dip. Installs no rate event (gain/filter domain only). At 0 the roll is skipped entirely, so the tape stream's draw pattern is unchanged. |
+| TAPE_WOW | Tape Wow/Flutter | Float | 0.0 - 100.0 | 0.0 | % | *(v1.4.0)* Continuous speed-modulation bed — wow (0.73 / 2.31 Hz) plus flutter (7–55 Hz), 2.0% peak read-rate deviation at full knob, on its own RNG stream. Implemented as a non-negative READ OFFSET rather than a rate multiplier (see Design Notes). Exactly transparent at 0. |
 
 ### CD Skip
 
@@ -77,13 +79,31 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 ## Parameter Count Summary
 
 - Global: 6
-- Tape: 4
+- Tape: 6 (4 at Stage 1; TAPE_DROP + TAPE_WOW added v1.4.0)
 - CD Skip: 4
 - Vinyl: 4
 - Packet Loss: 4
 - Codec: 3
 - Crush: 6
-- **Total: 31** (+ reseed UI trigger)
+- **Total: 33** (+ reseed UI trigger) — 31 at Stage 1
+
+## Post-Stage-1 Amendments
+
+This document is the BINDING Stage-1 contract; improvement releases amend
+it here rather than rewriting history above.
+
+- **v1.3.0 (2026-08-17):** `kRingSeconds` 2.5 → 10.0. The Design Note below
+  still names 2.5 as the Stage-1 value; the constraint it states (span the
+  max vinyl revolution + max tape ramp + margin, as a `static_assert`) was
+  rewritten at the same time to constrain the constant rather than merely
+  be satisfied by it — the old form was true of 2.5 s and 10 s alike.
+  `CaptureRing::readFrac` 2-point lerp → 4-point Catmull-Rom.
+- **v1.4.0 (2026-08-17):** `TAPE_DROP` and `TAPE_WOW` added, both default 0
+  and exactly transparent there. They are **appended to the end of the
+  APVTS layout**, not inserted into the Tape block, because layout order is
+  the automation-slot order a host presents — inserting would shift all 23
+  later parameters by two slots and repoint saved automation lanes. The
+  table above groups them with Tape for readability; the layout does not.
 
 ## Design Notes
 

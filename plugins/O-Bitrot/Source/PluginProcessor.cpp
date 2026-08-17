@@ -92,7 +92,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::creat
     ));
 
     // ========================================================================
-    // TAPE (4)
+    // TAPE (4 of 6 — TAPE_DROP and TAPE_WOW are appended at the END of this
+    // layout in v1.4.0, to keep every later automation slot index stable)
     // ========================================================================
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
@@ -303,6 +304,39 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::creat
         "LSB"
     ));
 
+    // ========================================================================
+    // TAPE — v1.4.0 additions (2)
+    //
+    // APPENDED here rather than inserted into the tape block above, on
+    // purpose. Layout order is the automation-slot order a host presents, so
+    // inserting two parameters after TAPE_RAMP would shift all 23 parameters
+    // behind it by two slots and silently repoint every saved automation lane
+    // in an existing session. APVTS state, the preset bank and the WebView
+    // bindings are all keyed by parameter ID and are order-independent, so
+    // nothing else cares where these sit.
+    //
+    // Both default to 0 — the value at which they are EXACTLY transparent, so
+    // a v1.3.0 session or preset loaded into v1.4.0 renders bit-identically
+    // (a preset that omits them is reset to default by the preset module's
+    // WR-01 reset-to-defaults, which lands on the same 0).
+    // ========================================================================
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "TAPE_DROP", 1 },
+        "Tape Dropout Share",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "TAPE_WOW", 1 },
+        "Tape Wow/Flutter",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
     return layout;
 }
 
@@ -326,6 +360,8 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     tapeProbParam     = apvts.getRawParameterValue("TAPE_PROB");
     tapeStopProbParam = apvts.getRawParameterValue("TAPE_STOP_PROB");
     tapeRampParam     = apvts.getRawParameterValue("TAPE_RAMP");
+    tapeDropParam     = apvts.getRawParameterValue("TAPE_DROP");
+    tapeWowParam      = apvts.getRawParameterValue("TAPE_WOW");
 
     // CD Skip
     cdEnableParam   = apvts.getRawParameterValue("CD_ENABLE");
@@ -363,7 +399,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     // parameter's own NormalisableRange below — raw-fraction authoring would
     // ignore the skew on CLOCK_FREE_RATE (centre 1.414 Hz) and CRUSH_RATE
     // (centre 3162 Hz). Choice params are authored as the INDEX; bools as
-    // 0/1; SEED as the integer. Every preset lists all 31 param IDs (defense
+    // 0/1; SEED as the integer. Every preset lists all 33 param IDs (defense
     // in depth over the module's WR-01 reset-to-defaults). No customState —
     // SEED is an APVTS param and O-Bitrot has no non-parameter state.
     // Coverage: one showcase per family (1-6), sync (2,4,5,7) + free (1,3,8)
@@ -374,6 +410,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.2f },
             { "SEED", 1111.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 45.0f }, { "TAPE_STOP_PROB", 12.0f }, { "TAPE_RAMP", 260.0f },
+            { "TAPE_DROP", 35.0f }, { "TAPE_WOW", 55.0f },
             { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
             { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
@@ -385,6 +422,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 2222.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
             { "CD_ENABLE", 1.0f }, { "CD_PROB", 55.0f }, { "CD_SEVERITY", 0.8f }, { "CD_SEGMENT", 45.0f },
             { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
@@ -396,6 +434,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.4f },
             { "SEED", 3333.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
             { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
             { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 40.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 70.0f },
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
@@ -407,6 +446,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 4444.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
             { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
             { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
             { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 65.0f }, { "PACKET_BURST", 65.0f }, { "PACKET_CONCEAL", 1.0f },
@@ -418,6 +458,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 4.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 5555.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
             { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
             { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
             { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 12.0f }, { "PACKET_BURST", 40.0f }, { "PACKET_CONCEAL", 2.0f },
@@ -429,6 +470,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 6666.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
             { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
             { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
@@ -440,6 +482,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 7777.0f }, { "HARD_EDGES", 1.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 60.0f }, { "TAPE_STOP_PROB", 25.0f }, { "TAPE_RAMP", 80.0f },
+            { "TAPE_DROP", 45.0f }, { "TAPE_WOW", 80.0f },
             { "CD_ENABLE", 1.0f }, { "CD_PROB", 50.0f }, { "CD_SEVERITY", 0.9f }, { "CD_SEGMENT", 25.0f },
             { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 50.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 85.0f },
             { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 90.0f }, { "PACKET_BURST", 70.0f }, { "PACKET_CONCEAL", 0.0f },
@@ -451,6 +494,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.7f },
             { "SEED", 8888.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 85.0f },
             { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 12.0f }, { "TAPE_STOP_PROB", 8.0f }, { "TAPE_RAMP", 300.0f },
+            { "TAPE_DROP", 20.0f }, { "TAPE_WOW", 25.0f },
             { "CD_ENABLE", 1.0f }, { "CD_PROB", 10.0f }, { "CD_SEVERITY", 0.25f }, { "CD_SEGMENT", 120.0f },
             { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 15.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 35.0f },
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
@@ -490,6 +534,9 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     readHead.prepare(sampleRate, captureRing.getSize());
     mediaClock.prepare(sampleRate, samplesPerBlock);
     tapeTransport.prepare(sampleRate);
+    tapeDropout.prepare(sampleRate);
+    tapeStopGain.prepare(sampleRate);
+    wowFlutter.prepare(sampleRate);
     cdSkip.prepare(sampleRate);
     vinylTransport.prepare(sampleRate);
     artifactSynth.prepare(sampleRate);
@@ -615,6 +662,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     arbParams.cdProb        = (double) cdProbParam->load() * 0.01;
     arbParams.vinylProb     = (double) vinylProbParam->load() * 0.01;
     arbParams.tapeStopShare = (double) tapeStopProbParam->load() * 0.01;
+    arbParams.tapeDropShare = (double) tapeDropParam->load() * 0.01;
     arbParams.tapeRampMs    = (double) tapeRampParam->load();
     arbParams.cdSeverity    = (double) cdSeverityParam->load();
     arbParams.cdSegmentMs   = (double) cdSegmentParam->load();
@@ -649,6 +697,15 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     codecStage.setParams(codecEnableParam->load() > 0.5f,
                          ((int) codecModeParam->load()) == 1,
                          codecMixParam->load() * 0.01f);
+
+    // Wow/flutter bed depth (v1.4.0). A tape artifact, so it follows
+    // TAPE_ENABLE — but it fades over WowFlutter's own multi-second depth ramp
+    // rather than switching, because the ramp's slope IS pitch. A running
+    // dropout is bounded (<= 150 ms) and finishes on its own, exactly like the
+    // CD conceal/mute rungs.
+    wowFlutter.setDepth(arbParams.tapeEnabled
+                            ? (double) tapeWowParam->load() * 0.01
+                            : 0.0);
 
     // Mid-event disable releases gracefully (ramp back / recovery jump /
     // stop re-jumping), never teleports.
@@ -693,7 +750,8 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         while (tickIndex < mediaClock.getNumTicks()
                && mediaClock.getTickOffset(tickIndex) == n)
         {
-            Arbitration::TickContext ctx { tapeTransport, cdSkip, vinylTransport,
+            Arbitration::TickContext ctx { tapeTransport, tapeDropout,
+                                           cdSkip, vinylTransport,
                                            readHead, captureRing, artifactSynth,
                                            lastAppliedRate, hardEdges };
             arbitration.onTick(rngBank, arbParams, ctx);
@@ -743,9 +801,30 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
         lastAppliedRate = rate;
 
+        // 3b. Wow/flutter bed (v1.4.0): a NON-NEGATIVE read offset, not a rate
+        //     multiplier. Modulating the rate would falsify the loopOwnsRate
+        //     premise above and, at the lag-0 steady state, drive the head
+        //     into ReadHead's write-slot pin on every positive excursion.
+        //     Offsetting the read is the same physics (pitch deviation is the
+        //     derivative of delay) and leaves `rate`, `pos` and the lag budget
+        //     untouched — which is why loopOwnsRate above needs no amendment.
+        //     Exactly 0.0 while the bed is transparent, so the passthrough
+        //     stays on CaptureRing's bit-exact integer path (FUNC-02).
+        const double wowOffset = wowFlutter.nextOffsetSamples(rngBank.get(RngBank::wow));
+
         // 4. Read heads render the transport output.
         float wetL = 0.0f, wetR = 0.0f;
-        readHead.renderSample(captureRing, rate, hardEdges, loopOwnsRate, wetL, wetR);
+        readHead.renderSample(captureRing, rate, hardEdges, loopOwnsRate, wowOffset, wetL, wetR);
+
+        // 4b. Tape amplitude domain (v1.4.0), before the other families see the
+        //     signal. A tape head is a dPhi/dt transducer, so a stop dies with
+        //     speed instead of freezing a held sample at full level into a DC
+        //     step; then the oxide-shed dropout dip. Both are exact no-ops
+        //     while idle. `rate` here is the transport rate — the wow offset
+        //     above is deliberately not part of it.
+        tapeStopGain.processSample(tapeTransport.consumeStopInstalled(),
+                                   tapeTransport.isIdle(), rate, wetL, wetR);
+        tapeDropout.processSample(wetL, wetR);
 
         // 5. CD ladder (conceal dip / mute / loop wrap) then vinyl locked-
         //    groove wrap — both operate on the head/rendered signal.
@@ -780,7 +859,8 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         if (stereoOut)
             outR[n] = wetR;
 
-        if (! tapeTransport.isIdle())        activity |= kTapeActive;
+        if (! tapeTransport.isIdle()
+            || tapeDropout.isActive())       activity |= kTapeActive;
         if (cdSkip.isActive())               activity |= kCdActive;
         if (vinylTransport.isLocked()
             || artifactSynth.popActive())    activity |= kVinylActive;

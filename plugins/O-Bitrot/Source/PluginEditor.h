@@ -51,6 +51,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay>       tapeProbRelay;
     std::unique_ptr<juce::WebSliderRelay>       tapeStopProbRelay;
     std::unique_ptr<juce::WebSliderRelay>       tapeRampRelay;
+    std::unique_ptr<juce::WebSliderRelay>       tapeDropRelay;
+    std::unique_ptr<juce::WebSliderRelay>       tapeWowRelay;
     // CD Skip
     std::unique_ptr<juce::WebToggleButtonRelay> cdEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       cdProbRelay;
@@ -94,6 +96,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment>       tapeProbAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       tapeStopProbAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       tapeRampAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       tapeDropAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       tapeWowAttachment;
     // CD Skip
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> cdEnableAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       cdProbAttachment;

@@ -2,6 +2,204 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.4.0] — 2026-08-17
+
+Tape authenticity — improvement brief items 2, 3 and 11. The tape family
+was the engine's most conspicuous gap against the brief's core promise:
+between events it was bit-clean, its stop froze a held sample at full
+level, and the most common audible fault of real failing tape had no
+event kind at all.
+
+Two new parameters, **both default 0 and both exactly transparent
+there**. A v1.3.0 session or preset loads and renders bit-identically —
+pinned by a new cross-version digest probe, not asserted. The one
+deliberate render change is the tape stop; see "Render-affecting".
+
+### Added
+- **`TAPE_DROP` — the dropout event** (0–100%, default 0). Oxide shed
+  and creased tape lift the coating off the head for a few milliseconds:
+  the level dips *partway* — 10–70%, never to silence — and the top end
+  goes with it, over 5–150 ms. It is the third kind of tape event, taking
+  a share of the non-stop tape wins.
+
+  The shape is `CDSkip`'s interpolation-conceal rung reused verbatim: a
+  triangular log-frequency cutoff sweep, now with a triangular gain dip
+  multiplied alongside it. Both endpoints are the exact identity because
+  `tri(0) == tri(1) == 0`, so the event is click-free by construction
+  with no ramp bookkeeping.
+
+  Unlike a stop or a bend it installs **no rate event**, so a bend
+  already in flight keeps ramping underneath it — the first instance in
+  this engine of the OVERLAY class that brief item 6 generalises. It
+  changes no position and no rate, so it needs no ring headroom and
+  touches no part of the `ReadHead` contract.
+- **`TAPE_WOW` — the continuous wow/flutter bed** (0–100%, default 0).
+  Real decks wow (0.5–6 Hz, capstan and pinch-roller eccentricity) and
+  flutter (6–100 Hz) *all the time* — 0.1–1% WRMS on consumer gear,
+  several percent when dying. This engine had none: `TapeTransport`
+  returns exactly 1.0 while idle and nothing else modulated the
+  transport, so a "worn cassette" was a perfect deck that occasionally
+  broke. The "Worn Cassette" preset's own comment has claimed wow since
+  1.0.0, and the CHANGELOG has marketed the family as "Tape (wow, drag,
+  full stops)" for as long.
+
+  Three quasi-periodic partials — two fixed wow frequencies (0.73 Hz,
+  2.31 Hz) and one flutter partial whose frequency random-walks across
+  7–55 Hz — with slowly drifting amplitudes from a **new dedicated
+  `wow` RNG stream**. Measured peak deviation at full knob: **1.14%**,
+  against a 2.0% design budget that the partial table asserts against
+  itself at `prepare()`.
+
+  The stream is appended to `RngBank`, never inserted: stream *k* is
+  seeded from a function of *k* alone, so every pre-existing stream —
+  and therefore every render made with an old `SEED` — is untouched.
+
+### Changed
+- **A tape stop now dies with speed instead of freezing to DC.** A tape
+  head is a `dΦ/dt` transducer: its output is proportional to tape
+  *speed*, the high end dies first because the reproduce cutoff scales
+  with speed at fixed recorded wavelength, and decks mute at transport
+  stop. Before this, the rate ramped to exactly 0 and the read head then
+  re-read one held sample forever at full amplitude, feeding a DC step
+  straight into Codec and Crush. The stop sounded like a freeze.
+
+  Output is now scaled by `g = (rate / 0.9)^0.8` below a rate of 0.9 —
+  exactly 0 at rate 0 — with a speed-tracking one-pole whose cutoff
+  falls as `fMax · rate / 0.9`. Measured on a forced-stop render, quietest
+  32 ms window: **0.0216 → 0.000000**. (The held DC level is whatever the
+  source happened to be worth at freeze time, not its peak — 0.0216 is the
+  luckiest of the three freezes in that render, and the probe's 1e-3 bound
+  sits an order of magnitude below even that.)
+
+  The law is armed by a stop being *installed*, not by a rate test, and
+  that distinction is the whole design. Rate alone cannot tell a stop
+  from a bend: the interval table's 0.5× down-bend sits below the same
+  0.9 threshold, and a rate-keyed law would have quietly taken 6 dB off
+  every down-bend — the tape family's melodic voice. Probe `S2` pins
+  this, and pins that the render it checks actually *visited* a
+  sub-threshold rate (measured lowest bend ratio 0.500).
+
+### Fixed
+- **A one-pole entered at `fMax` is not transparent — it clicks.** Both
+  new filters set their cutoff to `fMax` at the endpoints on the
+  assumption that a lowpass there is effectively bypassed. It is not: at
+  `fMax = 0.45·fs` the TPT gain coefficient is
+  `tan(π·0.45)/(1 + tan(π·0.45)) ≈ 0.79`, and at the 0.9·fMax the stop
+  law actually enters at, ≈ 0.70 — so a filter engaged with zero state
+  drops 30% of the first sample it is handed. Measured as **0.150 and
+  0.126 output steps on a 0.5-amplitude sine**, i.e. a click at the exact
+  instant each event is supposed to be inaudible. Both filters are now
+  *blended* in by the same shape that drives them (`tri` for the
+  dropout, `1 - rate/0.9` for the stop), which makes entry, exit and
+  bypass one identity. Both probes measured 0.144 → **0.0144** after the
+  fix, which is the sine's own maximum derivative — the floor.
+
+### Render-affecting
+Anything that fires a **tape stop** renders differently from v1.3.0:
+that is item 11, and it is the point. `TAPE_STOP_PROB` defaults to 10%,
+so any patch with the tape family enabled is affected.
+
+Everything else is bit-identical, and probe `V1` says so rather than
+claiming it: a canonical 4 s render of forced tape *bends* over CD and
+vinyl at their defaults digests to `0x3ee4e028900e47ca` under both
+v1.3.0 (git `a22ff7c3`, built with this probe injected) and v1.4.0. The
+two new parameters are transparent at 0 by two separate mechanisms —
+the wow bed returns an offset of exactly `0.0` (and `pos - 0.0` is
+bit-identical to `pos`, so `CaptureRing`'s exact-integer fast path still
+fires), and the dropout roll is short-circuited before it can consume a
+draw from the tape stream, so the bend sequence is unchanged.
+
+### Notes
+- **The wow bed modulates a read OFFSET, not the read rate.** The brief
+  specifies a rate multiplier; that implementation breaks two
+  load-bearing invariants. `ReadHead`'s lag-overflow clamp is suppressed
+  while a CD loop or locked groove owns the rate, and the proof that the
+  suppression is safe is "such a loop holds rate at *exactly* 1.0" — a
+  multiplier falsifies the premise. And the engine's steady state is lag
+  0, so any rate above 1.0 drives `pos` into the write-slot pin: at 1.5%
+  and 0.7 Hz that is ~8 ms of zero-order hold per wow cycle, which is a
+  stutter, not wow. Offsetting the read is the same physics from the
+  other end — pitch deviation is the derivative of delay — while `pos`,
+  the lag budget and the whole jump contract stay exactly as they were.
+  Peak offset is ~5.5 ms, well inside the ring's 100 ms safety margin.
+- **`TAPE_DROP` and `TAPE_WOW` are appended to the end of the parameter
+  layout**, not inserted into the tape block. Layout order is the
+  automation-slot order a host presents; inserting would have shifted
+  all 23 later parameters by two slots and silently repointed saved
+  automation lanes. APVTS state, the preset bank and the WebView
+  bindings are keyed by ID and are order-independent.
+- **Found, not fixed:** `CDSkip`'s interpolation-conceal rung has the
+  same latent filter-entry click described under "Fixed" — it resets
+  `concealFilter` and starts the sweep at `fMax` (`CDSkip.h:137-138`).
+  No probe currently measures conceal click, which is why it has gone
+  unnoticed since Phase 2.2. Left alone deliberately: fixing it changes
+  CD renders, which is brief item 14's territory, and it would also
+  invalidate the `V1` digest this release is gated on.
+
+### UI
+The Tape panel goes to five controls in a 3 + 2 two-row layout, matching
+the existing Crush panel's dense form (`k50` knobs): Prob · Stop · Drop
+on the first row, Wow · Ramp on the second.
+
+### Presets
+`TAPE_DROP` and `TAPE_WOW` are authored in all eight factory presets.
+Three dial them in: **Worn Cassette** (35 / 55 — the preset whose
+comment has promised wow since 1.0.0), **Gentle Rot** (20 / 25) and
+**Total Media Failure** (45 / 80). The rest hold 0, which for the five
+tape-disabled presets is what they already effectively were.
+
+### Testing
+`66/66` render-harness probes green, stable over three consecutive runs
+(was 57/57); `pluginval --strictness-level 10` SUCCESS three times;
+`auval` VALIDATION SUCCEEDED. The FUNC-02 nulls (`B`, `M1`, `M3`) and
+every block-size-invariance probe (`F`, `G`, `N`, `Q`, `S2`, `Z2`)
+stayed bit-identical throughout. Factory presets regenerated at 1.4.0
+with 33 parameters each; `Worn Cassette` verified on disk carrying
+`TAPE_DROP` 0.35 and `TAPE_WOW` 0.55 normalised.
+
+Nine probes added:
+
+| Probe | Gates | Result |
+|---|---|---|
+| `V1 v1.3.0-bit-identity` | defaults are transparent, cross-version | `0x3ee4e028900e47ca` under both versions |
+| `W1 wow-live-and-bounded` | bed modulates, inside its budget | 1.138% peak, bound [0.4%, 3.0%] |
+| `W2 wow-zero-bit-exact` | the 0 case keeps the integer read path | 9 s bit-exact, tape family ENABLED |
+| `D1 dropout-dips-and-returns` | dips partway, returns to unity, no click | ratio [0.168, 1.000], maxDelta 0.0144 |
+| `D2 dropout-zero-no-dip` | negative control for `D1`'s floor | min windowed peak 0.5000 |
+| `S1 stop-dies-with-speed` | the stop reaches silence, no click | quietest 32 ms peak 0.000000 |
+| `S2 bends-keep-loudness` | the gain law does not leak onto bends | peak 0.5000, lowest bend ratio 0.500 |
+| `S3 v1.4-determinism` / `-ragged` | block-size invariance with all three on | bit-identical, 512 vs 1,7,64,333,4096 |
+
+`S3` is the one that matters for the wow bed specifically: it is the
+only RNG consumer in this engine that is not tick-aligned, drawing on
+its own sample counter, so anything tied to a block boundary rather than
+a sample count surfaces there as a mismatch under ragged chopping.
+
+Every new positive-claim probe was **run against the reverted code**, in
+one build with all three new paths disabled — a probe that passes both
+ways is decoration:
+
+| Probe | Reverted result |
+|---|---|
+| `W1 wow-live-and-bounded` | 0.000% deviation — "BED IS FLAT" |
+| `D1 dropout-dips-and-returns` | ratio [1.000, 1.000] — "NO DROPOUT FIRED" |
+| `S1 stop-dies-with-speed` | quietest 32 ms peak 0.0216 — "STOP STILL FREEZES TO DC" |
+
+`D1` and `S1` additionally failed on their click bounds before the
+filter-blend fix (0.150 and 0.126 against 0.03). `V1`, `W2`, `D2` and
+`S2` correctly stayed green through the same revert, which is what they
+are for: `V1`'s canonical render touches none of the three paths, and
+`W2`/`D2`/`S2` are the negative controls that stop `W1`'s lower bound
+and `D1`'s floor bound passing against an engine that attenuates or
+modulates for some unrelated reason.
+
+One existing probe was **re-annotated, not re-recorded**: `D DSP-01
+stop-no-click` asserts a long run of bit-identical samples during the
+hold, and under the new gain law that run is a run of zeros — so the
+probe no longer discriminates a working stop from a silenced one on its
+own. Its assertions are unchanged and still pass; `S1` and `S2` are what
+now pin the stop's amplitude behaviour.
+
 ## [1.3.0] — 2026-08-17
 
 Engine quality foundations — improvement brief items 5 and 12. No new

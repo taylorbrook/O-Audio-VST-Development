@@ -236,7 +236,7 @@ void setParam (OBitrotAudioProcessor& proc, const char* id, float engineeringVal
         std::printf ("  !! unknown param id '%s'\n", id);
 }
 
-/** Resets ALL 31 parameters to the parameter-spec defaults. Traps: the
+/** Resets ALL 33 parameters to the parameter-spec defaults. Traps: the
     neutral value is often not the range minimum (CRUSH_BITS 16, CRUSH_RATE
     20000, MIX 100); the latching params (the six *_ENABLEs, HARD_EDGES)
     matter most. Called at the top of EVERY probe. */
@@ -250,11 +250,13 @@ void setBaseline (OBitrotAudioProcessor& proc)
     setParam (proc, "HARD_EDGES",      0.0f);      // Off
     setParam (proc, "MIX",             100.0f);
 
-    // Tape (4)
+    // Tape (6)
     setParam (proc, "TAPE_ENABLE",     1.0f);      // On
     setParam (proc, "TAPE_PROB",       25.0f);
     setParam (proc, "TAPE_STOP_PROB",  10.0f);
     setParam (proc, "TAPE_RAMP",       150.0f);
+    setParam (proc, "TAPE_DROP",       0.0f);      // v1.4.0, transparent at 0
+    setParam (proc, "TAPE_WOW",        0.0f);      // v1.4.0, transparent at 0
 
     // CD Skip (4)
     setParam (proc, "CD_ENABLE",       1.0f);      // On
@@ -804,6 +806,92 @@ std::unique_ptr<OBitrotAudioProcessor> makeProcLayout (int inCh, int outCh)
     return p;
 }
 
+//==============================================================================
+// ── v1.4.0 helpers: sub-sample frequency tracking + a cross-version checksum ──
+
+/** Mean frequency over [from, from+len) from LINEARLY INTERPOLATED upward zero
+    crossings. Used instead of pitchTrace for the wow bed because the bed's
+    whole deviation budget is 2% — at 220 Hz that is 4.4 samples of period, and
+    an integer-lag autocorrelation resolves 1 sample (0.46%), so most of the
+    quantity under test would land inside the metric's own step. Interpolated
+    crossings measure it to ~0.01%.
+
+    Returns 0 when the window holds fewer than two full cycles. */
+double meanFreqZeroCross (const float* x, int from, int len)
+{
+    double firstT = -1.0, lastT = -1.0;
+    int    cycles = 0;
+
+    for (int n = from + 1; n < from + len; ++n)
+    {
+        if (x[n - 1] <= 0.0f && x[n] > 0.0f)
+        {
+            const double d    = (double) x[n] - (double) x[n - 1];
+            const double frac = d > 0.0 ? (double) (-x[n - 1]) / d : 0.0;
+            const double t    = (double) (n - 1) + frac;
+
+            if (firstT < 0.0)
+            {
+                firstT = t;
+            }
+            else
+            {
+                lastT = t;
+                ++cycles;
+            }
+        }
+    }
+
+    if (cycles < 2 || lastT <= firstT)
+        return 0.0;
+
+    return kFs * (double) cycles / (lastT - firstT);
+}
+
+/** FNV-1a over the OBJECT REPRESENTATION of every sample. A single flipped
+    mantissa bit anywhere in the render changes the digest, which is the point:
+    it is the only way to state "bit-identical to the previous version" in a
+    harness that cannot link the previous version. */
+juce::uint64 renderChecksum (const juce::AudioBuffer<float>& b)
+{
+    juce::uint64 h = 14695981039346656037ULL;
+
+    for (int ch = 0; ch < b.getNumChannels(); ++ch)
+    {
+        const auto* p = b.getReadPointer (ch);
+
+        for (int n = 0; n < b.getNumSamples(); ++n)
+        {
+            juce::uint32 bits = 0;
+            std::memcpy (&bits, &p[n], sizeof (bits));
+
+            for (int k = 0; k < 4; ++k)
+            {
+                h ^= (juce::uint64) ((bits >> (8 * k)) & 0xFFu);
+                h *= 1099511628211ULL;
+            }
+        }
+    }
+
+    return h;
+}
+
+/** The canonical cross-version render: forced tape BENDS (stop share 0, so the
+    v1.4.0 stop-gain law is out of the picture by construction) over CD and
+    vinyl at their defaults, both v1.4.0 additions at their transparent 0.
+    Every byte of this must survive the v1.3.0 -> v1.4.0 upgrade. */
+void configureCanonicalRender (OBitrotAudioProcessor& proc)
+{
+    setBaseline (proc);
+    setParam (proc, "CLOCK_MODE",      1.0f);    // Free
+    setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+    setParam (proc, "SEED",            4242.0f);
+    setParam (proc, "TAPE_PROB",       100.0f);
+    setParam (proc, "TAPE_STOP_PROB",  0.0f);    // no stops: see above
+    setParam (proc, "CD_PROB",         60.0f);
+    setParam (proc, "VINYL_PROB",      60.0f);
+}
+
 /** Dual-mono input: same signal on every channel, so a (1,1) run and a (2,2)
     run see literally identical per-sample engine inputs. */
 float noiseDualMono (int ch, int n) noexcept
@@ -999,6 +1087,12 @@ int main()
     // D — DSP-01 stops: forced tape stops. No click anywhere (sample-to-sample
     // delta bounded by ~2x the sine's own max derivative) and a genuine hold:
     // rate 0.0 exactly => a long run of bit-identical output samples.
+    //
+    // v1.4.0: that run is now a run of ZEROS rather than of a held sample, so
+    // this probe alone no longer discriminates a working stop from a silenced
+    // one — `live` is its only negative control here. S1 and S2 below are what
+    // actually pin the stop's amplitude behaviour; this probe keeps its
+    // original job, which is proving the TRANSPORT holds and does not click.
     {
         auto p = makeProc();
         setParam (*p, "CLOCK_MODE",      1.0f);   // Free
@@ -1991,7 +2085,8 @@ int main()
             {
                 ring.push (sineStereo (0, n), sineStereo (1, n));
                 float l = 0.0f, r = 0.0f;
-                head.renderSample (ring, 1.0, false, false, l, r);   // hardEdges off, no loop owner
+                // hardEdges off, no loop owner, no wow offset
+                head.renderSample (ring, 1.0, false, false, 0.0, l, r);
                 out.push_back (l);
                 ++n;
             };
@@ -3321,6 +3416,431 @@ int main()
 
         check ("M3 mono-to-stereo-null", ok && live,
                detail + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // ── v1.4.0: improvement brief items 2, 3 and 11 ──────────────────────────
+    //==========================================================================
+
+    //==========================================================================
+    // V1 — the cross-version bit-identity gate. Both v1.4.0 additions default
+    // to 0, and at 0 they are claimed to be EXACTLY transparent: the wow bed
+    // returns an offset of 0.0 (and `pos - 0.0` is bit-identical to `pos`, so
+    // the exact-integer read survives), and the dropout roll is short-circuited
+    // before it can consume a draw from the tape stream, so the bend sequence
+    // is unchanged.
+    //
+    // The digest below was produced by THIS probe compiled against the v1.3.0
+    // tree (git a22ff7c3) — see the CHANGELOG's "Render-affecting" note. It is
+    // the only way a harness that cannot link the old engine can assert
+    // "bit-identical to the previous version"; a probe that merely re-rendered
+    // the new engine twice would pass no matter what changed.
+    {
+        constexpr juce::uint64 kV130CanonicalDigest = 0x3ee4e028900e47caULL;
+
+        auto p = makeProc();
+        configureCanonicalRender (*p);
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const juce::uint64 digest = renderChecksum (out);
+        const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool         match  = digest == kV130CanonicalDigest;
+
+        check ("V1 v1.3.0-bit-identity", match && live,
+               juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
+                   + " vs v1.3.0 0x"
+                   + juce::String::toHexString ((juce::int64) kV130CanonicalDigest)
+                   + (match ? " — bends/CD/vinyl unchanged at TAPE_DROP=0, TAPE_WOW=0"
+                            : " — DEFAULTS ARE NOT TRANSPARENT")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // W1 — item 3: the wow bed is live, and bounded by its own budget.
+    //
+    // TAPE_ENABLE stays ON but TAPE_PROB is 0, so no tape EVENT can fire and
+    // the only thing modulating the transport is the bed. Measured past 4 s
+    // because the depth ramp itself takes kDepthRampSeconds (3 s) — a window
+    // opened during the ramp would report a fraction of the real deviation.
+    //
+    // Both bounds discriminate: below the floor the bed is dead or inaudible,
+    // above the ceiling it has exceeded the deviation budget the partial table
+    // is supposed to enforce.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_PROB",    0.0f);      // tape enabled, no events
+        setParam (*p, "TAPE_WOW",     100.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 0.0f);
+
+        const int total = (int) (9.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        const int win      = 2048;
+        const int startAt  = (int) (4.0 * kFs);
+        double    maxDev   = 0.0;
+        int       measured = 0;
+
+        for (int n = startAt; n + win <= total; n += win)
+        {
+            const double f = meanFreqZeroCross (o, n, win);
+            if (f > 0.0)
+            {
+                maxDev = juce::jmax (maxDev, std::abs (f / kSineHz - 1.0));
+                ++measured;
+            }
+        }
+
+        const bool enough  = measured >= 20;
+        const bool livebed = maxDev >= 0.004;    // the bed actually modulates
+        const bool bounded = maxDev <= 0.030;    // and stays inside its budget
+
+        check ("W1 wow-live-and-bounded", enough && livebed && bounded,
+               juce::String ("max deviation ") + juce::String (100.0 * maxDev, 3)
+                   + "% over " + juce::String (measured) + " windows "
+                   + "(bound [0.4%, 3.0%])"
+                   + (enough  ? "" : " — TOO FEW WINDOWS, probe vacuous")
+                   + (livebed ? "" : " — BED IS FLAT")
+                   + (bounded ? "" : " — BUDGET EXCEEDED"));
+    }
+
+    //==========================================================================
+    // W2 — item 3 negative control, and the reason W1's bounds mean anything:
+    // the SAME configuration at TAPE_WOW = 0 must be flat AND bit-exactly the
+    // delayed input. This is what proves the 0 case still takes CaptureRing's
+    // exact-integer path rather than a fractional read that merely rounds
+    // close.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_PROB",    0.0f);
+        setParam (*p, "TAPE_WOW",     0.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 0.0f);
+
+        const int total = (int) (9.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const int  startAt = kComp + (int) (0.2 * kFs);
+        bool       exact   = true;
+        juce::String detail;
+
+        for (int ch = 0; ch < 2 && exact; ++ch)
+        {
+            const auto* o = out.getReadPointer (ch);
+            for (int n = startAt; n < total; ++n)
+            {
+                if (! bitExact (o[n], noiseStereo (ch, n - kComp)))
+                {
+                    exact  = false;
+                    detail = juce::String ("first mismatch ch") + juce::String (ch)
+                           + " @" + juce::String (n);
+                    break;
+                }
+            }
+        }
+
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("W2 wow-zero-bit-exact", exact && live,
+               (exact ? juce::String ("9 s bit-exact with the tape family ENABLED")
+                      : detail)
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // D1 — item 2: the dropout dips PARTWAY and comes back.
+    //
+    // Every tape win is forced to be a dropout (stop share 0, drop share 100),
+    // so the read rate is exactly 1.0 for the whole render and the only
+    // difference from passthrough is the dropout's gain and cutoff dip. The
+    // 220 Hz sine sits far below the 2 kHz trough cutoff, so a windowed RMS
+    // ratio against the delayed input reads the GAIN envelope directly.
+    //
+    // The floor bound is two-sided on purpose: a dropout that mutes is an
+    // edit, not tape, and one that never dips below 0.75 is inaudible.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 3.0f);
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  0.0f);
+        setParam (*p, "TAPE_DROP",       100.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int total = (int) (6.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        const int win     = 256;
+        const int startAt = kComp + (int) (0.2 * kFs);
+
+        double minRatio = 10.0, maxRatio = 0.0, maxDelta = 0.0;
+
+        for (int n = startAt; n + win <= total; n += win)
+        {
+            double so = 0.0, si = 0.0;
+            for (int k = 0; k < win; ++k)
+            {
+                const double a = (double) o[n + k];
+                const double b = (double) sineStereo (0, n + k - kComp);
+                so += a * a;
+                si += b * b;
+            }
+
+            if (si > 1.0e-9)
+            {
+                const double r = std::sqrt (so / si);
+                minRatio = juce::jmin (minRatio, r);
+                maxRatio = juce::jmax (maxRatio, r);
+            }
+        }
+
+        for (int n = startAt + 1; n < total; ++n)
+            maxDelta = juce::jmax (maxDelta, std::abs ((double) o[n] - (double) o[n - 1]));
+
+        const bool dips     = minRatio <= 0.75;    // an event actually fired
+        const bool notMute  = minRatio >= 0.05;    // and never muted
+        const bool recovers = maxRatio >= 0.98 && maxRatio <= 1.02;
+        const bool noClick  = maxDelta <= 0.03;    // same bound as probe D
+
+        check ("D1 dropout-dips-and-returns", dips && notMute && recovers && noClick,
+               juce::String ("gain ratio [") + juce::String (minRatio, 3) + ", "
+                   + juce::String (maxRatio, 3) + "] (floor bound [0.05, 0.75], "
+                   + "recovery 1.00), maxDelta " + juce::String (maxDelta, 5)
+                   + " (bound 0.03)"
+                   + (dips     ? "" : " — NO DROPOUT FIRED, probe vacuous")
+                   + (notMute  ? "" : " — MUTED, not a dropout")
+                   + (recovers ? "" : " — NEVER RETURNS TO UNITY")
+                   + (noClick  ? "" : " — CLICK"));
+    }
+
+    //==========================================================================
+    // D2 — item 2 negative control: the same forced-tape render at
+    // TAPE_DROP = 0 never dips at all. Without this, D1's floor bound would
+    // pass just as happily against an engine that attenuated for some entirely
+    // different reason.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 3.0f);
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  0.0f);
+        setParam (*p, "TAPE_DROP",       0.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int total = (int) (6.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        // Peak per window, not an RMS ratio: with dropouts off the tape BENDS
+        // are free to run, and a bent sine is time-warped against the
+        // reference — but its amplitude is still kSineAmp. Peak is the metric
+        // that is blind to the bend and sensitive to a gain.
+        const int win     = 1024;
+        const int startAt = kComp + (int) (0.3 * kFs);
+        double    minPeak = 10.0;
+
+        for (int n = startAt; n + win <= total; n += win)
+        {
+            double peak = 0.0;
+            for (int k = 0; k < win; ++k)
+                peak = juce::jmax (peak, std::abs ((double) o[n + k]));
+
+            minPeak = juce::jmin (minPeak, peak);
+        }
+
+        const bool flat = minPeak >= 0.95 * (double) kSineAmp;
+
+        check ("D2 dropout-zero-no-dip", flat,
+               juce::String ("min windowed peak ") + juce::String (minPeak, 4)
+                   + " (need >= " + juce::String (0.95 * (double) kSineAmp, 4) + ")"
+                   + (flat ? "" : " — SOMETHING ATTENUATES AT TAPE_DROP=0"));
+    }
+
+    //==========================================================================
+    // S1 — item 11: the stop dies with speed instead of freezing to DC.
+    //
+    // Before this the read head re-read one held sample forever at FULL
+    // amplitude, so the deep-stop plateau sat at whatever the sine happened to
+    // be worth at freeze time and fed that as a DC step into Codec and Crush.
+    // It must now reach silence, and it must get there without a click.
+    //
+    // The bound is 1e-3 rather than something near kSineAmp because the held
+    // value is NOT the sine's peak — it is its instantaneous level, and across
+    // the three stops in this render the quietest freeze measured 0.0216 with
+    // the gain law reverted. 1e-3 sits an order of magnitude below even that
+    // luckiest case, so the probe cannot pass on a favourable freeze.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 1.0f);   // stop every 1 s
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  100.0f);
+        setParam (*p, "TAPE_RAMP",       150.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int total = (int) (3.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        // Deepest silence reached anywhere past warmup, measured as the
+        // quietest 32 ms window.
+        const int win     = (int) (0.032 * kFs);
+        const int startAt = kComp + (int) (0.3 * kFs);
+
+        double minPeak  = 10.0;
+        double maxDelta = 0.0;
+
+        for (int n = startAt; n + win <= total; n += win / 2)
+        {
+            double peak = 0.0;
+            for (int k = 0; k < win; ++k)
+                peak = juce::jmax (peak, std::abs ((double) o[n + k]));
+
+            minPeak = juce::jmin (minPeak, peak);
+        }
+
+        for (int n = startAt + 1; n < total; ++n)
+            maxDelta = juce::jmax (maxDelta, std::abs ((double) o[n] - (double) o[n - 1]));
+
+        const bool dies    = minPeak <= 1.0e-3;                       // was ~0.5 (held DC)
+        const bool live    = out.getMagnitude (0, 0, total) > 0.1f;   // signal outside the stops
+        const bool noClick = maxDelta <= 0.03;
+
+        check ("S1 stop-dies-with-speed", dies && live && noClick,
+               juce::String ("quietest 32 ms peak ") + juce::String (minPeak, 6)
+                   + " (need <= 1e-3; measured 0.0216 with the gain law"
+                   " reverted), maxDelta "
+                   + juce::String (maxDelta, 5) + " (bound 0.03)"
+                   + (dies    ? "" : " — STOP STILL FREEZES TO DC")
+                   + (live    ? "" : " — SILENT EVERYWHERE, probe vacuous")
+                   + (noClick ? "" : " — CLICK"));
+    }
+
+    //==========================================================================
+    // S2 — item 11 negative control, and the one that pins the whole reason the
+    // gain law is armed by installStop rather than by a rate test: the bend
+    // table's 0.5x interval sits BELOW the law's 0.9 threshold, so a law that
+    // keyed on rate alone would quietly take 6 dB off every down-bend. Bends
+    // are the tape family's melodic voice; a bent sine is time-warped but its
+    // amplitude is still kSineAmp.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 2.0f);
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  0.0f);   // bends only
+        setParam (*p, "TAPE_DROP",       0.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int total = (int) (8.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        const int win     = 1024;
+        const int startAt = kComp + (int) (0.3 * kFs);
+        double    minPeak = 10.0;
+
+        for (int n = startAt; n + win <= total; n += win)
+        {
+            double peak = 0.0;
+            for (int k = 0; k < win; ++k)
+                peak = juce::jmax (peak, std::abs ((double) o[n + k]));
+
+            minPeak = juce::jmin (minPeak, peak);
+        }
+
+        // Prove the render actually VISITED the sub-threshold rates the law
+        // would have caught — otherwise "bends were not attenuated" is a claim
+        // about a render that never contained a down-bend.
+        const auto   mono  = channelToVector (out, 0);
+        const auto   trace = pitchTrace (mono, kSineHz);
+        double       lowestRatio = 1.0;
+        for (size_t i = trace.size() / 8; i < trace.size(); ++i)
+            if (trace[i] > 0.0)
+                lowestRatio = juce::jmin (lowestRatio, trace[i] / kSineHz);
+
+        const bool wentLow = lowestRatio <= 0.85;   // below the 0.9 threshold
+        const bool flat    = minPeak >= 0.95 * (double) kSineAmp;
+
+        check ("S2 bends-keep-loudness", flat && wentLow,
+               juce::String ("min windowed peak ") + juce::String (minPeak, 4)
+                   + " (need >= " + juce::String (0.95 * (double) kSineAmp, 4)
+                   + "), lowest bend ratio " + juce::String (lowestRatio, 3)
+                   + " (need <= 0.85, i.e. under the 0.9 gain-law threshold)"
+                   + (flat    ? "" : " — GAIN LAW LEAKED ONTO BENDS")
+                   + (wentLow ? "" : " — NO SUB-THRESHOLD BEND OCCURRED, probe vacuous"));
+    }
+
+    //==========================================================================
+    // S3 — v1.4.0 all-on block-size invariance. Every new subsystem is in the
+    // path at once: the wow bed draws from its own stream on a sample counter
+    // (the one RNG consumer in this engine that is not tick-aligned), the
+    // dropout draws at ticks, and the stop gain law runs its own latches. Any
+    // of those tied to a block boundary rather than a sample count shows up
+    // here as a mismatch under ragged chopping.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+            setParam (proc, "TAPE_PROB",       100.0f);
+            setParam (proc, "TAPE_STOP_PROB",  30.0f);
+            setParam (proc, "TAPE_DROP",       50.0f);
+            setParam (proc, "TAPE_WOW",        75.0f);
+            setParam (proc, "CD_PROB",         100.0f);
+            setParam (proc, "VINYL_PROB",      100.0f);
+            setParam (proc, "SEED",            909.0f);
+        };
+
+        const int total = 96000;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+        auto c = makeProc();  configure (*c);
+
+        juce::AudioBuffer<float> outA, outB, outC;
+        renderInto (*a, outA, total, { 512 }, noiseStereo);
+        renderInto (*b, outB, total, { 512 }, noiseStereo);
+        renderInto (*c, outC, total, { 1, 7, 64, 333, 4096 }, noiseStereo);
+
+        {
+            const bool identical = bitIdentical (outA, outB);
+            const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("S3 v1.4-determinism", identical && live,
+                   (identical ? juce::String ("wow+drop+stop same-seed fresh instances: bit-identical")
+                              : firstDifference (outA, outB))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+
+        {
+            const bool identical = bitIdentical (outA, outC);
+            const bool live      = outC.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("S3 v1.4-ragged", identical && live,
+                   (identical ? juce::String ("512 vs 1,7,64,333,4096: bit-identical with the wow bed on")
+                              : firstDifference (outA, outC))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
     }
 
     //==========================================================================
