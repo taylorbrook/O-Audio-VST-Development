@@ -73,6 +73,13 @@
     on EXACTLY 1.0 as the fade ends. At the default trim the term is ~1e-7
     and invisible.
 
+    Two things make that "EXACTLY" true rather than approximate (v1.3.2 — both
+    were wrong before): the target is latched from the state ABOVE the
+    crossfade-completion block, so the ResyncXfade -> Bypassed flip cannot
+    retarget the ramp on the very sample that has to land it; and the ramp is an
+    integer position over [0, xfLenSamples] rather than a float accumulator, so
+    both rails are exact at every sample rate. See the two comments in tick().
+
     Stopped (FUNC-04): entered at r < kStopEps = 0.001 (or ramp exhaustion);
     10 ms linear wet-gain fade landing on EXACT 0.0f. The ring keeps recording
     while Stopped (CONTEXT decision 1); the debt clamp applies once at SpinUp
@@ -125,7 +132,7 @@ public:
         fadeStep          = (float) (1.0 / juce::jmax (1.0, kStoppedFadeMs * 0.001 * sampleRate));
         xfLenSamples      = juce::jmax (2, (int) std::lround (kSkipXfadeMs  * 0.001 * sampleRate));
         catchupCapSamples = juce::jmax (1, (int) std::lround (kMaxCatchupMs * 0.001 * sampleRate));
-        trimStep          = (float) (1.0 / (double) xfLenSamples);
+        trimStepD         = 1.0 / (double) xfLenSamples;
         motion.prepare (sampleRate);
         reset();
     }
@@ -138,6 +145,7 @@ public:
         uInc     = 0.0;
         wetFade  = 1.0f;
         trim     = 0.0f;   // Bypassed baseline: trim fully released
+        trimPos  = 0;      // ...and the integer ramp position that produced it
         carrier  = 0;
         xfActive = false;
         xfPos    = 0;
@@ -482,6 +490,25 @@ public:
             }
         }
 
+        // Engaged-trim target, LATCHED HERE — after the state machine above has
+        // resolved this sample's state, and before the crossfade-completion
+        // block below can flip ResyncXfade -> Bypassed. Both edges matter and
+        // this is the only point between them:
+        //   - Reading `state` BELOW the completion block sets the target back to
+        //     1 on the FINAL fade sample, ticking trim UP on the one sample that
+        //     has to land it on 0 (it ended at 2/xfLen, so neither the header's
+        //     "EXACTLY 1.0 as the fade ends" nor reset()'s documented Bypassed
+        //     baseline of 0 actually held).
+        //   - Latching on ENTRY to tick() is not enough either: the fade's FIRST
+        //     sample is the one where the switch above ENTERS ResyncXfade via
+        //     enterResync(), so an entry latch loses that decrement and lands
+        //     trim on 1/xfLen instead.
+        // The resync fade is exactly xfLenSamples ticks (enterResync passes
+        // xfLenSamples to startXfade) and the trim ramp spans exactly that many
+        // positions, so targeting 0 across ALL of them releases a saturated
+        // trim to EXACTLY 0.
+        const float trimTarget = (state == State::ResyncXfade) ? 0.0f : 1.0f;
+
         // Advance the carrier: never past the write head, and never further
         // behind it than the ring can serve (release-build debt clamp at the
         // SOURCE — keeps the stored position, and therefore the debt
@@ -558,13 +585,24 @@ public:
 
         // Engaged-trim blend: releases to EXACTLY 0 across the resync fade
         // (so the applied gain is exactly 1.0 at the Bypassed handoff), and
-        // re-engages toward 1 in every other engaged state.
-        const float trimTarget = (state == State::ResyncXfade) ? 0.0f : 1.0f;
+        // re-engages toward 1 in every other engaged state. `trimTarget` was
+        // latched ABOVE the crossfade-completion block on purpose — see there.
+        //
+        // The ramp is an INTEGER POSITION in [0, xfLenSamples], not a float
+        // accumulator: `trim ± trimStep` clamped at the rails only lands on the
+        // rail if the accumulated rounding happens to overshoot it, which is a
+        // property of the sample rate, not of the algorithm. Measured across
+        // the supported rates, xfLenSamples subtractions of (float)(1/xfLen)
+        // from 1.0f leave: 44.1k → 0, 48k → 0, 88.2k → 4.07e-5, 96k → 1.88e-5,
+        // 176.4k → 6.73e-5, 192k → 0. Deriving trim from the counter makes both
+        // rails exact at every rate by construction, and makes the intermediate
+        // values the ideal linear ramp rather than a drifting one.
+        trimPos = juce::jlimit (0, xfLenSamples,
+                                trimPos + (trimTarget > 0.0f ? 1 : -1));
 
-        if (trim < trimTarget)
-            trim = juce::jmin (trimTarget, trim + trimStep);
-        else if (trim > trimTarget)
-            trim = juce::jmax (trimTarget, trim - trimStep);
+        trim = (trimPos == xfLenSamples) ? 1.0f
+             : (trimPos == 0)            ? 0.0f
+             : (float) ((double) trimPos * trimStepD);
 
         out.carrierWetGain = wetFade;
         out.trimAmount     = trim;
@@ -636,8 +674,9 @@ private:
     float  wetFade  = 1.0f;
     float  fadeStep = 1.0f;
 
-    float  trim     = 0.0f;   // engaged-trim blend (see header comment)
-    float  trimStep = 1.0f;
+    float  trim      = 0.0f;  // engaged-trim blend (see header comment)
+    int    trimPos   = 0;     // integer ramp position in [0, xfLenSamples]
+    double trimStepD = 0.5;   // 1 / xfLenSamples (prepare; matches the len-2 default)
 
     int    carrier  = 0;      // which voice the state machine drives
 

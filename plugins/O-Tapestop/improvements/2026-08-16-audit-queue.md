@@ -55,7 +55,39 @@ in-flight pass bit-identical to the pre-edit envelope; harness suite still green
 
 ---
 
-## 2. B3 — trim never lands on exactly 0 at the resync→Bypassed handoff  *(PATCH)*
+## 2. B3 — trim never lands on exactly 0 at the resync→Bypassed handoff  *(PATCH → 1.3.2)* — ✅ DONE 2026-08-17
+
+**Resolved in v1.3.2, with one correction and one addition to the prescription
+below.**
+
+*Correction:* latching `trimTarget` "from the state as it was on entry to
+`tick()`" does **not** satisfy this item's own acceptance criterion. The resync
+fade is exactly `xfLenSamples` ticks, and the FIRST of them is the tick where
+the switch calls `enterResync()` — so on entry that tick still reads `Catchup`
+(or `ScratchPass`) and an entry latch loses a decrement, landing trim on
+`1/xfLen` rather than 0. The target must be latched *between* the state machine
+and the crossfade-completion block: the only point that reads `ResyncXfade` on
+all `xfLenSamples` ticks.
+
+*Addition:* the ordering fix alone still could not land on exactly 0, because
+the ramp was a **float accumulator** — `trim ± trimStep` clamped at the rails
+only reaches a rail if accumulated rounding overshoots it, which is a property
+of the sample rate. Measured: exact at 44.1/48/192 kHz, but leaving 4.07e-5 /
+1.88e-5 / 6.73e-5 at 88.2/96/176.4 kHz. The ramp is now an integer position over
+`[0, xfLenSamples]` with both rails snapped.
+
+Acceptance met by a new transport-level harness probe
+`B3-trim-exact-rails-6-rates` — transport-level because the final fade tick
+renders dry (`PluginProcessor.cpp` re-checks `isBypassed()` after `tick()`), so
+no rendered waveform can discriminate the value; rate-swept because a 48 kHz
+probe passes over the accumulator defect entirely. Confirmed a real
+discriminator for both defects independently: pre-fix v1.3.1 fails at all 6
+rates, and the correct latch with the accumulator restored fails at exactly the
+3 predicted rates. Output byte-identical at the 0 dB OUTPUT_GAIN default
+(hash `77815f94d22f1c13` matches v1.3.1); worst case 0.0025 dB difference during
+the 50 ms fade at +12 dB. Harness 67/67; pluginval s10 SUCCESS; auval SUCCEEDED.
+
+---
 
 In `TapestopTransport::tick()` the state flips to `Bypassed` **inside** the
 crossfade-completion block (TapestopTransport.h:526-530). The trim update below

@@ -2,11 +2,26 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.1
+- **Version:** 1.3.2
 - **Type:** Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed)
 
 ## Lifecycle Timeline
 
+- **2026-08-17 (v1.3.2):** Audit queue item 2 (B3) — the engaged-trim blend
+  never landed on exactly 0 at the resync→Bypassed handoff. Two defects: (a)
+  `trimTarget` was computed BELOW the crossfade-completion block, so the
+  `ResyncXfade → Bypassed` flip retargeted the ramp to 1 on the final fade
+  sample and trim ended at `2/xfLen` (8.3e-4 @ 48 kHz) — now latched between
+  the state machine and the completion block, the only point that sees
+  `ResyncXfade` on all `xfLenSamples` ticks (an entry-to-`tick()` latch, the
+  audit's prescription, loses the first tick and lands on `1/xfLen`); (b) the
+  ramp was a float accumulator whose rails were rate-dependent — exact at
+  44.1/48/192 kHz but 4.07e-5 / 1.88e-5 / 6.73e-5 at 88.2/96/176.4 kHz — now an
+  integer position over `[0, xfLenSamples]` with both rails snapped. New
+  transport-level probe `B3-trim-exact-rails-6-rates` (rate-swept; verified
+  FAILING against both defects independently). Output byte-identical at the
+  0 dB OUTPUT_GAIN default; worst case 0.0025 dB during the 50 ms fade at
+  +12 dB. Harness 67/67; pluginval s10 VST3 SUCCESS; auval SUCCEEDED. Installed.
 - **2026-08-17 (v1.3.1):** Audit queue item 1 (B1) — scratch LUT
   double-buffer race. The transport latched a raw `const float*` into one of
   ScratchEnvelope's two bake buffers at the engage edge and read it for the
