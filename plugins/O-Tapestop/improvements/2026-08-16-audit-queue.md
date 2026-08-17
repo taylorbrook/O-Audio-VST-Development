@@ -108,9 +108,27 @@ bitwise-dry probes stay green.
 
 ---
 
-## 3. B2a — correct the splice-law documentation  *(PATCH, comments only)*
+## 3. B2a — correct the splice-law documentation  *(PATCH, comments only)*  — ✅ DONE 2026-08-17
 
-The law named `SpliceLaw::EqualPower` is **equal-gain**, not equal-power:
+**Resolved in v1.3.3.** Both comment blocks rewritten to describe the
+implemented raised-cosine equal-gain law, including the correlated-vs-
+decorrelated table (flat 0 dB correlated; power sum `(1+cos^2(pi*phi))/2` → 0.5,
+a 3.01 dB dip, decorrelated) and the note that the square roots would invert the
+trade. The `Linear` law's own 3.01 dB decorrelated dip is now documented too,
+since it is also amplitude-sum-1. Enum name deliberately untouched, per this
+item's instruction to leave it for step 4.
+
+Comments-only was **verified, not assumed**: both `WindowLut.h` and
+`TapestopTransport.h` hash byte-identical from `#pragma once` onward against the
+v1.3.2 backup, so no DSP, parameter or enum change is possible in this commit.
+Harness 67/67.
+
+⚠️ **Item 4's step 1 is already done** — see the table under item 4. The harness
+run that verified this change produced the dip measurement, and it changed what
+the comments say: the dip is ~6 dB, not the 3.01 dB the analytic law predicts.
+The comments were written to the measured figure, not the analytic one.
+
+
 
 ```
 fadeOut = hann(0.5 + phi/2) = cos^2(pi*phi/2)
@@ -145,8 +163,28 @@ lines ~1045-1115 (`AB-splice-equal-power` / `AB-splice-linear`) computes bump an
 dip in dB, but the assertion only gates on `|bump| < 4.0`, so a dip of any size
 passes. That is why this shipped.
 
-Do in this order:
-1. Run the harness and read the reported `dip=` for both laws.
+**Step 1 is DONE (2026-08-17, during v1.3.3).** Measured:
+
+| law | bump | dip |
+|---|---|---|
+| `AB-splice-equal-power` (raised cosine, shipped) | −0.48 dB | **−6.21 dB** |
+| `AB-splice-linear` | −0.58 dB | **−6.99 dB** |
+
+The dip is **real and roughly twice the analytic 3.01 dB**, so step 2 is live.
+Two caveats for whoever picks this up:
+
+- The 3.01 dB figure is the law's floor for two *equal-power* decorrelated
+  sources. The extra ~3 dB is not the gain law — it is the fading voice being a
+  varispeed read of different material at a different level. **A sqrt law will
+  therefore not recover the full 6 dB**; it removes the law's 3 dB share only.
+  Budget the expected improvement accordingly before judging the A/B.
+- The probe's window is the 50 ms fade padded by ±480 samples, and `dip` is the
+  min 480-sample RMS in it against a post-resync reference — so it also catches
+  anything in the catchup tail, not just the crossfade.
+
+Remaining:
+
+1. ~~Run the harness and read the reported `dip=` for both laws.~~ ✅ above.
 2. If the dip is real (≈3 dB), add a true equal-power option — `sqrt` of the
    current gains, or a `readAtSqrt()` on WindowLut — and A/B it.
 3. Tighten the harness check to gate on dip as well as bump, so a regression

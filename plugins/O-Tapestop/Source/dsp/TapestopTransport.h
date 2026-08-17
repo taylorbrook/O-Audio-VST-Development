@@ -60,10 +60,37 @@
     voice is never needed.
 
     Skip-splice gain laws (Task 8 / CONTEXT open question) — BOTH compiled,
-    selected by a harness/dev flag for the Phase-2.2 A/B:
+    selected by a harness/dev flag for the Phase-2.2 A/B. NOTE both are
+    amplitude-sum-of-1 (equal-GAIN) laws; neither is equal-power:
       - EqualPower: fadeOut = hann(0.5 + phi/2), fadeIn = hann(phi/2)
-        (sin^2 + cos^2 = 1 — but over-sums CORRELATED material by up to +3 dB)
+        Raised-cosine, = cos^2/sin^2(pi*phi/2). The enum name is a misnomer:
+        sin^2 + cos^2 = 1 constrains the AMPLITUDE sum, so the law is exact
+        (0 dB, flat) on CORRELATED material and DIPS on decorrelated material,
+        where the power sum (1 + cos^2(pi*phi))/2 bottoms out at 0.5 — an
+        analytic 3.01 dB floor for two equal-power decorrelated sources. True
+        equal-power would be the SQUARE ROOTS of these gains, which inverts the
+        trade — flat when decorrelated, +3 dB over-sum when correlated. Resync
+        splices the live-head rider against a voice seconds behind it, so the
+        decorrelated (dipping) case is the one in play.
       - Linear:     fadeOut = 1 - phi,           fadeIn = phi
+        Also amplitude-sum-1, sharing the SAME 0.5 power floor exactly at
+        phi = 0.5, but falling off faster either side of it (0.625 vs the
+        raised cosine's 0.750 at phi = 0.25).
+
+    Measured, not assumed — the real dip is deeper than the analytic floor,
+    because the fading voice is a varispeed read of different material at a
+    different level rather than an equal-power twin. Harness (v1.3.3):
+
+        AB-splice-equal-power   bump = -0.48 dB,  dip = -6.21 dB
+        AB-splice-linear        bump = -0.58 dB,  dip = -6.99 dB
+
+    The near-zero bump on both is the direct confirmation that neither law
+    over-sums correlated material — the +3 dB claim this comment used to carry
+    was describing the sqrt law, which is not implemented. Whether to ADD that
+    sqrt variant is improvements/2026-08-16-audit-queue.md item 4 (B2b); it
+    changes the sound, so the enum name stays until that decision lands. Note
+    the probe currently asserts only |bump| < 4.0, so the dip is reported but
+    ungated — item 4 step 3 tightens that.
 
     Engaged-trim blend (`trimAmount`): OUTPUT_GAIN must never touch the
     Bypassed path (bitwise contract), so a non-default trim would STEP by

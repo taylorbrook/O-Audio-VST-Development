@@ -2,6 +2,76 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.3] — 2026-08-17
+
+### Documentation
+- **Two comment blocks described the exact opposite of the splice law that is
+  actually implemented.** Audit queue item 3 (B2a). No DSP, parameter, preset
+  or enum-name change — both DSP headers are byte-identical from `#pragma once`
+  onward, verified by checksum against the v1.3.2 backup.
+
+  `SpliceLaw::EqualPower` is an equal-**gain** law, not equal-power:
+
+  ```
+  fadeOut = hann(0.5 + phi/2) = cos^2(pi*phi/2)
+  fadeIn  = hann(phi/2)       = sin^2(pi*phi/2)
+  fadeOut + fadeIn            = 1        <- AMPLITUDE sum, not power sum
+  ```
+
+  The identity `sin^2 + cos^2 = 1` does hold, but it constrains the sum of the
+  *gains*, which is the amplitude sum. That inverts both claims that were on
+  the page:
+
+  | material | implemented (equal-gain) | true equal-power (sqrt of these gains) |
+  |---|---|---|
+  | correlated | `(fadeOut+fadeIn)^2 = 1` → **0 dB, flat** | **+3.01 dB** over-sum at midpoint |
+  | decorrelated | `fadeOut^2+fadeIn^2 = (1+cos^2(pi*phi))/2` → 0.5 → **−3.01 dB floor** | 1.0 → **0 dB, flat** |
+
+  - `Source/dsp/WindowLut.h` claimed "Equal-power by construction
+    (sin^2 + cos^2 = 1)". It is equal-gain by construction.
+  - `Source/dsp/TapestopTransport.h` claimed the law "over-sums CORRELATED
+    material by up to +3 dB". That describes the true equal-power law, which
+    is *not* implemented; an amplitude-sum-of-1 law sums correlated material to
+    exactly 0 dB. Its real failure mode is the opposite one — a ~3 dB dip on
+    decorrelated material.
+
+  Because resync crossfades the live-head rider against a fading voice seconds
+  behind it, the decorrelated (dipping) case is the one that actually applies
+  at the splice. The `Linear` law is likewise amplitude-sum-1 and shares the
+  same 3.01 dB decorrelated midpoint dip (`phi^2 + (1-phi)^2 = 0.5`); that is
+  now stated too.
+
+  The misleading enum name is **deliberately retained** — renaming it, or
+  adding a real `sqrt`-based equal-power option, is audit item 4 (B2b), which
+  changes how the plugin sounds.
+
+- **Recorded the splice A/B measurement in the comments and NOTES.md rather
+  than the analytic figure.** Running the harness to verify this doc change
+  produced item 4's step-1 numbers, so they are captured here:
+
+  | law | bump | dip |
+  |---|---|---|
+  | `AB-splice-equal-power` (raised cosine, shipped) | −0.48 dB | **−6.21 dB** |
+  | `AB-splice-linear` | −0.58 dB | **−6.99 dB** |
+
+  The near-zero **bump** on both laws is the empirical confirmation of the
+  correction above: neither law over-sums correlated material. The **dip is
+  ~6 dB, not 3 dB** — the 3.01 dB figure is the law's analytic floor for two
+  *equal-power* decorrelated sources, while the real fading voice is a
+  varispeed read of different material at a different level. The comments now
+  say explicitly not to quote 3 dB as the plugin's resync dip.
+
+### Testing
+- Render harness: **67 probe checks, 0 failures.**
+- Documentation-only change, verified rather than asserted: `WindowLut.h` and
+  `TapestopTransport.h` are byte-identical to the v1.3.2 backup from
+  `#pragma once` onward (SHA-256 of the code body matches), so no DSP,
+  parameter, preset or enum change is possible in this commit.
+- Built VST3 + AU; both bundles report `CFBundleShortVersionString` 1.3.3.
+- Known gap left in place (item 4 step 3): `AB-splice-*` asserts only
+  `|bump| < 4.0`, so the dip is reported but not gated — a dip regression
+  would still pass.
+
 ## [1.3.2] — 2026-08-17
 
 ### Fixed
