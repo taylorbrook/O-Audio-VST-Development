@@ -527,8 +527,12 @@ body {
 /* Stop pane: two columns (Spin Down | Spin Up). */
 #pane-stop { gap: 56px; }
 
-/* Continuous pane (v1.1): character stack | rate slot | depth | chaos. */
-#pane-continuous { gap: 34px; }
+/* Continuous pane (v1.1): character stack | rate slot | depth | chaos.
+   Gap budget MEASURED against the rendered row, not the column sum: the
+   CHARACTER caption widens its column to ~71px (past the 58px segments),
+   so 71 + 3×88 + 3·gap must fit the 398px content box. gap 34 overflowed
+   ~20px past BOTH panel borders; 16 leaves ~7px clearance per side. */
+#pane-continuous { gap: 16px; }
 
 .stop-col {
   display: flex;

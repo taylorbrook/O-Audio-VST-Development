@@ -2,6 +2,18 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.2.2] — 2026-08-16
+
+### Fixed
+- **Continuous pane overflowed the center panel — CHARACTER label crossed
+  the left border, CHAOS knob crossed the right.** Root cause: the pane's
+  34 px column gap was budgeted against the 58 px segment column, but the
+  CHARACTER caption widens its column to ~71 px, so the centered flex row
+  (71 + 3×88 + 3×34 = 437 px) overflowed the 398 px content box ~20 px on
+  BOTH sides — invisible to the column-sum arithmetic, caught only by
+  measuring rendered boxes. Gap reduced 34 → 16 px; measured clearance is
+  now 7.3 px per side.
+
 ## [1.2.1] — 2026-08-16
 
 ### Changed
