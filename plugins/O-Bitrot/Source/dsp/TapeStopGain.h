@@ -90,12 +90,22 @@ public:
 
     void reset() noexcept
     {
-        armed   = false;
-        engaged = false;
+        armed     = false;
+        engaged   = false;
+        speedGain = 1.0f;
         speedFilter.reset();
     }
 
     bool isEngaged() const noexcept { return engaged; }
+
+    /** The speed gain applied to the LAST processed sample; exactly 1.0f
+        whenever the law is not applying.
+
+        Published for the tape hiss bed (v1.5.0): hiss is recorded material
+        like everything else on the tape, so it has to die with the transport
+        too. A bed that kept running at full level through a stop would
+        announce that the noise is synthetic. */
+    float currentGain() const noexcept { return speedGain; }
 
     /** Per-sample, on the rendered wet pair, immediately after
         ReadHead::renderSample.
@@ -122,10 +132,15 @@ public:
         }
 
         if (! armed)
+        {
+            speedGain = 1.0f;
             return;
+        }
 
         if (appliedRate >= kRateThreshold)
         {
+            speedGain = 1.0f;
+
             // Recovered through the threshold at gain exactly 1 — the law is
             // done. Guarded on `engaged` so that installing a stop at rate 1.0
             // does not disarm it on its very first sample, before the ramp has
@@ -165,8 +180,10 @@ public:
         const float fl = speedFilter.processSample (0, left);
         const float fr = speedFilter.processSample (1, right);
 
-        left  = (left  * dry + fl * wet) * static_cast<float> (g);
-        right = (right * dry + fr * wet) * static_cast<float> (g);
+        speedGain = static_cast<float> (g);
+
+        left  = (left  * dry + fl * wet) * speedGain;
+        right = (right * dry + fr * wet) * speedGain;
     }
 
 private:
@@ -175,6 +192,7 @@ private:
 
     juce::dsp::FirstOrderTPTFilter<float> speedFilter;
 
-    bool armed   = false;   // a stop was installed and has not recovered
-    bool engaged = false;   // currently below the threshold, law applying
+    bool  armed     = false;   // a stop was installed and has not recovered
+    bool  engaged   = false;   // currently below the threshold, law applying
+    float speedGain = 1.0f;    // gain applied last sample; 1.0 when bypassed
 };

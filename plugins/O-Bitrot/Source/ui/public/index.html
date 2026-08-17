@@ -197,9 +197,13 @@
   }
 
   .panel { min-height: 0; }
-  /* the two dense two-row panels */
+  /* the dense two-row panels (v1.5.0: vinyl, packet and codec joined them
+     when the media-noise beds landed — only CD is still a flat single row) */
   #panel-crush .ctl,
-  #panel-tape .ctl { gap: 3px; }
+  #panel-tape .ctl,
+  #panel-vinyl .ctl,
+  #panel-packet .ctl,
+  #panel-codec .ctl { gap: 3px; }
 
   .panel {
     position: relative;
@@ -576,10 +580,15 @@
                 <div class="ro"></div>
               </div>
             </div>
-            <div style="display: flex; justify-content: space-evenly; width: 74%;">
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
                 <div class="ctl-label">Wow</div>
                 <div class="knob k50" data-param="TAPE_WOW" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Hiss</div>
+                <div class="knob k50" data-param="TAPE_HISS" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
@@ -626,24 +635,33 @@
             <span class="gap"></span>
             <button class="en on" data-param="VINYL_ENABLE" data-panel="panel-vinyl">On</button>
           </div>
-          <div class="p-body">
-            <div class="ctl">
-              <div class="ctl-label">Prob</div>
-              <div class="knob k58" data-param="VINYL_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
-            </div>
-            <div class="ctl">
-              <div class="ctl-label">Speed</div>
-              <div class="seg" data-param="VINYL_RPM">
-                <button data-value="0">33⅓</button>
-                <button data-value="1">45</button>
+          <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
+              <div class="ctl">
+                <div class="ctl-label">Prob</div>
+                <div class="knob k50" data-param="VINYL_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
               </div>
-              <div class="annot">rev. quantum</div>
+              <div class="ctl">
+                <div class="ctl-label">Speed</div>
+                <div class="seg" data-param="VINYL_RPM">
+                  <button data-value="0">33⅓</button>
+                  <button data-value="1">45</button>
+                </div>
+                <div class="annot">rev. quantum</div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Pop</div>
+                <div class="knob k50" data-param="VINYL_POP" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
-            <div class="ctl">
-              <div class="ctl-label">Pop</div>
-              <div class="knob k58" data-param="VINYL_POP" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
+            <div style="display: flex; justify-content: space-evenly; width: 34%;">
+              <div class="ctl">
+                <div class="ctl-label">Wear</div>
+                <div class="knob k50" data-param="VINYL_WEAR" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -656,26 +674,35 @@
             <span class="gap"></span>
             <button class="en" data-param="PACKET_ENABLE" data-panel="panel-packet">Off</button>
           </div>
-          <div class="p-body">
-            <div class="ctl">
-              <div class="ctl-label">Loss</div>
-              <div class="knob k58" data-param="PACKET_LOSS" data-default="20" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
+          <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
+            <div style="display: flex; justify-content: space-evenly; width: 74%;">
+              <div class="ctl">
+                <div class="ctl-label">Loss</div>
+                <div class="knob k50" data-param="PACKET_LOSS" data-default="20" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Burst</div>
+                <div class="knob k50" data-param="PACKET_BURST" data-default="30" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
-            <div class="ctl">
-              <div class="ctl-label">Burst</div>
-              <div class="knob k58" data-param="PACKET_BURST" data-default="30" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
-            </div>
-            <div class="ctl">
-              <div class="ctl-label">Conceal</div>
-              <select class="field" data-param="PACKET_CONCEAL">
-                <option value="0">Silence</option>
-                <option value="1">Repeat</option>
-                <option value="2">Decay</option>
-                <option value="3">Substitute</option>
-              </select>
-              <div class="annot">20 ms packets</div>
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
+              <div class="ctl">
+                <div class="ctl-label">Conceal</div>
+                <select class="field" data-param="PACKET_CONCEAL">
+                  <option value="0">Silence</option>
+                  <option value="1">Repeat</option>
+                  <option value="2">Decay</option>
+                  <option value="3">Substitute</option>
+                </select>
+                <div class="annot">20 ms packets</div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Comfort</div>
+                <div class="knob k50" data-param="PACKET_COMFORT" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -688,19 +715,36 @@
             <span class="gap"></span>
             <button class="en" data-param="CODEC_ENABLE" data-panel="panel-codec">Off</button>
           </div>
-          <div class="p-body">
-            <div class="ctl">
-              <div class="ctl-label">Line</div>
-              <div class="seg" data-param="CODEC_MODE">
-                <button data-value="0">μ-law</button>
-                <button data-value="1">GSM</button>
+          <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
+              <div class="ctl">
+                <div class="ctl-label">Line</div>
+                <div class="seg" data-param="CODEC_MODE">
+                  <button data-value="0">μ-law</button>
+                  <button data-value="1">GSM</button>
+                </div>
+                <div class="annot">300–3400 Hz</div>
               </div>
-              <div class="annot">300–3400 Hz · 8 kHz round-trip</div>
+              <div class="ctl">
+                <div class="ctl-label">Blend</div>
+                <div class="knob k50" data-param="CODEC_MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
-            <div class="ctl">
-              <div class="ctl-label">Blend</div>
-              <div class="knob k58" data-param="CODEC_MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
-              <div class="ro"></div>
+            <div style="display: flex; justify-content: space-evenly; width: 100%;">
+              <div class="ctl">
+                <div class="ctl-label">Mains</div>
+                <div class="seg" data-param="CODEC_MAINS">
+                  <button data-value="0">50 Hz</button>
+                  <button data-value="1">60 Hz</button>
+                </div>
+                <div class="annot">hum + harmonics</div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Noise</div>
+                <div class="knob k50" data-param="CODEC_NOISE" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -849,7 +893,7 @@
     return unit ? s + " " + unit : s;
   };
 
-  // ================= knobs (18 floats; SEED is bound separately) =================
+  // ================= knobs (22 floats; SEED is bound separately) =================
   const setupKnob = (el) => {
     const state = Juce.getSliderState(el.dataset.param);
     const stem = el.querySelector(".stem");
@@ -932,7 +976,7 @@
     btn.addEventListener("click", () => state.setValue(!state.getValue()));
   }
 
-  // ================= segmented 2-choice combos (VINYL_RPM, CODEC_MODE, CLOCK_MODE)
+  // ===== segmented 2-choice combos (VINYL_RPM, CODEC_MODE, CODEC_MAINS, CLOCK_MODE)
   document.querySelectorAll(".seg[data-param]").forEach((seg) => {
     const state = Juce.getComboBoxState(seg.dataset.param);
     const buttons = seg.querySelectorAll("button");

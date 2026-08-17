@@ -29,6 +29,7 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 | TAPE_RAMP | Tape Ramp | Float | 20.0 - 500.0 | 150.0 | ms | Speed-transition ramp time — the ramp IS the glide sound and the click-safety. |
 | TAPE_DROP | Tape Dropout Share | Float | 0.0 - 100.0 | 0.0 | % | *(v1.4.0)* Share of NON-stop tape events that are oxide-shed dropouts — a level dip to a random 10–70% floor over 5–150 ms with a concurrent HF cutoff dip. Installs no rate event (gain/filter domain only). At 0 the roll is skipped entirely, so the tape stream's draw pattern is unchanged. |
 | TAPE_WOW | Tape Wow/Flutter | Float | 0.0 - 100.0 | 0.0 | % | *(v1.4.0)* Continuous speed-modulation bed — wow (0.73 / 2.31 Hz) plus flutter (7–55 Hz), 2.0% peak read-rate deviation at full knob, on its own RNG stream. Implemented as a non-negative READ OFFSET rather than a rate multiplier (see Design Notes). Exactly transparent at 0. |
+| TAPE_HISS | Tape Hiss | Float | 0.0 - 100.0 | 0.0 | % | *(v1.5.0)* Continuous tape-hiss bed — decorrelated stereo white behind a −9 dB shelf above 3.5 kHz and a 60 Hz highpass, −48 dBFS RMS at full knob. Rides `TapeStopGain`'s speed gain, so a tape stop mutes the hiss with the programme. Own RNG stream (2 draws/sample). Exactly transparent at 0. |
 
 ### CD Skip
 
@@ -47,6 +48,7 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 | VINYL_PROB | Vinyl Probability | Float | 0.0 - 100.0 | 25.0 | % | Probability of a groove jump per tick. |
 | VINYL_RPM | Vinyl RPM | Choice | 33 1/3 / 45 | 33 1/3 | RPM | Revolution quantum for jumps/locked grooves (1.8 s @ 33 1/3, 1.333 s @ 45). Pitch never changes. |
 | VINYL_POP | Vinyl Pop | Float | 0.0 - 100.0 | 50.0 | % | Synthesized pop level. |
+| VINYL_WEAR | Vinyl Wear | Float | 0.0 - 100.0 | 0.0 | % | *(v1.5.0)* Continuous surface bed — Poisson micro-ticks (up to 140/s at full knob, cubic power-law amplitude through a 2–6 kHz bandpass) over pinked bearing rumble (−42 dBFS RMS at full, LP'd below 55 Hz, amplitude-modulated once per platter revolution at the VINYL_RPM rate). One knob scales both tick density and bed level. Mono — one bearing, one stylus. Own RNG stream. Exactly transparent at 0. |
 
 ### Packet Loss
 
@@ -56,6 +58,7 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 | PACKET_LOSS | Packet Loss | Float | 0.0 - 100.0 | 20.0 | % | Overall loss intensity (drives Gilbert–Elliott Markov state probabilities over 20 ms packets). |
 | PACKET_BURST | Packet Burstiness | Float | 0.0 - 100.0 | 30.0 | % | Burstiness — P(Good→Bad) / burst length (E[burst] 1–8 packets). |
 | PACKET_CONCEAL | Concealment | Choice | Silence / Repeat / Decay / Substitute | Decay | - | Concealment mode: silence / robotic repeat / decaying repeat / waveform substitution. |
+| PACKET_COMFORT | Comfort Noise | Float | 0.0 - 100.0 | 0.0 | % | *(v1.5.0)* G.711 App II / GSM SID-style comfort noise under extended concealment. After 3 lost packets (~60 ms — exactly where Decay's ramp reaches its silence floor) a spectrally-matched noise bed ramps in UNDER the conceal output, and back out over one packet when the burst ends. Level is squared before scaling: 100% = −30 dB relative to the tracked programme RMS, 50% = −42 dB (the G.711 figure), 25% = −54 dB. Own RNG stream. Exactly transparent at 0. |
 
 ### Codec
 
@@ -64,6 +67,8 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 | CODEC_ENABLE | Codec Enable | Bool | Off / On | Off | - | Section enable. |
 | CODEC_MODE | Codec Mode | Choice | Mu-law / GSM | Mu-law | - | Landline (mono sum → 300–3400 Hz BP → 8 kHz → μ-law round trip) vs cellphone (GSM 06.10 via vendored libgsm). |
 | CODEC_MIX | Codec Mix | Float | 0.0 - 100.0 | 100.0 | % | Codec chain blend. |
+| CODEC_NOISE | Line Noise | Float | 0.0 - 100.0 | 0.0 | % | *(v1.5.0)* Phone-line bed — deterministic mains hum (fundamental + 2nd + 3rd, −40 dBFS RMS at full knob, phase from the sample count so it takes NO RNG draws) plus Poisson crackle bursts (up to 6/s, 3–25 ms, band-limited 300–3000 Hz). Injected AFTER `CodecStage` — 50 Hz in front of a 300–3400 Hz passband is annihilated — and scaled by CODEC_MIX, since the hum IS the line. Mono. Exactly transparent at 0. |
+| CODEC_MAINS | Mains Frequency | Choice | 50 Hz / 60 Hz | 50 Hz | - | *(v1.5.0)* Mains frequency for the CODEC_NOISE hum. Inert while CODEC_NOISE is 0. |
 
 ### Crush
 
@@ -79,13 +84,13 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 ## Parameter Count Summary
 
 - Global: 6
-- Tape: 6 (4 at Stage 1; TAPE_DROP + TAPE_WOW added v1.4.0)
+- Tape: 7 (4 at Stage 1; TAPE_DROP + TAPE_WOW added v1.4.0; TAPE_HISS added v1.5.0)
 - CD Skip: 4
-- Vinyl: 4
-- Packet Loss: 4
-- Codec: 3
+- Vinyl: 5 (VINYL_WEAR added v1.5.0)
+- Packet Loss: 5 (PACKET_COMFORT added v1.5.0)
+- Codec: 5 (CODEC_NOISE + CODEC_MAINS added v1.5.0)
 - Crush: 6
-- **Total: 33** (+ reseed UI trigger) — 31 at Stage 1
+- **Total: 38** (+ reseed UI trigger) — 31 at Stage 1, 33 at v1.4.0
 
 ## Post-Stage-1 Amendments
 
@@ -104,6 +109,18 @@ it here rather than rewriting history above.
   the automation-slot order a host presents — inserting would shift all 23
   later parameters by two slots and repoint saved automation lanes. The
   table above groups them with Tape for readability; the layout does not.
+- **v1.5.0 (2026-08-17):** `TAPE_HISS`, `VINYL_WEAR`, `CODEC_NOISE`,
+  `CODEC_MAINS` and `PACKET_COMFORT` added — the per-family media-noise beds
+  (brief item 4) and comfort noise under extended concealment (item 19). All
+  five default to their transparent value and are **appended to the end of
+  the APVTS layout** for the same automation-slot reason as the v1.4.0 pair;
+  the tables above group them with their families for readability only.
+  `CODEC_MAINS` is a NEW choice parameter rather than an appended choice on
+  an existing one, so no saved normalised value is repointed and no preset
+  migration gate is required. Four RNG streams (`tapeBed`, `vinylBed`,
+  `codecBed`, `comfort`) appended to `RngBank` — stream *k* is seeded from a
+  function of *k* alone, so every pre-existing stream, and every render made
+  with an old `SEED`, is bit-identical.
 
 ## Design Notes
 

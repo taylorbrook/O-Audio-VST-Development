@@ -62,6 +62,13 @@
     the fade); the resume index skips the pre-blended head samples so the
     period is preserved.
 
+    Comfort noise (PACKET_COMFORT, v1.5.0): once a burst passes
+    ComfortNoise::kBurstPackets (3, ~60 ms) — exactly where Decay's ramp
+    reaches its silence floor — a spectrally-matched low-level noise bed
+    ramps in UNDER the concealment output, and back out over one packet when
+    the burst ends. That hiss floor is the cue that says the call is still up.
+    See ComfortNoise.h. Exactly transparent at PACKET_COMFORT 0.
+
     Crossfades: 1-5 ms at every good<->lost transition unless HARD_EDGES; the
     outgoing source keeps rendering during the fade (live input, or the
     conceal machinery continuing). Repeat-mode restarts WITHIN a burst are
@@ -87,7 +94,8 @@
 
 #include <JuceHeader.h>
 #include "RngBank.h"
-#include "Arbitration.h"   // EnableFade
+#include "Arbitration.h"    // EnableFade
+#include "ComfortNoise.h"   // v1.5.0, brief item 19
 
 class PacketLossStage
 {
@@ -111,6 +119,7 @@ public:
         }
 
         enableFade.prepare (fs, initiallyEnabled);
+        comfortNoise.prepare (fs);
         reset();
     }
 
@@ -135,11 +144,13 @@ public:
         subIdx        = 0;
         subGain       = 1.0f;
         olaLen        = 0;
+
+        comfortNoise.reset();
     }
 
     // Per-block parameter snapshot (cached atomics read by the processor).
     void setParams (float loss01, float burst01, int concealChoice,
-                    bool enabled, bool hardEdgesIn) noexcept
+                    bool enabled, bool hardEdgesIn, float comfort01) noexcept
     {
         const double l   = juce::jlimit (0.0, 1.0, (double) loss01);
         const double piB = 0.95 * l;
@@ -156,6 +167,7 @@ public:
         concealChoiceParam = concealChoice;
         hardEdges          = hardEdgesIn;
         enableFade.setEnabled (enabled);
+        comfortNoise.setLevel (comfort01);
     }
 
     // Per-sample, stereo in place. RNG (packet stream) consumed ONLY at
@@ -168,6 +180,12 @@ public:
         auto* cR = pkt[curIdx].getWritePointer (1);
         cL[counter] = left;
         cR[counter] = right;
+
+        // 1b. Comfort-noise level/tilt trackers see GOOD samples only, so the
+        //     estimate holds through a burst rather than following the
+        //     concealment machinery's own decay down to nothing.
+        if (! lostCur)
+            comfortNoise.observe (left, right);
 
         // 2. Concealment render (needed while lost, or while fading back out
         //    of a burst — the outgoing source keeps rendering).
@@ -206,6 +224,20 @@ public:
 
         if (fadeRemain > 0)
             --fadeRemain;
+
+        // 3b. Comfort noise (v1.5.0, brief item 19). ADDED under the conceal
+        //     output for every mode — under Decay and Substitute, already at
+        //     or near silence by kBurstPackets, that reads as the crossfade
+        //     the item asks for; under Repeat it sits beneath the repeating
+        //     packet instead of dissolving that mode's machine-gun identity.
+        //     The draw runs unconditionally (determinism convention), and at
+        //     PACKET_COMFORT 0 the bed is exactly 0.0f.
+        comfortNoise.setActive (lostCur && burstLen >= ComfortNoise::kBurstPackets);
+
+        float cnL = 0.0f, cnR = 0.0f;
+        comfortNoise.renderSample (rng.get (RngBank::comfort), cnL, cnR);
+        pL += cnL;
+        pR += cnR;
 
         // 4. Enable fade wrapper. Exact rails keep the bypass bit-exact.
         const float g = enableFade.next();
@@ -502,5 +534,6 @@ private:
     bool fadeFromConceal = false;
     bool hardEdges       = false;
 
-    EnableFade enableFade;
+    EnableFade   enableFade;
+    ComfortNoise comfortNoise;   // v1.5.0, brief item 19
 };
