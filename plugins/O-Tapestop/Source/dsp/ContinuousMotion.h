@@ -34,10 +34,11 @@
                 1, 0.5·chaos, 0.25·chaos²), tanh excursion shaping, 20 Hz
                 post-LP so r stays C1 ("digital zipper" guard).
       Glitch  — grid scheduler: monophonic events, one Bernoulli draw per
-                slot (p = chaos²; 1→4 slots per cell unlock as chaos rises
-                past 0.4, and event lengths shorten with chaos, so high
-                chaos is a rapid-fire barrage instead of one texture per
-                cell). Tame family from chaos 0 (tapestop-dip, half-speed
+                slot (p = chaos²; 1→5 slots per cell unlock as chaos rises
+                past 0.4, slot starts jitter off the grid above 0.5, and
+                event lengths shorten with chaos down to ⅛-cell micro-
+                bursts, so high chaos is a rapid-fire barrage instead of
+                one texture per cell). Tame family from chaos 0 (tapestop-dip, half-speed
                 drag, speed-jump, stutter-repeat); extreme family unlocks
                 above 0.5 (reverse-flick, dead-stop freeze, +2-rail slam,
                 square-wave chatter, buffer-shuffle back-jump, stutter
@@ -138,6 +139,8 @@ public:
         cellPos = 0;
         slotCount = 1;
         slotLen = 1;
+        slotWait = 0;
+        slotArmed = false;
         eventActive = false;
         eventForcedSnap = false;
         eventType = 0;
@@ -187,6 +190,8 @@ public:
         cellLen = (int) juce::jmax (2.0, periodCur);
         cellPos = 0;
         recomputeSlots();
+        slotWait = 0;
+        slotArmed = false;
         eventActive = false;
         eventForcedSnap = false;
         samplesSinceJump = 1 << 30;
@@ -345,8 +350,23 @@ private:
     {
         const double debtSec = debtSamples / fs;
 
+        // Slot-start jitter (chaos > 0.5): defer each slot's attempt by up to
+        // 35 % of a slot so events fall off the grid — rigid slot timing reads
+        // as rhythmic, not erratic. g = 0 draws nothing, so the low-chaos RNG
+        // stream (and the ≤ 0.4 v1.1 cadence) is bit-identical to v1.2.
         if (! eventActive && cellPos % slotLen == 0)
+        {
+            const double g = juce::jmax (0.0, chaos - 0.5) * 2.0;
+            slotWait  = g > 0.0
+                          ? (int) (nextUniform (timeRng) * 0.35 * g * (double) slotLen)
+                          : 0;
+            slotArmed = true;
+        }
+        if (slotArmed && ! eventActive && --slotWait < 0)
+        {
+            slotArmed = false;
             maybeStartEvent (debtSec);
+        }
 
         double rTarget = 1.0;
 
@@ -484,9 +504,9 @@ private:
 
     void recomputeSlots() noexcept
     {
-        // 1 slot ≤ chaos 0.4 (v1.1 cadence), then 2/3/4 as chaos rises —
+        // 1 slot ≤ chaos 0.4 (v1.1 cadence), then 2..5 as chaos rises —
         // event DENSITY, not just event character, scales with chaos.
-        slotCount = 1 + (int) std::floor (3.0 * juce::jmax (0.0, chaos - 0.4) / 0.6);
+        slotCount = 1 + (int) std::floor (4.0 * juce::jmax (0.0, chaos - 0.4) / 0.6);
         slotLen   = juce::jmax (1, cellLen / slotCount);
     }
 
@@ -516,8 +536,8 @@ private:
         const bool   soft = debtSec > kSoftDebtSeconds;
 
         double w[evCount];
-        w[evDip]     = (soft ? 0.0 : 1.0 - 0.5 * g) * bPos;
-        w[evHalf]    = (soft ? 0.0 : 0.8 * (1.0 - 0.5 * g)) * bPos;
+        w[evDip]     = (soft ? 0.0 : 1.0 - 0.65 * g) * bPos;
+        w[evHalf]    = (soft ? 0.0 : 0.8 * (1.0 - 0.65 * g)) * bPos;
         w[evJumpUp]  = 0.6 * bNeg;
         w[evReverse] = (soft ? 0.0 : 0.7 * g) * bPos;
         w[evStutter] = (soft ? 0.0 : 1.0 + 0.5 * g) * bPos;
@@ -560,20 +580,25 @@ private:
         eventLen    = juce::jmax (2, cellLen);
         snapEmitted = false;
 
+        const double g = juce::jmax (0.0, chaos - 0.5) * 2.0;
+
         // Event length: full cell at chaos 0 (v1.1 behavior); ½ and ¼
-        // fractions unlock with chaos so high-chaos events land as bursts.
-        // Snap keeps the full cell (it only waits for the fade guard).
+        // fractions unlock with chaos, plus an ⅛ micro-burst tier above 0.5,
+        // so high-chaos events land as bursts. Snap keeps the full cell (it
+        // only waits for the fade guard). All g-terms vanish at chaos ≤ 0.5,
+        // keeping that region bit-identical to v1.2.
         if (type != evSnap)
         {
             const double wLong  = 1.0;
             const double wMid   = 1.5 * chaos;
-            const double wShort = 2.2 * chaos * chaos;
-            double u = nextUniform (timeRng) * (wLong + wMid + wShort);
-            const double frac = u < wLong ? 1.0 : (u < wLong + wMid ? 0.5 : 0.25);
+            const double wShort = (2.2 + 1.6 * g) * chaos * chaos;
+            const double wMicro = 1.4 * g * chaos * chaos;
+            double u = nextUniform (timeRng) * (wLong + wMid + wShort + wMicro);
+            const double frac = u < wLong                  ? 1.0
+                              : u < wLong + wMid           ? 0.5
+                              : u < wLong + wMid + wShort  ? 0.25 : 0.125;
             eventLen = juce::jmax (2, (int) ((double) cellLen * frac));
         }
-
-        const double g = juce::jmax (0.0, chaos - 0.5) * 2.0;
 
         if (type == evStutter)
         {
@@ -642,6 +667,8 @@ private:
     // Glitch scheduler
     int    cellLen = 1, cellPos = 0;
     int    slotCount = 1, slotLen = 1;
+    int    slotWait = 0;
+    bool   slotArmed = false;
     bool   eventActive = false, eventForcedSnap = false;
     int    eventType = 0, eventPos = 0, eventLen = 0;
     double eventTargetR = 1.0;
