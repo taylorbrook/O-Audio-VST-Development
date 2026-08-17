@@ -2,6 +2,71 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.2.1] — 2026-08-17
+
+Engine-robustness pass — improvement brief items 9 and 13. No new
+parameters, no state-format change; presets and automation are untouched.
+
+### Fixed
+- **Sync mode is no longer inert while the host transport is stopped.**
+  `CLOCK_MODE` defaults to Sync, and `MediaClock` emitted ticks only when
+  `isPlaying && wasPlaying`, so out of the box the plugin was pure
+  passthrough whenever the DAW was parked — auditioning live input read
+  as "the plugin is broken." A stopped transport now falls back to the
+  same free-run accumulator already used for a missing playhead /
+  position / PPQ. The free phase is rewound on the stopped→playing edge
+  so the next stop starts from phase 0. **Playing behaviour is byte-for-
+  byte unchanged** (both sync-grid probes still land on their BPM grid).
+  Also deleted the dead `lastPPQ` member — written every block, read
+  nowhere.
+- **Jump-during-crossfade no longer clicks.** `ReadHead::clampAndSchedule`
+  `Jump` overwrote `oldPos`/`oldRate` and zeroed `fadeCount` even with a
+  fade in flight, so the outgoing head's contribution vanished as an
+  output step of `(1 - t) * |newHead - oldHead|` — the *full* jump
+  discontinuity when the fade had barely started. Reachable in a single
+  tick: `Arbitration`'s kVinyl branch runs `cd.release()` (recovery jump)
+  then `vinyl.onWin()` (second jump) with no render between, so `t` was
+  exactly 0 and the material actually playing was discarded outright.
+  A mid-fade jump now FOLDS into the running crossfade: whichever head
+  currently dominates the mix is carried over as the outgoing head at the
+  gain already reached. The residual step is bounded by half the
+  discontinuity in every case, and is zero in the same-tick collision.
+  Measured on the antiphase probe: **0.85 → 0.0145** (the latter being
+  just the test sine's own derivative).
+- **Deep stops no longer strand the read head.** A tape stop left seconds
+  of lag that only the +2% re-approach trim could recover — ~50x the
+  stall duration — until the `ReadHead` lag-overflow clamp teleported the
+  head mid-normal-playback, attributable to no family. A release ramp
+  that lands back on NORMAL with more than 250 ms of lag now takes ONE
+  intentional crossfaded jump to live through the same choke point (the
+  CD-recovery pattern): "content lost while the transport was stalled."
+  Below 250 ms the gentle trim is unchanged.
+
+### Notes
+- The recovery jump fires on roughly **39% of tape releases** at stock
+  settings (8 seeds x 120 s, all three transports on: 31–52%, mean lag at
+  release 500–850 ms). It is not tripping on ordinary bends — the lag
+  distribution at release sits well above the threshold, and the observed
+  **maximum reached 2.0–2.3 s**, i.e. the pre-fix hidden clamp really was
+  being hit in default use. Sub-250 ms releases keep the trim.
+
+### Testing
+- Harness 54/54 green (51 pre-existing + 3 new). All FUNC-02 nulls,
+  FUNC-04 determinism and QUAL-02 block-size/ragged bit-identity probes
+  unchanged and green — the fixes add no RNG draws and are per-sample
+  state only.
+- New probes, each verified to FAIL against the pre-fix code so none is
+  decoration: `I sync-stopped-free-runs` (inert → onset @24064),
+  `N2 jump-fade-collision same-tick` (0.85262 → 0.01450) and `mid-fade`
+  (0.58809 → 0.22122), `N3 post-stop recovery-jump` (tail correlation vs
+  live input −0.0056 → 1.0000, on noise so period-aliasing cannot fake
+  alignment).
+- The old `I sync-stopped` probe asserted `onset == -1` and **inverts**
+  under this change; it was rewritten as a positive free-run probe, and
+  its former negative-control role was replaced by a new
+  `I sync-stopped-all-off-silent` case (stopped transport, every family
+  disabled) so the deviation detector is still proven non-spurious.
+
 ## [1.2.0] — 2026-08-16
 
 ### Changed

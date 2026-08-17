@@ -60,15 +60,28 @@ public:
 
     void reset() noexcept
     {
-        state         = State::Idle;
-        applied       = 1.0;
-        target        = 1.0;
-        step          = 0.0;
-        rampRemaining = 0;
-        rampMs        = 150.0;
+        state            = State::Idle;
+        applied          = 1.0;
+        target           = 1.0;
+        step             = 0.0;
+        rampRemaining    = 0;
+        rampMs           = 150.0;
+        releaseCompleted = false;
     }
 
     bool isIdle() const noexcept { return state == State::Idle; }
+
+    // One-shot: true for the single sample on which a Releasing ramp landed
+    // back on NORMAL. The processor consumes it to decide whether the event
+    // stranded the read head far enough behind to warrant an intentional
+    // recovery jump (a deep stop leaves seconds of lag that the +2%
+    // re-approach trim would take ~50x as long to claw back).
+    bool consumeReleaseComplete() noexcept
+    {
+        const bool r = releaseCompleted;
+        releaseCompleted = false;
+        return r;
+    }
 
     // fromRate: the rate that was actually applied last sample (may include
     // the ReadHead re-approach trim) — ramping from it avoids a rate step at
@@ -133,8 +146,9 @@ public:
 
         if (state == State::Releasing && rampRemaining == 0)
         {
-            state   = State::Idle;
-            applied = 1.0;
+            state            = State::Idle;
+            applied          = 1.0;
+            releaseCompleted = true;   // consumed by the processor, this sample
         }
 
         return applied;
@@ -164,4 +178,6 @@ private:
     double step          = 0.0;
     int    rampRemaining = 0;
     double rampMs        = 150.0;
+
+    bool   releaseCompleted = false;   // one-shot, see consumeReleaseComplete()
 };

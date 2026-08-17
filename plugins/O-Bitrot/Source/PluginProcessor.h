@@ -172,6 +172,13 @@ private:
     int    lastSeed           = 0;    // per-block seed-change detection
     double lastAppliedRate    = 1.0;  // tape ramps start from the applied rate
 
+    // Post-event recovery threshold (v1.2.1): a tape release landing back on
+    // NORMAL with more lag than this takes ONE intentional crossfaded jump to
+    // live rather than leaving the +2% trim to claw it back over ~50x as long.
+    // 250 ms of lag already costs the trim ~12.5 s of stale playback.
+    static constexpr double kStopRecoverySeconds = 0.25;
+    double stopRecoveryLagSamples = kStopRecoverySeconds * 48000.0;
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
