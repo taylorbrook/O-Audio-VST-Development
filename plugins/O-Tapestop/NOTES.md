@@ -2,10 +2,35 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.3
+- **Version:** 1.3.4
 - **Type:** Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed)
 
 ## Lifecycle Timeline
+
+- **2026-08-17 (v1.3.4):** Audit queue item 5 — dead-state deletion, zero
+  behaviour change. Removed `VarispeedVoice::gain` (never read or written),
+  `VarispeedVoice::active` (write-only; **9** assignments in
+  `TapestopTransport`, not the 8 the audit claimed), and `ContinuousMotion`'s
+  `eventTargetR` and `eventForcedSnap`; `slotCount` became a local `const int`
+  inside `recomputeSlots()`. Deleting `active` orphaned `startXfade()`'s
+  `VarispeedVoice* v` parameter — the removed line was its only use — so the
+  parameter and its three call-site arguments went with it, and the
+  force-complete policy comment moved onto `fadingIdx = idx;`, where the drop
+  now happens implicitly.
+
+  `ContinuousMotion::reset()` also gained `samplesSinceJump`, `lastXfLen` and
+  `snapEmitted`. The audit listed `shuffleEmitted` here too, but it was
+  already covered — the real gap was three fields, not four. Latent only:
+  `reset()` is reachable solely via `prepare()`, and all 31 harness call sites
+  construct a fresh processor first, so it always ran over values the member
+  initialisers already held. The exposure it closes is a re-prepare at a new
+  sample rate carrying a stale fade length into the next engage.
+
+  Acceptance met exactly: harness **67/67 with byte-identical output** to the
+  v1.3.3 build — `sha256 f024b209…` on both sides, empty `diff`. Meaningful
+  rather than cosmetic, because the harness prints per-probe numeric
+  diagnostics (`maxDiff`, bounds, deviations) rather than bare PASS labels.
+  AU validation succeeded.
 
 - **2026-08-17 (v1.3.3):** Audit queue item 3 (B2a) — documentation only, zero
   DSP change (both DSP headers verified byte-identical from `#pragma once`
