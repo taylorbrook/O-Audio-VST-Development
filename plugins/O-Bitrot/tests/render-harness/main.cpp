@@ -77,6 +77,13 @@
                                 passing.
       Q  QUAL-02 packet grid  — 512-vs-4096 + ragged bit-identity with the
                                 packet stage ACTIVE (high loss, fixed seed).
+      O2 v1.2 knob-zero clean — PACKET_LOSS 0 while enabled loses NOTHING
+                                (Good-state floor now scales with loss01).
+      O3 v1.2 full-knob loss  — PACKET_LOSS 100 delivers true >= 93%
+                                measured loss (expected ~0.986).
+      P2 v1.2 decay mute-out  — twin Silence/Decay renders (same seed =
+                                same schedule): in runs >= 5 lost packets,
+                                rep 1 audible, reps 4+ exactly silent.
 
     Probes (Phase 2.4: crush + quant):
 
@@ -1592,9 +1599,12 @@ int main()
     // O — DSP-04 Gilbert-Elliott statistics. 60 s render, Silence
     // concealment, transports off: lost packets are detected from the OUTPUT
     // (packet-aligned RMS windows that collapse), never by peeking internal
-    // state. With PACKET_LOSS 40 / PACKET_BURST 30: piB = 0.24,
-    // E[B] = 3.1 => pBG = 0.3226, and the lost-run continuation probability
-    // r = P(next lost | lost) ~= 0.325 (state-weighted: 0.5(1-pBG) + ...).
+    // state. v1.2 mapping — with PACKET_LOSS 40 / PACKET_BURST 30:
+    // piB = 0.95*0.4 = 0.38, E[B] = 3.1 => pBG = 0.3226,
+    // pGB = 0.38*0.3226/0.62 = 0.1977 (unclamped, stationary piB holds),
+    // pBad = 0.7, pGood = 0.004 => E[lostFrac] = 0.38*0.7 + 0.62*0.004
+    // = 0.268. Lost-run continuation r = P(next lost | lost) ~= 0.47
+    // (state-weighted: P(B|lost) = 0.991, then 0.677*0.7 + 0.323*0.004 ...).
     // Ratio bounds are generous but reject gross mapping errors (an inverted
     // burst mapping reads r ~= 0.9; no burstiness reads N2 ~= 0).
     {
@@ -1655,15 +1665,15 @@ int main()
 
         const bool live    = out.getMagnitude (0, 0, total) > 1.0e-4f;
         const bool enough  = numRuns >= 100 && numLost >= 150;
-        const bool fracOk  = lostFrac >= 0.08 && lostFrac <= 0.18;          // expected 0.128
-        const bool rOk     = rHat >= 0.15 && rHat <= 0.50;                  // expected 0.325
-        const bool histOk  = n2 > 0 && n1n2 >= 1.5 && n1n2 <= 6.5;          // expected ~3.1
+        const bool fracOk  = lostFrac >= 0.19 && lostFrac <= 0.35;          // expected 0.268
+        const bool rOk     = rHat >= 0.30 && rHat <= 0.63;                  // expected 0.472
+        const bool histOk  = n2 > 0 && n1n2 >= 1.2 && n1n2 <= 4.5;          // expected ~2.1
 
         check ("O DSP-04 ge-statistics", live && enough && fracOk && rOk && histOk,
                juce::String ((int) lost.size()) + " packets, lostFrac "
-                   + juce::String (lostFrac, 3) + " (exp 0.128, [0.08,0.18]), r^ "
-                   + juce::String (rHat, 3) + " (exp 0.325, [0.15,0.50]), N1/N2 "
-                   + juce::String (n1n2, 2) + " (exp 3.1, [1.5,6.5]), runs "
+                   + juce::String (lostFrac, 3) + " (exp 0.268, [0.19,0.35]), r^ "
+                   + juce::String (rHat, 3) + " (exp 0.472, [0.30,0.63]), N1/N2 "
+                   + juce::String (n1n2, 2) + " (exp 2.1, [1.2,4.5]), runs "
                    + juce::String (numRuns)
                    + (enough ? "" : " — TOO FEW LOSSES, probe vacuous"));
     }
@@ -1776,6 +1786,182 @@ int main()
                               : firstDifference (outB, outC))
                        + (live ? "" : " — SILENT, probe vacuous"));
         }
+    }
+
+    //==========================================================================
+    // O2 — v1.2 knob-zero clean: PACKET_ENABLE on with PACKET_LOSS 0 must
+    // lose NOTHING (the old mapping's unscaled 1% Good-state floor fired one
+    // uninvited dropout every ~2 s while merely enabled). Silence conceal so
+    // any loss collapses an RMS window; 30 s, zero lost windows required.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",    0.0f);
+        setParam (*p, "CD_ENABLE",      0.0f);
+        setParam (*p, "VINYL_ENABLE",   0.0f);
+        setParam (*p, "PACKET_ENABLE",  1.0f);
+        setParam (*p, "PACKET_CONCEAL", 0.0f);   // Silence
+        setParam (*p, "PACKET_LOSS",    0.0f);
+        setParam (*p, "PACKET_BURST",   30.0f);
+        setParam (*p, "SEED",           4242.0f);
+
+        const int packetLen = (int) std::ceil (0.020 * kFs);
+        const int total     = 1500 * packetLen;                // 30 s
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 4096 }, noiseStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        int numLost = 0, numPackets = 0;
+        for (int k = 25; ; ++k)
+        {
+            const int start = kComp + k * packetLen + 200;
+            const int len   = packetLen - 400;
+            if (start + len >= total)
+                break;
+
+            double e = 0.0;
+            for (int i = 0; i < len; ++i) { const double x = o[start + i]; e += x * x; }
+            if (std::sqrt (e / len) < 0.05)
+                ++numLost;
+            ++numPackets;
+        }
+
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        check ("O2 packet-loss-zero clean", live && numPackets > 1400 && numLost == 0,
+               juce::String (numLost) + " lost of " + juce::String (numPackets)
+                   + " packets at PACKET_LOSS=0 (must be 0)"
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // O3 — v1.2 full-knob true failure: PACKET_LOSS 100 / BURST 70 must
+    // actually drop the call. New mapping: piB = 0.95 -> pGB clamps at 1 so
+    // Bad occupancy = 1/(1+pBG) = 0.855; pBad = 1.0, pGood = 0.90 =>
+    // E[lostFrac] = 0.855*1.0 + 0.145*0.90 = 0.986 (the old mapping read
+    // ~0.30 here). Require >= 0.93; require < 1.0 so the probe stays honest
+    // about the surviving fragments (P(all 3000 lost) ~ e^-43).
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",    0.0f);
+        setParam (*p, "CD_ENABLE",      0.0f);
+        setParam (*p, "VINYL_ENABLE",   0.0f);
+        setParam (*p, "PACKET_ENABLE",  1.0f);
+        setParam (*p, "PACKET_CONCEAL", 0.0f);   // Silence
+        setParam (*p, "PACKET_LOSS",    100.0f);
+        setParam (*p, "PACKET_BURST",   70.0f);
+        setParam (*p, "SEED",           4242.0f);
+
+        const int packetLen = (int) std::ceil (0.020 * kFs);
+        const int total     = 3000 * packetLen;                // 60 s
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 4096 }, noiseStereo);
+
+        const auto* o = out.getReadPointer (0);
+
+        int numLost = 0, numPackets = 0;
+        for (int k = 25; ; ++k)
+        {
+            const int start = kComp + k * packetLen + 200;
+            const int len   = packetLen - 400;
+            if (start + len >= total)
+                break;
+
+            double e = 0.0;
+            for (int i = 0; i < len; ++i) { const double x = o[start + i]; e += x * x; }
+            if (std::sqrt (e / len) < 0.05)
+                ++numLost;
+            ++numPackets;
+        }
+
+        const double lostFrac = (double) numLost / (double) juce::jmax (1, numPackets);
+        const bool   live     = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("O3 packet-loss-full ~95%", live && lostFrac >= 0.93 && lostFrac < 1.0,
+               "lostFrac " + juce::String (lostFrac, 3)
+                   + " (exp 0.986, require [0.93,1.0)) over "
+                   + juce::String (numPackets) + " packets"
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // P2 — v1.2 Decay mutes out: twin renders, same seed, so the Silence
+    // render's loss schedule is a mask for the Decay render (the GE chain
+    // draws unconditionally, independent of PACKET_CONCEAL — proven by P).
+    // Within every lost run of length >= 5: packet 1 must be audible
+    // (concealment ramping 0 -> -6 dB) and packets 4+ must be SILENT (the
+    // -6 dB/rep ramp hard-floors to 0 by the end of rep 3, ~60 ms). The old
+    // -3 dB/rep floorless decay reads packet 6 at ~ -18 dB, loudly nonzero.
+    {
+        auto render = [&] (int concealMode, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",    0.0f);
+            setParam (*p, "CD_ENABLE",      0.0f);
+            setParam (*p, "VINYL_ENABLE",   0.0f);
+            setParam (*p, "PACKET_ENABLE",  1.0f);
+            setParam (*p, "PACKET_CONCEAL", (float) concealMode);
+            setParam (*p, "PACKET_LOSS",    60.0f);
+            setParam (*p, "PACKET_BURST",   100.0f);   // E[B] = 8: long bursts
+            setParam (*p, "SEED",           4242.0f);
+            renderInto (*p, out, total, { 4096 }, sineStereo);
+        };
+
+        const int packetLen = (int) std::ceil (0.020 * kFs);
+        const int total     = 3000 * packetLen;                // 60 s
+        juce::AudioBuffer<float> maskBuf, decayBuf;
+        render (0, maskBuf, total);
+        render (2, decayBuf, total);
+
+        const auto* om = maskBuf.getReadPointer (0);
+        const auto* od = decayBuf.getReadPointer (0);
+
+        auto winRms = [&] (const float* o, int k)
+        {
+            const int start = kComp + k * packetLen + 200;
+            const int len   = packetLen - 400;
+            double e = 0.0;
+            for (int i = 0; i < len; ++i) { const double x = o[start + i]; e += x * x; }
+            return std::sqrt (e / len);
+        };
+
+        const int lastK = (total - kComp - 200) / packetLen - 1;
+
+        int runs = 0, badFirst = 0, badTail = 0;
+        for (int k = 25; k <= lastK; ++k)
+        {
+            if (winRms (om, k) >= 0.05)
+                continue;
+
+            int runLen = 0;                        // measure the lost run at k
+            while (k + runLen <= lastK && winRms (om, k + runLen) < 0.05)
+                ++runLen;
+
+            // Only count runs whose START is proven (previous window good) —
+            // otherwise k may be mid-run and the rep indices misalign.
+            const bool startKnown = winRms (om, k - 1) >= 0.05;
+
+            if (startKnown && runLen >= 5)
+            {
+                ++runs;
+                if (winRms (od, k) <= 0.02)        // rep 1: must be audible
+                    ++badFirst;
+                for (int j = 3; j < runLen; ++j)   // reps 4+: must be silent
+                    if (winRms (od, k + j) > 1.0e-4)
+                        { ++badTail; break; }
+            }
+
+            k += runLen - 1;
+        }
+
+        const bool live   = decayBuf.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool enough = runs >= 10;
+
+        check ("P2 decay-mutes-by-60ms", live && enough && badFirst == 0 && badTail == 0,
+               juce::String (runs) + " runs >= 5 lost packets; audible-rep-1 failures "
+                   + juce::String (badFirst) + ", silent-rep-4+ failures "
+                   + juce::String (badTail)
+                   + (enough ? "" : " — TOO FEW LONG RUNS, probe vacuous")
+                   + (live ? "" : " — SILENT, probe vacuous"));
     }
 
     //==========================================================================

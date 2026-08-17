@@ -2,7 +2,46 @@
 
 All notable changes to O-Bitrot are documented here.
 
-## [1.1.0] — 2026-08-16
+## [1.2.0] — 2026-08-16
+
+### Changed
+- **PACKET_LOSS now spans clean → true total failure.** Root cause of the
+  old ceiling: the Gilbert–Elliott mapping capped stationary Bad occupancy
+  at `piB = loss01·0.6` and hard-coded loss probabilities 0.5 (Bad) /
+  0.01 (Good), so full knob delivered only ~30% actual loss — and the
+  unscaled 1% Good-state floor dropped one packet every ~2 s even at
+  PACKET_LOSS = 0 while merely enabled. New mapping: `piB = 0.95·loss01`,
+  Bad loss `0.5 + 0.5·loss01`, Good loss `0.01·loss01` plus a top-quartile
+  ramp to 0.90 at full knob (the Markov clamp caps Bad occupancy at ~0.89
+  even at BURST 100, so near total failure the Good state must drop
+  packets too). Measured: 0 lost packets at knob zero; 98.6% at full knob
+  (was ~30%). Knob feel changes across the range; the determinism
+  convention (exactly 2 packet-stream draws per packet) is untouched.
+- **Decay concealment now mutes out like real PLC.** Was −3 dB per
+  repetition with no floor (never silent, imprinting a 50 Hz packet buzz
+  indefinitely). Now −6 dB per repetition as a per-sample gain ramp,
+  hard-flooring to exact silence by the end of the 3rd repetition
+  (~60 ms). Decay repeats are also pitch-aligned via the existing AMDF
+  path (previously Substitute-only) when the last good packet is
+  periodic, with the same auto-degrade to packet-aligned replay when not.
+- **Substitute cycle joints are OLA-spliced.** Cyclic replay previously
+  wrapped with a bare index reset, landing the −1 dB step exactly at the
+  wrap. Each joint now gets a ~1 ms raised-cosine tail→head crossfade
+  (capped at period/3) with the gain step inside the fade; the resume
+  index skips the pre-blended head samples so the period is preserved.
+- **Presets re-tuned for the honest loss range:** Dropped Call
+  PACKET_LOSS 45 → 65 (~51% true loss — the call actually drops);
+  Total Media Failure 55 → 90 (~86% true loss, up from the ~17% the old
+  mapping delivered).
+
+### Testing
+- Probe O (GE statistics) bounds re-derived for the new mapping
+  (lostFrac 0.268, r̂ 0.472 at LOSS 40 / BURST 30) — measured 0.263 /
+  0.469. Three new probes, 50/50 green: O2 knob-zero clean (0 lost of
+  1474 packets at PACKET_LOSS 0), O3 full-knob true failure (lostFrac
+  0.986), P2 decay mute-out (113 masked runs ≥ 5 lost packets: rep 1
+  audible, reps 4+ exactly silent). All QUAL-02 block-size/ragged
+  bit-identity and determinism probes unchanged and green.
 
 ### Added
 - **Mono compatibility** — the plugin now loads on mono→mono and
