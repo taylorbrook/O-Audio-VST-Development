@@ -2,6 +2,158 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.5.0] — 2026-08-17
+
+Media noise beds — improvement brief items 4 and 19. The engine
+synthesised only *event-triggered* artifacts: `ArtifactSynth`'s pop, tick
+and chirp all fire at jump instants, and between clock ticks nothing ran
+at all. A "dying media" patch was therefore a clean signal punctuated by
+breakage, and the illusion collapsed the moment the events stopped. It is
+the floor, not the events, that carries the sense of a machine.
+
+Five new parameters, **every one default 0 and exactly transparent
+there**. A v1.4.0 session or preset loads and renders bit-identically —
+pinned by two digest probes against two different earlier trees, not
+asserted. **There are no render-affecting changes in this release.**
+
+### Added
+- **`TAPE_HISS` — the tape noise floor** (0–100%, default 0). Decorrelated
+  stereo white behind a gentle −9 dB shelf above 3.5 kHz and a 60 Hz
+  highpass; **−48 dBFS RMS at full knob** (measured −47.99), roughly a
+  Type I cassette with no noise reduction.
+
+  Stereo, unlike every other artifact in this engine, and deliberately so:
+  two tape tracks carry two *independent* noise sources, and a mono bed
+  added to both channels hits the level target exactly while sounding like
+  a fault in the plugin rather than a floor on the tape. Measured L/R
+  correlation −0.000, and the probe asserts it — level alone cannot tell
+  the two implementations apart.
+
+  It also **rides the transport speed**. A tape head is a `dΦ/dt`
+  transducer, so hiss is recorded material like everything else: when
+  v1.4.0's `TapeStopGain` takes the programme down to silence, hiss that
+  kept running at full level would announce that the noise is synthetic.
+  `TapeStopGain` now publishes its current gain and the bed multiplies by
+  it. A *bend* must not do this — the bend table's 0.5× interval sits below
+  the gain law's threshold — and the discriminating probe for that lives
+  next to the one that proves stops do.
+- **`VINYL_WEAR` — the record surface** (0–100%, default 0). A Poisson rain
+  of micro-ticks over pinked bearing rumble.
+
+  Tick amplitude is a **cubic power law** — `peak · u³`, many tiny and rare
+  large, which is the shape real surface noise has. Cubing a uniform is
+  *bounded*; an inverse-CDF Pareto draw would not be, and nothing on the
+  audio thread should be able to draw an arbitrarily large impulse. The
+  harness asserts the law through the tick band's **crest factor** (10.9
+  measured, bound ≥ 8): Gaussian noise crests near 4, so a bed emitting
+  uniform-amplitude clicks would pass a rate check and fail this one.
+
+  Rumble is **−42 dBFS RMS at full knob** (measured −42.00), three poles
+  below 55 Hz, amplitude-modulated once per platter revolution at the
+  `VINYL_RPM` rate — bearing rumble is eccentric by construction, and that
+  beat is what separates "low noise" from "a turntable".
+
+  Mono, and for a more literal reason than `ArtifactSynth`'s "the failure
+  is the player, not the channels": one platter bearing makes one rumble
+  and one stylus rides one groove.
+- **`CODEC_NOISE` + `CODEC_MAINS` — the phone line** (0–100%, default 0;
+  50 Hz / 60 Hz, default 50 Hz). Mains hum — fundamental plus 2nd and 3rd
+  harmonics at −40 dBFS RMS full-knob (measured −37.87 for the fundamental,
+  against an analytic −37.86) — with Poisson crackle bursts, 3–25 ms,
+  band-limited to 300–3000 Hz.
+
+  The hum takes **no RNG draws at all**: three partials off one phase
+  accumulator, a pure function of the sample count. Mains hum is the one
+  artifact in this plugin that is genuinely not random, and a hum whose
+  phase depended on the seed would drift against the programme between
+  renders of the same session.
+
+  It is injected **after `CodecStage`, not on the artifact bus with the
+  other two**. `CodecStage` is a 300–3400 Hz phone chain, so 50 Hz in front
+  of it is annihilated by the passband and the hum would have been
+  inaudible at every setting. That is also where the physics puts it — hum
+  is induced on the line, not recorded at the source — so it is scaled by
+  `CODEC_MIX` as well: Blend is how much phone you are hearing, and the hum
+  *is* the phone.
+- **`PACKET_COMFORT` — comfort noise under extended concealment**
+  (0–100%, default 0). `PacketLossStage` hard-floors Decay to exact silence
+  by the end of the third repetition (~60 ms) because that is what real PLC
+  does. What real PLC does *next*, which this engine did not, is fill the
+  hole: G.711 Appendix II CNG and GSM SID frames both substitute low-level
+  spectrally-shaped noise matched to the background. That hiss floor is
+  precisely the cue that says the call is still up but dying — without it a
+  long burst is indistinguishable from the far end hanging up.
+
+  Two one-pole trackers run on **good packets only** — a level estimate and
+  a tilt estimate, the energy split either side of 1 kHz — so a dark source
+  gets a dark floor and a bright one gets a bright floor. Each half of the
+  noise split is divided by its exact analytic gain, so the tilt weights
+  mean what they say. A silent source estimates zero and emits exactly
+  nothing: comfort noise under silence would be the plugin talking.
+
+  The bed is **additive under all four concealment modes**, not a
+  replacement. Under Decay and Substitute — already at or near silence when
+  it arrives — that reads as the crossfade the brief specifies; under
+  Repeat, which repeats a packet verbatim forever, replacing the output
+  would have dissolved the machine-gun edge that *is* that mode's identity,
+  so the bed sits 33 dB beneath it instead (measured). The knob is squared
+  before scaling so its useful range spans the travel: 100% = −30 dB
+  relative to the tracked programme, 50% = −42 dB (the G.711 figure), 25% =
+  −54 dB.
+
+  **Honest limit:** the level tracker follows the *programme*, not the
+  background, because this stage never sees a speech/silence decision.
+  Sitting the bed far below it is what makes the approximation work.
+
+### Changed
+- Four RNG streams — `tapeBed`, `vinylBed`, `codecBed`, `comfort` —
+  **appended** to `RngBank`, never inserted. Stream *k* is seeded from a
+  function of *k* alone, so every pre-existing stream, and therefore every
+  render ever made with an old `SEED`, is bit-identical.
+- Vinyl, Packet and Codec panels moved to the dense two-row layout Tape and
+  Crush already used. Only CD is still a flat single row.
+
+### Notes
+- **Levels are sample-rate invariant, and that took work.** Filtering white
+  noise to a fixed bandwidth in Hz gives output power proportional to that
+  bandwidth over `fs`, so a bed calibrated with a bare constant is 3 dB
+  quieter every time the rate doubles — inaudible in the one render anybody
+  tests, and wrong for every user at 96 kHz. Each bed normalises its first
+  (and only white-fed) filter stage by that stage's exact analytic noise
+  gain `sqrt(a/(2−a))`; everything downstream operates on an
+  already-shaped signal whose spectrum is fixed in Hz. Normalising the
+  *later* stages the same way would have reintroduced the dependence it
+  exists to remove. **Measured 48 kHz vs 96 kHz: 0.13 dB.**
+- **Where each bed is injected is load-bearing.** Tape and vinyl join the
+  mono artifact bus upstream of the packet stage, so a lost packet conceals
+  the media noise along with the programme — on real media they are the
+  same signal. The codec bed goes after the codec, for the passband reason
+  above.
+- **Determinism.** Each bed draws a fixed count per sample from its own
+  stream on its own sample schedule, which is block-size invariant; the
+  interleave hazard is two subsystems *sharing* a stream at different
+  block-relative instants, not per-sample draws as such. That is also why
+  the conditional extra draws taken when a tick or a crackle burst fires
+  are safe — they depend on the private stream's own position, never on a
+  block boundary.
+
+### Testing
+- **80/80 render-harness probes pass** (66 → 80; 14 new).
+- **`V1` still matches the v1.3.0 digest** `0x3ee4e028900e47ca`, and a new
+  **`N7` matches the v1.4.0 digest** `0x1cf2f80d1f71674c` for a canonical
+  render with packet *and* codec active. V1 runs with both post-stages off,
+  so on its own it says nothing about the two places v1.5.0 actually
+  touched downstream code; N7 covers exactly those. The v1.4.0 digest was
+  produced by compiling that probe against the v1.4.0 tree (git `2160dd66`)
+  in a throwaway worktree — re-rendering the new engine twice would prove
+  nothing.
+- `N1b` asserts the vinyl bed is **bit-exact zero**, not merely quiet, at
+  `VINYL_WEAR` 0 — that exactness is what keeps the FUNC-02 null intact at
+  the shipped defaults.
+- `N6` re-runs same-seed and ragged-block-size bit-identity with all four
+  new streams drawing at once (`{1, 7, 64, 333, 4096}` vs `{512}`).
+- auval PASS; pluginval strictness-10 **3/3 SUCCESS**.
+
 ## [1.4.0] — 2026-08-17
 
 Tape authenticity — improvement brief items 2, 3 and 11. The tape family

@@ -31,6 +31,7 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     tapeRampRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_RAMP");
     tapeDropRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_DROP");
     tapeWowRelay       = std::make_unique<juce::WebSliderRelay>("TAPE_WOW");
+    tapeHissRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_HISS");
     // CD Skip
     cdEnableRelay      = std::make_unique<juce::WebToggleButtonRelay>("CD_ENABLE");
     cdProbRelay        = std::make_unique<juce::WebSliderRelay>("CD_PROB");
@@ -41,15 +42,19 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     vinylProbRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_PROB");
     vinylRpmRelay      = std::make_unique<juce::WebComboBoxRelay>("VINYL_RPM");
     vinylPopRelay      = std::make_unique<juce::WebSliderRelay>("VINYL_POP");
+    vinylWearRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_WEAR");
     // Packet
     packetEnableRelay  = std::make_unique<juce::WebToggleButtonRelay>("PACKET_ENABLE");
     packetLossRelay    = std::make_unique<juce::WebSliderRelay>("PACKET_LOSS");
     packetBurstRelay   = std::make_unique<juce::WebSliderRelay>("PACKET_BURST");
     packetConcealRelay = std::make_unique<juce::WebComboBoxRelay>("PACKET_CONCEAL");
+    packetComfortRelay = std::make_unique<juce::WebSliderRelay>("PACKET_COMFORT");
     // Codec
     codecEnableRelay   = std::make_unique<juce::WebToggleButtonRelay>("CODEC_ENABLE");
     codecModeRelay     = std::make_unique<juce::WebComboBoxRelay>("CODEC_MODE");
     codecMixRelay      = std::make_unique<juce::WebSliderRelay>("CODEC_MIX");
+    codecNoiseRelay    = std::make_unique<juce::WebSliderRelay>("CODEC_NOISE");
+    codecMainsRelay    = std::make_unique<juce::WebComboBoxRelay>("CODEC_MAINS");
     // Crush
     crushEnableRelay   = std::make_unique<juce::WebToggleButtonRelay>("CRUSH_ENABLE");
     crushBitsRelay     = std::make_unique<juce::WebSliderRelay>("CRUSH_BITS");
@@ -84,6 +89,7 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*tapeRampRelay)
             .withOptionsFrom(*tapeDropRelay)
             .withOptionsFrom(*tapeWowRelay)
+            .withOptionsFrom(*tapeHissRelay)
             .withOptionsFrom(*cdEnableRelay)
             .withOptionsFrom(*cdProbRelay)
             .withOptionsFrom(*cdSeverityRelay)
@@ -92,13 +98,17 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*vinylProbRelay)
             .withOptionsFrom(*vinylRpmRelay)
             .withOptionsFrom(*vinylPopRelay)
+            .withOptionsFrom(*vinylWearRelay)
             .withOptionsFrom(*packetEnableRelay)
             .withOptionsFrom(*packetLossRelay)
             .withOptionsFrom(*packetBurstRelay)
             .withOptionsFrom(*packetConcealRelay)
+            .withOptionsFrom(*packetComfortRelay)
             .withOptionsFrom(*codecEnableRelay)
             .withOptionsFrom(*codecModeRelay)
             .withOptionsFrom(*codecMixRelay)
+            .withOptionsFrom(*codecNoiseRelay)
+            .withOptionsFrom(*codecMainsRelay)
             .withOptionsFrom(*crushEnableRelay)
             .withOptionsFrom(*crushBitsRelay)
             .withOptionsFrom(*crushRateRelay)
@@ -280,6 +290,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("TAPE_DROP"), *tapeDropRelay, nullptr);
     tapeWowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("TAPE_WOW"), *tapeWowRelay, nullptr);
+    tapeHissAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("TAPE_HISS"), *tapeHissRelay, nullptr);
     // CD Skip
     cdEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CD_ENABLE"), *cdEnableRelay, nullptr);
@@ -298,6 +310,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("VINYL_RPM"), *vinylRpmRelay, nullptr);
     vinylPopAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("VINYL_POP"), *vinylPopRelay, nullptr);
+    vinylWearAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("VINYL_WEAR"), *vinylWearRelay, nullptr);
     // Packet
     packetEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("PACKET_ENABLE"), *packetEnableRelay, nullptr);
@@ -307,6 +321,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("PACKET_BURST"), *packetBurstRelay, nullptr);
     packetConcealAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.apvts.getParameter("PACKET_CONCEAL"), *packetConcealRelay, nullptr);
+    packetComfortAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("PACKET_COMFORT"), *packetComfortRelay, nullptr);
     // Codec
     codecEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CODEC_ENABLE"), *codecEnableRelay, nullptr);
@@ -314,6 +330,10 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("CODEC_MODE"), *codecModeRelay, nullptr);
     codecMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("CODEC_MIX"), *codecMixRelay, nullptr);
+    codecNoiseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("CODEC_NOISE"), *codecNoiseRelay, nullptr);
+    codecMainsAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *audioProcessor.apvts.getParameter("CODEC_MAINS"), *codecMainsRelay, nullptr);
     // Crush
     crushEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CRUSH_ENABLE"), *crushEnableRelay, nullptr);

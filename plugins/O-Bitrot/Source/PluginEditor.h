@@ -45,7 +45,7 @@ private:
     // Attachments call into the WebView on destruction, so they MUST die first.
     // ========================================================================
 
-    // 1. RELAYS (no dependencies) — 31 total: 19 slider / 7 toggle / 5 combo
+    // 1. RELAYS (no dependencies) — 38 total: 25 slider / 7 toggle / 6 combo
     // Tape
     std::unique_ptr<juce::WebToggleButtonRelay> tapeEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       tapeProbRelay;
@@ -53,6 +53,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay>       tapeRampRelay;
     std::unique_ptr<juce::WebSliderRelay>       tapeDropRelay;
     std::unique_ptr<juce::WebSliderRelay>       tapeWowRelay;
+    std::unique_ptr<juce::WebSliderRelay>       tapeHissRelay;
     // CD Skip
     std::unique_ptr<juce::WebToggleButtonRelay> cdEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       cdProbRelay;
@@ -63,15 +64,19 @@ private:
     std::unique_ptr<juce::WebSliderRelay>       vinylProbRelay;
     std::unique_ptr<juce::WebComboBoxRelay>     vinylRpmRelay;
     std::unique_ptr<juce::WebSliderRelay>       vinylPopRelay;
+    std::unique_ptr<juce::WebSliderRelay>       vinylWearRelay;
     // Packet
     std::unique_ptr<juce::WebToggleButtonRelay> packetEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       packetLossRelay;
     std::unique_ptr<juce::WebSliderRelay>       packetBurstRelay;
     std::unique_ptr<juce::WebComboBoxRelay>     packetConcealRelay;
+    std::unique_ptr<juce::WebSliderRelay>       packetComfortRelay;
     // Codec
     std::unique_ptr<juce::WebToggleButtonRelay> codecEnableRelay;
     std::unique_ptr<juce::WebComboBoxRelay>     codecModeRelay;
     std::unique_ptr<juce::WebSliderRelay>       codecMixRelay;
+    std::unique_ptr<juce::WebSliderRelay>       codecNoiseRelay;
+    std::unique_ptr<juce::WebComboBoxRelay>     codecMainsRelay;
     // Crush
     std::unique_ptr<juce::WebToggleButtonRelay> crushEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       crushBitsRelay;
@@ -98,6 +103,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment>       tapeRampAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       tapeDropAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       tapeWowAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       tapeHissAttachment;
     // CD Skip
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> cdEnableAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       cdProbAttachment;
@@ -108,15 +114,19 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment>       vinylProbAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     vinylRpmAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       vinylPopAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       vinylWearAttachment;
     // Packet
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> packetEnableAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       packetLossAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       packetBurstAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     packetConcealAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       packetComfortAttachment;
     // Codec
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> codecEnableAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     codecModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       codecMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       codecNoiseAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment>     codecMainsAttachment;
     // Crush
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> crushEnableAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       crushBitsAttachment;

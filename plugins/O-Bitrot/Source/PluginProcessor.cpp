@@ -337,6 +337,61 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::creat
         "%"
     ));
 
+    // ========================================================================
+    // MEDIA NOISE BEDS — v1.5.0 additions (5)
+    //
+    // Appended for the same reason the v1.4.0 pair was: layout order IS the
+    // automation-slot order a host presents, so inserting these into their
+    // family blocks would shift every parameter behind them and silently
+    // repoint saved automation lanes. Everything else (APVTS state, the preset
+    // bank, the WebView bindings) is keyed by parameter ID.
+    //
+    // All five default to their transparent value — 0 for the four levels,
+    // and CODEC_MAINS is inert while CODEC_NOISE is 0 — so a v1.4.0 session or
+    // preset renders bit-identically. CODEC_MAINS is a NEW choice parameter
+    // rather than an appended choice on an existing one, so no saved
+    // normalised value is repointed and no preset migration gate is needed.
+    // ========================================================================
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "TAPE_HISS", 1 },
+        "Tape Hiss",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "VINYL_WEAR", 1 },
+        "Vinyl Wear",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "CODEC_NOISE", 1 },
+        "Line Noise",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "CODEC_MAINS", 1 },
+        "Mains Frequency",
+        juce::StringArray { "50 Hz", "60 Hz" },
+        0  // Default: 50 Hz
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "PACKET_COMFORT", 1 },
+        "Comfort Noise",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
     return layout;
 }
 
@@ -362,6 +417,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     tapeRampParam     = apvts.getRawParameterValue("TAPE_RAMP");
     tapeDropParam     = apvts.getRawParameterValue("TAPE_DROP");
     tapeWowParam      = apvts.getRawParameterValue("TAPE_WOW");
+    tapeHissParam     = apvts.getRawParameterValue("TAPE_HISS");
 
     // CD Skip
     cdEnableParam   = apvts.getRawParameterValue("CD_ENABLE");
@@ -374,17 +430,21 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     vinylProbParam   = apvts.getRawParameterValue("VINYL_PROB");
     vinylRpmParam    = apvts.getRawParameterValue("VINYL_RPM");
     vinylPopParam    = apvts.getRawParameterValue("VINYL_POP");
+    vinylWearParam   = apvts.getRawParameterValue("VINYL_WEAR");
 
     // Packet Loss
     packetEnableParam  = apvts.getRawParameterValue("PACKET_ENABLE");
     packetLossParam    = apvts.getRawParameterValue("PACKET_LOSS");
     packetBurstParam   = apvts.getRawParameterValue("PACKET_BURST");
     packetConcealParam = apvts.getRawParameterValue("PACKET_CONCEAL");
+    packetComfortParam = apvts.getRawParameterValue("PACKET_COMFORT");
 
     // Codec
     codecEnableParam = apvts.getRawParameterValue("CODEC_ENABLE");
     codecModeParam   = apvts.getRawParameterValue("CODEC_MODE");
     codecMixParam    = apvts.getRawParameterValue("CODEC_MIX");
+    codecNoiseParam  = apvts.getRawParameterValue("CODEC_NOISE");
+    codecMainsParam  = apvts.getRawParameterValue("CODEC_MAINS");
 
     // Crush
     crushEnableParam = apvts.getRawParameterValue("CRUSH_ENABLE");
@@ -399,14 +459,14 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     // parameter's own NormalisableRange below — raw-fraction authoring would
     // ignore the skew on CLOCK_FREE_RATE (centre 1.414 Hz) and CRUSH_RATE
     // (centre 3162 Hz). Choice params are authored as the INDEX; bools as
-    // 0/1; SEED as the integer. Every preset lists all 33 param IDs (defense
+    // 0/1; SEED as the integer. Every preset lists all 38 param IDs (defense
     // in depth over the module's WR-01 reset-to-defaults). No customState —
     // SEED is an APVTS param and O-Bitrot has no non-parameter state.
     // Coverage: one showcase per family (1-6), sync (2,4,5,7) + free (1,3,8)
     // clocking, extreme (7) + subtle (8) combos, HARD_EDGES exercised (7),
     // both codec modes (5 GSM, 7 Mu-law).
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
-        { "Worn Cassette",   // Tape showcase — wow, drag, occasional full stop
+        { "Worn Cassette",   // Tape showcase — hiss, wow, drag, occasional full stop
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.2f },
             { "SEED", 1111.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 45.0f }, { "TAPE_STOP_PROB", 12.0f }, { "TAPE_RAMP", 260.0f },
@@ -416,7 +476,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
             { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
-            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 45.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
 
         { "Skipping Disc",   // CD showcase — machine-gun buffer loops, restart chirps
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -428,9 +490,11 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
             { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
-            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
 
-        { "Locked Groove",   // Vinyl showcase — revolution jumps, heavy pops, groove holds
+        { "Locked Groove",   // Vinyl showcase — worn surface, revolution jumps, heavy pops
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.4f },
             { "SEED", 3333.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
@@ -440,9 +504,11 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
             { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
-            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 55.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
 
-        { "Dropped Call",    // Packet showcase — bursty robotic loss
+        { "Dropped Call",    // Packet showcase — bursty robotic loss over comfort noise
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 4444.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
@@ -452,9 +518,11 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 65.0f }, { "PACKET_BURST", 65.0f }, { "PACKET_CONCEAL", 1.0f },
             { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
-            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 45.0f } } },
 
-        { "Cellphone 1998",  // Codec showcase — GSM crunch with a whiff of loss
+        { "Cellphone 1998",  // Codec showcase — GSM crunch, mains hum, a whiff of loss
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 4.0f }, { "CLOCK_FREE_RATE", 2.0f },
             { "SEED", 5555.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
             { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
@@ -464,7 +532,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 12.0f }, { "PACKET_BURST", 40.0f }, { "PACKET_CONCEAL", 2.0f },
             { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 1.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
-            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 40.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 35.0f } } },
 
         { "Eight-Bit Ruin",  // Crush showcase — quantize + SRR + jitter, ducking envelope
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -476,7 +546,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
             { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 6.0f }, { "CRUSH_RATE", 11025.0f },
-            { "CRUSH_JITTER", 15.0f }, { "CRUSH_ENV_AMT", -35.0f }, { "CRUSH_DITHER", 0.6f } } },
+            { "CRUSH_JITTER", 15.0f }, { "CRUSH_ENV_AMT", -35.0f }, { "CRUSH_DITHER", 0.6f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
 
         { "Total Media Failure",  // Extreme combo — everything failing at once, hard splices
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -488,7 +560,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 90.0f }, { "PACKET_BURST", 70.0f }, { "PACKET_CONCEAL", 0.0f },
             { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 4.0f }, { "CRUSH_RATE", 6000.0f },
-            { "CRUSH_JITTER", 40.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 1.0f } } },
+            { "CRUSH_JITTER", 40.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 1.0f },
+            { "TAPE_HISS", 60.0f }, { "VINYL_WEAR", 70.0f },
+            { "CODEC_NOISE", 55.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 60.0f } } },
 
         { "Gentle Rot",      // Subtle physical-media patina — mixable default-plus
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.7f },
@@ -500,7 +574,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
             { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
-            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f } } },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 22.0f }, { "VINYL_WEAR", 25.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
     };
 
     // Engineering units → normalized through each parameter's
@@ -537,6 +613,9 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     tapeDropout.prepare(sampleRate);
     tapeStopGain.prepare(sampleRate);
     wowFlutter.prepare(sampleRate);
+    tapeBed.prepare(sampleRate);
+    vinylBed.prepare(sampleRate);
+    codecBed.prepare(sampleRate);
     cdSkip.prepare(sampleRate);
     vinylTransport.prepare(sampleRate);
     artifactSynth.prepare(sampleRate);
@@ -677,7 +756,8 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                           packetBurstParam->load() * 0.01f,
                           (int) packetConcealParam->load(),
                           packetEnableParam->load() > 0.5f,
-                          hardEdges);
+                          hardEdges,
+                          packetComfortParam->load() * 0.01f);
 
     // Crush + Quant per-block snapshot (one section enable gates both).
     // Determinism convention as PacketLossStage: latch/follower + jitter and
@@ -694,9 +774,30 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // Codec per-block snapshot. No RNG in the codec path; the 8 kHz latch
     // phase and alignment rings run unconditionally (pure functions of the
     // sample count); CODEC_ENABLE rides the EnableFade rails.
-    codecStage.setParams(codecEnableParam->load() > 0.5f,
+    const bool  codecEnabled = codecEnableParam->load() > 0.5f;
+    const float codecMix01   = codecMixParam->load() * 0.01f;
+
+    codecStage.setParams(codecEnabled,
                          ((int) codecModeParam->load()) == 1,
-                         codecMixParam->load() * 0.01f);
+                         codecMix01);
+
+    // Media-noise beds (v1.5.0, brief item 4). Each level arrives already
+    // gated by its family's enable, so a family switched off fades its bed out
+    // over the bed's own ~30 ms ramp rather than stepping it to zero. At level
+    // exactly 0 every bed returns exactly 0.0f and the FUNC-02 null holds.
+    tapeBed.setParams(arbParams.tapeEnabled
+                          ? tapeHissParam->load() * 0.01f
+                          : 0.0f);
+
+    vinylBed.setParams(arbParams.vinylEnabled
+                           ? vinylWearParam->load() * 0.01f
+                           : 0.0f,
+                       arbParams.vinylRpmIndex);
+
+    codecBed.setParams(codecNoiseParam->load() * 0.01f,
+                       codecMix01,
+                       (int) codecMainsParam->load(),
+                       codecEnabled);
 
     // Wow/flutter bed depth (v1.4.0). A tape artifact, so it follows
     // TAPE_ENABLE — but it fades over WowFlutter's own multi-second depth ramp
@@ -831,12 +932,29 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         cdSkip.processSample(readHead, captureRing, hardEdges, artifactSynth, wetL, wetR);
         vinylTransport.processSample(readHead, captureRing, hardEdges, artifactSynth, rngBank);
 
-        // 6. Artifact bus (pops / ticks / chirps): mono, both channels, runs
-        //    every sample so the IIR state stays continuous. Exact 0.0f when
-        //    nothing was ever triggered (FUNC-02 preserved).
-        const float artifact = artifactSynth.renderSample();
-        wetL += artifact;
-        wetR += artifact;
+        // 6. Artifact bus (pops / ticks / chirps) plus the v1.5.0 media-noise
+        //    beds. All of it runs every sample so the IIR state stays
+        //    continuous, and all of it is exactly 0.0f when nothing has been
+        //    triggered and every bed level is 0 (FUNC-02 preserved).
+        //
+        //    Vinyl joins the mono bus for the same reason the pops do, only
+        //    more literally: one platter bearing, one stylus. Tape hiss is the
+        //    opposite case — two tracks carry two independent noise sources,
+        //    so it is stereo, and it rides TapeStopGain's speed gain because
+        //    hiss is recorded material that has to die with the transport.
+        //
+        //    Both are UPSTREAM of the packet stage on purpose: a lost packet
+        //    has to conceal the media noise along with the programme, because
+        //    on real media they are the same signal.
+        const float artifact = artifactSynth.renderSample()
+                             + vinylBed.renderSample(rngBank.get(RngBank::vinylBed));
+
+        float hissL = 0.0f, hissR = 0.0f;
+        tapeBed.renderSample(rngBank.get(RngBank::tapeBed),
+                             tapeStopGain.currentGain(), hissL, hissR);
+
+        wetL += artifact + hissL;
+        wetR += artifact + hissR;
 
         // 7. Packet loss (own 20 ms grid, GE Markov, concealment). RNG
         //    (packet stream) consumed only at packet boundaries.
@@ -848,6 +966,18 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         //    delay when disabled. ARCHITECTURE chain order:
         //    Packet -> Codec -> Crush -> Quant.
         codecStage.processSample(wetL, wetR);
+
+        // 8b. Codec media bed (v1.5.0): mains hum + line crackle, mono because
+        //     the line is mono. AFTER the codec, not on the artifact bus with
+        //     the other two: CodecStage is a 300-3400 Hz phone chain, so 50 Hz
+        //     injected in front of it is annihilated by the passband and the
+        //     hum would be inaudible at every setting. It is also where the
+        //     physics puts it — mains hum is induced on the line, not recorded
+        //     at the source. Crush and Quant still see it, which is correct:
+        //     they are the output converter, downstream of everything.
+        const float lineNoise = codecBed.renderSample(rngBank.get(RngBank::codecBed));
+        wetL += lineNoise;
+        wetR += lineNoise;
 
         // 9. Crush (fractional-hold SRR + jitter) then Quant (fractional
         //    bits + TPDF + env-driven depth) — the "output converter"

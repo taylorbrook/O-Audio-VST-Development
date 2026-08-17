@@ -22,11 +22,12 @@
 
     O-Bitrot - RngBank (Stage 2, Phase 2.1)
 
-    Nine named juce::Random streams — one per stochastic subsystem. A single
-    shared audio-thread RNG breaks block-size invariance the moment two
+    Thirteen named juce::Random streams — one per stochastic subsystem. A
+    single shared audio-thread RNG breaks block-size invariance the moment two
     subsystems interleave their draws differently at different block sizes
     (pattern_rng_stream_interleave_blocksize), so every subsystem owns a
-    stream and draws are consumed ONLY at ticks/packets in fixed roll order.
+    stream and draws are consumed either at ticks/packets in fixed roll order
+    or, for the continuous beds, on a private fixed per-sample schedule.
 
     Stream k is seeded splitmix64(SEED * 0x9E3779B97F4A7C15 + k) — decorrelated
     derived seeds from the single user SEED parameter. reseed() is called from
@@ -66,6 +67,21 @@ public:
         // instants (pattern_rng_stream_interleave_blocksize), and a private
         // stream on a sample-count schedule is block-size invariant.
         wow,
+
+        // v1.5.0. Appended for exactly the same reason, and drawn on exactly
+        // the same terms as `wow`: each media-noise bed owns a PRIVATE stream
+        // and draws a fixed count per sample on its own sample schedule. That
+        // is block-size invariant — the interleave hazard is two subsystems
+        // SHARING a stream at different block-relative instants
+        // (pattern_rng_stream_interleave_blocksize), not per-sample draws as
+        // such (crush jitter and dither have drawn per-sample since 2.4).
+        //
+        // The hum in the codec bed takes no draws at all — it is a pure
+        // function of the sample count, by design.
+        tapeBed,       // hiss (stereo: 2 draws/sample, decorrelated channels)
+        vinylBed,      // rumble + Poisson micro-ticks (mono)
+        codecBed,      // crackle bursts (mono; the mains hum is RNG-free)
+        comfort,       // packet comfort noise (stereo)
 
         numStreams
     };

@@ -40,6 +40,7 @@
 #include "dsp/TapeDropout.h"
 #include "dsp/TapeStopGain.h"
 #include "dsp/WowFlutter.h"
+#include "dsp/MediaNoise.h"
 #include "dsp/ArtifactSynth.h"
 #include "dsp/CDSkip.h"
 #include "dsp/VinylTransport.h"
@@ -108,14 +109,16 @@ private:
     std::atomic<float>* hardEdgesParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
 
-    // Tape (6 — TAPE_DROP and TAPE_WOW appended to the LAYOUT in v1.4.0; see
-    // createParameterLayout for why they are not inserted into the tape block)
+    // Tape (7 — TAPE_DROP and TAPE_WOW appended to the LAYOUT in v1.4.0,
+    // TAPE_HISS in v1.5.0; see createParameterLayout for why none of them are
+    // inserted into the tape block)
     std::atomic<float>* tapeEnableParam = nullptr;
     std::atomic<float>* tapeProbParam = nullptr;
     std::atomic<float>* tapeStopProbParam = nullptr;
     std::atomic<float>* tapeRampParam = nullptr;
     std::atomic<float>* tapeDropParam = nullptr;
     std::atomic<float>* tapeWowParam = nullptr;
+    std::atomic<float>* tapeHissParam = nullptr;
 
     // CD Skip (4)
     std::atomic<float>* cdEnableParam = nullptr;
@@ -123,22 +126,26 @@ private:
     std::atomic<float>* cdSeverityParam = nullptr;
     std::atomic<float>* cdSegmentParam = nullptr;
 
-    // Vinyl (4)
+    // Vinyl (5 — VINYL_WEAR appended in v1.5.0)
     std::atomic<float>* vinylEnableParam = nullptr;
     std::atomic<float>* vinylProbParam = nullptr;
     std::atomic<float>* vinylRpmParam = nullptr;
     std::atomic<float>* vinylPopParam = nullptr;
+    std::atomic<float>* vinylWearParam = nullptr;
 
-    // Packet Loss (4)
+    // Packet Loss (5 — PACKET_COMFORT appended in v1.5.0)
     std::atomic<float>* packetEnableParam = nullptr;
     std::atomic<float>* packetLossParam = nullptr;
     std::atomic<float>* packetBurstParam = nullptr;
     std::atomic<float>* packetConcealParam = nullptr;
+    std::atomic<float>* packetComfortParam = nullptr;
 
-    // Codec (3)
+    // Codec (5 — CODEC_NOISE and CODEC_MAINS appended in v1.5.0)
     std::atomic<float>* codecEnableParam = nullptr;
     std::atomic<float>* codecModeParam = nullptr;
     std::atomic<float>* codecMixParam = nullptr;
+    std::atomic<float>* codecNoiseParam = nullptr;
+    std::atomic<float>* codecMainsParam = nullptr;
 
     // Crush (6)
     std::atomic<float>* crushEnableParam = nullptr;
@@ -166,6 +173,9 @@ private:
     TapeDropout    tapeDropout;      // v1.4.0: oxide-shed level+HF dip
     TapeStopGain   tapeStopGain;     // v1.4.0: output dies with tape speed
     WowFlutter     wowFlutter;       // v1.4.0: continuous speed-modulation bed
+    TapeBed        tapeBed;          // v1.5.0: stereo hiss, rides transport speed
+    VinylBed       vinylBed;         // v1.5.0: rumble + Poisson micro-ticks
+    CodecBed       codecBed;         // v1.5.0: mains hum + line crackle
     CDSkip         cdSkip;           // Phase 2.2
     VinylTransport vinylTransport;   // Phase 2.2
     ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps

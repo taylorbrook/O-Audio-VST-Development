@@ -236,7 +236,7 @@ void setParam (OBitrotAudioProcessor& proc, const char* id, float engineeringVal
         std::printf ("  !! unknown param id '%s'\n", id);
 }
 
-/** Resets ALL 33 parameters to the parameter-spec defaults. Traps: the
+/** Resets ALL 38 parameters to the parameter-spec defaults. Traps: the
     neutral value is often not the range minimum (CRUSH_BITS 16, CRUSH_RATE
     20000, MIX 100); the latching params (the six *_ENABLEs, HARD_EDGES)
     matter most. Called at the top of EVERY probe. */
@@ -288,6 +288,13 @@ void setBaseline (OBitrotAudioProcessor& proc)
     setParam (proc, "CRUSH_JITTER",    0.0f);
     setParam (proc, "CRUSH_ENV_AMT",   0.0f);
     setParam (proc, "CRUSH_DITHER",    0.0f);
+
+    // Media noise beds (5) — v1.5.0, every one transparent at 0
+    setParam (proc, "TAPE_HISS",       0.0f);
+    setParam (proc, "VINYL_WEAR",      0.0f);
+    setParam (proc, "CODEC_NOISE",     0.0f);
+    setParam (proc, "CODEC_MAINS",     0.0f);      // 50 Hz
+    setParam (proc, "PACKET_COMFORT",  0.0f);
 }
 
 //==============================================================================
@@ -892,12 +899,157 @@ void configureCanonicalRender (OBitrotAudioProcessor& proc)
     setParam (proc, "VINYL_PROB",      60.0f);
 }
 
+/** Canonical render #2 (added v1.5.0): the SERIAL POST-STAGES, which the
+    v1.3.0 canonical render above leaves switched off entirely. The transport
+    families are silent here so the only things under test are the packet
+    stage (which v1.5.0 threads comfort noise through) and the codec stage
+    (which v1.5.0 now injects a bed after).
+
+    It deliberately touches NO v1.5.0 parameter and relies on their defaults
+    being transparent, which is exactly what makes it compile and run against
+    the v1.4.0 tree — where the digest asserted in probe N7 came from. */
+void configureCanonicalPostRender (OBitrotAudioProcessor& proc)
+{
+    setBaseline (proc);
+    setParam (proc, "CLOCK_MODE",      1.0f);    // Free
+    setParam (proc, "CLOCK_FREE_RATE", 3.0f);
+    setParam (proc, "SEED",            777.0f);
+    setParam (proc, "TAPE_ENABLE",     0.0f);
+    setParam (proc, "CD_ENABLE",       0.0f);
+    setParam (proc, "VINYL_ENABLE",    0.0f);
+    setParam (proc, "PACKET_ENABLE",   1.0f);
+    setParam (proc, "PACKET_LOSS",     45.0f);
+    setParam (proc, "PACKET_BURST",    70.0f);
+    setParam (proc, "PACKET_CONCEAL",  2.0f);    // Decay
+    setParam (proc, "CODEC_ENABLE",    1.0f);
+    setParam (proc, "CODEC_MODE",      0.0f);    // Mu-law
+    setParam (proc, "CODEC_MIX",       100.0f);
+}
+
 /** Dual-mono input: same signal on every channel, so a (1,1) run and a (2,2)
     run see literally identical per-sample engine inputs. */
 float noiseDualMono (int ch, int n) noexcept
 {
     juce::ignoreUnused (ch);
     return noiseAt (n);
+}
+
+//==============================================================================
+// ── v1.5.0 helpers: the media-noise beds are measured, not eyeballed ─────────
+
+/** Digital silence. The beds are the ONLY thing in the output under this
+    input, so their levels can be read directly rather than separated from a
+    programme. */
+float silentInput (int ch, int n) noexcept
+{
+    juce::ignoreUnused (ch, n);
+    return 0.0f;
+}
+
+/** Fresh processor at an arbitrary sample rate — the beds claim sample-rate
+    invariance, and that claim needs a second rate to be worth anything. */
+std::unique_ptr<OBitrotAudioProcessor> makeProcAtRate (double fs)
+{
+    auto p = std::make_unique<OBitrotAudioProcessor>();
+    p->setPlayConfigDetails (2, 2, fs, kMaxBlock);
+    p->prepareToPlay (fs, kMaxBlock);
+    setBaseline (*p);
+    return p;
+}
+
+double rmsOf (const juce::AudioBuffer<float>& b, int ch, int from, int len)
+{
+    const auto* p = b.getReadPointer (ch);
+    double acc = 0.0;
+
+    for (int n = from; n < from + len; ++n)
+        acc += (double) p[n] * (double) p[n];
+
+    return std::sqrt (acc / (double) juce::jmax (1, len));
+}
+
+/** RMS after two one-pole lowpasses at `hz`, and RMS of the complement.
+
+    Two one-poles are not a brick wall, but the split only has to separate
+    55 Hz rumble from 2-6 kHz ticks — six octaves at -12 dB/oct is 72 dB of
+    rejection, so each band reads its own contributor and nothing else. */
+void splitBandRms (const juce::AudioBuffer<float>& b, int ch, int from, int len,
+                   double hz, double fs, double& lowRms, double& highRms,
+                   double& highPeak)
+{
+    const auto* p = b.getReadPointer (ch);
+    const double a = 1.0 - std::exp (-2.0 * juce::MathConstants<double>::pi * hz / fs);
+
+    double lp1 = 0.0, lp2 = 0.0, accLow = 0.0, accHigh = 0.0, peak = 0.0;
+
+    for (int n = from; n < from + len; ++n)
+    {
+        const double x = (double) p[n];
+        lp1 += a * (x   - lp1);
+        lp2 += a * (lp1 - lp2);
+
+        const double hi = x - lp2;
+
+        accLow  += lp2 * lp2;
+        accHigh += hi * hi;
+        peak     = juce::jmax (peak, std::abs (hi));
+    }
+
+    const double inv = 1.0 / (double) juce::jmax (1, len);
+    lowRms   = std::sqrt (accLow  * inv);
+    highRms  = std::sqrt (accHigh * inv);
+    highPeak = peak;
+}
+
+/** Amplitude of a single frequency by Goertzel. Callers pick `len` so the
+    frequency lands on an exact bin (len = fs/2 gives 2 Hz spacing, which is
+    integral for 50, 60 and all their harmonics here) — off-bin leakage would
+    otherwise be indistinguishable from the partial being absent. */
+double toneAmplitude (const juce::AudioBuffer<float>& b, int ch, int from, int len,
+                      double hz, double fs)
+{
+    const auto*  p = b.getReadPointer (ch);
+    const double w = 2.0 * juce::MathConstants<double>::pi * hz / fs;
+    const double c = 2.0 * std::cos (w);
+
+    double s1 = 0.0, s2 = 0.0;
+
+    for (int n = from; n < from + len; ++n)
+    {
+        const double s = (double) p[n] + c * s1 - s2;
+        s2 = s1;
+        s1 = s;
+    }
+
+    const double re = s1 - s2 * std::cos (w);
+    const double im = s2 * std::sin (w);
+
+    return 2.0 * std::sqrt (re * re + im * im) / (double) juce::jmax (1, len);
+}
+
+/** Normalised L/R correlation. Tape hiss is two tracks and must NOT be a
+    centred mono buzz. */
+double channelCorrelation (const juce::AudioBuffer<float>& b, int from, int len)
+{
+    const auto* l = b.getReadPointer (0);
+    const auto* r = b.getReadPointer (1);
+
+    double sxy = 0.0, sxx = 0.0, syy = 0.0;
+
+    for (int n = from; n < from + len; ++n)
+    {
+        sxy += (double) l[n] * (double) r[n];
+        sxx += (double) l[n] * (double) l[n];
+        syy += (double) r[n] * (double) r[n];
+    }
+
+    const double denom = std::sqrt (sxx * syy);
+    return denom > 0.0 ? sxy / denom : 0.0;
+}
+
+double toDb (double linear)
+{
+    return 20.0 * std::log10 (juce::jmax (1.0e-12, linear));
 }
 
 } // namespace
@@ -3841,6 +3993,611 @@ int main()
                               : firstDifference (outA, outC))
                        + (live ? "" : " — SILENT, probe vacuous"));
         }
+    }
+
+    //==========================================================================
+    // ── v1.5.0: improvement brief items 4 and 19 ─────────────────────────────
+    //==========================================================================
+
+    //==========================================================================
+    // N1 — item 4, vinyl: rumble level and the micro-tick rain, measured on
+    // DIGITAL SILENCE so the bed is the only thing in the output.
+    //
+    // VINYL_PROB is 0, so no jump event — and therefore no ArtifactSynth pop —
+    // can fire. The 80 Hz band split then separates the bed's two contributors
+    // (55 Hz rumble below, 2-6 kHz ticks above) so neither can stand in for the
+    // other: a probe on total RMS alone would pass on rumble with no ticks.
+    //
+    // The high-band CREST FACTOR is the assertion that the amplitude law is
+    // actually a power law. Gaussian noise crests around 4; a rain of ticks
+    // whose amplitude is a cubed uniform — many tiny, rare large — crests far
+    // higher. A bed that emitted uniform-amplitude clicks would pass a rate
+    // check and fail this.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",  0.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 1.0f);
+        setParam (*p, "VINYL_PROB",   0.0f);
+        setParam (*p, "VINYL_POP",    0.0f);
+        setParam (*p, "VINYL_WEAR",   100.0f);
+
+        const int total = (int) (8.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, silentInput);
+
+        const int startAt = (int) (0.5 * kFs);          // past the level ramp
+        const int len     = total - startAt;
+
+        double lowRms = 0.0, highRms = 0.0, highPeak = 0.0;
+        splitBandRms (out, 0, startAt, len, 80.0, kFs, lowRms, highRms, highPeak);
+
+        const double targetDb = toDb (VinylBed::kRumbleFullRms);
+        const double crest    = highRms > 0.0 ? highPeak / highRms : 0.0;
+
+        const bool rumbleOk = std::abs (toDb (lowRms) - targetDb) <= 1.0;
+        const bool ticksOk  = highRms > 1.0e-5;
+        const bool powerLaw = crest >= 8.0;
+
+        check ("N1 vinyl-bed-levels", rumbleOk && ticksOk && powerLaw,
+               juce::String ("rumble ") + juce::String (toDb (lowRms), 2)
+                   + " dBFS (target " + juce::String (targetDb, 2) + " +/- 1), ticks "
+                   + juce::String (toDb (highRms), 2) + " dBFS, crest "
+                   + juce::String (crest, 2)
+                   + (rumbleOk ? "" : " — RUMBLE OFF TARGET")
+                   + (ticksOk  ? "" : " — NO TICKS, probe half vacuous")
+                   + (powerLaw ? "" : " — TICK AMPLITUDES ARE NOT POWER-LAW"));
+    }
+
+    //==========================================================================
+    // N1b — the vinyl bed's transparency rail. Same render at VINYL_WEAR 0 must
+    // be EXACTLY digital zero, not merely quiet: that exactness is what keeps
+    // the FUNC-02 null intact at the shipped default.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",  0.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 1.0f);
+        setParam (*p, "VINYL_PROB",   0.0f);
+        setParam (*p, "VINYL_WEAR",   0.0f);
+
+        const int total = (int) (2.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, silentInput);
+
+        bool allZero = true;
+        int  firstNz = -1;
+
+        for (int ch = 0; ch < 2 && allZero; ++ch)
+            for (int n = 0; n < total; ++n)
+                if (! bitExact (out.getSample (ch, n), 0.0f))
+                {
+                    allZero = false;
+                    firstNz = n;
+                    break;
+                }
+
+        check ("N1b vinyl-bed-zero-rail", allZero,
+               allZero ? juce::String ("bit-exact zero over the whole render")
+                       : juce::String ("first non-zero @") + juce::String (firstNz)
+                             + " — BED LEAKS AT WEAR 0");
+    }
+
+    //==========================================================================
+    // N2 — item 4, tape: hiss level and stereo width, again on silence with
+    // TAPE_PROB 0 so no tape event can fire.
+    //
+    // The correlation bound is the load-bearing half. Two tape tracks carry two
+    // independent noise sources; a mono bed added to both channels would hit
+    // the level target exactly and still sound like a centred buzz, so level
+    // alone cannot tell the two implementations apart.
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",  1.0f);
+        setParam (*p, "TAPE_PROB",    0.0f);
+        setParam (*p, "TAPE_HISS",    100.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 0.0f);
+
+        const int total = (int) (8.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, silentInput);
+
+        const int startAt = (int) (0.5 * kFs);
+        const int len     = total - startAt;
+
+        const double rms      = rmsOf (out, 0, startAt, len);
+        const double corr     = channelCorrelation (out, startAt, len);
+        const double targetDb = toDb (TapeBed::kHissFullRms);
+
+        const bool levelOk = std::abs (toDb (rms) - targetDb) <= 1.0;
+        const bool wideOk  = std::abs (corr) < 0.15;
+
+        check ("N2 tape-hiss-level", levelOk && wideOk,
+               juce::String ("hiss ") + juce::String (toDb (rms), 2)
+                   + " dBFS (target " + juce::String (targetDb, 2) + " +/- 1), L/R corr "
+                   + juce::String (corr, 3)
+                   + (levelOk ? "" : " — HISS OFF TARGET")
+                   + (wideOk  ? "" : " — CHANNELS CORRELATED, hiss is mono"));
+    }
+
+    //==========================================================================
+    // N2c — hiss rides tape speed: a full stop mutes the bed along with the
+    // programme, because hiss is recorded material and not a synthetic layer
+    // bolted on top.
+    //
+    // Its DISCRIMINATOR is N2d below, not a liveness check: on silence the bed
+    // is the only signal, so "it got quiet somewhere" is worthless without a
+    // render that must NOT get quiet.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 1.0f);   // a stop every second
+        setParam (*p, "TAPE_ENABLE",     1.0f);
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  100.0f);
+        setParam (*p, "TAPE_RAMP",       150.0f);
+        setParam (*p, "TAPE_HISS",       100.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int total = (int) (5.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, silentInput);
+
+        const auto* o   = out.getReadPointer (0);
+        const int   win = (int) (0.032 * kFs);
+        const int   startAt = (int) (0.5 * kFs);
+
+        double minPeak = 10.0, maxPeak = 0.0;
+
+        for (int n = startAt; n + win <= total; n += win / 2)
+        {
+            double peak = 0.0;
+            for (int k = 0; k < win; ++k)
+                peak = juce::jmax (peak, std::abs ((double) o[n + k]));
+
+            minPeak = juce::jmin (minPeak, peak);
+            maxPeak = juce::jmax (maxPeak, peak);
+        }
+
+        const double ratio = maxPeak > 0.0 ? minPeak / maxPeak : 1.0;
+
+        const bool mutes = ratio <= 0.10;
+        const bool live  = maxPeak > 1.0e-4;
+
+        check ("N2c hiss-dies-with-speed", mutes && live,
+               juce::String ("quietest/loudest 32 ms peak ") + juce::String (ratio, 4)
+                   + " (need <= 0.10), loudest " + juce::String (maxPeak, 6)
+                   + (mutes ? "" : " — HISS RUNS THROUGH THE STOP")
+                   + (live  ? "" : " — SILENT EVERYWHERE, probe vacuous"));
+    }
+
+    //==========================================================================
+    // N2d — N2c's discriminator. Same forced tape events with the stop share at
+    // 0, so only BENDS fire and TapeStopGain is never armed. Without this, N2c
+    // would pass just as happily against a bed that ducked for any reason at
+    // all — or against one that simply ran out of level.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 1.0f);
+        setParam (*p, "TAPE_ENABLE",     1.0f);
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  0.0f);   // bends only
+        setParam (*p, "TAPE_HISS",       100.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int total = (int) (5.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, silentInput);
+
+        const auto* o   = out.getReadPointer (0);
+        const int   win = (int) (0.032 * kFs);
+        const int   startAt = (int) (0.5 * kFs);
+
+        double minPeak = 10.0, maxPeak = 0.0;
+
+        for (int n = startAt; n + win <= total; n += win / 2)
+        {
+            double peak = 0.0;
+            for (int k = 0; k < win; ++k)
+                peak = juce::jmax (peak, std::abs ((double) o[n + k]));
+
+            minPeak = juce::jmin (minPeak, peak);
+            maxPeak = juce::jmax (maxPeak, peak);
+        }
+
+        const double ratio = maxPeak > 0.0 ? minPeak / maxPeak : 0.0;
+        const bool   flat  = ratio >= 0.30;
+
+        check ("N2d bends-keep-hiss", flat,
+               juce::String ("quietest/loudest 32 ms peak ") + juce::String (ratio, 4)
+                   + " (need >= 0.30 — bends must NOT mute the bed)"
+                   + (flat ? "" : " — SPEED COUPLING LEAKED ONTO BENDS"));
+    }
+
+    //==========================================================================
+    // N3 — item 4, codec: the mains hum is at the mains frequency, carries its
+    // two harmonics, and FOLLOWS CODEC_MAINS.
+    //
+    // Goertzel windows are sized so 50, 60 and every harmonic land on exact
+    // bins (fs/2 samples = 2 Hz spacing); off-bin leakage would otherwise be
+    // indistinguishable from a partial that is not there. The off-partial
+    // control at 137 Hz is what makes "there is energy at 50 Hz" mean
+    // something more than "there is energy".
+    {
+        auto measure = [&] (int mainsIndex, double& f0, double& h2, double& h3,
+                            double& off, double& other)
+        {
+            auto p = makeProc();
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "CODEC_ENABLE", 1.0f);
+            setParam (*p, "CODEC_MIX",    100.0f);
+            setParam (*p, "CODEC_NOISE",  100.0f);
+            setParam (*p, "CODEC_MAINS",  (float) mainsIndex);
+
+            const int total = (int) (4.0 * kFs);
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, silentInput);
+
+            const int startAt = (int) (1.0 * kFs);
+            const int len     = (int) (kFs / 2.0);          // 2 Hz bins
+
+            const double mains = mainsIndex == 1 ? CodecBed::kHum60Hz : CodecBed::kHum50Hz;
+            const double alt   = mainsIndex == 1 ? CodecBed::kHum50Hz : CodecBed::kHum60Hz;
+
+            f0    = toneAmplitude (out, 0, startAt, len, mains,       kFs);
+            h2    = toneAmplitude (out, 0, startAt, len, 2.0 * mains, kFs);
+            h3    = toneAmplitude (out, 0, startAt, len, 3.0 * mains, kFs);
+            off   = toneAmplitude (out, 0, startAt, len, 137.0,       kFs);
+            other = toneAmplitude (out, 0, startAt, len, alt,         kFs);
+        };
+
+        double f0 = 0, h2 = 0, h3 = 0, off = 0, other = 0;
+        measure (0, f0, h2, h3, off, other);
+
+        // Expected fundamental amplitude: the partial sum is normalised to
+        // unity RMS, so the fundamental's own amplitude is kHumNorm * kHumFullRms.
+        const double expected = (double) CodecBed::kHumNorm * (double) CodecBed::kHumFullRms;
+
+        const bool level50   = std::abs (toDb (f0) - toDb (expected)) <= 2.0;
+        const bool harmonics = h2 > 0.25 * f0 && h3 > 0.12 * f0;
+        const bool clean50   = f0 > 20.0 * off;
+        const bool picked50  = f0 > 8.0 * other;
+
+        check ("N3 codec-hum-50", level50 && harmonics && clean50 && picked50,
+               juce::String ("50 Hz ") + juce::String (toDb (f0), 2)
+                   + " dBFS (expected " + juce::String (toDb (expected), 2) + " +/- 2), 100/150 Hz "
+                   + juce::String (h2 / juce::jmax (1.0e-12, f0), 3) + "/"
+                   + juce::String (h3 / juce::jmax (1.0e-12, f0), 3)
+                   + " of f0, 137 Hz control " + juce::String (toDb (off), 1) + " dBFS"
+                   + (level50   ? "" : " — HUM OFF TARGET")
+                   + (harmonics ? "" : " — HARMONICS MISSING")
+                   + (clean50   ? "" : " — BROADBAND, NOT A HUM")
+                   + (picked50  ? "" : " — 60 Hz PRESENT AT THE 50 Hz SETTING"));
+
+        double g0 = 0, g2 = 0, g3 = 0, goff = 0, gother = 0;
+        measure (1, g0, g2, g3, goff, gother);
+
+        const bool picked60 = g0 > 8.0 * gother;
+
+        check ("N3b codec-hum-60", picked60,
+               juce::String ("60 Hz ") + juce::String (toDb (g0), 2)
+                   + " dBFS vs 50 Hz " + juce::String (toDb (gother), 2) + " dBFS"
+                   + (picked60 ? "" : " — CODEC_MAINS DOES NOT MOVE THE HUM"));
+    }
+
+    //==========================================================================
+    // N4 — every bed at 96 kHz sits where it sits at 48 kHz.
+    //
+    // This is the probe the beds' whole normalisation scheme exists for.
+    // Filtering white noise to a fixed bandwidth in Hz gives output power
+    // proportional to that bandwidth over fs, so a bed calibrated with a bare
+    // constant is 3 dB quieter every time the rate doubles — inaudible in the
+    // one render anybody tests, and wrong for every user at 96 kHz.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "TAPE_ENABLE",  1.0f);
+            setParam (proc, "TAPE_PROB",    0.0f);
+            setParam (proc, "TAPE_HISS",    100.0f);
+            setParam (proc, "CD_ENABLE",    0.0f);
+            setParam (proc, "VINYL_ENABLE", 1.0f);
+            setParam (proc, "VINYL_PROB",   0.0f);
+            setParam (proc, "VINYL_POP",    0.0f);
+            setParam (proc, "VINYL_WEAR",   100.0f);
+            setParam (proc, "CODEC_ENABLE", 1.0f);
+            setParam (proc, "CODEC_NOISE",  100.0f);
+        };
+
+        auto measureAt = [&] (double fs)
+        {
+            auto p = makeProcAtRate (fs);
+            configure (*p);
+
+            const int total = (int) (8.0 * fs);
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, silentInput);
+
+            const int startAt = (int) (1.0 * fs);
+            return rmsOf (out, 0, startAt, total - startAt);
+        };
+
+        const double rms48 = measureAt (48000.0);
+        const double rms96 = measureAt (96000.0);
+        const double delta = toDb (rms96) - toDb (rms48);
+
+        const bool invariant = std::abs (delta) <= 1.5;
+        const bool live      = rms48 > 1.0e-5;
+
+        check ("N4 bed-rate-invariance", invariant && live,
+               juce::String ("48 kHz ") + juce::String (toDb (rms48), 2)
+                   + " dBFS, 96 kHz " + juce::String (toDb (rms96), 2)
+                   + " dBFS, delta " + juce::String (delta, 2) + " dB (bound 1.5)"
+                   + (invariant ? "" : " — BEDS ARE SAMPLE-RATE DEPENDENT")
+                   + (live      ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // N5 — item 19: comfort noise fills the hole that extended concealment
+    // leaves.
+    //
+    // The measurement is a DIFFERENCE of two renders at the same seed, one at
+    // PACKET_COMFORT 0 and one at 100, so what is measured is the bed itself
+    // and not the concealment around it. Silence mode makes the negative
+    // control exact: at comfort 0 a lost packet is bit-exact digital zero, and
+    // the length of the longest zero run is the size of the hole the item
+    // exists to fill. If that run were short the probe would be measuring
+    // nothing, so it is asserted too.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc, float comfort)
+        {
+            setBaseline (proc);
+            setParam (proc, "SEED",            2024.0f);
+            setParam (proc, "TAPE_ENABLE",     0.0f);
+            setParam (proc, "CD_ENABLE",       0.0f);
+            setParam (proc, "VINYL_ENABLE",    0.0f);
+            setParam (proc, "PACKET_ENABLE",   1.0f);
+            setParam (proc, "PACKET_LOSS",     85.0f);
+            setParam (proc, "PACKET_BURST",    100.0f);
+            setParam (proc, "PACKET_CONCEAL",  0.0f);   // Silence
+            setParam (proc, "PACKET_COMFORT",  comfort);
+        };
+
+        const int total = (int) (8.0 * kFs);
+
+        auto a = makeProc();  configure (*a, 0.0f);
+        auto b = makeProc();  configure (*b, 100.0f);
+
+        juce::AudioBuffer<float> off, on;
+        renderInto (*a, off, total, { 512 }, sineStereo);
+        renderInto (*b, on,  total, { 512 }, sineStereo);
+
+        const auto* zo = off.getReadPointer (0);
+        const auto* zn = on.getReadPointer (0);
+
+        const int startAt = kComp + (int) (0.5 * kFs);
+
+        // Longest exact-zero run, and the RMS of the bed measured only DEEP
+        // inside such runs — the ramp takes one packet to arrive, so sampling
+        // the first 40 ms of a hole would report a number the law never claims.
+        int    run = 0, longestRun = 0;
+        double acc = 0.0;
+        int    cnt = 0;
+
+        const int deepAt = (int) (0.040 * kFs);
+
+        for (int n = startAt; n < total; ++n)
+        {
+            if (bitExact (zo[n], 0.0f))
+            {
+                ++run;
+                longestRun = juce::jmax (longestRun, run);
+
+                if (run >= deepAt)
+                {
+                    const double d = (double) zn[n] - (double) zo[n];
+                    acc += d * d;
+                    ++cnt;
+                }
+            }
+            else
+            {
+                run = 0;
+            }
+        }
+
+        const double cnRms = cnt > 0 ? std::sqrt (acc / (double) cnt) : 0.0;
+
+        // Expected: kMaxRelative (the knob is at 100%, so the squaring law is
+        // the identity) below the tracked programme RMS, which for a full-scale
+        // sine at kSineAmp is kSineAmp / sqrt(2).
+        const double programRms = (double) kSineAmp / juce::MathConstants<double>::sqrt2;
+        const double expected   = programRms * (double) ComfortNoise::kMaxRelative;
+
+        const bool holeExists = longestRun >= 3 * (int) (0.020 * kFs);
+        const bool measured   = cnt > 1000;
+        const bool levelOk    = std::abs (toDb (cnRms) - toDb (expected)) <= 4.0;
+
+        check ("N5 comfort-noise-level", holeExists && measured && levelOk,
+               juce::String ("longest silent run ") + juce::String (longestRun)
+                   + " samples, bed " + juce::String (toDb (cnRms), 2)
+                   + " dBFS over " + juce::String (cnt) + " samples (expected "
+                   + juce::String (toDb (expected), 2) + " +/- 4)"
+                   + (holeExists ? "" : " — NO EXTENDED BURST, probe vacuous")
+                   + (measured   ? "" : " — TOO FEW DEEP SAMPLES, probe vacuous")
+                   + (levelOk    ? "" : " — COMFORT BED OFF TARGET"));
+
+        // The negative control is already in hand: `off` must be bit-exact
+        // zero across those runs (it is, by construction of the loop above),
+        // and `on` must NOT be. Stating it makes the pass mean something.
+        bool onIsQuiet = true;
+        for (int n = startAt; n < total && onIsQuiet; ++n)
+            if (bitExact (zo[n], 0.0f) && ! bitExact (zn[n], 0.0f))
+                onIsQuiet = false;
+
+        check ("N5b comfort-fills-the-hole", ! onIsQuiet,
+               onIsQuiet ? juce::String ("holes are STILL digital zero at PACKET_COMFORT 100"
+                                         " — THE BED NEVER FIRES")
+                         : juce::String ("holes carry the bed at comfort 100 and are"
+                                         " bit-exact zero at comfort 0"));
+    }
+
+    //==========================================================================
+    // N5c — the additive choice, stated as a probe: comfort noise arrives under
+    // Repeat as well, which is the mode whose conceal output never decays.
+    // Replacing rather than adding would have dissolved that mode's
+    // machine-gun identity after 60 ms.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc, float comfort)
+        {
+            setBaseline (proc);
+            setParam (proc, "SEED",           2024.0f);
+            setParam (proc, "TAPE_ENABLE",    0.0f);
+            setParam (proc, "CD_ENABLE",      0.0f);
+            setParam (proc, "VINYL_ENABLE",   0.0f);
+            setParam (proc, "PACKET_ENABLE",  1.0f);
+            setParam (proc, "PACKET_LOSS",    85.0f);
+            setParam (proc, "PACKET_BURST",   100.0f);
+            setParam (proc, "PACKET_CONCEAL", 1.0f);   // Repeat
+            setParam (proc, "PACKET_COMFORT", comfort);
+        };
+
+        const int total = (int) (6.0 * kFs);
+
+        auto a = makeProc();  configure (*a, 0.0f);
+        auto b = makeProc();  configure (*b, 100.0f);
+
+        juce::AudioBuffer<float> off, on;
+        renderInto (*a, off, total, { 512 }, sineStereo);
+        renderInto (*b, on,  total, { 512 }, sineStereo);
+
+        const int startAt = kComp + (int) (0.5 * kFs);
+        const int len     = total - startAt;
+
+        const auto* zo = off.getReadPointer (0);
+        const auto* zn = on.getReadPointer (0);
+
+        double acc = 0.0;
+        for (int n = startAt; n < total; ++n)
+        {
+            const double d = (double) zn[n] - (double) zo[n];
+            acc += d * d;
+        }
+
+        const double diffRms = std::sqrt (acc / (double) juce::jmax (1, len));
+        const double offRms  = rmsOf (off, 0, startAt, len);
+
+        // The bed is present, and it is a FLOOR rather than a replacement: the
+        // repeated packets still dominate by a wide margin.
+        const bool present = diffRms > 1.0e-5;
+        const bool under   = diffRms < 0.1 * offRms;
+
+        check ("N5c comfort-under-repeat", present && under,
+               juce::String ("bed ") + juce::String (toDb (diffRms), 2)
+                   + " dBFS under a Repeat output at " + juce::String (toDb (offRms), 2)
+                   + " dBFS"
+                   + (present ? "" : " — NO BED UNDER REPEAT")
+                   + (under   ? "" : " — BED SWAMPS THE REPEAT, not a floor"));
+    }
+
+    //==========================================================================
+    // N6 — v1.5.0 all-on determinism and block-size invariance. Four new RNG
+    // streams are now drawing per sample on their own schedules, two of them
+    // taking CONDITIONAL extra draws when a tick or a crackle burst fires. Any
+    // of that keyed to a block boundary rather than a sample count shows up
+    // here as a mismatch under ragged chopping.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+            setParam (proc, "SEED",            1505.0f);
+            setParam (proc, "TAPE_PROB",       100.0f);
+            setParam (proc, "TAPE_STOP_PROB",  30.0f);
+            setParam (proc, "TAPE_DROP",       50.0f);
+            setParam (proc, "TAPE_WOW",        75.0f);
+            setParam (proc, "TAPE_HISS",       80.0f);
+            setParam (proc, "CD_PROB",         100.0f);
+            setParam (proc, "VINYL_PROB",      100.0f);
+            setParam (proc, "VINYL_WEAR",      90.0f);
+            setParam (proc, "PACKET_ENABLE",   1.0f);
+            setParam (proc, "PACKET_LOSS",     60.0f);
+            setParam (proc, "PACKET_COMFORT",  70.0f);
+            setParam (proc, "CODEC_ENABLE",    1.0f);
+            setParam (proc, "CODEC_NOISE",     85.0f);
+        };
+
+        const int total = 96000;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+        auto c = makeProc();  configure (*c);
+
+        juce::AudioBuffer<float> outA, outB, outC;
+        renderInto (*a, outA, total, { 512 }, noiseStereo);
+        renderInto (*b, outB, total, { 512 }, noiseStereo);
+        renderInto (*c, outC, total, { 1, 7, 64, 333, 4096 }, noiseStereo);
+
+        {
+            const bool identical = bitIdentical (outA, outB);
+            const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("N6 v1.5-determinism", identical && live,
+                   (identical ? juce::String ("all beds + comfort, same-seed fresh"
+                                              " instances: bit-identical")
+                              : firstDifference (outA, outB))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+
+        {
+            const bool identical = bitIdentical (outA, outC);
+            const bool live      = outC.getMagnitude (0, 0, total) > 1.0e-4f;
+            check ("N6 v1.5-ragged", identical && live,
+                   (identical ? juce::String ("512 vs 1,7,64,333,4096: bit-identical"
+                                              " with every bed live")
+                              : firstDifference (outA, outC))
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
+    }
+
+    //==========================================================================
+    // N7 — the v1.4.0 cross-version gate for the SERIAL POST-STAGES.
+    //
+    // V1 above pins the transport families back to v1.3.0, but it runs with
+    // packet and codec switched off, so it says nothing about the two places
+    // v1.5.0 actually touched downstream code: comfort noise threaded into
+    // PacketLossStage, and the codec bed added after CodecStage. This render
+    // turns both on and touches no v1.5.0 parameter at all.
+    //
+    // The digest was produced by THIS probe compiled against the v1.4.0 tree
+    // (git 2160dd66). Re-rendering the new engine twice would prove nothing.
+    {
+        constexpr juce::uint64 kV140PostDigest = 0x1cf2f80d1f71674cULL;
+
+        auto p = makeProc();
+        configureCanonicalPostRender (*p);
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const juce::uint64 digest = renderChecksum (out);
+        const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool         match  = digest == kV140PostDigest;
+
+        check ("N7 v1.4.0-post-identity", match && live,
+               juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
+                   + " vs v1.4.0 0x"
+                   + juce::String::toHexString ((juce::int64) kV140PostDigest)
+                   + (match ? " — packet+codec unchanged at every v1.5.0 default"
+                            : " — DEFAULTS ARE NOT TRANSPARENT")
+                   + (live ? "" : " — SILENT, probe vacuous"));
     }
 
     //==========================================================================
