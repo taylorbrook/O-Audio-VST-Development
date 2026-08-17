@@ -233,7 +233,28 @@ Acceptance: harness suite green and byte-identical output (this is pure deletion
 
 ---
 
-## 6. Structural de-duplication  *(PATCH)*
+## 6. Structural de-duplication  *(PATCH → 1.3.5)* — ✅ DONE 2026-08-17
+
+**Resolved in v1.3.5.** All three cleanups landed as prescribed. Harness
+67/67 and byte-identical to the v1.3.4 baseline — the acceptance criterion —
+verified by hash (`f024b20980e57f4e…`) across three consecutive runs.
+
+Two things the prescription did not anticipate:
+
+- The four sites did not agree on clamp ORDER. Three were
+  `jmin`-then-`jmax`; `VarispeedVoice::read()` was `jmax`-then-`jmin`. The
+  helper picks `jmin`-then-`jmax`; the orders are bit-identical whenever the
+  rails satisfy `lo <= hi` (true for every prepared ring) and agree on NaN
+  too, so `read()` is unchanged bit-for-bit.
+- `juce::jlimit()` is the wrong primitive here. Its `jassert(lower <= upper)`
+  would fire on an unprepared ring (`bufferSize == 0` inverts the rails),
+  which is exactly the assert-free contract these clamps were written to
+  have. The helper keeps the explicit `jmin`/`jmax` pair.
+
+There is a FIFTH clamp, at `release()`/SpinUp entry, left alone on purpose:
+it is single-ended (lower rail only) and measures from `getTotalWritten()`
+rather than `getTotalWritten() - 1`, so folding it in would have changed
+behaviour. Not a copy of this invariant.
 
 - **Dead switch case.** `TapestopTransport::release()` lists
   `case State::ScratchPass:` at line 327, but the early

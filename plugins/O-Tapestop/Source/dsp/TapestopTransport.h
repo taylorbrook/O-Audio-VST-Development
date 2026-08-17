@@ -367,11 +367,12 @@ public:
                 r0 = juce::jlimit (0.0, 1.0, lastContinuousR);
                 break;
 
+            // ScratchPass is deliberately absent: the early return above owns
+            // it, so a case label here would be unreachable.
             case State::Bypassed:
             case State::SpinUp:
             case State::Catchup:
             case State::ResyncXfade:
-            case State::ScratchPass:
             default:
                 return;   // already disengaged — a false edge cannot arrive here
         }
@@ -538,15 +539,7 @@ public:
         // accessor, provably in bounds under full-reverse scratch and
         // > kCaptureSeconds Stopped holds alike). At the lower rail the
         // playhead rides the oldest valid material — specified behavior.
-        {
-            const double maxDebt = (double) ring.getBufferSize()
-                                 - (double) VarispeedVoice::kInterpGuard;
-
-            double pos = v[carrier].readAbsFrac + r;
-            pos = juce::jmin (pos, (double) live);
-            pos = juce::jmax (pos, (double) live - maxDebt);
-            v[carrier].readAbsFrac = pos;
-        }
+        v[carrier].readAbsFrac = VarispeedVoice::clampToRing (v[carrier].readAbsFrac + r, ring);
 
         Tick out;
         out.carrierIdx  = carrier;
@@ -574,15 +567,7 @@ public:
             // The fading voice keeps doing what it was doing (latched rate,
             // sign included — an aborted reverse scratch keeps reversing
             // through its fade-out). Same double-ended clamp as the carrier.
-            {
-                const double maxDebt = (double) ring.getBufferSize()
-                                     - (double) VarispeedVoice::kInterpGuard;
-
-                double pos = v[fadingIdx].readAbsFrac + rFading;
-                pos = juce::jmin (pos, (double) live);
-                pos = juce::jmax (pos, (double) live - maxDebt);
-                v[fadingIdx].readAbsFrac = pos;
-            }
+            v[fadingIdx].readAbsFrac = VarispeedVoice::clampToRing (v[fadingIdx].readAbsFrac + rFading, ring);
 
             if (++xfPos >= xfLenCur)
             {
@@ -650,12 +635,7 @@ private:
     void spliceCarrierTo (VarispeedVoice* v, const CaptureBuffer& ring,
                           double targetAbs, double rLatchForFading, int xfLen) noexcept
     {
-        const juce::int64 live    = ring.getTotalWritten() - 1;
-        const double      maxDebt = (double) ring.getBufferSize()
-                                  - (double) VarispeedVoice::kInterpGuard;
-
-        targetAbs = juce::jmin (targetAbs, (double) live);
-        targetAbs = juce::jmax (targetAbs, (double) live - maxDebt);
+        targetAbs = VarispeedVoice::clampToRing (targetAbs, ring);
 
         startXfade (carrier, rLatchForFading, wetFade, xfLen);
 
