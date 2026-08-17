@@ -37,6 +37,9 @@
 #include "dsp/MediaClock.h"
 #include "dsp/ReadHead.h"
 #include "dsp/TapeTransport.h"
+#include "dsp/TapeDropout.h"
+#include "dsp/TapeStopGain.h"
+#include "dsp/WowFlutter.h"
 #include "dsp/ArtifactSynth.h"
 #include "dsp/CDSkip.h"
 #include "dsp/VinylTransport.h"
@@ -105,11 +108,14 @@ private:
     std::atomic<float>* hardEdgesParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
 
-    // Tape (4)
+    // Tape (6 — TAPE_DROP and TAPE_WOW appended to the LAYOUT in v1.4.0; see
+    // createParameterLayout for why they are not inserted into the tape block)
     std::atomic<float>* tapeEnableParam = nullptr;
     std::atomic<float>* tapeProbParam = nullptr;
     std::atomic<float>* tapeStopProbParam = nullptr;
     std::atomic<float>* tapeRampParam = nullptr;
+    std::atomic<float>* tapeDropParam = nullptr;
+    std::atomic<float>* tapeWowParam = nullptr;
 
     // CD Skip (4)
     std::atomic<float>* cdEnableParam = nullptr;
@@ -157,6 +163,9 @@ private:
     MediaClock     mediaClock;
     RngBank        rngBank;
     TapeTransport  tapeTransport;
+    TapeDropout    tapeDropout;      // v1.4.0: oxide-shed level+HF dip
+    TapeStopGain   tapeStopGain;     // v1.4.0: output dies with tape speed
+    WowFlutter     wowFlutter;       // v1.4.0: continuous speed-modulation bed
     CDSkip         cdSkip;           // Phase 2.2
     VinylTransport vinylTransport;   // Phase 2.2
     ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps

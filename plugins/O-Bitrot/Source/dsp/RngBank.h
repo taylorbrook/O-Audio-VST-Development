@@ -22,7 +22,7 @@
 
     O-Bitrot - RngBank (Stage 2, Phase 2.1)
 
-    Eight named juce::Random streams — one per stochastic subsystem. A single
+    Nine named juce::Random streams — one per stochastic subsystem. A single
     shared audio-thread RNG breaks block-size invariance the moment two
     subsystems interleave their draws differently at different block sizes
     (pattern_rng_stream_interleave_blocksize), so every subsystem owns a
@@ -53,6 +53,20 @@ public:
         jitter,
         dither,
         artifactSynth,
+
+        // v1.4.0. APPENDED, never inserted: stream k is seeded from a function
+        // of k alone, so adding an id at the END leaves every pre-existing
+        // stream's seed — and therefore every render made with an old SEED —
+        // bit-identical. Inserting one would renumber the streams after it.
+        //
+        // wow is the ONE stream drawn outside a tick: the wow/flutter bed
+        // redraws partial amplitudes on its own fixed sample counter. That is
+        // safe precisely because it is dedicated — the interleave hazard is
+        // two subsystems SHARING a stream at different block-relative
+        // instants (pattern_rng_stream_interleave_blocksize), and a private
+        // stream on a sample-count schedule is block-size invariant.
+        wow,
+
         numStreams
     };
 

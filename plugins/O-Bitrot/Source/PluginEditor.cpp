@@ -29,6 +29,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     tapeProbRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_PROB");
     tapeStopProbRelay  = std::make_unique<juce::WebSliderRelay>("TAPE_STOP_PROB");
     tapeRampRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_RAMP");
+    tapeDropRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_DROP");
+    tapeWowRelay       = std::make_unique<juce::WebSliderRelay>("TAPE_WOW");
     // CD Skip
     cdEnableRelay      = std::make_unique<juce::WebToggleButtonRelay>("CD_ENABLE");
     cdProbRelay        = std::make_unique<juce::WebSliderRelay>("CD_PROB");
@@ -80,6 +82,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*tapeProbRelay)
             .withOptionsFrom(*tapeStopProbRelay)
             .withOptionsFrom(*tapeRampRelay)
+            .withOptionsFrom(*tapeDropRelay)
+            .withOptionsFrom(*tapeWowRelay)
             .withOptionsFrom(*cdEnableRelay)
             .withOptionsFrom(*cdProbRelay)
             .withOptionsFrom(*cdSeverityRelay)
@@ -272,6 +276,10 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("TAPE_STOP_PROB"), *tapeStopProbRelay, nullptr);
     tapeRampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("TAPE_RAMP"), *tapeRampRelay, nullptr);
+    tapeDropAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("TAPE_DROP"), *tapeDropRelay, nullptr);
+    tapeWowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("TAPE_WOW"), *tapeWowRelay, nullptr);
     // CD Skip
     cdEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CD_ENABLE"), *cdEnableRelay, nullptr);

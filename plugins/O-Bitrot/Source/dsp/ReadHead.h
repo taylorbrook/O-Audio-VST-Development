@@ -205,19 +205,32 @@ public:
     // loopOwnsRate: a CD loop or a locked groove is driving this sample AND
     // no tape event is in flight underneath it — i.e. `rate` is exactly 1.0.
     // See the overflow guard at the bottom of this function.
+    //
+    // readOffset (v1.4.0): a NON-NEGATIVE extra read lag in samples, applied to
+    // BOTH heads — the wow/flutter bed. It is deliberately not a rate
+    // multiplier: modulating the rate would falsify the loopOwnsRate premise
+    // below AND, at the engine's lag-0 steady state, drive `pos` into the
+    // write-slot pin every time the deviation went positive (a zero-order hold,
+    // not wow). Offsetting the READ instead is the same physics — pitch
+    // deviation is the derivative of delay — while `pos`, the lag budget and
+    // the whole jump contract stay exactly as they were. Both heads share the
+    // offset because they are one physical transport.
+    //
+    // `pos - 0.0` is bit-identical to `pos`, so an offset of exactly 0 leaves
+    // the passthrough on CaptureRing's exact-integer fast path (FUNC-02).
     void renderSample (const CaptureRing& ring, double rate, bool hardEdges,
-                       bool loopOwnsRate, float& outL, float& outR) noexcept
+                       bool loopOwnsRate, double readOffset, float& outL, float& outR) noexcept
     {
         const juce::int64 totalWritten = ring.getTotalWritten();
         const double      hi           = static_cast<double> (totalWritten - 1);
 
-        const float mL = ring.readFrac (0, pos);
-        const float mR = ring.readFrac (1, pos);
+        const float mL = ring.readFrac (0, pos - readOffset);
+        const float mR = ring.readFrac (1, pos - readOffset);
 
         if (fadeActive)
         {
-            const float oL = ring.readFrac (0, oldPos);
-            const float oR = ring.readFrac (1, oldPos);
+            const float oL = ring.readFrac (0, oldPos - readOffset);
+            const float oR = ring.readFrac (1, oldPos - readOffset);
 
             ++fadeCount;
             const float t = static_cast<float> (fadeCount) / static_cast<float> (fadeLenSamples);
