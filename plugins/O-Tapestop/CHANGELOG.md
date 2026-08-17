@@ -2,6 +2,40 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.0] — 2026-08-16
+
+### Added
+- **14 new factory presets — the bank doubles to 28.** New Tape Stops
+  (Power Cut, Cassette Eject, Two-Bar Dive, Snap Back, Half-Mix Stop),
+  Scratch shapes with four new envelope blobs (Transformer, Tape Rewind,
+  Orbit, Crab Roll), Wobble & Warp (Tape Flutter, Pitch Tide, Loose
+  Capstan), and Glitch & Chaos (Sputter, Data Rot). All authored in
+  engineering units through the CR-02 conversion, every preset carries all
+  19 param IDs + an envelope blob, ENGAGE stays 0 everywhere. The
+  sentinel-gated factory writer re-runs on the version-string change, so
+  the new files land on first scan.
+- **Themed preset dropdown.** Clicking the preset name opens a grouped
+  panel — Tape Stops / Scratch / Wobble & Warp / Glitch & Chaos, plus a
+  dynamic User group for anything not in the factory map. The prev/next
+  carousel is unchanged. Grouping is display-side only (`PRESET_THEMES` in
+  js/app.js): `getPresetList()` stays a flat alphabetical sort, the preset
+  JSON format is untouched, and the shared preset-manager module (C++ and
+  JS) is unmodified. Panel is rebuilt on every open, closes on outside
+  click / Escape / selection, and stays inert until the manager's
+  initialize() resolves (same honest-disable contract as the buttons).
+
+### Testing
+- UI exercised in a Playwright browser harness with the JUCE bridge
+  stubbed at `js/juce/index.js` (route interception; the stub feeds the
+  real alphabetized 28-name factory list + 2 fake user presets): all 5
+  groups render in order, 30 items, current-preset marker tracks
+  selection, click-to-load closes the panel, Escape and outside-click
+  dismiss, panel bottom lands at y=508 in the 580 px window and scrolls
+  internally. Honest-disable held: with the stub absent the band and
+  dropdown stay inert.
+- auval PASS (aufx OTsp OuDv); pluginval strictness-10 SUCCESS on the
+  installed VST3.
+
 ## [1.2.2] — 2026-08-16
 
 ### Fixed
