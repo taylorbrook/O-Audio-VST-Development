@@ -705,6 +705,14 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         //    (exact repeat intervals; pitch never changes); gentle
         //    re-approach trim (<= +2%, ramped) only when fully NORMAL.
         const double lag = readHead.getLag(captureRing.getTotalWritten());
+
+        // A CD loop / locked groove OWNS the read rate only while no tape
+        // event is in flight: a CD or vinyl win calls tape.release(), and that
+        // ramp keeps running underneath the loop for up to TAPE_RAMP ms. Only
+        // when tape is fully idle is the rate exactly 1.0 — which is the
+        // premise that makes ReadHead's lag-overflow suppression safe.
+        const bool loopOwnsRate = tapeTransport.isIdle()
+                                  && (cdSkip.isLooping() || vinylTransport.isLocked());
         double rate;
         if (! tapeTransport.isIdle())
         {
@@ -724,7 +732,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     static_cast<double>(captureRing.getTotalWritten() - 1),
                     captureRing.getTotalWritten(), hardEdges);
         }
-        else if (cdSkip.isLooping() || vinylTransport.isLocked())
+        else if (loopOwnsRate)
         {
             readHead.clearTrim();
             rate = 1.0;
@@ -737,7 +745,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         // 4. Read heads render the transport output.
         float wetL = 0.0f, wetR = 0.0f;
-        readHead.renderSample(captureRing, rate, hardEdges, wetL, wetR);
+        readHead.renderSample(captureRing, rate, hardEdges, loopOwnsRate, wetL, wetR);
 
         // 5. CD ladder (conceal dip / mute / loop wrap) then vinyl locked-
         //    groove wrap — both operate on the head/rendered signal.
