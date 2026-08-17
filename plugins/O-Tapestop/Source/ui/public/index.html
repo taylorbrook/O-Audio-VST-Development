@@ -57,7 +57,16 @@
       <span class="fleuron">&#10086;</span>
       <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
       <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
-      <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+      <!-- v1.3: the name readout doubles as the themed-dropdown trigger.
+           #preset-name stays a childless div (PresetManager._updateDisplay
+           writes its textContent); the caret is the wrapper's ::after and the
+           panel is a sibling, so neither is ever wiped. app.js builds the
+           panel's groups from PRESET_THEMES + getPresetList() on each open. -->
+      <div class="preset-select" id="preset-select">
+        <div class="preset-name" id="preset-name" role="button" tabindex="-1"
+             aria-haspopup="listbox" aria-expanded="false" aria-live="polite">Default</div>
+        <div class="preset-dropdown" id="preset-dropdown" role="listbox" hidden></div>
+      </div>
       <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
       <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
       <button type="button" class="preset-btn" id="preset-delete"

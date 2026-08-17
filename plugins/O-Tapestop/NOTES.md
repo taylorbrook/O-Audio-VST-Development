@@ -2,11 +2,18 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.2
+- **Version:** 1.3.0
 - **Type:** Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed)
 
 ## Lifecycle Timeline
 
+- **2026-08-16 (v1.3.0):** Factory bank doubled to 28 presets (+5 Tape
+  Stops, +4 Scratch with new envelope blobs, +3 Wobble & Warp, +2 Glitch &
+  Chaos) and a themed preset dropdown added on the preset-name readout
+  (4 factory themes + dynamic User group; display-side map in js/app.js,
+  shared preset-manager module untouched; carousel unchanged). Browser
+  harness verified (stubbed JUCE bridge); pluginval s10 VST3 SUCCESS;
+  auval SUCCEEDED. Installed.
 - **2026-08-16 (v1.2.2):** UI fix — Continuous pane overflowed the center
   panel (~20 px both sides; CHARACTER caption widened its column past the
   gap budget). Pane gap 34 → 16 px; measured 7.3 px clearance per side.

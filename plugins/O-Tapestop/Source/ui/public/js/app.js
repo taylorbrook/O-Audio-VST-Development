@@ -554,6 +554,100 @@ function armedConfirmDelete() {
   return false;           // first click — armed only
 }
 
+// ── Themed dropdown (v1.3) ──────────────────────────────────────────────────
+// Display-side grouping ONLY: getPresetList() stays a flat case-insensitive
+// sort (factory + user) and the preset JSON format is untouched. This map
+// must track the factory names in PluginProcessor.cpp — an unmapped factory
+// preset is not lost, it just falls into the trailing "User" group.
+const PRESET_THEMES = [
+  ["Tape Stops", ["Classic Half-Bar Stop", "Classic 1-Bar Stop", "DJ Spinup",
+                  "Tempo-Synced Short Stop", "Slow-Tape Drag", "Power Cut",
+                  "Cassette Eject", "Two-Bar Dive", "Snap Back", "Half-Mix Stop"]],
+  ["Scratch", ["Baby Scratch", "Chirp Flare", "Stutter-Scratch", "Transformer",
+               "Tape Rewind", "Orbit", "Crab Roll"]],
+  ["Wobble & Warp", ["Subtle Wobble", "Warped Record", "Drunk Tape", "Seasick",
+                     "Tape Flutter", "Pitch Tide", "Loose Capstan"]],
+  ["Glitch & Chaos", ["Glitch", "Total Meltdown", "Sputter", "Data Rot"]],
+];
+
+// Rebuilt from scratch on every open — the list is small and this sidesteps
+// stale-list bugs after saves/deletes without extra refresh plumbing. Items
+// are JS-owned nodes, so textContent here is safe (the label-overwrite trap
+// only bites HTML-authored children of #preset-name itself).
+function buildPresetDropdown(panel) {
+  panel.textContent = "";
+  const all = presetManager.getPresetList();
+  const current = presetManager.getCurrentPreset();
+  const mapped = new Set(PRESET_THEMES.flatMap(([, names]) => names));
+
+  const addGroup = (label, names) => {
+    if (!names.length) return;
+    const head = document.createElement("div");
+    head.className = "dropdown-theme";
+    head.textContent = label;
+    panel.appendChild(head);
+    for (const name of names) {
+      const item = document.createElement("div");
+      item.className = "dropdown-item" + (name === current ? " current" : "");
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", name === current ? "true" : "false");
+      item.textContent = name;
+      item.addEventListener("click", async () => {
+        closePresetDropdown();
+        await presetManager.loadPreset(name);
+      });
+      panel.appendChild(item);
+    }
+  };
+
+  // Curated order within factory themes; only names the C++ side actually
+  // reported survive the filter (a renamed factory preset can't ghost-list).
+  for (const [label, names] of PRESET_THEMES)
+    addGroup(label, names.filter((n) => all.includes(n)));
+  addGroup("User", all.filter((n) => !mapped.has(n)));
+}
+
+function openPresetDropdown() {
+  const panel = document.getElementById("preset-dropdown");
+  const nameEl = document.getElementById("preset-name");
+  if (!panel || !nameEl) return;
+  buildPresetDropdown(panel);
+  panel.hidden = false;
+  nameEl.setAttribute("aria-expanded", "true");
+}
+
+function closePresetDropdown() {
+  const panel = document.getElementById("preset-dropdown");
+  const nameEl = document.getElementById("preset-name");
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  if (nameEl) nameEl.setAttribute("aria-expanded", "false");
+}
+
+function initPresetDropdown(selectEl, nameEl, panelEl) {
+  const toggle = () => {
+    if (!selectEl.classList.contains("ready")) return;
+    if (panelEl.hidden) openPresetDropdown();
+    else closePresetDropdown();
+  };
+
+  nameEl.addEventListener("click", toggle);
+  nameEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    else if (e.key === "Escape") closePresetDropdown();
+  });
+
+  // Outside click / Escape close. pointerdown (not click) so a drag that
+  // starts outside also dismisses; listeners are page-lifetime, matching the
+  // band itself.
+  document.addEventListener("pointerdown", (e) => {
+    if (!panelEl.hidden && !selectEl.contains(e.target)) closePresetDropdown();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePresetDropdown();
+  });
+}
+
 // Constructor + EXPLICIT DOM refs for all six band elements, plus
 // getNativeFunction — omitting it leaves the bar rendered but silently inert.
 // initialize() is called from init() below (post-bridge, view visible — a
@@ -583,12 +677,23 @@ function initPresets() {
     onConfirmDelete: () => armedConfirmDelete(),
   });
 
+  // Dropdown trigger (v1.3): wired before initialize() but gated on the
+  // wrapper's "ready" class, so a dead bridge leaves the name inert too.
+  const selectEl = document.getElementById("preset-select");
+  const panelEl = document.getElementById("preset-dropdown");
+  if (selectEl && panelEl) initPresetDropdown(selectEl, nameEl, panelEl);
+
   // The band shipped disabled in Stage 3's markup. Un-disable only after
   // initialize() resolves (native fns bound, first refresh done) — if the
   // bridge never comes up, the buttons stay honestly disabled instead of
-  // enabled-but-inert. (#preset-name is a div — nothing to un-disable.)
+  // enabled-but-inert. (#preset-name is a div — its enabled state is the
+  // wrapper's "ready" class + tabindex, granted on the same promise.)
   presetManager.initialize().then(() => {
     [prevEl, nextEl, saveEl, loadEl, deleteEl].forEach((el) => { el.disabled = false; });
+    if (selectEl && panelEl) {
+      selectEl.classList.add("ready");
+      nameEl.setAttribute("tabindex", "0");
+    }
   });
 }
 

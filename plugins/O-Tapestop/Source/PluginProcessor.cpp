@@ -88,6 +88,24 @@ namespace
     constexpr const char* kStutterEnv =
         R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.12,"y":0.5,"curve":0.0},{"x":0.13,"y":-0.75,"curve":0.0},{"x":0.37,"y":-0.75,"curve":0.0},{"x":0.38,"y":0.75,"curve":0.0},{"x":0.62,"y":0.75,"curve":0.0},{"x":0.63,"y":-0.75,"curve":0.0},{"x":0.87,"y":-0.75,"curve":0.0},{"x":0.88,"y":0.5,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
 
+    // ── v1.3 scratch envelopes ──────────────────────────────────────────────
+    // Transformer: rhythmic full-speed / dead-stop chop (y=0 is stopped).
+    constexpr const char* kTransformerEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.24,"y":0.5,"curve":0.0},{"x":0.25,"y":0.0,"curve":0.0},{"x":0.49,"y":0.0,"curve":0.0},{"x":0.5,"y":0.5,"curve":0.0},{"x":0.74,"y":0.5,"curve":0.0},{"x":0.75,"y":0.0,"curve":0.0},{"x":0.99,"y":0.0,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Tape rewind: dive into a held fast-reverse drag, then snap back to 1×.
+    constexpr const char* kRewindEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":-0.5},{"x":0.2,"y":-0.9,"curve":0.0},{"x":0.8,"y":-0.9,"curve":0.5},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Orbit: one smooth wide swing — overspeed crest into a shallow reverse
+    // trough and back. Gentle curves keep it seasick-smooth, never stepped.
+    constexpr const char* kOrbitEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.3},{"x":0.25,"y":0.95,"curve":-0.3},{"x":0.5,"y":-0.35,"curve":0.3},{"x":0.75,"y":0.7,"curve":-0.3},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Crab roll: four fast forward/reverse flicks per cycle.
+    constexpr const char* kCrabRollEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.6,"curve":0.0},{"x":0.12,"y":-0.6,"curve":0.0},{"x":0.25,"y":0.6,"curve":0.0},{"x":0.37,"y":-0.6,"curve":0.0},{"x":0.5,"y":0.6,"curve":0.0},{"x":0.62,"y":-0.6,"curve":0.0},{"x":0.75,"y":0.6,"curve":0.0},{"x":0.87,"y":-0.6,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
     // Division table {1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars, 4 bars} → beats.
     // ASSUMES 4/4 (suite precedent — recorded in stages/2-dsp/NOTES.md).
     // Indices match syncDivisionChoices() above.
@@ -200,7 +218,12 @@ TapestopProcessor::TapestopProcessor()
             }
         });
 
-    // ── Factory bank (Stage 4; +6 Continuous in v1.1): 14 presets ───────────
+    // ── Factory bank (Stage 4; +6 Continuous in v1.1; +14 in v1.3): 28 ──────
+    // v1.3 groups the bank into four display themes — Tape Stops, Scratch,
+    // Wobble & Warp, Glitch & Chaos. The grouping lives ONLY in js/app.js
+    // (PRESET_THEMES): getPresetList() stays a flat alphabetical sort and the
+    // preset JSON format is unchanged. Keep app.js's map in sync with the
+    // names here — an unmapped factory preset falls into the "User" group.
     // Authored in ENGINEERING units, then batch-converted through each
     // parameter's NormalisableRange below (CR-02) — raw-fraction authoring
     // would ignore the 0.35 skew on the three FREE_MS ranges
@@ -281,6 +304,57 @@ TapestopProcessor::TapestopProcessor()
             { "TONE_TRACK", 90.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
           envelopeCustomState(kDefaultWobbleEnv) },
 
+        // ── v1.3 Tape Stops additions ───────────────────────────────────────
+        { "Power Cut",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 180.0f }, { "STOP_CURVE", 15.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 300.0f }, { "START_CURVE", 40.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 85.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Cassette Eject",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 2500.0f }, { "STOP_CURVE", 65.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 500.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 95.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Two-Bar Dive",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 5.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 80.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 75.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Snap Back",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 2.0f }, { "STOP_FREE_MS", 250.0f }, { "STOP_CURVE", 40.0f },
+            { "START_SYNC_DIV", 0.0f }, { "START_FREE_MS", 60.0f }, { "START_CURVE", 10.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Half-Mix Stop",
+          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 60.0f }, { "MIX", 50.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
         { "Stutter-Scratch",
           { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
             { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
@@ -290,6 +364,47 @@ TapestopProcessor::TapestopProcessor()
             { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
             { "TONE_TRACK", 45.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
           envelopeCustomState(kStutterEnv) },
+
+        // ── v1.3 Scratch additions — each rides its own envelope shape ──────
+        { "Transformer",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 45.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kTransformerEnv) },
+
+        { "Tape Rewind",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1500.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 70.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kRewindEnv) },
+
+        { "Orbit",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kOrbitEnv) },
+
+        { "Crab Roll",
+          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 200.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
+            { "TONE_TRACK", 40.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kCrabRollEnv) },
 
         // ── Continuous mode (v1.1) — depth/chaos values from the research
         // synthesis (research/o-tapestop-continuous-mode.md, "Proposed
@@ -334,6 +449,37 @@ TapestopProcessor::TapestopProcessor()
             { "TONE_TRACK", 75.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
           envelopeCustomState(kDefaultWobbleEnv) },
 
+        // ── v1.3 Wobble & Warp additions ────────────────────────────────────
+        { "Tape Flutter",
+          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 7.0f },
+            { "CONT_DEPTH", 15.0f }, { "CONT_CHAOS", 25.0f },
+            { "TONE_TRACK", 30.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Pitch Tide",
+          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 0.08f },
+            { "CONT_DEPTH", 55.0f }, { "CONT_CHAOS", 10.0f },
+            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Loose Capstan",
+          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 1.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 0.9f },
+            { "CONT_DEPTH", 45.0f }, { "CONT_CHAOS", 60.0f },
+            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
         { "Glitch",
           { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 0.0f },
             { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
@@ -352,6 +498,27 @@ TapestopProcessor::TapestopProcessor()
             { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 0.0f }, { "CONT_RATE_HZ", 8.0f },
             { "CONT_DEPTH", 90.0f }, { "CONT_CHAOS", 95.0f },
             { "TONE_TRACK", 65.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        // ── v1.3 Glitch & Chaos additions ───────────────────────────────────
+        { "Sputter",
+          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 0.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 2.5f },
+            { "CONT_DEPTH", 40.0f }, { "CONT_CHAOS", 30.0f },
+            { "TONE_TRACK", 35.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
+          envelopeCustomState(kDefaultWobbleEnv) },
+
+        { "Data Rot",
+          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
+            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
+            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+            { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 13.0f },
+            { "CONT_DEPTH", 75.0f }, { "CONT_CHAOS", 85.0f },
+            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
           envelopeCustomState(kDefaultWobbleEnv) },
     };
 
