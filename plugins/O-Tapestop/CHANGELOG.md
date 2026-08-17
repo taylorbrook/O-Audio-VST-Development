@@ -2,6 +2,52 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.1] — 2026-08-17
+
+### Fixed
+- **Editing the scratch curve during a live pass could tear the envelope
+  mid-pass.** In Scratch mode the transport latches the baked 2048-point
+  envelope LUT at the ENGAGE edge and reads it for the whole pass — up to 8 s
+  at ENV_FREE_MS max. `ScratchEnvelope` double-buffers, baking into "whichever
+  of its two buffers is not currently published", which survives exactly ONE
+  outstanding reader generation. The editor commits 50 ms after every
+  pointer-up, so the SECOND curve edit inside one pass alternated back onto the
+  buffer the audio thread was still reading: the playback rate stepped to the
+  new curve's value mid-pass (an audible speed jerk, since a scratch `r` can
+  swing across the full ±2 range) on top of a formal data race between the
+  message and audio threads.
+
+  Root cause: an ownership gap, not a missing lock — the audio thread held a
+  raw `const float*` into memory the message thread was free to rewrite.
+  `TapestopTransport` now owns the bytes it reads. `engageScratch()` memcpys
+  the published LUT into its own `std::array<float, 2048>` at the engage edge
+  (8 KB, no allocation, no lock — RT-safe) and reads only that copy, making the
+  latch contract structural instead of probabilistic. Mid-pass edits now
+  provably affect the next pass only, which is what the thread-contract comment
+  in `ScratchEnvelope.h` always claimed; that comment has been corrected to
+  state where the guarantee actually comes from.
+
+  No parameter, preset, or state-format change — sessions and presets are
+  unaffected.
+
+### Testing
+- New harness probe `scratch-envelope-edit-midpass-inert`: renders a 2 s scratch
+  pass twice, once clean and once with two `commitScratchEnvelopeJson()` calls
+  landing at 0.5 s and 1.0 s into the pass, and asserts the two renders are
+  bit-identical, with a liveness check that the pass actually bends the pitch
+  (a dry-vs-dry comparison would pass vacuously). The commits move `r` from 0.5
+  to 1.5 to 2.0, so a torn read is a gross divergence rather than a rounding
+  difference.
+- Confirmed as a real discriminator, not a decorative assertion: built and run
+  against the **pre-fix** source first, where it failed at sample 52096 — the
+  exact sample of the second commit (engage 4096 + 48000). Post-fix it passes.
+- Required a new `renderWithActions()` harness helper: `Event` carries only a
+  float, so message-thread calls that are not APVTS writes could not previously
+  be scheduled mid-render.
+- Full render harness: 66 probe checks, 0 failures (65 pre-existing probes
+  unchanged and still green, including every bit-identity and block-size
+  invariance probe — the copy adds no waveform change).
+
 ## [1.3.0] — 2026-08-16
 
 ### Added

@@ -85,7 +85,9 @@
 
 #include <JuceHeader.h>
 
+#include <array>
 #include <cmath>
+#include <cstring>
 
 #include "CaptureBuffer.h"
 #include "ContinuousMotion.h"
@@ -229,9 +231,21 @@ public:
 
     /** ENGAGE=true edge with MODE = Scratch (latched at the edge). Starts one
         pass of the drawn envelope on the CARRIER voice IMMEDIATELY in every
-        state — an r slope change, never a position jump (FUNC-02). The LUT
-        pointer was load(acquire)d by the caller at this edge; edits mid-pass
-        affect the next pass only. A running crossfade continues untouched. */
+        state — an r slope change, never a position jump (FUNC-02). A running
+        crossfade continues untouched.
+
+        The caller load(acquire)s the envelope's published LUT at this edge; we
+        COPY it here (8 KB memcpy, no allocation, no lock — RT-safe) and read
+        only the copy for the rest of the pass.
+
+        The copy is load-bearing, not defensive (v1.3.1). ScratchEnvelope bakes
+        into "whichever of its two buffers is not published", which survives
+        exactly ONE outstanding reader generation — but a pass runs up to 8 s
+        (ENV_FREE_MS max) while the editor commits 50 ms after every pointer-up.
+        The SECOND commit during a live pass therefore baked straight into the
+        buffer this transport was reading: torn envelope mid-pass (an r step)
+        plus a formal data race. Owning the bytes makes the latch contract
+        structural — edits mid-pass affect the next pass only, provably. */
     void engageScratch (double envLengthSamples, const float* lut2048,
                         VarispeedVoice* v, const CaptureBuffer& ring) noexcept
     {
@@ -245,10 +259,12 @@ public:
         // Every other state: the pass drives the carrier from its CURRENT
         // position (mid-resync/mid-catchup/mid-ramp/Stopped re-engage).
 
-        scratchLut        = lut2048;
+        std::memcpy (scratchLutCopy.data(), lut2048, sizeof (float) * (size_t) ScratchLutSize);
+
+        scratchLut        = scratchLutCopy.data();
         scratchLenSamples = juce::jmax (1, (int) std::lround (envLengthSamples));
         scratchPos        = 0;
-        lastScratchR      = (double) lut2048[0];
+        lastScratchR      = (double) scratchLutCopy[0];
         state             = State::ScratchPass;
     }
 
@@ -636,7 +652,13 @@ private:
     int    catchupElapsed    = 0;
     int    catchupCapSamples = 1;
 
-    // Scratch pass (latched at the engage edge — LUT pointer, length).
+    // Scratch pass (latched at the engage edge — LUT bytes, length). The
+    // transport OWNS the table it reads: engageScratch memcpys the published
+    // envelope in, so message-thread re-bakes cannot reach an in-flight pass
+    // (v1.3.1). scratchLut points into scratchLutCopy whenever a pass is live
+    // and is null otherwise — the state gate is what keeps the read path safe,
+    // the pointer is just the read cursor's base.
+    std::array<float, (size_t) ScratchLutSize> scratchLutCopy {};
     const float* scratchLut      = nullptr;
     int          scratchPos      = 0;
     int          scratchLenSamples = 1;

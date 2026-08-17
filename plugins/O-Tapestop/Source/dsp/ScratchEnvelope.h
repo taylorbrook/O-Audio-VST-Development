@@ -41,8 +41,14 @@
       - Two pre-allocated 2048-float buffers; the message thread writes ONLY
         the unpublished one, then publishes via store(release).
       - The audio thread load(acquire)s the pointer ONCE at the engage edge
-        (the processor does this) — edits mid-pass affect the NEXT pass only,
-        so the message thread may alternate buffers as fast as edits commit.
+        (the processor does this) and IMMEDIATELY COPIES the 2048 floats into
+        TapestopTransport::scratchLutCopy — it never dereferences a buffer this
+        class owns after that. That copy is what makes "edits mid-pass affect
+        the NEXT pass only" true (v1.3.1); double buffering ALONE does not give
+        it. A pass runs up to 8 s while the editor commits 50 ms after every
+        pointer-up, so the second commit inside one pass lands back on the
+        buffer the first alternation moved away from — i.e. on the one the
+        audio thread latched. Do NOT hand this pointer to a long-lived reader.
       - The default gentle wobble is baked in the constructor: the published
         pointer is NEVER null.
 

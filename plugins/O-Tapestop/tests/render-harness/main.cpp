@@ -94,6 +94,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -315,6 +316,105 @@ StereoOut renderTimeline (TapestopProcessor& proc, int totalSamples,
 
         while (nextEvent < events.size() && events[nextEvent].atSample <= n)
             applyEvent (events[nextEvent++]);
+    }
+
+    return out;
+}
+
+/** A MESSAGE-THREAD call fired BETWEEN processBlock calls at this ABSOLUTE
+    timeline sample. Event only carries a float, so anything that is not an
+    APVTS write (an envelope commit, a preset load) needs this instead. */
+struct Action
+{
+    int                                       atSample;
+    std::function<void (TapestopProcessor&)>  fn;
+};
+
+/** renderTimeline with message-thread Actions interleaved. Same block-splitting
+    contract: no processBlock call spans an action or an event, both lists must
+    be sorted by atSample. Used by the mid-pass envelope-edit probe, where the
+    whole point is that the commit lands DURING a block sequence, not before it. */
+template <typename Fill>
+StereoOut renderWithActions (TapestopProcessor& proc, int totalSamples,
+                             const std::vector<int>& sizes,
+                             const std::vector<Event>& events,
+                             const std::vector<Action>& actions,
+                             Fill&& fill)
+{
+    juce::MidiBuffer midi;
+
+    StereoOut out;
+    out.L.reserve ((size_t) totalSamples);
+    out.R.reserve ((size_t) totalSamples);
+
+    int maxSize = 1;
+    for (int s : sizes)
+        maxSize = juce::jmax (maxSize, s);
+
+    juce::AudioBuffer<float> block (2, maxSize);
+
+    auto applyEvent = [&proc] (const Event& e)
+    {
+        if (std::strcmp (e.id, "@BPM") == 0)
+        {
+            jassert (gPlayHead != nullptr);
+            if (gPlayHead != nullptr)
+                gPlayHead->bpm = (double) e.value;
+            return;
+        }
+        setParam (proc, e.id, e.value);
+    };
+
+    size_t nextEvent  = 0;
+    size_t nextAction = 0;
+    size_t sizeIndex  = 0;
+    int    n          = 0;
+
+    while (nextEvent < events.size() && events[nextEvent].atSample <= 0)
+        applyEvent (events[nextEvent++]);
+
+    while (nextAction < actions.size() && actions[nextAction].atSample <= 0)
+        actions[nextAction++].fn (proc);
+
+    while (n < totalSamples)
+    {
+        int chunk = sizes[sizeIndex % sizes.size()];
+        ++sizeIndex;
+
+        chunk = juce::jmin (chunk, totalSamples - n);
+
+        if (nextEvent < events.size())
+            chunk = juce::jmin (chunk, events[nextEvent].atSample - n);
+
+        if (nextAction < actions.size())
+            chunk = juce::jmin (chunk, actions[nextAction].atSample - n);
+
+        if (chunk <= 0)
+            chunk = 1;
+
+        juce::AudioBuffer<float> view (block.getArrayOfWritePointers(), 2, chunk);
+
+        for (int s = 0; s < chunk; ++s)
+        {
+            view.setSample (0, s, fill (0, n + s));
+            view.setSample (1, s, fill (1, n + s));
+        }
+
+        proc.processBlock (view, midi);
+
+        for (int s = 0; s < chunk; ++s)
+        {
+            out.L.push_back (view.getSample (0, s));
+            out.R.push_back (view.getSample (1, s));
+        }
+
+        n += chunk;
+
+        while (nextEvent < events.size() && events[nextEvent].atSample <= n)
+            applyEvent (events[nextEvent++]);
+
+        while (nextAction < actions.size() && actions[nextAction].atSample <= n)
+            actions[nextAction++].fn (proc);
     }
 
     return out;
@@ -1473,6 +1573,84 @@ int main()
         check ("scratch-mode-switch-silent", bad < 0,
                bad < 0 ? "48000 samples memcmp-equal to input"
                        : "first diff @" + juce::String (bad));
+    }
+
+    // ── Scratch: mid-pass envelope edits cannot touch the in-flight pass ─────
+    // B1 regression gate. ScratchEnvelope double-buffers (bufA/bufB) and bakes
+    // into "whichever is not published", but the transport latches the LUT for
+    // an ENTIRE pass — up to 8 s. Double buffering only survives ONE outstanding
+    // reader generation, so the SECOND commit during a live pass used to bake
+    // straight into the buffer the audio thread was reading: torn envelope
+    // mid-pass (an r step — audible speed jerk) plus a formal data race.
+    // Reachable in normal use: the editor commits 50 ms after every pointer-up.
+    //
+    // Two commits are the minimum that reproduces it, and they must land DURING
+    // the pass — hence renderWithActions rather than renderTimeline. The fix is
+    // the transport's own copy taken at the engage edge (engageScratch memcpy),
+    // which makes the latch contract structural instead of probabilistic.
+    //
+    // Discriminator: the mid-pass commits move r from 0.5 to 1.5 then 2.0, so a
+    // torn read is a gross divergence, not a rounding difference. Verified to
+    // FAIL against the pre-fix build before the fix landed (first diff at the
+    // second commit's sample), which is what makes the PASS meaningful.
+    {
+        // r = 0.5 flat for the whole pass — what BOTH renders must produce.
+        const char* envBase   = R"({"v":1,"points":[{"x":0,"y":0.25},{"x":1,"y":0.25}]})";
+        const char* envEdit1  = R"({"v":1,"points":[{"x":0,"y":0.75},{"x":1,"y":0.75}]})";
+        const char* envEdit2  = R"({"v":1,"points":[{"x":0,"y":1.0},{"x":1,"y":1.0}]})";
+
+        const int engageAt = 4096;
+        const int total    = 110592;
+        const int commit1  = engageAt + 24000;   // 0.5 s into a 2 s pass
+        const int commit2  = engageAt + 48000;   // 1.0 s in — the unsafe one
+
+        auto setup = [&] (TapestopProcessor& p)
+        {
+            prepareAndSettle (p, 512);
+            setParam (p, "SYNC_MODE", 1.0f);
+            setParam (p, "MODE", 1.0f);
+            setParam (p, "ENV_FREE_MS", 2000.0f);
+        };
+
+        TapestopProcessor pRef;
+        setup (pRef);
+        const bool baseOk = pRef.commitScratchEnvelopeJson (envBase);
+
+        auto ref = renderWithActions (pRef, total, { 512 },
+                                      { { engageAt, "ENGAGE", 1.0f } },
+                                      {},
+                                      sine440);
+
+        TapestopProcessor pEdit;
+        setup (pEdit);
+        const bool editBaseOk = pEdit.commitScratchEnvelopeJson (envBase);
+
+        bool commitsOk = true;
+        auto edit = renderWithActions (
+            pEdit, total, { 512 },
+            { { engageAt, "ENGAGE", 1.0f } },
+            { { commit1, [&] (TapestopProcessor& p)
+                         { commitsOk &= p.commitScratchEnvelopeJson (envEdit1); } },
+              { commit2, [&] (TapestopProcessor& p)
+                         { commitsOk &= p.commitScratchEnvelopeJson (envEdit2); } } },
+            sine440);
+
+        juce::String diag;
+        const bool same = identicalVec (ref.L, edit.L, diag)
+                       && identicalVec (ref.R, edit.R, diag);
+
+        // Liveness: the pass must actually bend the pitch, or bit-identity is
+        // a comparison of two dry renders and proves nothing.
+        double dev = 0.0;
+        for (int n = engageAt + 1000; n < engageAt + 90000; ++n)
+            dev = juce::jmax (dev, (double) std::abs (ref.L[(size_t) n] - sine440 (0, n)));
+
+        check ("scratch-envelope-edit-midpass-inert",
+               baseOk && editBaseOk && commitsOk && same && dev > 0.01
+                 && allFinite (edit.L) && allFinite (edit.R),
+               same ? "2 mid-pass commits, in-flight pass bit-identical (dev="
+                        + juce::String (dev, 3) + ")"
+                    : "TORN: " + diag);
     }
 
     //==========================================================================
