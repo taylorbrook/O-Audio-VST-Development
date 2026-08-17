@@ -137,15 +137,12 @@ public:
         rCur = 1.0;
         cellLen = 1;
         cellPos = 0;
-        slotCount = 1;
         slotLen = 1;
         slotWait = 0;
         slotArmed = false;
         eventActive = false;
-        eventForcedSnap = false;
         eventType = 0;
         eventPos = eventLen = 0;
-        eventTargetR = 1.0;
         sliceLen = slicePos = 0;
         sliceXf = 0;
         stutterRate = stutterRateMult = 1.0;
@@ -155,6 +152,13 @@ public:
         shuffleAmount = 0.0;
         shuffleXf = 0;
         shuffleEmitted = false;
+
+        // Jump-guard state. Covered here as well as in engage() so reset() is
+        // the FULL state set — a re-prepare must not leave a stale fade length
+        // or emitted flag behind for the next engage to trip over.
+        samplesSinceJump = 1 << 30;
+        lastXfLen = 0;
+        snapEmitted = false;
     }
 
     /** ENGAGE edge (audio thread). Latches character/targets and RE-SEEDS all
@@ -193,7 +197,6 @@ public:
         slotWait = 0;
         slotArmed = false;
         eventActive = false;
-        eventForcedSnap = false;
         samplesSinceJump = 1 << 30;
     }
 
@@ -506,8 +509,8 @@ private:
     {
         // 1 slot ≤ chaos 0.4 (v1.1 cadence), then 2..5 as chaos rises —
         // event DENSITY, not just event character, scales with chaos.
-        slotCount = 1 + (int) std::floor (4.0 * juce::jmax (0.0, chaos - 0.4) / 0.6);
-        slotLen   = juce::jmax (1, cellLen / slotCount);
+        const int slotCount = 1 + (int) std::floor (4.0 * juce::jmax (0.0, chaos - 0.4) / 0.6);
+        slotLen = juce::jmax (1, cellLen / slotCount);
     }
 
     void maybeStartEvent (double debtSec) noexcept
@@ -516,10 +519,8 @@ private:
         if (debtSec > kHardDebtSeconds)
         {
             startEvent (evSnap, debtSec);
-            eventForcedSnap = true;
             return;
         }
-        eventForcedSnap = false;
 
         if (nextUniform (timeRng) >= chaos * chaos)   // p(event) = chaos² per slot
             return;
@@ -666,12 +667,11 @@ private:
 
     // Glitch scheduler
     int    cellLen = 1, cellPos = 0;
-    int    slotCount = 1, slotLen = 1;
+    int    slotLen = 1;
     int    slotWait = 0;
     bool   slotArmed = false;
-    bool   eventActive = false, eventForcedSnap = false;
+    bool   eventActive = false;
     int    eventType = 0, eventPos = 0, eventLen = 0;
-    double eventTargetR = 1.0;
     int    sliceLen = 0, slicePos = 0, sliceXf = 0;
     double stutterRate = 1.0, stutterRateMult = 1.0;
     bool   stutterRoll = false;

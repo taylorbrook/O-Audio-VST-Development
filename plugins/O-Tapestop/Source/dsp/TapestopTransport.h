@@ -213,7 +213,6 @@ public:
         switch (state)
         {
             case State::Bypassed:
-                v[carrier].active      = true;
                 v[carrier].readAbsFrac = (double) (ring.getTotalWritten() - 1);
                 u = 0.0;   // first tick: r = 1 exactly — continuous with dry
                 break;
@@ -233,10 +232,9 @@ public:
                 // the SAME position via a 50 ms crossfade; the new ramp
                 // starts from r matched to 1.0 (u0 = 0). A at 1.25x and B at
                 // <=1x from the same origin skew <=12 ms across the fade.
-                startXfade (carrier, kCatchupRatio, wetFade, v, xfLenSamples);
+                startXfade (carrier, kCatchupRatio, wetFade, xfLenSamples);
 
                 const int newIdx = 1 - carrier;
-                v[newIdx].active      = true;
                 v[newIdx].readAbsFrac = v[carrier].readAbsFrac;
                 carrier = newIdx;
                 u = 0.0;
@@ -288,7 +286,6 @@ public:
 
         if (state == State::Bypassed)
         {
-            v[carrier].active      = true;
             v[carrier].readAbsFrac = (double) (ring.getTotalWritten() - 1);
         }
         // Every other state: the pass drives the carrier from its CURRENT
@@ -314,7 +311,6 @@ public:
     {
         if (state == State::Bypassed)
         {
-            v[carrier].active      = true;
             v[carrier].readAbsFrac = (double) (ring.getTotalWritten() - 1);
         }
 
@@ -590,14 +586,10 @@ public:
 
             if (++xfPos >= xfLenCur)
             {
-                v[fadingIdx].active = false;
                 xfActive = false;
 
                 if (state == State::ResyncXfade)
-                {
                     state = State::Bypassed;   // resync complete → bitwise dry
-                    v[carrier].active = false;
-                }
             }
         }
 
@@ -642,10 +634,9 @@ private:
         Stop mode; last scratch speed — sign included — from a scratch pass). */
     void enterResync (VarispeedVoice* v, juce::int64 live, double rLatchForFading) noexcept
     {
-        startXfade (carrier, rLatchForFading, wetFade, v, xfLenSamples);
+        startXfade (carrier, rLatchForFading, wetFade, xfLenSamples);
 
         const int rider = 1 - carrier;
-        v[rider].active      = true;
         v[rider].readAbsFrac = (double) (live - 1);   // +1.0 this tick → live
         carrier = rider;
         state   = State::ResyncXfade;
@@ -666,26 +657,21 @@ private:
         targetAbs = juce::jmin (targetAbs, (double) live);
         targetAbs = juce::jmax (targetAbs, (double) live - maxDebt);
 
-        startXfade (carrier, rLatchForFading, wetFade, v, xfLen);
+        startXfade (carrier, rLatchForFading, wetFade, xfLen);
 
         const int rider = 1 - carrier;
-        v[rider].active      = true;
         v[rider].readAbsFrac = targetAbs;
         carrier = rider;
     }
 
-    void startXfade (int idx, double rLatch, float gLatch, VarispeedVoice* v, int xfLen) noexcept
+    void startXfade (int idx, double rLatch, float gLatch, int xfLen) noexcept
     {
-        if (xfActive)
-        {
-            // Force-complete: the pool is 2 voices by contract (no third
-            // voice, no steal policy beyond this). Reachable only when a full
-            // release→spin-up→catchup cycle fits inside one 50 ms fade
-            // (sub-20 ms gesture chains); the dropped voice's residual gain
-            // is fadeOut(phi), small by then in every musical timing.
-            v[fadingIdx].active = false;
-        }
-
+        // Force-complete: when a fade is already running, retargeting fadingIdx
+        // drops the outgoing voice outright. The pool is 2 voices by contract
+        // (no third voice, no steal policy beyond this). Reachable only when a
+        // full release→spin-up→catchup cycle fits inside one 50 ms fade
+        // (sub-20 ms gesture chains); the dropped voice's residual gain is
+        // fadeOut(phi), small by then in every musical timing.
         fadingIdx = idx;
         rFading   = rLatch;
         gFading   = gLatch;

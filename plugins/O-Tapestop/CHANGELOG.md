@@ -2,6 +2,48 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.4] — 2026-08-17
+
+### Removed
+- **Dead state deleted from three DSP headers.** Audit queue item 5. Pure
+  deletion — no DSP, parameter, preset or enum change. Every symbol was
+  re-confirmed unread by grep across `Source/` and `tests/` before removal:
+
+  | Symbol | Was | Now |
+  |---|---|---|
+  | `VarispeedVoice::gain` | never read *or* written | gone |
+  | `VarispeedVoice::active` | write-only — **9** assignments in `TapestopTransport`, zero reads | gone, with all 9 writes |
+  | `ContinuousMotion::eventTargetR` | assigned in `reset()` only | gone |
+  | `ContinuousMotion::eventForcedSnap` | write-only (4 sites) | gone |
+  | `ContinuousMotion::slotCount` | member read only inside `recomputeSlots()` | now a local `const int` |
+
+  Deleting `active` left `startXfade()`'s `VarispeedVoice* v` parameter
+  unused — it was the only line that touched it — so the parameter went too,
+  and its three call sites lost the argument. The force-complete policy
+  comment that sat on the removed line is preserved on `fadingIdx = idx;`,
+  which is where the drop now happens implicitly.
+
+### Fixed
+- **`ContinuousMotion::reset()` now covers the full state set.** It previously
+  skipped `samplesSinceJump`, `lastXfLen` and `snapEmitted` (contrary to the
+  audit note, `shuffleEmitted` was already covered). Latent only — `reset()`
+  is reachable solely through `prepare()`, so today it always runs on
+  freshly-constructed state where the member initialisers already hold these
+  values. It was a trap for the next edit, and a re-prepare at a new sample
+  rate would otherwise carry a stale fade length into the next engage.
+
+### Testing
+- Render harness **67/67 green, output byte-identical** to the v1.3.3 build —
+  `sha256 f024b209…` on both sides, `diff` empty. This is the item's stated
+  acceptance criterion: any waveform change would have meant something was
+  load-bearing after all. The check is meaningful rather than cosmetic because
+  the harness prints per-probe numeric diagnostics (`maxDiff`, bounds,
+  deviations), not just PASS labels.
+- The byte-identical result is structural, not lucky: every one of the 31
+  harness call sites constructs a fresh `TapestopProcessor` immediately before
+  `prepareAndSettle`, so the completed `reset()` only ever runs over values
+  that already matched.
+
 ## [1.3.3] — 2026-08-17
 
 ### Documentation

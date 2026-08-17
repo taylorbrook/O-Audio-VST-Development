@@ -69,9 +69,7 @@ struct VarispeedVoice
 {
     static constexpr int kInterpGuard = 4;
 
-    bool   active      = false;
     double readAbsFrac = 0.0;   // absolute fractional read position vs CaptureBuffer::totalWritten
-    float  gain        = 1.0f;  // crossfade gain — driven from Phase 2.2's WindowLut reads
 
     /** Standard Catmull-Rom kernel in Horner form. At f == 0 this returns
         bitwise y1 (every term multiplies by 0.0f) — but the null path never

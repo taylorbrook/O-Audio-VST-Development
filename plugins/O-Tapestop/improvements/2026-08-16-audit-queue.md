@@ -195,7 +195,22 @@ if the current return swell is wanted as a character.
 
 ---
 
-## 5. Dead state removal  *(PATCH)*
+## 5. Dead state removal  *(PATCH → 1.3.4)* — ✅ DONE 2026-08-17
+
+**Resolved in v1.3.4.** All five symbols deleted as prescribed. Harness 67/67
+with output **byte-identical** to the v1.3.3 build (`sha256 f024b209…`, empty
+`diff`) — the stated acceptance criterion, met exactly.
+
+Two corrections to the notes below, found while verifying:
+
+- `VarispeedVoice::active` had **9** write sites, not 8.
+- `reset()` did **not** skip `shuffleEmitted` — that was already covered at
+  line 157. Only `samplesSinceJump`, `lastXfLen` and `snapEmitted` were
+  missing; all three were added.
+
+One consequence beyond the list: deleting `active` left `startXfade()`'s
+`VarispeedVoice* v` parameter unused (that line was its only use), so the
+parameter and its three call-site arguments went too. Still pure deletion.
 
 All confirmed by grep across `Source/` and `tests/` — no reads anywhere.
 
