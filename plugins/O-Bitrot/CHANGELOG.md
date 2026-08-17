@@ -2,6 +2,105 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.3.0] — 2026-08-17
+
+Engine quality foundations — improvement brief items 5 and 12. No new
+parameters and no state-format change; presets and automation load
+unchanged. Long-loop and tape-bend **renders do change** — see
+"Render-affecting" below.
+
+### Changed
+- **Capture ring 2.5 s → 10 s.** The ring span was the ceiling on every
+  sustained loop, and the arithmetic was unforgiving: a locked groove
+  re-jumps only while `lag + revolution <= maxLag - 50 ms`, which at
+  2.5 s required a *negative* starting lag for a second pass. The
+  headline "Locked Groove" preset therefore released after exactly one
+  re-pass, every time. At 10 s the groove now runs **6 revolution-spaced
+  re-passes** measured (>= 4 guaranteed by the static_assert at 33 1/3
+  RPM), and a sustained CD loop runs **24 passes deep** where it
+  previously managed 5. Cost is one `prepareToPlay` allocation: stereo
+  float, 3.8 MB at 48 kHz, 15.4 MB at 192 kHz.
+- **The ring's static_assert now constrains the constant it guards.** The
+  old form (`>= one revolution + tape ramp + safety`) is satisfied by
+  2.5 s and by 10 s alike, so it could never have caught the one-pass
+  ceiling it was nominally protecting against. It is now stated as the
+  multi-pass budget a locked groove actually spends, against a
+  `kMinLockedGroovePasses` floor — at 2.5 s it fails to compile.
+- **Read-head interpolation is 4-point Catmull-Rom** (was a 2-point
+  lerp). A mid-sample lerp read retains only `|cos(pi f / fs)|` of the
+  amplitude — 0.309 at 0.4x the sample rate, and about −16 dB at 0.9x
+  Nyquist — and the tape family runs its entire melodic voice through
+  this path at bend rates of 0.5–2.0x. Measured mid-sample retention at
+  0.4·fs: **0.294 → 0.427**. The `frac <= 0` exact-integer fast path is
+  untouched and still bypasses the polynomial entirely, which is what
+  keeps the all-off passthrough bit-transparent (FUNC-02). Cost is two
+  extra ring reads and a few FMAs, on the fractional path only; the
+  worst-case render ratio was unmoved (0.0045 → 0.0043).
+
+### Fixed
+- **Sustained CD loops no longer slip.** A loop ages the read head by one
+  segment per pass and had no lag budget of its own, so it kept wrapping
+  until `ReadHead`'s lag-overflow clamp teleported the head forward —
+  while `CDSkip` still read `state == Loop`, so the very next wrap
+  re-jumped from the teleported position. The result was an audible
+  unplanned slip attributable to no family. `CDSkip` now gates its wrap
+  on the same lag budget the vinyl locked groove uses and self-releases
+  through its own forward recovery jump when the ring is spent. Measured
+  on the 400 ms-segment probe: **13 recovery jumps landing 68404 samples
+  behind live → exactly 1 landing at lag 1**, with the render tracking
+  live material afterwards (post-recovery error 4e-1 → 1e-6).
+- **The lag-overflow clamp no longer fires under a loop.** It is
+  suppressed while a CD loop or locked groove owns the read rate, which
+  those transports hold at exactly 1.0 while gating their own jumps on
+  the same budget — so the clamp could only ever fire spuriously there.
+  The suppression additionally requires the tape transport to be idle: a
+  CD or vinyl win starts a tape *release* ramp that keeps running
+  underneath the loop for up to `TAPE_RAMP` ms, and during that ramp the
+  rate is not 1.0, so lag can genuinely drift and the clamp must stay
+  armed.
+- **Overflow recovery lands at a fixed 1.2 s, not half the ring.** The
+  landing distance was `0.5 * maxLag`, which was 1.2 s behind at the
+  2.5 s ring but would have become a 4.95 s teleport into stale material
+  once the ring grew. Pinning it as a duration keeps the last-resort
+  safety net's behaviour exactly what it has always been.
+
+### Render-affecting
+Anything driving a **CD buffer loop**, a **vinyl locked groove**, or a
+**tape bend** renders differently from v1.2.1 — deeper loops, and a
+cleaner interpolator on every fractional read. Bit-exact passthrough with
+all families off is unchanged and still verified by the null probes.
+
+### Testing
+`57/57` render-harness probes green, stable over three consecutive runs;
+`pluginval --strictness-level 10` SUCCESS three times; `auval` PASS.
+FUNC-02 nulls (`B`, `M1`, `M3`) and every block-size-invariance probe
+(`F`, `G`, `N`, `Q`, `S2`, `Z2`) stayed bit-identical throughout.
+
+Three probes added, each verified to FAIL against the code it gates
+(a probe that passes both ways is decoration):
+
+| Probe | Gates | Reverted result |
+|---|---|---|
+| `C2 item-12 catmull-rom` | interpolator response + fast-path bit-exactness | lerp scores 0.294, bound 0.40 |
+| `L2 item-5 cd-loop-budget` | loop depth, single intentional recovery, lands live | 13 recoveries, lag 68404, err 0.398 |
+| `M4 item-5 locked-groove-multipass` | revolution-spaced re-passes | 0 re-passes at the 2.5 s ring |
+
+Two existing probes were **re-recorded**, both for fixture reasons rather
+than DSP ones:
+
+- `M DSP-03 vinyl-jumps` / `M2 DSP-03 vinyl-pitch` — the saw position
+  marker's period (262144) carried a stated invariant, "> 2x the ring's
+  maximum lag", that nothing enforced. Growing the ring took max lag from
+  120000 to 475200 samples and silently broke it: backward jumps measured
+  from a deeply lagged head wrapped into `(-131072, 131072]` and were
+  misread or discarded, which presented as "vinyl stopped jumping." The
+  period is now 2^20 with the invariant as a `static_assert`, the
+  detection thresholds derive from it instead of being literals tuned to
+  the old value, and both probes get a 12 s ring-fill before measuring so
+  the backward ladder reads real material rather than pre-history.
+  `M` also asserts the deeper ladder it can now see (>= 8 backward jumps,
+  measured 13); `M2`'s trackable-hop count went 277/599 → 641/641.
+
 ## [1.2.1] — 2026-08-17
 
 Engine-robustness pass — improvement brief items 9 and 13. No new

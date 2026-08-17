@@ -34,9 +34,13 @@
       * Locked groove: re-jump exactly one revolution each time the head
         returns to the jump point, with a pop per pass. Room-gated: a re-jump
         that would read material older than the ring span self-releases
-        instead (kRingSeconds = 2.5 fits at most one full re-pass at either
-        RPM — the general multi-pass path activates automatically if the ring
-        constant ever grows).
+        instead. At kRingSeconds = 2.5 that gate made a SECOND pass
+        arithmetically impossible (it required a negative starting lag), so
+        the groove always released after one; the 10 s ring of v1.3.0
+        activates the general multi-pass path — >= 4 re-passes at 33 1/3.
+        NOTE for the harness: re-passes fire when the head returns to
+        lockedEndAbs, one revolution apart, which is NOT the clock grid that
+        the initial jump landed on.
       * Every jump goes through ReadHead::clampAndScheduleJump() (crossfaded
         unless HARD_EDGES) and fires a pop (ArtifactSynth, level VINYL_POP).
 

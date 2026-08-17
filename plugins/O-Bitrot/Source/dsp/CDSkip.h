@@ -39,9 +39,12 @@
 
     State policy: Conceal/Mute are duration-bounded (<= 80 ms) and always
     finish naturally — a new win or a release while they run does not abort
-    them (an abort would step the filter/gain discontinuously). Loop is
-    unbounded and persists while CD keeps winning ticks ("repeat count derives
-    from state duration"); release() performs the recovery jump.
+    them (an abort would step the filter/gain discontinuously). Loop persists
+    while CD keeps winning ticks ("repeat count derives from state duration")
+    and while the capture ring can still afford another pass — each pass ages
+    the head by one segment, so the wrap is gated on the same lag budget the
+    vinyl locked groove uses, and a loop that exhausts it self-releases
+    through the recovery jump (v1.3.0). release() performs that same jump.
 
   ==============================================================================
 */
@@ -185,9 +188,31 @@ public:
             case State::Loop:
                 if (head.getPosition() >= loopEndAbs)
                 {
-                    head.clampAndScheduleJump (head.getPosition() - static_cast<double> (segmentSamples),
-                                               ring.getTotalWritten(), hardEdges);
-                    art.triggerChirp();
+                    // Lag budget, mirroring VinylTransport's locked-groove
+                    // room gate (v1.3.0). Every pass ages the head by one
+                    // segment; when the ring can no longer carry another,
+                    // RELEASE through the intentional forward recovery jump
+                    // instead of wrapping again. Until now there was no gate
+                    // here at all: the loop kept wrapping until ReadHead's
+                    // lag-overflow clamp teleported the head forward while
+                    // this state machine still read Loop, and the next wrap
+                    // re-jumped from the teleported position. Recovery is now
+                    // a decision this family makes and owns.
+                    const juce::int64 tw  = ring.getTotalWritten();
+                    const double      lag = head.getLag (tw);
+
+                    if (lag + static_cast<double> (segmentSamples)
+                            <= head.getMaxLag() - 0.05 * fs)
+                    {
+                        head.clampAndScheduleJump (head.getPosition() - static_cast<double> (segmentSamples),
+                                                   tw, hardEdges);
+                        art.triggerChirp();
+                    }
+                    else
+                    {
+                        recoveryJump (head, ring, hardEdges);
+                        state = State::Idle;
+                    }
                 }
                 break;
 

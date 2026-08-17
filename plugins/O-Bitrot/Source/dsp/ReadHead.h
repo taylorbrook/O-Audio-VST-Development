@@ -39,6 +39,13 @@
         than restarting it — the dominant head is carried over as the outgoing
         head at the gain already reached (v1.2.1). Restarting dropped the
         outgoing contribution as a step of up to the full jump discontinuity.
+      * The lag-overflow clamp is SUPPRESSED while a loop transport owns the
+        read rate (v1.3.0). CD loops and locked grooves hold rate at exactly
+        1.0 and gate their own jumps on the same lag budget, so the clamp can
+        only fire spuriously there — and firing teleported the head forward
+        while CDSkip still read state == Loop, which re-jumped on the next
+        wrap. When it does fire it now lands at a FIXED lag rather than half
+        the ring span.
       * NORMAL-state gentle re-approach: when no transport event is active, a
         ramped rate trim of at most +2% pulls accumulated lag back toward 0.
         The trim is EXACTLY 0.0 when lag is 0, so the all-off passthrough
@@ -57,6 +64,10 @@
 class ReadHead
 {
 public:
+    // Landing lag for the last-resort overflow recovery. Deliberately a fixed
+    // duration rather than a fraction of the ring — see prepare().
+    static constexpr double kOverflowRecoveryLagSeconds = 1.2;
+
     void prepare (double sampleRate, int ringSizeSamples)
     {
         fs = sampleRate;
@@ -64,9 +75,21 @@ public:
         // Jump crossfade: 3 ms (spec window 1-5 ms), computed once here.
         fadeLenSamples = juce::jmax (1, static_cast<int> (0.003 * fs));
 
-        // Runtime lag ceiling: ring span minus the safety margin.
+        // Runtime lag ceiling: ring span minus the safety margin. This grows
+        // with the ring, and is what the loop transports spend as their
+        // multi-pass budget (CDSkip / VinylTransport room gates).
         maxLagSamples = static_cast<double> (ringSizeSamples)
                         - CaptureRing::kSafetySeconds * fs;
+
+        // Where the last-resort overflow recovery LANDS is a separate
+        // question, and must NOT scale with the ring. The pre-1.3.0
+        // expression was 0.5 * maxLag — 1.2 s behind at the old 2.5 s ring,
+        // but carried unchanged onto a 10 s ring it would teleport the head
+        // 4.95 s back into stale material. Pinning the constant keeps the
+        // safety net's landing distance exactly what it has always been; the
+        // jmin only matters for a hypothetical ring too small to hold it.
+        overflowRecoveryLagSamples = juce::jmin (kOverflowRecoveryLagSeconds * fs,
+                                                 0.5 * maxLagSamples);
 
         // Re-approach trim shape: full +2% above 50 ms of lag, proportional
         // below; the trim itself ramps over ~10 ms (never a rate step).
@@ -178,8 +201,12 @@ public:
 
     // Renders one stereo sample at the current position, then advances by
     // `rate`. Call AFTER the ring write for this sample.
+    //
+    // loopOwnsRate: a CD loop or a locked groove is driving this sample AND
+    // no tape event is in flight underneath it — i.e. `rate` is exactly 1.0.
+    // See the overflow guard at the bottom of this function.
     void renderSample (const CaptureRing& ring, double rate, bool hardEdges,
-                       float& outL, float& outR) noexcept
+                       bool loopOwnsRate, float& outL, float& outR) noexcept
     {
         const juce::int64 totalWritten = ring.getTotalWritten();
         const double      hi           = static_cast<double> (totalWritten - 1);
@@ -224,8 +251,21 @@ public:
 
         // Lag overflow (deep stops / down-bends stacking up): jump forward
         // through the choke point — never a hidden teleport.
-        if (next - pos > maxLagSamples)
-            clampAndScheduleJump (next - 0.5 * maxLagSamples, totalWritten, hardEdges);
+        //
+        // Suppressed while a loop transport owns the rate. Such a loop holds
+        // `rate` at exactly 1.0, so lag is CONSTANT between its own jumps,
+        // and each of those jumps is gated on this same budget — the head
+        // provably never crosses maxLagSamples while the suppression is in
+        // effect, so the clamp here could only ever fire spuriously. It used
+        // to: on a sustained CD loop it teleported the head forward while
+        // CDSkip still read state == Loop, and the very next wrap re-jumped
+        // from the teleported position — an unplanned slip attributable to no
+        // family. The tape-idle half of the flag matters: a CD or vinyl win
+        // starts a tape RELEASE ramp that keeps running underneath the loop
+        // for up to TAPE_RAMP ms, and during that ramp the rate is not 1.0,
+        // so lag can genuinely drift and the clamp must stay armed.
+        if (! loopOwnsRate && next - pos > maxLagSamples)
+            clampAndScheduleJump (next - overflowRecoveryLagSamples, totalWritten, hardEdges);
     }
 
 private:
@@ -233,6 +273,7 @@ private:
     double pos            = 0.0;    // fractional absolute read position
     double lastRate       = 1.0;
     double maxLagSamples  = 0.0;
+    double overflowRecoveryLagSamples = 0.0;
 
     // NORMAL-state re-approach trim
     double trim        = 0.0;

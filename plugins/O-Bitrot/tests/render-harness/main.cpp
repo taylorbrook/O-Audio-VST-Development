@@ -469,10 +469,46 @@ std::vector<float> channelToVector (const juce::AudioBuffer<float>& b, int ch)
 //==============================================================================
 // ── Phase 2.2 helpers: position-marker saw + jump-event scanner ──────────────
 
+/** Read head's maximum lag, in samples at kFs — DERIVED from the plugin's own
+    ring constants rather than mirrored, so the two cannot drift apart
+    (pattern_test_fixture_mirrors_drift_silently). */
+constexpr int kMaxLagSamples = (int) ((CaptureRing::kRingSeconds
+                                       - CaptureRing::kSafetySeconds) * kFs);
+
 /** Saw period, samples. Power of two so the marker value k/period is EXACT in
-    float (k < 2^18 fits the 24-bit mantissa), and > 2x the ring's maximum lag
-    (120000 @ 48 kHz) so signed distances never alias. */
-constexpr int kSawPeriod = 262144;
+    float, and > 2x the read head's maximum lag so signed jump distances never
+    alias.
+
+    That second property was stated in this comment but never enforced, and
+    v1.3.0's 2.5 s -> 10 s ring quietly broke it: maxLag went 120000 ->
+    475200, so the old 262144 could no longer represent a backward jump
+    measured from a deeply lagged head — distances wrapped into
+    (-131072, 131072] and were misread or discarded as noise, which read as
+    "vinyl stopped jumping." The asserts below are the invariant. */
+constexpr int kSawPeriod = 1048576;   // 2^20
+static_assert ((kSawPeriod & (kSawPeriod - 1)) == 0,
+               "sawAt masks with kSawPeriod - 1, so the period must be a power of two");
+static_assert (kSawPeriod > 2 * kMaxLagSamples,
+               "Saw marker period must exceed 2x the read head's max lag, or signed "
+               "jump distances alias — raise it if the capture ring grows again");
+static_assert (kSawPeriod <= (1 << 24),
+               "Marker values k/kSawPeriod must stay exact in a 24-bit float mantissa");
+
+/** Per-sample detection threshold for a jump of `jumpSamples` in the saw
+    marker: the value step is jumpSamples/kSawPeriod, smeared over the
+    ReadHead's ~3 ms crossfade, and the scan trips at 40% of that rate.
+
+    DERIVED from kSawPeriod for the same reason as the period itself — the
+    literals this replaces (5e-5 for the CD loop, 1e-3 for a vinyl
+    revolution) were tuned against the old 262144 and went 4x too coarse to
+    see any jump at all once the period grew. Headroom is ample: the saw is
+    exact in float and Catmull-Rom reproduces a linear ramp exactly, so the
+    between-jump residual sits around 1e-7. */
+double sawJumpThresh (double jumpSamples) noexcept
+{
+    constexpr double kFadeSamples = 0.003 * kFs;   // ReadHead::fadeLenSamples
+    return 0.4 * (jumpSamples / (double) kSawPeriod) / kFadeSamples;
+}
 
 /** Position-marker saw: value encodes the ABSOLUTE input sample index, so a
     read-head jump of d samples shows up as a value step of d/kSawPeriod
@@ -898,6 +934,65 @@ int main()
                    + " (bound 1.20), valid " + juce::String (valid) + "/" + juce::String (evaluated)
                    + (bendsLive ? "" : " — NO DOWN-BEND TRACKED, probe vacuous")
                    + (live ? "" : " — SILENT"));
+    }
+
+    //==========================================================================
+    // C2 — v1.3.0 item 12: the read head's fractional interpolator. Unit-level
+    // on CaptureRing, because the quantity under test is the interpolator's
+    // own frequency response and any transport around it only obscures it.
+    //
+    // A mid-sample read (frac = 0.5) is the interpolator's worst case. For a
+    // sine at frequency f the retained amplitude is:
+    //
+    //   2-point lerp   |cos(w/2)|                                  w = 2*pi*f/fs
+    //   Catmull-Rom    |1.125*cos(w/2) - 0.125*cos(3w/2)|
+    //
+    // At f = 0.4*fs that is 0.309 (-10.2 dB) against 0.449 (-7.0 dB). The
+    // 0.40 bound sits between them, so this probe FAILS against the lerp this
+    // version replaces — it is a gate, not a decoration. Tape bends run the
+    // whole melodic voice through this path (rates 0.5-2.0), which is why the
+    // loss was worth 2 extra ring reads and a few FMAs.
+    //
+    // Also pins the exact-integer fast path bit-for-bit: FUNC-02's end-to-end
+    // nulls (B / M1 / M3) depend on frac <= 0 never touching the polynomial,
+    // and this states that requirement where the code is.
+    {
+        constexpr double kProbeHz  = 0.4 * kFs;
+        constexpr int    kPushLen  = 8192;
+        constexpr double w         = 2.0 * juce::MathConstants<double>::pi * kProbeHz / kFs;
+
+        CaptureRing ring;
+        ring.prepare (kFs);
+
+        for (int n = 0; n < kPushLen; ++n)
+        {
+            const auto v = (float) std::sin (w * n);
+            ring.push (v, v);
+        }
+
+        // Exact-integer reads must be the stored sample, bit-for-bit.
+        bool fastPathExact = true;
+        for (int n = 1024; n < kPushLen - 8; ++n)
+            if (! bitExact (ring.readFrac (0, (double) n), ring.readAbs (0, n)))
+            {
+                fastPathExact = false;
+                break;
+            }
+
+        // Mid-sample retention: peak of the interpolated sequence against the
+        // unit-amplitude source. Kept clear of both ring ends so neither the
+        // write-head clamp nor pre-history is in play.
+        double peakMid = 0.0;
+        for (int n = 1024; n < kPushLen - 8; ++n)
+            peakMid = juce::jmax (peakMid, std::abs ((double) ring.readFrac (0, n + 0.5)));
+
+        const bool retains = peakMid >= 0.40 && peakMid <= 1.0;
+
+        check ("C2 item-12 catmull-rom", fastPathExact && retains,
+               juce::String ("mid-sample retention at 0.4*fs = ") + juce::String (peakMid, 4)
+                   + " (bound [0.40, 1.0]; lerp scores 0.309, Catmull-Rom 0.449)"
+                   + (fastPathExact ? ", exact-integer path bit-exact"
+                                    : " — EXACT-INTEGER FAST PATH BROKEN, FUNC-02 at risk"));
     }
 
     //==========================================================================
@@ -1327,11 +1422,11 @@ int main()
         const auto mono = channelToVector (out, 0);
         const int  startAt = kComp + (int) (0.2 * kFs);
 
-        // Threshold 5e-5: a 4800-sample loop jump moves the saw by only
-        // 0.018, spread over the 144-sample fade (~1.3e-4/sample) — the 1e-3
-        // vinyl threshold would ride on the chirp alone. skipAfter 600 clears
-        // fade (144) + chirp (384).
-        const auto events = scanSawEvents (mono, startAt, 600, 5.0e-5);
+        // A 4800-sample loop jump is a far smaller marker step than a vinyl
+        // revolution, so it gets its own threshold — a revolution-sized one
+        // would ride on the chirp alone. skipAfter 600 clears fade (144) +
+        // chirp (384).
+        const auto events = scanSawEvents (mono, startAt, 600, sawJumpThresh (4800.0));
 
         // Classify: wrap-region events (< 95990 input-time) and the recovery
         // (the first FORWARD event after the release region — a +/-1 sample
@@ -1415,6 +1510,126 @@ int main()
     }
 
     //==========================================================================
+    // L2 — v1.3.0 item 5, CD half: a sustained loop must run until the RING
+    // budget is spent and then recover on its OWN terms.
+    //
+    // Each pass ages the head by one segment, so at CD_SEGMENT 400 ms the
+    // ladder is ~24 passes deep before the budget (maxLag - 50 ms) refuses
+    // another. Two things this pins that nothing else does:
+    //
+    //   1. The loop SUSTAINS. At the old 2.5 s ring the same settings ran 6
+    //      passes; a 10 s ring is the whole point of item 5.
+    //   2. Exhaustion is ONE intentional forward recovery jump, and the loop
+    //      is Idle after it. Previously there was no budget gate here at all:
+    //      ReadHead's lag-overflow clamp teleported the head forward while
+    //      this state machine still read Loop, and the very next wrap
+    //      re-jumped from the teleported position — a slip belonging to no
+    //      family. The "no backward jump in the segment after recovery"
+    //      clause is what discriminates the two.
+    //
+    // Ticks every 2 s keep re-winning CD, but a rung-2 win with state == Loop
+    // returns early, so the loop is extended rather than restarted.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 0.5f);   // tick every 2 s
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "CD_SEVERITY",     1.0f);   // rungFloat >= 2.25 => always Loop
+        setParam (*p, "CD_SEGMENT",      400.0f); // 19200 samples
+        setParam (*p, "SEED",            7.0f);
+
+        constexpr int seg   = 19200;
+        const int     total = (int) (12.5 * kFs);
+
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sawStereo);
+
+        const auto mono    = channelToVector (out, 0);
+        const int  startAt = kComp + (int) (0.2 * kFs);
+        const auto events  = scanSawEvents (mono, startAt, 600, sawJumpThresh ((double) seg));
+
+        // Passes are counted as the longest UNBROKEN run, not as a total.
+        // The total does not discriminate: at the 2.5 s ring the loop still
+        // racks up ~22 passes over this render, just as five short loops that
+        // each exhaust the ring and get restarted by the next tick. What the
+        // 10 s ring buys is one loop that runs 26 passes deep, which is the
+        // claim item 5 actually makes.
+        int    wraps = 0, recoveries = 0, longestRun = 0, run = 0;
+        int    prevWrapOnset = -1;
+        int    recoveryOnset = -1;
+        double recoveryLagAfter = 0.0;
+
+        for (const auto& e : events)
+        {
+            const int onset = e.outIndex - kComp;
+
+            if (std::abs (e.distSamples - (double) seg) <= 8.0)
+            {
+                ++wraps;
+                run = (prevWrapOnset >= 0 && std::abs (onset - prevWrapOnset - seg) <= 8)
+                          ? run + 1 : 1;
+                longestRun    = juce::jmax (longestRun, run);
+                prevWrapOnset = onset;
+                continue;
+            }
+
+            run = 0;
+            prevWrapOnset = -1;
+
+            if (e.distSamples < -(double) seg * 4.0)
+            {
+                ++recoveries;
+                if (recoveryOnset < 0)
+                {
+                    recoveryOnset    = onset;
+                    recoveryLagAfter = lagFromSaw (e.vPost, e.postIndex, kComp);
+                }
+            }
+        }
+
+        // Where the recovery LANDS is the whole discriminator, and it has to
+        // be measured rather than inferred from event spacing: the pre-fix
+        // teleport-and-re-jump happened within a sample or two of itself, so
+        // the scanner's own smear-skip merges the pair into one event. Read
+        // the head's material directly instead — live means the render tracks
+        // the latency-aligned input; the pre-fix path left it ~2.6 s back
+        // (0.5 * maxLag from the clamp, plus one segment from the still-Loop
+        // state machine re-jumping off the teleported position).
+        //
+        // The window sits after the recovery and before the next 2 s tick can
+        // start a fresh loop. An earlier draft asserted "no backward jump
+        // within one segment of the recovery" and flagged exactly that next
+        // tick: recovery lands at 11.6 s and the tick is at 12.0 s, one
+        // 400 ms segment later to the sample. Coincidence, not a defect.
+        double postErr = 0.0;
+        if (recoveryOnset >= 0)
+        {
+            const int from = recoveryOnset + kComp + 2000;
+            const int to   = juce::jmin (from + 10000, (int) mono.size());
+            for (int n2 = from; n2 < to; ++n2)
+                postErr = juce::jmax (postErr,
+                                      std::abs ((double) mono[(size_t) n2]
+                                                - (double) sawAt (n2 - kComp)));
+        }
+
+        const bool live       = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool sustained  = longestRun >= 18;           // 26 measured; 2.5 s ring gives 5
+        const bool recovered  = recoveries == 1 && recoveryLagAfter < 1000.0;
+        const bool tracksLive = recoveryOnset >= 0 && postErr < 1.0e-3;
+
+        check ("L2 item-5 cd-loop-budget", live && sustained && recovered && tracksLive,
+               juce::String (longestRun) + " passes in the longest unbroken loop (need >= 18), "
+                   + juce::String (wraps) + " total, " + juce::String (recoveries)
+                   + " recovery jump(s) (need exactly 1) @" + juce::String (recoveryOnset)
+                   + " landing at lag " + juce::String (recoveryLagAfter, 1)
+                   + " (need < 1000), post-recovery err vs live "
+                   + juce::String (postErr, 6) + " (need < 1e-3)"
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
     // M — DSP-03 vinyl on the saw marker: backward jumps are integer
     // revolution multiples (45 RPM => 64000 samples @ 48 kHz), forward jumps
     // land at live, every onset sits on the clock grid (FUNC-01). Pops are
@@ -1431,15 +1646,24 @@ int main()
         setParam (*p, "VINYL_POP",       0.0f);
         setParam (*p, "SEED",            99.0f);
 
-        const int total = 288000;                 // 6 s => 11 ticks
+        // v1.3.0 geometry. The ring is 10 s, so the head can legitimately sit
+        // seconds behind live — and a backward jump taken before the ring has
+        // FILLED lands in pre-history, where readAbs returns the cleared
+        // buffer's zeros and the marker measures nothing at all. The old 6 s
+        // render was sized for the 2.5 s ring, and under a 10 s one it spent
+        // its first four ticks throwing the head into that dead zone: the
+        // scan saw 5 events where the transport had made 11. Fill the ring
+        // first, then measure over a window where every jump is meaningful.
+        const int warmup = (int) (12.0 * kFs);
+        const int total  = warmup + (int) (8.0 * kFs);   // 20 s => 40 ticks
         juce::AudioBuffer<float> out;
         renderInto (*p, out, total, { 512 }, sawStereo);
 
         const auto mono   = channelToVector (out, 0);
-        const int  startAt = kComp + (int) (0.2 * kFs);
-        const auto events  = scanSawEvents (mono, startAt, 160, 1.0e-3);
-
+        const int  startAt = kComp + warmup;
         constexpr int rev = 64000;
+
+        const auto events  = scanSawEvents (mono, startAt, 160, sawJumpThresh ((double) rev));
 
         int  backward = 0, forward = 0;
         bool distOk = true, gridOk = true, liveOk = true;
@@ -1477,7 +1701,14 @@ int main()
             }
         }
 
-        const bool counts = backward >= 2 && forward >= 2 && (int) events.size() >= 8;
+        // At VINYL_PROB 100 a win lands every 24000 samples and supersedes any
+        // locked groove long before its 64000-sample re-pass could fire, so
+        // every event here is win-driven and on the clock grid. What the 10 s
+        // ring changed is how DEEP the backward ladder gets before the room
+        // gate hands over to a forward recovery: the lag now stacks past
+        // 7 revolutions (~9.3 s), where the 2.5 s ring refused the second
+        // jump outright. M4 covers the multi-pass groove itself.
+        const bool counts = backward >= 8 && forward >= 2 && (int) events.size() >= 12;
         const bool live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
 
         check ("M DSP-03 vinyl-jumps", live && counts && distOk && gridOk && liveOk,
@@ -1502,13 +1733,20 @@ int main()
         setParam (*p, "VINYL_POP",       50.0f);
         setParam (*p, "SEED",            99.0f);
 
-        const int total = (int) (4.0 * kFs);
+        // Same 12 s ring-fill as M, and for the same reason: before the 10 s
+        // ring has filled, the backward ladder walks the head into
+        // pre-history, where the reads are zeros and autocorrelation has no
+        // pitch to track. That is a measurement artefact, not a pitch defect
+        // — the band below was already in spec at 4 s (220.2-226.4 Hz), it
+        // was the trackable-hop count that collapsed (277/599).
+        const int warmup = (int) (12.0 * kFs);
+        const int total  = warmup + (int) (4.0 * kFs);
         juce::AudioBuffer<float> out;
         renderInto (*p, out, total, { 512 }, sineStereo);
 
         const auto mono  = channelToVector (out, 0);
         const auto trace = pitchTrace (mono, kSineHz);
-        const int  hopStart = 14400 / 256;
+        const int  hopStart = (kComp + warmup) / 256;
 
         /* DSP-03's criterion is STEADY-STATE pitch across jumps. A window that
            straddles the jump instant itself sees a phase-discontinuous
@@ -1582,6 +1820,86 @@ int main()
         check ("M3 vinyl-pop-audible", live && diff > 1.0e-3,
                juce::String ("maxAbsDiff pop-50-vs-0 = ") + juce::String (diff, 5)
                    + " (need > 1e-3)");
+    }
+
+    //==========================================================================
+    // M4 — v1.3.0 item 5, vinyl half: the locked groove finally LOOPS.
+    //
+    // BRIEF.md's headline is "locked groove loops with a pop per pass", and
+    // until now it could not: a re-pass needs
+    // lag + revolution <= maxLag - 50 ms, and at kRingSeconds = 2.5 that
+    // inequality required a NEGATIVE starting lag, so the groove released on
+    // its first return every single time. No probe caught it because M runs
+    // VINYL_PROB 100 with ticks every 0.5 s, where a fresh win supersedes the
+    // groove long before its 1.333 s return — every event there is win-driven
+    // and on the clock grid.
+    //
+    // So this probe makes the groove the only thing happening: ONE tick at
+    // 10 s (by which point the 10 s ring is full, so the backward ladder
+    // reads real material rather than pre-history), then nothing. Re-passes
+    // fire when the head returns to lockedEndAbs — exactly one revolution
+    // apart, and deliberately NOT on the clock grid. Total stays under one
+    // saw period (1048576) so the marker cannot wrap.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 0.1f);   // one tick at 10 s
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_PROB",      100.0f);
+        setParam (*p, "VINYL_RPM",       1.0f);   // 45 => 4/3 s = 64000 samples
+        setParam (*p, "VINYL_POP",       0.0f);   // keep the marker clean
+        setParam (*p, "SEED",            99.0f);
+
+        constexpr int rev   = 64000;
+        const int     total = (int) (21.0 * kFs);
+
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sawStereo);
+
+        const auto mono    = channelToVector (out, 0);
+        const int  startAt = kComp + (int) (0.2 * kFs);
+        const auto events  = scanSawEvents (mono, startAt, 160, sawJumpThresh ((double) rev));
+
+        // Re-passes: consecutive one-revolution backward jumps spaced one
+        // revolution apart in TIME. The initial win-driven jump seeds the
+        // chain; each link after it is a pass the 2.5 s ring could not buy.
+        int    rePasses = 0, worstSpacing = 0;
+        int    prevBackOnset = -1;
+        double deepestLag = 0.0;
+
+        for (const auto& e : events)
+        {
+            const int onset = e.outIndex - kComp;
+            deepestLag = juce::jmax (deepestLag, lagFromSaw (e.vPost, e.postIndex, kComp));
+
+            if (std::abs (e.distSamples - (double) rev) > 8.0)
+            {
+                prevBackOnset = -1;                  // not a revolution jump
+                continue;
+            }
+
+            if (prevBackOnset >= 0)
+            {
+                const int spacing = onset - prevBackOnset;
+                worstSpacing = juce::jmax (worstSpacing, std::abs (spacing - rev));
+                if (std::abs (spacing - rev) <= 8)
+                    ++rePasses;
+            }
+            prevBackOnset = onset;
+        }
+
+        const bool live     = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool loops    = rePasses >= 4;             // 2.5 s ring scored 0
+        const bool onRevGrid = rePasses > 0 && worstSpacing <= 8;
+        const bool deep     = deepestLag > 4.0 * rev;    // the ladder really descends
+
+        check ("M4 item-5 locked-groove-multipass", live && loops && onRevGrid && deep,
+               juce::String (rePasses) + " revolution-spaced re-passes (need >= 4; the 2.5 s "
+                   "ring allowed 0), worst |spacing - 64000| = " + juce::String (worstSpacing)
+                   + " (bound 8), deepest lag " + juce::String (deepestLag, 0) + " samples"
+                   + (deep ? "" : " — LADDER TOO SHALLOW, probe vacuous")
+                   + (live ? "" : " — SILENT"));
     }
 
     //==========================================================================
@@ -1673,7 +1991,7 @@ int main()
             {
                 ring.push (sineStereo (0, n), sineStereo (1, n));
                 float l = 0.0f, r = 0.0f;
-                head.renderSample (ring, 1.0, false, l, r);   // hardEdges off
+                head.renderSample (ring, 1.0, false, false, l, r);   // hardEdges off, no loop owner
                 out.push_back (l);
                 ++n;
             };
