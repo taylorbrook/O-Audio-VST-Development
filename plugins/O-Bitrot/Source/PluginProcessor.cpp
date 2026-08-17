@@ -514,6 +514,8 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     lastSeed = (int) seedParam->load();
     rngBank.reseed(lastSeed);
     lastAppliedRate = 1.0;
+
+    stopRecoveryLagSamples = kStopRecoverySeconds * sampleRate;
 }
 
 void OBitrotAudioProcessor::releaseResources()
@@ -708,6 +710,19 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         {
             readHead.clearTrim();               // NORMAL trim restarts from 0
             rate = tapeTransport.nextRate(lag);
+
+            // A deep stop (or a long down-bend) strands the head seconds
+            // behind the write head. The +2% re-approach trim would need ~50x
+            // the stall duration to recover, and the ReadHead lag-overflow
+            // clamp would eventually teleport mid-normal-playback with no
+            // family to attribute it to. Instead: when the release ramp lands
+            // back on NORMAL still deep in the hole, take ONE intentional
+            // crossfaded jump to live through the choke point — "content lost
+            // while the transport was stalled" (the CD-recovery pattern).
+            if (tapeTransport.consumeReleaseComplete() && lag > stopRecoveryLagSamples)
+                readHead.clampAndScheduleJump(
+                    static_cast<double>(captureRing.getTotalWritten() - 1),
+                    captureRing.getTotalWritten(), hardEdges);
         }
         else if (cdSkip.isLooping() || vinylTransport.isLocked())
         {

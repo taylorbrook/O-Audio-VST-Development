@@ -35,6 +35,10 @@
         linear equal-gain, ~3 ms computed in prepare(). O-Polystutter's
         held-sample blend is deliberately NOT reproduced (it freezes the old
         material to DC). Skipped entirely under HARD_EDGES.
+      * A jump arriving MID-FADE is FOLDED into the running crossfade rather
+        than restarting it — the dominant head is carried over as the outgoing
+        head at the gain already reached (v1.2.1). Restarting dropped the
+        outgoing contribution as a step of up to the full jump discontinuity.
       * NORMAL-state gentle re-approach: when no transport event is active, a
         ramped rate trim of at most +2% pulls accumulated lag back toward 0.
         The trim is EXACTLY 0.0 when lag is 0, so the all-off passthrough
@@ -109,10 +113,45 @@ public:
             return;
         }
 
-        oldPos     = pos;
-        oldRate    = lastRate;   // the old head keeps its own rate for the fade
+        if (fadeActive)
+        {
+            // A jump arrived MID-FADE. Blindly overwriting oldPos/oldRate and
+            // zeroing fadeCount drops the outgoing head's contribution as an
+            // output STEP of (1 - t) * |newHead - oldHead| — the FULL jump
+            // discontinuity when t is near 0, which violates the click-safety
+            // contract. This is reachable in a single tick: Arbitration's
+            // kVinyl branch runs cd.release() (recovery jump) and then
+            // vinyl.onWin() (second jump) with no render in between, so t is
+            // exactly 0 and the material actually playing would be discarded.
+            //
+            // Fold instead: keep whichever head currently DOMINATES the mix as
+            // the outgoing head and resume from the gain already reached, so
+            // the dominant contribution is continuous across the retarget.
+            // The residual step is bounded by 0.5 * |delta| in every case, and
+            // is exactly 0 in the same-tick collision above.
+            const double t = static_cast<double> (fadeCount)
+                             / static_cast<double> (fadeLenSamples);
+
+            if (t >= 0.5)
+            {
+                // The incoming head already dominates: it becomes the new
+                // outgoing head and gets the full (1 - t) role from scratch.
+                oldPos    = pos;
+                oldRate   = lastRate;
+                fadeCount = 0;
+            }
+            // else: the outgoing head still dominates — keep oldPos, oldRate
+            // AND fadeCount so its (1 - t) share is bit-unchanged and only the
+            // incoming head's target moves.
+        }
+        else
+        {
+            oldPos    = pos;
+            oldRate   = lastRate;   // the old head keeps its own rate for the fade
+            fadeCount = 0;
+        }
+
         fadeActive = true;
-        fadeCount  = 0;
         pos        = p;
     }
 

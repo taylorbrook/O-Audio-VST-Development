@@ -1133,12 +1133,49 @@ int main()
         }
 
         {
+            // v1.2.1 (item 9): a STOPPED transport now falls back to the free
+            // accumulator instead of going inert. renderSync leaves
+            // CLOCK_FREE_RATE at the 2 Hz baseline, so the first free tick
+            // lands at 0.5 s and the forced stop must deviate shortly after.
             juce::AudioBuffer<float> out;
             renderSync (120.0, false, out, 48000);
+            const int onset    = firstDeviation (out, kComp, startAt, 1.0e-3f);
+            const int expected = 24000;              // 1 free period @ 2 Hz
+            check ("I FUNC-03 sync-stopped-free-runs",
+                   onset >= expected - 2 && onset <= expected + 600,
+                   onset == -1
+                       ? juce::String ("INERT — stopped transport emitted no events")
+                       : juce::String ("onset @") + juce::String (onset)
+                             + " expected ~" + juce::String (expected) + " (+600 tol)");
+        }
+
+        {
+            // Replacement NEGATIVE CONTROL for the deviation detector. The
+            // old sync-stopped case used to serve this role; item 9 makes it
+            // fire by design, so the detector is now proven sane against a
+            // transport that is stopped AND has every family disabled — the
+            // one configuration that must still be pure passthrough.
+            auto p = makeProc();
+            setParam (*p, "CLOCK_MODE",     0.0f);   // Sync
+            setParam (*p, "CLOCK_SYNC_DIV", 4.0f);
+            setParam (*p, "TAPE_ENABLE",    0.0f);
+            setParam (*p, "CD_ENABLE",      0.0f);
+            setParam (*p, "VINYL_ENABLE",   0.0f);
+
+            MockPlayHead mock;
+            mock.bpm     = 120.0;
+            mock.playing = false;
+            p->setPlayHead (&mock);
+
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, 48000, { 512 }, sineStereo);
+            p->setPlayHead (nullptr);
+
             const int onset = firstDeviation (out, kComp, startAt, 1.0e-3f);
-            check ("I FUNC-03 sync-stopped", onset == -1,
-                   onset == -1 ? juce::String ("no events while transport stopped (detector sane)")
-                               : juce::String ("SPURIOUS deviation @") + juce::String (onset));
+            check ("I FUNC-03 sync-stopped-all-off-silent", onset == -1,
+                   onset == -1
+                       ? juce::String ("no deviation with every family off (detector sane)")
+                       : juce::String ("SPURIOUS deviation @") + juce::String (onset));
         }
     }
 
@@ -1594,6 +1631,198 @@ int main()
                        + (live ? "" : " — SILENT, probe vacuous"));
         }
     }
+
+    //==========================================================================
+    // N2 — v1.2.1 item 13a: a jump arriving MID-FADE folds into the running
+    // crossfade instead of restarting it. Driven directly on CaptureRing +
+    // ReadHead: end-to-end, every jump instant also fires an ArtifactSynth pop
+    // or chirp, whose deliberate impulses swamp any output-delta bound.
+    //
+    // Geometry: the ring holds the 220 Hz sine, and each jump steps back HALF
+    // a period, so the outgoing head (B) and the jump-1 head (A) sit in
+    // ANTIPHASE — the raw discontinuity the crossfade must hide. Jump 2 lands
+    // a full period behind B, i.e. back in phase with it.
+    //
+    //   gap 0   = the Arbitration collision that motivated the fix: kVinyl
+    //             runs cd.release() (recovery jump) then vinyl.onWin() with NO
+    //             render between, so the fade is 0% done. Pre-fix, oldPos was
+    //             overwritten with the jump-1 head and the output stepped the
+    //             FULL antiphase discontinuity in one sample.
+    //   gap 40  = fade 28% done — still inside the branch the fix changed
+    //             (below the 50% dominance switch the OUTGOING head and the
+    //             fade counter are both preserved). Above 50% the fold is
+    //             deliberately identical to the old behaviour, which is
+    //             already the bounded case, so probing there proves nothing.
+    {
+        const double kHalfPeriod = 0.5 * kFs / kSineHz;   // ~109.1 samples
+
+        struct Collision { double maxDelta = 0.0; double discontinuity = 0.0; };
+
+        auto runCollision = [&] (int gapSamples) -> Collision
+        {
+            CaptureRing ring;
+            ReadHead    head;
+            ring.prepare (kFs);
+            head.prepare (kFs, ring.getSize());
+
+            std::vector<float> out;
+            out.reserve (4096);
+
+            int n = 0;
+            auto stepOne = [&] ()
+            {
+                ring.push (sineStereo (0, n), sineStereo (1, n));
+                float l = 0.0f, r = 0.0f;
+                head.renderSample (ring, 1.0, false, l, r);   // hardEdges off
+                out.push_back (l);
+                ++n;
+            };
+
+            for (int i = 0; i < 2000; ++i)                    // warm up
+                stepOne();
+
+            head.clampAndScheduleJump (head.getPosition() - kHalfPeriod,
+                                       ring.getTotalWritten(), false);
+
+            for (int i = 0; i < gapSamples; ++i)
+                stepOne();
+
+            Collision c;
+
+            // The antiphase pair the jump-2 crossfade has to hide. Sampled one
+            // slot back so both reads land on written material.
+            const double pA = head.getPosition() - 1.0;       // jump-1 head
+            const double pB = pA + kHalfPeriod;               // outgoing head
+            c.discontinuity = std::abs ((double) ring.readFrac (0, pA)
+                                        - (double) ring.readFrac (0, pB));
+
+            const int markAt = (int) out.size();
+
+            head.clampAndScheduleJump (head.getPosition() - kHalfPeriod,
+                                       ring.getTotalWritten(), false);
+
+            for (int i = 0; i < 1000; ++i)
+                stepOne();
+
+            for (size_t i = (size_t) markAt; i < out.size(); ++i)
+                c.maxDelta = juce::jmax (c.maxDelta,
+                                         std::abs ((double) out[i] - (double) out[i - 1]));
+
+            return c;
+        };
+
+        {
+            const auto c = runCollision (0);
+            // Sine max derivative 0.0144/sample; 0.05 leaves room for the
+            // 3 ms fade ramp and cleanly rejects the pre-fix full-amplitude
+            // step. Liveness: the hidden discontinuity must be real.
+            const bool live   = c.discontinuity >= 0.5;
+            const bool smooth = c.maxDelta <= 0.05;
+            check ("N2 jump-fade-collision same-tick", live && smooth,
+                   juce::String ("maxDelta=") + juce::String (c.maxDelta, 5)
+                       + " (bound 0.05) over a discontinuity of "
+                       + juce::String (c.discontinuity, 4)
+                       + (live ? "" : " — DISCONTINUITY TOO SMALL, probe vacuous"));
+        }
+
+        {
+            const auto c = runCollision (40);
+            const bool live    = c.discontinuity >= 0.5;
+            const bool bounded = c.maxDelta <= 0.5 * c.discontinuity + 0.05;
+            check ("N2 jump-fade-collision mid-fade", live && bounded,
+                   juce::String ("maxDelta=") + juce::String (c.maxDelta, 5)
+                       + " (bound " + juce::String (0.5 * c.discontinuity + 0.05, 5)
+                       + " = half of " + juce::String (c.discontinuity, 4) + " + slack)"
+                       + (live ? "" : " — DISCONTINUITY TOO SMALL, probe vacuous"));
+        }
+    }
+
+    //==========================================================================
+    // N3 — v1.2.1 item 13b: a tape release landing back on NORMAL with more
+    // than 250 ms of lag takes ONE intentional crossfaded jump to live.
+    //
+    // Forced stop at the first tick, then TAPE_ENABLE off so the NEXT tick
+    // releases it (a no-firer tick calls tape.release). Input is NOISE, not
+    // the sine: a 220 Hz sine re-aligns at every period, so only decorrelated
+    // material can prove the head is genuinely back at the write head rather
+    // than an arbitrary distance behind it.
+    //
+    // Verdict = correlation of the render's tail against the latency-aligned
+    // input. Recovered => ~1. Pre-fix the +2% trim needed ~50x the stall
+    // duration, leaving the tail reading stale material => ~0.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+        setParam (*p, "CLOCK_FREE_RATE", 1.0f);   // tick every 1 s
+        setParam (*p, "TAPE_PROB",       100.0f);
+        setParam (*p, "TAPE_STOP_PROB",  100.0f);
+        setParam (*p, "TAPE_RAMP",       150.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_ENABLE",    0.0f);
+
+        const int stallTotal = (int) (1.8 * kFs);   // tick @ 1.0 s, stopped from ~1.15 s
+        const int tailTotal  = (int) (1.2 * kFs);
+
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> scratch (2, 512);
+        std::vector<float> out;
+        out.reserve ((size_t) (stallTotal + tailTotal));
+
+        auto pump = [&] (int from, int count)
+        {
+            int n = from;
+            const int end = from + count;
+            while (n < end)
+            {
+                const int chunk = juce::jmin (512, end - n);
+                juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), 2, chunk);
+
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int s = 0; s < chunk; ++s)
+                        block.setSample (ch, s, noiseStereo (ch, n + s));
+
+                p->processBlock (block, midi);
+
+                for (int s = 0; s < chunk; ++s)
+                    out.push_back (block.getSample (0, s));
+
+                n += chunk;
+            }
+        };
+
+        pump (0, stallTotal);
+
+        // Disable tape: the next tick has no firer, so tape.release() runs and
+        // the ramp lands back on NORMAL still ~0.65 s behind.
+        setParam (*p, "TAPE_ENABLE", 0.0f);
+        pump (stallTotal, tailTotal);
+
+        // Correlate the last 0.5 s against the latency-aligned input.
+        const int    winLen = (int) (0.5 * kFs);
+        const int    winAt  = (int) out.size() - winLen;
+        double       num = 0.0, dOut = 0.0, dIn = 0.0;
+
+        for (int i = 0; i < winLen; ++i)
+        {
+            const double o = out[(size_t) (winAt + i)];
+            const double x = noiseStereo (0, winAt + i - kComp);
+            num  += o * x;
+            dOut += o * o;
+            dIn  += x * x;
+        }
+
+        const double corr = (dOut > 0.0 && dIn > 0.0)
+                                ? num / std::sqrt (dOut * dIn) : 0.0;
+
+        const bool live      = dOut > 1.0e-6;
+        const bool recovered = corr > 0.9;
+
+        check ("N3 post-stop recovery-jump", live && recovered,
+               juce::String ("tail correlation vs live input = ") + juce::String (corr, 4)
+                   + " (need > 0.9)"
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
 
     //==========================================================================
     // O — DSP-04 Gilbert-Elliott statistics. 60 s render, Silence

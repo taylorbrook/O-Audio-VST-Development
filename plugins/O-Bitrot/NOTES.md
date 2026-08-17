@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Audio Effect (Broken-Media Degradation)
 
 ## Lifecycle Timeline
 
+- **2026-08-17 (v1.2.1):** Engine robustness (improvement brief items 9 + 13) — Sync mode falls back to free-run when the host transport is STOPPED (Sync is the default, so the plugin was pure passthrough while parked; playing behaviour unchanged, dead `lastPPQ` deleted); a jump arriving mid-crossfade now FOLDS into the running fade instead of restarting it (the outgoing head was being dropped as a step of up to the full jump discontinuity — reachable in one tick via Arbitration's `cd.release()` → `vinyl.onWin()` pair; measured 0.85 → 0.0145); a tape release landing back on NORMAL with > 250 ms of lag takes ONE intentional crossfaded jump to live rather than leaving the +2% trim to claw it back (fires on ~39% of releases at stock settings, observed max lag at release 2.0–2.3 s — the pre-fix hidden clamp really was being hit). Harness 54/54 (4 new probes, each verified to fail against the pre-fix code); auval SUCCEEDED. Installed.
 - **2026-08-16 (v1.2.0):** Packet-loss correctness (improvement brief items 1 + 10) — Gilbert–Elliott remap so PACKET_LOSS spans clean → ~98.6% true loss (was floor ~1%/ceiling ~30%); Good-state floor scales with loss01 (knob-zero clean); Decay concealment −6 dB/rep ramp hard-flooring to silence by ~60 ms, pitch-aligned via the AMDF path; ~1 ms raised-cosine OLA at substitute/decay cycle joints; Dropped Call 45→65, Total Media Failure 55→90. Harness 50/50 (3 new probes O2/O3/P2, probe O bounds re-derived). Installed.
 - **2026-08-16 (v1.1.0):** Mono compatibility — mono→mono and mono→stereo bus layouts added (stereo→mono still rejected, no downmix rule). Stereo path bit-identical; harness 47/47 (3 new mono probes incl. mono-vs-stereo engine bit-identity under max degradation), pluginval s10 SUCCESS, auval SUCCEEDED with capabilities exactly [1,1] [1,2] [2,2]. Installed.
 - **2026-08-16:** Installed to system folders (VST3 + AU, dev branding `O-Bitrot-dev`). Stages 1–4 complete.
