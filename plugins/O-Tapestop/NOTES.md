@@ -2,10 +2,47 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.2
+- **Version:** 1.3.3
 - **Type:** Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed)
 
 ## Lifecycle Timeline
+
+- **2026-08-17 (v1.3.3):** Audit queue item 3 (B2a) — documentation only, zero
+  DSP change (both DSP headers verified byte-identical from `#pragma once`
+  onward). `SpliceLaw::EqualPower` is really an equal-GAIN law: `fadeOut =
+  hann(0.5+phi/2) = cos^2(pi*phi/2)` and `fadeIn = hann(phi/2) =
+  sin^2(pi*phi/2)` sum to 1 in AMPLITUDE, so the identity `sin^2 + cos^2 = 1`
+  constrains the amplitude sum, not the power sum. Consequence, and the exact
+  inverse of what the old comments claimed: the law is flat (0 dB) on
+  CORRELATED material and DIPS on DECORRELATED material (power sum
+  `(1 + cos^2(pi*phi))/2` → 0.5 at phi = 0.5, an analytic 3.01 dB floor). The
+  old TapestopTransport.h note that it "over-sums CORRELATED material by up to
+  +3 dB" described the TRUE equal-power law — the square roots of these gains
+  — which is not implemented. Since resync splices the live-head rider against
+  a voice seconds behind it, the dipping (decorrelated) case is the one in
+  play. Enum name deliberately retained; whether to add a `sqrt` variant is
+  audit item 4 (B2b).
+
+  **Splice A/B evidence (harness, v1.3.3)** — this is item 4's step-1
+  measurement, taken while verifying the doc fix, so item 4 does not need to
+  repeat it:
+
+  | law | bump | dip |
+  |---|---|---|
+  | `AB-splice-equal-power` (raised cosine, shipped) | −0.48 dB | **−6.21 dB** |
+  | `AB-splice-linear` | −0.58 dB | **−6.99 dB** |
+
+  Two things to carry forward. (1) The near-zero **bump** on both laws is the
+  direct empirical confirmation that neither over-sums correlated material —
+  the old "+3 dB" comment was describing the unimplemented sqrt law. (2) The
+  **dip is ~6 dB, not the analytic 3.01 dB**: that floor assumes two
+  equal-power decorrelated sources, whereas the fading voice is a varispeed
+  read of different material at a different level. Do not quote 3 dB as the
+  plugin's resync dip. The raised cosine beats linear by 0.78 dB, consistent
+  with its power sum falling off more slowly away from the midpoint (0.750 vs
+  0.625 at phi = 0.25) despite both sharing the same 0.5 floor at phi = 0.5.
+  Note the probe asserts only `|bump| < 4.0`, so the dip is reported but
+  ungated — tightening that is item 4 step 3.
 
 - **2026-08-17 (v1.3.2):** Audit queue item 2 (B3) — the engaged-trim blend
   never landed on exactly 0 at the resync→Bypassed handoff. Two defects: (a)
