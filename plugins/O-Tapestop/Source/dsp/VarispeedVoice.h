@@ -54,6 +54,11 @@
     decision 1), so it does not assert; the stored readAbsFrac is additionally
     clamped once at SpinUp entry by the transport.
 
+    That clamp lives in exactly ONE function — clampToRing() below — because it
+    is a safety invariant with four callers (this file's read(), plus the
+    transport's carrier advance, fading-voice advance and spliceCarrierTo()),
+    and four transcriptions of an invariant are four places for it to drift.
+
   ==============================================================================
 */
 
@@ -82,22 +87,42 @@ struct VarispeedVoice
         return ((a0 * f + a1) * f + a2) * f + y1;
     }
 
-    float read (const CaptureBuffer& ring, int ch) const noexcept
+    /** THE double-ended debt clamp — the single definition of "a read position
+        the ring can still serve", [live - (ringSpan - kInterpGuard), live].
+
+        Neither rail is an error path. The lower rail is the specified
+        Stopped-hold / full-reverse-scratch overrun, where the playhead rides
+        the oldest valid material (CONTEXT decision 1); the upper rail backstops
+        r > 1 at d ~ 0 so no tap ever reaches past the write head. Hence no
+        assert on either — and no jlimit(), whose lower <= upper jassert would
+        fire on an unprepared ring (bufferSize 0 puts the rails out of order).
+
+        Four callers, three of them in TapestopTransport: read() below clamps
+        the EFFECTIVE position (leaving readAbsFrac alone), while the transport
+        clamps the STORED position at the carrier advance, the fading-voice
+        advance and spliceCarrierTo(). Rails are ordered lo <= hi for every ring
+        the plugin prepares, so jmin-then-jmax matches the jmax-then-jmin the
+        read path used before this became shared — bit-for-bit. */
+    static double clampToRing (double pos, const CaptureBuffer& ring) noexcept
     {
         // `live` is the most recently written absolute index (per-sample
         // write-then-read order guarantees it exists for this sample).
-        const juce::int64 live = ring.getTotalWritten() - 1;
-
-        // Release-build debt clamp [kInterpGuard, ringSpan - kInterpGuard] on
-        // the EFFECTIVE position. The lower-position (stale) clamp is the
-        // specified Stopped-hold-overrun behavior — no assert. The upper
-        // clamp (never past the write head) backstops r > 1 at d ~ 0.
+        const double live    = (double) (ring.getTotalWritten() - 1);
         const double maxDebt = (double) ring.getBufferSize()
                              - (double) kInterpGuard;
 
-        double pos = readAbsFrac;
-        pos = juce::jmax (pos, (double) live - maxDebt);
-        pos = juce::jmin (pos, (double) live);
+        pos = juce::jmin (pos, live);
+        pos = juce::jmax (pos, live - maxDebt);
+        return pos;
+    }
+
+    float read (const CaptureBuffer& ring, int ch) const noexcept
+    {
+        const juce::int64 live = ring.getTotalWritten() - 1;
+
+        // Clamp the EFFECTIVE position only — readAbsFrac itself is the
+        // transport's to own.
+        const double pos = clampToRing (readAbsFrac, ring);
 
         const auto   i = (juce::int64) std::floor (pos);
         const double f = pos - (double) i;

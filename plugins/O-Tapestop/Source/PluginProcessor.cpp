@@ -886,10 +886,9 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Capture is stereo-fixed; mono buses write/read channel 0 twice
     // (bounded by the BUFFER's channel count, never the layout's —
     // pattern_standalone_canonical_channelset_oob).
-    const int  chans = juce::jmin(buffer.getNumChannels(), 2);
-    const int  chR   = chans > 1 ? 1 : 0;
-    auto*      dL    = buffer.getWritePointer(0);
-    auto*      dR    = buffer.getWritePointer(chR);
+    const int  chR = buffer.getNumChannels() > 1 ? 1 : 0;
+    auto*      dL  = buffer.getWritePointer(0);
+    auto*      dR  = buffer.getWritePointer(chR);
 
     // UI readback (Stage 3): the carrier's last per-sample ratio this block.
     // Publish-only bookkeeping — no DSP path reads it.

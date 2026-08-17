@@ -2,6 +2,54 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.5] — 2026-08-17
+
+### Changed
+- **The double-ended debt clamp now has exactly one definition.** Audit queue
+  item 6. It was transcribed verbatim at four sites — `TapestopTransport`'s
+  carrier advance and fading-voice advance in `tick()`, `spliceCarrierTo()`,
+  and `VarispeedVoice::read()` — each independently spelling out
+  `maxDebt = ringSpan − kInterpGuard` and clamping to
+  `[live − maxDebt, live]`. Four transcriptions of a safety invariant are four
+  places for it to drift, so they all now call one
+  `VarispeedVoice::clampToRing(pos, ring)`.
+
+  Two details that make the extraction a true no-op rather than a near-one:
+
+  - **Clamp order.** Three sites clamped `jmin`-then-`jmax`; `read()` clamped
+    `jmax`-then-`jmin`. The helper uses `jmin`-then-`jmax`. The two orders
+    agree bit-for-bit whenever the rails are ordered `lo <= hi`, which holds
+    for every ring the plugin prepares, and they agree on NaN input as well
+    (JUCE's `jmin`/`jmax` are `b < a ? b : a` / `a < b ? b : a`, so a NaN
+    falls through both).
+  - **No `jlimit()`.** The obvious one-liner carries a `jassert(lower <=
+    upper)` that would fire on an unprepared ring, where `bufferSize == 0`
+    puts the rails out of order. The explicit `jmin`/`jmax` pair keeps the
+    existing assert-free contract — neither rail is an error path.
+
+  The *single*-ended clamp at `release()` (SpinUp entry, CONTEXT decision 1)
+  is deliberately left alone: it clamps only the lower rail and measures from
+  `getTotalWritten()`, not `getTotalWritten() − 1`, so it is a different
+  invariant, not a fifth copy of this one.
+
+### Removed
+- **Unreachable `case State::ScratchPass:` in `TapestopTransport::release()`.**
+  The early `if (state == State::ScratchPass)` at the top of the function
+  returns before the switch is reached, so the label was dead. The `default:`
+  in the same group already covers the enumerator, so `-Wswitch` stays quiet;
+  a comment now records that its absence is deliberate.
+- **`chans` in `processBlock()`.** It existed only to feed
+  `chR = chans > 1 ? 1 : 0` on the very next line, and
+  `jmin(numChannels, 2) > 1` is just `numChannels > 1`. Inlined.
+
+### Verified
+- Render harness **67/67, byte-identical** to the v1.3.4 baseline
+  (`f024b20980e57f4e…`), which is the acceptance criterion the audit set for
+  this item. The one-line `[PresetManager] Factory presets initialized: 28`
+  that appears on the first post-bump run is the version-sentinel rewrite
+  (`OuariconPresetManager.h` stamps `JucePlugin_VersionString`), not a
+  behaviour change — it is absent from every subsequent run.
+
 ## [1.3.4] — 2026-08-17
 
 ### Removed
