@@ -1940,6 +1940,93 @@ int main()
                  + " (want 1)");
     }
 
+    // B3-trim-exact-rails: the engaged-trim blend must saturate at EXACTLY 1.0f
+    // while engaged and release to EXACTLY 0.0f as the resync fade completes.
+    // That is what makes the processor's 1 + (g-1)*trimAmount land on exactly
+    // 1.0 at the Bypassed handoff (OUTPUT_GAIN must never step into the bitwise
+    // dry path) and what makes reset()'s documented Bypassed baseline of 0 true.
+    //
+    // Driven at the TRANSPORT level, not through processBlock: the final fade
+    // tick is the one that flips the state to Bypassed, so the processor's
+    // post-tick isBypassed() re-check renders that sample DRY (PluginProcessor
+    // .cpp:927) — the value under test is never consumed, and NO rendered
+    // waveform can discriminate it. Swept across all supported rates because
+    // the two defects it covers differ in rate-dependence:
+    //   - target read BELOW the crossfade-completion block: the Bypassed flip
+    //     retargets the ramp to 1 on the final fade sample -> 2/xfLen at EVERY
+    //     rate (8.33e-4 @ 48 kHz).
+    //   - float-accumulator ramp instead of an integer position: lands on 0 at
+    //     44.1/48/192k but leaves 1.88e-5 .. 6.73e-5 at 88.2/96/176.4k.
+    // A 48 kHz-only probe would therefore have missed the second one entirely.
+    {
+        const double rates[] = { 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0 };
+
+        double       worstEnd  = 0.0;   // |trim| at the Bypassed handoff  (want 0)
+        double       worstSat  = 0.0;   // |1 - trim| while saturated      (want 0)
+        bool         allDone   = true;
+        juce::String detail;
+
+        for (double fs : rates)
+        {
+            CaptureBuffer     ring;
+            VarispeedVoice    voices[2];
+            TapestopTransport transport;
+
+            ring.prepare (fs, 4.0);
+            transport.prepare (fs);
+
+            int  n    = 0;
+            auto feed = [&n, &ring] { const float s = sineAt (n++, 220.0); ring.pushSample (s, s); };
+
+            for (int i = 0; i < 8192; ++i)   // pre-roll: the ring records while Bypassed
+                feed();
+
+            // ENGAGE: 100 ms spin-down, then hold Stopped well past the 50 ms
+            // trim ramp so it saturates on the 1 rail.
+            TapestopTransport::Tick t {};
+            transport.engage (0.100 * fs, 1.0, voices, ring);
+
+            for (int i = 0; i < (int) (0.500 * fs); ++i)
+            {
+                feed();
+                t = transport.tick (voices, ring);
+            }
+
+            const double atSat = (double) t.trimAmount;
+
+            // RELEASE: SpinUp -> Catchup -> ResyncXfade -> Bypassed.
+            transport.release (0.100 * fs, 1.0, voices, ring);
+
+            int guard = (int) (5.0 * fs);
+
+            while (! transport.isBypassed() && --guard > 0)
+            {
+                feed();
+                t = transport.tick (voices, ring);
+            }
+
+            const double atEnd = (double) t.trimAmount;
+
+            if (guard <= 0)
+                allDone = false;
+
+            worstEnd = juce::jmax (worstEnd, std::abs (atEnd));
+            worstSat = juce::jmax (worstSat, std::abs (atSat - 1.0));
+
+            if (! bitExact (t.trimAmount, 0.0f))
+                detail << " " << juce::String (fs / 1000.0, 1) << "k:end="
+                       << juce::String (atEnd, 9);
+        }
+
+        check ("B3-trim-exact-rails-6-rates",
+               allDone && ! (worstEnd > 0.0) && ! (worstSat > 0.0),
+               allDone ? ("worst |trim| at handoff=" + juce::String (worstEnd, 9)
+                            + ", worst |1-trim| saturated=" + juce::String (worstSat, 9)
+                            + (detail.isEmpty() ? juce::String (" - all 6 rates exact")
+                                                : juce::String (" - FAILING:") + detail))
+                       : juce::String ("resync never completed"));
+    }
+
     //==========================================================================
     std::printf ("\n%d probe checks, %d failure(s)\n", probes, failures);
     return failures == 0 ? 0 : 1;

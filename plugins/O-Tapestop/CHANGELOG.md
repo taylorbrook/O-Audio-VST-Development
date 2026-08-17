@@ -2,6 +2,63 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.2] — 2026-08-17
+
+### Fixed
+- **The engaged-trim blend never actually landed on 0 at the resync→Bypassed
+  handoff.** OUTPUT_GAIN must never touch the Bypassed path (that is what makes
+  the post-resync null bitwise), so the transport ramps `trimAmount` 1 → 0
+  across exactly the ResyncXfade window and the processor applies gain as
+  `1 + (g−1)·trimAmount`. Two independent defects meant it stopped short:
+
+  1. **Target read on the wrong side of the state flip.** `TapestopTransport::
+     tick()` flips the state to `Bypassed` *inside* the crossfade-completion
+     block, and `trimTarget` was computed *below* it. On the final fade sample
+     the target therefore read back as 1 and trim ticked **up**, ending at
+     `2/xfLen` (8.3e-4 @ 48 kHz) instead of 0. `trimTarget` is now latched
+     between the state machine and the completion block — the only point that
+     sees `ResyncXfade` on every one of the fade's `xfLenSamples` ticks,
+     including both the first (where `enterResync()` enters the state) and the
+     last (where the flip to `Bypassed` happens). Latching on entry to `tick()`
+     instead — the obvious reading — loses the first tick and lands on
+     `1/xfLen`, so it is specifically the mid-point latch that is correct.
+
+  2. **The ramp was a float accumulator, so the rails were rate-dependent.**
+     `trim ± trimStep` clamped at the rails only lands *on* a rail if the
+     accumulated rounding happens to overshoot it. Measured: exact at 44.1 /
+     48 / 192 kHz, but leaving 4.07e-5 / 1.88e-5 / 6.73e-5 at 88.2 / 96 /
+     176.4 kHz. The ramp is now an integer position over `[0, xfLenSamples]`
+     with both rails snapped, so `0.0f` and `1.0f` are exact at every rate by
+     construction and the intermediate values are the ideal linear ramp
+     instead of a drifting one.
+
+  The file header's claim that the applied gain "lands on EXACTLY 1.0 as the
+  fade ends" and `reset()`'s documented Bypassed baseline of 0 are both true
+  now; neither held before. Audible impact of the original defect was nil —
+  `PluginProcessor.cpp` re-checks `isBypassed()` after `tick()`, so the final
+  fade sample renders dry and never consumed the wrong value; the residue only
+  offset the *next* engage's ramp (~0.02 dB on one sample at +12 dB).
+
+### Changed
+- Rendered output is **byte-identical at the shipped OUTPUT_GAIN default of
+  0 dB** (verified: FNV-1a hash of a full engage→release→resync render matches
+  v1.3.1 exactly, `77815f94d22f1c13`). At non-default OUTPUT_GAIN the trim ramp
+  now follows the ideal linear shape rather than the drifting accumulator —
+  worst case **0.0025 dB** difference, during the 50 ms resync fade only, at the
+  +12 dB maximum.
+
+### Testing
+- New harness probe `B3-trim-exact-rails-6-rates`, driven at the transport
+  level across 44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz. Transport-level and
+  rate-swept on purpose: the final fade tick renders dry, so **no rendered
+  waveform can discriminate the value**, and a 48 kHz-only probe would have
+  passed straight over defect 2.
+- Confirmed a real discriminator against both defects independently — pre-fix
+  v1.3.1 fails at all 6 rates (8.9e-4 … 1.1e-4); the correct latch with the
+  accumulator restored fails at exactly 88.2 / 96 / 176.4 kHz with the three
+  predicted residues.
+- Harness 67/67.
+
 ## [1.3.1] — 2026-08-17
 
 ### Fixed
