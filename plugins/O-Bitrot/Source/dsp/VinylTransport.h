@@ -24,13 +24,20 @@
 
     Revolution-quantized groove jumps (DSP-03):
 
-      * Revolution quantum from VINYL_RPM: 1.8 s @ 33 1/3, 4/3 s @ 45.
+      * Revolution quantum from VINYL_RPM: 1.8 s @ 33 1/3, 4/3 s @ 45,
+        0.769 s @ 78 (v1.7.0).
       * BACKWARD jumps are always exactly one revolution — integer revolution
         multiples are the DSP-03 acceptance. Rate stays 1.0: pitch NEVER
         changes.
-      * FORWARD jumps are implemented per ARCHITECTURE as a jump toward the
-        write head clamped to writeAbs - minLag (the buffer has no future) —
-        a return-to-live skip, not a revolution-quantized move.
+      * FORWARD jumps are ALSO exactly one revolution whenever the buffer can
+        pay for it (v1.7.0, brief item 27a). Research 4.1 specifies "exactly
+        +/- 1 revolution" in BOTH directions, and a groove that only ever
+        skips backward and then teleports to live is half a physical model:
+        the stylus jumping a ridge forward lands one groove on, not at the
+        present. The gate is lag >= revSamples + minLag, i.e. the head has a
+        whole revolution of recorded past between it and live. When it does
+        not, the historical return-to-live skip is still the fallback — the
+        buffer genuinely has no future to jump into. Draw count unchanged.
       * Locked groove: re-jump exactly one revolution each time the head
         returns to the jump point, with a pop per pass. Room-gated: a re-jump
         that would read material older than the ring span self-releases
@@ -58,6 +65,7 @@
 #include "ReadHead.h"
 #include "RngBank.h"
 #include "ArtifactSynth.h"
+#include "VinylGeometry.h"
 
 class VinylTransport
 {
@@ -84,8 +92,7 @@ public:
                 ReadHead& head, const CaptureRing& ring, bool hardEdges,
                 ArtifactSynth& art) noexcept
     {
-        revSamples = static_cast<double> (juce::roundToIntAccurate (
-                         fs * (rpmIndex == 0 ? 1.8 : 4.0 / 3.0)));
+        revSamples = static_cast<double> (VinylGeometry::revolutionSamples (fs, rpmIndex));
         popLevel   = pop01;
 
         // Fixed 2 draws per win, consumed before any branching.
@@ -94,7 +101,8 @@ public:
 
         const juce::int64 tw     = ring.getTotalWritten();
         const double      lag    = head.getLag (tw);
-        const double      budget = head.getMaxLag() - 0.05 * fs;
+        const double      minLag = 0.05 * fs;
+        const double      budget = head.getMaxLag() - minLag;
         const bool        backRoom = lag + revSamples <= budget;
 
         locked = false;                       // a new win supersedes a locked state
@@ -112,9 +120,21 @@ public:
 
         if (wantForward || ! backRoom)
         {
-            if (lag > 0.05 * fs)
+            if (lag >= revSamples + minLag)
             {
-                // Forward: toward the write head, clamped (return-to-live).
+                // Forward, revolution-quantized (v1.7.0): there is a whole
+                // revolution of recorded past between the head and live, so
+                // the stylus can jump exactly +1 revolution and still land on
+                // real material with minLag to spare. Rate is untouched, so
+                // BRIEF:16's "pitch never changes" holds exactly as it does
+                // for the backward jump this mirrors.
+                head.clampAndScheduleJump (head.getPosition() + revSamples, tw, hardEdges);
+                art.triggerPop (popLevel, rng.get (RngBank::artifactSynth));
+            }
+            else if (lag > minLag)
+            {
+                // Not a revolution's worth of lag to spend: fall back to the
+                // historical return-to-live skip. The buffer has no future.
                 head.clampAndScheduleJump (static_cast<double> (tw - 1), tw, hardEdges);
                 art.triggerPop (popLevel, rng.get (RngBank::artifactSynth));
             }

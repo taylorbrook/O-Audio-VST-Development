@@ -74,6 +74,18 @@ public:
      */
     using CustomLoadCallback = std::function<void(const juce::var&)>;
 
+    /**
+     * Optional preset-migration hook (v1.0.6). Called by applyPresetJson()
+     * with the preset's "parameters" object and the "version" string it was
+     * saved under, BEFORE the reset-to-defaults pass and before any value is
+     * applied. Mutate parameter values in place to migrate old normalized
+     * encodings (e.g. a choice parameter that gained an entry — the stored
+     * 0..1 fraction re-decodes against the new choice count). Never called
+     * when unset — existing plugins are unaffected.
+     */
+    using MigrationCallback = std::function<void(juce::DynamicObject& parameters,
+                                                 const juce::String& presetVersion)>;
+
     //==========================================================================
     // Construction
     //==========================================================================
@@ -102,6 +114,12 @@ public:
     {
         customSave = std::move(saveCallback);
         customLoad = std::move(loadCallback);
+    }
+
+    /** Set the optional preset-migration hook (see MigrationCallback). */
+    void setMigrationCallback(MigrationCallback migrationCallback)
+    {
+        migrate = std::move(migrationCallback);
     }
 
     //==========================================================================
@@ -211,6 +229,7 @@ private:
     // Custom state callbacks
     CustomSaveCallback customSave;
     CustomLoadCallback customLoad;
+    MigrationCallback  migrate;
 
     // WR-04: strip path separators so a name like "Koto / Harp" cannot be interpreted
     // as a path by getChildFile() (which silently drops the file). Applied consistently
@@ -311,6 +330,12 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
+            // v1.0.6: give the plugin a chance to migrate old normalized
+            // encodings before anything is applied (values here are the raw
+            // 0..1 fractions the preset was saved with).
+            if (migrate)
+                migrate(*paramsObj, preset->getProperty("version").toString());
+
             // WR-01: reset every parameter to its default first, so presets that
             // omit a key (hand-authored factory defs, saves from older plugin
             // versions with fewer parameters) don't inherit stale live state.

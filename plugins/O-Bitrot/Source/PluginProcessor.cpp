@@ -31,6 +31,22 @@
 
 #include <cmath>
 
+namespace
+{
+    /** True for a preset saved before v1.7.0 — i.e. before "78" was appended
+        to VINYL_RPM. A malformed or absent version string parses to 0.0 and
+        counts as pre-1.7.0, which is the safe direction: the migration below
+        is a no-op for any value that already decodes to a valid two-choice
+        index. */
+    bool presetVersionIsPre170(const juce::String& v)
+    {
+        auto tokens = juce::StringArray::fromTokens(v, ".", {});
+        const int major = tokens.size() > 0 ? tokens[0].getIntValue() : 0;
+        const int minor = tokens.size() > 1 ? tokens[1].getIntValue() : 0;
+        return major < 1 || (major == 1 && minor < 7);
+    }
+} // namespace
+
 // NOTE: PluginEditor.h is deliberately NOT included here — the editor include
 // lives inside the #if JUCE_WEB_BROWSER guard above createEditor() so the
 // Stage-2 render harness (JUCE_WEB_BROWSER=0, no editor sources) can compile
@@ -177,10 +193,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::creat
         "%"
     ));
 
+    // "78" APPENDED in v1.7.0 (brief item 27c). Appending is safe for APVTS
+    // session state — that stores the choice INDEX, and 0/1 still mean what
+    // they always did — but NOT for presets, which store the NORMALISED
+    // fraction: over 2 choices "45" saved as 1.0, and over 3 choices 1.0
+    // decodes as "78". The preset-manager v1.0.6 migration hook installed in
+    // the constructor repoints pre-1.7.0 saves.
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "VINYL_RPM", 1 },
         "Vinyl RPM",
-        juce::StringArray { "33 1/3", "45" },  // ASCII-only; UI renders 33 1/3 glyph in Stage 3
+        juce::StringArray { "33 1/3", "45", "78" },  // ASCII-only; UI renders the 33 1/3 glyph
         0  // Default: 33 1/3
     ));
 
@@ -392,6 +414,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::creat
         "%"
     ));
 
+    // ========================================================================
+    // VINYL WARP — v1.7.0 addition (1)
+    //
+    // Appended for the third time for the same reason the v1.4.0 and v1.5.0
+    // additions were: layout order IS the automation-slot order a host
+    // presents, so putting this in the vinyl block where it belongs visually
+    // would shift every parameter behind it and silently repoint saved
+    // automation lanes. Everything else (APVTS state, the preset bank, the
+    // WebView bindings) is keyed by parameter ID, so the UI puts it in the
+    // Vinyl panel regardless.
+    //
+    // Default 0, and at 0 VinylWarp returns EXACTLY 0.0 — a v1.6.0 session or
+    // preset renders bit-identically as far as this parameter is concerned.
+    // ========================================================================
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "VINYL_WARP", 1 },
+        "Vinyl Warp",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f,
+        "%"
+    ));
+
     return layout;
 }
 
@@ -431,6 +476,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     vinylRpmParam    = apvts.getRawParameterValue("VINYL_RPM");
     vinylPopParam    = apvts.getRawParameterValue("VINYL_POP");
     vinylWearParam   = apvts.getRawParameterValue("VINYL_WEAR");
+    vinylWarpParam   = apvts.getRawParameterValue("VINYL_WARP");
 
     // Packet Loss
     packetEnableParam  = apvts.getRawParameterValue("PACKET_ENABLE");
@@ -454,12 +500,41 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     crushEnvAmtParam = apvts.getRawParameterValue("CRUSH_ENV_AMT");
     crushDitherParam = apvts.getRawParameterValue("CRUSH_DITHER");
 
+    // ── Preset migration (v1.7.0): VINYL_RPM gained "78" ────────────────────
+    // Presets store NORMALIZED values. AudioParameterChoice encodes index i
+    // over N choices as i/(N-1), so a pre-1.7.0 VINYL_RPM fraction was decoded
+    // against end = 1 and is now decoded against end = 2: "45", saved as 1.0,
+    // would load as "78" — the one saved preset value that silently changes
+    // meaning. Remap: index = round(n_old * 1), n_new = index / 2.
+    //
+    // Runs BEFORE the module's WR-01 reset/apply passes, so it sees the raw
+    // saved fractions. Factory presets are regenerated at the version bump
+    // (WR-04's version-stamped sentinel) and are written with the CURRENT
+    // version string, so they never hit this gate.
+    //
+    // APVTS SESSION state needs no equivalent: it persists the choice INDEX,
+    // not the fraction, and indices 0/1 still mean 33 1/3 and 45
+    // (critical_apvts_denormalised_vs_preset_normalised).
+    presetManager.setMigrationCallback(
+        [](juce::DynamicObject& params, const juce::String& presetVersion)
+        {
+            if (!presetVersionIsPre170(presetVersion))
+                return;
+
+            if (params.hasProperty("VINYL_RPM"))
+            {
+                const double nOld = (double) params.getProperty("VINYL_RPM");
+                params.setProperty("VINYL_RPM",
+                                   std::round(juce::jlimit(0.0, 1.0, nOld)) * 0.5);
+            }
+        });
+
     // ── Factory bank (Stage 4): 8 presets ───────────────────────────────────
     // Authored in ENGINEERING units, then batch-converted through each
     // parameter's own NormalisableRange below — raw-fraction authoring would
     // ignore the skew on CLOCK_FREE_RATE (centre 1.414 Hz) and CRUSH_RATE
     // (centre 3162 Hz). Choice params are authored as the INDEX; bools as
-    // 0/1; SEED as the integer. Every preset lists all 38 param IDs (defense
+    // 0/1; SEED as the integer. Every preset lists all 39 param IDs (defense
     // in depth over the module's WR-01 reset-to-defaults). No customState —
     // SEED is an APVTS param and O-Bitrot has no non-parameter state.
     // Coverage: one showcase per family (1-6), sync (2,4,5,7) + free (1,3,8)
@@ -478,7 +553,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 45.0f }, { "VINYL_WEAR", 0.0f },
-            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f } } },
 
         { "Skipping Disc",   // CD showcase — machine-gun buffer loops, restart chirps
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -492,7 +567,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
-            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f } } },
 
         { "Locked Groove",   // Vinyl showcase — worn surface, revolution jumps, heavy pops
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.4f },
@@ -506,7 +581,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 55.0f },
-            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 45.0f } } },
 
         { "Dropped Call",    // Packet showcase — bursty robotic loss over comfort noise
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -520,7 +595,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
-            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 45.0f } } },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 45.0f }, { "VINYL_WARP", 0.0f } } },
 
         { "Cellphone 1998",  // Codec showcase — GSM crunch, mains hum, a whiff of loss
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 4.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -534,7 +609,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
-            { "CODEC_NOISE", 40.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 35.0f } } },
+            { "CODEC_NOISE", 40.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 35.0f }, { "VINYL_WARP", 0.0f } } },
 
         { "Eight-Bit Ruin",  // Crush showcase — quantize + SRR + jitter, ducking envelope
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -548,7 +623,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 6.0f }, { "CRUSH_RATE", 11025.0f },
             { "CRUSH_JITTER", 15.0f }, { "CRUSH_ENV_AMT", -35.0f }, { "CRUSH_DITHER", 0.6f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
-            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f } } },
 
         { "Total Media Failure",  // Extreme combo — everything failing at once, hard splices
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -562,7 +637,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 4.0f }, { "CRUSH_RATE", 6000.0f },
             { "CRUSH_JITTER", 40.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 1.0f },
             { "TAPE_HISS", 60.0f }, { "VINYL_WEAR", 70.0f },
-            { "CODEC_NOISE", 55.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 60.0f } } },
+            { "CODEC_NOISE", 55.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 60.0f }, { "VINYL_WARP", 60.0f } } },
 
         { "Gentle Rot",      // Subtle physical-media patina — mixable default-plus
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.7f },
@@ -576,7 +651,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 22.0f }, { "VINYL_WEAR", 25.0f },
-            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f } } },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 20.0f } } },
     };
 
     // Engineering units → normalized through each parameter's
@@ -613,6 +688,7 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     tapeDropout.prepare(sampleRate);
     tapeStopGain.prepare(sampleRate);
     wowFlutter.prepare(sampleRate);
+    vinylWarp.prepare(sampleRate);
     tapeBed.prepare(sampleRate);
     vinylBed.prepare(sampleRate);
     codecBed.prepare(sampleRate);
@@ -808,6 +884,16 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                             ? (double) tapeWowParam->load() * 0.01
                             : 0.0);
 
+    // Vinyl warp (v1.7.0, brief item 27b). The vinyl family's counterpart to
+    // wow/flutter, and gated the same way: it follows VINYL_ENABLE but fades
+    // over VinylWarp's own multi-second depth ramp rather than switching,
+    // because the ramp's slope IS pitch. VINYL_RPM is passed every block; the
+    // LFO's phase accumulator is persistent across the change.
+    vinylWarp.setParams(arbParams.vinylEnabled
+                            ? (double) vinylWarpParam->load() * 0.01
+                            : 0.0,
+                        arbParams.vinylRpmIndex);
+
     // Mid-event disable releases gracefully (ramp back / recovery jump /
     // stop re-jumping), never teleports.
     if (! arbParams.tapeEnabled)
@@ -911,11 +997,22 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         //     untouched — which is why loopOwnsRate above needs no amendment.
         //     Exactly 0.0 while the bed is transparent, so the passthrough
         //     stays on CaptureRing's bit-exact integer path (FUNC-02).
-        const double wowOffset = wowFlutter.nextOffsetSamples(rngBank.get(RngBank::wow));
+        //
+        //     v1.7.0 adds the vinyl warp on the SAME terms and for the same
+        //     reasons, and the two simply sum: both are non-negative read lags,
+        //     so their sum is one too, and the head still never crosses the
+        //     write head. Worst case at both depths 1 is ~250 + ~165 samples,
+        //     a rounding error against the 10 s ring. A tape deck and a warped
+        //     LP are different machines, but nothing stops a patch from asking
+        //     for both, and the physics of stacking two delay modulations is
+        //     addition.
+        const double wowOffset  = wowFlutter.nextOffsetSamples(rngBank.get(RngBank::wow));
+        const double warpOffset = vinylWarp.nextOffsetSamples();
+        const double readOffset = wowOffset + warpOffset;
 
         // 4. Read heads render the transport output.
         float wetL = 0.0f, wetR = 0.0f;
-        readHead.renderSample(captureRing, rate, hardEdges, loopOwnsRate, wowOffset, wetL, wetR);
+        readHead.renderSample(captureRing, rate, hardEdges, loopOwnsRate, readOffset, wetL, wetR);
 
         // 4b. Tape amplitude domain (v1.4.0), before the other families see the
         //     signal. A tape head is a dPhi/dt transducer, so a stop dies with
@@ -946,7 +1043,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         //    Both are UPSTREAM of the packet stage on purpose: a lost packet
         //    has to conceal the media noise along with the programme, because
         //    on real media they are the same signal.
-        const float artifact = artifactSynth.renderSample()
+        const float artifact = artifactSynth.renderSample(rngBank.get(RngBank::scratch))
                              + vinylBed.renderSample(rngBank.get(RngBank::vinylBed));
 
         float hissL = 0.0f, hissR = 0.0f;

@@ -44,6 +44,7 @@
 #include "dsp/ArtifactSynth.h"
 #include "dsp/CDSkip.h"
 #include "dsp/VinylTransport.h"
+#include "dsp/VinylWarp.h"
 #include "dsp/Arbitration.h"
 #include "dsp/PacketLossStage.h"
 #include "dsp/CrushStage.h"
@@ -126,12 +127,13 @@ private:
     std::atomic<float>* cdSeverityParam = nullptr;
     std::atomic<float>* cdSegmentParam = nullptr;
 
-    // Vinyl (5 — VINYL_WEAR appended in v1.5.0)
+    // Vinyl (6 — VINYL_WEAR appended in v1.5.0, VINYL_WARP in v1.7.0)
     std::atomic<float>* vinylEnableParam = nullptr;
     std::atomic<float>* vinylProbParam = nullptr;
     std::atomic<float>* vinylRpmParam = nullptr;
     std::atomic<float>* vinylPopParam = nullptr;
     std::atomic<float>* vinylWearParam = nullptr;
+    std::atomic<float>* vinylWarpParam = nullptr;
 
     // Packet Loss (5 — PACKET_COMFORT appended in v1.5.0)
     std::atomic<float>* packetEnableParam = nullptr;
@@ -176,6 +178,7 @@ private:
     TapeBed        tapeBed;          // v1.5.0: stereo hiss, rides transport speed
     VinylBed       vinylBed;         // v1.5.0: rumble + Poisson micro-ticks
     CodecBed       codecBed;         // v1.5.0: mains hum + line crackle
+    VinylWarp      vinylWarp;        // v1.7.0: once-per-revolution warp wow
     CDSkip         cdSkip;           // Phase 2.2
     VinylTransport vinylTransport;   // Phase 2.2
     ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps

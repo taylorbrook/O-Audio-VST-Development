@@ -43,6 +43,7 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     vinylRpmRelay      = std::make_unique<juce::WebComboBoxRelay>("VINYL_RPM");
     vinylPopRelay      = std::make_unique<juce::WebSliderRelay>("VINYL_POP");
     vinylWearRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_WEAR");
+    vinylWarpRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_WARP");
     // Packet
     packetEnableRelay  = std::make_unique<juce::WebToggleButtonRelay>("PACKET_ENABLE");
     packetLossRelay    = std::make_unique<juce::WebSliderRelay>("PACKET_LOSS");
@@ -99,6 +100,7 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*vinylRpmRelay)
             .withOptionsFrom(*vinylPopRelay)
             .withOptionsFrom(*vinylWearRelay)
+            .withOptionsFrom(*vinylWarpRelay)
             .withOptionsFrom(*packetEnableRelay)
             .withOptionsFrom(*packetLossRelay)
             .withOptionsFrom(*packetBurstRelay)
@@ -312,6 +314,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("VINYL_POP"), *vinylPopRelay, nullptr);
     vinylWearAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("VINYL_WEAR"), *vinylWearRelay, nullptr);
+    vinylWarpAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("VINYL_WARP"), *vinylWarpRelay, nullptr);
     // Packet
     packetEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("PACKET_ENABLE"), *packetEnableRelay, nullptr);

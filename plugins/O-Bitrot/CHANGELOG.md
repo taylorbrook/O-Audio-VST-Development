@@ -2,6 +2,204 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.7.0] — 2026-08-17
+
+Vinyl authenticity — improvement brief items 17 and 27. Three of the four
+changes here are about the same underlying complaint: the vinyl family was
+built from a *single* physical gesture repeated. Every pop was the same
+doublet with a random gain. Every forward skip teleported to the present,
+whatever the stylus had to work with. The disc itself was perfectly flat and
+spun at one of two speeds. Item 17 gives the pop a taxonomy, item 27 gives
+the disc physics — a second direction for the groove jump, a warp, and a
+third speed.
+
+**This release changes the render of the vinyl family at its defaults.**
+`VINYL_POP` defaults to 50, so the pop taxonomy is live out of the box, and
+forward revolution-quantization needs no parameter at all. No other family
+moves a bit. See "Render-affecting" for what is preserved and how that was
+established.
+
+### Added
+- **Pop taxonomy: tick / pop / scratch** (item 17). A one-pole cannot ring,
+  so no pop in the first six releases had the damped stylus resonance that
+  reads as "the stylus hit something" — the whole family was one sample with
+  a random gain and ±3 dB / 1–3 kHz of variation. `triggerPop` now draws a
+  class at ~**70/25/5**:
+  - **tick** — the historical doublet through the `FirstOrderTPT` lowpass,
+    cutoff biased **high** (2–4 kHz), so it reads as the dry surface-debris
+    click it always was;
+  - **pop** — the same doublet exciting a damped 2nd-order resonator
+    (`StateVariableTPT` bandpass, 900–1800 Hz, Q 4–8);
+  - **scratch** — a 2–8 ms band-limited noise burst under a raised-cosine
+    window, plus a 40–80 Hz decaying sine: the tonearm thump under the rasp.
+
+  The brief specified "rings 1–3 ms" alongside "Q 4–8", and those two are
+  not compatible: Q 4–8 at 900–1800 Hz decays to −30 dB in **2.4–9.8 ms**
+  (measured across the corners of the (f0, Q) box, not asserted from the
+  spec). Q is the parameter that was specified, so Q is what shipped, and
+  the ring time is reported here rather than restated from the brief. The
+  click peak is normalised to the same base level for all three classes —
+  `1/g` is within 3% of the true doublet-response peak across the whole box
+  — so the ring sits 7–13 dB under the transient, which is the shape a
+  stylus impact actually has.
+
+- **`VINYL_WARP`** (item 27b) — a warped disc, default 0. One sinusoid at
+  exactly the platter rate (1/1.8 Hz at 33⅓, 0.75 at 45, 1.3 at 78), peak
+  rate deviation 0.6% at 100%.
+
+- **78 RPM** (item 27c) — appended to `VINYL_RPM`. Revolution quantum
+  0.769 s. The surface comes with it: shellac ticks are 1.6× denser and the
+  tick band drops and narrows to 1.5–4 kHz, matching a playback chain that
+  rolled off hard above ~5 kHz. Gated on the index, so 33⅓ and 45 keep their
+  numbers to the bit.
+
+### Changed
+- **Forward groove jumps are revolution-quantized** (item 27a). Research
+  §4.1 specifies "exactly ±1 revolution" in *both* directions; the engine
+  only ever did it backward, and every forward skip teleported to live. A
+  groove that skips backward by a revolution and then returns to the present
+  is half a physical model — the stylus jumping a ridge forward lands one
+  groove on, not at the present. Forward jumps now move exactly
+  `+revSamples` whenever `lag >= revSamples + minLag`, with the historical
+  return-to-live as the fallback when the buffer genuinely has no revolution
+  of past to spend. Rate is untouched, so BRIEF:16's "pitch never changes"
+  holds exactly as it does for the backward jump this mirrors. Draw count
+  unchanged.
+
+### Notes on how three of these were built
+
+**The warp is a read offset, not a rate multiplier.** The brief says
+"sinusoidal rate multiplier". That is not available in this engine, for the
+two reasons `WowFlutter.h` documented in v1.4.0 and which apply here
+verbatim: `ReadHead`'s lag-overflow clamp is suppressed while a loop
+transport owns the read rate, and the proof that the suppression is safe is
+"such a loop holds rate at **exactly** 1.0" — a rate multiplier falsifies
+that premise, and a *locked groove* is precisely the case item 27b is about.
+Separately, at the engine's lag-0 steady state any rate above 1.0 drives the
+head into `ReadHead`'s write-slot pin, which is a zero-order hold: a
+stutter, not a warp. Modulating a non-negative read **offset** is the same
+physics from the other end — pitch deviation is the derivative of delay — so
+`VinylWarp` specifies its excursion by the rate deviation it should produce
+and inverts the relation. Every lag budget, loop-wrap test and clamp proof
+in the engine is untouched, and the offset simply sums with the wow/flutter
+bed's at the single `renderSample` call site.
+
+**The warp LFO's period is an integer, and it is the same integer as the
+jump.** The brief's claim is that a warped locked groove wobbles identically
+every pass. That is true only if the LFO period equals the groove-jump
+distance *exactly*: a locked groove jumps back `revSamples` each pass, so
+`pos(t + revSamples) == pos(t)`, and the read repeats only if
+`offset(t + revSamples) == offset(t)` too. The phase increment is therefore
+`2π / revolutionSamples()`, not `2π·f/fs` — deriving it from the un-rounded
+seconds would leave a 0.077-sample residue per pass at 78 RPM / 48 kHz.
+Small, but the identity can be exact, so it is. The new `VinylGeometry.h`
+holds the one definition of the RPM→samples mapping that the transport, the
+warp and the noise bed all read, because three copies of
+`rpmIndex == 1 ? 45.0 : 100.0/3.0` is the shape that drifts silently the
+next time a speed is added.
+
+**The scratch class needed its own RNG stream.** A 2–8 ms noise burst draws
+once per *sample*, and the `artifactSynth` stream it would otherwise share
+is consumed at *tick* instants — mixing the two on one stream is the
+block-size interleave hazard verbatim. `RngBank` gains an **appended**
+`scratch` id (appended, never inserted: stream *k* is seeded from a function
+of *k* alone, so every pre-existing stream's seed, and every render made
+with an old `SEED`, is bit-identical). `triggerPop` itself keeps the
+fixed-draw discipline, now **five** draws on every call — before any branch,
+regardless of class, and regardless of level 0 — so a probe that silences
+the pops still gets an identical event sequence.
+
+### Migration
+`VINYL_RPM` gained a third entry, and appending to an `AudioParameterChoice`
+**repoints saved presets**. Presets store the normalised fraction, and index
+*i* over *N* choices encodes as *i*/(*N*−1): "45" went out as 1.0 against an
+end of 1, and 1.0 against an end of 2 decodes as "78". A pre-1.7.0 preset
+that used 45 RPM would silently load as 78.
+
+Handled with the preset-manager **v1.0.6** `setMigrationCallback` hook (the
+same one O-Tapestop v1.1.0 added for its `MODE` append): pre-1.7.0 presets
+have their `VINYL_RPM` fraction re-decoded against the old two-choice end
+and re-encoded against the new three-choice one, before the module's
+reset-to-defaults and apply passes. Factory presets regenerate at the
+version bump and are stamped with the current version, so they never reach
+the gate.
+
+APVTS **session** state needs no equivalent and gets none: it persists the
+choice *index*, and 0/1 still mean 33⅓ and 45. Presets are normalised,
+sessions are denormalised — only the presets move.
+
+`VINYL_WARP` is appended at the **end** of the parameter layout, not into
+the vinyl block where it belongs visually, for the third release running:
+layout order is the automation-slot order a host presents, and inserting
+would repoint every saved automation lane behind it. The WebView puts it in
+the Vinyl panel regardless, because the UI is keyed by parameter ID.
+
+### Render-affecting
+Yes, for the vinyl family, at defaults. Two independent changes do it and
+neither is a regression: the pop taxonomy widened `triggerPop` from two
+`artifactSynth` draws to five, so every pop after the first differs even at
+an unchanged level; and forward jumps became revolution-quantized. The
+canonical digest probe `V1` runs `VINYL_PROB 60`, so it legitimately moved
+(`0x972a5d3807538393` → `0xf8c2080db4e69ec1`).
+
+`V1` was **re-anchored, not quietly re-recorded** — the same treatment
+v1.6.0 gave it. It now pins `VINYL_ENABLE 0` in addition to `CD_SEVERITY 0`,
+and the new anchor `0x44a5de77d572facd` was produced by compiling the probe
+*with those two lines* against the **v1.6.0 tree** at git `16e63620`, in a
+detached worktree, and reading the number it printed. That run scored 86/87
+— the single failure being `V1` itself measuring the freshly narrowed render
+against the anchor the narrowing had just superseded, which is exactly the
+run that produces the new number. The current tree then matches it.
+
+What that preserves is the claim worth having, now across four releases:
+**tape bends, the post-stop recovery jump, the CD conceal rung and the
+lag-overflow clamp are bit-unchanged** — and so is the read path with
+`VinylWarp` wired into it and silent, which is the v1.7.0 addition that
+claims to be exactly transparent at its default. The vinyl transport's own
+invariants are asserted directly by `M`/`M4`/`M5`/`M8` on the revolution
+grid rather than through a digest, which is the better place for them.
+`N7` still matches its v1.4.0 anchor, so packet and codec are untouched.
+
+### Testing
+Harness **92/92**; 5 probes added. auval PASS; pluginval strictness-10
+SUCCESS on three consecutive runs.
+
+Every new probe was verified to FAIL against the code it gates, by reverting
+that single behaviour and re-running:
+
+| Probe | Gates | Reverted → |
+|---|---|---|
+| `M5` | item 27a's threshold, both sides | branch removed → "lag 3 rev moved 192000, expect 64000"; gate removed → "lag 65400 moved 64000, expect return-to-live" |
+| `M6` | the warp's locked-groove identity | LFO period pinned to 33⅓ regardless of RPM → pass-to-pass diff **0.861** against a 1e-6 bound |
+| `M7` | the pop class rings | pop routed back to the one-pole → **0** zero crossings in 5 ms, against 13 |
+| `M8` | the 78 RPM quantum | index 2 removed from the table → quantum reads 86400 |
+| `M9` | the preset migration gate | version gate removed → a v1.7.0 preset's "78" loads as "45" |
+
+`M8`'s revert is the interesting one, because it is the case a naive probe
+would miss: the probe takes its expected quantum from the *same function*
+the engine uses, so deleting index 2 changes both together and every event
+still lands "on quantum". The `distinct` guard — the quantum must not equal
+45's 64000 or 33⅓'s 86400 — is what catches it, and it is the reason the
+probe is written that way rather than against a literal 36923.
+
+`M9` runs end-to-end through the module's public `loadPresetFromFile()`, so
+the version gate, the reset pass and the apply pass are all in the path, and
+it carries its own negative control: a preset stamped 1.7.0 with the same
+1.0 must load as "78", because at that version 1.0 genuinely means 78.
+
+`M` changed shape rather than gaining a check. Its forward assertion used to
+be "every forward event lands at live", which *was* the whole of the old
+behaviour; it now accepts either shape and additionally requires that the
+revolution-quantized forward actually fires, so the pre-v1.7.0 engine fails
+it at "0 fwd+rev". Its scan window also moved 400 samples past the warmup:
+the warmup boundary lands exactly on a clock tick, so a jump fired on the
+window's first sample and `scanSawEvents` read that event's `vPre` from
+inside its own smear — measuring 63556 where every other event reads
+64000 ± 3.2 (the ±3.2 is the +2% re-approach trim over the 160-sample
+read-ahead, and is why the tolerance is ±8). That one event was a
+measurement artifact, not a transport defect, and it is now skipped rather
+than mis-measured.
+
 ## [1.6.0] — 2026-08-17
 
 CD skip authenticity — improvement brief items 14 and 18. The CD ladder's
