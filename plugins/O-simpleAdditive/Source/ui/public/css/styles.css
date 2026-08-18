@@ -248,12 +248,11 @@ body {
 }
 
 /* ── Visualization (oscilloscope) ───────────────────────────────────────── */
-/* The scope is the one elastic section: it absorbs whatever vertical slack the
-   frame has left after every other section takes its natural size, so the
-   keyboard lands on the bottom edge instead of floating above dead paper.
-   flex-shrink stays 0 (see `.frame > *`), so 136px is a hard floor — if a
-   host renders text taller, the scope just grows less rather than clipping. */
-.viz-panel { display: flex; gap: 14px; flex: 1 0 136px; min-height: 136px; }
+/* Fixed height on purpose. An elastic scope stretched to fill leftover frame
+   slack, which made the trace read as a thin line stranded in a tall empty box —
+   and the boot-time backing store never matched the settled box (see makeCanvas).
+   A single-cycle waveform needs far less height than the drawbars do. */
+.viz-panel { display: flex; gap: 14px; height: 116px; }
 .viz-block { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .viz-label {
   font-size: 10px;

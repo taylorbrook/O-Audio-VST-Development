@@ -167,11 +167,12 @@ OSimpleAdditiveAudioProcessorEditor::OSimpleAdditiveAudioProcessorEditor (OSimpl
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // 860 wide fits the 16-drawbar bay; 980 tall fits the whole page — the v1.0.5
-    // layout measures 912px of content in 974px of usable frame height, so the
-    // on-screen keyboard sits above the fold. The frame still scrolls if a host
-    // gives us less height than we asked for.
-    setSize (860, 980);
+    // 860 wide fits the 16-drawbar bay. 930 tall fits the whole page with room to
+    // spare: the v1.0.6 layout measures 892px of content in 924px of usable frame
+    // height, so the on-screen keyboard sits above the fold with ~32px of margin —
+    // far more than the <=2px the layout shifts across serif fallbacks. The frame
+    // still scrolls if a host gives us less height than we asked for.
+    setSize (860, 930);
     startTimerHz (30);
 }
 

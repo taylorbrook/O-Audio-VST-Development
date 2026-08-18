@@ -40,6 +40,13 @@ morph, spectral-decay tilt, bit-depth quantizer.
   (`flex: 1 0 136px`), absorbing leftover slack so the keyboard sits on the bottom
   edge. Measured 912 px of content in 974 px usable (62 px headroom, ≥59 px across
   every serif fallback); verified in Standalone/WKWebView and auval.
+- **2026-08-17 — v1.0.6** — Scope trace was drawing at 23.9% of the box instead of
+  centred: the canvas backing store was sized once at boot and only refreshed on a
+  *window* resize, so it stayed pinned to a transient 373 px height while the box
+  settled to 178 px. Now observed with a `ResizeObserver` on the canvas element, so
+  store and transform always refit the real box (measured 23.9% → 49.7%). Scope
+  reverted to a fixed, shorter 116 px — the v1.0.5 elastic version stretched to
+  198 px and looked empty — and the editor shrank 980 → 930 to hand back the space.
 
 ## Known Limitations
 

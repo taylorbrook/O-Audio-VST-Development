@@ -338,13 +338,31 @@ function updateDrawbarSpectrum(sounding, levels) {
 function makeCanvas(id) {
   const canvas = document.getElementById(id);
   const ctx = canvas.getContext("2d");
+  // Returns true only when the backing store actually changed — assigning
+  // canvas.width/height clears the canvas even when the value is identical, so a
+  // no-op resize must not repaint.
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
-    canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width === w && canvas.height === h) return false;
+    canvas.width = w;
+    canvas.height = h;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return true;
   };
   resize();
+
+  // Track the ELEMENT, not the window. The canvas box resizes whenever the layout
+  // settles or the frame reflows, and neither fires a window `resize`. Sizing the
+  // backing store only at boot pinned it to a transient height; the browser then
+  // squashed that store into the settled box and the trace drifted off centre
+  // (measured: drawn at h/2, landed at 24% of the box). The window listener in
+  // rewireResize() stays for the case this cannot see — a devicePixelRatio change,
+  // which alters the store without changing the element's CSS size.
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => { if (resize() && lastScope) drawScope(lastScope); }).observe(canvas);
+  }
   return { canvas, ctx, resize };
 }
 

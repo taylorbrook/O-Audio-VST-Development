@@ -3,6 +3,54 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.6] — 2026-08-17
+
+Follow-up to v1.0.5: the oscilloscope trace was drawing off-centre, and the scope
+box was taller than a single-cycle waveform needs. No parameter, preset, state, or
+DSP changes.
+
+### Fixed
+- **The waveform drew in the top quarter of the scope box instead of centred.**
+  `makeCanvas` sized the canvas backing store once at boot and `rewireResize`
+  refreshed it only on a **window** resize — but the canvas box also changes when
+  the layout settles or the frame reflows, neither of which fires that event. The
+  store got pinned to a transient boot height of 373 px while the box settled to
+  178 px; the browser then squashed that store into the box, so a trace drawn at
+  `h / 2` landed at **23.9%** of the box. Measured before and after: 23.9% → 49.7%
+  (the residual 0.5% is the 2 px stroke's half-pixel on a 96 px canvas).
+
+  The v1.0.5 elastic scope is what made the boot-vs-settled gap large enough to
+  see, but the boot-once sizing was the underlying defect and was always fragile.
+
+  Fixed by observing the **canvas element** with a `ResizeObserver` rather than the
+  window, so the backing store and the drawing transform are always recomputed
+  together against the box's real size. `resize()` now returns whether anything
+  actually changed, because assigning `canvas.width` clears the canvas even when
+  the value is identical — a no-op resize must not repaint. The window listener is
+  kept for the one case the observer cannot see: a `devicePixelRatio` change, which
+  alters the required store without changing the element's CSS size. A stale DPR is
+  self-consistent rather than broken — the store and transform are set atomically,
+  so the trace stays correctly placed and only render resolution is affected.
+
+### Changed
+- **The scope is a fixed 116 px again, not elastic.** Letting it absorb the frame's
+  leftover slack (v1.0.5) stretched it to 198 px, which read as a thin trace
+  stranded in a tall empty box. A single-cycle waveform needs far less height than
+  the drawbars do.
+- **Editor height 980 → 930.** With the scope fixed and shorter, content measures
+  892 px in 924 px of usable frame height, so the window gives back 50 px of screen
+  rather than holding empty paper. Headroom is 32 px — still an order of magnitude
+  more than the ≤2 px the layout shifts across serif fallbacks.
+
+### Testing
+- Trace centring measured by reading canvas pixels, not by re-deriving the maths:
+  the green stroke's vertical midpoint sits at 49.7% of the backing store. The same
+  probe reported 23.9% against the pre-fix build, so it discriminates.
+- Backing store verified to refit after a live viewport change, with the trace
+  repainted and still centred.
+- Layout at 860×930: 892 px content in 924 px usable, **0 px overflow**, 32 px
+  headroom, keyboard fully visible, no knob-row wrapping.
+
 ## [1.0.5] — 2026-08-17
 
 UI layout pass: the whole interface — including the on-screen keyboard — now fits
