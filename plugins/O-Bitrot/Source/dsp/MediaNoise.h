@@ -86,6 +86,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "VinylGeometry.h"
 
 //==============================================================================
 /** Unity-RMS white from juce::Random::nextFloat().
@@ -181,6 +182,16 @@ public:
     static constexpr double kTickMaxHz  = 6000.0;
     static constexpr float  kTickQ      = 0.9f;
 
+    // 78 RPM character (v1.7.0, brief item 27c). Shellac is a coarser, noisier
+    // surface than vinyl and a 78 passes ~2.3x more of it under the stylus per
+    // second, so the ticks get denser; the playback chain of the era rolled off
+    // hard above ~5 kHz, so the tick band drops and narrows with it. Applied
+    // ONLY at index 2 — 33 1/3 and 45 keep the numbers above exactly, so no
+    // pre-v1.7.0 render moves.
+    static constexpr double kShellacTickDensity = 1.6;
+    static constexpr double kShellacTickMinHz   = 1500.0;
+    static constexpr double kShellacTickMaxHz   = 4000.0;
+
     // Rough bandpass makeup, tuned by harness render (probe M1) — the same
     // approach ArtifactSynth::triggerTick takes for the CD tick.
     static constexpr float  kTickMakeup = 4.0f;
@@ -250,9 +261,15 @@ public:
         // Wear drives BOTH the tick density and (through the ramp) the bed's
         // amplitude, which is what makes one knob read as "how worn": a
         // worn record is not just louder crackle, it is more of it.
-        tickThreshold = static_cast<float> (kMaxTicksPerSec * wear / juce::jmax (1.0, fs));
+        const bool   shellac = (rpmIndex == 2);
+        const double density = kMaxTicksPerSec * (shellac ? kShellacTickDensity : 1.0);
 
-        const double revsPerSec = (rpmIndex == 1 ? 45.0 : 100.0 / 3.0) / 60.0;
+        tickThreshold = static_cast<float> (density * wear / juce::jmax (1.0, fs));
+
+        tickMinHz = shellac ? kShellacTickMinHz : kTickMinHz;
+        tickMaxHz = shellac ? kShellacTickMaxHz : kTickMaxHz;
+
+        const double revsPerSec = VinylGeometry::revsPerSecond (rpmIndex);
         platterInc = juce::MathConstants<double>::twoPi * revsPerSec / juce::jmax (1.0, fs);
 
         level.setTarget (wear);
@@ -284,8 +301,8 @@ public:
         if (sched < tickThreshold)
         {
             const float u   = rng.nextFloat();
-            const float cut = static_cast<float> (kTickMinHz
-                                  + rng.nextFloat() * (kTickMaxHz - kTickMinHz));
+            const float cut = static_cast<float> (tickMinHz
+                                  + rng.nextFloat() * (tickMaxHz - tickMinHz));
 
             tickFilter.setCutoffFrequency (cut);
             tickIn = kTickPeak * u * u * u * kTickMakeup;      // cubic power law
@@ -316,6 +333,11 @@ private:
     double platterInc   = 0.0;
 
     float tickThreshold = 0.0f;
+
+    // Tick band, per-block from VINYL_RPM (v1.7.0). Held as members rather
+    // than read from the constants directly because 78 narrows and lowers it.
+    double tickMinHz = kTickMinHz;
+    double tickMaxHz = kTickMaxHz;
 
     juce::dsp::StateVariableTPTFilter<float> tickFilter;
 

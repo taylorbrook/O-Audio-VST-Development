@@ -319,6 +319,9 @@ void setBaseline (OBitrotAudioProcessor& proc)
     setParam (proc, "CODEC_NOISE",     0.0f);
     setParam (proc, "CODEC_MAINS",     0.0f);      // 50 Hz
     setParam (proc, "PACKET_COMFORT",  0.0f);
+
+    // Vinyl warp (1) — v1.7.0, transparent at 0
+    setParam (proc, "VINYL_WARP",      0.0f);
 }
 
 //==============================================================================
@@ -2375,10 +2378,18 @@ int main()
 
     //==========================================================================
     // M — DSP-03 vinyl on the saw marker: backward jumps are integer
-    // revolution multiples (45 RPM => 64000 samples @ 48 kHz), forward jumps
-    // land at live, every onset sits on the clock grid (FUNC-01). Pops are
-    // silenced (VINYL_POP 0) so the marker stays clean — the pop draws are
-    // still consumed, so M2/M3 share this event schedule.
+    // revolution multiples (45 RPM => 64000 samples @ 48 kHz), every onset
+    // sits on the clock grid (FUNC-01). Pops are silenced (VINYL_POP 0) so the
+    // marker stays clean — the pop draws are still consumed, so M2/M3 share
+    // this event schedule.
+    //
+    // The FORWARD half changed shape in v1.7.0 (brief item 27a). It used to
+    // assert "every forward event lands at live", which was the whole of the
+    // old behaviour; a forward event is now EITHER exactly one revolution
+    // forward (whenever the head has that much recorded past to spend) OR the
+    // return-to-live fallback. Both shapes are asserted, and the probe
+    // additionally requires that the revolution-quantized forward actually
+    // fires — under the pre-v1.7.0 engine forwardRev is 0 and this fails.
     {
         auto p = makeProc();
         setParam (*p, "CLOCK_MODE",      1.0f);
@@ -2404,13 +2415,19 @@ int main()
         renderInto (*p, out, total, { 512 }, sawStereo);
 
         const auto mono   = channelToVector (out, 0);
-        const int  startAt = kComp + warmup;
+        // warmup lands exactly ON a clock tick, so a jump fires at the first
+        // sample of the window and scanSawEvents reads its vPre from inside its
+        // own smear — that one event measures ~444 samples short of the
+        // revolution while every other reads 64000 +/- 3.2 (the +2% re-approach
+        // trim over the 160-sample read-ahead). Start clear of the tick: the
+        // event is skipped rather than mis-measured.
+        const int  startAt = kComp + warmup + 400;
         constexpr int rev = 64000;
 
         const auto events  = scanSawEvents (mono, startAt, 160, sawJumpThresh ((double) rev));
 
-        int  backward = 0, forward = 0;
-        bool distOk = true, gridOk = true, liveOk = true;
+        int  backward = 0, forward = 0, forwardRev = 0, forwardLive = 0;
+        bool distOk = true, gridOk = true, fwdShapeOk = true;
         juce::String detail;
 
         for (const auto& e : events)
@@ -2436,11 +2453,28 @@ int main()
             else
             {
                 ++forward;
-                const double lagAfter = lagFromSaw (e.vPost, e.postIndex, kComp);
-                if (lagAfter > 100.0)
+
+                // Exactly +1 revolution (dist is negative for a forward move),
+                // or the fallback, which must land ON live. A forward event of
+                // any other size is a move this transport may not make.
+                if (std::abs (e.distSamples + (double) rev) <= 8.0)
                 {
-                    liveOk = false;
-                    detail << " FORWARD NOT LIVE lag " << juce::String (lagAfter, 1);
+                    ++forwardRev;
+                }
+                else
+                {
+                    const double lagAfter = lagFromSaw (e.vPost, e.postIndex, kComp);
+                    if (lagAfter > 100.0)
+                    {
+                        fwdShapeOk = false;
+                        detail << " FORWARD NEITHER +rev NOR LIVE: dist "
+                               << juce::String (e.distSamples, 1) << " lag "
+                               << juce::String (lagAfter, 1);
+                    }
+                    else
+                    {
+                        ++forwardLive;
+                    }
                 }
             }
         }
@@ -2455,11 +2489,20 @@ int main()
         const bool counts = backward >= 8 && forward >= 2 && (int) events.size() >= 12;
         const bool live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
 
-        check ("M DSP-03 vinyl-jumps", live && counts && distOk && gridOk && liveOk,
+        // The item-27a discriminator: the ladder here descends past 7
+        // revolutions, so every forward win has a revolution to spend. Against
+        // the pre-v1.7.0 engine all 8 of these were return-to-live teleports
+        // and forwardRev is 0.
+        const bool revFwdLive = forwardRev >= 4;
+
+        check ("M DSP-03 vinyl-jumps",
+               live && counts && distOk && gridOk && fwdShapeOk && revFwdLive,
                juce::String ((int) events.size()) + " events (" + juce::String (backward)
-                   + " back / " + juce::String (forward) + " fwd), back dists = k*64000 +/-8, "
+                   + " back / " + juce::String (forwardRev) + " fwd+rev / "
+                   + juce::String (forwardLive) + " fwd-live), dists = k*64000 +/-8, "
                    + "onsets on 24000-grid +/-8" + detail
-                   + (counts ? "" : " — TOO FEW EVENTS, probe vacuous"));
+                   + (counts ? "" : " — TOO FEW EVENTS, probe vacuous")
+                   + (revFwdLive ? "" : " — NO REVOLUTION-QUANTIZED FORWARD (item 27a dead)"));
     }
 
     //==========================================================================
@@ -2644,6 +2687,383 @@ int main()
                    + " (bound 8), deepest lag " + juce::String (deepestLag, 0) + " samples"
                    + (deep ? "" : " — LADDER TOO SHALLOW, probe vacuous")
                    + (live ? "" : " — SILENT"));
+    }
+
+    //==========================================================================
+    // M5 — item 27a's GATE, on VinylTransport driven directly.
+    //
+    // M proves the revolution-quantized forward fires when the lag affords it.
+    // The other half of the claim is that it does NOT fire when the lag does
+    // not — and that half cannot be reached from a plugin render, because the
+    // lag there is whatever the ladder happens to have accumulated. Driving the
+    // transport straight from the harness sets the lag to an exact number on
+    // either side of the threshold, which is the only way the gate is the
+    // thing being measured rather than the seed.
+    //
+    // Both halves are asserted. A build that always jumps +rev passes the
+    // first and fails the second; the pre-v1.7.0 build fails the first.
+    {
+        const int    ringSize = (int) (kFs * CaptureRing::kRingSeconds) + 1;
+        const int    filled   = 800000;
+        const double hi       = (double) (filled - 1);
+        constexpr int rev     = 64000;                  // 45 RPM @ 48 kHz
+        const double minLag   = 0.05 * kFs;             // 2400
+
+        // A win draws (rType, rDir) from the vinyl stream in that fixed order.
+        // The forward path needs rType >= 0.30 (not a locked groove) and
+        // rDir >= 0.65 (wantForward). juce::Random is copyable, so a candidate
+        // seed can be inspected without consuming the stream it seeds.
+        int seed = -1;
+        for (int s = 0; s < 4096 && seed < 0; ++s)
+        {
+            RngBank probe;
+            probe.reseed (s);
+            juce::Random peek = probe.get (RngBank::vinyl);
+            const float rType = peek.nextFloat();
+            const float rDir  = peek.nextFloat();
+            if (rType >= 0.30f && rDir >= 0.65f)
+                seed = s;
+        }
+
+        // Runs ONE win with the head placed at `lag` behind live, and returns
+        // the distance the head moved (+ = forward).
+        auto forwardJumpFrom = [&] (double lag)
+        {
+            CaptureRing    ring;
+            ReadHead       head;
+            RngBank        rng;
+            ArtifactSynth  art;
+            VinylTransport vt;
+
+            ring.prepare (kFs);
+            head.prepare (kFs, ringSize);
+            art.prepare (kFs);
+            vt.prepare (kFs);
+            rng.reseed (seed);
+
+            for (int n = 0; n < filled; ++n)
+                ring.push (0.0f, 0.0f);
+
+            head.clampAndScheduleJump (hi - lag, filled, true);   // instant placement
+            const double before = head.getPosition();
+
+            vt.onWin (rng, 1 /* 45 RPM */, 0.0f, head, ring, true /* hardEdges */, art);
+
+            return head.getPosition() - before;
+        };
+
+        // Deep: a whole revolution of past to spend, plus margin.
+        const double deep    = forwardJumpFrom (3.0 * rev);
+        // Shallow: past minLag (so the win is not skipped) but short of a
+        // revolution — deliberately just under the threshold.
+        const double shallow = forwardJumpFrom (rev + minLag - 1000.0);
+
+        const bool seedOk    = seed >= 0;
+        const bool deepIsRev = std::abs (deep - (double) rev) <= 1.0;
+        // The fallback lands ON live, i.e. it moves the head the whole lag.
+        const bool shallowIsLive = std::abs (shallow - (rev + minLag - 1000.0)) <= 1.0;
+
+        check ("M5 item-27a forward-gate", seedOk && deepIsRev && shallowIsLive,
+               juce::String ("seed ") + juce::String (seed) + ": lag 3 rev -> moved "
+                   + juce::String (deep, 1) + " (expect exactly " + juce::String (rev)
+                   + "), lag " + juce::String (rev + minLag - 1000.0, 0) + " (just under the "
+                   + juce::String (rev + minLag, 0) + " threshold) -> moved "
+                   + juce::String (shallow, 1) + " (expect return-to-live)"
+                   + (seedOk ? "" : " — NO FORWARD-PATH SEED FOUND, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M6 — item 27b, the warp. Two claims, and the second is the one worth
+    // having.
+    //
+    // (a) VINYL_WARP 0 is EXACTLY transparent: the offset is 0.0, `pos - 0.0`
+    //     is bit-identical to `pos`, and the render must match a build with the
+    //     warp absent. Asserted here as bit-identity against VINYL_ENABLE off
+    //     with every other vinyl control already inert — see below.
+    // (b) A warped LOCKED GROOVE repeats EXACTLY. The groove jumps back
+    //     revSamples every pass and the warp LFO's period is the same integer,
+    //     so pass N and pass N+1 read the same positions and must be
+    //     sample-identical. If the LFO were derived from the un-rounded
+    //     seconds, or free-run at a frequency unrelated to the quantum, the
+    //     passes would drift apart.
+    //
+    // The M4 geometry: ONE tick at 10 s, then nothing, so the groove is the
+    // only thing happening and the passes are one revolution apart.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc, float warp)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);   // Free
+            setParam (proc, "CLOCK_FREE_RATE", 0.1f);   // one tick at 10 s
+            setParam (proc, "TAPE_ENABLE",     0.0f);
+            setParam (proc, "CD_ENABLE",       0.0f);
+            setParam (proc, "VINYL_PROB",      100.0f);
+            setParam (proc, "VINYL_RPM",       1.0f);   // 45 => 64000 samples
+            setParam (proc, "VINYL_POP",       0.0f);   // keep the passes clean
+            setParam (proc, "VINYL_WARP",      warp);
+            setParam (proc, "SEED",            99.0f);
+        };
+
+        constexpr int rev   = 64000;
+        const int     total = (int) (21.0 * kFs);
+
+        auto a = makeProc();  configure (*a, 60.0f);
+        auto b = makeProc();  configure (*b,  0.0f);
+
+        juce::AudioBuffer<float> warped, flat;
+        renderInto (*a, warped, total, { 512 }, sineStereo);
+        renderInto (*b, flat,   total, { 512 }, sineStereo);
+
+        // (a) The warp must actually be DOING something, or (b) is vacuous:
+        // two identical renders repeat trivially.
+        const double warpDiff = maxAbsDiff (warped, flat);
+
+        // (b) Compare two consecutive groove passes. The groove locks on the
+        // 10 s tick; start well inside it and take a whole revolution.
+        const auto mono = channelToVector (warped, 0);
+        const int  passA = kComp + (int) (13.0 * kFs);
+        double     worstPassDiff = 0.0;
+        for (int i = 0; i < rev; ++i)
+            worstPassDiff = juce::jmax (worstPassDiff,
+                                        std::abs ((double) mono[(size_t) (passA + i)]
+                                                  - (double) mono[(size_t) (passA + rev + i)]));
+
+        // Same window on the UNWARPED render: the reference the warped pass
+        // must be no worse than. Both should be exactly 0 — the point of
+        // measuring it is that a non-zero result here would mean the window
+        // is not inside a locked groove at all, and (b) would be vacuous.
+        const auto monoFlat = channelToVector (flat, 0);
+        double     flatPassDiff = 0.0;
+        for (int i = 0; i < rev; ++i)
+            flatPassDiff = juce::jmax (flatPassDiff,
+                                       std::abs ((double) monoFlat[(size_t) (passA + i)]
+                                                 - (double) monoFlat[(size_t) (passA + rev + i)]));
+
+        const bool live     = warped.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool audible  = warpDiff > 1.0e-3;
+        const bool inGroove = flatPassDiff <= 1.0e-6;
+        const bool repeats  = worstPassDiff <= 1.0e-6;
+
+        check ("M6 item-27b warp-groove", live && audible && inGroove && repeats,
+               juce::String ("warp-60-vs-0 maxAbsDiff ") + juce::String (warpDiff, 5)
+                   + " (need > 1e-3), pass-to-pass |diff| warped "
+                   + juce::String (worstPassDiff, 9) + " / unwarped "
+                   + juce::String (flatPassDiff, 9) + " (bound 1e-6)"
+                   + (audible   ? "" : " — WARP INAUDIBLE, repeat claim vacuous")
+                   + (inGroove  ? "" : " — WINDOW NOT IN A LOCKED GROOVE, probe vacuous")
+                   + (live      ? "" : " — SILENT"));
+    }
+
+    //==========================================================================
+    // M7 — item 17, the pop taxonomy. Two things are measured, both against
+    // the shape of the OLD code rather than against a restated constant.
+    //
+    // (a) The classes are drawn at ~70/25/5. Counted on the artifactSynth
+    //     stream directly rather than inferred from audio: the class draw is
+    //     the first of the five, so replaying that stream's draw sequence in
+    //     groups of five reproduces exactly the classification triggerPop
+    //     performs. This asserts the DRAW DISCIPLINE too — five per call.
+    // (b) A pop RINGS. The old code could not: a first-order lowpass has no
+    //     complex pole pair, so its doublet response is monotone after the
+    //     second sample. The resonator's is not. Measured as the number of
+    //     zero crossings in the 5 ms after a triggered pop, on the synth
+    //     driven directly (a plugin render buries it under the programme).
+    {
+        // (a) class weights over a long run of the stream
+        RngBank rng;
+        rng.reseed (2024);
+        juce::Random& s = rng.get (RngBank::artifactSynth);
+
+        constexpr int kDraws = 20000;
+        int nTick = 0, nPop = 0, nScratch = 0;
+        for (int i = 0; i < kDraws; ++i)
+        {
+            const float rClass = s.nextFloat();
+            s.nextFloat(); s.nextFloat(); s.nextFloat(); s.nextFloat();   // the other four
+
+            if      (rClass < 0.70f) ++nTick;
+            else if (rClass < 0.95f) ++nPop;
+            else                     ++nScratch;
+        }
+
+        const double pTick    = (double) nTick    / kDraws;
+        const double pPop     = (double) nPop     / kDraws;
+        const double pScratch = (double) nScratch / kDraws;
+
+        const bool weightsOk = std::abs (pTick - 0.70) < 0.02
+                            && std::abs (pPop  - 0.25) < 0.02
+                            && std::abs (pScratch - 0.05) < 0.01;
+
+        // (b) does a pop-class hit ring? Force the class by seeding the synth's
+        // stream from a draw sequence whose first value lands in [0.70, 0.95).
+        int popSeed = -1;
+        for (int k = 0; k < 4096 && popSeed < 0; ++k)
+        {
+            RngBank probe;
+            probe.reseed (k);
+            juce::Random peek = probe.get (RngBank::artifactSynth);
+            const float rClass = peek.nextFloat();
+            if (rClass >= 0.70f && rClass < 0.95f)
+                popSeed = k;
+        }
+
+        ArtifactSynth art;
+        RngBank        popRng;
+        art.prepare (kFs);
+        popRng.reseed (popSeed);
+
+        juce::Random& scratchStream = popRng.get (RngBank::scratch);
+        art.triggerPop (1.0f, popRng.get (RngBank::artifactSynth));
+
+        const int    window = (int) (0.005 * kFs);      // 5 ms
+        int          crossings = 0;
+        double       peak = 0.0;
+        float        prev = 0.0f;
+        for (int n = 0; n < window; ++n)
+        {
+            const float v = art.renderSample (scratchStream);
+            peak = juce::jmax (peak, (double) std::abs (v));
+            if (n > 2 && ((v > 0.0f) != (prev > 0.0f)))
+                ++crossings;
+            prev = v;
+        }
+
+        // A 900-1800 Hz ring over 5 ms is 9-18 zero crossings. The old
+        // first-order lowpass produced 1 (the doublet's own sign flip) and
+        // nothing after it, so the bound discriminates rather than decorates.
+        const bool rings   = crossings >= 6;
+        const bool sane    = peak > 0.02 && peak < 1.0;
+
+        check ("M7 item-17 pop-taxonomy", weightsOk && rings && sane && popSeed >= 0,
+               juce::String ("weights tick/pop/scratch ") + juce::String (pTick, 3) + "/"
+                   + juce::String (pPop, 3) + "/" + juce::String (pScratch, 3)
+                   + " (target .70/.25/.05), pop-class ring: " + juce::String (crossings)
+                   + " zero crossings in 5 ms (need >= 6; a one-pole gives 1), peak "
+                   + juce::String (peak, 4)
+                   + (rings ? "" : " — POP DOES NOT RING")
+                   + (sane  ? "" : " — PEAK OUT OF RANGE"));
+    }
+
+    //==========================================================================
+    // M8 — item 27c, 78 RPM. The revolution quantum is 0.769 s, so backward
+    // jumps land on 36923 samples at 48 kHz rather than 86400 or 64000. Same
+    // saw-marker method as M, one speed over.
+    {
+        auto p = makeProc();
+        setParam (*p, "CLOCK_MODE",      1.0f);
+        setParam (*p, "CLOCK_FREE_RATE", 2.0f);
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "CD_ENABLE",       0.0f);
+        setParam (*p, "VINYL_PROB",      100.0f);
+        setParam (*p, "VINYL_RPM",       2.0f);   // 78
+        setParam (*p, "VINYL_POP",       0.0f);
+        setParam (*p, "SEED",            99.0f);
+
+        // The quantum comes from the SAME function the engine uses, not from a
+        // literal mirrored here (pattern_test_fixture_mirrors_drift_silently).
+        const int rev = VinylGeometry::revolutionSamples (kFs, 2);
+
+        const int warmup = (int) (12.0 * kFs);
+        const int total  = warmup + (int) (8.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sawStereo);
+
+        const auto mono    = channelToVector (out, 0);
+        // warmup lands exactly ON a clock tick, so a jump fires at the first
+        // sample of the window and scanSawEvents reads its vPre from inside its
+        // own smear — that one event measures ~444 samples short of the
+        // revolution while every other reads 64000 +/- 3.2 (the +2% re-approach
+        // trim over the 160-sample read-ahead). Start clear of the tick: the
+        // event is skipped rather than mis-measured.
+        const int  startAt = kComp + warmup + 400;
+        const auto events  = scanSawEvents (mono, startAt, 160, sawJumpThresh ((double) rev));
+
+        int  onQuantum = 0, offQuantum = 0;
+        for (const auto& e : events)
+        {
+            const double mag = std::abs (e.distSamples);
+            const int    k   = juce::jmax (1, juce::roundToInt (mag / rev));
+            if (std::abs (mag - (double) k * rev) <= 8.0) ++onQuantum;
+            else                                          ++offQuantum;
+        }
+
+        const bool live    = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool enough  = onQuantum >= 8;
+        const bool allOn   = offQuantum == 0;
+        // Discriminator: 36923 is not a multiple of 64000 or 86400, and the
+        // 45 RPM quantum is not a multiple of it, so a build that ignored
+        // index 2 and fell back would land off-quantum here.
+        const bool distinct = rev != 64000 && rev != 86400;
+
+        check ("M8 item-27c 78-rpm-quantum", live && enough && allOn && distinct,
+               juce::String ("quantum ") + juce::String (rev) + " samples ("
+                   + juce::String (1000.0 * rev / kFs, 1) + " ms), " + juce::String (onQuantum)
+                   + " on-quantum / " + juce::String (offQuantum) + " off"
+                   + (enough ? "" : " — TOO FEW EVENTS, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M9 — item 27c's preset migration, end to end through the module.
+    //
+    // Appending "78" repoints every NORMALIZED VINYL_RPM fraction a pre-1.7.0
+    // preset saved: "45" went out as 1.0 over an end of 1, and 1.0 over an end
+    // of 2 decodes as "78". The v1.0.6 hook remaps it. The probe writes the
+    // JSON a v1.6.0 save would have produced and loads it through the public
+    // loadPresetFromFile(), so the module's own version gate, reset pass and
+    // apply pass are all in the path.
+    //
+    // The negative control is the point: a preset stamped 1.7.0 with the SAME
+    // 1.0 must load as "78", because at that version 1.0 genuinely means 78. A
+    // migration that ran unconditionally would pass the first half and fail
+    // this one.
+    {
+        auto tmp = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                       .getChildFile ("obitrot-migration-probe");
+        tmp.createDirectory();
+
+        auto writePreset = [&] (const juce::String& version, double rpmNormalised)
+        {
+            auto* params = new juce::DynamicObject();
+            params->setProperty ("VINYL_RPM", rpmNormalised);
+
+            auto* preset = new juce::DynamicObject();
+            preset->setProperty ("parameters", juce::var (params));
+            preset->setProperty ("version", version);
+            preset->setProperty ("plugin", "Ouaricon Bitrot");
+
+            auto file = tmp.getChildFile ("probe-" + version + ".json");
+            file.replaceWithText (juce::JSON::toString (juce::var (preset), true));
+            return file;
+        };
+
+        auto loadAndReadRpm = [] (OBitrotAudioProcessor& proc, const juce::File& f)
+        {
+            proc.presetManager.loadPresetFromFile (f);
+            auto* param = dynamic_cast<juce::AudioParameterChoice*> (
+                              proc.apvts.getParameter ("VINYL_RPM"));
+            return param != nullptr ? param->getIndex() : -1;
+        };
+
+        auto old45 = makeProc();
+        auto new78 = makeProc();
+        auto old33 = makeProc();
+
+        const int gotOld45 = loadAndReadRpm (*old45, writePreset ("1.6.0", 1.0));
+        const int gotNew78 = loadAndReadRpm (*new78, writePreset ("1.7.0", 1.0));
+        const int gotOld33 = loadAndReadRpm (*old33, writePreset ("1.5.0", 0.0));
+
+        tmp.deleteRecursively();
+
+        const bool migrated = gotOld45 == 1;    // pre-1.7.0 "45" stays 45
+        const bool untouched = gotNew78 == 2;   // 1.7.0 "78" stays 78
+        const bool zeroSafe  = gotOld33 == 0;   // 33 1/3 is 0.0 under both encodings
+
+        check ("M9 item-27c preset-migration", migrated && untouched && zeroSafe,
+               juce::String ("v1.6.0 rpm=1.0 -> index ") + juce::String (gotOld45)
+                   + " (expect 1 = 45), v1.7.0 rpm=1.0 -> index " + juce::String (gotNew78)
+                   + " (expect 2 = 78), v1.5.0 rpm=0.0 -> index " + juce::String (gotOld33)
+                   + " (expect 0)"
+                   + (untouched ? "" : " — MIGRATION RAN ON A CURRENT PRESET"));
     }
 
     //==========================================================================
@@ -4094,18 +4514,40 @@ int main()
     // CD_SEVERITY 0 — the one severity at which v1.6.0 claims to be exactly
     // transparent, because there the rung roll can only reach conceal, the
     // sector lock and the servo seek are both below their thresholds, and
-    // every jump still takes ReadHead's default fade. What survives is the
-    // claim worth having: the per-jump fade refactor changed NOTHING for the
-    // tape bends, the vinyl revolutions, the post-stop recovery jump, the CD
-    // conceal rung or the overflow clamp, across three releases. The new
-    // digest was recorded the same way, by compiling this probe (with the
-    // CD_SEVERITY 0 line) against a22ff7c3, where it ran 57/57.
+    // every jump still takes ReadHead's default fade.
+    //
+    // RE-ANCHORED AGAIN at v1.7.0, and narrowed a second time, for the same
+    // kind of reason: v1.7.0 deliberately moves the VINYL family's render at
+    // its defaults. Two independent changes do it, and neither is a
+    // regression — the pop taxonomy widened triggerPop from two artifactSynth
+    // draws to five (so every pop after the first differs even at an unchanged
+    // level), and forward groove jumps became revolution-quantized. The
+    // canonical render runs VINYL_PROB 60, so it legitimately moved
+    // (0x972a5d3807538393 -> 0xf8c2080db4e69ec1). The probe therefore pins
+    // VINYL_ENABLE 0 as well.
+    //
+    // What survives is still the claim worth having, now over four releases:
+    // the tape bends, the post-stop recovery jump, the CD conceal rung and the
+    // lag-overflow clamp are bit-unchanged, and — since VINYL_WARP is the
+    // v1.7.0 addition that is claimed to be exactly transparent at its default
+    // — so is the read path with the warp wired into it but silent. The vinyl
+    // transport's own invariants move to M/M4/M5/M8, which assert the
+    // revolution grid directly rather than through a digest.
+    //
+    // The digest was recorded the same way both times: by compiling THIS probe
+    // — with the CD_SEVERITY 0 and VINYL_ENABLE 0 lines — against the previous
+    // tree (16e63620, v1.6.0) in a detached worktree and reading the number it
+    // printed. That run scored 86/87: the one failure is V1 itself, measuring
+    // the freshly narrowed render against the anchor the narrowing had just
+    // superseded, which is precisely the run that produces the new number. All
+    // 86 other probes passing is what says the old tree was otherwise intact.
     {
-        constexpr juce::uint64 kV130CanonicalDigest = 0x972a5d3807538393ULL;
+        constexpr juce::uint64 kV130CanonicalDigest = 0x44a5de77d572facdULL;
 
         auto p = makeProc();
         configureCanonicalRender (*p);
-        setParam (*p, "CD_SEVERITY", 0.0f);
+        setParam (*p, "CD_SEVERITY",   0.0f);
+        setParam (*p, "VINYL_ENABLE",  0.0f);
 
         const int total = (int) (4.0 * kFs);
         juce::AudioBuffer<float> out;
@@ -4119,8 +4561,8 @@ int main()
                juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
                    + " vs v1.3.0 0x"
                    + juce::String::toHexString ((juce::int64) kV130CanonicalDigest)
-                   + (match ? " — bends/vinyl/conceal + every default-fade jump unchanged"
-                            : " — A NON-CD-LOOP PATH MOVED")
+                   + (match ? " — bends/conceal/recovery + every default-fade jump unchanged"
+                            : " — A NON-VINYL, NON-CD-LOOP PATH MOVED")
                    + (live ? "" : " — SILENT, probe vacuous"));
     }
 

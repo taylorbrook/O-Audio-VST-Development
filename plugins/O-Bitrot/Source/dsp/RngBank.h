@@ -83,6 +83,15 @@ public:
         codecBed,      // crackle bursts (mono; the mains hum is RNG-free)
         comfort,       // packet comfort noise (stereo)
 
+        // v1.7.0. Appended on exactly the same terms: the vinyl pop taxonomy's
+        // rare scratch class is a 2-8 ms NOISE BURST, so it needs a draw per
+        // sample while it runs, and the artifactSynth stream it would otherwise
+        // share is consumed at TICK instants. Mixing the two on one stream is
+        // the block-size interleave hazard verbatim
+        // (pattern_rng_stream_interleave_blocksize); a private stream advanced
+        // on a sample counter from a sample-accurate trigger is invariant.
+        scratch,       // vinyl scratch-class noise burst (mono)
+
         numStreams
     };
 

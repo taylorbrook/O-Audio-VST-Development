@@ -382,6 +382,9 @@
     transition: background 0.2s;
   }
   .seg button + button { border-left: 1px solid rgba(60,92,26,0.5); }
+  /* VINYL_RPM grew a third entry in v1.7.0; trim the horizontal padding so the
+     wider control still clears its 50px neighbours inside a 256px panel row. */
+  .seg3 button { padding: 4px 8px; }
   .seg button.sel { background: rgba(107,142,35,0.55); }
   .seg button:hover:not(.sel) { background: rgba(139,168,112,0.3); }
 
@@ -644,9 +647,10 @@
               </div>
               <div class="ctl">
                 <div class="ctl-label">Speed</div>
-                <div class="seg" data-param="VINYL_RPM">
+                <div class="seg seg3" data-param="VINYL_RPM">
                   <button data-value="0">33⅓</button>
                   <button data-value="1">45</button>
+                  <button data-value="2">78</button>
                 </div>
                 <div class="annot">rev. quantum</div>
               </div>
@@ -656,10 +660,21 @@
                 <div class="ro"></div>
               </div>
             </div>
-            <div style="display: flex; justify-content: space-evenly; width: 34%;">
+            <!-- .p-body is align-items:center, so this row is CENTRED in the
+                 panel rather than left-aligned — the width sets the pair's
+                 spread, not its position. space-evenly over W with two 50px
+                 knobs gives three gaps of (W-100)/3, so 56% of the 254px body
+                 (142px) gives 14px, matching the 14px gaps measured in the row
+                 above. 66% read as 23px and looked loose next to it. -->
+            <div style="display: flex; justify-content: space-evenly; width: 56%;">
               <div class="ctl">
                 <div class="ctl-label">Wear</div>
                 <div class="knob k50" data-param="VINYL_WEAR" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+                <div class="ro"></div>
+              </div>
+              <div class="ctl">
+                <div class="ctl-label">Warp</div>
+                <div class="knob k50" data-param="VINYL_WARP" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
@@ -976,7 +991,9 @@
     btn.addEventListener("click", () => state.setValue(!state.getValue()));
   }
 
-  // ===== segmented 2-choice combos (VINYL_RPM, CODEC_MODE, CODEC_MAINS, CLOCK_MODE)
+  // ===== segmented combos (VINYL_RPM x3, CODEC_MODE, CODEC_MAINS, CLOCK_MODE x2)
+  // Generic over button count — VINYL_RPM gained a third entry in v1.7.0 with
+  // no change here, because the render maps data-value against getChoiceIndex().
   document.querySelectorAll(".seg[data-param]").forEach((seg) => {
     const state = Juce.getComboBoxState(seg.dataset.param);
     const buttons = seg.querySelectorAll("button");

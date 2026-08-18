@@ -65,6 +65,7 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay>     vinylRpmRelay;
     std::unique_ptr<juce::WebSliderRelay>       vinylPopRelay;
     std::unique_ptr<juce::WebSliderRelay>       vinylWearRelay;
+    std::unique_ptr<juce::WebSliderRelay>       vinylWarpRelay;
     // Packet
     std::unique_ptr<juce::WebToggleButtonRelay> packetEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       packetLossRelay;
@@ -115,6 +116,7 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     vinylRpmAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       vinylPopAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       vinylWearAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       vinylWarpAttachment;
     // Packet
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> packetEnableAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       packetLossAttachment;
