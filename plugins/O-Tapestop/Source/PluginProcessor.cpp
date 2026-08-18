@@ -935,6 +935,12 @@ void TapestopProcessor::getStateInformation(juce::MemoryBlock& destData)
     auto state = parameters.copyState();
     state.setProperty("scratchEnvelopeJson", scratchEnvelope.toJson(), nullptr);
 
+    // v1.4.0: the hover-help preference rides the same tree as one more plain
+    // property. Not a parameter (see PluginProcessor.h) — so it is saved and
+    // restored here rather than by the APVTS round-trip.
+    state.setProperty("tooltipsEnabled",
+                      tooltipsEnabled.load(std::memory_order_acquire), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -957,6 +963,28 @@ void TapestopProcessor::setStateInformation(const void* data, int sizeInBytes)
                 scratchEnvelope.setFromJson(blob.toString());
             else
                 scratchEnvelope.resetToDefault();
+
+            // v1.4.0: hover-help preference. A pre-1.4.0 session has no such
+            // property; getProperty returns a VOID var and the default (OFF)
+            // stands. The editor PULLS this via the getTooltipsEnabled native
+            // fn at page init rather than being pushed — a push here would race
+            // the WebView's load (the O-FreqPulse WR-01 lesson).
+            //
+            // isVoid() is the ONLY correct test here, and the obvious
+            // isBool()/isInt() one is wrong: getStateInformation writes a bool
+            // var, but the XML round-trip does not preserve the type.
+            // NamedValueSet::setFromXmlAttributes rebuilds every property as
+            // `var (value)` over the attribute STRING, so what comes back is a
+            // var holding "1" or "0" and a type test on bool or int is false
+            // for every saved session. The preference would have restored as
+            // OFF forever while every build, auval and pluginval run passed.
+            // var's bool conversion handles all three forms, so the cast is
+            // safe once the property is known to exist. Gated by a round-trip
+            // probe in tests/render-harness.
+            const juce::var tips = parameters.state.getProperty("tooltipsEnabled");
+
+            if (! tips.isVoid())
+                tooltipsEnabled.store((bool) tips, std::memory_order_release);
 
             // Stage 3: tell an open editor the envelope changed under it —
             // the editor timer compares this counter and pushes the sanitized

@@ -2,6 +2,92 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.4.0] — 2026-08-18
+
+### Added
+- **A "?" toggle in the header and hover help on all 33 controls.** The button
+  sits `position: absolute` at the top-right of `.frame`, deliberately outside
+  the header's centred flow — the 860 × 580 frame is a PLAN Locked Decision and
+  a button placed in the header's normal flow would shift the title. Measured
+  rather than assumed: the UI gate asserts the frame still renders 860 × 580,
+  the title's centre is still the frame's centre (430 vs 430), and the page
+  does not scroll.
+
+  It ships **unlit**. The preference defaults to `false` in the processor and
+  the page PULLS it at init, so a fresh instance is silent until asked.
+
+  The toggle's own tip carries `data-tip-always` and bypasses the on/off gate.
+  Without that exemption the one control able to turn help back on would be the
+  one control unable to explain itself.
+
+  Tip copy is per-segment for MODE, TIMING and CHARACTER rather than one tip per
+  group: the three modes and the three characters are the plugin's central
+  concepts and describing them three-at-a-time in one string was the worse read.
+
+- **The preference persists with the session.** Not a parameter — an
+  `AudioParameterBool` would appear in every host's automation lane and in every
+  preset, neither of which is wanted for a help layer. It rides the state tree
+  as a plain property beside `scratchEnvelopeJson`, and round-trips through two
+  new native functions. The native-fn parity gate moves **13 ↔ 13 → 15 ↔ 15**
+  (`PluginEditor.h`, `PluginEditor.cpp`, `js/app.js`, and the stub's whitelist
+  all carry the count; the grep-diff is clean).
+
+  `getTooltipsEnabled` is **pulled** by the page, never pushed from C++. A push
+  from the editor constructor or the first 30 Hz tick fires before `js/app.js`
+  has evaluated, so the preference would silently never arrive and the toggle
+  would read OFF on every reopen — the O-FreqPulse WR-01 bug, avoided by
+  construction here.
+
+- **`tests/ui-stub/` and `tests/ui_tooltip_clamp_check.js`** — the browser
+  render gate this plugin did not previously have. The stub mirrors all 19
+  parameters, the 7 choice lists, the backend event bus and all 15 native fns;
+  the check drives the real page at 860 × 580 and measures every tip.
+
+### Fixed
+- **The restore guard would have silently never restored anything.**
+  `getStateInformation` writes `tooltipsEnabled` as a **bool** var, so
+  `if (tips.isBool() || tips.isInt())` reads as obviously correct. It is wrong:
+  the value goes out through `ValueTree::createXml` and comes back through
+  `NamedValueSet::setFromXmlAttributes`, which rebuilds every property as
+  `var (value)` over the attribute **string**. What returns is a var holding
+  `"1"`, so a bool-or-int type test is false for every saved session and the
+  preference restores as OFF forever.
+
+  Caught by writing the round-trip probe rather than by reading the code — and
+  the probe was written because the code looked right. `! tips.isVoid()` is the
+  only correct test; `var`'s bool conversion handles all three forms once the
+  property is known to exist.
+
+### Verification
+- **The tooltip clamp check did not discriminate at first, and saying so is the
+  point.** Reverting `showTooltip()` to the naive measure-at-previous-offset
+  form left all 33 anchor assertions still passing. The reason is arithmetic:
+  every tip's copy is long enough to hit the 230 px `max-width`, and the
+  horizontal clamp's fixed point at this frame width is
+  `left = 860 − 230 − 8 = 622`, which leaves exactly 238 px to the right —
+  enough for the next 230 px tip. The collapse can never start.
+
+  That safety is a property of the **copy**, not of the code: one short tip is
+  all it takes, because a narrow tip is placed further right and the next long
+  tip measured at that stale offset re-wraps into a ribbon that never recovers.
+  So a stress stage now manufactures the condition — short copy on the
+  right-most control, then long copy back. With the fix the tip returns to
+  230 px; with the naive version it renders **110.4 px**. Both directions were
+  run (pattern_probe_must_target_the_branch_the_fix_changed).
+
+  Same treatment for the restore guard: reverted to `isBool() || isInt()`, the
+  round-trip probe fails in both directions; restored, it passes.
+
+- Gates, all at the shipping geometry: 33/33 anchors measured across all six
+  MODE × SYNC_MODE combinations (a single-pane sweep would leave a third of them
+  unverified forever — the centre panel is three mode-switched panes and every
+  duration control is a Sync/Free time-slot); the edge clamp **actually engaged**
+  for 10 controls, so the run is not passing vacuously; the right-most tip (the
+  "?" itself) ends at 852.0 of 860, exactly the 8 px limit.
+- Render harness 69/69 probes, 0 failures — the 67 pre-existing DSP probes plus
+  the two new state-round-trip ones. No DSP was touched.
+- `auval` PASS, `pluginval` strictness-10 SUCCESS, zero console errors on load.
+
 ## [1.3.6] — 2026-08-17
 
 ### Changed
