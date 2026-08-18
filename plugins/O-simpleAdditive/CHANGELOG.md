@@ -5,6 +5,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [1.0.6] — 2026-08-17
 
+> **Supersedes v1.0.5, which was never released publicly.** This is the first
+> public release since v1.0.4, so it carries both versions' work.
+>
+> **From v1.0.5** — the whole interface, including the on-screen keyboard, now
+> fits the 860×980 editor without scrolling. Previously the frame needed 1251 px
+> of content in 974 px of usable height, a 277 px overflow that pushed the
+> lesson-preset row and the entire keyboard panel below the fold and clipped the
+> Output group mid-knob. The four control groups moved from vertical stacks into
+> two horizontal rows, reclaiming 295 px; nothing that carries the design got
+> smaller (drawbars keep their full 168 px travel, knobs their 56/48 px
+> diameters, and the keyboard is *taller* at 96 px). Full detail in the v1.0.5
+> entry of `plugins/O-simpleAdditive/CHANGELOG.md`.
+
 Follow-up to v1.0.5: the oscilloscope trace was drawing off-centre, and the scope
 box was taller than a single-cycle waveform needs. No parameter, preset, state, or
 DSP changes.
