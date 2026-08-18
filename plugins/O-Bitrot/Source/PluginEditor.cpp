@@ -137,9 +137,38 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*hardEdgesRelay)
             .withOptionsFrom(*mixRelay);
 
+    // ── HOVER-HELP PREFERENCE — 2 (v1.12.0) ────────────────────────────────
+    // The "?" toggle's state is a UI preference, not a parameter, so it round-
+    // trips through these two fns and the processor's state property rather
+    // than through a relay. Both complete synchronously.
+
+    options = options.withNativeFunction("setTooltipsEnabled",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                audioProcessor.tooltipsEnabled.store((bool) args[0],
+                                                     std::memory_order_release);
+
+            complete(juce::var(audioProcessor.tooltipsEnabled.load(
+                                   std::memory_order_acquire)));
+        });
+
+    // PULLED by the page at init, never pushed. A push from the constructor or
+    // from the 30 Hz timer tick fires before the inline module in index.html
+    // has evaluated, so the preference silently never arrives and the toggle
+    // reads OFF on every reopen — the O-FreqPulse WR-01 bug, avoided here by
+    // construction.
+    options = options.withNativeFunction("getTooltipsEnabled",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.tooltipsEnabled.load(
+                                   std::memory_order_acquire)));
+        });
+
     // ── PRESET NATIVE FUNCTIONS — 10 (Stage 4) ─────────────────────────────
-    // Exactly the names modules/preset-manager.js requests; the grep-diff
-    // parity gate runs at 10↔10. The synchronous eight capture `this`
+    // Exactly the names modules/preset-manager.js requests; with the two
+    // hover-help fns above the total registered surface is 12 and the
+    // grep-diff parity gate runs at 12↔12. The synchronous eight capture `this`
     // (completion never outlives the call). The two DIALOG fns defer their
     // completion into a FileChooser callback: shared_ptr chooser captured
     // into its own callback, SafePointer HOISTED to a local (MSVC rejects

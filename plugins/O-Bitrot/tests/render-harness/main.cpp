@@ -6628,6 +6628,87 @@ int main()
     }
 
     //==========================================================================
+    // T — HOVER-HELP PREFERENCE ROUND-TRIP (v1.12.0)
+    //
+    // The "?" toggle's state is not a parameter, so the APVTS round-trip does
+    // not carry it. It rides the state tree as a plain property, and the guard
+    // that restores it is the one line of this feature that build, auval and
+    // pluginval are all blind to: they exercise state save/load, but nothing
+    // asserts what the property came back AS.
+    //
+    // The trap, stated plainly because it looks wrong when written correctly:
+    // getStateInformation stores a BOOL var, so `isBool() || isInt()` reads as
+    // the obviously-right guard. It is wrong. The XML round-trip does not
+    // preserve the type — NamedValueSet::setFromXmlAttributes rebuilds every
+    // property as `var (value)` over the attribute STRING — so what returns is
+    // a var holding "1", every type test is false, and the preference restores
+    // as OFF forever while every other gate passes
+    // (critical_valuetree_xml_roundtrip_loses_type).
+    //
+    // Verified to FAIL against isBool()/isInt(): T1 reports restored=0.
+    {
+        // T1 — a saved TRUE really comes back TRUE.
+        {
+            auto src = makeProc();
+            src->tooltipsEnabled.store (true, std::memory_order_release);
+
+            juce::MemoryBlock blob;
+            src->getStateInformation (blob);
+
+            auto dst = makeProc();
+            // Default is FALSE, so a restore that silently does nothing leaves
+            // it FALSE and the probe fails — no pre-seeding to mask that.
+            const bool before = dst->tooltipsEnabled.load (std::memory_order_acquire);
+            dst->setStateInformation (blob.getData(), (int) blob.getSize());
+            const bool after = dst->tooltipsEnabled.load (std::memory_order_acquire);
+
+            check ("T1 tooltips-roundtrip", before == false && after == true,
+                   juce::String ("default ") + (before ? "true" : "false")
+                       + " -> restored " + (after ? "true" : "false")
+                       + (after ? "" : " — the isVoid() guard is not firing"));
+        }
+
+        // T2 — a pre-1.12.0 session has no such property, and must land on the
+        // default rather than on garbage. Built by saving from a processor that
+        // never touched the flag and then STRIPPING the attribute, so the blob
+        // is byte-shaped exactly like a v1.11.0 one.
+        {
+            auto src = makeProc();
+            juce::MemoryBlock blob;
+            src->getStateInformation (blob);
+
+            std::unique_ptr<juce::XmlElement> xml (
+                juce::AudioProcessor::getXmlFromBinary (blob.getData(),
+                                                        (int) blob.getSize()));
+
+            const bool hadIt = xml != nullptr && xml->hasAttribute ("tooltipsEnabled");
+
+            if (xml != nullptr)
+                xml->removeAttribute ("tooltipsEnabled");
+
+            juce::MemoryBlock legacy;
+            if (xml != nullptr)
+                juce::AudioProcessor::copyXmlToBinary (*xml, legacy);
+
+            auto dst = makeProc();
+            dst->tooltipsEnabled.store (true, std::memory_order_release);   // poison
+            dst->setStateInformation (legacy.getData(), (int) legacy.getSize());
+            const bool after = dst->tooltipsEnabled.load (std::memory_order_acquire);
+
+            // The poison must SURVIVE: an absent property means "this session
+            // predates the preference", and the guard's job is to leave the
+            // flag alone rather than to clear it. Asserting hadIt as well keeps
+            // the probe honest — if getStateInformation ever stops writing the
+            // attribute, stripping it is a no-op and this passes vacuously.
+            check ("T2 tooltips-legacy", hadIt && after == true,
+                   juce::String ("attribute present when saved: ")
+                       + (hadIt ? "yes" : "NO — probe vacuous")
+                       + ", absent-property restore left it "
+                       + (after ? "untouched" : "CLEARED"));
+        }
+    }
+
+    //==========================================================================
     std::printf ("\n%d/%d probes passed.\n", probes - failures, probes);
     return failures == 0 ? 0 : 1;
 }

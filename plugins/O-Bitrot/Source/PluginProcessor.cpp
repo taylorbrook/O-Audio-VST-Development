@@ -1708,6 +1708,13 @@ juce::AudioProcessorEditor* OBitrotAudioProcessor::createEditor()
 void OBitrotAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
+
+    // v1.12.0: the hover-help preference rides the same tree as one more plain
+    // property. Not a parameter (see PluginProcessor.h), so it is saved and
+    // restored here rather than by the APVTS parameter round-trip.
+    state.setProperty("tooltipsEnabled",
+                      tooltipsEnabled.load(std::memory_order_acquire), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -1717,7 +1724,31 @@ void OBitrotAudioProcessor::setStateInformation(const void* data, int sizeInByte
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(apvts.state.getType()))
+    {
         apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+
+        // v1.12.0: hover-help preference. A pre-1.12.0 session has no such
+        // property; getProperty returns a VOID var and the default (OFF)
+        // stands. The editor PULLS this via the getTooltipsEnabled native fn
+        // at page init rather than being pushed — a push from here would race
+        // the WebView's load (the O-FreqPulse WR-01 bug).
+        //
+        // isVoid() is the ONLY correct test, and the obvious isBool()/isInt()
+        // one is wrong: getStateInformation writes a bool var, but the XML
+        // round-trip does not preserve the type.
+        // NamedValueSet::setFromXmlAttributes rebuilds every property as
+        // `var (value)` over the attribute STRING, so what comes back is a var
+        // holding "1" or "0" and a type test on bool or int is false for every
+        // saved session — the preference would restore as OFF forever while
+        // build, auval and pluginval all passed
+        // (critical_valuetree_xml_roundtrip_loses_type). var's bool conversion
+        // handles all three forms, so the cast is safe once the property is
+        // known to exist. Gated by a round-trip probe in tests/render-harness.
+        const juce::var tips = apvts.state.getProperty("tooltipsEnabled");
+
+        if (! tips.isVoid())
+            tooltipsEnabled.store((bool) tips, std::memory_order_release);
+    }
 }
 
 // Factory function

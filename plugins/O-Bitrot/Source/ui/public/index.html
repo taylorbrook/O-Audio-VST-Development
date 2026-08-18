@@ -289,7 +289,25 @@
     justify-content: space-evenly;
     transition: opacity 0.25s;
   }
-  .panel.off .p-body { opacity: 0.45; pointer-events: none; }
+  /* v1.12.0: the interaction block moved from the whole body onto the
+     interactive elements themselves. `pointer-events: none` on .p-body also
+     suppresses mouseover, which left the four families that ship OFF — Packet,
+     Codec, Crush and Rot, 18 of the 53 hover-help anchors — unable to raise a
+     tip at all. That is exactly backwards: a control's description is most
+     wanted BEFORE its family is switched on.
+
+     Equivalent for interaction. Everything the old rule made inert is still
+     inert — the knobs, segmented buttons, selects and the enable-row buttons
+     are the only interactive descendants; .ctl-label, .ro and .annot are text.
+     The cursor is unchanged too: .knob's ns-resize does not apply while the
+     knob itself is pointer-events:none, so the body's `cursor: default` shows
+     through, as it did before. */
+  .panel.off .p-body { opacity: 0.45; }
+  .panel.off .p-body .knob,
+  .panel.off .p-body .seg,
+  .panel.off .p-body .seg button,
+  .panel.off .p-body select,
+  .panel.off .p-body button { pointer-events: none; }
   .panel.off .caption { opacity: 0.55; }
   .panel.off .led { opacity: 0.3; }
 
@@ -546,6 +564,98 @@
 
   .mix-group { flex-direction: row; align-items: center; gap: 10px; }
   .mix-text { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+
+  /* ============ hover help: the "?" toggle (v1.12.0) ============
+     A FOURTH flex child of .hdr, in the header's normal flow — not absolute.
+     .hdr is justify-content:space-between with roughly 160px of slack at
+     900px wide, so a 22px button costs the layout nothing and nothing needs
+     re-centring (unlike O-Tapestop v1.4.0, whose header is a CENTRED title
+     and forced an absolute placement there). Flow placement also keeps it
+     clear of .corner-fleuron.tr, which owns right:8px/top:4px on .plugin.
+
+     Geometry mirrors .preset-nav — same 22px circle-in-a-band idiom as the
+     preset arrows beside it — and the lit state uses the page's ONE active
+     vocabulary, rgba(107,142,35,0.55) + --green-darkest, shared with .en.on,
+     .seg button.sel and .edge-btn.on. */
+  .help-toggle {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    margin-left: 12px;
+    margin-bottom: 1px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    font-family: var(--serif);
+    font-size: 13px;
+    line-height: 1;
+    color: var(--green-darkest);
+    background: rgba(139,168,112,0.22);
+    border: 1.5px solid var(--green-dark);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .help-toggle:hover { transform: translateY(-1px); box-shadow: 1px 2px 5px rgba(0,0,0,0.25); }
+  .help-toggle.active { background: rgba(107,142,35,0.55); border-color: var(--green-darkest); }
+  .help-toggle.active:hover { transform: none; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3); }
+  .help-toggle:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
+
+  /* ============ hover help: the tooltip surface (v1.12.0) ============
+     position:fixed anchors the tip to the VIEWPORT, not to .plugin, so it
+     escapes the frame's overflow:hidden — a tip on a Tab. I control would
+     otherwise be clipped by the panel it sits in. z-index clears .specimen
+     (1), .inner (2), .corner-fleuron (3) and .en (4).
+
+     max-width is load-bearing: the script pins the MEASURED width in px, and
+     tests/ui_tooltip_clamp_check.js asserts no tip ever renders narrower than
+     its own shrink-to-fit. Changing this number means re-running that check
+     at the real 900px width — the clamp gate is horizontal and
+     viewport-sensitive (pattern_tooltip_clamp_gate_viewport_sensitive). */
+  .tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    max-width: 230px;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, var(--bg-paper-light) 0%, var(--seg-b) 100%);
+    border: 1px solid var(--brown-frame);
+    border-radius: 3px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    font-family: var(--serif);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 110ms ease-out;
+  }
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip-title {
+    font-size: 10px;
+    font-weight: 600;
+    font-variant: small-caps;
+    letter-spacing: 0.8px;
+    color: var(--green-dark);
+    margin-bottom: 3px;
+  }
+  .tooltip-body {
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--brown-text);
+  }
+
+  /* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+     can be clamped hard against the viewport edge while the arrow still
+     points at the control it describes. */
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+  }
+  .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-frame); }
+  .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-frame); }
 </style>
 </head>
 <body>
@@ -563,18 +673,29 @@
              textContent). Button copy lives in data-label / data-confirm,
              never in JS. -->
         <div class="preset-band">
-          <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
-          <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
-          <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
-          <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
-          <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+          <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list." disabled>&#9664;</button>
+          <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list." disabled>&#9654;</button>
+          <div class="preset-name" id="preset-name" aria-live="polite" data-tip-title="Preset" data-tip="The preset currently loaded. The 28 factory presets are read-only — saving under the same name writes a user copy instead.">Default</div>
+          <button type="button" class="preset-btn" id="preset-save" data-label="Save" data-tip-title="Save" data-tip="Save the current settings as a user preset." disabled>Save</button>
+          <button type="button" class="preset-btn" id="preset-load" data-label="Load" data-tip-title="Load" data-tip="Load a preset from a file." disabled>Load</button>
           <button type="button" class="preset-btn" id="preset-delete"
-                  data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+                  data-label="Delete" data-confirm="Confirm?" data-armed="0" data-tip-title="Delete" data-tip="Delete the current user preset. Click once to arm it, again to confirm." disabled>Delete</button>
         </div>
         <div class="hdr-right">
           <div class="brand">Ouaricon Audio</div>
           <div class="plate">A Catalogue of Failing Media · Plate XLVII</div>
         </div>
+        <!-- Hover-help toggle (v1.12.0). Ships UNLIT — the layer stays silent
+             until asked for. data-tip-always bypasses the enabled gate so the
+             ONE control able to turn help back on is never the one control
+             unable to explain itself. The "?" glyph is HTML-authored and must
+             never be written from script
+             (pattern_js_state_updater_overwrites_html_labels). -->
+        <button type="button" class="help-toggle" id="help-toggle"
+                aria-pressed="false" aria-label="Toggle hover help"
+                data-tip-always
+                data-tip-title="Hover help"
+                data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
       </div>
 
       <!-- ================= 3×2 family grid ================= -->
@@ -586,38 +707,38 @@
             <span class="led" id="led-tape"></span>
             <span class="caption"><em>Tab. I</em> — Tape</span>
             <span class="gap"></span>
-            <button class="en on" data-param="TAPE_ENABLE" data-panel="panel-tape">On</button>
+            <button class="en on" data-param="TAPE_ENABLE" data-tip-title="Tape" data-tip="Enable the tape family — stop gestures, oxide dropouts, wow and flutter, and hiss." data-panel="panel-tape">On</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Probability" data-tip="How often the tape family fires an event, per clock tick. At 0 the family is silent even while enabled.">
                 <div class="ctl-label">Prob</div>
                 <div class="knob k50" data-param="TAPE_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Stop share" data-tip="The share of tape events that become a full stop-and-restart gesture rather than a dropout.">
                 <div class="ctl-label">Stop</div>
                 <div class="knob k50" data-param="TAPE_STOP_PROB" data-default="10" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Dropout share" data-tip="The share of tape events that become an oxide dropout — a dip to 10–70% of level with a filter blended in. Real dropouts almost never mute; a full mute reads as an edit.">
                 <div class="ctl-label">Drop</div>
                 <div class="knob k50" data-param="TAPE_DROP" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Wow &amp; flutter" data-tip="Depth of the slow speed drift and its faster flutter. This modulates the read rate, so its slope is pitch.">
                 <div class="ctl-label">Wow</div>
                 <div class="knob k50" data-param="TAPE_WOW" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Hiss" data-tip="Level of the tape hiss bed. Runs whenever the family is enabled, independent of events.">
                 <div class="ctl-label">Hiss</div>
                 <div class="knob k50" data-param="TAPE_HISS" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Stop ramp" data-tip="How long a stop gesture takes to spin down and back up again. 20–500 ms.">
                 <div class="ctl-label">Ramp</div>
                 <div class="knob k50" data-param="TAPE_RAMP" data-default="150" data-unit="ms" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
@@ -632,20 +753,20 @@
             <span class="led" id="led-cd"></span>
             <span class="caption"><em>Tab. II</em> — CD Skip</span>
             <span class="gap"></span>
-            <button class="en on" data-param="CD_ENABLE" data-panel="panel-cd">On</button>
+            <button class="en on" data-param="CD_ENABLE" data-tip-title="CD Skip" data-tip="Enable the CD family — anti-shock loop stutters, sector-quantised buzz, and servo seeks." data-panel="panel-cd">On</button>
           </div>
           <div class="p-body">
-            <div class="ctl">
+            <div class="ctl" data-tip-title="Probability" data-tip="How often the CD family fires a skip, per clock tick.">
               <div class="ctl-label">Prob</div>
               <div class="knob k58" data-param="CD_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
               <div class="ro"></div>
             </div>
-            <div class="ctl">
+            <div class="ctl" data-tip-title="Severity" data-tip="How broken the disc is. Past the upper thresholds, loop windows quantise to the sector quantum — the 75 Hz-family buzz of a real anti-shock loop — and releases go through a servo seek instead of recovering instantly.">
               <div class="ctl-label">Severity</div>
               <div class="knob k58" data-param="CD_SEVERITY" data-default="0.5" data-unit="" data-dec="2"><div class="stem"></div></div>
               <div class="ro"></div>
             </div>
-            <div class="ctl">
+            <div class="ctl" data-tip-title="Loop length" data-tip="Length of the segment an anti-shock stutter repeats. 10–400 ms.">
               <div class="ctl-label">Segment</div>
               <div class="knob k58" data-param="CD_SEGMENT" data-default="100" data-unit="ms" data-dec="0"><div class="stem"></div></div>
               <div class="ro"></div>
@@ -659,16 +780,16 @@
             <span class="led" id="led-vinyl"></span>
             <span class="caption"><em>Tab. III</em> — Vinyl</span>
             <span class="gap"></span>
-            <button class="en on" data-param="VINYL_ENABLE" data-panel="panel-vinyl">On</button>
+            <button class="en on" data-param="VINYL_ENABLE" data-tip-title="Vinyl" data-tip="Enable the vinyl family — groove jumps and locked grooves, surface pops, wear and warp." data-panel="panel-vinyl">On</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Probability" data-tip="How often the vinyl family fires a groove jump or a locked groove, per clock tick.">
                 <div class="ctl-label">Prob</div>
                 <div class="knob k50" data-param="VINYL_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Speed" data-tip="Disc speed. Sets the revolution period, which both the groove-jump distance and the warp wobble are locked to.">
                 <div class="ctl-label">Speed</div>
                 <div class="seg seg3" data-param="VINYL_RPM">
                   <button data-value="0">33⅓</button>
@@ -677,7 +798,7 @@
                 </div>
                 <div class="annot">rev. quantum</div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Pops" data-tip="Density of surface crackle and pops. Runs whenever the family is enabled, independent of events.">
                 <div class="ctl-label">Pop</div>
                 <div class="knob k50" data-param="VINYL_POP" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
@@ -690,12 +811,12 @@
                  (142px) gives 14px, matching the 14px gaps measured in the row
                  above. 66% read as 23px and looked loose next to it. -->
             <div style="display: flex; justify-content: space-evenly; width: 56%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Wear" data-tip="Level of the worn-groove noise bed — the dull roar under a played-out record.">
                 <div class="ctl-label">Wear</div>
                 <div class="knob k50" data-param="VINYL_WEAR" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Warp" data-tip="Depth of the once-per-revolution pitch wobble of a warped disc. At 100% the read rate deviates 0.6%, which is the far end of what a visibly warped LP does.">
                 <div class="ctl-label">Warp</div>
                 <div class="knob k50" data-param="VINYL_WARP" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
@@ -710,23 +831,23 @@
             <span class="led" id="led-packet"></span>
             <span class="caption"><em>Tab. IV</em> — Packet</span>
             <span class="gap"></span>
-            <button class="en" data-param="PACKET_ENABLE" data-panel="panel-packet">Off</button>
+            <button class="en" data-param="PACKET_ENABLE" data-tip-title="Packet" data-tip="Enable the packet family — dropped 20 ms packets in bursts, with a concealment strategy." data-panel="panel-packet">Off</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 74%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Loss rate" data-tip="Share of 20 ms packets that fail to arrive.">
                 <div class="ctl-label">Loss</div>
                 <div class="knob k50" data-param="PACKET_LOSS" data-default="20" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Burstiness" data-tip="How much losses clump. At 0 they are independent; higher values hold the chain in its bad state, so packets drop in runs rather than singly.">
                 <div class="ctl-label">Burst</div>
                 <div class="knob k50" data-param="PACKET_BURST" data-default="30" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Concealment" data-tip="What the decoder does with a missing packet — go Silent, Repeat the last one, let it Decay, or Substitute new material.">
                 <div class="ctl-label">Conceal</div>
                 <select class="field" data-param="PACKET_CONCEAL">
                   <option value="0">Silence</option>
@@ -736,7 +857,7 @@
                 </select>
                 <div class="annot">20 ms packets</div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Comfort noise" data-tip="Level of the comfort noise injected under concealed packets, as a real codec does to keep the line from sounding dead.">
                 <div class="ctl-label">Comfort</div>
                 <div class="knob k50" data-param="PACKET_COMFORT" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
@@ -751,11 +872,11 @@
             <span class="led" id="led-codec"></span>
             <span class="caption"><em>Tab. V</em> — Codec</span>
             <span class="gap"></span>
-            <button class="en" data-param="CODEC_ENABLE" data-panel="panel-codec">Off</button>
+            <button class="en" data-param="CODEC_ENABLE" data-tip-title="Codec" data-tip="Enable the codec family — a telephone chain: band-limit, μ-law or GSM coding, AGC and line noise." data-panel="panel-codec">Off</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Line coding" data-tip="μ-law companding or GSM full-rate. GSM adds frame structure, so a lost packet takes its whole frame with it.">
                 <div class="ctl-label">Line</div>
                 <div class="seg" data-param="CODEC_MODE">
                   <button data-value="0">μ-law</button>
@@ -763,19 +884,19 @@
                 </div>
                 <div class="annot">300–3400 Hz</div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Blend" data-tip="How much of the coded signal replaces the dry one through this stage.">
                 <div class="ctl-label">Blend</div>
                 <div class="knob k50" data-param="CODEC_MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="AGC" data-tip="Depth of the fast automatic gain control after the codec — a large part of why a phone sounds like a phone. At 0 the gain is exactly unity.">
                 <div class="ctl-label">AGC</div>
                 <div class="knob k50" data-param="CODEC_AGC" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 74%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Mains" data-tip="Hum frequency and its harmonics in the line-noise bed. Inert while Noise is 0.">
                 <div class="ctl-label">Mains</div>
                 <div class="seg" data-param="CODEC_MAINS">
                   <button data-value="0">50 Hz</button>
@@ -783,7 +904,7 @@
                 </div>
                 <div class="annot">hum + harmonics</div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Line noise" data-tip="Level of the line-noise bed — mains hum plus the hiss of a bad connection.">
                 <div class="ctl-label">Noise</div>
                 <div class="knob k50" data-param="CODEC_NOISE" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
@@ -798,33 +919,33 @@
             <span class="led" id="led-crush"></span>
             <span class="caption"><em>Tab. VI</em> — Crush</span>
             <span class="gap"></span>
-            <button class="en" data-param="CRUSH_ENABLE" data-panel="panel-crush">Off</button>
+            <button class="en" data-param="CRUSH_ENABLE" data-tip-title="Crush" data-tip="Enable the crush family — bit-depth reduction, sample-rate decimation with jitter, and dither." data-panel="panel-crush">Off</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Bit depth" data-tip="Quantisation depth, 1–16 bits. At 16 the stage is bit-transparent.">
                 <div class="ctl-label">Bits</div>
                 <div class="knob k50" data-param="CRUSH_BITS" data-default="16" data-unit="bit" data-dec="1"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Sample rate" data-tip="Decimation rate — the grid the signal is re-sampled onto. 500 Hz to 20 kHz.">
                 <div class="ctl-label">Rate</div>
                 <div class="knob k50" data-param="CRUSH_RATE" data-default="20000" data-unit="Hz" data-dec="0" data-fmt="hzk"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Jitter" data-tip="Random timing error on the decimation grid, so crossings land off the clock.">
                 <div class="ctl-label">Jitter</div>
                 <div class="knob k50" data-param="CRUSH_JITTER" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 74%;">
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Envelope" data-tip="Bipolar: how much the input envelope pushes bit depth around. Positive cleans up loud passages, negative dirties them.">
                 <div class="ctl-label">Env</div>
                 <div class="knob k50 bipolar" data-param="CRUSH_ENV_AMT" data-default="0" data-unit="%" data-dec="0" data-signed="1"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
-              <div class="ctl">
+              <div class="ctl" data-tip-title="Dither" data-tip="Noise added before quantisation, in LSBs — trades quantisation distortion for a steady noise floor.">
                 <div class="ctl-label">Dither</div>
                 <div class="knob k50" data-param="CRUSH_DITHER" data-default="0" data-unit="LSB" data-dec="2"><div class="stem"></div></div>
                 <div class="ro"></div>
@@ -844,11 +965,11 @@
           <span class="caption"><em>Tab. VII</em> — Rot</span>
           <span class="annot">bit flips · sticky decode · wrong-decode stretches</span>
           <span class="gap"></span>
-          <button class="en" data-param="ROT_ENABLE" data-panel="panel-rot">Off</button>
+          <button class="en" data-param="ROT_ENABLE" data-tip-title="Rot" data-tip="Enable the rot family — bit flips, sticky decode holds, and wrong-decode garble stretches. While off it takes no random draws at all, so a pre-1.10 session renders bit-identically." data-panel="panel-rot">Off</button>
         </div>
         <div class="p-body">
 
-          <div class="g-group mix-group">
+          <div class="g-group mix-group" data-tip-title="Probability" data-tip="How often the rot family fires an event, per clock tick.">
             <div class="mix-text">
               <div class="ctl-label">Prob</div>
               <div class="ro"></div>
@@ -856,7 +977,7 @@
             <div class="knob k50" data-param="ROT_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
           </div>
 
-          <div class="g-group mix-group">
+          <div class="g-group mix-group" data-tip-title="Flip severity" data-tip="Sweeps the bit-flip rate from an occasional tick to a dense digital hash, and opens the reachable bit field from bit 3 up to bit 14. At most one sample in four is ever touched.">
             <div class="mix-text">
               <div class="ctl-label">Depth</div>
               <div class="ro"></div>
@@ -866,7 +987,7 @@
 
           <div class="vr"></div>
 
-          <div class="g-group mix-group">
+          <div class="g-group mix-group" data-tip-title="Sticky share" data-tip="The share of rot events that become a sticky decode hold — the decoder hangs on one value.">
             <div class="mix-text">
               <div class="ctl-label">Sticky</div>
               <div class="ro"></div>
@@ -874,7 +995,7 @@
             <div class="knob k50" data-param="ROT_STICK" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
           </div>
 
-          <div class="g-group mix-group">
+          <div class="g-group mix-group" data-tip-title="Garble share" data-tip="The share of the remaining rot events that become a wrong-decode stretch. Whatever survives both shares is a bit-flip window.">
             <div class="mix-text">
               <div class="ctl-label">Garble</div>
               <div class="ro"></div>
@@ -896,13 +1017,13 @@
           <div class="g-group">
             <div class="g-label">Clock</div>
             <div class="clock-row">
-              <div class="seg" data-param="CLOCK_MODE" id="clockModeSeg">
+              <div class="seg" data-param="CLOCK_MODE" id="clockModeSeg" data-tip-title="Clock" data-tip="Whether events are scheduled against the host tempo or a free-running rate.">
                 <button data-value="0">Sync</button>
                 <button data-value="1">Free</button>
               </div>
               <div class="swap-slot">
                 <div class="swap-view active" id="viewSync">
-                  <select class="field" data-param="CLOCK_SYNC_DIV">
+                  <select class="field" data-param="CLOCK_SYNC_DIV" data-tip-title="Division" data-tip="Musical division the event clock ticks on, locked to host tempo.">
                     <option value="0">1/16</option>
                     <option value="1">1/8T</option>
                     <option value="2">1/8</option>
@@ -912,7 +1033,7 @@
                     <option value="6">1 bar</option>
                   </select>
                 </div>
-                <div class="swap-view" id="viewFree">
+                <div class="swap-view" id="viewFree" data-tip-title="Free rate" data-tip="Free-running event clock rate, 0.1–20 Hz. Ignores host tempo.">
                   <div class="knob k42" data-param="CLOCK_FREE_RATE" data-default="2" data-unit="Hz" data-dec="1"><div class="stem"></div></div>
                   <div class="ro" style="width: 46px; text-align: left;"></div>
                 </div>
@@ -926,8 +1047,8 @@
           <div class="g-group">
             <div class="g-label">Seed</div>
             <div class="seed-row">
-              <div class="seed-ro" id="seedRo">0000</div>
-              <button class="die" id="diceBtn" title="Reseed">⚄</button>
+              <div class="seed-ro" id="seedRo" data-tip-title="Seed" data-tip="The seed every random stream is derived from. The same seed at the same transport position gives the same events on every render.">0000</div>
+              <button class="die" id="diceBtn" data-tip-title="Reseed" data-tip="Draw a new seed. Everything stochastic re-rolls, so the take becomes a different one.">⚄</button>
             </div>
           </div>
 
@@ -936,14 +1057,14 @@
           <!-- hard edges -->
           <div class="g-group">
             <div class="g-label">Splices</div>
-            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn">Hard Edges<span class="flr">❦</span></button>
+            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn" data-tip-title="Hard edges" data-tip="Bypass the short crossfades at event boundaries, so entries and exits become true steps. Lit means bypassed.">Hard Edges<span class="flr">❦</span></button>
             <div class="annot">crossfades bypassed when lit</div>
           </div>
 
           <div class="vr"></div>
 
           <!-- mix -->
-          <div class="g-group mix-group">
+          <div class="g-group mix-group" data-tip-title="Mix" data-tip="Dry/wet blend of the whole processed chain.">
             <div class="mix-text">
               <div class="ctl-label">Mix</div>
               <div class="ro"></div>
@@ -955,6 +1076,12 @@
       </div>
     </div>
   </div>
+
+  <!-- The one shared tooltip surface. A SIBLING of .plugin, never a child:
+       .plugin is overflow:hidden, and while position:fixed normally escapes
+       ancestor clipping, keeping it outside removes the question entirely.
+       Content is written with textContent only — the copy stays inert. -->
+  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
 <script type="module">
   // JUCE 8 frontend library — always pass the Juce ES-module namespace for
@@ -1225,6 +1352,194 @@
       presetManager.initialize().then(() => {
         [prevEl, nextEl, saveEl, loadEl, deleteEl].forEach((el) => { el.disabled = false; });
       });
+    }
+  }
+
+  // ================= hover help (v1.12.0) =====================================
+  // Ported from O-Tapestop v1.4.0, which carries the VERIFIED measure-then-pin
+  // placement rather than the earlier shrink-to-fit variant
+  // (pattern_fixed_tooltip_shrink_to_fit_edge).
+  //
+  // Every show is gated on `tooltipsEnabled`, the "?" toggle's state, which
+  // round-trips through the processor so it survives a session reload. The
+  // toggle's OWN tip carries data-tip-always and bypasses the gate — otherwise
+  // the one control that could turn help back on would be the one control
+  // unable to explain itself.
+  //
+  // This block runs LAST and declares its own bindings, so nothing above can
+  // reach into it (pattern_module_toplevel_init_tdz).
+  {
+    // TOOLTIP_MARGIN is both the gap between a tip and its control AND the gap
+    // it keeps from the viewport edge — the same number on purpose, so the
+    // clamp assertion in tests/ui_tooltip_clamp_check.js has one constant.
+    const TOOLTIP_MARGIN = 8;
+    const TOOLTIP_DELAY_MS = 350;   // hover dwell before a tip appears
+
+    const tipEl = document.getElementById("tooltip");
+    const toggleEl = document.getElementById("help-toggle");
+
+    let tipTimer = null;
+    let tipTarget = null;
+    let tipSuppressed = false;      // true between pointerdown and pointerup
+    let tipsEnabled = false;        // the "?" state; PULLED from C++ at init
+    let setTipsFn = null;           // native fn, resolved once
+
+    const tipAllowed = (t) => tipsEnabled || t.hasAttribute("data-tip-always");
+
+    const hideTip = () => {
+      clearTimeout(tipTimer);
+      tipTarget = null;
+      if (!tipEl) return;
+      tipEl.classList.remove("visible");
+      tipEl.setAttribute("aria-hidden", "true");
+    };
+
+    const showTip = (target) => {
+      // The pointer may have moved on, or gone down, during the dwell.
+      if (!tipEl || tipSuppressed || target !== tipTarget) return;
+      if (!tipAllowed(target)) return;
+
+      const title = target.getAttribute("data-tip-title");
+      const body = target.getAttribute("data-tip");
+      if (!body) return;
+
+      // textContent, not innerHTML — the copy stays inert.
+      tipEl.textContent = "";
+      if (title) {
+        const t = document.createElement("div");
+        t.className = "tooltip-title";
+        t.textContent = title;
+        tipEl.appendChild(t);
+      }
+      const b = document.createElement("div");
+      b.className = "tooltip-body";
+      b.textContent = body;
+      tipEl.appendChild(b);
+
+      const anchor = target.getBoundingClientRect();
+
+      // MEASURE-THEN-PIN. A fixed-position box with `left` set and width:auto
+      // shrink-to-fits whatever space remains to its right, so measuring at the
+      // PREVIOUS offset under-reports the width, and applying a near-edge
+      // `left` afterwards re-wraps a 230px tip into a narrow ribbon that never
+      // recovers on later hovers. Release the width, measure from the left
+      // edge, pin the result in px, and only then place.
+      //
+      // On this page the exposed controls are the right-hand column — the "?"
+      // itself, the Crush panel, and the Mix knob at the end of the global
+      // strip. Build, auval and pluginval are all blind to this
+      // (pattern_fixed_tooltip_shrink_to_fit_edge).
+      tipEl.style.width = "";
+      tipEl.style.left = "0px";
+      tipEl.style.top = "0px";
+
+      // getBoundingClientRect, NOT offsetWidth: offsetWidth rounds, and a
+      // natural width of 208.48px pinned at 208px is narrower than the box's
+      // own shrink-to-fit — enough to push the last word onto a second line,
+      // after the height has already been read.
+      const width = tipEl.getBoundingClientRect().width;
+      tipEl.style.width = `${width}px`;
+
+      // Height is only stable once the width is definite. Read it before the
+      // pin and the tip is PLACED at one height while it RENDERS at another,
+      // landing on top of the control it describes.
+      const height = tipEl.getBoundingClientRect().height;
+
+      // Prefer above; flip below only when there is no room at the top.
+      // Computed as a real top edge rather than a centre plus
+      // translateY(-100%), so the clamp arithmetic and the box the browser
+      // lays out are the same geometry.
+      let top = anchor.top - height - TOOLTIP_MARGIN;
+      let placement = "above";
+      if (top < TOOLTIP_MARGIN) {
+        top = anchor.bottom + TOOLTIP_MARGIN;
+        placement = "below";
+      }
+
+      const centreX = anchor.left + anchor.width / 2;
+      const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+      const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, centreX - width / 2));
+
+      tipEl.style.left = `${left}px`;
+      tipEl.style.top = `${top}px`;
+      tipEl.dataset.placement = placement;
+
+      // The tip is clamped to the viewport, but the arrow still points at the
+      // control — held clear of the rounded corners.
+      const arrowX = Math.max(10, Math.min(width - 10, centreX - left));
+      tipEl.style.setProperty("--arrow-x", `${arrowX}px`);
+
+      tipEl.classList.add("visible");
+      tipEl.setAttribute("aria-hidden", "false");
+    };
+
+    // Class + aria only — the button's "?" glyph is HTML-authored and must
+    // never be written from here
+    // (pattern_js_state_updater_overwrites_html_labels).
+    const applyTipsEnabled = (enabled) => {
+      tipsEnabled = !!enabled;
+      if (toggleEl) {
+        toggleEl.classList.toggle("active", tipsEnabled);
+        toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+      }
+      if (!tipsEnabled) hideTip();
+    };
+
+    if (!tipEl) {
+      console.warn("Tooltip surface missing — hover help disabled");
+    } else {
+      document.addEventListener("mouseover", (e) => {
+        const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+        if (!target || target === tipTarget) return;
+        tipTarget = target;
+        clearTimeout(tipTimer);
+        if (tipSuppressed || !tipAllowed(target)) return;
+        tipTimer = setTimeout(() => showTip(target), TOOLTIP_DELAY_MS);
+      });
+
+      document.addEventListener("mouseout", (e) => {
+        const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+        if (!target) return;
+        // Moving between children of the same control is not a real exit.
+        // Every knob cell wraps a label, a knob and a value readout, so
+        // without this the surface flickers off and back on as the pointer
+        // crosses them.
+        if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+        hideTip();
+      });
+
+      // Any press begins a click or a drag: get the tip out of the way and
+      // keep it away until release, so it cannot hang over a knob mid-drag.
+      // CAPTURE phase, because the knobs call preventDefault in their own
+      // pointerdown handlers.
+      document.addEventListener("pointerdown", () => {
+        tipSuppressed = true;
+        hideTip();
+      }, true);
+      document.addEventListener("pointerup", () => { tipSuppressed = false; }, true);
+
+      if (toggleEl) {
+        toggleEl.addEventListener("click", () => {
+          applyTipsEnabled(!tipsEnabled);
+          // Fire-and-forget: the page is already in the new state, and a
+          // failed persist must not leave the toggle disagreeing with what it
+          // shows.
+          if (setTipsFn) setTipsFn(tipsEnabled).catch(() => {});
+        });
+      }
+
+      // PULL the persisted preference. The C++ side deliberately never pushes
+      // it: a push from the editor constructor or the 30 Hz tick fires before
+      // this module has evaluated, so it would silently never arrive and the
+      // toggle would read OFF on every reopen (the O-FreqPulse WR-01 bug).
+      try {
+        setTipsFn = Juce.getNativeFunction("setTooltipsEnabled");
+        Juce.getNativeFunction("getTooltipsEnabled")()
+          .then((enabled) => applyTipsEnabled(!!enabled))
+          .catch((e) => console.error("[help] getTooltipsEnabled failed:", e));
+      } catch (e) {
+        console.error("[help] native bridge unavailable:", e);
+      }
     }
   }
 </script>

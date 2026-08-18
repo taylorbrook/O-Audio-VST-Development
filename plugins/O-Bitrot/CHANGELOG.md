@@ -2,6 +2,94 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.12.0] — 2026-08-18
+
+Hover help on **53 controls** and a header **"?"** toggle, with the preference
+persisted in the session state. Ported from the pattern shipped in O-Tapestop
+v1.4.0.
+
+**This release changes no DSP and no parameter.** Nothing under `Source/dsp`
+moved, the layout is the same 45 IDs in the same order, and no preset's values
+changed. Every saved session and preset renders exactly as under v1.11.0.
+
+### Added
+
+- **A `?` toggle in the header**, and a hover-help layer over every control:
+  the 7 family enables, 30 knobs, 4 segmented switches, 2 selects, Hard Edges,
+  the seed ledger and its die, the 6 preset-band controls, and the toggle
+  itself — **53 anchors**, which is every hoverable control on the page.
+- **The preference survives a session reload.** It is **not a parameter**: an
+  `AudioParameterBool` would appear in every host's automation lane and in
+  every one of the 28 factory presets, and would move the layout off the 45 IDs
+  every saved session is keyed to. It rides the APVTS state tree as a plain
+  property and round-trips through two new native fns, taking the registered
+  surface from 10 to **12** (parity gate 12↔12, clean both directions).
+  `getTooltipsEnabled` is **pulled** by the page at init, never pushed — a push
+  from the editor constructor or the 30 Hz tick fires before the inline module
+  has evaluated, so it would silently never arrive and the toggle would read
+  OFF on every reopen (the O-FreqPulse WR-01 bug, avoided by construction).
+
+### Changed
+
+- **`.panel.off .p-body` no longer blanket-blocks pointer events.** The block
+  moved onto the interactive elements themselves (`.knob`, `.seg`, `select`,
+  `button`). `pointer-events: none` suppresses `mouseover` along with dragging,
+  which left the four families that ship OFF — Packet, Codec, Crush and Rot,
+  **18 of the 53 anchors** — unable to raise a tip at all. That is exactly
+  backwards: a control's description is most wanted *before* its family is
+  switched on. Equivalent for interaction — everything the old rule made inert
+  is still inert, and the cursor is unchanged, because `.knob`'s `ns-resize`
+  does not apply while the knob itself is `pointer-events: none`.
+- The `?` is a **fourth flex child of `.hdr`**, not an absolute overlay.
+  O-Tapestop needed `position: absolute` because its header is a centred title;
+  O-Bitrot's is `justify-content: space-between` with roughly 160 px of slack,
+  so flow placement costs the layout nothing and keeps clear of
+  `.corner-fleuron.tr`, which owns the frame's top-right corner. Measured, not
+  assumed: `.plugin` still renders 900×740, the page does not scroll, and the
+  header's four children still read left-to-right with no overlap.
+
+### Fixed
+
+- **The restore guard.** `getStateInformation` writes a bool var, so
+  `isBool() || isInt()` reads as the obviously-correct test. It is wrong: the
+  XML round-trip does not preserve the type —
+  `NamedValueSet::setFromXmlAttributes` rebuilds every property as
+  `var (value)` over the attribute **string** — so what returns is a var
+  holding `"1"`, every type test is false, and the preference would have
+  restored as OFF forever while build, auval and pluginval all passed. Fixed to
+  `!isVoid()` and gated by probe `T1`.
+
+### Testing
+
+Two defects were found by writing the probes rather than by reading the code,
+and **both were reverted and re-run in each direction** — a probe that passes
+with the fix reverted is decoration
+(`pattern_probe_must_target_the_branch_the_fix_changed`):
+
+1. The `!isVoid()` guard above. Against `isBool() || isInt()`, `T1` reports
+   `restored=false`.
+2. **The clamp check did not discriminate on its own.** Reverting `showTip()`
+   to the naive measure-at-previous-offset form left **all 53 anchor
+   assertions passing** — most tips hit the 230 px `max-width`, and the
+   horizontal clamp's fixed point at 900 px leaves exactly 238 px, so the
+   collapse can never start. That safety is a property of the **copy**, not of
+   the code. A stress stage now manufactures the condition: short copy on the
+   right-most control places a tip at left=812.4, then long copy back renders
+   **230.0 px with the fix and 95.6 px without**.
+
+New: `tests/ui-stub/` (all 45 params with both skews **derived** from the same
+`setSkewForCentre` call rather than transcribed, 6 choice lists, 8 toggles, the
+backend event bus, all 12 native fns) and `tests/ui_tooltip_clamp_check.js` —
+the browser render gate this plugin did not have.
+
+Gates: **53/53 anchors** measured at the real 900×740 across the shipped state
+and both clock-slot positions; **52 of 53 reachable in the shipped state**,
+which is the assertion that the `.panel.off` fix holds (only the swap-slot pair
+may defer); edge clamp actually engaged for **12** controls; right-most tip (the
+`?`) ends at **892.0 of 900** — exactly the 8 px limit. Render harness
+**109/109**, 0 failures (107 pre-existing DSP probes untouched + 2 new). auval
+**PASS**, pluginval strictness-10 **SUCCESS**, zero console errors.
+
 ## [1.11.0] — 2026-08-18
 
 The **factory bank, 9 → 28 presets** — improvement brief item 31, and the last

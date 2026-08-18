@@ -97,6 +97,18 @@ public:
                         kRotActive = 16 };
     std::atomic<uint32_t> uiActivityMask { 0 };
 
+    // ── Hover-help preference (v1.12.0) ─────────────────────────────────────
+    // NOT a parameter: it is a per-session UI preference, so it rides the
+    // APVTS state tree as a plain property rather than the parameter layout.
+    // An AudioParameterBool here would show up in every host's automation lane
+    // and in every one of the 28 factory presets — neither is wanted for a
+    // help layer, and it would move the layout off the 45 IDs every saved
+    // session is keyed to. Message thread only in practice (the two native
+    // fns), but atomic so a host that queries state off-thread cannot tear the
+    // read. Default FALSE: the "?" ships unlit and the layer stays silent
+    // until asked for.
+    std::atomic<bool> tooltipsEnabled { false };
+
 private:
     // ------------------------------------------------------------------------
     // Cached parameter pointers (atomic, real-time safe).
