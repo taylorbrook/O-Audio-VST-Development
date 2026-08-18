@@ -78,6 +78,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay>       codecMixRelay;
     std::unique_ptr<juce::WebSliderRelay>       codecNoiseRelay;
     std::unique_ptr<juce::WebComboBoxRelay>     codecMainsRelay;
+    std::unique_ptr<juce::WebSliderRelay>       codecAgcRelay;
     // Crush
     std::unique_ptr<juce::WebToggleButtonRelay> crushEnableRelay;
     std::unique_ptr<juce::WebSliderRelay>       crushBitsRelay;
@@ -129,6 +130,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment>       codecMixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       codecNoiseAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     codecMainsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       codecAgcAttachment;
     // Crush
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> crushEnableAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       crushBitsAttachment;

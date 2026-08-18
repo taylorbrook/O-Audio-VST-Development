@@ -148,6 +148,7 @@ private:
     std::atomic<float>* codecMixParam = nullptr;
     std::atomic<float>* codecNoiseParam = nullptr;
     std::atomic<float>* codecMainsParam = nullptr;
+    std::atomic<float>* codecAgcParam   = nullptr;   // v1.8.0, brief item 16
 
     // Crush (6)
     std::atomic<float>* crushEnableParam = nullptr;

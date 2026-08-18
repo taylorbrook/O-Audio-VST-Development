@@ -103,6 +103,15 @@ public:
     // UI telemetry only: current packet is lost or the GE chain is in a burst.
     bool isConcealing() const noexcept { return lostCur || stateBad; }
 
+    // v1.8.0, brief item 7 — the loss flag for the packet covering the NEXT
+    // sample this stage will process, which is what CodecStage needs to decide
+    // whether the GSM frame closing on that sample arrived. Deliberately
+    // narrower than isConcealing(): a Bad-state packet that was not actually
+    // dropped is not a lost frame. Read it BEFORE processSample so the value
+    // belongs to that exact sample — the boundary at the end of processSample
+    // has already latched the NEXT packet's state.
+    bool isPacketLost() const noexcept { return lostCur; }
+
     // The only allocation.
     void prepare (double sampleRate, bool initiallyEnabled)
     {

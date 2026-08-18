@@ -69,6 +69,7 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 | CODEC_MIX | Codec Mix | Float | 0.0 - 100.0 | 100.0 | % | Codec chain blend. |
 | CODEC_NOISE | Line Noise | Float | 0.0 - 100.0 | 0.0 | % | *(v1.5.0)* Phone-line bed — deterministic mains hum (fundamental + 2nd + 3rd, −40 dBFS RMS at full knob, phase from the sample count so it takes NO RNG draws) plus Poisson crackle bursts (up to 6/s, 3–25 ms, band-limited 300–3000 Hz). Injected AFTER `CodecStage` — 50 Hz in front of a 300–3400 Hz passband is annihilated — and scaled by CODEC_MIX, since the hum IS the line. Mono. Exactly transparent at 0. |
 | CODEC_MAINS | Mains Frequency | Choice | 50 Hz / 60 Hz | 50 Hz | - | *(v1.5.0)* Mains frequency for the CODEC_NOISE hum. Inert while CODEC_NOISE is 0. |
+| CODEC_AGC | Codec AGC | Float | 0.0 - 100.0 | 100.0 | % | *(v1.8.0)* Depth of the feed-forward AGC on the codec sub-path (after the mode blend, before the post-LPF): 1 ms attack, 50 ms release, −20 dBFS threshold, 4:1, fixed +10 dB makeup, unity near −6.7 dBFS. RNG-free. Gain is assembled in dB and scaled there, so 0 is `exp(0)` = exactly 1.0f — bit-transparent, restoring the v1.7.0 gain structure. Inert while CODEC_ENABLE is off. |
 
 ### Crush
 
@@ -88,9 +89,9 @@ Broken-media degradation box — a clocked stochastic state machine over a share
 - CD Skip: 4
 - Vinyl: 5 (VINYL_WEAR added v1.5.0)
 - Packet Loss: 5 (PACKET_COMFORT added v1.5.0)
-- Codec: 5 (CODEC_NOISE + CODEC_MAINS added v1.5.0)
+- Codec: 6 (CODEC_NOISE + CODEC_MAINS added v1.5.0; CODEC_AGC added v1.8.0)
 - Crush: 6
-- **Total: 38** (+ reseed UI trigger) — 31 at Stage 1, 33 at v1.4.0
+- **Total: 40** (+ reseed UI trigger) — 31 at Stage 1, 33 at v1.4.0, 38 at v1.5.0, 39 at v1.7.0
 
 ## Post-Stage-1 Amendments
 
@@ -121,6 +122,19 @@ it here rather than rewriting history above.
   `codecBed`, `comfort`) appended to `RngBank` — stream *k* is seeded from a
   function of *k* alone, so every pre-existing stream, and every render made
   with an old `SEED`, is bit-identical.
+
+- **v1.8.0 (2026-08-17):** `CODEC_AGC` added (brief item 16), **appended to
+  the end of the APVTS layout** for the fourth release running, same
+  automation-slot reason. Unlike the v1.4.0, v1.5.0 and v1.7.0 appends it
+  does **not** default to its transparent value: it defaults to 100, on with
+  the section, because the research chain has a fast AGC after the codec and
+  the pumping is a large part of why a phone sounds like a phone. A v1.7.0
+  session with `CODEC_ENABLE` **off** is still bit-identical; one with it
+  **on** renders differently — from the AGC, and independently from item
+  29's segmented G.711 mu-law, which has no opt-out at all, so defaulting
+  this to 0 would have preserved nothing. It is a NEW float parameter, so no
+  saved normalised value is repointed and no preset migration gate is
+  required.
 
 ## Design Notes
 

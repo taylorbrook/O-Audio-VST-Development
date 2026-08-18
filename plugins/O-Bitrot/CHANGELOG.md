@@ -2,6 +2,187 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.8.0] — 2026-08-17
+
+Codec chain depth — improvement brief items 16, 29 and 7. All three are the
+same complaint from three angles: `CodecStage` was a *filter chain with a
+quantizer in it*, not a telephone link. It had no dynamics, its mu-law was a
+curve rather than the table the standard specifies, and it never lost a
+frame — the packet stage dropped PCM *before* the encoder, which is not how
+cellular loss works and not what it sounds like.
+
+**This release changes the render of the codec family whenever
+`CODEC_ENABLE` is on.** It changes nothing anywhere else, and that claim is
+measured rather than asserted (see "Render-affecting"). `CODEC_ENABLE`
+defaults to off, so a v1.7.0 session that never opened the Codec panel is
+bit-identical.
+
+### Added
+- **`CODEC_AGC` — the missing half of the phone chain** (item 16). Research
+  §3.3's chain is "μ-law OR GSM → fast ~4:1 comp (AGC) → optional noise
+  bed", and `CodecStage` ended at the post-LPF with no dynamics anywhere.
+  The AGC's pumping is a large part of why a phone sounds like a phone;
+  without it a quiet source stays quiet instead of being dragged up into the
+  codec noise. A feed-forward compressor now sits **after the mode blend and
+  before `post1`**: per-sample one-pole envelope, **1 ms attack, 50 ms
+  release, −20 dBFS threshold, 4:1, fixed +10 dB makeup**. Measured on a
+  1 kHz tone: a −26 dBFS source is lifted **+10.0 dB**, a −6 dBFS source is
+  held to **−0.45 dB** — a 10.45 dB spread, which is the stage. Unity lands
+  near −6.7 dBFS.
+
+  The new knob is a **depth**, not a switch: gain is assembled in dB and
+  scaled there, so `CODEC_AGC 0` is `exp(0)` — exactly `1.0f`, a
+  bit-transparent multiply that restores the v1.7.0 gain structure to the
+  bit. Default **100**: on with the section, as the brief asks.
+
+- **Codec-domain GSM frame loss** (item 7). The chain order is Packet →
+  Codec, so until now PCM was lost *before* encoding. Real cellular loss
+  drops **encoded** frames, and the decoder conceals by repeating the last
+  frame's parameters with attenuation — the metallic warble everyone knows
+  as bad reception. With **GSM and PACKET both enabled**, a lost frame now
+  re-feeds the decoder the previous frame's *bytes*. The encoder still runs
+  on the source frame, because it lives at the far end of the link and loss
+  happens in transit; the decoder's own LTP history keeps evolving on each
+  repeat, which is where the warble comes from — it is not a buffer being
+  looped. Per-repeat attenuation is **−3 dB**, ramped across the frame it
+  applies to (a step every 20 ms would click), with a hard mute at **16
+  consecutive frames — 320 ms, GSM 06.11's own mute point**.
+
+  The PCM-domain stage keeps running underneath for the codec-off / VoIP
+  case. The two do not stack: during a lost frame the GSM decoder's output
+  does not depend on its input at all, so the codec repeat *masks* whatever
+  concealment the packet stage produced for that frame.
+
+### Changed
+- **Mu-law is now the segmented G.711 codec** (item 29). `muLawRoundTrip`
+  was the continuous `log1p`/`pow` curve with a uniform companded-domain
+  quantizer; real landlines quantize on **8 piecewise-linear chords of 16
+  steps**. This is the ITU-T G.711 / Sun reference encoder (14-bit domain,
+  bias 33, clip 8159) against a 256-entry decode LUT built at compile time
+  from the 16-bit-domain bias 132. Pure lookup — RNG-free, zero-latency, so
+  the mu-path alignment ring is untouched.
+
+  Two landmarks are properties of the standard, not normalisation choices:
+  digital silence encodes to `0xFF` and decodes to **exactly 0.0f**, and
+  full scale encodes to `0x80` and decodes to **32124/32768 = −0.17 dBFS**,
+  which is where a real landline clips rather than at 1.0. The audible
+  difference is the sub-−40 dB tail fizz the brief predicted; the clip point
+  is the part you can measure.
+
+### Notes on how these were built
+
+**The two 20 ms grids are coupled by lookup, not by counting.** The packet
+grid is `ceil(0.020·fs)` and a GSM frame is 160 slots of the 8 kHz latch —
+960 samples each at 48 kHz, nominally identical. They are still not
+interchangeable: the latch is **fractional**, so the frame boundary rides
+its crossings and is phase-offset from the packet grid, and any scheme that
+indexes loss by counting packets drifts against it at other sample rates and
+block sizes. Instead the processor hands `CodecStage` the packet's loss flag
+on **every** sample and the stage consumes whichever value arrives on the
+sample that closes a frame. The flag is read *before* `PacketLossStage::
+processSample`, because that call advances the grid at its end — read after,
+the value on a boundary sample already describes the *next* packet.
+
+`C4` is the probe this design exists for: the coupled GSM + packet-loss
+render is bit-identical at block 512 and at ragged 1/7/64/333/4096. A shared
+counter passes `C3` at a fixed block size and fails here.
+
+**The AGC envelope is primed, not zeroed.** A 1 ms attack meeting a cold
+envelope sits at full makeup, so the codec's first signal — which arrives
+~20 ms in, past the enable fade, and therefore *after* the fade could cover
+it — met the whole +10 dB and overshot to **+3.7 dBFS** on a −6 dBFS tone.
+The envelope now starts at its unity-gain level (10^((−20 + 10/0.75)/20)),
+which makes a cold start flat and lets the AGC *release* up into its makeup
+over 50 ms if the material is quiet. What remains is the ordinary compressor
+transient — **+1.7 dB**, fed by the 20 ms of structural-delay silence the
+envelope releases through before signal arrives. `C1` bounds it at +3 dB, a
+number chosen as a principle rather than fitted to the measurement: an
+unprimed envelope scores +9.2 dB and fails hard.
+
+Re-entry after a PLC mute still overshoots, and that one stays: it is the
+compressor doing its job on a real 60 dB step, and it is part of how a line
+coming back sounds.
+
+**The AGC sits downstream of the frame loss, and partly fights it.** A −6 dB
+PLC step above threshold comes back ~4.5 dB smaller after 4:1, so the
+attenuation ramp is shallower than −3 dB/repeat on loud material. This is
+kept rather than worked around — a real handset has exactly this
+arrangement, and the mute at 16 frames is absolute regardless.
+
+### Migration
+None required. `CODEC_AGC` is a **new** parameter appended at the end of the
+layout — the fourth release running, and for the reason the previous three
+state: layout order is the automation-slot order a host presents, so
+slotting it into the CODEC block where it belongs visually would repoint
+every saved automation lane behind it. The WebView puts it in the Codec
+panel regardless, because the UI is keyed by parameter ID. No existing
+parameter's range, type or choice list moved, so no preset-migration gate is
+needed and none was added.
+
+Unlike the v1.4.0, v1.5.0 and v1.7.0 appends, this one does **not** default
+to its transparent value. Stated plainly: a v1.7.0 session or preset with
+`CODEC_ENABLE` **on** renders differently in v1.8.0 — from the AGC, and
+independently from item 29's segmented mu-law, which has no opt-out at all.
+Defaulting `CODEC_AGC` to 0 would have preserved nothing, because item 29
+moves the same renders either way. `CODEC_AGC 0` restores the v1.7.0 gain
+structure exactly for anyone who wants it.
+
+### Render-affecting
+Yes, for the codec family, and only there. Both halves of that were
+measured.
+
+`N7` — the canonical post-render (packet on at 45% loss, codec on, mu-law,
+`CODEC_MIX 100`) — **moved on purpose**, by all three items at once. It was
+introduced at v1.5.0 carrying `0x1cf2f80d1f71674c`, produced against the
+**v1.4.0** tree at git `2160dd66`, and it held through v1.5.0, v1.6.0 and
+v1.7.0. That claim is now **retired rather than re-fitted**: the probe is
+re-anchored to `0xb473105611e3ea78` and re-purposed as a *forward* anchor
+pinning the v1.8.0 codec chain for every release after this one. It also
+asserts the digest is no longer the v1.4.0 one, so a build where items 16
+and 29 silently failed to land reads as a failure rather than a pass.
+
+The half of the old claim that survives untouched is now carried by a new
+probe, **`N8`**, which runs the identical config with `CODEC_ENABLE` **off**
+— exercising the GE chain, all four concealment modes' machinery, comfort
+noise and the entire transport engine while `CodecStage` sits on its
+bit-transparent bypass rail. Its anchor `0x8eb6e29da5ec2692` was recorded
+against the **v1.7.0** tree at git `4d52377e` **before the first v1.8.0
+edit**, which is the only ordering that makes a cross-version digest mean
+anything. It passes: **the codec edit did not leak outside the codec.**
+
+### Testing
+97/97 render-harness probes pass (up from 93). Four are new:
+
+- **`C1 codec-agc-compresses`** — band gain at 1 kHz between `CODEC_AGC` 0
+  and 100 on the same input, so the codec's own colour cancels and only the
+  compressor survives. +10.00 dB on a −26 dBFS tone, −0.45 dB on a −6 dBFS
+  tone, 10.45 dB spread, peak bounded at +3 dB over the AGC-off render. At
+  `CODEC_AGC 0` both gains are exactly 0 dB, so plumbing that leaves the AGC
+  out of circuit reads as 0/0 rather than as a near miss.
+- **`C2 mulaw-segmented-chords`** — reads the encoder and decode table
+  directly rather than inferring them from a render, because the post-LPF
+  smears the quantizer lattice and a signal-domain probe could only ever
+  measure "something changed". Asserts the structure that makes G.711 a
+  segmented law: 8 chords of 16 **uniform** steps, each chord's step
+  **exactly double** the one below, plus the two landmarks. A continuous log
+  curve has neither uniform runs nor exact doublings, so this separates the
+  implementations rather than merely detecting an edit.
+- **`C3 gsm-frame-loss-mutes`** — GSM at 90% loss with `PACKET_CONCEAL` set
+  to **Repeat**, which replays the last good packet verbatim and never
+  decays, on a constant-amplitude 1 kHz tone. The PCM stage therefore feeds
+  the encoder a full-level signal for the entire render, and silence can
+  come from one place only: the new mute. 9562 samples (~200 ms) of it, with
+  the render otherwise peaking at 0.96 — and **zero** silent samples in the
+  same config with `PACKET_ENABLE` off, which is the negative control that
+  keeps the result attributable to the coupling.
+- **`C4 frame-loss-ragged`** — described above.
+
+One earlier finding is recorded because the config that produced it is worth
+knowing about: at `PACKET_LOSS 100` the GE chain gives `pGB = 1` and
+`pLossBad = 1`, so per-packet loss is ~98.75% and the codec sits past its
+mute point essentially forever — the line is dead, which is correct for
+total failure but makes a useless probe. `C3` runs at 90% for that reason.
+
 ## [1.7.0] — 2026-08-17
 
 Vinyl authenticity — improvement brief items 17 and 27. Three of the four

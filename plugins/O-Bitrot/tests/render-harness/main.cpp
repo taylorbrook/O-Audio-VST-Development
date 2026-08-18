@@ -5523,18 +5523,310 @@ int main()
     }
 
     //==========================================================================
-    // N7 — the v1.4.0 cross-version gate for the SERIAL POST-STAGES.
+    // C1 — ITEM 16: the codec AGC drags quiet material UP and holds loud
+    // material roughly flat. Measured as the band gain at 1 kHz between
+    // CODEC_AGC 0 and 100 on the same input, so the codec's own colour
+    // cancels and only the compressor's gain survives.
     //
-    // V1 above pins the transport families back to v1.3.0, but it runs with
-    // packet and codec switched off, so it says nothing about the two places
-    // v1.5.0 actually touched downstream code: comfort noise threaded into
-    // PacketLossStage, and the codec bed added after CodecStage. This render
-    // turns both on and touches no v1.5.0 parameter at all.
-    //
-    // The digest was produced by THIS probe compiled against the v1.4.0 tree
-    // (git 2160dd66). Re-rendering the new engine twice would prove nothing.
+    // Design targets (threshold -20 dBFS, 4:1, +10 dB makeup):
+    //   a -26 dBFS tone sits below threshold -> the full +10 dB makeup;
+    //   a  -6 dBFS tone sits 14 dB over      -> ~10.5 dB of reduction,
+    //                                           landing near unity.
+    // The DIFFERENCE between the two is the whole point of the stage: at
+    // CODEC_AGC 0 both gains are exactly 0 dB, so a plumbing failure that
+    // leaves the AGC out of circuit reads as 0/0 here, not as a near miss.
     {
-        constexpr juce::uint64 kV140PostDigest = 0x1cf2f80d1f71674cULL;
+        InputFn quietTone = [] (int ch, int n) noexcept -> float
+        {
+            juce::ignoreUnused (ch);
+            return 0.05f * (float) std::sin (2.0 * juce::MathConstants<double>::pi
+                                             * 1000.0 * (double) n / kFs);
+        };
+
+        InputFn loudTone = [] (int ch, int n) noexcept -> float
+        {
+            juce::ignoreUnused (ch);
+            return 0.5f * (float) std::sin (2.0 * juce::MathConstants<double>::pi
+                                            * 1000.0 * (double) n / kFs);
+        };
+
+        auto render = [&] (InputFn input, float agc, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setBaseline (*p);
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "CODEC_ENABLE", 1.0f);
+            setParam (*p, "CODEC_MODE",   0.0f);      // mu-law
+            setParam (*p, "CODEC_MIX",    100.0f);
+            setParam (*p, "CODEC_AGC",    agc);
+            renderInto (*p, out, total, { 512 }, input);
+        };
+
+        const int total = 48000;
+        juce::AudioBuffer<float> qOff, qOn, lOff, lOn;
+        render (quietTone, 0.0f,   qOff, total);
+        render (quietTone, 100.0f, qOn,  total);
+        render (loudTone,  0.0f,   lOff, total);
+        render (loudTone,  100.0f, lOn,  total);
+
+        auto bandGainDb = [] (const juce::AudioBuffer<float>& on,
+                              const juce::AudioBuffer<float>& off)
+        {
+            const auto a = channelToVector (on,  0);
+            const auto b = channelToVector (off, 0);
+            return 10.0 * std::log10 (bandEnergy (a, 24000, 800.0, 1200.0)
+                                      / juce::jmax (1.0e-18,
+                                                    bandEnergy (b, 24000, 800.0, 1200.0)));
+        };
+
+        const double quietGain = bandGainDb (qOn, qOff);
+        const double loudGain  = bandGainDb (lOn, lOff);
+
+        // A 1 ms attack meeting a COLD envelope sits at full makeup, so the
+        // codec's first signal — arriving ~20 ms in, past the enable fade —
+        // used to overshoot by the whole +10 dB (peak 1.54 on a -6 dBFS
+        // tone). The envelope is primed at its unity-gain level for exactly
+        // that reason; what remains is the ordinary compressor transient,
+        // fed by the 20 ms of structural-delay silence the envelope releases
+        // through before signal arrives.
+        //
+        // Bound stated as a principle, not fitted to the measurement: a
+        // 1 ms-attack transient is worth a few dB, never the whole makeup.
+        // 3 dB passes comfortably today and fails hard on an unprimed
+        // envelope (+9.2 dB), which is the regression this guards.
+        const float peakOn   = lOn.getMagnitude  (0, 0, total);
+        const float peakOff  = lOff.getMagnitude (0, 0, total);
+        const float peakCeil = 1.41254f * peakOff;   // +3 dB
+
+        const bool lifts   = quietGain > 8.0 && quietGain < 11.5;
+        const bool tames   = loudGain  > -3.0 && loudGain < 1.5;
+        const bool spreads = (quietGain - loudGain) > 6.0;
+        const bool bounded = peakOn < peakCeil;
+        const bool live    = qOn.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("C1 codec-agc-compresses", lifts && tames && spreads && bounded && live,
+               juce::String ("-26 dBFS tone ") + juce::String (quietGain, 2)
+                   + " dB (need 8..11.5), -6 dBFS tone " + juce::String (loudGain, 2)
+                   + " dB (need -3..1.5), spread "
+                   + juce::String (quietGain - loudGain, 2) + " dB (need > 6), peak "
+                   + juce::String (peakOn, 4) + " vs AGC-off " + juce::String (peakOff, 4)
+                   + " (ceiling " + juce::String (peakCeil, 4) + ")"
+                   + (bounded ? "" : " — AGC OVERSHOOTS ON COLD START")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // C2 — ITEM 29: the mu-law codec is SEGMENTED, not a sampled log curve.
+    //
+    // Read the encoder and the decode table directly rather than inferring
+    // them from a render: the post-LPF smears the quantiser lattice, so a
+    // signal-domain probe could only ever measure "something changed". What
+    // makes G.711 the real codec is structural — 8 chords of 16 UNIFORM
+    // steps, each chord's step exactly double the one below it. A continuous
+    // log curve has neither uniform runs nor exact doublings, so this
+    // separates the two implementations rather than merely detecting an edit.
+    {
+        auto decodePos = [] (int s, int q)
+        {
+            return g711::kMuDecode[(std::size_t) (((s << 4) | q) ^ 0xFF)];
+        };
+
+        bool   uniform = true, doubling = true;
+        int    badSeg = -1;
+
+        for (int s = 0; s < 8 && uniform && doubling; ++s)
+        {
+            const float expected = (float) (8 << s) / 32768.0f;
+
+            for (int q = 0; q < 15; ++q)
+            {
+                const float step = decodePos (s, q + 1) - decodePos (s, q);
+
+                if (! bitExact (step, expected))
+                {
+                    // Which invariant failed: a wrong-but-constant step is a
+                    // chord-scaling error, a varying step is not a chord.
+                    const float first = decodePos (s, 1) - decodePos (s, 0);
+                    if (bitExact (step, first)) doubling = false;
+                    else                        uniform  = false;
+                    badSeg = s;
+                    break;
+                }
+            }
+        }
+
+        const bool zeroExact = bitExact (g711::kMuDecode[0xFF], 0.0f)
+                            && g711::linearToMuLaw (0) == 0xFF;
+        const bool clipExact = bitExact (g711::kMuDecode[0x80],  32124.0f / 32768.0f)
+                            && bitExact (g711::kMuDecode[0x00], -32124.0f / 32768.0f)
+                            && g711::linearToMuLaw (32767)  == 0x80
+                            && g711::linearToMuLaw (-32768) == 0x00;
+
+        check ("C2 mulaw-segmented-chords", uniform && doubling && zeroExact && clipExact,
+               juce::String (uniform  ? "" : "chord steps NOT uniform in seg "
+                                             + juce::String (badSeg) + "; ")
+                   + (doubling ? "" : "chord step does not double at seg "
+                                      + juce::String (badSeg) + "; ")
+                   + (zeroExact ? "" : "silence does not encode to 0xFF/0.0; ")
+                   + (clipExact ? "" : "full scale does not clip at 32124/32768; ")
+                   + (uniform && doubling && zeroExact && clipExact
+                          ? "8 chords x 16 uniform steps, step doubles per chord, "
+                            "0 -> 0xFF -> 0.0, FS -> 0x80 -> -0.17 dBFS"
+                          : ""));
+    }
+
+    //==========================================================================
+    // C3 — ITEM 7: codec-domain frame loss reaches the GSM 06.11 mute point.
+    //
+    // Config chosen so that silence can come from ONE place only. The input
+    // is a constant-amplitude 1 kHz tone and PACKET_CONCEAL is Repeat, which
+    // replays the last good packet verbatim and never decays — so the PCM
+    // stage feeds the encoder a full-level tone for the entire render. In
+    // v1.7.0 the codec re-encoded that repeat and the output never went
+    // quiet. A silent stretch here can therefore only be the new decoder-side
+    // path muting after 16 consecutive lost frames.
+    //
+    // At PACKET_LOSS 100 the GE chain gives pGB = 1 and pLossBad = 1, so
+    // per-packet loss is ~98.75% and runs past 16 are routine across a 4 s
+    // render — but the bound asked for is ONE frame of confirmed mute
+    // (10 ms), not a lucky long one.
+    {
+        InputFn tone = [] (int ch, int n) noexcept -> float
+        {
+            juce::ignoreUnused (ch);
+            return 0.5f * (float) std::sin (2.0 * juce::MathConstants<double>::pi
+                                            * 1000.0 * (double) n / kFs);
+        };
+
+        auto render = [&] (bool packetOn, juce::AudioBuffer<float>& out, int total)
+        {
+            auto p = makeProc();
+            setBaseline (*p);
+            setParam (*p, "SEED",           4242.0f);
+            setParam (*p, "TAPE_ENABLE",    0.0f);
+            setParam (*p, "CD_ENABLE",      0.0f);
+            setParam (*p, "VINYL_ENABLE",   0.0f);
+            setParam (*p, "PACKET_ENABLE",  packetOn ? 1.0f : 0.0f);
+            setParam (*p, "PACKET_LOSS",    90.0f);
+            setParam (*p, "PACKET_BURST",   100.0f);
+            setParam (*p, "PACKET_CONCEAL", 1.0f);    // Repeat — never decays
+            setParam (*p, "CODEC_ENABLE",   1.0f);
+            setParam (*p, "CODEC_MODE",     1.0f);    // GSM
+            setParam (*p, "CODEC_MIX",      100.0f);
+            renderInto (*p, out, total, { 512 }, tone);
+        };
+
+        // Longest contiguous run below -100 dBFS, past the codec warmup.
+        auto longestSilentRun = [] (const juce::AudioBuffer<float>& b, int total)
+        {
+            const auto* o   = b.getReadPointer (0);
+            int         run = 0, best = 0;
+
+            for (int n = (int) (0.25 * kFs); n < total; ++n)
+            {
+                run  = std::abs (o[n]) < 1.0e-5f ? run + 1 : 0;
+                best = juce::jmax (best, run);
+            }
+
+            return best;
+        };
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> outOn, outOff;
+        render (true,  outOn,  total);
+        render (false, outOff, total);
+
+        const int  bound   = (int) (0.010 * kFs);
+        const int  runOn   = longestSilentRun (outOn,  total);
+        const int  runOff  = longestSilentRun (outOff, total);
+        const bool mutes   = runOn >= bound;
+        const bool control = runOff == 0;       // PACKET off: the coupling cannot fire
+        const bool live    = outOn.getMagnitude (0, 0, total) > 0.05f;
+
+        check ("C3 gsm-frame-loss-mutes", mutes && control && live,
+               juce::String ("longest silence ") + juce::String (runOn)
+                   + " samples (need >= " + juce::String (bound) + "), peak "
+                   + juce::String (outOn.getMagnitude (0, 0, total), 5)
+                   + " vs off-peak " + juce::String (outOff.getMagnitude (0, 0, total), 5)
+                   + (control ? ", none at all with PACKET off"
+                              : ", but PACKET-off render is ALSO silent for "
+                                + juce::String (runOff) + " — not the coupling")
+                   + (live ? "" : " — SILENT THROUGHOUT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // C4 — ITEM 7: the frame-indexed coupling survives ragged block sizes.
+    //
+    // This is the probe the coupling exists for. A shared packet/frame
+    // counter would still pass C3 at a fixed block size and fall apart here:
+    // the 8 kHz latch is FRACTIONAL, so the GSM frame boundary lands on a
+    // different host sample depending on how the blocks are cut, and any
+    // scheme that indexes loss by counting rather than by looking it up at
+    // the boundary drifts. Same seed, same params, five block sizes, one
+    // answer or it is broken.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "SEED",           4242.0f);
+            setParam (proc, "TAPE_ENABLE",    0.0f);
+            setParam (proc, "CD_ENABLE",      0.0f);
+            setParam (proc, "VINYL_ENABLE",   0.0f);
+            setParam (proc, "PACKET_ENABLE",  1.0f);
+            setParam (proc, "PACKET_LOSS",    60.0f);
+            setParam (proc, "PACKET_BURST",   80.0f);
+            setParam (proc, "PACKET_CONCEAL", 1.0f);
+            setParam (proc, "CODEC_ENABLE",   1.0f);
+            setParam (proc, "CODEC_MODE",     1.0f);   // GSM
+            setParam (proc, "CODEC_MIX",      100.0f);
+            setParam (proc, "CODEC_AGC",      100.0f);
+        };
+
+        const int total = 96000;
+
+        auto a = makeProc();  configure (*a);
+        auto b = makeProc();  configure (*b);
+
+        juce::AudioBuffer<float> outA, outB;
+        renderInto (*a, outA, total, { 512 }, noiseStereo);
+        renderInto (*b, outB, total, { 1, 7, 64, 333, 4096 }, noiseStereo);
+
+        const bool identical = bitIdentical (outA, outB);
+        const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("C4 frame-loss-ragged", identical && live,
+               (identical ? juce::String ("GSM + packet loss coupled, 512 vs "
+                                          "1,7,64,333,4096: bit-identical")
+                          : firstDifference (outA, outB))
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // N7 — the serial-post-stage anchor, RE-ANCHORED at v1.8.0.
+    //
+    // History, because a silently re-recorded digest is worthless: this probe
+    // was introduced at v1.5.0 carrying 0x1cf2f80d1f71674c, produced against
+    // the v1.4.0 tree (git 2160dd66), to prove the media-noise beds had not
+    // disturbed the packet/codec chain. It held through v1.5.0, v1.6.0 and
+    // v1.7.0. v1.8.0 breaks it ON PURPOSE and by exactly three mechanisms,
+    // all inside CodecStage, all reachable from this config (CODEC_ENABLE on,
+    // mu-law, CODEC_MIX 100):
+    //
+    //   * item 29 — muLawRoundTrip is now the segmented G.711 codec, not the
+    //     continuous log curve. Unconditional: no parameter opts out.
+    //   * item 16 — CODEC_AGC defaults to 100, so the AGC is in circuit.
+    //   * item 7  — inert HERE (mu-law, not GSM) but it shares the call.
+    //
+    // The v1.4.0 claim is therefore retired rather than re-fitted. What N7
+    // still buys is a forward anchor: the v1.8.0 codec chain is pinned for
+    // every release after this one. The half of the old claim that survives
+    // untouched — everything OUTSIDE the codec — is now carried by N8 below,
+    // which anchors to v1.7.0 and must NOT move.
+    {
+        constexpr juce::uint64 kV180PostDigest = 0xb473105611e3ea78ULL;
+        constexpr juce::uint64 kV140PostDigest = 0x1cf2f80d1f71674cULL;   // retired, kept for provenance
 
         auto p = makeProc();
         configureCanonicalPostRender (*p);
@@ -5545,14 +5837,53 @@ int main()
 
         const juce::uint64 digest = renderChecksum (out);
         const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
-        const bool         match  = digest == kV140PostDigest;
+        const bool         match  = digest == kV180PostDigest;
+        const bool         moved  = digest != kV140PostDigest;
 
-        check ("N7 v1.4.0-post-identity", match && live,
+        check ("N7 v1.8.0-post-identity", match && live && moved,
                juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
-                   + " vs v1.4.0 0x"
-                   + juce::String::toHexString ((juce::int64) kV140PostDigest)
-                   + (match ? " — packet+codec unchanged at every v1.5.0 default"
-                            : " — DEFAULTS ARE NOT TRANSPARENT")
+                   + " vs v1.8.0 0x"
+                   + juce::String::toHexString ((juce::int64) kV180PostDigest)
+                   + (match ? " — codec chain pinned" : " — CODEC CHAIN DRIFTED")
+                   + (moved ? "" : " — STILL EQUALS v1.4.0: items 16/29 DID NOT LAND")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // N8 — the v1.7.0 cross-version gate for EVERYTHING EXCEPT THE CODEC.
+    //
+    // v1.8.0 (brief items 16, 29, 7) deliberately moves the codec render, so
+    // N7 above can no longer carry the "nothing downstream changed" claim for
+    // this release — it renders WITH the codec on. N8 is the half of N7 that
+    // v1.8.0 must not touch: the identical canonical post-render config with
+    // CODEC_ENABLE off, which exercises the packet stage (GE chain,
+    // concealment, comfort noise) and the whole transport engine in front of
+    // it while CodecStage sits on its bit-transparent bypass rail.
+    //
+    // The digest was produced by THIS probe compiled against the v1.7.0 tree
+    // (git 4d52377e), BEFORE any v1.8.0 edit — an anchor recorded after the
+    // change would only prove the new engine equals itself.
+    {
+        constexpr juce::uint64 kV170PacketDigest = 0x8eb6e29da5ec2692ULL;
+
+        auto p = makeProc();
+        configureCanonicalPostRender (*p);
+        setParam (*p, "CODEC_ENABLE", 0.0f);
+
+        const int total = (int) (4.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const juce::uint64 digest = renderChecksum (out);
+        const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
+        const bool         match  = digest == kV170PacketDigest;
+
+        check ("N8 v1.7.0-packet-identity", match && live,
+               juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
+                   + " vs v1.7.0 0x"
+                   + juce::String::toHexString ((juce::int64) kV170PacketDigest)
+                   + (match ? " — non-codec engine unchanged by v1.8.0"
+                            : " — THE CODEC EDIT LEAKED OUTSIDE THE CODEC")
                    + (live ? "" : " — SILENT, probe vacuous"));
     }
 
