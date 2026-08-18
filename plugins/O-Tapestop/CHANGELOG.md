@@ -2,6 +2,67 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.3.6] — 2026-08-17
+
+### Changed
+- **The factory-preset table is a base plus 28 override maps, not 28 full
+  transcriptions.** Audit queue item 7, the last item in the queue and the one
+  with the largest churn and the least behaviour. `PluginProcessor.cpp:236-523`
+  spelled out 28 presets × 19 parameter IDs = 532 entries. Only **142** of
+  those differed from a common baseline; the other **390** existed solely to
+  satisfy the "every preset lists all 19 IDs" defence-in-depth rule. That rule
+  is about what lands **on disk**, not about what a human types, so the table
+  now declares a 19-entry `basePreset` and a `presetSpecs` list where each
+  preset names only what it changes; a merge loop re-emits all 19 IDs.
+  288 source lines → 159.
+
+  Three details that make this a true no-op rather than a near-one:
+
+  - **The base is the parameter defaults, not the statistical mode.** Taking
+    the most common literal per ID would have cost 2 fewer override entries
+    (140 vs 142) but would have set the base `MODE` to `2.0` (Continuous) and
+    `TONE_TRACK` to `55.0` — values that match no default and would read as a
+    lie to anyone treating `basePreset` as "what a preset starts from". The
+    base is now verbatim the 19 defaults in `createParameterLayout()`, which
+    makes it checkable against a single other place in the file. As a
+    by-product "Classic Half-Bar Stop" now has an **empty** override map — it
+    always was the defaults, which the old table's 19 spelled-out lines hid.
+
+  - **The merge walks the BASE, not the overrides.** `params` starts as a copy
+    of `basePreset` and each of its 19 entries looks *itself* up in the
+    override map. It is therefore structurally impossible for a mistyped
+    override ID to smuggle in a 20th key or drop a real one — the map's size
+    never changes. (The old hand-written table had no such protection: a typo
+    there would silently have produced 20 keys, one of them wrong.) A
+    `jassert` names the typo in Debug; Release cannot be malformed either way.
+
+  - **`envelope` defaults to `kDefaultWobbleEnv`.** 21 of the 28 presets ride
+    it, so it is a defaulted struct member and only the 7 presets with their
+    own scratch curve name one. Every preset still carries an explicit blob in
+    the emitted JSON — the default is applied at the C++ struct, not skipped.
+
+  Gated on byte-identity of the **generated** JSON, not on reading the diff:
+  the render harness constructs `TapestopProcessor`, which writes all 28
+  factory `.json` files; the directory was captured before the refactor and
+  again after, and `diff -r` over the 28 files plus the version sentinel is
+  empty (manifest SHA-256 `f05f9a6e…` on both sides). That covers the CR-02
+  `convertTo0to1` round-trip on the three skew-0.35 `freeMsRange()` parameters
+  — e.g. `STOP_FREE_MS` 4000 ms still stores `0.784240245819092`, the skewed
+  value, not the linear `0.49937` a raw-fraction authoring would have given
+  (`pattern_factory_preset_normalized_ignores_skew`).
+
+  The gate was proven to be a discriminator rather than decoration
+  (`pattern_probe_must_target_the_branch_the_fix_changed`): with one override
+  entry deleted (`Half-Mix Stop`'s `MIX`) and one skew-0.35 value nudged by
+  1 ms (`Slow-Tape Drag`'s `STOP_FREE_MS` 4000 → 3999), `diff -r` fired on
+  exactly those two presets and no others — the 1 ms nudge moving the stored
+  normalized value by 6.9e-5, which only the live skew conversion produces.
+
+### Testing
+- Render harness: **67/67 probe checks, 0 failures** — unchanged from v1.3.5,
+  as expected for a table that emits identical bytes.
+- Factory-preset JSON: 28/28 files still emit exactly 19 parameter IDs.
+
 ## [1.3.5] — 2026-08-17
 
 ### Changed

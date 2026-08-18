@@ -272,7 +272,48 @@ Acceptance: byte-identical harness output.
 
 ---
 
-## 7. Factory-preset table refactor  *(PATCH, optional)*
+## 7. Factory-preset table refactor  *(PATCH → 1.3.6)* — ✅ DONE 2026-08-17
+
+**Resolved in v1.3.6, with two corrections to the prescription below.**
+
+*Correction 1 — the line target.* "~90 lines" assumed 13 of 19 entries per
+preset were boilerplate, i.e. ~168 real entries. The actual count is **142 of
+532** — so 390 boilerplate entries, not 364, but the surviving 142 do not
+compress into 90 lines at this file's width. Result is **159 lines** (288 →
+159, −129). The estimate was optimistic about formatting, not about the
+finding: the boilerplate share was slightly *higher* than claimed.
+
+*Correction 2 — which base.* The per-ID **statistical mode** minimises override
+entries (140 vs 142) but yields a base with `MODE = 2.0` (Continuous) and
+`TONE_TRACK = 55.0`, matching no default and reading as a lie to anyone who
+takes `basePreset` for "what a preset starts from". The base shipped is
+verbatim the 19 defaults in `createParameterLayout()` — 2 entries more, and
+checkable against exactly one other place in the file. By-product: "Classic
+Half-Bar Stop" turns out to have an **empty** override map, a fact the old
+table's 19 spelled-out lines hid.
+
+One addition the prescription did not ask for: the merge loop walks the
+**base**, not the overrides — each of the 19 base IDs looks *itself* up in the
+override map — so `params.size()` cannot change and a mistyped override ID can
+neither add a 20th key nor drop a real one. The old hand-written table had no
+such protection.
+
+Acceptance met, and shown to discriminate. `diff -r` over the 28 generated
+`.json` files (dumped by constructing the processor in the render harness,
+before and after) is empty; manifest SHA-256 `f05f9a6e…` on both sides. That
+covers the CR-02 round-trip — `STOP_FREE_MS` 4000 ms still stores
+`0.784240245819092`, the skewed value, versus `0.49937` for a linear fraction.
+Negative control: deleting `Half-Mix Stop`'s `MIX` override and nudging
+`Slow-Tape Drag`'s `STOP_FREE_MS` 4000 → 3999 fired the diff on exactly those
+two presets (the 1 ms nudge moving the normalized value by 6.9e-5). Harness
+67/67.
+
+**This closes the queue** — items 1–7 all resolved.
+
+---
+
+<details>
+<summary>Original finding</summary>
 
 `PluginProcessor.cpp:236-523` — 28 presets × 19 params ≈ 290 lines, where 13 of
 the 19 entries per preset are identical boilerplate carried only to satisfy the
@@ -284,3 +325,5 @@ Largest churn in the queue and zero behaviour change, so it goes last. Gate it
 hard: dump the generated preset JSON before and after and diff — it must be
 byte-identical, including the CR-02 `convertTo0to1` round-trip on the three
 skew-0.35 FREE_MS ranges.
+
+</details>
