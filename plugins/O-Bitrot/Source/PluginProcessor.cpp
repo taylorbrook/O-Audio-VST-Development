@@ -635,7 +635,7 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             }
         });
 
-    // ── Factory bank (Stage 4): 9 presets ───────────────────────────────────
+    // ── Factory bank: 28 presets ────────────────────────────────────────────
     // Authored in ENGINEERING units, then batch-converted through each
     // parameter's own NormalisableRange below — raw-fraction authoring would
     // ignore the skew on CLOCK_FREE_RATE (centre 1.414 Hz) and CRUSH_RATE
@@ -643,15 +643,45 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     // 0/1; SEED as the integer. Every preset lists all 45 param IDs (defense
     // in depth over the module's WR-01 reset-to-defaults). No customState —
     // SEED is an APVTS param and O-Bitrot has no non-parameter state.
-    // Coverage: one showcase per family (1-6 and 9), sync (2,4,5,7) + free
-    // (1,3,8,9) clocking, extreme (7) + subtle (8) combos, HARD_EDGES
-    // exercised (7), both codec modes (5 GSM, 7 Mu-law).
     //
-    // v1.10.0 adds the five ROT ids to all eight existing presets — six of them
-    // at the transparent default (ROT_ENABLE 0), so those six render exactly as
-    // they did under v1.9.0 — and adds "Corrupt Archive" as the rot family's
-    // showcase, which is what keeps the one-showcase-per-family claim above
-    // true rather than aspirational.
+    // v1.11.0 grows the bank 9 -> 28 (improvement brief item 31). Organised by
+    // MEDIA NARRATIVE — nine family/character showcases (1-9), then tape (10-13),
+    // vinyl (14-16), CD (17-18), phone-and-network (19-21), rot (22-24), and a
+    // four-rung severity ladder (25-28). That grouping lives in the CONTENT, not
+    // in this vector's order: OuariconPresetManager::getPresetList() ends with
+    // presets.sort(true), so the browser presents all 28 alphabetically no matter
+    // what order they are declared in here.
+    //
+    // Every name is ASCII-only and slash-free on purpose. juce::String's
+    // const char* constructor is ASCII-only (a non-ASCII literal mangles), and
+    // sanitizePresetName() rewrites '/' to '_' — a name is a FILENAME, so a
+    // slash would silently change the file the preset round-trips through.
+    //
+    // The nine v1.10.0 names are carried forward VERBATIM. initializeFactoryPresets()
+    // writes files and never prunes, so renaming an existing factory preset would
+    // strand its old .json in the Factory directory permanently and the bank would
+    // list both. Adding is safe; renaming is not.
+    //
+    // What the new nineteen are for, beyond content: they are the first factory
+    // presets to reach values the original nine never did — VINYL_RPM "45"
+    // (Dusty 45) and "78" (Shellac 78, the exact value item 27c's migration gate
+    // exists for), PACKET_CONCEAL "Substitute" (Last Voicemail), CODEC_MAINS
+    // 60 Hz (Last Voicemail), CODEC_AGC off its 100 rail (Answering Machine 45,
+    // Transatlantic Line 80), CODEC_MIX below 100 (Transatlantic Line 75), and
+    // the CLOCK_SYNC_DIV rungs 1/8T, 1/4T, 1/2 and 1 bar. All seven divisions and
+    // both clock modes are now covered by the bank.
+    //
+    // TAPE_PROB 0 with TAPE_ENABLE 1 (Basement Reel) is deliberate, not an
+    // oversight: the beds are gated by their family's ENABLE, not by its
+    // probability, so that combination is the continuous wow/hiss layer with the
+    // discrete tape events switched off — the v1.2 authenticity work in isolation.
+    // Same shape for vinyl: VINYL_WEAR and VINYL_WARP follow VINYL_ENABLE, while
+    // pops ride the VINYL_PROB roll.
+    //
+    // The Disintegration Loop ladder shares one SEED (6060) across all four rungs.
+    // The four do not render the same pattern — their parameters differ, so their
+    // RNG consumption diverges within the first tick — but they start from one
+    // stream, which is the narrative: one tape, four stages of decay.
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
         { "Worn Cassette",   // Tape showcase — hiss, wow, drag, occasional full stop
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.2f },
@@ -806,6 +836,367 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CODEC_AGC", 100.0f },
             { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 55.0f }, { "ROT_DEPTH", 65.0f },
             { "ROT_STICK", 30.0f }, { "ROT_GARBLE", 35.0f } } },
+
+        // ── Tape (v1.11.0) ──────────────────────────────────────────────────
+
+        { "Warped C-90",     // A mixtape left on a dashboard — heavy continuous
+                             // warble, bare oxide patches, thick hiss
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.8f },
+            { "SEED", 1210.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 40.0f }, { "TAPE_STOP_PROB", 8.0f }, { "TAPE_RAMP", 320.0f },
+            { "TAPE_DROP", 55.0f }, { "TAPE_WOW", 75.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 50.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Basement Reel",   // The bed with NO events — TAPE_PROB 0 leaves the
+                             // wow and hiss layers running on their own
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.4f },
+            { "SEED", 1120.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 0.0f }, { "TAPE_STOP_PROB", 0.0f }, { "TAPE_RAMP", 400.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 22.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 30.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Chewed Tape",     // The machine ate it — stops, long bare stretches,
+                             // extreme warble, hard splices
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 1.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 1330.0f }, { "HARD_EDGES", 1.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 75.0f }, { "TAPE_STOP_PROB", 35.0f }, { "TAPE_RAMP", 90.0f },
+            { "TAPE_DROP", 60.0f }, { "TAPE_WOW", 95.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 65.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Dictaphone Memo", // Microcassette: ~5 kHz of bandwidth, 10 bits, a lot
+                             // of hiss and a lot of wow. Crush does the band
+                             // limiting, NOT the codec — this is tape, not a phone
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.1f },
+            { "SEED", 1440.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 20.0f }, { "TAPE_STOP_PROB", 6.0f }, { "TAPE_RAMP", 200.0f },
+            { "TAPE_DROP", 30.0f }, { "TAPE_WOW", 45.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 10.0f }, { "CRUSH_RATE", 5000.0f },
+            { "CRUSH_JITTER", 8.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.4f },
+            { "TAPE_HISS", 60.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        // ── Vinyl (v1.11.0) ─────────────────────────────────────────────────
+
+        { "Thrift-Store Turntable",  // 33 1/3, warped disc, worn surface, pops
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.6f },
+            { "SEED", 2140.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 30.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 65.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 60.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 40.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Dusty 45",        // The bank's first "45" — a shorter revolution
+                             // quantum, so groove jumps land closer together
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 4.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 2250.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 35.0f }, { "VINYL_RPM", 1.0f }, { "VINYL_POP", 55.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 40.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 25.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Shellac 78",      // The bank's first "78", and the exact VINYL_RPM
+                             // value item 27c's preset-migration gate exists for.
+                             // Crush at 4.5 kHz / 14 bits stands in for shellac
+                             // bandwidth; ENV_AMT +30 crushes harder on peaks,
+                             // which is what groove distortion actually does
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.5f },
+            { "SEED", 2360.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 1.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 2.0f }, { "VINYL_POP", 80.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 1.0f }, { "CRUSH_BITS", 14.0f }, { "CRUSH_RATE", 4500.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 30.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 75.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 30.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        // ── CD (v1.11.0) ────────────────────────────────────────────────────
+
+        { "Scratched CD-R",  // Mid-severity skips on long, lazy loop windows
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 3.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 3170.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 1.0f }, { "CD_PROB", 40.0f }, { "CD_SEVERITY", 0.55f }, { "CD_SEGMENT", 180.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Stuck Disc",      // Machine-gun: 25 ms windows at severity 0.95, past
+                             // both the sector-lock (0.5) and servo-seek (0.85)
+                             // thresholds, spliced hard on a 1/16 clock
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 3280.0f }, { "HARD_EDGES", 1.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 1.0f }, { "CD_PROB", 75.0f }, { "CD_SEVERITY", 0.95f }, { "CD_SEGMENT", 25.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        // ── Phone and network (v1.11.0) ─────────────────────────────────────
+
+        { "Last Voicemail",  // Sparse loss on a 1-bar clock, concealed by
+                             // SUBSTITUTE over comfort noise, under 60 Hz hum.
+                             // The bank's first Substitute and first 60 Hz
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 6.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 4190.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 18.0f }, { "PACKET_BURST", 55.0f }, { "PACKET_CONCEAL", 3.0f },
+            { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 45.0f }, { "CODEC_MAINS", 1.0f }, { "PACKET_COMFORT", 50.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Answering Machine",  // Microcassette behind a mu-law line: tape hiss
+                                // and wow INTO the phone chain, 50 Hz hum, and
+                                // the bank's first CODEC_AGC off its 100 rail
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.9f },
+            { "SEED", 4200.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 15.0f }, { "TAPE_STOP_PROB", 4.0f }, { "TAPE_RAMP", 260.0f },
+            { "TAPE_DROP", 30.0f }, { "TAPE_WOW", 50.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 65.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 35.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 45.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Transatlantic Line", // GSM at CODEC_MIX 75 — the bank's first partial
+                                // codec blend — with heavy bursty loss decaying
+                                // into comfort noise
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 5.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 4310.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 1.0f }, { "PACKET_LOSS", 35.0f }, { "PACKET_BURST", 70.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 1.0f }, { "CODEC_MODE", 1.0f }, { "CODEC_MIX", 75.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 55.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 40.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 80.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        // ── Rot (v1.11.0) — one preset per kind, the shares set to isolate it ─
+
+        { "Bad Blocks",      // FLIP only (stick 0, garble 0): fast ticks, deep
+                             // bit field — a PCM file crackling at the block rate
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 8.0f },
+            { "SEED", 5220.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 60.0f }, { "ROT_DEPTH", 80.0f },
+            { "ROT_STICK", 0.0f }, { "ROT_GARBLE", 0.0f } } },
+
+        { "Wrong Byte Offset",  // GARBLE dominant (stick 0, garble 95) at MIX 65
+                                // — wrong-decode stretches blended under the dry
+                                // programme, which is where they are usable
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.6f },
+            { "SEED", 5330.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 65.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 45.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 0.0f }, { "ROT_GARBLE", 95.0f } } },
+
+        { "Frozen Decoder",  // STICK dominant (stick 90, garble 0) on a 1/16
+                             // clock — the playback pointer hanging in DC
+                             // plateaus, sixteen chances a bar
+          { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
+            { "SEED", 5440.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 55.0f }, { "ROT_DEPTH", 30.0f },
+            { "ROT_STICK", 90.0f }, { "ROT_GARBLE", 0.0f } } },
+
+        // ── Disintegration ladder (v1.11.0) — one tape, four stages of decay,
+        //    one shared SEED. Every axis climbs together: tick rate, event
+        //    probability, dropout share, wow depth, hiss, and from rung II on,
+        //    digital rot underneath the tape. ────────────────────────────────
+
+        { "Disintegration Loop I",    // Old, not yet failing — bed and a rare drop
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.35f },
+            { "SEED", 6060.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 8.0f }, { "TAPE_STOP_PROB", 0.0f }, { "TAPE_RAMP", 420.0f },
+            { "TAPE_DROP", 15.0f }, { "TAPE_WOW", 18.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 28.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
+
+        { "Disintegration Loop II",   // Oxide shedding — rot joins underneath
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.5f },
+            { "SEED", 6060.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 20.0f }, { "TAPE_STOP_PROB", 4.0f }, { "TAPE_RAMP", 380.0f },
+            { "TAPE_DROP", 35.0f }, { "TAPE_WOW", 35.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 42.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 12.0f }, { "ROT_DEPTH", 25.0f },
+            { "ROT_STICK", 30.0f }, { "ROT_GARBLE", 10.0f } } },
+
+        { "Disintegration Loop III",  // Bare patches, the loop losing its shape
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.7f },
+            { "SEED", 6060.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 38.0f }, { "TAPE_STOP_PROB", 12.0f }, { "TAPE_RAMP", 300.0f },
+            { "TAPE_DROP", 60.0f }, { "TAPE_WOW", 55.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 55.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 30.0f }, { "ROT_DEPTH", 45.0f },
+            { "ROT_STICK", 40.0f }, { "ROT_GARBLE", 20.0f } } },
+
+        { "Disintegration Loop IV",   // Mostly gone — more absence than programme
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.0f },
+            { "SEED", 6060.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 1.0f }, { "TAPE_PROB", 60.0f }, { "TAPE_STOP_PROB", 25.0f }, { "TAPE_RAMP", 240.0f },
+            { "TAPE_DROP", 85.0f }, { "TAPE_WOW", 80.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 70.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 50.0f }, { "ROT_DEPTH", 60.0f },
+            { "ROT_STICK", 50.0f }, { "ROT_GARBLE", 30.0f } } },
     };
 
     // Engineering units → normalized through each parameter's
