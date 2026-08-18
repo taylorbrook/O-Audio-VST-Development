@@ -53,7 +53,7 @@
                                 (hard mute engaged), level otherwise intact.
       L  DSP-02 loop          — severity 1.0 forces the buffer loop on a
                                 position-marker saw: restarts at EXACT
-                                CD_SEGMENT intervals, first onset on the
+                                sector-quantised intervals, first onset on the
                                 clock grid (FUNC-01), chirp energy at every
                                 restart, recovery jumps FORWARD to live.
       M  DSP-03 vinyl         — saw marker: backward jump distances are
@@ -129,6 +129,30 @@
                                 families + packet + crush + GSM), printed +
                                 asserted <= 0.15 (the one sanctioned
                                 wall-clock use).
+
+    Probes (v1.6.0: CD skip authenticity, brief items 14 and 18):
+
+      K2 mute scales          — longest rung-1 mute against the ceiling its
+                                severity implies: <= 63 ms at 0.2, > 100 ms
+                                at 0.6 (impossible under the old 20 ms cap),
+                                <= 150 ms either way.
+      L3 sector lock + gate   — CD_SEGMENT 100 ms loops at 5120 (a whole
+                                number of 1/75 s sectors) above severity 0.5
+                                and at the free 4800 at 0.5. Both halves
+                                asserted: the gate is the claim.
+      L4 servo seek + gate    — a loop released at severity 1.0 goes hard
+                                silent for 100-400 ms, THEN jumps to live;
+                                at exactly 0.85 (the strict >) it does not,
+                                while still looping up to the release.
+      L5 per-jump fade        — ReadHead driven DIRECTLY (the chirp buries
+                                the splice in a plugin render): blend width
+                                is 144 samples by default and 24 for a loop
+                                wrap, and a splice request arriving mid-fade
+                                SPENDS the running length rather than
+                                rescaling it into a 0.36 output step.
+
+    Each of the five was verified to FAIL against the code it gates, by
+    reverting that one behaviour and re-running (see the CHANGELOG).
 
     Conventions (all have shipped-bug war stories):
       * position-deterministic noiseAt(n) — NEVER a sequential RNG
@@ -595,6 +619,54 @@ double medianOf (std::vector<double> v)
         return 0.0;
     std::sort (v.begin(), v.end());
     return v[v.size() / 2];
+}
+
+/** The loop-window length CDSkip will actually use at kFs for a given
+    CD_SEGMENT, above its sector-lock severity (v1.6.0, brief item 14c).
+    DERIVED from the plugin's own constants rather than mirrored, so a change
+    to either cannot leave a stale literal passing here
+    (pattern_test_fixture_mirrors_drift_silently). */
+juce::int64 sectorQuantised (double segmentMs) noexcept
+{
+    const double sector = kFs / CDSkip::kSectorHz;
+    const auto   raw    = (juce::int64) juce::roundToIntAccurate (segmentMs * 0.001 * kFs);
+    const auto   n      = juce::jmax ((juce::int64) 1,
+                                      (juce::int64) juce::roundToIntAccurate ((double) raw / sector));
+
+    return (juce::int64) juce::roundToIntAccurate ((double) n * sector);
+}
+
+struct ZeroRun { int start = -1; int length = 0; };
+
+/** Every run of hard-zero output at least `minLen` long inside [from, to), in
+    order. The CD mute rung and the servo seek are the only things in this
+    engine that take the output to exact silence, which is what makes the seek
+    measurable at all — and at severity 1.0 the rung roll never reaches the
+    mute, so there the two cannot be confused. */
+std::vector<ZeroRun> zeroRuns (const std::vector<float>& v, int from, int to, int minLen)
+{
+    std::vector<ZeroRun> runs;
+    int                  runStart = -1;
+
+    to = juce::jmin (to, (int) v.size());
+
+    for (int n = juce::jmax (0, from); n < to; ++n)
+    {
+        const bool z    = std::abs ((double) v[(size_t) n]) < 1.0e-7;
+        const bool last = (n == to - 1);
+
+        if (z && runStart < 0)
+            runStart = n;
+
+        if (runStart >= 0 && (! z || last))
+        {
+            const int len = n - runStart + ((z && last) ? 1 : 0);
+            if (len >= minLen)
+                runs.push_back ({ runStart, len });
+            runStart = -1;
+        }
+    }
+    return runs;
 }
 
 //==============================================================================
@@ -1618,11 +1690,87 @@ int main()
     }
 
     //==========================================================================
+    // K2 — item 14b, the severity-scaled mute ceiling. The rung-1 duration was
+    // pinned at 2-20 ms at every setting; a real E32 mute lengthens as the
+    // disc worsens, and v1.6.0 scales the SPAN (not the 2 ms floor) to reach
+    // 150 ms by the severity where the loop rung takes over.
+    //
+    // Two severities, and the assertion is the CEILING each one implies rather
+    // than a measured constant: at 0.2 no mute may exceed 63 ms, at 0.6 the
+    // longest must clear 100 ms — a length the pre-v1.6.0 engine could not
+    // produce at ANY severity, which is what makes the probe discriminate. The
+    // upper bound on the high render is asserted too, so a runaway scale is
+    // caught as readily as a dead one.
+    //
+    // Both severities keep the mute rung reachable and the seek unreachable
+    // (0.6 < kSeekSeverity), so a hard-zero run here is unambiguously a mute:
+    // conceal is a filter dip and the loop rung is silent about level.
+    {
+        auto muteStats = [&] (float severity, int& count, int& longest)
+        {
+            auto p = makeProc();
+            setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+            setParam (*p, "CLOCK_FREE_RATE", 4.0f);
+            setParam (*p, "TAPE_ENABLE",     0.0f);
+            setParam (*p, "VINYL_ENABLE",    0.0f);
+            setParam (*p, "CD_PROB",         100.0f);
+            setParam (*p, "CD_SEVERITY",     severity);
+            setParam (*p, "SEED",            5.0f);
+
+            const int total = (int) (16.0 * kFs);
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, noiseStereo);
+
+            const auto mono = channelToVector (out, 0);
+            const auto runs = zeroRuns (mono, kComp + (int) (0.2 * kFs), total, 48);
+
+            count = (int) runs.size();
+            longest = 0;
+            for (const auto& r : runs)
+                longest = juce::jmax (longest, r.length);
+        };
+
+        int loCount = 0, loLongest = 0, hiCount = 0, hiLongest = 0;
+        muteStats (0.2f, loCount, loLongest);
+        muteStats (0.6f, hiCount, hiLongest);
+
+        // Ceilings straight off CDSkip's expression: 2 ms floor + span.
+        const double ceilLoMs = 1000.0 * (0.002 + 0.018 + 0.130 * (0.2 / 0.6));   // 63.3
+        const double ceilHiMs = 1000.0 * (0.002 + 0.018 + 0.130);                 // 150.0
+
+        const double loMs = 1000.0 * loLongest / kFs;
+        const double hiMs = 1000.0 * hiLongest / kFs;
+
+        const bool enough  = loCount >= 8 && hiCount >= 8;
+        const bool loUnder = loMs <= ceilLoMs;
+        const bool hiOver  = hiMs > 100.0;          // impossible before v1.6.0 (20 ms cap)
+        const bool hiUnder = hiMs <= ceilHiMs;
+
+        check ("K2 item-14b mute-scales", enough && loUnder && hiOver && hiUnder,
+               juce::String ("longest mute: severity 0.2 ") + juce::String (loMs, 1)
+                   + " ms (ceiling " + juce::String (ceilLoMs, 1) + "), severity 0.6 "
+                   + juce::String (hiMs, 1) + " ms (need > 100, ceiling "
+                   + juce::String (ceilHiMs, 1) + ") over " + juce::String (loCount) + "/"
+                   + juce::String (hiCount) + " mutes"
+                   + (enough ? "" : " — TOO FEW MUTES, probe vacuous"));
+    }
+
+    //==========================================================================
     // L — DSP-02 rung 3 (buffer loop) on the position-marker saw: severity
-    // 1.0 forces the loop. Restarts land at EXACT CD_SEGMENT intervals with
-    // chirp energy at each restart; the first onset sits on the clock grid
-    // (FUNC-01); dropping CD_PROB to 0 releases the loop with a FORWARD
-    // recovery jump back to live material.
+    // 1.0 forces the loop. Restarts land at EXACT intervals with chirp energy
+    // at each restart; the first onset sits on the clock grid (FUNC-01);
+    // dropping CD_PROB to 0 releases the loop, which at this severity means
+    // the v1.6.0 servo seek — a full mute, THEN the forward recovery jump back
+    // to live material.
+    //
+    // Two v1.6.0 shifts land in this probe and both are asserted, not
+    // tolerated. The interval is the SECTOR-QUANTISED window (5120, not the
+    // free 4800 the knob asks for — item 14c), and the recovery no longer
+    // happens at the release tick (item 18). The clock grid here is 23999 +
+    // 24000k, one sample under the round numbers, so the CD_PROB write at
+    // n = 96000 misses the 95999 tick and the release lands at 119999 — a
+    // documented +/-1 slop in the free-clock accumulator, unchanged by this
+    // release and the reason the old window ran to 120100.
     {
         auto p = makeProc();
         setParam (*p, "CLOCK_MODE",      1.0f);
@@ -1631,10 +1779,18 @@ int main()
         setParam (*p, "VINYL_ENABLE",    0.0f);
         setParam (*p, "CD_PROB",         100.0f);
         setParam (*p, "CD_SEVERITY",     1.0f);
-        setParam (*p, "CD_SEGMENT",      100.0f); // 4800 samples
+        setParam (*p, "CD_SEGMENT",      100.0f); // 4800 free -> 5120 sector-locked
         setParam (*p, "SEED",            42.0f);
 
-        const int total = 144000;
+        // The window CDSkip will actually loop, derived from its own sector
+        // constant. The probe asserts THIS number: against v1.5.0 it measures
+        // 4800 and every spacing check below fails.
+        const int expSeg = (int) sectorQuantised (100.0);
+
+        // 4 s, not 3 s: the servo seek pushes the recovery jump up to 400 ms
+        // past the 119999 release tick, and the tail-tracks-live window has to
+        // sit entirely after it.
+        const int total = 192000;
         juce::AudioBuffer<float> out (2, total);
         out.clear();
 
@@ -1668,22 +1824,23 @@ int main()
         const auto mono = channelToVector (out, 0);
         const int  startAt = kComp + (int) (0.2 * kFs);
 
-        // A 4800-sample loop jump is a far smaller marker step than a vinyl
+        // A 5120-sample loop jump is a far smaller marker step than a vinyl
         // revolution, so it gets its own threshold — a revolution-sized one
-        // would ride on the chirp alone. skipAfter 600 clears fade (144) +
-        // chirp (384).
-        const auto events = scanSawEvents (mono, startAt, 600, sawJumpThresh (4800.0));
+        // would ride on the chirp alone. skipAfter 600 clears the fade (24
+        // samples now that wraps splice hard, 144 before) + chirp (384).
+        const auto events = scanSawEvents (mono, startAt, 600, sawJumpThresh ((double) expSeg));
 
-        // Classify: wrap-region events (< 95990 input-time) and the recovery
-        // (the first FORWARD event after the release region — a +/-1 sample
-        // slop in the free-clock accumulator can let one more wrap land at
-        // ~96000 before the release tick, so position alone is not enough).
+        // Classify BY DISTANCE, not by position: a wrap is a backward jump of
+        // one segment, the recovery is the big forward one. Position alone
+        // stopped working when the seek moved the recovery clear of the
+        // release tick, and the muted stretch in between throws its own pair
+        // of marker steps that are neither.
         std::vector<int>    wrapOnsets;    // input-time
         int recoveryOnset = -1; double recoveryDist = 0.0;
         for (const auto& e : events)
         {
             const int onset = e.outIndex - kComp;
-            if (onset < 95990)
+            if (std::abs (e.distSamples - (double) expSeg) <= 8.0)
                 wrapOnsets.push_back (onset);
             else if (e.distSamples < -1000.0 && recoveryOnset < 0)
             {
@@ -1697,8 +1854,8 @@ int main()
         for (size_t i = 1; i < wrapOnsets.size(); ++i)
         {
             const int gap = wrapOnsets[i] - wrapOnsets[i - 1];
-            worstGap = juce::jmax (worstGap, std::abs (gap - 4800));
-            if (std::abs (gap - 4800) > 8)
+            worstGap = juce::jmax (worstGap, std::abs (gap - expSeg));
+            if (std::abs (gap - expSeg) > 8)
                 spacingOk = false;
         }
 
@@ -1709,8 +1866,8 @@ int main()
         std::vector<double> chirpRatios;
         for (const auto& e : events)
         {
-            const int onset = e.outIndex - kComp;
-            if (onset >= 95000 || e.outIndex + 2400 >= (int) mono.size())
+            if (std::abs (e.distSamples - (double) expSeg) > 8.0
+                || e.outIndex + 2400 >= (int) mono.size())
                 continue;
             auto d2energy = [&] (int from, int len)
             {
@@ -1726,9 +1883,15 @@ int main()
         }
         const double medChirp = medianOf (chirpRatios);
 
-        // Recovery: forward jump (negative dist) near the release tick, and
-        // the tail of the render tracks LIVE material again.
-        const bool recoveredForward = recoveryOnset >= 95990 && recoveryOnset <= 120100
+        // Recovery: forward jump (negative dist) at or after the release tick,
+        // and the tail of the render tracks LIVE material again. The window
+        // spans the release tick plus the seek ceiling plus slack, and so
+        // accepts a build with OR without the seek — verified: disabling the
+        // seek leaves this check green. That is deliberate. This probe's claim
+        // is "the loop ends and the head returns to live"; whether a servo
+        // mute precedes the jump is L4's claim, and L4 is what fails when the
+        // stage is removed.
+        const bool recoveredForward = recoveryOnset >= 119990 && recoveryOnset <= 140000
                                       && recoveryDist < -1000.0;
         double tailErr = 0.0;
         for (int n2 = total - 8000; n2 < total; ++n2)
@@ -1742,8 +1905,9 @@ int main()
                    + " expected 24000 +/-8, " + juce::String ((int) wrapOnsets.size()) + " restarts");
 
         check ("L DSP-02 loop-spacing", spacingOk,
-               juce::String ("worst |gap - 4800| = ") + juce::String (worstGap)
-                   + " samples (bound 8) over " + juce::String ((int) wrapOnsets.size()) + " restarts");
+               juce::String ("worst |gap - ") + juce::String (expSeg) + "| = " + juce::String (worstGap)
+                   + " samples (bound 8) over " + juce::String ((int) wrapOnsets.size())
+                   + " restarts — CD_SEGMENT 100 ms asks for 4800");
 
         check ("L DSP-02 loop-chirps", medChirp > 5.0 && ! chirpRatios.empty(),
                juce::String ("median restart/mid-loop HF ratio ") + juce::String (medChirp, 2)
@@ -1786,8 +1950,16 @@ int main()
         setParam (*p, "CD_SEGMENT",      400.0f); // 19200 samples
         setParam (*p, "SEED",            7.0f);
 
+        // 400 ms is already an exact 30 sectors, so v1.6.0's sector lock is a
+        // no-op here and this probe still measures what item 5 claimed.
         constexpr int seg   = 19200;
-        const int     total = (int) (12.5 * kFs);
+        static_assert (19200 == (int) (30 * 48000 / 75), "CD_SEGMENT 400 ms must be sector-exact at kFs");
+
+        // 14 s, not 12.5: exhaustion now recovers through the v1.6.0 servo
+        // seek, so the post-recovery tracking window sits up to 400 ms later.
+        // Still only ONE exhaustion in the render — a fresh loop needs another
+        // 9.6 s of passes to spend the budget again.
+        const int total = (int) (14.0 * kFs);
 
         juce::AudioBuffer<float> out;
         renderInto (*p, out, total, { 512 }, sawStereo);
@@ -1802,10 +1974,8 @@ int main()
         // each exhaust the ring and get restarted by the next tick. What the
         // 10 s ring buys is one loop that runs 26 passes deep, which is the
         // claim item 5 actually makes.
-        int    wraps = 0, recoveries = 0, longestRun = 0, run = 0;
-        int    prevWrapOnset = -1;
-        int    recoveryOnset = -1;
-        double recoveryLagAfter = 0.0;
+        int wraps = 0, longestRun = 0, run = 0;
+        int prevWrapOnset = -1;
 
         for (const auto& e : events)
         {
@@ -1823,16 +1993,30 @@ int main()
 
             run = 0;
             prevWrapOnset = -1;
+        }
 
-            if (e.distSamples < -(double) seg * 4.0)
-            {
-                ++recoveries;
-                if (recoveryOnset < 0)
-                {
-                    recoveryOnset    = onset;
-                    recoveryLagAfter = lagFromSaw (e.vPost, e.postIndex, kComp);
-                }
-            }
+        // The recovery is located by the SERVO MUTE, not by a marker step
+        // (v1.6.0). Exhaustion now goes silent for 100-400 ms before jumping,
+        // and the marker step at the un-mute is a step out of zero rather than
+        // a jump between two saw lines, so its recovered "distance" is an
+        // artefact of wherever the saw happened to be. At severity 1.0 the
+        // rung roll is >= 2.25 every time, so the mute rung cannot fire and a
+        // hard-zero run of this length is unambiguously the seek.
+        const auto seeks = zeroRuns (mono, startAt, (int) mono.size(), 4000);
+
+        const int    recoveries       = (int) seeks.size();
+        int          recoveryOnset    = -1;
+        double       recoveryLagAfter = 0.0;
+
+        if (! seeks.empty())
+        {
+            const int endsAt = seeks.front().start + seeks.front().length;
+            recoveryOnset    = endsAt - kComp;
+
+            // Read the landing position past the un-mute ramp, the recovery
+            // fade and the re-lock chirp.
+            const int probeAt = juce::jmin ((int) mono.size() - 1, endsAt + 600);
+            recoveryLagAfter  = lagFromSaw (mono[(size_t) probeAt], probeAt, kComp);
         }
 
         // Where the recovery LANDS is the whole discriminator, and it has to
@@ -1849,11 +2033,26 @@ int main()
         // within one segment of the recovery" and flagged exactly that next
         // tick: recovery lands at 11.6 s and the tick is at 12.0 s, one
         // 400 ms segment later to the sample. Coincidence, not a defect.
-        double postErr = 0.0;
+        //
+        // v1.6.0 makes the window EXPLICIT rather than lucky. The servo seek
+        // delays the recovery by 100-400 ms, so it now lands ~1300 samples
+        // before that same tick and a fixed 10000-sample window measured the
+        // next loop's entry jump (0.018311 — exactly one 19200 segment over
+        // the saw period, i.e. the probe reading a working engine as broken).
+        // The window is clipped to the tick and its WIDTH is asserted, so it
+        // can never shrink to nothing and pass by measuring no samples.
+        constexpr int kTickPeriod = (int) (2.0 * kFs);   // CLOCK_FREE_RATE 0.5
+
+        double postErr    = 0.0;
+        int    postWindow = 0;
         if (recoveryOnset >= 0)
         {
-            const int from = recoveryOnset + kComp + 2000;
-            const int to   = juce::jmin (from + 10000, (int) mono.size());
+            const int nextTick = ((recoveryOnset / kTickPeriod) + 1) * kTickPeriod;
+            const int from     = recoveryOnset + kComp + 600;   // past fade + chirp
+            const int to       = juce::jmin (juce::jmin (from + 10000, nextTick + kComp - 200),
+                                             (int) mono.size());
+
+            postWindow = to - from;
             for (int n2 = from; n2 < to; ++n2)
                 postErr = juce::jmax (postErr,
                                       std::abs ((double) mono[(size_t) n2]
@@ -1863,7 +2062,7 @@ int main()
         const bool live       = out.getMagnitude (0, 0, total) > 1.0e-4f;
         const bool sustained  = longestRun >= 18;           // 26 measured; 2.5 s ring gives 5
         const bool recovered  = recoveries == 1 && recoveryLagAfter < 1000.0;
-        const bool tracksLive = recoveryOnset >= 0 && postErr < 1.0e-3;
+        const bool tracksLive = recoveryOnset >= 0 && postErr < 1.0e-3 && postWindow >= 400;
 
         check ("L2 item-5 cd-loop-budget", live && sustained && recovered && tracksLive,
                juce::String (longestRun) + " passes in the longest unbroken loop (need >= 18), "
@@ -1871,8 +2070,307 @@ int main()
                    + " recovery jump(s) (need exactly 1) @" + juce::String (recoveryOnset)
                    + " landing at lag " + juce::String (recoveryLagAfter, 1)
                    + " (need < 1000), post-recovery err vs live "
-                   + juce::String (postErr, 6) + " (need < 1e-3)"
+                   + juce::String (postErr, 6) + " (need < 1e-3) over "
+                   + juce::String (postWindow) + " samples (need >= 400)"
                    + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // ── v1.6.0: improvement brief items 14 and 18 ────────────────────────────
+    //==========================================================================
+
+    //==========================================================================
+    // L3 — item 14c, the sector lock AND its gate. Two renders that differ in
+    // ONE parameter, measured the same way: above kSectorSeverity the loop
+    // window snaps to a multiple of fs/75, at or below it the free CD_SEGMENT
+    // is used verbatim.
+    //
+    // The gate is the whole point, so both halves are asserted. A build that
+    // quantised unconditionally passes the first half and fails the second; a
+    // build that never quantises (v1.5.0) fails the first. CD_SEGMENT 100 ms
+    // is deliberately NOT sector-aligned — 4800 vs 5120 at kFs — so the two
+    // outcomes are 320 samples apart and cannot be confused by the +/-8
+    // detection slop.
+    //
+    // The low-severity render needs the loop rung to fire at all, and at
+    // severity exactly 0.5 it takes r >= 0.833 on the cd stream to reach it
+    // (~17% of wins) — so the clock runs at 1 Hz for 40 s rather than the 2 s
+    // grid the other CD probes use. At 15 attempts a seed missing the rung
+    // entirely is a 6% event and this probe drew one; at 40 it is 0.07%. The
+    // wrap COUNT is asserted either way, so a seed that never loops reports
+    // vacuous instead of passing on an empty set.
+    {
+        const int expHi = (int) sectorQuantised (100.0);   // 5120
+        constexpr int expLo = 4800;                        // the free knob value
+
+        auto measure = [&] (float severity, int& hiCount, int& loCount, int& other)
+        {
+            auto p = makeProc();
+            setParam (*p, "CLOCK_MODE",      1.0f);   // Free
+            setParam (*p, "CLOCK_FREE_RATE", 1.0f);   // tick every 1 s
+            setParam (*p, "TAPE_ENABLE",     0.0f);
+            setParam (*p, "VINYL_ENABLE",    0.0f);
+            setParam (*p, "CD_PROB",         100.0f);
+            setParam (*p, "CD_SEVERITY",     severity);
+            setParam (*p, "CD_SEGMENT",      100.0f);
+            setParam (*p, "SEED",            11.0f);
+
+            const int total = (int) (40.0 * kFs);
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, sawStereo);
+
+            const auto mono   = channelToVector (out, 0);
+            const auto events = scanSawEvents (mono, kComp + (int) (0.2 * kFs), 600,
+                                               sawJumpThresh ((double) expLo));
+
+            hiCount = loCount = other = 0;
+            for (const auto& e : events)
+            {
+                if (std::abs (e.distSamples - (double) expHi) <= 8.0)       ++hiCount;
+                else if (std::abs (e.distSamples - (double) expLo) <= 8.0)  ++loCount;
+                else if (e.distSamples > 100.0)                             ++other;
+            }
+        };
+
+        int hiQ = 0, hiF = 0, hiX = 0, loQ = 0, loF = 0, loX = 0;
+        measure (1.0f, hiQ, hiF, hiX);
+        measure (0.5f, loQ, loF, loX);
+
+        check ("L3 item-14c sector-lock", hiQ >= 10 && hiF == 0,
+               juce::String ("severity 1.0: ") + juce::String (hiQ) + " wraps at "
+                   + juce::String (expHi) + " (sector-locked), " + juce::String (hiF)
+                   + " at the free 4800 (need 0), " + juce::String (hiX) + " other"
+                   + (hiQ >= 10 ? "" : " — TOO FEW WRAPS, probe vacuous"));
+
+        check ("L3 item-14c gate-negative", loF >= 10 && loQ == 0,
+               juce::String ("severity 0.5: ") + juce::String (loF) + " wraps at the free "
+                   + juce::String (expLo) + ", " + juce::String (loQ)
+                   + " sector-locked (need 0), " + juce::String (loX) + " other"
+                   + (loF >= 10 ? "" : " — TOO FEW WRAPS, probe vacuous"));
+    }
+
+    //==========================================================================
+    // L4 — item 18, the servo-seek terminal stage. A loop released above
+    // kSeekSeverity goes FULLY SILENT for 100-400 ms before the recovery jump;
+    // at or below it the recovery is immediate, as it has always been.
+    //
+    // Measured as a hard-zero run after the release tick, which is
+    // unambiguous at these settings: severity 1.0 and 0.85 both roll rung 2 on
+    // essentially every win, and once CD_PROB is 0 no new mute rung can start,
+    // so nothing else in the engine can take the output to exact zero.
+    //
+    // The negative control at exactly 0.85 is the gate: kSeekSeverity is a
+    // strict >, so this is the highest severity that must NOT seek. It runs
+    // the same render and requires the loop to have been wrapping right up to
+    // the release, so "no mute" cannot be explained by "no loop".
+    {
+        auto run = [&] (float severity, int& lastWrapOnset, ZeroRun& seek, double& tailErr)
+        {
+            auto p = makeProc();
+            setParam (*p, "CLOCK_MODE",      1.0f);
+            setParam (*p, "CLOCK_FREE_RATE", 2.0f);   // ticks every 24000
+            setParam (*p, "TAPE_ENABLE",     0.0f);
+            setParam (*p, "VINYL_ENABLE",    0.0f);
+            setParam (*p, "CD_PROB",         100.0f);
+            setParam (*p, "CD_SEVERITY",     severity);
+            setParam (*p, "CD_SEGMENT",      100.0f);
+            setParam (*p, "SEED",            42.0f);
+
+            const int total = 192000;
+            juce::AudioBuffer<float> out (2, total);
+            out.clear();
+
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> scratch (2, 512);
+            int  n = 0;
+            bool dropped = false;
+            while (n < total)
+            {
+                if (! dropped && n >= 120000)      // past the 119999 release tick
+                {
+                    setParam (*p, "CD_PROB", 0.0f);
+                    dropped = true;
+                }
+
+                const int chunk = juce::jmin (500, total - n);
+                juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), 2, chunk);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int s = 0; s < chunk; ++s)
+                        block.setSample (ch, s, sawStereo (ch, n + s));
+                p->processBlock (block, midi);
+                for (int ch = 0; ch < 2; ++ch)
+                    out.copyFrom (ch, n, block, ch, 0, chunk);
+                n += chunk;
+            }
+
+            const auto mono   = channelToVector (out, 0);
+            const auto events = scanSawEvents (mono, kComp + (int) (0.2 * kFs), 600,
+                                               sawJumpThresh (4800.0));
+
+            lastWrapOnset = -1;
+            for (const auto& e : events)
+                if (e.distSamples > 1000.0)
+                    lastWrapOnset = e.outIndex - kComp;
+
+            // Only silence AFTER the release tick counts: a mute rung before
+            // it would be a different artifact answering a different question.
+            const auto runs = zeroRuns (mono, 143999 + kComp, (int) mono.size(), 480);
+            seek = runs.empty() ? ZeroRun{} : runs.front();
+
+            tailErr = 0.0;
+            for (int n2 = total - 8000; n2 < total; ++n2)
+                tailErr = juce::jmax (tailErr,
+                                      std::abs ((double) mono[(size_t) n2]
+                                                - (double) sawAt (n2 - kComp)));
+        };
+
+        int     wrapHi = -1, wrapLo = -1;
+        ZeroRun seekHi, seekLo;
+        double  tailHi = 0.0, tailLo = 0.0;
+
+        run (1.0f,  wrapHi, seekHi, tailHi);
+        run (0.85f, wrapLo, seekLo, tailLo);
+
+        const double seekMs = 1000.0 * seekHi.length / kFs;
+
+        // Bounds are the declared window plus the two 1 ms gain ramps.
+        const bool inWindow = seekMs >= 1000.0 * CDSkip::kSeekMinSeconds - 3.0
+                              && seekMs <= 1000.0 * CDSkip::kSeekMaxSeconds + 3.0;
+
+        check ("L4 item-18 servo-seek", inWindow && tailHi < 1.0e-3 && wrapHi > 0,
+               juce::String ("severity 1.0: mute ") + juce::String (seekMs, 1) + " ms (window "
+                   + juce::String (1000.0 * CDSkip::kSeekMinSeconds, 0) + "-"
+                   + juce::String (1000.0 * CDSkip::kSeekMaxSeconds, 0)
+                   + " ms), then tail err " + juce::String (tailHi, 6) + " (need < 1e-3)"
+                   + (wrapHi > 0 ? "" : " — NO LOOP RAN, probe vacuous"));
+
+        // 0.85 is not > 0.85: no seek. The loop must still have been running
+        // at the release, or the absence of a mute proves nothing.
+        const bool loopedToTheEnd = wrapLo > 100000;
+
+        check ("L4 item-18 gate-negative", seekLo.length == 0 && loopedToTheEnd && tailLo < 1.0e-3,
+               juce::String ("severity 0.85: longest post-release silence ")
+                   + juce::String (seekLo.length) + " samples (need 0), last wrap @"
+                   + juce::String (wrapLo) + ", tail err " + juce::String (tailLo, 6)
+                   + (loopedToTheEnd ? "" : " — LOOP ENDED EARLY, probe vacuous"));
+    }
+
+    //==========================================================================
+    // L5 — item 14a, the per-jump fade length, measured on ReadHead directly.
+    //
+    // It cannot be measured through the plugin: every CD loop wrap fires a
+    // chirp over exactly the window the fade occupies, and the chirp is three
+    // orders of magnitude louder than the marker step being faded. Driving the
+    // read head and its ring straight from the harness removes the chirp, the
+    // clock and the rung roll, and leaves the one number in question — over
+    // how many samples does the two-head blend run.
+    //
+    // The saw is read at integer positions throughout, so CaptureRing takes
+    // its exact-integer path and the expected value of each head is exact.
+    // "Blend width" is therefore the count of samples whose output differs
+    // from the incoming head's line at all.
+    {
+        const int    ringSize = (int) (kFs * CaptureRing::kRingSeconds) + 1;
+        const int    filled   = 500000;
+        const double hi       = (double) (filled - 1);
+
+        CaptureRing ring;
+        ReadHead    head;
+        ring.prepare (kFs);
+        head.prepare (kFs, ringSize);
+
+        for (int n = 0; n < filled; ++n)
+            ring.push (sawAt (n), sawAt (n));
+
+        // Renders one sample and returns the deviation from the line the
+        // INCOMING head is reading — 0 exactly once the fade has finished.
+        auto step = [&] (double expectedPos)
+        {
+            float l = 0.0f, r = 0.0f;
+            head.renderSample (ring, 1.0, false, false, 0.0, l, r);
+            return std::abs ((double) l - (double) sawAt ((int) expectedPos));
+        };
+
+        auto blendWidth = [&] (double from, double to, int fadeSamples)
+        {
+            head.reset();
+            head.clampAndScheduleJump (from, filled, true);              // instant, no fade
+            head.clampAndScheduleJump (to,   filled, false, fadeSamples);
+
+            int width = 0;
+            for (int i = 0; i < 4000; ++i)
+            {
+                if (step (to + i) <= 1.0e-9)
+                    break;
+                ++width;
+            }
+            return width;
+        };
+
+        // The fade runs fadeLen samples and reaches unity ON the last one, so
+        // the count of non-zero deviations is fadeLen - 1.
+        const int expDefault = head.getDefaultFadeSamples() - 1;    // 143 @ 48 kHz
+        const int expSplice  = head.getSpliceFadeSamples()  - 1;    // 23  @ 48 kHz
+
+        const int gotDefault = blendWidth (hi, hi - 300000.0, 0);
+        const int gotSplice  = blendWidth (hi, hi - 300000.0, head.getSpliceFadeSamples());
+
+        check ("L5 item-14a fade-lengths",
+               gotDefault == expDefault && gotSplice == expSplice && expSplice < expDefault,
+               juce::String ("default ") + juce::String (gotDefault) + " (expect "
+                   + juce::String (expDefault) + " = 3 ms), splice " + juce::String (gotSplice)
+                   + " (expect " + juce::String (expSplice) + " = "
+                   + juce::String (1000.0 * ReadHead::kLoopSpliceFadeSeconds, 2) + " ms)");
+
+        // The fold guard. A jump arriving while the OUTGOING head still
+        // dominates must spend the running fade's length, not the one it asks
+        // for: rescaling t from fadeCount/144 to fadeCount/24 would collapse
+        // the outgoing head's weight from 0.861 to 0 in one sample
+        // (pattern_splice_jump_guard_previous_fade). Both halves are checked —
+        // the residual step AND the fact that the fade still ends at 144.
+        head.reset();
+        head.clampAndScheduleJump (hi, filled, true);
+        head.clampAndScheduleJump (hi - 300000.0, filled, false);        // 3 ms fade
+
+        double lastOut = 0.0;
+        for (int i = 0; i < 20; ++i)
+        {
+            float l = 0.0f, r = 0.0f;
+            head.renderSample (ring, 1.0, false, false, 0.0, l, r);
+            lastOut = (double) l;
+        }
+
+        head.clampAndScheduleJump (hi - 600000.0, filled, false,
+                                   head.getSpliceFadeSamples());        // asks for 0.5 ms
+
+        float fl = 0.0f, fr = 0.0f;
+        head.renderSample (ring, 1.0, false, false, 0.0, fl, fr);
+        const double foldStep = std::abs ((double) fl - lastOut);
+
+        // Where the second jump LANDS after clamping — 600000 back is outside
+        // the ring window, so the choke point pins it at the lag ceiling.
+        const double landed = hi - juce::jmin (600000.0, head.getMaxLag());
+
+        int remaining = 1;                       // the render above is sample 1
+        for (int i = 1; i < 4000; ++i)
+        {
+            if (step (landed + i) <= 1.0e-9)
+                break;
+            ++remaining;
+        }
+
+        const int    expRemaining = head.getDefaultFadeSamples() - 20 - 1;
+        const double jumpDelta    = std::abs ((double) sawAt ((int) landed)
+                                              - (double) sawAt ((int) (hi - 300000.0)));
+
+        check ("L5 item-14a fold-keeps-length",
+               remaining == expRemaining && foldStep < 0.25 * jumpDelta,
+               juce::String ("fade ran ") + juce::String (20 + remaining) + " of "
+                   + juce::String (head.getDefaultFadeSamples())
+                   + " samples after a 0.5 ms request 20 in (must keep the running length), "
+                   + "step " + juce::String (foldStep, 5) + " (bound "
+                   + juce::String (0.25 * jumpDelta, 5)
+                   + "; adopting the short length gives ~0.69 x delta)");
     }
 
     //==========================================================================
@@ -3587,11 +4085,27 @@ int main()
     // the only way a harness that cannot link the old engine can assert
     // "bit-identical to the previous version"; a probe that merely re-rendered
     // the new engine twice would pass no matter what changed.
+    //
+    // RE-ANCHORED at v1.6.0, and the reason is the finding, not a workaround.
+    // v1.6.0 is the first release that changes the render at a DEFAULT: the
+    // CD mute rung's ceiling now scales with CD_SEVERITY, and the baseline
+    // severity is 0.5, so the old canonical render legitimately moved
+    // (0x3ee4e028900e47ca -> 0xef4d37a476695d6a). The probe therefore pins
+    // CD_SEVERITY 0 — the one severity at which v1.6.0 claims to be exactly
+    // transparent, because there the rung roll can only reach conceal, the
+    // sector lock and the servo seek are both below their thresholds, and
+    // every jump still takes ReadHead's default fade. What survives is the
+    // claim worth having: the per-jump fade refactor changed NOTHING for the
+    // tape bends, the vinyl revolutions, the post-stop recovery jump, the CD
+    // conceal rung or the overflow clamp, across three releases. The new
+    // digest was recorded the same way, by compiling this probe (with the
+    // CD_SEVERITY 0 line) against a22ff7c3, where it ran 57/57.
     {
-        constexpr juce::uint64 kV130CanonicalDigest = 0x3ee4e028900e47caULL;
+        constexpr juce::uint64 kV130CanonicalDigest = 0x972a5d3807538393ULL;
 
         auto p = makeProc();
         configureCanonicalRender (*p);
+        setParam (*p, "CD_SEVERITY", 0.0f);
 
         const int total = (int) (4.0 * kFs);
         juce::AudioBuffer<float> out;
@@ -3605,8 +4119,8 @@ int main()
                juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
                    + " vs v1.3.0 0x"
                    + juce::String::toHexString ((juce::int64) kV130CanonicalDigest)
-                   + (match ? " — bends/CD/vinyl unchanged at TAPE_DROP=0, TAPE_WOW=0"
-                            : " — DEFAULTS ARE NOT TRANSPARENT")
+                   + (match ? " — bends/vinyl/conceal + every default-fade jump unchanged"
+                            : " — A NON-CD-LOOP PATH MOVED")
                    + (live ? "" : " — SILENT, probe vacuous"));
     }
 

@@ -2,6 +2,123 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.6.0] — 2026-08-17
+
+CD skip authenticity — improvement brief items 14 and 18. The CD ladder's
+top two rungs were built to the right *shapes* and then flattened by
+constants that ignored the one knob meant to drive them. A mute was 2–20 ms
+whether the disc was lightly scuffed or dying; a loop window was whatever
+`CD_SEGMENT` said, to the sample, which no anti-shock buffer has ever done;
+every loop wrap was smoothed by the same 3 ms crossfade a *recovery* jump
+uses; and a loop ended by snapping to live in one sample. Four changes, all
+in the CD family, all keyed to `CD_SEVERITY`, no new parameters.
+
+**This release changes the render at the default `CD_SEVERITY` of 0.5** —
+the first O-Bitrot release that does. Item 14b's mute ceiling is live at
+every severity above 0, and 0.5 is where the knob starts. See
+"Render-affecting" below for exactly what is and is not preserved.
+
+### Changed
+- **Loop wraps splice HARD** (item 14a). A wrap is the artifact; a recovery
+  is the player getting its act together. They were both taking the single
+  global 3 ms crossfade, which at the Skipping Disc preset's 45 ms segment
+  spent **6.7% of every repeat inside the splice** — the buzz sanded off the
+  thing that makes it a CD skip. `ReadHead::clampAndScheduleJump` now takes
+  an optional per-jump fade length; CD loop entries and wraps pass 0.5 ms
+  (24 samples at 48 kHz, 1.1% of that segment), and vinyl revolutions,
+  recovery jumps and the overflow clamp keep the 3 ms default.
+
+  The trap here is the **mid-fade fold**, added in v1.2.1 to stop a jump
+  arriving mid-crossfade from dropping the outgoing head as a step. Its
+  arithmetic divides `fadeCount` by the fade length — so with a per-jump
+  length, the *running* fade's length is the only valid denominator. A
+  splice request arriving 20 samples into a 144-sample fade must therefore
+  SPEND the running length, not adopt the short one: rescaling `t` from
+  20/144 to 20/24 collapses the outgoing head's weight from 0.861 to 0 in a
+  single sample. Measured, by building it the wrong way on purpose: a
+  **0.357 output step against a 0.042 bound**, an 8.5x click. The fade
+  length in flight is now a separate member from the two prepared lengths,
+  and probe `L5` pins both halves.
+- **Mutes lengthen with severity** (item 14b). The rung-1 mute was pinned at
+  2–20 ms regardless of `CD_SEVERITY`; a real E32 mute grows as the disc
+  worsens. The *span* scales (the 2 ms floor does not), from 18 ms at
+  severity 0 to 148 ms by severity 0.6 — where the loop rung takes over —
+  for a 150 ms ceiling. Measured 61.2 ms longest at severity 0.2 against
+  that severity's 63.3 ms ceiling, and 141.9 ms at 0.6 against 150.0. The
+  severity-0 expression is the v1.5.0 one **bit-for-bit**, because
+  `0.130 * 0.0` is exactly `0.0`.
+- **Loop windows lock to CD sectors above severity 0.5** (item 14c).
+  `CD_SEGMENT` is a free 10–400 ms, but an anti-shock buffer re-reads whole
+  sectors, and the 1/75 s quantum is why a skipping CD buzzes at a
+  75 Hz-family rate rather than at whatever the knob says. Above
+  `kSectorSeverity` the window snaps to the nearest multiple of `fs/75`:
+  100 ms asks for 4800 samples and gets 5120. Implicit rather than a toggle
+  — "how far gone is the disc" is what `CD_SEVERITY` already means. At or
+  below 0.5 the free value is used verbatim, and both sides are asserted
+  (probe `L3`), because the gate is the claim.
+
+### Added
+- **Servo-seek terminal stage above severity 0.85** (item 18). `CD_SEVERITY`
+  had three audible regions and its top third was just "region 3, but more
+  often". The real end-stage of a dying player is not a loop — the buffer
+  runs dry, the sled loses tracking, and there are **hundreds of
+  milliseconds of dead silence** before playback resumes somewhere ahead
+  with a re-lock chirp. A loop released above `kSeekSeverity` now mutes
+  fully for 100–400 ms and only then takes the recovery jump, with a chirp.
+  Measured 338.2 ms on the canonical render, tail tracking live to 0.000000
+  after it.
+
+  The duration is drawn **at loop entry, not at release**. Both paths that
+  end a loop — `release()` and the lag-budget self-release inside
+  `processSample` — run without an `RngBank`, and the harness's block-size
+  invariance rests on RNG being consumed only at ticks and at deterministic
+  jump instants. Drawing at entry also means the draw is **skipped entirely
+  at or below 0.85**, so the cd stream's pattern is untouched there.
+
+  It is deliberately NOT entered when a loop gives way to a *different rung*
+  on a fresh CD win: the family is still winning ticks, so that is the disc
+  changing failure mode, not the terminal release — and 100–400 ms of
+  silence would swallow the very rung being installed.
+
+### Render-affecting
+Yes, at `CD_SEVERITY` > 0. The canonical cross-version digest probe `V1` was
+**re-anchored** rather than quietly re-recorded: it now pins `CD_SEVERITY 0`,
+the one severity at which this release is exactly transparent (the rung roll
+can only reach conceal, both new thresholds are below their gates, and every
+jump still takes the default fade). The new digest `0x972a5d3807538393` was
+produced the same way the old one was — by compiling the probe against the
+v1.3.0 tree at git `a22ff7c3`, where it ran 57/57 — and the current tree
+matches it. What that preserves is the claim worth having: **the per-jump
+fade refactor changed nothing for tape bends, vinyl revolutions, the
+post-stop recovery jump, the CD conceal rung or the overflow clamp, across
+three releases.** `N7` still matches its v1.4.0 anchor, so the packet and
+codec chain is likewise untouched.
+
+### Testing
+Harness **87/87**, stable over three runs; 6 checks added (`K2`, `L3` x2,
+`L4` x2, `L5` x2 — 7 checks across 5 probes). Every one was verified to FAIL
+against the code it gates by reverting that single behaviour and re-running:
+disabling the sector lock takes `L3` to "0 wraps at 5120, 374 at 4800";
+disabling the seek takes `L4` to "mute 0.0 ms"; pinning the mute span takes
+`K2` to 18.1 ms at severity 0.6; ignoring the fade argument takes `L5` to
+"splice 143, expect 23"; and removing the fold guard produces the 0.357 step
+described above.
+
+`L5` measures the read head **directly**, not through the plugin, and that
+is not a shortcut: every loop wrap fires a chirp over exactly the window the
+splice occupies, three orders of magnitude louder than the marker step being
+faded (the existing chirp probe reads a ratio of 2.3e12). Driving `ReadHead`
+and its ring from the harness removes the chirp, the clock and the rung roll
+and leaves the one number in question.
+
+`L`'s recovery check accepts a build with or without the seek — verified,
+not assumed — because its claim is "the loop ends and the head returns to
+live". `L2`'s post-recovery window is now clipped to the next clock tick and
+its **width is asserted**: the seek pushed the recovery to ~1300 samples
+before that tick, and the old fixed 10000-sample window was measuring the
+next loop's entry jump (0.018311 — exactly one segment over the saw period)
+and calling a working engine broken.
+
 ## [1.5.0] — 2026-08-17
 
 Media noise beds — improvement brief items 4 and 19. The engine
