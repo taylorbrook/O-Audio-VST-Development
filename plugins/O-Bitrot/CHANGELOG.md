@@ -2,6 +2,110 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.11.0] — 2026-08-18
+
+The **factory bank, 9 → 28 presets** — improvement brief item 31, and the last
+item the brief schedules on purpose ("schedule LAST so presets exercise the
+v1.2/v1.3 features"). Ten releases of DSP have landed since the bank was
+authored at Stage 4, and the bank had been growing by exactly one preset per
+release — the new family's showcase — while everything else the releases added
+was reachable only by building a patch by hand. For a 45-parameter stochastic
+plugin the presets *are* the discoverability layer, and a nine-preset bank was
+not one.
+
+**This release changes no DSP and no parameter.** Not one line under
+`Source/dsp` moved, the layout is the same 45 IDs in the same order, and no
+existing preset's values changed. Every saved session and every saved preset
+renders exactly as it did under v1.10.0. The one on-disk effect is the module's
+version-stamped sentinel: the nine existing factory `.json` files are rewritten
+with identical parameter values and a `"version": "1.11.0"` stamp.
+
+### Added
+
+- **Nineteen factory presets**, organised by media narrative:
+  - **Tape** — "Warped C-90" (the brief's own example: a dashboard mixtape,
+    heavy warble and bare oxide), "Basement Reel", "Chewed Tape",
+    "Dictaphone Memo".
+  - **Vinyl** — "Thrift-Store Turntable" (the brief's example), "Dusty 45",
+    "Shellac 78".
+  - **CD** — "Scratched CD-R", "Stuck Disc".
+  - **Phone and network** — "Last Voicemail" (the brief's example),
+    "Answering Machine", "Transatlantic Line".
+  - **Rot** — "Bad Blocks", "Wrong Byte Offset", "Frozen Decoder": one per
+    v1.10.0 kind, with the share ladder set to isolate it (flip-only is
+    `ROT_STICK` 0 + `ROT_GARBLE` 0; the other two push one share to 90–95).
+  - **A four-rung severity ladder** — "Disintegration Loop I–IV", the brief's
+    named example. Every axis climbs together across the four: tick rate,
+    event probability, dropout share, wow depth, hiss, and from rung II on,
+    digital rot underneath the tape.
+- **Curated `SEED` per preset**, so the demo glitch pattern ships *with* the
+  preset rather than being whatever the last patch left behind. All 28 seeds
+  are distinct except the Disintegration ladder, which deliberately shares one
+  (6060). The four do not render the same pattern — their parameters differ, so
+  their RNG consumption diverges inside the first tick — but they start from one
+  stream, which is the narrative: one tape, four stages of decay.
+
+### Changed
+
+- **The bank now exercises every choice value on every choice parameter.** It
+  did not before. Newly reached by a factory preset for the first time:
+  `VINYL_RPM` **"45"** (Dusty 45) and **"78"** (Shellac 78) — all nine previous
+  presets sat on 33 1/3, so the exact value v1.7.0's preset-migration gate
+  exists for had no factory coverage at all; `PACKET_CONCEAL` **"Substitute"**
+  (Last Voicemail); `CODEC_MAINS` **60 Hz** (Last Voicemail); and the
+  `CLOCK_SYNC_DIV` rungs **1/8T, 1/4T, 1/2 and 1 bar**. Both clock modes, both
+  codec modes and both `HARD_EDGES` states are covered.
+- **Three continuous parameters come off their rails for the first time.**
+  `CODEC_AGC` was 100 in all nine previous presets — Answering Machine sets 45
+  and Transatlantic Line 80, so v1.8.0's AGC is now audible as a *range* rather
+  than a fixed part of the codec. `CODEC_MIX` below 100 (Transatlantic Line, 75)
+  and `MIX` below 100 (Wrong Byte Offset, 65) give the bank its blend examples.
+  `CRUSH_ENV_AMT` gets its first positive value (Shellac 78, +30 — crushing
+  harder on peaks, which is what groove distortion does).
+- **`CRUSH_RATE` finally lands mid-skew.** The previous bank used 20000, 11025
+  and 6000; Dictaphone Memo sits at 5000 and Shellac 78 at 4500, near the
+  geometric centre the range is skewed around (3162 Hz).
+
+### Notes
+
+Three constraints shaped the authoring, all of them properties of code that
+already existed:
+
+- **The nine existing names are carried forward verbatim.**
+  `initializeFactoryPresets()` writes files and never prunes, so renaming a
+  factory preset would strand its old `.json` in the Factory directory
+  permanently and the bank would list both. Adding is safe; renaming is not.
+  This is why the bank is not prefixed by family.
+- **Declaration order here is not browse order.** `getPresetList()` ends with
+  `presets.sort(true)`, so all 28 present alphabetically no matter how this
+  vector is ordered. The media-narrative grouping lives in the *content*. With
+  28 presets reachable only through the header's prev/next arrows, a preset
+  browser is the natural follow-up and is filed as such — it is a UI change, not
+  a content one, and this release is content.
+- **Names are ASCII-only and slash-free.** `juce::String`'s `const char*`
+  constructor is ASCII-only, and `sanitizePresetName()` rewrites `/` to `_` — a
+  preset name *is* a filename, so a slash would silently change the file the
+  preset round-trips through. Hence "Disintegration Loop I-IV" with a hyphen.
+
+`TAPE_PROB` 0 with `TAPE_ENABLE` 1 (Basement Reel) is deliberate, not an
+oversight. The beds are gated by their family's ENABLE, not by its probability
+(`PluginProcessor.cpp`, the `tapeBed`/`wowFlutter` snapshot), so that
+combination is the continuous wow-and-hiss layer with the discrete tape events
+switched off — v1.4.0's and v1.5.0's work in isolation, which nothing in the
+bank previously demonstrated.
+
+### Testing
+
+Render harness **107/107**, unchanged and expected to be: no probe reads the
+factory bank, and no DSP moved. The cross-version anchors (A3×3, V1, N7, N8)
+still match their recorded digests. Structural audit of the bank, run against
+the parsed source: 28 presets, all 45 parameter IDs present in each with no
+duplicates, every authored engineering value inside its parameter's
+`NormalisableRange` (an out-of-range literal would be silently clamped by
+`convertTo0to1` rather than rejected), every choice/bool literal an exact
+integer, all names ASCII and slash-free, no name collisions, no unintended seed
+collisions. pluginval strictness 10 and `auval` pass.
+
 ## [1.10.0] — 2026-08-18
 
 The **Rot family** — improvement brief item 8, and the plugin finally doing
