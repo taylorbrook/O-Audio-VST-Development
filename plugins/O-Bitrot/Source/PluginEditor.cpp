@@ -56,6 +56,7 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     codecMixRelay      = std::make_unique<juce::WebSliderRelay>("CODEC_MIX");
     codecNoiseRelay    = std::make_unique<juce::WebSliderRelay>("CODEC_NOISE");
     codecMainsRelay    = std::make_unique<juce::WebComboBoxRelay>("CODEC_MAINS");
+    codecAgcRelay      = std::make_unique<juce::WebSliderRelay>("CODEC_AGC");
     // Crush
     crushEnableRelay   = std::make_unique<juce::WebToggleButtonRelay>("CRUSH_ENABLE");
     crushBitsRelay     = std::make_unique<juce::WebSliderRelay>("CRUSH_BITS");
@@ -111,6 +112,7 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*codecMixRelay)
             .withOptionsFrom(*codecNoiseRelay)
             .withOptionsFrom(*codecMainsRelay)
+            .withOptionsFrom(*codecAgcRelay)
             .withOptionsFrom(*crushEnableRelay)
             .withOptionsFrom(*crushBitsRelay)
             .withOptionsFrom(*crushRateRelay)
@@ -338,6 +340,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("CODEC_NOISE"), *codecNoiseRelay, nullptr);
     codecMainsAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.apvts.getParameter("CODEC_MAINS"), *codecMainsRelay, nullptr);
+    codecAgcAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("CODEC_AGC"), *codecAgcRelay, nullptr);
     // Crush
     crushEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CRUSH_ENABLE"), *crushEnableRelay, nullptr);
