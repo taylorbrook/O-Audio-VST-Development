@@ -106,7 +106,7 @@ body {
   z-index: 1;
   width: 100%;
   height: 100%;
-  padding: 16px 24px;
+  padding: 12px 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -133,10 +133,10 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   border-bottom: 1px solid rgba(139, 115, 85, 0.4);
-  padding-bottom: 6px;
+  padding-bottom: 4px;
 }
 .title {
-  font-size: 26px;
+  font-size: 25px;
   font-weight: 400;
   letter-spacing: 3px;
   color: var(--brown-frame);
@@ -156,13 +156,13 @@ body {
   background: rgba(250, 240, 230, 0.5);
   border: 1px solid rgba(139, 115, 85, 0.4);
   border-radius: 6px;
-  padding: 8px 14px 10px;
+  padding: 6px 14px 7px;
 }
 .drawbar-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 .drawbar-title {
   font-size: 12px;
@@ -236,7 +236,7 @@ body {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--brown-text);
-  margin-top: 5px;
+  margin-top: 3px;
   letter-spacing: 0.3px;
 }
 .drawbar-cell.db-fundamental .drawbar-num { color: var(--green-darkest); font-weight: 600; }
@@ -248,14 +248,19 @@ body {
 }
 
 /* ── Visualization (oscilloscope) ───────────────────────────────────────── */
-.viz-panel { display: flex; gap: 14px; height: 150px; }
+/* The scope is the one elastic section: it absorbs whatever vertical slack the
+   frame has left after every other section takes its natural size, so the
+   keyboard lands on the bottom edge instead of floating above dead paper.
+   flex-shrink stays 0 (see `.frame > *`), so 136px is a hard floor — if a
+   host renders text taller, the scope just grows less rather than clipping. */
+.viz-panel { display: flex; gap: 14px; flex: 1 0 136px; min-height: 136px; }
 .viz-block { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .viz-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--brown-border);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 .canvas-wrap {
   flex: 1;
@@ -275,12 +280,12 @@ body {
 }
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
-.controls { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.controls { flex: 0 0 auto; display: flex; flex-direction: column; gap: 7px; }
 .group {
   background: rgba(250, 240, 230, 0.45);
   border: 1px solid rgba(139, 115, 85, 0.35);
   border-radius: 5px;
-  padding: 6px 14px 10px;
+  padding: 5px 12px 7px;
 }
 .group-title {
   font-size: 12px;
@@ -288,16 +293,18 @@ body {
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--green-darkest);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
-  padding-bottom: 3px;
+  padding-bottom: 2px;
 }
-.knob-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
-.env-pair { display: flex; gap: 8px; }
-.env-pair .group { flex: 1; }
-.group-output .knob-row { justify-content: flex-start; }
+.knob-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; justify-content: center; }
+/* Groups sit side-by-side in rows so the panel reads wide, not tall — this is
+   what keeps the on-screen keyboard above the fold at the 860x980 editor size. */
+.group-row { display: flex; gap: 7px; align-items: stretch; }
+.group-row > .group { flex: 1 1 auto; }
+.group-output { flex: 0 0 auto; }
 
-.knob-cell { display: flex; flex-direction: column; align-items: center; width: 62px; }
+.knob-cell { display: flex; flex-direction: column; align-items: center; width: 58px; }
 
 /* ── Seed cross-section knob ─────────────────────────────────────────────── */
 .knob {
@@ -361,14 +368,14 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--brown-soft);
-  margin-top: 6px;
+  margin-top: 4px;
   text-align: center;
   line-height: 1.1;
 }
 .knob-value {
   font-size: 11px;
   color: var(--brown-text);
-  margin-top: 2px;
+  margin-top: 1px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -378,7 +385,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 96px;
+  width: 92px;
 }
 .combo {
   font-family: inherit;
@@ -388,9 +395,9 @@ body {
   background: var(--bg-paper-light);
   border: 2px solid var(--brown-border);
   border-radius: 5px;
-  padding: 8px 10px;
+  padding: 6px 9px;
   width: 100%;
-  height: 40px;
+  height: 36px;
   cursor: pointer;
   box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.12), 1px 1px 3px var(--shadow-light);
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -402,8 +409,8 @@ body {
 .preset-tour {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 6px 14px;
+  gap: 12px;
+  padding: 4px 12px;
   border-top: 1px solid rgba(139, 115, 85, 0.4);
   flex-wrap: wrap;
 }
@@ -422,7 +429,7 @@ body {
   background: var(--bg-paper-light);
   border: 1px solid var(--brown-border);
   border-radius: 4px;
-  padding: 5px 11px;
+  padding: 4px 10px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -434,7 +441,7 @@ body {
   color: var(--brown-soft);
   margin-left: auto;
   opacity: 0.85;
-  max-width: 46%;
+  max-width: 54%;
   text-align: right;
 }
 
@@ -442,15 +449,15 @@ body {
 .keyboard-panel {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 8px 14px 4px;
+  gap: 4px;
+  padding: 6px 12px 2px;
   border-top: 1px solid rgba(139, 115, 85, 0.4);
 }
 .keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--brown-border); }
 .kbd-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
 .keyboard {
   position: relative;
-  height: 92px;
+  height: 96px;
   display: flex;
   touch-action: none;
   border: 1px solid var(--brown-frame);

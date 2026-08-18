@@ -58,6 +58,8 @@
 
     <!-- ─── Control groups ─────────────────────────────────────── -->
     <main class="controls">
+      <!-- Row 1: Morph + Spectral side by side (wide, not tall) -->
+      <div class="group-row">
       <section class="group">
         <h2 class="group-title">Morph &#183; Wavetable</h2>
         <div class="knob-row">
@@ -107,8 +109,10 @@
           </div>
         </div>
       </section>
+      </div>
 
-      <div class="env-pair">
+      <!-- Row 2: both envelopes + Output level on one line -->
+      <div class="group-row">
         <section class="group group-env">
           <h2 class="group-title">Amplitude Envelope</h2>
           <div class="knob-row">
@@ -160,18 +164,18 @@
             </div>
           </div>
         </section>
-      </div>
 
-      <section class="group group-output">
-        <h2 class="group-title">Output</h2>
-        <div class="knob-row">
-          <div class="knob-cell" data-tip="outputLevel">
-            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label">Level</div>
-            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+        <section class="group group-output">
+          <h2 class="group-title">Output</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="outputLevel">
+              <div class="knob knob-sm" id="knob-outputLevel"><div class="knob-stem"></div></div>
+              <div class="knob-label">Level</div>
+              <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
 
     <!-- ─── Lesson preset tour ─────────────────────────────────── -->
