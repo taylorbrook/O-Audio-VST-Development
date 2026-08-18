@@ -228,299 +228,175 @@ TapestopProcessor::TapestopProcessor()
     // parameter's NormalisableRange below (CR-02) — raw-fraction authoring
     // would ignore the 0.35 skew on the three FREE_MS ranges
     // (pattern_factory_preset_normalized_ignores_skew). Choice params are
-    // authored as the INDEX. Every preset lists all 19 param IDs (defense in
-    // depth over the WR-01 reset) and carries an explicit envelope blob.
+    // authored as the INDEX. Every preset still EMITS all 19 param IDs (defense
+    // in depth over the WR-01 reset) and carries an explicit envelope blob —
+    // v1.3.6 stopped SPELLING all 19 out per preset and merges a base + a
+    // per-preset override map instead. 142 of the 532 entries actually differed
+    // from the base; the other 390 were transcription.
     // Coverage: all three MODEs, both SYNC_MODEs, curve extremes, all three
     // Continuous characters. ENGAGE is 0 everywhere — loading a preset must
-    // never fire a gesture by itself.
-    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
-        { "Classic Half-Bar Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 60.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
+    // never fire a gesture by itself (it is in the base and no spec overrides
+    // it, which is now checkable at a glance rather than 28 times over).
 
+    // ── The 19-ID base ──────────────────────────────────────────────────
+    // Verbatim the defaults in createParameterLayout(), in ENGINEERING
+    // units. Every spec below names ONLY what it changes; the merge loop
+    // re-emits all 19 IDs per preset, so the on-disk JSON is byte-identical
+    // to the fully-spelled-out table this replaces (v1.3.5 and earlier).
+    const std::map<juce::String, float> basePreset {
+        { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+        { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+        { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f },
+        { "START_CURVE", 50.0f }, { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+        { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+        { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f }, { "TONE_TRACK", 60.0f },
+        { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f }
+    };
+
+    struct FactoryPresetSpec
+    {
+        const char* name;
+        std::map<juce::String, float> overrides;   // engineering units
+        const char* envelope = kDefaultWobbleEnv;  // 21 of 28 ride the default
+    };
+
+    const std::vector<FactoryPresetSpec> presetSpecs {
+        { "Classic Half-Bar Stop", {} },
         { "Classic 1-Bar Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 4.0f }, { "STOP_FREE_MS", 1500.0f }, { "STOP_CURVE", 85.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 400.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 70.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "STOP_SYNC_DIV", 4.0f }, { "STOP_FREE_MS", 1500.0f },
+            { "STOP_CURVE", 85.0f }, { "START_FREE_MS", 400.0f },
+            { "TONE_TRACK", 70.0f } } },
         { "DJ Spinup",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 180.0f }, { "START_CURVE", 15.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "START_FREE_MS", 180.0f }, { "START_CURVE", 15.0f },
+            { "TONE_TRACK", 55.0f } } },
         { "Baby Scratch",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 65.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kBabyScratchEnv) },
-
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
+            { "TONE_TRACK", 65.0f } }, kBabyScratchEnv },
         { "Chirp Flare",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kChirpFlareEnv) },
-
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
+            { "TONE_TRACK", 50.0f } }, kChirpFlareEnv },
         { "Tempo-Synced Short Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 1.0f }, { "STOP_FREE_MS", 120.0f }, { "STOP_CURVE", 20.0f },
-            { "START_SYNC_DIV", 1.0f }, { "START_FREE_MS", 120.0f }, { "START_CURVE", 20.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 40.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "STOP_SYNC_DIV", 1.0f }, { "STOP_FREE_MS", 120.0f },
+            { "STOP_CURVE", 20.0f }, { "START_SYNC_DIV", 1.0f },
+            { "START_FREE_MS", 120.0f }, { "START_CURVE", 20.0f },
+            { "TONE_TRACK", 40.0f } } },
         { "Slow-Tape Drag",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 70.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 800.0f }, { "START_CURVE", 60.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 90.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
+          { { "SYNC_MODE", 1.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 70.0f },
+            { "START_FREE_MS", 800.0f }, { "START_CURVE", 60.0f },
+            { "TONE_TRACK", 90.0f } } },
 
         // ── v1.3 Tape Stops additions ───────────────────────────────────────
         { "Power Cut",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 180.0f }, { "STOP_CURVE", 15.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 300.0f }, { "START_CURVE", 40.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 85.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "SYNC_MODE", 1.0f }, { "STOP_FREE_MS", 180.0f }, { "STOP_CURVE", 15.0f },
+            { "START_FREE_MS", 300.0f }, { "START_CURVE", 40.0f },
+            { "TONE_TRACK", 85.0f } } },
         { "Cassette Eject",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 2500.0f }, { "STOP_CURVE", 65.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 500.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 95.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "SYNC_MODE", 1.0f }, { "STOP_FREE_MS", 2500.0f }, { "STOP_CURVE", 65.0f },
+            { "START_FREE_MS", 500.0f }, { "TONE_TRACK", 95.0f } } },
         { "Two-Bar Dive",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 5.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 80.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 75.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "STOP_SYNC_DIV", 5.0f }, { "STOP_FREE_MS", 4000.0f },
+            { "STOP_CURVE", 80.0f }, { "TONE_TRACK", 75.0f } } },
         { "Snap Back",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 2.0f }, { "STOP_FREE_MS", 250.0f }, { "STOP_CURVE", 40.0f },
-            { "START_SYNC_DIV", 0.0f }, { "START_FREE_MS", 60.0f }, { "START_CURVE", 10.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
-        { "Half-Mix Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 60.0f }, { "MIX", 50.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "STOP_SYNC_DIV", 2.0f }, { "STOP_FREE_MS", 250.0f },
+            { "STOP_CURVE", 40.0f }, { "START_SYNC_DIV", 0.0f },
+            { "START_FREE_MS", 60.0f }, { "START_CURVE", 10.0f },
+            { "TONE_TRACK", 50.0f } } },
+        { "Half-Mix Stop", { { "MIX", 50.0f } } },
         { "Stutter-Scratch",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 250.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 45.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kStutterEnv) },
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 250.0f },
+            { "TONE_TRACK", 45.0f } }, kStutterEnv },
 
         // ── v1.3 Scratch additions — each rides its own envelope shape ──────
         { "Transformer",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 45.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kTransformerEnv) },
-
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
+            { "TONE_TRACK", 45.0f } }, kTransformerEnv },
         { "Tape Rewind",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1500.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 70.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kRewindEnv) },
-
+          { { "MODE", 1.0f }, { "ENV_FREE_MS", 1500.0f },
+            { "TONE_TRACK", 70.0f } }, kRewindEnv },
         { "Orbit",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kOrbitEnv) },
-
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
+            { "TONE_TRACK", 55.0f } }, kOrbitEnv },
         { "Crab Roll",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 200.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f },
-            { "TONE_TRACK", 40.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kCrabRollEnv) },
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 200.0f },
+            { "TONE_TRACK", 40.0f } }, kCrabRollEnv },
 
         // ── Continuous mode (v1.1) — depth/chaos values from the research
-        // synthesis (research/o-tapestop-continuous-mode.md, "Proposed
-        // factory presets"); wobble/random run Free, glitch runs Synced.
+        // synthesis (research/o-tapestop-continuous-mode.md, "Proposed factory
+        // presets"); wobble/random run Free, glitch runs Synced.
         { "Subtle Wobble",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
-            { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 15.0f },
-            { "TONE_TRACK", 30.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CONT_CHAOS", 15.0f },
+            { "TONE_TRACK", 30.0f } } },
         { "Warped Record",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 4.0f }, { "CONT_RATE_HZ", 0.55f },
+          { { "MODE", 2.0f }, { "CONT_RATE_SYNC_DIV", 4.0f }, { "CONT_RATE_HZ", 0.55f },
             { "CONT_DEPTH", 60.0f }, { "CONT_CHAOS", 35.0f },
-            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+            { "TONE_TRACK", 55.0f } } },
         { "Drunk Tape",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 1.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 0.5f },
-            { "CONT_DEPTH", 55.0f }, { "CONT_CHAOS", 50.0f },
-            { "TONE_TRACK", 60.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 1.0f },
+            { "CONT_RATE_HZ", 0.5f }, { "CONT_DEPTH", 55.0f },
+            { "CONT_CHAOS", 50.0f } } },
         { "Seasick",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 1.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 0.15f },
-            { "CONT_DEPTH", 75.0f }, { "CONT_CHAOS", 70.0f },
-            { "TONE_TRACK", 75.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 1.0f },
+            { "CONT_RATE_HZ", 0.15f }, { "CONT_DEPTH", 75.0f }, { "CONT_CHAOS", 70.0f },
+            { "TONE_TRACK", 75.0f } } },
 
         // ── v1.3 Wobble & Warp additions ────────────────────────────────────
         { "Tape Flutter",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 7.0f },
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CONT_RATE_HZ", 7.0f },
             { "CONT_DEPTH", 15.0f }, { "CONT_CHAOS", 25.0f },
-            { "TONE_TRACK", 30.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+            { "TONE_TRACK", 30.0f } } },
         { "Pitch Tide",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 0.08f },
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CONT_RATE_HZ", 0.08f },
             { "CONT_DEPTH", 55.0f }, { "CONT_CHAOS", 10.0f },
-            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+            { "TONE_TRACK", 50.0f } } },
         { "Loose Capstan",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 1.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 0.9f },
-            { "CONT_DEPTH", 45.0f }, { "CONT_CHAOS", 60.0f },
-            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 1.0f },
+            { "CONT_RATE_HZ", 0.9f }, { "CONT_DEPTH", 45.0f }, { "CONT_CHAOS", 60.0f },
+            { "TONE_TRACK", 55.0f } } },
         { "Glitch",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 4.0f },
-            { "CONT_DEPTH", 60.0f }, { "CONT_CHAOS", 55.0f },
-            { "TONE_TRACK", 40.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "MODE", 2.0f }, { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f },
+            { "CONT_RATE_HZ", 4.0f }, { "CONT_DEPTH", 60.0f }, { "CONT_CHAOS", 55.0f },
+            { "TONE_TRACK", 40.0f } } },
         { "Total Meltdown",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 0.0f }, { "CONT_RATE_HZ", 8.0f },
-            { "CONT_DEPTH", 90.0f }, { "CONT_CHAOS", 95.0f },
-            { "TONE_TRACK", 65.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
+          { { "MODE", 2.0f }, { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 0.0f },
+            { "CONT_RATE_HZ", 8.0f }, { "CONT_DEPTH", 90.0f }, { "CONT_CHAOS", 95.0f },
+            { "TONE_TRACK", 65.0f } } },
 
         // ── v1.3 Glitch & Chaos additions ───────────────────────────────────
         { "Sputter",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 2.5f },
-            { "CONT_DEPTH", 40.0f }, { "CONT_CHAOS", 30.0f },
-            { "TONE_TRACK", 35.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
+          { { "MODE", 2.0f }, { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f },
+            { "CONT_RATE_HZ", 2.5f }, { "CONT_DEPTH", 40.0f }, { "CONT_CHAOS", 30.0f },
+            { "TONE_TRACK", 35.0f } } },
         { "Data Rot",
-          { { "ENGAGE", 0.0f }, { "MODE", 2.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 13.0f },
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 2.0f },
+            { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 13.0f },
             { "CONT_DEPTH", 75.0f }, { "CONT_CHAOS", 85.0f },
-            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
+            { "TONE_TRACK", 50.0f } } },
     };
+
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;
+    factoryPresets.reserve(presetSpecs.size());
+
+    for (const auto& spec : presetSpecs)
+    {
+        auto params = basePreset;
+
+        // Walk the BASE, not the overrides: `params` can therefore only ever
+        // hold the 19 base IDs — a mistyped override ID can neither smuggle in
+        // a 20th key nor drop a real one. The jassert names the typo in Debug.
+        for (auto& [paramId, value] : params)
+            if (auto it = spec.overrides.find(paramId); it != spec.overrides.end())
+                value = it->second;
+
+        for (const auto& [paramId, value] : spec.overrides)
+        {
+            juce::ignoreUnused(value);
+            jassert(params.count(paramId) == 1);
+        }
+
+        factoryPresets.push_back({ spec.name,
+                                   std::move(params),
+                                   envelopeCustomState(spec.envelope) });
+    }
 
     // CR-02: engineering units → normalized through each parameter's
     // NormalisableRange, once, here. initializeFactoryPresets stores the

@@ -2,10 +2,33 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.4
+- **Version:** 1.3.6
 - **Type:** Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed)
 
 ## Lifecycle Timeline
+
+- **2026-08-17 (v1.3.6):** Audit queue item 7 — factory-preset table collapsed
+  from 28 full 19-ID transcriptions (532 entries, 288 lines) to a 19-entry
+  `basePreset` plus 28 override maps (142 entries, 159 lines). The emitted JSON
+  is unchanged: the merge loop still writes all 19 IDs per preset. The base is
+  the defaults from `createParameterLayout()` rather than the per-ID
+  statistical mode — 2 more override entries, but a base that is checkable
+  against one other place in the file instead of being a `MODE = Continuous`
+  fiction. The merge iterates the **base** and looks each ID up in the
+  overrides, so the map's size cannot change and a typo'd override ID can
+  neither add a 20th key nor drop a real one.
+
+  Gated by dumping the 28 generated `.json` files before and after (the render
+  harness constructs the processor, which writes them) and diffing: empty,
+  manifest SHA-256 `f05f9a6e…` on both sides. Proven to discriminate — deleting
+  one override and nudging one skew-0.35 `STOP_FREE_MS` by 1 ms made the diff
+  fire on exactly those two presets. Harness 67/67. **This closes the
+  2026-08-16 audit queue.**
+
+- **2026-08-17 (v1.3.5):** Audit queue item 6 — structural de-duplication. The
+  double-ended debt clamp, transcribed verbatim at four sites, became a single
+  `VarispeedVoice::clampToRing(pos, ring)`. See CHANGELOG for the clamp-order
+  and rail-derivation details that make the extraction a true no-op.
 
 - **2026-08-17 (v1.3.4):** Audit queue item 5 — dead-state deletion, zero
   behaviour change. Removed `VarispeedVoice::gain` (never read or written),
