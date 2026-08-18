@@ -58,7 +58,7 @@ Ouaricon Plugins:
 | O-Bassoon | 🚧 Stage 0 | - | Synth (Physical Model Bassoon) | 2026-04-27 |
 | O-MicrotonalSampler | 📦 Installed | 1.23.10 | Synth (Microtonal Sampler) | 2026-08-08 |
 | O-simpleFM | 📦 Installed | 1.2.4 | Synth (Pedagogical 2-Op FM) | 2026-08-08 |
-| O-simpleAdditive | ✅ Working | 1.0.4 | Synth (Pedagogical Additive + Wavetable) | 2026-07-15 |
+| O-simpleAdditive | ✅ Working | 1.0.5 | Synth (Pedagogical Additive + Wavetable) | 2026-08-17 |
 | O-simpleGrain | 📦 Installed | 1.2.0 | Synth (Pedagogical Granular) | 2026-08-09 |
 | O-simpleSubtractive | ✅ Working | 1.2.4 | Synth (Pedagogical Subtractive) | 2026-08-08 |
 | O-simpleSampler | ✅ Working | 1.3.0 | Synth (Pedagogical Sampler) | 2026-08-02 |

@@ -30,6 +30,16 @@ morph, spectral-decay tilt, bit-depth quantizer.
   `midiCollector` timestamp base seeded at construction, ARIA value attributes
   (+ knob labels) on all `role="slider"` controls. Render-harness golden battery
   and auval pass.
+- **2026-08-17 — v1.0.5** — UI layout pass: the whole page now fits the 860×980
+  editor without scrolling. The four stacked control groups became two horizontal
+  rows (`.group-row`), which cut `.controls` from 542 px to 247 px and closed a
+  277 px overflow that had put the lesson-preset row and the entire on-screen
+  keyboard below the fold. Reclaimed space was spent back on the design — drawbars
+  keep their full 168 px travel, knobs their 56/48 px diameters, and the keyboard
+  is now taller (96 px, was 92). The oscilloscope is the one elastic section
+  (`flex: 1 0 136px`), absorbing leftover slack so the keyboard sits on the bottom
+  edge. Measured 912 px of content in 974 px usable (62 px headroom, ≥59 px across
+  every serif fallback); verified in Standalone/WKWebView and auval.
 
 ## Known Limitations
 

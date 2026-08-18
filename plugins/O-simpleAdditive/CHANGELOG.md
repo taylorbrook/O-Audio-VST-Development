@@ -3,6 +3,62 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.5] — 2026-08-17
+
+UI layout pass: the whole interface — including the on-screen keyboard — now fits
+the 860×980 editor without scrolling. No parameter, preset, state, or DSP changes;
+this is presentation only.
+
+### Fixed
+- **The on-screen keyboard was entirely below the fold and required scrolling to
+  reach.** Measured at the shipped 860×980 editor size, the `.frame` scroll
+  container needed 1251 px of content in 974 px of usable height — a 277 px
+  overflow that pushed the lesson-preset row and the whole keyboard panel out of
+  view, and clipped the Output group mid-knob.
+
+  Root cause: the four control groups (Morph · Wavetable, Spectral Shaping, the
+  envelope pair, Output) were stacked vertically, so `.controls` alone consumed
+  542 px — more than half the window — while each group left most of its width
+  empty. The single-knob Output group cost ~130 px of height to show one control.
+
+  Fixed by laying the groups out in two horizontal rows rather than four stacks,
+  which reclaimed 295 px of the 277 px needed. The reclaimed space was then spent
+  back on the elements that carry the design, so nothing that matters got smaller:
+  the drawbars keep their full 168 px travel, the knobs their original 56/48 px
+  diameters, and the keyboard is now *taller* than before (96 px, was 92 px).
+
+### Changed
+- **Control groups now sit in two rows** (`.group-row`): Morph · Wavetable beside
+  Spectral Shaping, then Amplitude Envelope · Modulation Envelope · Output. The
+  former `.env-pair` rule is generalised into `.group-row` and the standalone
+  Output section is folded into the second row as a narrow third panel. `.controls`
+  drops from 542 px to 247 px.
+- **The oscilloscope is now the single elastic section** (`flex: 1 0 136px`). It
+  absorbs whatever vertical slack the frame has left after every other section
+  takes its natural size, so the keyboard lands on the bottom edge instead of
+  floating above dead paper — 136 px at minimum, 198 px at the 980 px editor
+  height. `flex-shrink` stays 0, so 136 px is a hard floor: a host that renders
+  text taller makes the scope grow less rather than clipping anything.
+- **Padding and gaps tightened** across the frame, panels, group headers, and the
+  preset-tour and keyboard footers (roughly 2–4 px each). The lesson-preset
+  caption's `max-width` went 46% → 54% so it stops wrapping onto a second line.
+- Header title 26 px → 25 px; combo boxes 40 px → 36 px tall.
+
+### Testing
+- Layout measured in headless Chromium against the real `index.html` / `styles.css`
+  / `app.js`, with only the JUCE ES-module namespace stubbed. At an 860×980
+  viewport: content height 912 px in 974 px usable, **0 px overflow**, 62 px of
+  headroom, no knob-row wrapping, lesson-preset buttons on one line, keyboard
+  fully within the viewport. The same probe reported the 277 px overflow before
+  the change, so it discriminates.
+- Font-fallback sweep (Garamond stack, Times New Roman, Georgia, generic serif,
+  sans-serif) moves total height by ≤ 2 px — the layout is dominated by fixed-px
+  elements — so headroom holds at ≥ 59 px whichever serif the host's WebView
+  resolves.
+- Short-window degradation checked at 860×720: the scope floors at exactly 136 px,
+  the frame falls back to scrolling, and the keyboard stays reachable. Nothing
+  clips.
+
 ## [1.0.4] — 2026-07-15
 
 Code-review resolution pass, part 2: the six Info findings (IN-01..IN-06) deferred
