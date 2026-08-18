@@ -2028,6 +2028,82 @@ int main()
     }
 
     //==========================================================================
+    // v1.4.0 — hover-help preference survives the state round-trip
+    //
+    // This probe exists because the OBVIOUS restore guard is wrong and nothing
+    // else in the build can see it. getStateInformation writes
+    // tooltipsEnabled as a BOOL var, so `if (tips.isBool())` reads as correct
+    // — but the value goes out through ValueTree::createXml and comes back
+    // through NamedValueSet::setFromXmlAttributes, which rebuilds every
+    // property as `var (value)` over the attribute STRING. What returns is a
+    // var holding "1", so a bool-or-int type test is false for every saved
+    // session and the preference silently restores as OFF forever. Build,
+    // auval and pluginval all pass either way; only a real round-trip shows it.
+    //
+    // Both directions are asserted, plus the pre-1.4.0 case: a state blob with
+    // no such property at all must leave the default (OFF) standing rather
+    // than reading a void var as false-by-accident and calling it a restore.
+    {
+        TapestopProcessor writer;
+        writer.tooltipsEnabled.store (true, std::memory_order_release);
+
+        juce::MemoryBlock blob;
+        writer.getStateInformation (blob);
+
+        TapestopProcessor reader;
+        reader.setStateInformation (blob.getData(), (int) blob.getSize());
+
+        const bool restoredTrue = reader.tooltipsEnabled.load (std::memory_order_acquire);
+
+        // ...and the other way, so a guard that hardcodes true cannot pass.
+        writer.tooltipsEnabled.store (false, std::memory_order_release);
+        juce::MemoryBlock blobOff;
+        writer.getStateInformation (blobOff);
+
+        TapestopProcessor readerOff;
+        readerOff.tooltipsEnabled.store (true, std::memory_order_release);
+        readerOff.setStateInformation (blobOff.getData(), (int) blobOff.getSize());
+
+        const bool restoredFalse = readerOff.tooltipsEnabled.load (std::memory_order_acquire);
+
+        check ("v140-tooltips-state-roundtrip",
+               restoredTrue && ! restoredFalse,
+               juce::String ("saved ON -> restored ")
+                   + (restoredTrue ? "ON" : "OFF (FAIL: the XML round-trip returns a "
+                                            "STRING var, not a bool)")
+                   + ", saved OFF -> restored " + (restoredFalse ? "ON (FAIL)" : "OFF"));
+
+        // Pre-1.4.0 blob: strip the attribute and confirm the default survives.
+        TapestopProcessor legacyWriter;
+        juce::MemoryBlock legacyBlob;
+        legacyWriter.getStateInformation (legacyBlob);
+
+        bool legacyOk = false;
+
+        if (auto xml = juce::AudioProcessor::getXmlFromBinary (legacyBlob.getData(),
+                                                               (int) legacyBlob.getSize()))
+        {
+            xml->removeAttribute ("tooltipsEnabled");
+            juce::MemoryBlock stripped;
+            juce::AudioProcessor::copyXmlToBinary (*xml, stripped);
+
+            TapestopProcessor legacyReader;
+            legacyReader.tooltipsEnabled.store (true, std::memory_order_release);
+            legacyReader.setStateInformation (stripped.getData(), (int) stripped.getSize());
+
+            // A pre-1.4.0 session must not be treated as "saved OFF": the
+            // property is absent, so whatever the instance already had stands.
+            legacyOk = legacyReader.tooltipsEnabled.load (std::memory_order_acquire);
+        }
+
+        check ("v140-tooltips-legacy-state-inert",
+               legacyOk,
+               legacyOk ? juce::String ("a blob with no tooltipsEnabled leaves the "
+                                        "instance's value untouched")
+                        : juce::String ("FAIL: an absent property was read as OFF"));
+    }
+
+    //==========================================================================
     std::printf ("\n%d probe checks, %d failure(s)\n", probes, failures);
     return failures == 0 ? 0 : 1;
 }

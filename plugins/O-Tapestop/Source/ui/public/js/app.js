@@ -25,18 +25,20 @@
 // groups; the four SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay
 // (ENGAGE, the large latching performance control — UI-02).
 //
-// Native-function surface is exactly THIRTEEN and must match PluginEditor.cpp:
+// Native-function surface is exactly FIFTEEN and must match PluginEditor.cpp:
 //   getParameterDefaults  (dblclick-reset, engineering units)
 //   commitEnvelope        (mouse-up + 50 ms debounce; completes with the
 //                          C++-sanitized echo, which we redraw from)
 //   requestEnvelope       (page init: current envelope JSON)
+//   setTooltipsEnabled    (v1.4.0: the "?" toggle's state → processor)
+//   getTooltipsEnabled    (v1.4.0: page init PULLS the saved preference)
 // plus the 10 preset fns requested by modules/preset-manager.js (Stage 4):
 //   savePreset, savePresetWithDialog, loadPreset, loadPresetFromFile,
 //   getPresetList, getCurrentPreset, selectNextPreset, selectPreviousPreset,
 //   deletePreset, isFactoryPreset
 // An unregistered fn is a silently dead control that passes build, auval AND
 // pluginval (pattern_webview_native_fn_bridge_gap) — the gate grep-diffs both
-// directions at 13↔13.
+// directions at 15↔15.
 //
 // Backend events (the sanctioned window.__JUCE__ use — backend events only;
 // parameter state comes through the Juce ES-module namespace,
@@ -125,6 +127,13 @@ const KNOB_MAX_DEG   = 135;    // normalised 1.0
 const DRAG_TRAVEL_PX = 220;    // vertical px for a full 0→1 sweep
 const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment
 
+// ── Hover help (v1.4.0) ─────────────────────────────────────────────────────
+// TOOLTIP_MARGIN is both the gap between a tip and its control AND the gap it
+// keeps from the viewport edge — the same number on purpose, so the clamp
+// assertion in tests/ui_tooltip_clamp_check.js has one constant to check.
+const TOOLTIP_MARGIN   = 8;
+const TOOLTIP_DELAY_MS = 350;  // hover dwell before a tip appears
+
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
 const sliderState = {};        // id -> Juce SliderState
@@ -146,6 +155,14 @@ let lastFillKey    = "";       // change gate for the fill style writes
 
 let presetManager   = null;    // PresetManager instance (Stage 4)
 let deleteArmTimer  = null;    // two-click delete disarm timeout
+
+let tooltipEl         = null;  // #tooltip — the one shared surface
+let tooltipToggleEl   = null;  // #help-toggle
+let tooltipTimer      = null;  // dwell timer
+let tooltipTarget     = null;  // the [data-tip] currently hovered
+let tooltipSuppressed = false; // true between pointerdown and pointerup
+let tooltipsEnabled   = false; // the "?" state; PULLED from C++ at init
+let setTooltipsFn     = null;  // native fn, resolved once
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Function declarations (hoisted — safe to reference from init() below)
@@ -773,6 +790,195 @@ function initReadback() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Hover help (v1.4.0)
+//
+// Ported from O-ReverseDelay v1.1.0 — the version carrying the VERIFIED
+// measure-then-pin placement, not the earlier shrink-to-fit variant
+// (pattern_fixed_tooltip_shrink_to_fit_edge). Two things differ here:
+//
+//   1. Every show is gated on `tooltipsEnabled`, the "?" toggle's state,
+//      which round-trips through the processor so it survives a session
+//      reload. The toggle's OWN tip carries data-tip-always and bypasses the
+//      gate — otherwise the one control that could turn help back on would be
+//      the one control unable to explain itself.
+//   2. The centre panel is three mode-switched panes. A tip on a hidden pane
+//      is unreachable, so tests/ui_tooltip_clamp_check.js sweeps all three —
+//      a single-pane sweep leaves a third of the anchors unverified forever.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function tooltipAllowed(target) {
+  return tooltipsEnabled || target.hasAttribute("data-tip-always");
+}
+
+function handleTooltipOver(e) {
+  const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (!target || target === tooltipTarget) return;
+
+  tooltipTarget = target;
+  clearTimeout(tooltipTimer);
+
+  if (tooltipSuppressed || !tooltipAllowed(target)) return;
+  tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+  const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (!target) return;
+
+  // Moving between children of the same control is not a real exit. Every
+  // knob cell wraps a knob, a label and a value readout, so without this the
+  // surface flickers off and back on as the pointer crosses them.
+  if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+  hideTooltip();
+}
+
+function showTooltip(target) {
+  // The pointer may have moved on, or gone down, during the dwell.
+  if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+  if (!tooltipAllowed(target)) return;
+
+  const title = target.getAttribute("data-tip-title");
+  const body  = target.getAttribute("data-tip");
+  if (!body) return;
+
+  // textContent, not innerHTML — the copy stays inert.
+  tooltipEl.textContent = "";
+
+  if (title) {
+    const titleEl = document.createElement("div");
+    titleEl.className = "tooltip-title";
+    titleEl.textContent = title;
+    tooltipEl.appendChild(titleEl);
+  }
+
+  const bodyEl = document.createElement("div");
+  bodyEl.className = "tooltip-body";
+  bodyEl.textContent = body;
+  tooltipEl.appendChild(bodyEl);
+
+  const anchor = target.getBoundingClientRect();
+
+  // MEASURE-THEN-PIN. A fixed-position box with `left` set and `width:auto`
+  // shrink-to-fits whatever space remains to its right, so measuring at the
+  // PREVIOUS offset under-reports the width, and applying a near-edge `left`
+  // afterwards re-wraps a 230 px tip into a ~70 px ribbon that never recovers
+  // on later hovers. Release the width, measure from the left edge, pin the
+  // result in px, and only then place.
+  //
+  // On this page the exposed control is the "?" toggle itself — right-most on
+  // the frame, 16 px from the edge. Build, auval and pluginval are all blind
+  // to it (pattern_fixed_tooltip_shrink_to_fit_edge).
+  tooltipEl.style.width = "";
+  tooltipEl.style.left  = "0px";
+  tooltipEl.style.top   = "0px";
+
+  // getBoundingClientRect, NOT offsetWidth: offsetWidth rounds, and a natural
+  // width of 208.48 px pinned at 208 px is narrower than the box's own
+  // shrink-to-fit — enough to push the last word onto a second line, after
+  // the height has already been read.
+  const width = tooltipEl.getBoundingClientRect().width;
+  tooltipEl.style.width = `${width}px`;
+
+  // Height is only stable once the width is definite. Read before the pin and
+  // the tip is PLACED at 28 px while it RENDERS at 42 px, landing on top of
+  // the control it describes.
+  const height = tooltipEl.getBoundingClientRect().height;
+
+  // Prefer above; flip below only when there is no room at the top. Computed
+  // as a real top edge rather than a centre plus translateY(-100%), so the
+  // clamp arithmetic and the box the browser lays out are the same geometry.
+  let top = anchor.top - height - TOOLTIP_MARGIN;
+  let placement = "above";
+
+  if (top < TOOLTIP_MARGIN) {
+    top = anchor.bottom + TOOLTIP_MARGIN;
+    placement = "below";
+  }
+
+  const anchorCentreX = anchor.left + anchor.width / 2;
+  const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+  const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top  = `${top}px`;
+  tooltipEl.dataset.placement = placement;
+
+  // The tip is clamped to the viewport, but the arrow still points at the
+  // control — held clear of the rounded corners.
+  const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+  tooltipEl.style.setProperty("--arrow-x", `${arrowX}px`);
+
+  tooltipEl.classList.add("visible");
+  tooltipEl.setAttribute("aria-hidden", "false");
+}
+
+function hideTooltip() {
+  clearTimeout(tooltipTimer);
+  tooltipTarget = null;
+
+  if (!tooltipEl) return;
+  tooltipEl.classList.remove("visible");
+  tooltipEl.setAttribute("aria-hidden", "true");
+}
+
+// Class + aria only — the button's "?" glyph is HTML-authored and must never
+// be written from here (pattern_js_state_updater_overwrites_html_labels).
+function applyTooltipsEnabled(enabled) {
+  tooltipsEnabled = !!enabled;
+
+  if (tooltipToggleEl) {
+    tooltipToggleEl.classList.toggle("active", tooltipsEnabled);
+    tooltipToggleEl.setAttribute("aria-pressed", tooltipsEnabled ? "true" : "false");
+  }
+
+  if (!tooltipsEnabled) hideTooltip();
+}
+
+function initTooltips() {
+  tooltipEl       = document.getElementById("tooltip");
+  tooltipToggleEl = document.getElementById("help-toggle");
+
+  if (!tooltipEl) { console.warn("Tooltip surface missing — hover help disabled"); return; }
+
+  document.addEventListener("mouseover", handleTooltipOver);
+  document.addEventListener("mouseout", handleTooltipOut);
+
+  // Any press begins a click or a drag: get the tip out of the way and keep it
+  // away until release, so it cannot hang over a knob mid-drag or over the
+  // envelope canvas mid-edit. CAPTURE phase, because the knobs and the canvas
+  // call preventDefault in their own pointerdown handlers.
+  document.addEventListener("pointerdown", () => {
+    tooltipSuppressed = true;
+    hideTooltip();
+  }, true);
+
+  document.addEventListener("pointerup", () => { tooltipSuppressed = false; }, true);
+
+  if (tooltipToggleEl) {
+    tooltipToggleEl.addEventListener("click", () => {
+      applyTooltipsEnabled(!tooltipsEnabled);
+      // Fire-and-forget: the page is already in the new state, and a failed
+      // persist must not leave the toggle disagreeing with what it shows.
+      if (setTooltipsFn) setTooltipsFn(tooltipsEnabled).catch(() => {});
+    });
+  }
+
+  // PULL the persisted preference. The C++ side deliberately never pushes it:
+  // a push from the editor constructor or the first 30 Hz tick fires before
+  // this module has evaluated, so it would silently never arrive and the
+  // toggle would read OFF on every reopen (the O-FreqPulse WR-01 bug).
+  try {
+    setTooltipsFn = Juce.getNativeFunction("setTooltipsEnabled");
+    Juce.getNativeFunction("getTooltipsEnabled")()
+      .then((enabled) => applyTooltipsEnabled(!!enabled))
+      .catch((e) => console.error("[help] getTooltipsEnabled failed:", e));
+  } catch (e) {
+    console.error("[help] native bridge unavailable:", e);
+  }
+}
+
 // ── Entry point ─────────────────────────────────────────────────────────────
 function init() {
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
@@ -786,6 +992,7 @@ function init() {
   initEnvelope(Juce);            // async; self-contained failure
   initReadback();
   initPresets();                 // preset band (Stage 4); async init inside
+  initTooltips();                // hover help (v1.4.0); async PULL inside
 }
 
 // Single call, at the BOTTOM of the module — every binding above is initialised.

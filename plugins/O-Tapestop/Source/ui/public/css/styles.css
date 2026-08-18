@@ -846,3 +846,126 @@ body {
   color: var(--brown-border);
   opacity: 0.75;
 }
+
+/* ── Hover help: the "?" toggle (v1.4.0) ─────────────────────────────────── */
+/* ABSOLUTE, not a child of the header's flow. .header is text-align:center and
+   the 860 × 580 frame is a PLAN Locked Decision, so a button added to the
+   header's normal flow would shift the centred title. Positioned against
+   .frame (position:relative already) and inset past its 3 px border, this
+   costs the layout exactly nothing.
+
+   It is deliberately the RIGHT-MOST control on the page — the geometry that
+   surfaced pattern_fixed_tooltip_shrink_to_fit_edge in O-MultiBandCompressor
+   v1.4.1. Its own tip is therefore the strictest test of the clamp below, and
+   tests/ui_tooltip_clamp_check.js asserts it explicitly. */
+.help-toggle {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 50%;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.help-toggle:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Lit while the layer is on — same active vocabulary as .segment/.engage-btn,
+   so "on" reads identically everywhere on the page. */
+.help-toggle.active {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.help-toggle.active:hover {
+  background: var(--btn-active);
+  transform: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.help-toggle:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── Hover help: the tooltip surface (v1.4.0) ────────────────────────────── */
+/* Lifted from O-ReverseDelay v1.1.0 — the version carrying the verified
+   measure-then-pin placement. position:fixed anchors the tip to the viewport
+   rather than to .frame, so it escapes the frame's inset shadow; z-index 1000
+   clears .botanical-overlay (1), .frame (2) and .help-toggle (3).
+
+   max-width is load-bearing: app.js pins the MEASURED width in px, and the
+   assertion in tests/ui_tooltip_clamp_check.js is that no tip ever renders
+   narrower than its own shrink-to-fit. Changing this number means re-running
+   that check at the real 860 px width — the clamp gate is horizontal and
+   viewport-sensitive (pattern_tooltip_clamp_gate_viewport_sensitive). */
+.tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  max-width: 230px;
+  padding: 7px 10px;
+  background: linear-gradient(135deg, var(--bg-paper-light) 0%, var(--bg-paper-mid) 100%);
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-family: var(--serif);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--green-mid);
+  margin-bottom: 3px;
+}
+
+.tooltip-body {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--brown-text);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+   can be clamped hard against the viewport edge while the arrow still points
+   at the control it describes. */
+.tooltip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after {
+  top: 100%;
+  border-top-color: var(--brown-frame);
+}
+
+.tooltip[data-placement="below"]::after {
+  bottom: 100%;
+  border-bottom-color: var(--brown-frame);
+}

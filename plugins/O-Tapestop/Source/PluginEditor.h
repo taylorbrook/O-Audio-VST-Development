@@ -30,11 +30,13 @@
     groups, four SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay
     (ENGAGE — the large latching performance control, UI-02).
 
-    The native-function surface is exactly THIRTEEN:
+    The native-function surface is exactly FIFTEEN:
       - getParameterDefaults  (dblclick-reset, engineering units)
       - commitEnvelope        (envelope commit; completes SYNCHRONOUSLY with
                                the C++-sanitized echo)
       - requestEnvelope       (page init: current envelope JSON)
+      - setTooltipsEnabled    (v1.4.0: "?" toggle → processor state property)
+      - getTooltipsEnabled    (v1.4.0: page init PULLS the preference)
       - the 10 preset fns modules/preset-manager.js requests (Stage 4):
         savePreset, savePresetWithDialog, loadPreset, loadPresetFromFile,
         getPresetList, getCurrentPreset, selectNextPreset,
