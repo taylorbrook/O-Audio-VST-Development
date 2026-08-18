@@ -40,6 +40,20 @@ private:
     OBitrotAudioProcessor& audioProcessor;
 
     // ========================================================================
+    // NATIVE-FUNCTION SURFACE — exactly TWELVE, and it must match the names
+    // requested by the inline module in Source/ui/public/index.html AND by
+    // modules/preset-manager.js:
+    //   - setTooltipsEnabled  (v1.12.0: "?" toggle -> processor state property)
+    //   - getTooltipsEnabled  (v1.12.0: page init PULLS the saved preference)
+    //   - the 10 preset fns (Stage 4): savePreset, savePresetWithDialog,
+    //     loadPreset, loadPresetFromFile, getPresetList, getCurrentPreset,
+    //     selectNextPreset, selectPreviousPreset, deletePreset, isFactoryPreset
+    // An unregistered fn leaves its control silently dead while build, auval
+    // and pluginval all pass (pattern_webview_native_fn_bridge_gap), so the
+    // gate grep-diffs both directions at 12<->12.
+    // ========================================================================
+
+    // ========================================================================
     // CRITICAL MEMBER DECLARATION ORDER: Relays -> WebView -> Attachments
     // Members destroyed in REVERSE declaration order (C++ standard).
     // Attachments call into the WebView on destruction, so they MUST die first.
