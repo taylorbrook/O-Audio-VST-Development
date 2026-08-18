@@ -37,7 +37,8 @@
     background: var(--bg-paper);
   }
 
-  /* ============ plugin frame — WebView is exactly 900 × 620 ============ */
+  /* ====== plugin frame — WebView is exactly 900 × 740 (620 before v1.10.0,
+     which added the full-width Rot plate below the grid) ====== */
   .plugin {
     position: relative;
     width: 100%;
@@ -407,6 +408,28 @@
     box-shadow: inset 1px 1px 2px rgba(0,0,0,0.12), 1px 1px 3px rgba(0,0,0,0.12);
   }
   select.field:hover { background-color: rgba(255,248,220,1); }
+
+  /* ============ Tab. VII — Rot plate (v1.10.0) ============
+     The seventh family gets a full-width row of its own between the 3x2 grid
+     and the global strip, rather than a seventh cell. Four columns would have
+     squeezed every plate from 274px to 209px, which the vinyl RPM switch, the
+     packet conceal dropdown and the two codec switches do not fit inside; the
+     window grew 120px instead and every existing panel is untouched.
+
+     It carries .panel as well as .rot-plate, so the plate frame, the double
+     rule and the .off dimming all come across verbatim — .rot-plate only sets
+     the flex sizing and lays the body out horizontally. The controls reuse the
+     .g-group.mix-group idiom from the global strip (readout BESIDE the knob
+     rather than under it), which keeps the row to 110px and needs no change in
+     setupKnob — .mix-group is already in its .closest() selector list. */
+  .rot-plate {
+    flex: 0 0 110px;
+    margin-top: 10px;
+    padding: 7px 16px 8px;
+  }
+  .rot-plate .p-head { flex: 0 0 20px; }
+  .rot-plate .p-body { justify-content: space-evenly; gap: 14px; }
+  .rot-plate .annot { margin: 0 0 0 12px; }
 
   /* ============ global strip ============ */
   .global {
@@ -811,10 +834,61 @@
         </div>
       </div>
 
+      <!-- ================= Tab. VII — Rot (v1.10.0, brief item 8) =========
+           Ships OFF, like Packet / Codec / Crush: the family is opt-in, and
+           while ROT_ENABLE is false the engine takes no RNG draws for it at
+           all, so a v1.9.0 session renders bit-identically. -->
+      <div class="panel rot-plate off" id="panel-rot">
+        <div class="p-head">
+          <span class="led" id="led-rot"></span>
+          <span class="caption"><em>Tab. VII</em> — Rot</span>
+          <span class="annot">bit flips · sticky decode · wrong-decode stretches</span>
+          <span class="gap"></span>
+          <button class="en" data-param="ROT_ENABLE" data-panel="panel-rot">Off</button>
+        </div>
+        <div class="p-body">
+
+          <div class="g-group mix-group">
+            <div class="mix-text">
+              <div class="ctl-label">Prob</div>
+              <div class="ro"></div>
+            </div>
+            <div class="knob k50" data-param="ROT_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          </div>
+
+          <div class="g-group mix-group">
+            <div class="mix-text">
+              <div class="ctl-label">Depth</div>
+              <div class="ro"></div>
+            </div>
+            <div class="knob k50" data-param="ROT_DEPTH" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          </div>
+
+          <div class="vr"></div>
+
+          <div class="g-group mix-group">
+            <div class="mix-text">
+              <div class="ctl-label">Sticky</div>
+              <div class="ro"></div>
+            </div>
+            <div class="knob k50" data-param="ROT_STICK" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          </div>
+
+          <div class="g-group mix-group">
+            <div class="mix-text">
+              <div class="ctl-label">Garble</div>
+              <div class="ro"></div>
+            </div>
+            <div class="knob k50" data-param="ROT_GARBLE" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- ================= global strip ================= -->
       <div class="global">
         <div class="p-head" style="flex: 0 0 18px;">
-          <span class="caption" style="font-size: 11px;"><em>Tab. VII</em> — Global · Clock &amp; Provenance</span>
+          <span class="caption" style="font-size: 11px;"><em>Tab. VIII</em> — Global · Clock &amp; Provenance</span>
         </div>
         <div class="g-body">
 
@@ -913,7 +987,7 @@
     return unit ? s + " " + unit : s;
   };
 
-  // ================= knobs (22 floats; SEED is bound separately) =================
+  // ============ knobs (30 floats; SEED is bound separately below) ============
   const setupKnob = (el) => {
     const state = Juce.getSliderState(el.dataset.param);
     const stem = el.querySelector(".stem");
@@ -961,7 +1035,7 @@
   };
   document.querySelectorAll(".knob[data-param]").forEach(setupKnob);
 
-  // ================= panel enable toggles (6) + steady LEDs =================
+  // ================= panel enable toggles (7) + steady LEDs =================
   // Codec/Crush have no event bit — their spore-print LED is lit steadily
   // whenever the family is enabled.
   const steadyLedPanels = { "panel-codec": "led-codec", "panel-crush": "led-crush" };
@@ -1056,16 +1130,16 @@
     });
   }
 
-  // ================= event LED bridge (Tape / CD / Vinyl / Packet) =============
+  // =========== event LED bridge (Tape / CD / Vinyl / Packet / Rot) ============
   // The ONE legitimate window.__JUCE__ use: receiving backend-emitted events.
-  // Payload: JSON {"mask": N}, bits 0-3 = tape, cd, vinyl, packet (30 Hz timer).
-  // Stateless render with per-family pulse-stretch: an LED stays lit for at
-  // least 120 ms after the last tick on which its family was active.
+  // Payload: JSON {"mask": N}, bits 0-4 = tape, cd, vinyl, packet, rot (30 Hz
+  // timer). Stateless render with per-family pulse-stretch: an LED stays lit
+  // for at least 120 ms after the last tick on which its family was active.
   {
     const PULSE_MS = 120;
-    const families = ["tape", "cd", "vinyl", "packet"];
+    const families = ["tape", "cd", "vinyl", "packet", "rot"];
     const leds = families.map((f) => document.getElementById("led-" + f));
-    const lastActiveMs = [0, 0, 0, 0];
+    const lastActiveMs = families.map(() => 0);
 
     const renderLeds = () => {
       const now = performance.now();

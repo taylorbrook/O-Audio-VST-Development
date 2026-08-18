@@ -154,6 +154,33 @@
     Each of the five was verified to FAIL against the code it gates, by
     reverting that one behaviour and re-running (see the CHANGELOG).
 
+    Probes (v1.10.0: the Rot family, brief item 8):
+
+      R1 flip impulses        — DEPTH 90 puts > 100 samples more than a bit-11
+                                flip away from the reference and DEPTH 0 puts
+                                NONE there (so the knob is load-bearing);
+                                output never leaves [-1, 1], which is the
+                                post-clip.
+      R2 sticky hold          — longest BIT-IDENTICAL output run falls inside
+                                the specified 10-80 ms, and the STICK 0 control
+                                has no plateau at all.
+      R3 garble env-match     — twin renders 20 dB apart on the same seed: over
+                                the windows that decorrelate from the
+                                programme, the loud/quiet RMS ratio tracks the
+                                INPUT ratio (~10x). Fixed-level noise reads 1.0
+                                here, which is what makes it a real test of the
+                                envelope match rather than of noisiness.
+      R4 blocksize identity   — all three kinds live: {512}, {4096} and ragged
+                                are bit-identical. This is the measurement
+                                behind the single-stream decision in RngBank.
+      R5 rot-off null         — ROT_ENABLE off with the other four knobs at
+                                100: bit-exact null, no tolerance. The
+                                containment claim the release rests on.
+
+    R1-R3 and R5 use tape/cd/vinyl DISABLED, which makes the wet path a pure
+    integer delay and the reference exactly input[n - kComp] — so the residual
+    is the rot bus with nothing else mixed into it.
+
     Conventions (all have shipped-bug war stories):
       * position-deterministic noiseAt(n) — NEVER a sequential RNG
         (pattern_rng_stream_interleave_blocksize);
@@ -260,10 +287,10 @@ void setParam (OBitrotAudioProcessor& proc, const char* id, float engineeringVal
         std::printf ("  !! unknown param id '%s'\n", id);
 }
 
-/** Resets ALL 38 parameters to the parameter-spec defaults. Traps: the
+/** Resets ALL 45 parameters to the parameter-spec defaults. Traps: the
     neutral value is often not the range minimum (CRUSH_BITS 16, CRUSH_RATE
-    20000, MIX 100); the latching params (the six *_ENABLEs, HARD_EDGES)
-    matter most. Called at the top of EVERY probe. */
+    20000, MIX 100, CODEC_AGC 100); the latching params (the seven *_ENABLEs,
+    HARD_EDGES) matter most. Called at the top of EVERY probe. */
 void setBaseline (OBitrotAudioProcessor& proc)
 {
     // Global (6)
@@ -322,6 +349,17 @@ void setBaseline (OBitrotAudioProcessor& proc)
 
     // Vinyl warp (1) — v1.7.0, transparent at 0
     setParam (proc, "VINYL_WARP",      0.0f);
+
+    // Rot (5) — v1.10.0. ROT_ENABLE off is the transparent state and the other
+    // four are inert behind it, which is exactly why the pre-v1.10.0 digest
+    // anchors (A3, V1, N7, N8) stay valid with these lines added to the
+    // baseline: a fresh processor is already here, so setting them changes
+    // nothing, and a probe that turned rot on cannot leak into the next one.
+    setParam (proc, "ROT_ENABLE",      0.0f);      // Off
+    setParam (proc, "ROT_PROB",        25.0f);
+    setParam (proc, "ROT_DEPTH",       50.0f);
+    setParam (proc, "ROT_STICK",       25.0f);
+    setParam (proc, "ROT_GARBLE",      25.0f);
 }
 
 //==============================================================================
@@ -6231,6 +6269,361 @@ int main()
                        + (match ? " — single-firer ticks bit-unchanged"
                                 : " — THE OVERLAY SPLIT LEAKED INTO A SINGLE-FAMILY RENDER")
                        + (live ? "" : " — SILENT, probe vacuous"));
+        }
+    }
+
+    //==========================================================================
+    // R1-R5 — the Rot family (v1.10.0, improvement brief item 8).
+    //
+    // Every one of these runs with tape, cd and vinyl DISABLED, which makes the
+    // measurement unusually direct: with the transport families off the wet
+    // path is a pure integer delay (that is what probe B asserts), so the
+    // reference signal is exactly input[n - kComp] and the difference between
+    // the render and that reference IS the rot artifact, with nothing else in
+    // it. No twin-render subtraction is needed to isolate the bus.
+    {
+        // Free-clock at 8 Hz: 125 ms between ticks, comparable to the event
+        // durations, so events land often without every tick being swallowed
+        // as a discarded retrigger.
+        auto configureRot = [] (OBitrotAudioProcessor& proc, float prob, float depth,
+                                float stick, float garble)
+        {
+            setBaseline (proc);
+            setParam (proc, "TAPE_ENABLE",     0.0f);
+            setParam (proc, "CD_ENABLE",       0.0f);
+            setParam (proc, "VINYL_ENABLE",    0.0f);
+            setParam (proc, "CLOCK_MODE",      1.0f);    // Free
+            setParam (proc, "CLOCK_FREE_RATE", 8.0f);
+            setParam (proc, "SEED",            4242.0f);
+            setParam (proc, "ROT_ENABLE",      1.0f);
+            setParam (proc, "ROT_PROB",        prob);
+            setParam (proc, "ROT_DEPTH",       depth);
+            setParam (proc, "ROT_STICK",       stick);
+            setParam (proc, "ROT_GARBLE",      garble);
+        };
+
+        const int total   = (int) (8.0 * kFs);
+        const int startAt = kComp + (int) (0.2 * kFs);   // past mixer smoothing
+
+        //======================================================================
+        // R1 — bit flips are impulses, and the post-clip actually holds.
+        //
+        // Three claims, all three two-sided:
+        //   * at DEPTH 100 the flip window produces MANY samples that depart
+        //     from the reference by more than a bit-11 flip (0.0625 FS);
+        //   * at DEPTH 0 it produces NONE of them — the reachable bit field
+        //     stops at bit 3, i.e. 0.0001 FS, so DEPTH is doing real work
+        //     rather than just existing;
+        //   * no sample anywhere leaves [-1, 1].
+        //
+        // DEPTH 100 rather than 90 for the third clause specifically, and the
+        // reason is worth recording because the first version of this probe got
+        // it wrong: only at DEPTH 1 does the bit field reach bit 15. Below it
+        // every reachable flip moves the word by at most 16384, which from
+        // inside +/-32767 cannot escape +/-32768 — so with the clip DELETED
+        // the bound still held and the clause passed against the code it was
+        // supposed to gate. The sign bit is the only one that can reach 2.0 FS,
+        // and with it in range deleting the clip takes the peak to ~1.5.
+        {
+            auto countDepartures = [&] (float depth, float& peakOut) -> int
+            {
+                auto p = makeProc();
+                configureRot (*p, 100.0f, depth, 0.0f, 0.0f);   // flips only
+
+                juce::AudioBuffer<float> out;
+                renderInto (*p, out, total, { 512 }, sineStereo);
+
+                const auto* o = out.getReadPointer (0);
+                int   n90     = 0;
+                float peak    = 0.0f;
+
+                for (int n = startAt; n < total; ++n)
+                {
+                    peak = juce::jmax (peak, std::abs (o[n]));
+                    if (std::abs (o[n] - sineStereo (0, n - kComp)) > 0.0625f)
+                        ++n90;
+                }
+
+                peakOut = peak;
+                return n90;
+            };
+
+            float peakHi = 0.0f, peakLo = 0.0f;
+            const int hitsFull = countDepartures (100.0f, peakHi);
+            const int hits0    = countDepartures (0.0f,   peakLo);
+
+            const bool loud    = hitsFull > 100;
+            const bool quiet   = hits0 == 0;
+            const bool bounded = peakHi <= 1.0f && peakLo <= 1.0f;
+
+            check ("R1 rot-flip-impulses", loud && quiet && bounded,
+                   juce::String ("depth 100: ") + juce::String (hitsFull)
+                       + " samples > 0.0625 from reference (need > 100); depth 0: "
+                       + juce::String (hits0) + " (need 0); peak "
+                       + juce::String (peakHi, 4)
+                       + (bounded ? " — post-clip holds"
+                                  : " — OUTPUT LEFT [-1,1], THE XOR OVERFLOWED")
+                       + (loud ? "" : " — NO FLIPS LANDED, probe vacuous"));
+        }
+
+        //======================================================================
+        // R2 — the sticky hold is a real hold, of the length the brief asked
+        // for (10-80 ms).
+        //
+        // Measured as the longest run of BIT-IDENTICAL consecutive output
+        // samples. A held sample is DC, and at MIX 100 the mixer gain has
+        // settled to exactly 1 by startAt, so the plateau survives to the
+        // output bit-for-bit.
+        //
+        // The window is asserted at both ends and both ends discriminate:
+        //   * lower bound — the 1.5 ms entry and exit blends eat 2 x 72 samples
+        //     off the shortest possible 10 ms hold, leaving ~336, so anything
+        //     under 300 means no plateau ever formed;
+        //   * upper bound — 80 ms is the ceiling the kind is specified at, and
+        //     3840 samples is where it sits at 48 kHz;
+        //   * the STICK 0 control renders the same schedule as bit flips
+        //     instead, and a flip window has no plateau at all.
+        {
+            auto longestFlatRun = [&] (float stick) -> int
+            {
+                auto p = makeProc();
+                configureRot (*p, 100.0f, 50.0f, stick, 0.0f);
+
+                juce::AudioBuffer<float> out;
+                renderInto (*p, out, total, { 512 }, sineStereo);
+
+                const auto* o   = out.getReadPointer (0);
+                int longest     = 0;
+                int run         = 1;
+
+                for (int n = startAt + 1; n < total; ++n)
+                {
+                    run = bitExact (o[n], o[n - 1]) ? run + 1 : 1;
+                    longest = juce::jmax (longest, run);
+                }
+
+                return longest;
+            };
+
+            const int held = longestFlatRun (100.0f);
+            const int flip = longestFlatRun (0.0f);
+
+            const int loBound = 300;
+            const int hiBound = (int) (RotStage::kStickMaxSec * kFs);
+
+            const bool inRange = held >= loBound && held <= hiBound;
+            const bool control = flip < 100;
+
+            check ("R2 rot-sticky-hold", inRange && control,
+                   juce::String ("longest bit-identical run ") + juce::String (held)
+                       + " samples (" + juce::String (1000.0 * held / kFs, 1)
+                       + " ms), need [" + juce::String (loBound) + ", "
+                       + juce::String (hiBound) + "]; STICK 0 control "
+                       + juce::String (flip) + " (need < 100)"
+                       + (inRange ? "" : " — HOLD MISSING OR OUT OF SPEC")
+                       + (control ? "" : " — CONTROL ALSO HOLDS, probe vacuous"));
+        }
+
+        //======================================================================
+        // R3 — the wrong-decode stretch is ENVELOPE-MATCHED, which is the whole
+        // claim of the kind and the one thing that separates it from "a noise
+        // gate got stuck open".
+        //
+        // Method: two renders at the SAME seed and therefore the same event
+        // schedule, differing only in input amplitude (0.5 vs 0.05, i.e. 20 dB
+        // apart). Over the windows that actually garbled — detected as windows
+        // whose output decorrelates from the reference — the ratio of the two
+        // renders' RMS must track the ratio of the two INPUTS' RMS.
+        //
+        // This is the discriminator a plain "is it noisy" check does not give:
+        // white noise at a FIXED level passes any noisiness test and fails this
+        // one outright, because its ratio would be 1 instead of 10.
+        {
+            InputFn loudTone  = [] (int ch, int n) noexcept -> float
+            {
+                return sineStereo (ch, n);            // amplitude 0.5
+            };
+            InputFn quietTone = [] (int ch, int n) noexcept -> float
+            {
+                return 0.1f * sineStereo (ch, n);     // 20 dB down
+            };
+
+            auto render = [&] (InputFn in, juce::AudioBuffer<float>& out)
+            {
+                auto p = makeProc();
+                configureRot (*p, 100.0f, 50.0f, 0.0f, 100.0f);   // garble only
+                renderInto (*p, out, total, { 512 }, in);
+            };
+
+            juce::AudioBuffer<float> outLoud, outQuiet;
+            render (loudTone,  outLoud);
+            render (quietTone, outQuiet);
+
+            const int win = (int) (0.020 * kFs);   // 20 ms
+            std::vector<double> ratios;
+            double loudRmsSum = 0.0;
+            int    garbled    = 0;
+
+            const auto* oL = outLoud.getReadPointer (0);
+            const auto* oQ = outQuiet.getReadPointer (0);
+
+            for (int w = startAt; w + win <= total; w += win)
+            {
+                // Correlate the loud render against its own reference. A
+                // window that is passing the programme through correlates ~1;
+                // a garbled one is uncorrelated noise.
+                double sxy = 0.0, sxx = 0.0, syy = 0.0;
+                double rmsL = 0.0, rmsQ = 0.0;
+
+                for (int i = 0; i < win; ++i)
+                {
+                    const double x = (double) oL[w + i];
+                    const double y = (double) sineStereo (0, w + i - kComp);
+
+                    sxy += x * y;
+                    sxx += x * x;
+                    syy += y * y;
+
+                    rmsL += x * x;
+                    rmsQ += (double) oQ[w + i] * (double) oQ[w + i];
+                }
+
+                const double denom = std::sqrt (sxx * syy);
+                const double corr  = denom > 0.0 ? sxy / denom : 0.0;
+
+                if (std::abs (corr) > 0.5)
+                    continue;                       // not garbled — skip
+
+                rmsL = std::sqrt (rmsL / (double) win);
+                rmsQ = std::sqrt (rmsQ / (double) win);
+
+                if (rmsQ > 1.0e-6)
+                {
+                    ratios.push_back (rmsL / rmsQ);
+                    loudRmsSum += rmsL;
+                    ++garbled;
+                }
+            }
+
+            double median = 0.0;
+            if (! ratios.empty())
+            {
+                std::sort (ratios.begin(), ratios.end());
+                median = ratios[ratios.size() / 2];
+            }
+
+            // The inputs are exactly 10x apart. Allow a wide band: the follower
+            // is a smoothed RMS, the fades at each end of a stretch are partly
+            // programme, and the noise itself is stochastic over a 20 ms window.
+            const bool enough  = garbled >= 20;
+            const bool tracks  = median > 5.0 && median < 20.0;
+            const bool audible = garbled > 0 && (loudRmsSum / juce::jmax (1, garbled)) > 0.05;
+
+            check ("R3 rot-garble-env-match", enough && tracks && audible,
+                   juce::String ("garbled windows ") + juce::String (garbled)
+                       + " (need >= 20), median loud/quiet RMS ratio "
+                       + juce::String (median, 2) + " (need 5-20; inputs are 10x apart"
+                       + ", a FIXED-level noise would read 1.0), mean garble RMS "
+                       + juce::String (garbled > 0 ? loudRmsSum / garbled : 0.0, 3)
+                       + (tracks ? "" : " — NOISE DOES NOT TRACK THE PROGRAMME LEVEL")
+                       + (enough ? "" : " — TOO FEW GARBLED WINDOWS, probe vacuous"));
+        }
+
+        //======================================================================
+        // R4 — QUAL-02 with all three rot kinds live: the single-stream claim.
+        //
+        // RotStage draws from ONE stream at tick instants AND per sample, which
+        // is the shape `scratch` was split out to avoid. The argument for why
+        // it is safe here (one subsystem, one loop iteration, fixed order) is
+        // in RngBank; this is the measurement. If the tick draws and the
+        // per-sample draws could interleave differently at different block
+        // sizes, these three renders would diverge.
+        {
+            auto render = [&] (const std::vector<int>& sizes, juce::AudioBuffer<float>& out)
+            {
+                auto p = makeProc();
+                configureRot (*p, 100.0f, 70.0f, 30.0f, 35.0f);   // all three kinds
+                renderInto (*p, out, total, sizes, noiseStereo);
+            };
+
+            juce::AudioBuffer<float> a, b, c;
+            render ({ 512 }, a);
+            render ({ 4096 }, b);
+            render ({ 1, 7, 64, 333, 4096 }, c);
+
+            const size_t bytes = sizeof (float) * (size_t) total;
+            bool same = true;
+
+            for (int ch = 0; ch < 2 && same; ++ch)
+            {
+                same = same && std::memcmp (a.getReadPointer (ch), b.getReadPointer (ch), bytes) == 0
+                            && std::memcmp (a.getReadPointer (ch), c.getReadPointer (ch), bytes) == 0;
+            }
+
+            // Liveness: rot must actually be doing something, or three
+            // identical passthroughs would pass this trivially.
+            bool moved = false;
+            {
+                const auto* o = a.getReadPointer (0);
+                for (int n = startAt; n < total && ! moved; ++n)
+                    if (! bitExact (o[n], noiseStereo (0, n - kComp)))
+                        moved = true;
+            }
+
+            check ("R4 rot-blocksize-identity", same && moved,
+                   juce::String (same ? "512 == 4096 == ragged, bit-identical"
+                                      : "RENDERS DIVERGE — the rot stream interleaves with block size")
+                       + (moved ? " (rot active)" : " — ROT INERT, probe vacuous"));
+        }
+
+        //======================================================================
+        // R5 — FUNC-02 with the rot knobs at maximum and the family OFF.
+        //
+        // The containment claim this whole release rests on: while ROT_ENABLE
+        // is false the gate short-circuits before its draw, so rot costs
+        // nothing, perturbs no stream, and touches no sample — regardless of
+        // where the other four knobs sit. This is what keeps the A3/V1/N7/N8
+        // cross-version anchors green, and it is asserted with NO tolerance.
+        {
+            auto p = makeProc();
+            setBaseline (*p);
+            setParam (*p, "TAPE_ENABLE",  0.0f);
+            setParam (*p, "CD_ENABLE",    0.0f);
+            setParam (*p, "VINYL_ENABLE", 0.0f);
+            setParam (*p, "ROT_ENABLE",   0.0f);      // the one that matters
+            setParam (*p, "ROT_PROB",     100.0f);
+            setParam (*p, "ROT_DEPTH",    100.0f);
+            setParam (*p, "ROT_STICK",    100.0f);
+            setParam (*p, "ROT_GARBLE",   100.0f);
+
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, noiseStereo);
+
+            bool         ok = true;
+            juce::String detail;
+
+            for (int ch = 0; ch < 2 && ok; ++ch)
+            {
+                const auto* o = out.getReadPointer (ch);
+                for (int n = startAt; n < total; ++n)
+                {
+                    if (! bitExact (o[n], noiseStereo (ch, n - kComp)))
+                    {
+                        ok = false;
+                        detail = juce::String ("first mismatch ch") + juce::String (ch)
+                               + " @" + juce::String (n);
+                        break;
+                    }
+                }
+            }
+
+            const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+            if (ok && live)
+                detail = "bit-exact null with all four ROT knobs at 100";
+
+            check ("R5 rot-off-null", ok && live,
+                   detail + (live ? "" : " — SILENT, probe vacuous"));
         }
     }
 

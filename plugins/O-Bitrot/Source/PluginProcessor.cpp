@@ -469,6 +469,72 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBitrotAudioProcessor::creat
         "%"
     ));
 
+    // ========================================================================
+    // ROT — v1.10.0 additions (5), improvement brief item 8
+    //
+    // The seventh family, and the fifth append, for the reason every previous
+    // one gave: layout order IS the automation-slot order a host presents, so a
+    // block of five inserted anywhere but the end would shift every parameter
+    // behind it and silently repoint saved automation lanes. The UI puts these
+    // in their own plate regardless — the WebView binds by parameter ID.
+    //
+    // ROT_ENABLE defaults OFF and, unlike CODEC_AGC in v1.8.0, that default is
+    // load-bearing rather than merely polite: the rot gate short-circuits
+    // before its RNG draw while disabled, so a v1.9.0 session or preset renders
+    // BIT-IDENTICALLY under v1.10.0 no matter what the other four are set to.
+    // A preset that omits all five is reset to these defaults by the preset
+    // module's WR-01 pass, which lands in the same place.
+    //
+    // No migration gate is needed: these are new IDs, and nothing about an
+    // existing parameter's range or choice list moved
+    // (critical_apvts_denormalised_vs_preset_normalised).
+    // ========================================================================
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "ROT_ENABLE", 1 },
+        "Rot Enable",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "ROT_PROB", 1 },
+        "Rot Probability",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        25.0f,
+        "%"
+    ));
+
+    // Flip severity: sweeps the flip rate 25 Hz -> 4 kHz exponentially AND
+    // opens the reachable bit field from bit 3 to bit 14. It is the FLIP kind's
+    // severity only — sticky holds and wrong-decode stretches have no severity
+    // axis, their duration is the whole shape.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "ROT_DEPTH", 1 },
+        "Rot Depth",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f,
+        "%"
+    ));
+
+    // Kind ladder, same shape as the tape family's stop/dropout shares:
+    // STICK is tested first, GARBLE takes a share of what is left, and
+    // whatever survives both is a bit-flip window.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "ROT_STICK", 1 },
+        "Rot Sticky Share",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        25.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "ROT_GARBLE", 1 },
+        "Rot Garble Share",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        25.0f,
+        "%"
+    ));
+
     return layout;
 }
 
@@ -533,6 +599,13 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
     crushEnvAmtParam = apvts.getRawParameterValue("CRUSH_ENV_AMT");
     crushDitherParam = apvts.getRawParameterValue("CRUSH_DITHER");
 
+    // Rot
+    rotEnableParam = apvts.getRawParameterValue("ROT_ENABLE");
+    rotProbParam   = apvts.getRawParameterValue("ROT_PROB");
+    rotDepthParam  = apvts.getRawParameterValue("ROT_DEPTH");
+    rotStickParam  = apvts.getRawParameterValue("ROT_STICK");
+    rotGarbleParam = apvts.getRawParameterValue("ROT_GARBLE");
+
     // ── Preset migration (v1.7.0): VINYL_RPM gained "78" ────────────────────
     // Presets store NORMALIZED values. AudioParameterChoice encodes index i
     // over N choices as i/(N-1), so a pre-1.7.0 VINYL_RPM fraction was decoded
@@ -562,17 +635,23 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             }
         });
 
-    // ── Factory bank (Stage 4): 8 presets ───────────────────────────────────
+    // ── Factory bank (Stage 4): 9 presets ───────────────────────────────────
     // Authored in ENGINEERING units, then batch-converted through each
     // parameter's own NormalisableRange below — raw-fraction authoring would
     // ignore the skew on CLOCK_FREE_RATE (centre 1.414 Hz) and CRUSH_RATE
     // (centre 3162 Hz). Choice params are authored as the INDEX; bools as
-    // 0/1; SEED as the integer. Every preset lists all 40 param IDs (defense
+    // 0/1; SEED as the integer. Every preset lists all 45 param IDs (defense
     // in depth over the module's WR-01 reset-to-defaults). No customState —
     // SEED is an APVTS param and O-Bitrot has no non-parameter state.
-    // Coverage: one showcase per family (1-6), sync (2,4,5,7) + free (1,3,8)
-    // clocking, extreme (7) + subtle (8) combos, HARD_EDGES exercised (7),
-    // both codec modes (5 GSM, 7 Mu-law).
+    // Coverage: one showcase per family (1-6 and 9), sync (2,4,5,7) + free
+    // (1,3,8,9) clocking, extreme (7) + subtle (8) combos, HARD_EDGES
+    // exercised (7), both codec modes (5 GSM, 7 Mu-law).
+    //
+    // v1.10.0 adds the five ROT ids to all eight existing presets — six of them
+    // at the transparent default (ROT_ENABLE 0), so those six render exactly as
+    // they did under v1.9.0 — and adds "Corrupt Archive" as the rot family's
+    // showcase, which is what keeps the one-showcase-per-family claim above
+    // true rather than aspirational.
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
         { "Worn Cassette",   // Tape showcase — hiss, wow, drag, occasional full stop
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 1.2f },
@@ -587,7 +666,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 45.0f }, { "VINYL_WEAR", 0.0f },
             { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
 
         { "Skipping Disc",   // CD showcase — machine-gun buffer loops, restart chirps
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -602,7 +683,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
             { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
 
         { "Locked Groove",   // Vinyl showcase — worn surface, revolution jumps, heavy pops
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.4f },
@@ -617,7 +700,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 55.0f },
             { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 45.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
 
         { "Dropped Call",    // Packet showcase — bursty robotic loss over comfort noise
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -632,7 +717,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
             { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 45.0f }, { "VINYL_WARP", 0.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
 
         { "Cellphone 1998",  // Codec showcase — GSM crunch, mains hum, a whiff of loss
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 4.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -647,7 +734,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
             { "CODEC_NOISE", 40.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 35.0f }, { "VINYL_WARP", 0.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
 
         { "Eight-Bit Ruin",  // Crush showcase — quantize + SRR + jitter, ducking envelope
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -662,7 +751,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 15.0f }, { "CRUSH_ENV_AMT", -35.0f }, { "CRUSH_DITHER", 0.6f },
             { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
             { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 0.0f }, { "ROT_PROB", 25.0f }, { "ROT_DEPTH", 50.0f },
+            { "ROT_STICK", 25.0f }, { "ROT_GARBLE", 25.0f } } },
 
         { "Total Media Failure",  // Extreme combo — everything failing at once, hard splices
           { { "CLOCK_MODE", 0.0f }, { "CLOCK_SYNC_DIV", 0.0f }, { "CLOCK_FREE_RATE", 2.0f },
@@ -677,7 +768,9 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 40.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 1.0f },
             { "TAPE_HISS", 60.0f }, { "VINYL_WEAR", 70.0f },
             { "CODEC_NOISE", 55.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 60.0f }, { "VINYL_WARP", 60.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 70.0f }, { "ROT_DEPTH", 85.0f },
+            { "ROT_STICK", 35.0f }, { "ROT_GARBLE", 40.0f } } },
 
         { "Gentle Rot",      // Subtle physical-media patina — mixable default-plus
           { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 0.7f },
@@ -692,7 +785,27 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
             { "TAPE_HISS", 22.0f }, { "VINYL_WEAR", 25.0f },
             { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 20.0f },
-            { "CODEC_AGC", 100.0f } } },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 15.0f }, { "ROT_DEPTH", 30.0f },
+            { "ROT_STICK", 20.0f }, { "ROT_GARBLE", 20.0f } } },
+
+        { "Corrupt Archive", // Rot showcase (v1.10.0) — a WAV with bad blocks:
+                             // crackling flips, decoder hangs, garbled stretches
+          { { "CLOCK_MODE", 1.0f }, { "CLOCK_SYNC_DIV", 2.0f }, { "CLOCK_FREE_RATE", 3.0f },
+            { "SEED", 9999.0f }, { "HARD_EDGES", 0.0f }, { "MIX", 100.0f },
+            { "TAPE_ENABLE", 0.0f }, { "TAPE_PROB", 25.0f }, { "TAPE_STOP_PROB", 10.0f }, { "TAPE_RAMP", 150.0f },
+            { "TAPE_DROP", 0.0f }, { "TAPE_WOW", 0.0f },
+            { "CD_ENABLE", 0.0f }, { "CD_PROB", 25.0f }, { "CD_SEVERITY", 0.5f }, { "CD_SEGMENT", 100.0f },
+            { "VINYL_ENABLE", 0.0f }, { "VINYL_PROB", 25.0f }, { "VINYL_RPM", 0.0f }, { "VINYL_POP", 50.0f },
+            { "PACKET_ENABLE", 0.0f }, { "PACKET_LOSS", 20.0f }, { "PACKET_BURST", 30.0f }, { "PACKET_CONCEAL", 2.0f },
+            { "CODEC_ENABLE", 0.0f }, { "CODEC_MODE", 0.0f }, { "CODEC_MIX", 100.0f },
+            { "CRUSH_ENABLE", 0.0f }, { "CRUSH_BITS", 16.0f }, { "CRUSH_RATE", 20000.0f },
+            { "CRUSH_JITTER", 0.0f }, { "CRUSH_ENV_AMT", 0.0f }, { "CRUSH_DITHER", 0.0f },
+            { "TAPE_HISS", 0.0f }, { "VINYL_WEAR", 0.0f },
+            { "CODEC_NOISE", 0.0f }, { "CODEC_MAINS", 0.0f }, { "PACKET_COMFORT", 0.0f }, { "VINYL_WARP", 0.0f },
+            { "CODEC_AGC", 100.0f },
+            { "ROT_ENABLE", 1.0f }, { "ROT_PROB", 55.0f }, { "ROT_DEPTH", 65.0f },
+            { "ROT_STICK", 30.0f }, { "ROT_GARBLE", 35.0f } } },
     };
 
     // Engineering units → normalized through each parameter's
@@ -736,6 +849,7 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     cdSkip.prepare(sampleRate);
     vinylTransport.prepare(sampleRate);
     artifactSynth.prepare(sampleRate);
+    rotStage.prepare(sampleRate);
     packetStage.prepare(sampleRate, packetEnableParam->load() > 0.5f);
     codecStage.prepare(sampleRate, compLatencySamples,
                        codecEnableParam->load() > 0.5f,
@@ -866,6 +980,16 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     arbParams.vinylRpmIndex = (int) vinylRpmParam->load();
     arbParams.vinylPop01    = vinylPopParam->load() * 0.01f;
 
+    // Rot (v1.10.0). Unlike the trio there is no continuous bed and no state to
+    // release: rotEnabled gates the ROLL only, so switching the family off
+    // leaves a running event to finish on its own fade (bounded at 300 ms),
+    // which is how the CD conceal/mute rungs and the tape dropout behave too.
+    arbParams.rotEnabled     = rotEnableParam->load() > 0.5f;
+    arbParams.rotProb        = (double) rotProbParam->load() * 0.01;
+    arbParams.rotStickShare  = (double) rotStickParam->load() * 0.01;
+    arbParams.rotGarbleShare = (double) rotGarbleParam->load() * 0.01;
+    arbParams.rotDepth       = (double) rotDepthParam->load() * 0.01;
+
     // Packet stage per-block snapshot. The grid + GE chain run
     // unconditionally (documented determinism convention in
     // PacketLossStage.h); PACKET_ENABLE only gates audibility via a ~10 ms
@@ -985,6 +1109,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             Arbitration::TickContext ctx { tapeTransport, tapeDropout,
                                            cdSkip, vinylTransport,
                                            readHead, captureRing, artifactSynth,
+                                           rotStage,
                                            lastAppliedRate, hardEdges };
             arbitration.onTick(rngBank, arbParams, ctx);
             ++tickIndex;
@@ -1098,6 +1223,20 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         wetL += artifact + hissL;
         wetR += artifact + hissR;
 
+        // 6b. Rot (v1.10.0, brief item 8): XOR bit flips, a sticky held sample,
+        //     or a wrong-decode white-noise stretch at the programme's own
+        //     level. Placed AFTER the artifact bus and the beds and BEFORE the
+        //     packet stage, on the beds' own argument: rot is damage to the
+        //     STORED medium, and by the time the file was written the hiss, the
+        //     rumble and the pops were part of the programme, so all of it rots
+        //     together and all of it has to be concealed together when a packet
+        //     goes missing.
+        //
+        //     Exact no-op on the signal while idle — the envelope follower
+        //     inside runs every sample for state continuity but writes only to
+        //     itself, so FUNC-02 survives with the ROT knobs at any setting.
+        rotStage.processSample(rngBank.get(RngBank::rot), wetL, wetR);
+
         // 7. Packet loss (own 20 ms grid, GE Markov, concealment). RNG
         //    (packet stream) consumed only at packet boundaries.
         //
@@ -1149,6 +1288,7 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         if (vinylTransport.isLocked()
             || artifactSynth.popActive())    activity |= kVinylActive;
         if (packetStage.isConcealing())      activity |= kPacketActive;
+        if (rotStage.isActive())             activity |= kRotActive;
     }
 
     uiActivityMask.store(activity, std::memory_order_relaxed);

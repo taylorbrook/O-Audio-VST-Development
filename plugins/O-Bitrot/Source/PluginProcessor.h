@@ -50,6 +50,7 @@
 #include "dsp/CrushStage.h"
 #include "dsp/QuantStage.h"
 #include "dsp/CodecStage.h"
+#include "dsp/RotStage.h"
 
 class OBitrotAudioProcessor : public juce::AudioProcessor
 {
@@ -88,11 +89,12 @@ public:
     // library (~/Library/Ouaricon Bitrot/Presets/).
     OuariconPresetManager presetManager { apvts, "Ouaricon Bitrot" };
 
-    // UI activity telemetry (event LEDs). Bits 0-3: tape, cd, vinyl, packet.
-    // OR-accumulated per sample inside processBlock (short events survive any
-    // block size), published once per block; editor timer reads at 30 Hz.
+    // UI activity telemetry (event LEDs). Bits 0-4: tape, cd, vinyl, packet,
+    // rot. OR-accumulated per sample inside processBlock (short events survive
+    // any block size), published once per block; editor timer reads at 30 Hz.
     enum ActivityBits { kTapeActive = 1, kCdActive = 2,
-                        kVinylActive = 4, kPacketActive = 8 };
+                        kVinylActive = 4, kPacketActive = 8,
+                        kRotActive = 16 };
     std::atomic<uint32_t> uiActivityMask { 0 };
 
 private:
@@ -158,6 +160,14 @@ private:
     std::atomic<float>* crushEnvAmtParam = nullptr;
     std::atomic<float>* crushDitherParam = nullptr;
 
+    // Rot (5 — v1.10.0, brief item 8; appended to the LAYOUT, see
+    // createParameterLayout for why nothing is inserted into a family block)
+    std::atomic<float>* rotEnableParam = nullptr;
+    std::atomic<float>* rotProbParam   = nullptr;
+    std::atomic<float>* rotDepthParam  = nullptr;
+    std::atomic<float>* rotStickParam  = nullptr;
+    std::atomic<float>* rotGarbleParam = nullptr;
+
     // ------------------------------------------------------------------------
     // Stage 2 DSP engine (Phase 2.1: engine core + tape).
     //
@@ -183,6 +193,7 @@ private:
     CDSkip         cdSkip;           // Phase 2.2
     VinylTransport vinylTransport;   // Phase 2.2
     ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps
+    RotStage       rotStage;         // v1.10.0: bit flips / sticky / wrong-decode
     Arbitration     arbitration;
     PacketLossStage packetStage;     // Phase 2.3: GE loss over its own 20 ms grid
     CodecStage      codecStage;

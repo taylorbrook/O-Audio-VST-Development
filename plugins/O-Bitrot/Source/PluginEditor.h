@@ -86,6 +86,12 @@ private:
     std::unique_ptr<juce::WebSliderRelay>       crushJitterRelay;
     std::unique_ptr<juce::WebSliderRelay>       crushEnvAmtRelay;
     std::unique_ptr<juce::WebSliderRelay>       crushDitherRelay;
+    // Rot (v1.10.0)
+    std::unique_ptr<juce::WebToggleButtonRelay> rotEnableRelay;
+    std::unique_ptr<juce::WebSliderRelay>       rotProbRelay;
+    std::unique_ptr<juce::WebSliderRelay>       rotDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay>       rotStickRelay;
+    std::unique_ptr<juce::WebSliderRelay>       rotGarbleRelay;
     // Global
     std::unique_ptr<juce::WebComboBoxRelay>     clockModeRelay;
     std::unique_ptr<juce::WebComboBoxRelay>     clockSyncDivRelay;
@@ -138,6 +144,12 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment>       crushJitterAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       crushEnvAmtAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment>       crushDitherAttachment;
+    // Rot (v1.10.0)
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> rotEnableAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       rotProbAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       rotDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       rotStickAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment>       rotGarbleAttachment;
     // Global
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     clockModeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment>     clockSyncDivAttachment;
