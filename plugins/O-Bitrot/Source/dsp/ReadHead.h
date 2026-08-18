@@ -35,10 +35,20 @@
         linear equal-gain, ~3 ms computed in prepare(). O-Polystutter's
         held-sample blend is deliberately NOT reproduced (it freezes the old
         material to DC). Skipped entirely under HARD_EDGES.
+      * The fade length is PER JUMP (v1.6.0). 3 ms is right for a recovery
+        skip or a vinyl revolution, but a CD anti-shock loop wrapping a 45 ms
+        segment spent 7% of every repeat inside the splice — audibly smoother
+        than the hard-edged buzz the artifact is. Loop wraps therefore pass
+        kLoopSpliceFadeSeconds; everything else keeps the default.
       * A jump arriving MID-FADE is FOLDED into the running crossfade rather
         than restarting it — the dominant head is carried over as the outgoing
         head at the gain already reached (v1.2.1). Restarting dropped the
         outgoing contribution as a step of up to the full jump discontinuity.
+        The running fade's OWN length (fadeLenActive) is what the fold
+        arithmetic uses, and the fold keeps it whenever it keeps fadeCount —
+        adopting a caller's shorter length mid-fade would re-scale the
+        outgoing head's (1 - t) weight and reintroduce the very step the fold
+        exists to prevent (pattern_splice_jump_guard_previous_fade).
       * The lag-overflow clamp is SUPPRESSED while a loop transport owns the
         read rate (v1.3.0). CD loops and locked grooves hold rate at exactly
         1.0 and gate their own jumps on the same lag budget, so the clamp can
@@ -68,12 +78,26 @@ public:
     // duration rather than a fraction of the ring — see prepare().
     static constexpr double kOverflowRecoveryLagSeconds = 1.2;
 
+    // Default jump crossfade (spec window 1-5 ms).
+    static constexpr double kDefaultFadeSeconds = 0.003;
+
+    // Hard-splice crossfade for CD loop wraps (v1.6.0, brief item 14a). The
+    // shortest fade the click-safety contract will carry: 24 samples at 48 kHz,
+    // 22 at 44.1 kHz — enough that the splice is a ramp rather than a sample
+    // step, 6x harder than the default, and 1.1% rather than 6.7% of the
+    // Skipping Disc preset's 45 ms segment.
+    static constexpr double kLoopSpliceFadeSeconds = 0.0005;
+
     void prepare (double sampleRate, int ringSizeSamples)
     {
         fs = sampleRate;
 
-        // Jump crossfade: 3 ms (spec window 1-5 ms), computed once here.
-        fadeLenSamples = juce::jmax (1, static_cast<int> (0.003 * fs));
+        // Jump crossfades, computed once here. fadeLenActive is whichever of
+        // these (or any caller override) the fade currently running was
+        // started with — see clampAndScheduleJump.
+        fadeLenDefault = juce::jmax (1, static_cast<int> (kDefaultFadeSeconds * fs));
+        fadeLenSplice  = juce::jmax (1, static_cast<int> (kLoopSpliceFadeSeconds * fs));
+        fadeLenActive  = fadeLenDefault;
 
         // Runtime lag ceiling: ring span minus the safety margin. This grows
         // with the ring, and is what the loop transports spend as their
@@ -101,17 +125,25 @@ public:
 
     void reset() noexcept
     {
-        pos        = 0.0;
-        lastRate   = 1.0;
-        trim       = 0.0;
-        fadeActive = false;
-        fadeCount  = 0;
-        oldPos     = 0.0;
-        oldRate    = 1.0;
+        pos           = 0.0;
+        lastRate      = 1.0;
+        trim          = 0.0;
+        fadeActive    = false;
+        fadeCount     = 0;
+        fadeLenActive = fadeLenDefault;
+        oldPos        = 0.0;
+        oldRate       = 1.0;
     }
 
     double getPosition() const noexcept { return pos; }
     double getMaxLag() const noexcept   { return maxLagSamples; }
+
+    // Fade lengths a caller may pass to clampAndScheduleJump. Exposed rather
+    // than recomputed at each call site so there is exactly one definition of
+    // each (and so the harness can assert against it instead of mirroring it —
+    // pattern_test_fixture_mirrors_drift_silently).
+    int getDefaultFadeSamples() const noexcept { return fadeLenDefault; }
+    int getSpliceFadeSamples()  const noexcept { return fadeLenSplice; }
 
     // Lag in samples behind the last-written ring sample (>= 0 in practice).
     double getLag (juce::int64 totalWritten) const noexcept
@@ -123,11 +155,21 @@ public:
     // revolution jumps, lag-overflow clamps — lands here. The target is
     // clamped into the valid ring window, then applied through a two-head
     // crossfade (instant under hardEdges).
-    void clampAndScheduleJump (double newPosAbs, juce::int64 totalWritten, bool hardEdges) noexcept
+    //
+    // fadeSamples <= 0 means "the default 3 ms". A caller passes a length only
+    // when the SPLICE ITSELF is the artifact: CD loop wraps pass
+    // getSpliceFadeSamples(). Recovery jumps, vinyl revolutions and the
+    // overflow clamp all take the default — a recovery skip is the player
+    // getting its act together, not a glitch, and a hard edge there would be a
+    // second artifact on top of the one that caused it.
+    void clampAndScheduleJump (double newPosAbs, juce::int64 totalWritten, bool hardEdges,
+                               int fadeSamples = 0) noexcept
     {
         const double hi = static_cast<double> (totalWritten - 1);
         const double lo = hi - maxLagSamples;
         const double p  = juce::jlimit (lo, hi, newPosAbs);
+
+        const int requestedFade = fadeSamples > 0 ? fadeSamples : fadeLenDefault;
 
         if (hardEdges)
         {
@@ -152,26 +194,39 @@ public:
             // the dominant contribution is continuous across the retarget.
             // The residual step is bounded by 0.5 * |delta| in every case, and
             // is exactly 0 in the same-tick collision above.
+            //
+            // t is measured against fadeLenActive — the length the RUNNING
+            // fade was started with, which need not be the length this caller
+            // is asking for (v1.6.0).
             const double t = static_cast<double> (fadeCount)
-                             / static_cast<double> (fadeLenSamples);
+                             / static_cast<double> (fadeLenActive);
 
             if (t >= 0.5)
             {
                 // The incoming head already dominates: it becomes the new
                 // outgoing head and gets the full (1 - t) role from scratch.
-                oldPos    = pos;
-                oldRate   = lastRate;
-                fadeCount = 0;
+                // fadeCount restarts, so the requested length can be adopted.
+                oldPos        = pos;
+                oldRate       = lastRate;
+                fadeCount     = 0;
+                fadeLenActive = requestedFade;
             }
-            // else: the outgoing head still dominates — keep oldPos, oldRate
-            // AND fadeCount so its (1 - t) share is bit-unchanged and only the
-            // incoming head's target moves.
+            // else: the outgoing head still dominates — keep oldPos, oldRate,
+            // fadeCount AND fadeLenActive so its (1 - t) share is bit-unchanged
+            // and only the incoming head's target moves. Adopting a shorter
+            // requested length here would rescale t from fadeCount/A to
+            // fadeCount/B and step the outgoing head's weight — for a 3 ms
+            // fade 100 samples in, retargeted with a 24-sample splice, from
+            // 0.31 straight to 0 (pattern_splice_jump_guard_previous_fade). A
+            // mid-fade collision therefore SPENDS the running length; the
+            // splice request is dropped, never honoured at the cost of a step.
         }
         else
         {
-            oldPos    = pos;
-            oldRate   = lastRate;   // the old head keeps its own rate for the fade
-            fadeCount = 0;
+            oldPos        = pos;
+            oldRate       = lastRate;   // the old head keeps its own rate for the fade
+            fadeCount     = 0;
+            fadeLenActive = requestedFade;
         }
 
         fadeActive = true;
@@ -233,7 +288,7 @@ public:
             const float oR = ring.readFrac (1, oldPos - readOffset);
 
             ++fadeCount;
-            const float t = static_cast<float> (fadeCount) / static_cast<float> (fadeLenSamples);
+            const float t = static_cast<float> (fadeCount) / static_cast<float> (fadeLenActive);
 
             outL = mL * t + oL * (1.0f - t);
             outR = mR * t + oR * (1.0f - t);
@@ -242,7 +297,7 @@ public:
             if (oldPos > hi)
                 oldPos = hi;
 
-            if (fadeCount >= fadeLenSamples)
+            if (fadeCount >= fadeLenActive)
                 fadeActive = false;
         }
         else
@@ -293,10 +348,15 @@ private:
     double trimStep    = 0.0;
     double trimFullLag = 1.0;
 
-    // Two-head jump crossfade
+    // Two-head jump crossfade. fadeLenDefault/fadeLenSplice are the two
+    // lengths prepare() computes; fadeLenActive is the one the fade currently
+    // in flight is running on, and is the ONLY denominator the fold and the
+    // render loop may use.
     bool   fadeActive     = false;
     int    fadeCount      = 0;
-    int    fadeLenSamples = 1;
+    int    fadeLenDefault = 1;
+    int    fadeLenSplice  = 1;
+    int    fadeLenActive  = 1;
     double oldPos         = 0.0;
     double oldRate        = 1.0;
 };
