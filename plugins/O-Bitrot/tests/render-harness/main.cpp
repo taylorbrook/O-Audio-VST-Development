@@ -2747,7 +2747,12 @@ int main()
             head.clampAndScheduleJump (hi - lag, filled, true);   // instant placement
             const double before = head.getPosition();
 
-            vt.onWin (rng, 1 /* 45 RPM */, 0.0f, head, ring, true /* hardEdges */, art);
+            // v1.9.0 split onWin into rollKind (the two draws + the lag test)
+            // and applyOwner (the install). Called back to back with nothing
+            // advancing the head between them, this is the same call the probe
+            // has always made.
+            vt.rollKind (rng, 1 /* 45 RPM */, 0.0f, head, ring);
+            vt.applyOwner (head, ring, true /* hardEdges */, art, rng);
 
             return head.getPosition() - before;
         };
@@ -4541,8 +4546,29 @@ int main()
     // the freshly narrowed render against the anchor the narrowing had just
     // superseded, which is precisely the run that produces the new number. All
     // 86 other probes passing is what says the old tree was otherwise intact.
+    //
+    // RE-ANCHORED A THIRD TIME at v1.9.0 (brief item 6, overlay-class
+    // arbitration), and this time the config is NOT narrowed — the move is the
+    // feature. This render runs TAPE_PROB 100 against CD_PROB 60, so ~60% of
+    // its ticks have two firers, and at CD_SEVERITY 0 the rung roll can only
+    // ever reach rung 0: CD's event here is ALWAYS a conceal, which v1.9.0
+    // classifies as OVERLAY. Under single-winner arbitration that conceal
+    // landed on roughly half the collision ticks; it now lands on all of them,
+    // under a tape bend that keeps ramping underneath. The digest therefore
+    // moves by exactly the mechanism item 6 describes.
+    //
+    // The v1.3.0 number is kept and asserted NEGATIVELY, the discipline N7
+    // uses: a probe that only checked the new anchor would pass just as
+    // happily if the overlay split had silently failed to land.
+    //
+    // What V1 still buys, and it is now a two-sided gate: the v1.9.0 collision
+    // render is pinned for every release after this one. The claim that the
+    // arbitration rewrite left SINGLE-firer ticks bit-identical is a different
+    // claim and is carried by A3 below, which is the probe that actually
+    // constrains this change.
     {
-        constexpr juce::uint64 kV130CanonicalDigest = 0x44a5de77d572facdULL;
+        constexpr juce::uint64 kV190CanonicalDigest = 0x70e744c93cbcc2a3ULL;
+        constexpr juce::uint64 kV130CanonicalDigest = 0x44a5de77d572facdULL;   // retired, kept for provenance
 
         auto p = makeProc();
         configureCanonicalRender (*p);
@@ -4555,14 +4581,15 @@ int main()
 
         const juce::uint64 digest = renderChecksum (out);
         const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
-        const bool         match  = digest == kV130CanonicalDigest;
+        const bool         match  = digest == kV190CanonicalDigest;
+        const bool         moved  = digest != kV130CanonicalDigest;
 
-        check ("V1 v1.3.0-bit-identity", match && live,
+        check ("V1 v1.9.0-collision-identity", match && live && moved,
                juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
-                   + " vs v1.3.0 0x"
-                   + juce::String::toHexString ((juce::int64) kV130CanonicalDigest)
-                   + (match ? " — bends/conceal/recovery + every default-fade jump unchanged"
-                            : " — A NON-VINYL, NON-CD-LOOP PATH MOVED")
+                   + " vs v1.9.0 0x"
+                   + juce::String::toHexString ((juce::int64) kV190CanonicalDigest)
+                   + (match ? " — collision render pinned" : " — COLLISION RENDER DRIFTED")
+                   + (moved ? "" : " — STILL EQUALS v1.3.0: the overlay split DID NOT LAND")
                    + (live ? "" : " — SILENT, probe vacuous"));
     }
 
@@ -5885,6 +5912,326 @@ int main()
                    + (match ? " — non-codec engine unchanged by v1.8.0"
                             : " — THE CODEC EDIT LEAKED OUTSIDE THE CODEC")
                    + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // A1 — ITEM 6: a CD overlay fires under a FOREIGN owner, on every tick.
+    //
+    // The config is chosen so the classification is forced rather than
+    // sampled, which is what lets the pass bar sit at "every tick" instead of
+    // at a statistical margin:
+    //
+    //   * VINYL_PROB 100 — vinyl fires every tick, and both of its event kinds
+    //     (jump, locked groove) are OWNER. So vinyl owns every tick.
+    //     Deliberately vinyl and not tape: a groove jump leaves the read RATE
+    //     at exactly 1.0 (BRIEF:16, "pitch never changes"), so it cannot tilt
+    //     the spectrum of a noise input and confound the measurement below.
+    //     A tape bend would.
+    //   * CD_PROB 100 at CD_SEVERITY 0 — rungFloat = 0*3 + (r-0.5)*1.5 lands in
+    //     [-0.75, 0.75] and clamps at 0, so the rung is ALWAYS 0: conceal.
+    //     Conceal is OVERLAY (filter domain only, orthogonal to head position),
+    //     so CD never contends and its dip must land on all 32 ticks.
+    //   * VINYL_POP 0 — pops are broadband transients that RAISE the HF ratio
+    //     this probe reads as a dip. Silencing them isolates the conceal;
+    //     triggerPop still consumes its five draws at level 0, so the event
+    //     schedule is untouched.
+    //
+    // Under the single-winner arbitration this replaces, both families fired
+    // every tick and the arbitration stream picked one: the conceal reached
+    // the output on roughly HALF the ticks. So the 0.9 bar is not decoration —
+    // this probe FAILS against v1.8.0 at ~0.5, which is the only thing that
+    // makes it a gate (pattern_probe_must_target_the_branch_the_fix_changed).
+    //
+    // Measurement is probe J's HF-ratio-per-window, re-tiled onto the tick
+    // grid, with one config detail that is NOT cosmetic: the scan does not
+    // start until 12 s in.
+    //
+    // VINYL_PROB 100 is a deliberately punishing transport setting. Every tick
+    // that rolls a backward groove jump ages the head by a whole revolution
+    // while the write head advances only one tick period, so the lag walks out
+    // to the ring's budget within a couple of seconds and parks there (past
+    // that point backRoom fails and the family alternates forward and backward
+    // revolutions around the ceiling). The head is then reading material 8-9 s
+    // old — which, early in a render, is the ring's PRE-HISTORY, i.e. zeros.
+    // Measured on the v1.8.0 tree over an 8 s render: median HF ratio 0.00000
+    // across all 341 windows, because the output was silent. The dip bar was
+    // being applied to silence.
+    //
+    // So: render 20 s, and start the scan at 12 s, by which time the ring holds
+    // 10 s of real noise and the parked head is reading it. The start offset is
+    // also tick-aligned (12 s is exactly 48 tick periods, plus kComp for the
+    // reported latency), so each tick sits at the START of its period and its
+    // conceal — 30-80 ms into a 250 ms period — cannot straddle a boundary.
+    {
+        auto p = makeProc();
+        setBaseline (*p);
+        setParam (*p, "CLOCK_MODE",      1.0f);    // Free
+        setParam (*p, "CLOCK_FREE_RATE", 4.0f);
+        setParam (*p, "TAPE_ENABLE",     0.0f);
+        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "CD_SEVERITY",     0.0f);
+        setParam (*p, "VINYL_PROB",      100.0f);
+        setParam (*p, "VINYL_POP",       0.0f);
+        setParam (*p, "SEED",            31337.0f);
+
+        const int total = (int) (20.0 * kFs);
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseStereo);
+
+        const auto*   o          = out.getReadPointer (0);
+        const int     tickPeriod = (int) (kFs / 4.0);
+        const int     scanFrom   = kComp + 48 * tickPeriod;   // 12 s, tick-aligned
+        constexpr int win        = 1024;
+
+        // Global median of the HF ratio, over every window in the scan region.
+        std::vector<double> allRatios;
+        std::vector<std::vector<double>> perTick;
+
+        for (int t = scanFrom; t + tickPeriod <= total; t += tickPeriod)
+        {
+            std::vector<double> thisTick;
+
+            for (int w = t; w + win <= t + tickPeriod; w += win)
+            {
+                double eTot = 0.0, eDiff = 0.0;
+                for (int i = 1; i < win; ++i)
+                {
+                    const double x = o[w + i];
+                    const double d = x - (double) o[w + i - 1];
+                    eTot  += x * x;
+                    eDiff += d * d;
+                }
+                const double ratio = eDiff / juce::jmax (1.0e-12, eTot);
+                thisTick.push_back (ratio);
+                allRatios.push_back (ratio);
+            }
+            perTick.push_back (std::move (thisTick));
+        }
+
+        const double median = medianOf (allRatios);
+        int dipped = 0;
+
+        for (const auto& tick : perTick)
+        {
+            const double lo = *std::min_element (tick.begin(), tick.end());
+            if (lo < 0.5 * median)
+                ++dipped;
+        }
+
+        const double frac = perTick.empty()
+                                ? 0.0
+                                : (double) dipped / (double) perTick.size();
+
+        // Liveness is asserted on the SCAN REGION and on the median ratio, not
+        // on the whole buffer: the starved-head failure above left the tail
+        // silent while the first second still carried signal, so a whole-buffer
+        // magnitude check would have called that render live and applied the
+        // dip bar to zeros.
+        const bool live   = out.getMagnitude (scanFrom, total - scanFrom) > 1.0e-4f
+                            && median > 0.1;
+        const bool always = frac >= 0.9;
+
+        check ("A1 cd-overlay-under-foreign-owner", live && always,
+               juce::String ("conceal dip present in ") + juce::String (dipped) + "/"
+                   + juce::String ((int) perTick.size()) + " tick periods (frac "
+                   + juce::String (frac, 3) + ", need >= 0.900), median ratio "
+                   + juce::String (median, 4)
+                   + (always ? " — overlay fires regardless of the owner"
+                             : " — CD STILL LOSES TICKS TO VINYL (single-winner behaviour)")
+                   + (live ? "" : " — SCAN REGION SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // A2 — ITEM 6: the standalone vinyl pop, the overlay residue of a groove
+    // jump that LOST the tick.
+    //
+    // TAPE_PROB 100 with TAPE_STOP_PROB 0 makes every tape event a bend, and a
+    // bend is OWNER, so tape owns all 32 ticks. VINYL_PROB 100 means vinyl
+    // fires every one of them and loses every one of them. Before v1.9.0 that
+    // meant silence from the vinyl family; now the roll still succeeded, so the
+    // stylus still hits the debris — the pop fires, the transport just is not
+    // vinyl's to move.
+    //
+    // Twin renders differing ONLY in VINYL_POP (50 vs 0), M3's method: the head
+    // schedule, the tape ramps and every RNG stream are identical between them
+    // because triggerPop consumes its five draws at level 0 too, so the
+    // difference signal is the pop bus and nothing else.
+    //
+    // Against v1.8.0 this reads ~0.5: vinyl won about half the ticks and popped
+    // only there.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc, float pop)
+        {
+            setBaseline (proc);
+            setParam (proc, "CLOCK_MODE",      1.0f);    // Free
+            setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+            setParam (proc, "TAPE_PROB",       100.0f);
+            setParam (proc, "TAPE_STOP_PROB",  0.0f);    // bends only: always OWNER
+            setParam (proc, "CD_ENABLE",       0.0f);
+            setParam (proc, "VINYL_PROB",      100.0f);
+            setParam (proc, "VINYL_POP",       pop);
+            setParam (proc, "SEED",            31337.0f);
+        };
+
+        const int total = (int) (8.0 * kFs);
+
+        auto a = makeProc();  configure (*a, 50.0f);
+        auto b = makeProc();  configure (*b, 0.0f);
+
+        juce::AudioBuffer<float> outA, outB;
+        renderInto (*a, outA, total, { 512 }, sineStereo);
+        renderInto (*b, outB, total, { 512 }, sineStereo);
+
+        // The pop bus, isolated.
+        std::vector<float> diff ((size_t) total);
+        const auto* pa = outA.getReadPointer (0);
+        const auto* pb = outB.getReadPointer (0);
+        float peak = 0.0f;
+
+        for (int n = 0; n < total; ++n)
+        {
+            diff[(size_t) n] = pa[n] - pb[n];
+            peak = juce::jmax (peak, std::abs (diff[(size_t) n]));
+        }
+
+        const int    tickPeriod = (int) (kFs / 4.0);
+        const double thresh     = 0.1 * (double) peak;
+
+        int periods = 0, popped = 0;
+
+        for (int t = kComp; t + tickPeriod <= total; t += tickPeriod)
+        {
+            ++periods;
+            for (int i = t; i < t + tickPeriod; ++i)
+            {
+                if (std::abs (diff[(size_t) i]) > thresh)
+                {
+                    ++popped;
+                    break;
+                }
+            }
+        }
+
+        const double frac = periods == 0 ? 0.0 : (double) popped / (double) periods;
+
+        const bool live   = peak > 1.0e-3f;
+        const bool always = frac >= 0.9;
+
+        check ("A2 standalone-vinyl-pop", live && always,
+               juce::String ("pop present in ") + juce::String (popped) + "/"
+                   + juce::String (periods) + " tick periods (frac "
+                   + juce::String (frac, 3) + ", need >= 0.900), bus peak "
+                   + juce::String (peak, 5)
+                   + (always ? " — a lost groove jump still leaves its pop"
+                             : " — VINYL SILENT ON LOST TICKS (single-winner behaviour)")
+                   + (live ? "" : " — POP BUS SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // A3 — ITEM 6's containment claim, and the probe that actually constrains
+    // the rewrite: on any tick with AT MOST ONE firer, v1.9.0 is bit-identical
+    // to v1.8.0.
+    //
+    // This is what makes the overlay split safe to ship without a toggle. The
+    // rewrite moves each family's sub-rolls out of the winner-only branch and
+    // into a classification step that runs for every FIRER, and it replaces the
+    // winner's blanket "release the other two" with a class-aware rule. Neither
+    // is observable unless two families fire on the same tick:
+    //
+    //   * a lone firer either owns the tick (identical install, identical
+    //     draws, identical releases on the two silent families) or is a lone
+    //     overlay (identical install; the two silent families release exactly
+    //     as the old winner released them, and the overlay's own transport is
+    //     left alone — which is what v1.8.0 already did for a tape dropout
+    //     win, Arbitration.h:182-192);
+    //   * a tick with no firer at all releases all three, unchanged.
+    //
+    // Three single-family renders, one per family, each exercising the branch
+    // that moved:
+    //
+    //   a  tape  — TAPE_DROP 40 puts the dropout roll (the conditional second
+    //              draw) and the bend-interval draw on the same stream, which
+    //              is the ordering the rollKind/apply split had to preserve.
+    //   b  cd    — CD_SEVERITY 0.5 makes all three rungs reachable, so the
+    //              bounded-event guard, the rung-change recovery jump and the
+    //              loop entry are all in play.
+    //   c  vinyl — both kinds plus the pop draws.
+    //
+    // All three digests were produced by compiling THIS probe against the
+    // v1.8.0 tree (git 627f8afb) in a detached worktree, BEFORE any v1.9.0
+    // edit. An anchor recorded after the change would only prove the new engine
+    // equals itself.
+    {
+        constexpr juce::uint64 kV180TapeOnly  = 0x24fd1e9c6fae03aaULL;
+        constexpr juce::uint64 kV180CdOnly    = 0x8eb70326e6ce1d95ULL;
+        constexpr juce::uint64 kV180VinylOnly = 0x9a54f4f8c9ad6a9fULL;
+
+        struct Case
+        {
+            const char*  name;
+            juce::uint64 anchor;
+            void (*configure) (OBitrotAudioProcessor&);
+        };
+
+        const Case cases[3] = {
+            { "tape", kV180TapeOnly, [] (OBitrotAudioProcessor& proc)
+              {
+                  setBaseline (proc);
+                  setParam (proc, "CLOCK_MODE",      1.0f);
+                  setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+                  setParam (proc, "TAPE_PROB",       100.0f);
+                  setParam (proc, "TAPE_STOP_PROB",  10.0f);
+                  setParam (proc, "TAPE_DROP",       40.0f);
+                  setParam (proc, "CD_ENABLE",       0.0f);
+                  setParam (proc, "VINYL_ENABLE",    0.0f);
+                  setParam (proc, "SEED",            2024.0f);
+              } },
+            { "cd", kV180CdOnly, [] (OBitrotAudioProcessor& proc)
+              {
+                  setBaseline (proc);
+                  setParam (proc, "CLOCK_MODE",      1.0f);
+                  setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+                  setParam (proc, "TAPE_ENABLE",     0.0f);
+                  setParam (proc, "CD_PROB",         100.0f);
+                  setParam (proc, "CD_SEVERITY",     0.5f);
+                  setParam (proc, "VINYL_ENABLE",    0.0f);
+                  setParam (proc, "SEED",            2024.0f);
+              } },
+            { "vinyl", kV180VinylOnly, [] (OBitrotAudioProcessor& proc)
+              {
+                  setBaseline (proc);
+                  setParam (proc, "CLOCK_MODE",      1.0f);
+                  setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+                  setParam (proc, "TAPE_ENABLE",     0.0f);
+                  setParam (proc, "CD_ENABLE",       0.0f);
+                  setParam (proc, "VINYL_PROB",      100.0f);
+                  setParam (proc, "VINYL_POP",       50.0f);
+                  setParam (proc, "SEED",            2024.0f);
+              } }
+        };
+
+        for (const auto& c : cases)
+        {
+            auto p = makeProc();
+            c.configure (*p);
+
+            const int total = (int) (4.0 * kFs);
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, noiseStereo);
+
+            const juce::uint64 digest = renderChecksum (out);
+            const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
+            const bool         match  = digest == c.anchor;
+
+            const juce::String probeName = juce::String ("A3 single-firer/") + c.name;
+
+            check (probeName.toRawUTF8(), match && live,
+                   juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
+                       + " vs v1.8.0 0x" + juce::String::toHexString ((juce::int64) c.anchor)
+                       + (match ? " — single-firer ticks bit-unchanged"
+                                : " — THE OVERLAY SPLIT LEAKED INTO A SINGLE-FAMILY RENDER")
+                       + (live ? "" : " — SILENT, probe vacuous"));
+        }
     }
 
     //==========================================================================
