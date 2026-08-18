@@ -2,6 +2,155 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.9.0] — 2026-08-18
+
+Overlay-class arbitration — improvement brief item 6. Until now exactly one
+family could act per tick: every win called `release()` on the other two, and
+a tape+vinyl double-fire dropped one event outright. That is the right rule
+for a transport and the wrong one for everything else. Real broken media fail
+in parallel — research §4.2's RSBrokenMedia rolls its categories
+independently — and the engine already half-admitted it, because
+`CDSkip::release` only ever touched the `Loop` state, so a bounded
+conceal/mute rung could *finish* under a tape win even though it could never
+*start* under one.
+
+Events are now split into two classes:
+
+- **OWNER** — drives the transport: a rate (tape stop, tape bend) or a head
+  position (CD loop, vinyl jump, vinyl locked groove). There is one read head,
+  so these still contend **single-winner**, picked uniformly by the
+  `arbitration` stream exactly as before. A coherent playback position is the
+  entire reason the arbitration exists.
+- **OVERLAY** — gain, filter and artifact domain, applied orthogonally to
+  position and rate: the CD conceal dip, the CD mute + residual tick, the tape
+  dropout, and the vinyl standalone pop. These fire **whenever their family's
+  roll succeeds, regardless of who owns the tick.**
+
+This is what makes the "Total Media Failure" preset sound like everything
+failing *at once* rather than like a queue.
+
+**This release changes the render on ticks where two or more families fire.**
+It changes nothing on any other tick, and that boundary is proven rather than
+asserted — see "Render-affecting". No parameter was added, removed, renamed or
+re-ranged, and the state format is untouched, so every saved session and preset
+loads unchanged.
+
+### Added
+- **Standalone vinyl pop** — the vinyl family's overlay residue, and the one
+  genuinely new event here. A vinyl roll that succeeded and then lost the tick
+  used to produce *nothing*, which is not what the physical model says
+  happened: the stylus met the debris either way, and the only difference is
+  whether the groove skipped. A lost roll now fires the pop alone
+  (`VinylTransport::applyStandalonePop`) while the transport stays wherever the
+  winning family put it. It draws the same five `artifactSynth` values every
+  other pop takes, so it inherits the v1.7.0 tick/pop/scratch taxonomy for
+  free — this is surface crackle with variety, not one sample retriggered.
+
+### Changed
+- **The CD conceal and mute rungs are overlays** (the headline). They are
+  filter and gain domain, applied to the rendered pair and orthogonal to head
+  position, so nothing about them ever needed to own the transport. They now
+  layer under a tape bend or a groove jump instead of waiting for a tick the CD
+  family happened to win.
+- **The tape dropout is classified as an overlay explicitly.** It was already
+  one in substance — v1.4.0 installs no rate event, so a bend keeps ramping
+  underneath it — but it still required tape to *win* the tick. It now needs
+  tape only to *roll* one, and layers under a CD loop or a groove jump the same
+  way it always layered under a bend.
+- **Kind rolls moved out of the winner's branch.** Each family now classifies
+  every firer through a pure `rollKind`/`rollRung` step, then applies. That
+  split is what made overlays reachable at all: the sub-rolls used to live
+  inside the winner's `case`, so a losing family never even decided what its
+  event *was*. `CDSkip::onWin` became `rollRung` + `applyLoop` + `applyOverlay`;
+  `VinylTransport::onWin` became `rollKind` + `applyOwner` +
+  `applyStandalonePop`; the tape stop/dropout/bend roll became
+  `Arbitration::rollTapeKind`.
+- **Releases are class-aware.** A family yields its transport state when it does
+  not own the tick — *unless* it fired an overlay and nobody owns, in which case
+  there is nothing to yield to and whatever it was already doing keeps running.
+  That exception is not new: v1.8.0 already left a bend ramping under a
+  tape-dropout win. This is the general form of that rule.
+- The `arbitration` stream's draw is now taken when there is more than one
+  **owner**, rather than more than one firer.
+
+### Fixed
+- A CD overlay landing while its own loop runs exits that loop through
+  `recoveryJump`, never through `release()`/`endLoop`. `endLoop` can enter the
+  100–400 ms servo-seek stage (v1.6.0, item 18), which would have swallowed the
+  very rung being installed. The old code had this right for a rung change and
+  it had to survive the split — a conceal arriving under a foreign owner is the
+  same situation seen from the other side. `Arbitration` therefore does not call
+  `cd.release()` on a family that fired an overlay.
+
+### Render-affecting
+Yes, on multi-firer ticks, and provably nowhere else.
+
+The mechanism is confined by construction. A tick with **at most one firer**
+consumes the same draws, makes the same release calls and installs the same
+event it did at v1.8.0: a lone firer either owns the tick or is a lone overlay,
+and either way the two silent families release exactly as the old winner
+released them. So single-family renders — and multi-family renders on ticks
+that happen not to collide — are bit-identical.
+
+That is asserted, not hoped for. New probe **`A3`** renders three
+single-family configs (tape with `TAPE_DROP 40` so the conditional dropout draw
+and the bend-interval draw are both in play; CD at severity 0.5 so all three
+rungs are reachable; vinyl with both kinds) and pins each against a digest
+recorded by compiling that probe against the **v1.8.0** tree at git `627f8afb`
+**before the first v1.9.0 edit** — the only ordering under which a
+cross-version digest means anything. All three match.
+
+**`V1` moved on purpose and is re-anchored a third time.** Its config runs
+`TAPE_PROB 100` against `CD_PROB 60`, so ~60% of its ticks have two firers, and
+at `CD_SEVERITY 0` the rung roll can only ever reach rung 0 — CD's event there
+is *always* a conceal, i.e. always an overlay. Under single-winner arbitration
+that conceal landed on roughly half the collision ticks; it now lands on all of
+them. The digest went `0x44a5de77d572facd` → `0x70e744c93cbcc2a3`. The v1.3.0
+number is retained and asserted **negatively**, the discipline `N7` uses: a
+build where the overlay split silently failed to land reads as a failure rather
+than as a pass. The probe is re-purposed as a forward anchor pinning the v1.9.0
+collision render.
+
+`N7` and `N8` are untouched and pass unchanged — `configureCanonicalPostRender`
+disables all three transport families, so the packet and codec chains never see
+this edit.
+
+Block-size invariance and seeding are unaffected: overlay decisions are drawn at
+tick instants in the fixed order tape → cd → vinyl, never per-block and never
+per-sample on a shared stream (`pattern_rng_stream_interleave_blocksize`). `N`
+still renders bit-identically at `{1, 7, 64, 333, 4096}` against `{512}` with
+all three families at 100%.
+
+### Testing
+102/102 render-harness probes pass (up from 97). Three are new, and the two
+behavioural ones were **run against the v1.8.0 tree first and fail there** —
+without that they would be decoration rather than gates
+(`pattern_probe_must_target_the_branch_the_fix_changed`).
+
+- **`A1 cd-overlay-under-foreign-owner`** — `VINYL_PROB 100` (vinyl owns every
+  tick; chosen over tape because a groove jump leaves the read rate at exactly
+  1.0 and so cannot tilt a noise spectrum and confound the measurement) against
+  `CD_PROB 100` at `CD_SEVERITY 0`, where the rung roll is forced to conceal.
+  Counts tick periods containing an HF-ratio dip. **31/31** at v1.9.0;
+  **12/31** at v1.8.0.
+
+  One trap worth recording: the first draft rendered 8 s and read 0/31 with a
+  median HF ratio of **0.00000**. `VINYL_PROB 100` is punishing on the
+  transport — every backward groove jump ages the head a whole revolution while
+  the write head advances one tick period, so the lag walks out to the ring's
+  budget within seconds and parks there, and early in a render the material 8–9 s
+  behind live is the ring's *pre-history*, i.e. zeros. The dip bar was being
+  applied to silence. The probe now renders 20 s, starts its scan at 12 s, and
+  gates on the scan region's own magnitude **and** on the median being
+  non-degenerate, so that failure cannot re-present itself as a pass.
+- **`A2 standalone-vinyl-pop`** — `TAPE_PROB 100` with `TAPE_STOP_PROB 0` (every
+  tape event a bend, so tape owns every tick) against `VINYL_PROB 100`. Twin
+  renders differing only in `VINYL_POP` (50 vs 0), which isolates the pop bus
+  exactly, because `triggerPop` consumes its five draws at level 0 too and the
+  head schedule is therefore identical between them. **30/31** tick periods
+  carry a pop at v1.9.0; **12/31** at v1.8.0.
+- **`A3 single-firer-identity`** — the containment gate described above.
+
 ## [1.8.0] — 2026-08-17
 
 Codec chain depth — improvement brief items 16, 29 and 7. All three are the

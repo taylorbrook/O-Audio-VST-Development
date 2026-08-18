@@ -45,9 +45,12 @@
     A dropout changes no position and no rate, so it composes with everything:
     it is applied to the rendered wet pair after ReadHead::renderSample and
     needs no ring headroom and no ReadHead contract. Notably it installs NO
-    rate event, so a bend already in flight keeps ramping underneath it —
-    the first instance in this engine of the OVERLAY class that improvement
-    brief item 6 generalises.
+    rate event, so a bend already in flight keeps ramping underneath it — this
+    was the first instance in the engine of the OVERLAY class, and as of v1.9.0
+    Arbitration classifies it as one explicitly (improvement brief item 6). The
+    practical consequence: a dropout no longer needs the tape family to WIN the
+    tick, only to roll one. It now layers under a CD loop or a groove jump the
+    same way it always layered under a bend.
 
     Determinism: triggered only at ticks, drawing exactly 2 values from the
     `tape` stream every time it is called, whether or not the event is
