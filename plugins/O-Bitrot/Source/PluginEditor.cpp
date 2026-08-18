@@ -64,6 +64,12 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     crushJitterRelay   = std::make_unique<juce::WebSliderRelay>("CRUSH_JITTER");
     crushEnvAmtRelay   = std::make_unique<juce::WebSliderRelay>("CRUSH_ENV_AMT");
     crushDitherRelay   = std::make_unique<juce::WebSliderRelay>("CRUSH_DITHER");
+    // Rot (v1.10.0)
+    rotEnableRelay     = std::make_unique<juce::WebToggleButtonRelay>("ROT_ENABLE");
+    rotProbRelay       = std::make_unique<juce::WebSliderRelay>("ROT_PROB");
+    rotDepthRelay      = std::make_unique<juce::WebSliderRelay>("ROT_DEPTH");
+    rotStickRelay      = std::make_unique<juce::WebSliderRelay>("ROT_STICK");
+    rotGarbleRelay     = std::make_unique<juce::WebSliderRelay>("ROT_GARBLE");
     // Global
     clockModeRelay     = std::make_unique<juce::WebComboBoxRelay>("CLOCK_MODE");
     clockSyncDivRelay  = std::make_unique<juce::WebComboBoxRelay>("CLOCK_SYNC_DIV");
@@ -119,6 +125,11 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*crushJitterRelay)
             .withOptionsFrom(*crushEnvAmtRelay)
             .withOptionsFrom(*crushDitherRelay)
+            .withOptionsFrom(*rotEnableRelay)
+            .withOptionsFrom(*rotProbRelay)
+            .withOptionsFrom(*rotDepthRelay)
+            .withOptionsFrom(*rotStickRelay)
+            .withOptionsFrom(*rotGarbleRelay)
             .withOptionsFrom(*clockModeRelay)
             .withOptionsFrom(*clockSyncDivRelay)
             .withOptionsFrom(*clockFreeRateRelay)
@@ -355,6 +366,17 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("CRUSH_ENV_AMT"), *crushEnvAmtRelay, nullptr);
     crushDitherAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("CRUSH_DITHER"), *crushDitherRelay, nullptr);
+    // Rot (v1.10.0)
+    rotEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_ENABLE"), *rotEnableRelay, nullptr);
+    rotProbAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_PROB"), *rotProbRelay, nullptr);
+    rotDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_DEPTH"), *rotDepthRelay, nullptr);
+    rotStickAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_STICK"), *rotStickRelay, nullptr);
+    rotGarbleAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_GARBLE"), *rotGarbleRelay, nullptr);
     // Global
     clockModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.apvts.getParameter("CLOCK_MODE"), *clockModeRelay, nullptr);
@@ -375,7 +397,14 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
 #endif
 
     startTimerHz(30);
-    setSize(900, 620);
+
+    // 620 -> 740 in v1.10.0: the Rot plate is a new full-width row between the
+    // 3x2 family grid and the global strip. Growing the window rather than
+    // re-flowing the grid to four columns keeps every existing panel's internal
+    // layout pixel-identical — the four-column variant would have forced the
+    // vinyl RPM switch, the packet conceal dropdown and both codec switches
+    // into narrower boxes than their content needs.
+    setSize(900, 740);
 }
 
 OBitrotAudioProcessorEditor::~OBitrotAudioProcessorEditor()
@@ -396,8 +425,9 @@ void OBitrotAudioProcessorEditor::resized()
 
 void OBitrotAudioProcessorEditor::timerCallback()
 {
-    // Event LED bridge — fire-and-forget at 30 Hz. Payload bits 0-3 =
-    // tape, cd, vinyl, packet. Codec/Crush LEDs are UI-side (enable state).
+    // Event LED bridge — fire-and-forget at 30 Hz. Payload bits 0-4 =
+    // tape, cd, vinyl, packet, rot. Codec/Crush LEDs are UI-side (enable
+    // state); rot gets a real event bit because its events are discrete.
     if (! webView->isShowing())
         return;
 

@@ -2,6 +2,116 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.10.0] — 2026-08-18
+
+The **Rot family** — improvement brief item 8, and the plugin finally doing
+what its name says. Research §3.5 lists four corrupt-file mechanisms and the
+engine shipped exactly one of them (buffer shuffling, via the read-head
+machinery); a grep for `xor`, `bitflip`, `sticky` or `byte` across `Source/dsp`
+returned nothing. Meanwhile BRIEF.md:12 claimed "the full physical-to-digital
+spectrum of broken playback". This release closes that gap with the other
+three, as a seventh clocked family:
+
+- **Flip** — a rate-limited window over which individual samples are XORed in
+  the 16-bit domain and clipped. One flipped bit is one impulse: low bits are a
+  faint granular crackle, the sign bit is a full-scale spike. A PCM file with
+  bad blocks.
+- **Stick** — the decoder hangs and one sample is held for 10–80 ms. A short DC
+  plateau, which is what a stalled playback pointer actually emits.
+- **Garble** — a wrong-decode stretch of 30–300 ms: the decoder is reading at
+  the wrong byte offset, so it emits garbage *at the programme's own level*.
+  The envelope match is the artifact — noise at a fixed level reads as a broken
+  plugin, noise that swells and ducks with the music reads as a corrupt file.
+
+No competitor in the README's market snapshot ships wrong-decode stretches.
+
+**This release is bit-identical to v1.9.0 for every existing session and
+preset.** `ROT_ENABLE` defaults off, and the rot gate short-circuits *before*
+its RNG draw while disabled, so the family costs nothing, perturbs no stream
+and touches no sample until it is switched on. That is asserted with no
+tolerance (probe R5) and confirmed by every cross-version anchor — A3×3, V1,
+N7, N8 — still matching its recorded digest.
+
+### Added
+- **`RotStage`** (`Source/dsp/RotStage.h`) — the three kinds above. Pure
+  **OVERLAY** class in the v1.9.0 arbitration vocabulary: rot changes no head
+  position and no transport rate, so it never enters the ownership contest and
+  never touches the `arbitration` stream. It is the first family that is
+  overlay-only, which is what makes adding it a pure append rather than a
+  rewrite of the contest.
+- **Five parameters, appended to the end of the layout** — `ROT_ENABLE` (off),
+  `ROT_PROB` (25%), `ROT_DEPTH` (50%), `ROT_STICK` (25%), `ROT_GARBLE` (25%).
+  Appended for the fifth time for the reason every previous append gave: layout
+  order *is* the automation-slot order, so inserting a block of five anywhere
+  but the end would silently repoint every saved automation lane behind it.
+  `ROT_STICK`/`ROT_GARBLE` are a share ladder in the same shape as the tape
+  family's stop/dropout shares — sticky is tested first, garble takes a share
+  of what is left, and whatever survives both is a flip window.
+- **`RngBank::rot`** — one new stream, appended. Unusually it is drawn at both
+  tick instants and per sample, which is the shape `scratch` was split out to
+  avoid. It is safe here because rot is a *single subsystem* whose draws all
+  happen inside one per-sample loop iteration in fixed order, making the whole
+  sequence a pure function of the absolute sample index. Probe R4 measures that
+  rather than trusting it.
+- **Tab. VII — Rot**, a full-width plate between the family grid and the global
+  strip, with its own spore-print LED on activity bit 4. The window grew
+  620 → 740 to hold it. A four-column grid would have kept the height but
+  squeezed every plate from 274px to 209px, which the vinyl RPM switch, the
+  packet conceal dropdown and the two codec switches do not fit inside; every
+  existing panel is now pixel-identical to v1.9.0. Global is renumbered
+  Tab. VIII.
+- **"Corrupt Archive"** factory preset — the rot family's showcase, which is
+  what keeps the bank's one-showcase-per-family claim true rather than
+  aspirational. The bank is now 9 presets × 45 parameters.
+
+### Changed
+- **"Gentle Rot" and "Total Media Failure" now use the family they were named
+  for** — light (prob 15, depth 30) and severe (prob 70, depth 85)
+  respectively. The other six factory presets carry the five new IDs at
+  `ROT_ENABLE` 0 and render exactly as they did under v1.9.0.
+- **The flip bit field includes bit 15, the sign.** This was excluded in the
+  first cut and it was wrong twice over: physically, a corrupt block does not
+  know which bit is the sign; numerically, excluding it made the brief's
+  "post-clip" unreachable, because a single flip of bit ≤ 14 on a word already
+  inside ±32767 can never leave ±32768. The clip had nothing to do, and the
+  probe that claimed to gate it **passed with the clip deleted**. With bit 15
+  in range the XOR reaches ±2.0 FS and deleting the clip takes the measured
+  peak to 1.5 — see "Negative controls".
+
+### Render-affecting
+Only with `ROT_ENABLE` on. Everything else is bit-identical, by construction
+and by measurement.
+
+### Testing
+Render harness: **107/107 probes pass**, up from 102. Five new probes, all
+running with tape/CD/vinyl disabled so the wet path is a pure integer delay and
+the residual against `input[n - kComp]` is the rot bus with nothing else in it:
+
+| Probe | Measured |
+|-------|----------|
+| R1 flip impulses | depth 100: 2832 samples > 0.0625 from reference; depth 0: **0**; peak exactly 1.0000 |
+| R2 sticky hold | longest bit-identical run 1199 samples (25.0 ms), inside the specified 10–80 ms; STICK 0 control: 1 |
+| R3 garble env-match | 293 garbled windows, median loud/quiet RMS ratio **10.00** against inputs exactly 10× apart |
+| R4 blocksize identity | {512} == {4096} == ragged, bit-identical with all three kinds live |
+| R5 rot-off null | bit-exact null with all four ROT knobs at 100 |
+
+### Negative controls
+Every new probe was verified to **FAIL** against the code it gates, by
+reverting that one behaviour and re-running:
+
+| Reverted | Result |
+|----------|--------|
+| post-clip in `flipSample` | R1 FAILS — peak 1.5000, "THE XOR OVERFLOWED" |
+| sticky blend forced to 0 | R2 FAILS — longest run 1 sample |
+| garble amplitude fixed at 0.35 | R3 FAILS — ratio 1.00 instead of 10.00 |
+| one extra `rot` draw per *block* | R4 FAILS — "RENDERS DIVERGE" |
+| gate ignores `ROT_ENABLE` | R5 FAILS — first mismatch @24960 |
+
+R1's first version did **not** discriminate — it passed with the post-clip
+deleted, which is what exposed the bit-15 design error above. The probe and the
+implementation were both corrected; the entry is here rather than quietly fixed
+because a probe that passes both ways is decoration.
+
 ## [1.9.0] — 2026-08-18
 
 Overlay-class arbitration — improvement brief item 6. Until now exactly one

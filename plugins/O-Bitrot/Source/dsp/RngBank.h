@@ -22,7 +22,7 @@
 
     O-Bitrot - RngBank (Stage 2, Phase 2.1)
 
-    Thirteen named juce::Random streams — one per stochastic subsystem. A
+    Fourteen named juce::Random streams — one per stochastic subsystem. A
     single shared audio-thread RNG breaks block-size invariance the moment two
     subsystems interleave their draws differently at different block sizes
     (pattern_rng_stream_interleave_blocksize), so every subsystem owns a
@@ -91,6 +91,26 @@ public:
         // (pattern_rng_stream_interleave_blocksize); a private stream advanced
         // on a sample counter from a sample-accurate trigger is invariant.
         scratch,       // vinyl scratch-class noise burst (mono)
+
+        // v1.10.0 (brief item 8). Appended on the same terms as every id before
+        // it — stream k is seeded from a function of k alone, so every
+        // pre-existing stream's seed, and therefore every render made with an
+        // old SEED, is untouched.
+        //
+        // ONE stream for the whole Rot family, and unusually it is drawn at BOTH
+        // tick instants (gate, kind, duration) and per sample (flip schedule,
+        // flip bit/channel, wrong-decode noise). That is safe here, and it is
+        // worth being exact about why, because `scratch` above exists to avoid
+        // precisely this shape: the hazard in
+        // pattern_rng_stream_interleave_blocksize is two SUBSYSTEMS sharing one
+        // stream and reaching it at different block-relative instants. Rot is a
+        // SINGLE subsystem whose draws all happen inside one per-sample loop
+        // iteration in a fixed order — ticks land at exact sample offsets and
+        // are processed before that sample's render — so the whole draw sequence
+        // is a pure function of the ABSOLUTE sample index, which is the property
+        // block-size invariance actually needs. Probe R4 asserts it at {512},
+        // {4096} and a ragged schedule rather than trusting the argument.
+        rot,           // Rot family: bit flips, sticky holds, wrong-decode noise
 
         numStreams
     };

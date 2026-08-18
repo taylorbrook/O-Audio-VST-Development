@@ -40,9 +40,23 @@
                 the arbitration existed.
       OVERLAY — gain, filter and artifact domain, applied orthogonally to
                 position and rate: the CD conceal dip, the CD mute + residual
-                tick, the tape dropout, and the vinyl standalone pop. These fire
-                whenever their family's roll succeeds, regardless of who owns
-                the tick.
+                tick, the tape dropout, the vinyl standalone pop, and — as of
+                v1.10.0 — every Rot event. These fire whenever their family's
+                roll succeeds, regardless of who owns the tick.
+
+    THE FOURTH FAMILY (v1.10.0, improvement brief item 8)
+    -----------------------------------------------------
+    Rot is the first family that is overlay-ONLY: bit flips, sticky holds and
+    wrong-decode stretches all rewrite the rendered pair and none of them moves
+    the head or the rate, so rot never enters the ownership contest and never
+    draws from the `arbitration` stream. Adding it is therefore a pure append —
+    it rolls last, on its own stream, after the trio have finished with theirs.
+
+    CONTAINMENT, RESTATED FOR THIS RELEASE: with ROT_ENABLE off the gate
+    short-circuits before its draw, so the rot family consumes NOTHING and every
+    render made before v1.10.0 is bit-identical. That is what keeps the A3, V1,
+    N7 and N8 cross-version anchors green through this feature rather than
+    forcing yet another re-anchor.
 
     A vinyl roll that loses is the one case that changes kind rather than simply
     proceeding: the groove cannot skip while another family holds the head, but
@@ -54,8 +68,8 @@
     PER-TICK SEQUENCE
     -----------------
       1. Gates. Each ENABLED family rolls against its probability using ITS OWN
-         stream, in FIXED order tape -> cd -> vinyl — the same single draw per
-         enabled family that every release since Phase 2.1 has taken.
+         stream, in FIXED order tape -> cd -> vinyl -> rot — the same single
+         draw per enabled family that every release since Phase 2.1 has taken.
       2. Kinds. Each FIRER draws its event kind from its own stream, same fixed
          order. This is the step that moved in v1.9.0; it used to sit inside the
          winner's branch, which is precisely what made an overlay unreachable on
@@ -96,6 +110,7 @@
 #include "ReadHead.h"
 #include "CaptureRing.h"
 #include "ArtifactSynth.h"
+#include "RotStage.h"
 
 //==============================================================================
 /** Linear ~10 ms enable fade for the serial post stages (Packet/Codec/Crush).
@@ -153,6 +168,14 @@ public:
         double cdSegmentMs   = 100.0;
         int    vinylRpmIndex = 0;      // 0 = 33 1/3, 1 = 45
         float  vinylPop01    = 0.5f;   // 0..1
+
+        // Rot (v1.10.0). Default OFF: the family is opt-in, and while it is off
+        // it takes no draws at all (see the containment note above).
+        bool   rotEnabled    = false;
+        double rotProb       = 0.25;   // 0..1
+        double rotStickShare = 0.25;   // 0..1, share of rot wins that HOLD
+        double rotGarbleShare= 0.25;   // 0..1, share of NON-stick wins
+        double rotDepth      = 0.5;    // 0..1, flip severity
     };
 
     struct TickContext
@@ -164,6 +187,7 @@ public:
         ReadHead&          head;
         const CaptureRing& ring;
         ArtifactSynth&     art;
+        RotStage&          rot;
         double             currentRate;   // rate applied last sample (ramp start)
         bool               hardEdges;
     };
@@ -185,6 +209,12 @@ public:
         const bool vinylFired = p.vinylEnabled
             && rng.get (RngBank::vinyl).nextFloat() < static_cast<float> (p.vinylProb);
 
+        // Rot rolls LAST and on its own stream, so its arrival cannot perturb
+        // the trio's draw pattern. Disabled short-circuits before the draw,
+        // which is what makes every pre-v1.10.0 render bit-identical.
+        const bool rotFired = p.rotEnabled
+            && rng.get (RngBank::rot).nextFloat() < static_cast<float> (p.rotProb);
+
         // ── 2. Classification ───────────────────────────────────────────────
         // Same fixed order; each firer draws its event KIND from its OWN
         // stream. This is the step that moved in v1.9.0: the kind rolls used to
@@ -204,6 +234,10 @@ public:
                                             ctx.head, ctx.ring);
 
         juce::ignoreUnused (vinylKind);   // both vinyl kinds are OWNER; see below
+
+        RotStage::Kind rotKind = RotStage::Kind::Flip;
+        if (rotFired)
+            rotKind = rollRotKind (rng, p);
 
         // ── 3. Ownership ────────────────────────────────────────────────────
         // OWNER events drive the transport — a rate (tape stop/bend) or a head
@@ -260,7 +294,7 @@ public:
         // rate. These fire whenever their family's roll succeeded, whoever owns
         // the tick — the whole point of item 6, and what makes a total failure
         // sound like everything failing at once instead of like a queue.
-        // Fixed order tape -> cd -> vinyl, matching the roll order.
+        // Fixed order tape -> cd -> vinyl -> rot, matching the roll order.
         if (tapeFiredOverlay)
             ctx.tapeDropout.trigger (rng.get (RngBank::tape));
 
@@ -270,6 +304,12 @@ public:
 
         if (vinylFired && owner != kVinyl)
             ctx.vinyl.applyStandalonePop (ctx.art, rng);
+
+        // Rot last in the overlay order, matching its position in the roll
+        // order. Nothing about it is conditional on the owner: a corrupt file
+        // is corrupt whether or not the tape is also dragging.
+        if (rotFired)
+            ctx.rot.trigger (rng.get (RngBank::rot), rotKind, p.rotDepth, ctx.hardEdges);
 
         // ── 6. Owner install ────────────────────────────────────────────────
         switch (owner)
@@ -324,5 +364,31 @@ private:
             return TapeKind::Dropout;
 
         return TapeKind::Bend;
+    }
+
+    /** Pure classification for the rot family (v1.10.0). Consumes EXACTLY TWO
+        draws from the `rot` stream on every call — the STICK test, then the
+        GARBLE test over what is left — which is the same share ladder the tape
+        family uses.
+
+        Unlike rollTapeKind the second draw is UNCONDITIONAL. That function
+        skips its dropout roll at share 0 so renders predating the dropout
+        feature stay bit-identical; rot is a new family with no earlier pattern
+        to protect, and an unconditional pair is the simpler invariant to hold
+        on to. */
+    static RotStage::Kind rollRotKind (RngBank& rng, const Params& p) noexcept
+    {
+        auto& s = rng.get (RngBank::rot);
+
+        const float rStick  = s.nextFloat();
+        const float rGarble = s.nextFloat();
+
+        if (rStick < static_cast<float> (p.rotStickShare))
+            return RotStage::Kind::Stick;
+
+        if (rGarble < static_cast<float> (p.rotGarbleShare))
+            return RotStage::Kind::Garble;
+
+        return RotStage::Kind::Flip;
     }
 };
