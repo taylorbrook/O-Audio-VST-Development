@@ -175,7 +175,10 @@ body {
     border: 2px solid #5C4033;
     border-radius: 4px;
     box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
-    max-height: 260px;
+    /* v1.7.0: 50 factory presets across 7 category groups. The editor is 640px tall
+       and the bar sits at the very top, so 420px stays clear of the bottom edge
+       while showing roughly three groups at a time. */
+    max-height: 420px;
     overflow-y: auto;
     z-index: 9999;
 }
@@ -191,14 +194,26 @@ body {
     z-index: 9999;
 }
 
-.preset-dropdown-header {
+/* v1.7.0: category grouping. One .preset-group wraps a heading and its items so the
+   two stay associated for assistive tech; the heading itself is presentational. */
+.preset-group + .preset-group {
+    border-top: 1px solid rgba(92, 64, 51, 0.25);
+}
+
+.preset-group-heading {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     padding: 4px 10px;
     font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #5C4033;
-    background: rgba(139, 168, 112, 0.25);
+    /* Opaque, not the rgba(139,168,112,0.25) this rule used before it went sticky:
+       a translucent heading lets the rows it is pinned over show through it. This is
+       that same olive at 25% pre-composited onto the dropdown's parchment. */
+    background: rgb(226, 228, 193);
     border-bottom: 1px solid rgba(92, 64, 51, 0.4);
     cursor: default;
 }
@@ -265,10 +280,17 @@ body {
 /* In-DOM delete confirmation. window.confirm() is a silent no-op in some JUCE
    WebView backends, so the module is given an onConfirmDelete hook instead. */
 .preset-confirm {
+    /* Prepended into the scrolling list, so it has to pin: with a 50-entry list the
+       delete button that opens it is usually well below the top, and a confirmation
+       the user has to scroll back up to find reads as nothing having happened.
+       z-index above .preset-group-heading so a heading cannot slide over it. */
+    position: sticky;
+    top: 0;
+    z-index: 2;
     padding: 6px 10px;
     font-size: 10px;
     color: #3C2F2F;
-    background: rgba(212, 165, 40, 0.25);
+    background: rgb(249, 232, 179);
     border-bottom: 1px solid rgba(92, 64, 51, 0.4);
 }
 

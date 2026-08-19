@@ -328,6 +328,34 @@ OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEdit
                     complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
                 })
 
+            // v1.7.0: one round trip that answers both "what group is each preset in"
+            // and "which presets are deletable", replacing the per-name isFactoryPreset
+            // fan-out the dropdown used to run (N native calls every time the list
+            // changed). Anything not in the factory table reports as "User", which is
+            // exactly the set the delete button should appear on.
+            //
+            // Shape: { order: [...category names, "User"], categories: { name: category } }
+            // The order array is authoritative for display order — the UI must not
+            // re-sort it, and must drop groups that come back empty.
+            .withNativeFunction("getPresetCategories",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    auto* categories = new juce::DynamicObject();
+                    for (const auto& name : processorRef.presetManager.getPresetList())
+                        categories->setProperty(name, processorRef.getPresetCategory(name));
+
+                    juce::Array<juce::var> order;
+                    for (const auto& category : processorRef.getPresetCategoryOrder())
+                        order.add(category);
+
+                    auto* result = new juce::DynamicObject();
+                    result->setProperty("order", juce::var(order));
+                    result->setProperty("categories", juce::var(categories));
+
+                    complete(juce::var(result));
+                })
+
             // Register global relays
             .withOptionsFrom(inputGainRelay)
             .withOptionsFrom(outputGainRelay)
