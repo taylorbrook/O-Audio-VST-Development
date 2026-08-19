@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.4.3] - 2026-08-19
+
+UI layout fix. The Spatial Audio section was clipped by the bottom edge of the editor window; the control grid is now content-sized and the window is 50 px shorter.
+
+### Fixed
+- **Spatial Audio section clipped off the bottom of the editor:** at the 900 x 850 editor size the page content ran to y=884.5, so the last ~34 px — the bottom row of Spatial Audio knob readouts and the "Set Mode to Scatter or Trajectory to enable" hint — were cut off by `body { overflow: hidden }` and unreachable. *Root cause:* `.controls-area` used `grid-template-rows: 1fr 1fr`, which forces the second row (Beat Sync / Euclidean Rhythm) to match the height of the first (Core Engine / Pitch & Scale). Row 2 needs only 111 px of content but was rendered at 199.5 px, and that 88.5 px of dead space pushed Spatial Audio past the window. Changed to `grid-template-rows: auto auto` so each row sizes to its own content — Beat Sync and Euclidean Rhythm are now 112 px (56 % of the top row) and the dead space is gone.
+
+### Changed
+- **Editor height 850 -> 800 px** (`PluginEditor.cpp`): with the grid fix the natural content height is 797 px, so the window was shortened by 50 px rather than leaving the reclaimed space empty. Width is unchanged at 900 px. Measured content stack at 900x800: header 42 + viz 243 + freeze 33.5 + fleuron 16.5 + controls 331.5 + spatial 133.5 = 800 exactly, nothing clipped.
+- **`.plugin-container` sizes from the editor instead of hard-coding 900x850** — now `width: 100%; height: 100%`, so `setSize()` in `PluginEditor.cpp` is the single source of truth for the window size and the CSS can't drift from it.
+- **`.viz-area` absorbs the layout slack** — the fixed `height: 240px` became `flex: 1 1 auto; min-height: 200px`. The visualizations render at 243 px at the current size, and because the viz is the only flex-grow item, any font-metric difference between WKWebView/WebView2 and the layout-test engine is taken out of the viz height rather than clipping the bottom of the page.
+
+### Testing
+- Layout measured headlessly (Chromium, 900x800) against the shipped `index.html`: Spatial Audio bottom edge = 800.0, spatial hint bottom = 787.0, last knob readout bottom = 775.5 — zero overflow.
+- Negative control: re-injecting the old `grid-template-rows: 1fr 1fr` at the new 800 px height puts the Spatial Audio bottom back at 884.5 (84.5 px clipped), confirming the grid change is what fixes the layout.
+- No DSP, parameter, preset, or state changes — CSS and one `setSize()` call only.
+
 ## [2.4.2] - 2026-07-09
 
 Info-finding cleanup sweep (CODE_REVIEW.md v2.4.0 review, IN-* items — the 2 critical + 12 warning findings were resolved in v2.4.1). No audible or behavioral change; dead-code removal, a per-block micro-optimization, and defensive state resets.
