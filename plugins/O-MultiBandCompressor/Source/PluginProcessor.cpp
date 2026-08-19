@@ -239,7 +239,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OMultiBandCompressorAudioPro
 //
 // A band with `bypassed = true` is still summed into the output, just not compressed
 // (Compressor::processStereo returns early), so single-band presets leave the rest of
-// the spectrum untouched and the reason is visible on the BYPASS button.
+// the spectrum untouched and the reason is visible on the BYPASS button. Note that
+// the early return is *before* the makeup stage as well: to attenuate a band rather
+// than leave it alone, set ratio 1.0 and a negative makeup instead of bypassing it.
+//
+// v1.7.0 adds a `category` to each entry, grouping the browser. The table below is
+// ordered by category, and within a category roughly by how much the preset does —
+// the on-disk order is irrelevant (getPresetList() sorts alphabetically), but it is
+// the order a reader of this file gets, so it is worth keeping.
 //==============================================================================
 
 namespace
@@ -261,6 +268,7 @@ namespace
     struct PresetSpec
     {
         const char* name;    // never contains '/' — the manager uses it verbatim as a filename
+        const char* category; // must match one of kPresetCategories below, verbatim
         float inputGainDb;   // -24 .. +24
         float outputGainDb;  // -24 .. +24
         float mixPct;        // 0 .. 100
@@ -272,21 +280,72 @@ namespace
         BandSpec bands[4];   // LOW, LOMID, HIMID, HIGH
     };
 
+    // v1.7.0: display order for the preset browser. The dropdown groups under these
+    // headings in this order — not alphabetically — so related sounds sit together and
+    // the ◀ / ▶ buttons walk the same path the eye does. "User" is appended by
+    // getPresetCategoryOrder() rather than listed here: it only exists once the user
+    // has saved something, and it must always come last.
+    //
+    // Every PresetSpec::category below must be one of these strings verbatim. A typo
+    // would silently produce an eighth group that sorts after all of them; the
+    // jassert in getPresetCategoryOrder's validation loop catches it at construction.
+    const char* const kPresetCategories[] =
+    {
+        "Init",         // neutral starting points — deliberately inert
+        "Mastering",    // full-mix bus: glue, loudness, spectral hold
+        "Mix Bus",      // sub-group buses: drums, guitars, synths, room
+        "Corrective",   // one problem band, the rest left alone
+        "Instruments",  // single-source, named by what is plugged in
+        "Voice",        // spoken and sung sources
+        "Creative"      // effects — the compression is the point, not transparency
+    };
+
     const PresetSpec kFactoryPresets[] =
     {
-        // --- Neutral starting point ------------------------------------------------
-        // Every ratio at 1:1, so the crossover network runs but nothing is compressed.
-        { "Init Flat", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 8000.0f, {
+        //======================================================================
+        // INIT — neutral starting points
+        //
+        // Every ratio is 1:1, so the crossover network runs and the meters move but
+        // no band compresses. These are the one category the verification harness
+        // expects to measure zero gain reduction from; see the isInertByDesign()
+        // check in tests/render-harness/main.cpp, which keys off this category name
+        // rather than a hard-coded preset name.
+        //======================================================================
+
+        // The stock four-band split, matching the plugin's power-on defaults.
+        { "Init Flat", "Init", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 8000.0f, {
             { -20.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
             { -24.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
             { -30.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
             { -38.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f } } },
 
-        // --- Mastering / bus -------------------------------------------------------
+        // v1.7.0. Three working bands: XOVER3 is parked at 16 kHz, which is the top of
+        // its range, so the HIGH band covers only the last half-octave and is bypassed
+        // outright. Start here when a fourth split is more control than the source needs.
+        { "Init 3-Band", "Init", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 2500.0f, 16000.0f, {
+            { -20.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -26.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -32.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -38.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f } } },
+
+        // v1.7.0. Crossovers at 80 / 700 / 6000 instead of 200 / 2000 / 8000. Splitting
+        // an octave lower in each position puts a bass fundamental in the LOW band
+        // rather than straddling the first crossover, and puts vocal presence in HIMID
+        // rather than at the top edge of LOMID — a better default for full mixes.
+        { "Init Wide Bands", "Init", 0.0f, 0.0f, 100.0f, false, 0, 80.0f, 700.0f, 6000.0f, {
+            { -20.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -24.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -30.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -38.0f, 1.0f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f } } },
+
+        //======================================================================
+        // MASTERING — the full mix bus
+        //======================================================================
+
         // Light ratios and long releases for 1-2 dB of gain reduction per band, the
         // standard "glue" target. RMS-leaning detection and a 12 dB knee keep it from
         // grabbing individual transients.
-        { "Mastering Glue", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1800.0f, 7000.0f, {
+        { "Mastering Glue", "Mastering", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1800.0f, 7000.0f, {
             { -22.0f, 1.8f, 25.0f, 300.0f, 12.0f, 0.5f, 75.0f, false, 25.0f,     0.0f },
             { -24.0f, 1.7f, 20.0f, 250.0f, 12.0f, 0.5f, 75.0f, false,  0.0f,     0.0f },
             { -30.0f, 1.6f, 15.0f, 200.0f, 12.0f, 0.5f, 70.0f, false,  0.0f,     0.0f },
@@ -294,7 +353,7 @@ namespace
 
         // Lighter still: 1.3-1.4:1 with an 18 dB knee, for material that is already
         // balanced and only needs the spectrum held steady.
-        { "Transparent Master", 0.0f, 0.0f, 100.0f, false, 0, 150.0f, 2000.0f, 8000.0f, {
+        { "Transparent Master", "Mastering", 0.0f, 0.0f, 100.0f, false, 0, 150.0f, 2000.0f, 8000.0f, {
             { -20.0f, 1.4f,  30.0f, 400.0f, 18.0f, 0.3f, 85.0f, false, 30.0f,    0.0f },
             { -22.0f, 1.35f, 25.0f, 350.0f, 18.0f, 0.3f, 85.0f, false,  0.0f,    0.0f },
             { -28.0f, 1.3f,  20.0f, 300.0f, 18.0f, 0.3f, 80.0f, false,  0.0f,    0.0f },
@@ -302,7 +361,7 @@ namespace
 
         // Denser: real ratios, faster attacks up top, auto-makeup on so each band gives
         // back 80% of what it takes. Output trimmed +1 dB.
-        { "Loud and Punchy", 0.0f, 1.0f, 100.0f, true, 0, 110.0f, 1600.0f, 6500.0f, {
+        { "Loud and Punchy", "Mastering", 0.0f, 1.0f, 100.0f, true, 0, 110.0f, 1600.0f, 6500.0f, {
             { -26.0f, 3.0f, 15.0f, 180.0f,  6.0f, 0.0f, 60.0f, false, 30.0f,     0.0f },
             { -26.0f, 2.5f, 12.0f, 160.0f,  6.0f, 0.0f, 60.0f, false,  0.0f,     0.0f },
             { -32.0f, 2.5f,  5.0f, 120.0f,  4.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
@@ -310,16 +369,143 @@ namespace
 
         // Slow low-band attack lets the bass bloom before it is caught; the high band
         // uses a stronger ratio and slight cut to round the top the way tape does.
-        { "Warm Tape Glue", 0.0f, 0.0f, 100.0f, false, 0, 130.0f, 1500.0f, 6000.0f, {
+        { "Warm Tape Glue", "Mastering", 0.0f, 0.0f, 100.0f, false, 0, 130.0f, 1500.0f, 6000.0f, {
             { -24.0f, 2.2f, 40.0f, 350.0f, 14.0f,  1.0f, 85.0f, false, 25.0f,    0.0f },
             { -26.0f, 2.0f, 35.0f, 300.0f, 14.0f,  0.5f, 85.0f, false,  0.0f,    0.0f },
             { -30.0f, 1.8f, 25.0f, 250.0f, 14.0f,  0.0f, 80.0f, false,  0.0f,    0.0f },
             { -36.0f, 2.5f,  8.0f, 180.0f, 10.0f, -0.5f, 70.0f, false,  0.0f,    0.0f } } },
 
-        // --- Corrective ------------------------------------------------------------
+        // v1.7.0. Sits between Mastering Glue and Loud and Punchy. Auto-makeup plus a
+        // +1.5 dB output trim gets the mix close to a streaming target without the
+        // 3:1 low band that makes Loud and Punchy audibly dense — the platforms
+        // normalise loudness back down anyway, so the useful work here is consistency,
+        // not level.
+        { "Streaming Loudness", "Mastering", 0.0f, 1.5f, 100.0f, true, 0, 110.0f, 1700.0f, 7000.0f, {
+            { -24.0f, 2.4f, 20.0f, 220.0f,  8.0f, 0.0f, 65.0f, false, 30.0f,     0.0f },
+            { -26.0f, 2.2f, 18.0f, 200.0f,  8.0f, 0.0f, 65.0f, false,  0.0f,     0.0f },
+            { -32.0f, 2.0f, 10.0f, 150.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -40.0f, 2.0f,  4.0f, 100.0f,  6.0f, 0.0f, 35.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. The low crossover drops to 90 Hz so the LOW band holds the kick and
+        // sub alone, and it gets 3.5:1 where the other loudness-oriented masters use
+        // 2.4-3:1 — a club system
+        // reproduces everything under 90 Hz at a level a mix room does not, and an
+        // uncontrolled sub is what actually distorts on a big rig. Fast upper bands keep
+        // the top forward against that tightened bottom.
+        { "Club Master", "Mastering", 0.0f, 1.0f, 100.0f, true, 0, 90.0f, 1500.0f, 6500.0f, {
+            { -26.0f, 3.5f, 12.0f, 160.0f,  4.0f, 0.0f, 55.0f, false, 30.0f,     0.0f },
+            { -28.0f, 2.8f, 14.0f, 170.0f,  6.0f, 0.0f, 60.0f, false,  0.0f,     0.0f },
+            { -32.0f, 2.6f,  6.0f, 110.0f,  4.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
+            { -40.0f, 2.4f,  2.0f,  80.0f,  4.0f, 0.0f, 25.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. Cutting lathes fail on two things: unconstrained low-frequency energy,
+        // which throws the cutter head, and sustained high-frequency energy, which
+        // overheats it. So this is deliberately asymmetric — 4.5:1 on the low band and
+        // 3:1 with a 12 kHz sidechain low-pass on the high band, with the two middle
+        // bands left nearly alone at 1.8:1 so the body of the mix is not re-balanced.
+        // No output boost: headroom is the point.
+        { "Vinyl Prep", "Mastering", 0.0f, 0.0f, 100.0f, false, 0, 100.0f, 2000.0f, 7000.0f, {
+            { -28.0f, 4.5f, 10.0f, 200.0f,  4.0f,  0.5f, 60.0f, false, 25.0f,     0.0f },
+            { -26.0f, 1.8f, 20.0f, 220.0f, 10.0f,  0.0f, 70.0f, false,  0.0f,     0.0f },
+            { -30.0f, 1.8f, 15.0f, 180.0f, 10.0f,  0.0f, 60.0f, false,  0.0f,     0.0f },
+            { -36.0f, 3.0f,  3.0f,  90.0f,  6.0f, -1.0f, 30.0f, false,  0.0f, 12000.0f } } },
+
+        // v1.7.0. M/S Mid mode: only the mono-summed centre is compressed and the
+        // difference signal passes untouched, so the mix tightens around the lead
+        // elements without the stereo field being pulled in with them. The mirror image
+        // of Wide and Controlled, which compresses the sides instead.
+        { "Mid Focus Master", "Mastering", 0.0f, 0.0f, 100.0f, false, 1, 140.0f, 1900.0f, 7500.0f, {
+            { -22.0f, 2.2f, 25.0f, 300.0f, 12.0f, 0.5f, 75.0f, false, 30.0f,     0.0f },
+            { -24.0f, 2.0f, 20.0f, 260.0f, 12.0f, 0.5f, 75.0f, false,  0.0f,     0.0f },
+            { -30.0f, 1.8f, 15.0f, 200.0f, 10.0f, 0.0f, 65.0f, false,  0.0f,     0.0f },
+            { -38.0f, 1.7f, 10.0f, 150.0f, 10.0f, 0.0f, 60.0f, false,  0.0f,     0.0f } } },
+
+        //======================================================================
+        // MIX BUS — sub-groups, not the full mix
+        //======================================================================
+
+        // The 30 ms low-band attack is the point: the kick transient passes untouched
+        // and only the tail after it is compressed, which is what reads as punch. The
+        // high-mid band tightens the snare crack, the high band holds cymbals down.
+        { "Drum Bus Punch", "Mix Bus", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1500.0f, 6000.0f, {
+            { -20.0f, 3.0f, 30.0f, 120.0f,  4.0f, 1.0f, 30.0f, false, 25.0f,     0.0f },
+            { -24.0f, 2.5f, 20.0f, 140.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -28.0f, 3.0f,  8.0f, 100.0f,  4.0f, 0.5f, 25.0f, false,  0.0f,     0.0f },
+            { -34.0f, 2.5f,  3.0f,  70.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. The opposite approach to Drum Bus Punch on the same source. Every
+        // attack is 20-35 ms and every detector is 70-80% RMS, so nothing here tracks an
+        // individual hit — the kit is held together as one object. Use it under a
+        // transient-preserving compressor, or on a kit that is already punchy and only
+        // needs the room and the balance to stop moving.
+        { "Drum Bus Glue", "Mix Bus", 0.0f, 0.0f, 100.0f, false, 0, 130.0f, 1600.0f, 6500.0f, {
+            { -22.0f, 2.0f, 35.0f, 300.0f, 12.0f, 0.5f, 80.0f, false, 30.0f,     0.0f },
+            { -24.0f, 1.9f, 30.0f, 280.0f, 12.0f, 0.5f, 80.0f, false,  0.0f,     0.0f },
+            { -30.0f, 1.8f, 25.0f, 240.0f, 10.0f, 0.0f, 75.0f, false,  0.0f,     0.0f },
+            { -38.0f, 1.7f, 20.0f, 200.0f, 10.0f, 0.0f, 70.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. Stacked electric guitars have two failure modes that are not the same
+        // problem: they pile up below 250 Hz, and they fizz above 4.5 kHz. Crossovers at
+        // 150 / 900 / 4500 give each its own band, and the 11 kHz sidechain low-pass on
+        // the high band keeps cymbal bleed from holding the fizz control down.
+        { "Guitar Bus", "Mix Bus", 0.0f, 0.0f, 100.0f, false, 0, 150.0f, 900.0f, 4500.0f, {
+            { -24.0f, 3.0f, 15.0f, 160.0f,  6.0f,  0.0f, 45.0f, false, 30.0f,     0.0f },
+            { -26.0f, 2.8f, 15.0f, 180.0f,  6.0f,  0.0f, 60.0f, false,  0.0f,     0.0f },
+            { -28.0f, 2.2f, 10.0f, 130.0f,  8.0f,  0.0f, 45.0f, false,  0.0f,     0.0f },
+            { -34.0f, 3.0f,  3.0f,  80.0f,  4.0f, -0.5f, 25.0f, false,  0.0f, 11000.0f } } },
+
+        // v1.7.0. Synth patches move further in level between notes than any acoustic
+        // source — a filter sweep or a velocity layer change can shift 15 dB with no
+        // transient to mark it. The low crossover at 100 Hz isolates the sub oscillator
+        // so it can be held at 3:1 without the same treatment reaching the body.
+        { "Synth Bus", "Mix Bus", 0.0f, 0.0f, 100.0f, false, 0, 100.0f, 1200.0f, 6000.0f, {
+            { -24.0f, 3.0f, 18.0f, 200.0f,  6.0f, 0.5f, 60.0f, false, 25.0f,     0.0f },
+            { -26.0f, 2.2f, 20.0f, 220.0f, 10.0f, 0.0f, 70.0f, false,  0.0f,     0.0f },
+            { -30.0f, 2.0f, 12.0f, 160.0f,  8.0f, 0.0f, 55.0f, false,  0.0f,     0.0f },
+            { -38.0f, 2.0f,  6.0f, 110.0f,  6.0f, 0.0f, 40.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. Shakers, tambourine, congas, cabasa. The energy is all above 1.8 kHz
+        // and it is all transient, so the upper two bands are the fast ones (5 ms and
+        // 1.5 ms, near-pure peak) while the low band stays slow — a fast low band on
+        // hand percussion just chases the room.
+        { "Percussion Bus", "Mix Bus", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1800.0f, 6500.0f, {
+            { -24.0f, 2.0f, 25.0f, 150.0f,  6.0f, 0.0f, 40.0f, false, 30.0f,     0.0f },
+            { -26.0f, 2.5f, 12.0f, 130.0f,  6.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
+            { -30.0f, 3.0f,  5.0f,  90.0f,  4.0f, 0.0f, 25.0f, false,  0.0f,     0.0f },
+            { -36.0f, 3.0f,  1.5f,  60.0f,  3.0f, 0.0f, 15.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. Strings Ensemble applied to a whole orchestral stem, and slower still:
+        // 25-50 ms attacks, up to 450 ms releases, 14-16 dB knees, 75-85% RMS. An
+        // orchestral crescendo is the performance, so the only thing being asked for
+        // here is that the loudest tutti does not overshoot the rest of the mix.
+        { "Orchestral Bus", "Mix Bus", 0.0f, 0.0f, 100.0f, false, 0, 160.0f, 1400.0f, 6000.0f, {
+            { -24.0f, 1.8f, 50.0f, 450.0f, 16.0f, 0.0f, 85.0f, false, 30.0f,     0.0f },
+            { -26.0f, 1.7f, 45.0f, 420.0f, 16.0f, 0.0f, 85.0f, false,  0.0f,     0.0f },
+            { -30.0f, 1.6f, 35.0f, 350.0f, 14.0f, 0.0f, 80.0f, false,  0.0f,     0.0f },
+            { -38.0f, 1.6f, 25.0f, 280.0f, 14.0f, 0.0f, 75.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. Room and overhead mics, where the useful signal is the decay rather
+        // than the hit. Thresholds sit 6-8 dB below the rest of the bank and auto-makeup
+        // is on, so each band spends most of its time compressing and then hands the
+        // gain back — which lifts the tail toward the transient instead of the reverse.
+        { "Room Mic Bus", "Mix Bus", 0.0f, 0.0f, 100.0f, true, 0, 150.0f, 1500.0f, 6500.0f, {
+            { -30.0f, 3.5f, 20.0f, 250.0f, 10.0f, 0.0f, 80.0f, false, 30.0f,     0.0f },
+            { -32.0f, 3.5f, 18.0f, 230.0f, 10.0f, 0.0f, 85.0f, false,  0.0f,     0.0f },
+            { -34.0f, 3.0f, 15.0f, 200.0f, 10.0f, 0.0f, 80.0f, false,  0.0f,     0.0f },
+            { -42.0f, 3.0f, 10.0f, 160.0f,  8.0f, 0.0f, 70.0f, false,  0.0f,     0.0f } } },
+
+        //======================================================================
+        // CORRECTIVE — one problem band, the rest left alone
+        //
+        // These presets bypass the bands they are not there to fix. A bypassed band is
+        // still summed into the output at unity (Compressor::processStereo returns
+        // before both the gain computer and the makeup stage), so the spectrum outside
+        // the target region is untouched and the reason is visible on the BYPASS button.
+        //======================================================================
+
         // Low band only, crossed at 120 Hz. The sidechain high-pass at 30 Hz keeps
         // inaudible subsonic energy from triggering gain reduction.
-        { "Low End Control", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 2000.0f, 8000.0f, {
+        { "Low End Control", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 2000.0f, 8000.0f, {
             { -24.0f, 4.0f, 15.0f, 180.0f,  4.0f, 1.5f, 40.0f, false, 30.0f,     0.0f },
             { -24.0f, 1.5f, 20.0f, 200.0f,  8.0f, 0.0f, 60.0f, true,   0.0f,     0.0f },
             { -30.0f, 1.5f, 15.0f, 150.0f,  8.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
@@ -327,7 +513,7 @@ namespace
 
         // Crossovers pulled to 180 Hz and 600 Hz so the low-mid band sits exactly on the
         // boxy region where guitars, bass and low vocals pile up.
-        { "Mud Tamer", 0.0f, 0.0f, 100.0f, false, 0, 180.0f, 600.0f, 8000.0f, {
+        { "Mud Tamer", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 180.0f, 600.0f, 8000.0f, {
             { -22.0f, 1.5f, 20.0f, 200.0f,  8.0f, 0.0f, 60.0f, true,   0.0f,     0.0f },
             { -26.0f, 3.5f, 12.0f, 200.0f,  6.0f, 0.0f, 60.0f, false,  0.0f,     0.0f },
             { -28.0f, 1.5f, 15.0f, 150.0f,  8.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
@@ -337,7 +523,7 @@ namespace
         // release so only the sibilant itself ducks. Pure peak detection — an RMS
         // window would average the "s" away. The sidechain low-pass at 12 kHz stops
         // cymbals and air from holding the de-esser down.
-        { "De-Esser Vocal", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 6500.0f, {
+        { "De-Esser Vocal", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 6500.0f, {
             { -20.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -30.0f, 1.5f,  5.0f,  90.0f,  6.0f, 0.0f, 40.0f, true,   0.0f,     0.0f },
@@ -345,7 +531,7 @@ namespace
 
         // The 2.5-7 kHz band is where cheap converters, bright amps and over-EQ'd
         // vocals get abrasive. 4:1 with a 3 ms attack catches the peaks without dulling.
-        { "Harshness Tamer", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2500.0f, 7000.0f, {
+        { "Harshness Tamer", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2500.0f, 7000.0f, {
             { -20.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -30.0f, 4.0f,  3.0f,  80.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f },
@@ -353,7 +539,7 @@ namespace
 
         // v1.6.0. Sizzle above 7 kHz — overheads, hats and ride wash. Peak detection
         // and a 1 ms attack so it rides the individual crashes rather than the bed.
-        { "Cymbal Sizzle Control", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 7000.0f, {
+        { "Cymbal Sizzle Control", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 7000.0f, {
             { -20.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -30.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
@@ -363,7 +549,7 @@ namespace
         // nasal/honky region — boxy snares, quacky guitars, midrange-forward vocals.
         // Slower than the other harshness presets: honk is a sustained resonance, not
         // a transient, so a fast attack would just chatter on it.
-        { "Nasal Honk Control", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 800.0f, 2000.0f, {
+        { "Nasal Honk Control", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 800.0f, 2000.0f, {
             { -20.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -26.0f, 3.5f,  8.0f, 120.0f,  5.0f, 0.0f, 45.0f, false,  0.0f,     0.0f },
@@ -372,38 +558,50 @@ namespace
         // v1.6.0. Amp-sim and distortion fizz sits from about 3.5 kHz up. The sidechain
         // low-pass at 10 kHz keeps genuine air out of the detector, so the band responds
         // to the fizz itself rather than being held down by everything above it.
-        { "Amp Fizz Control", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 3500.0f, {
+        { "Amp Fizz Control", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 2000.0f, 3500.0f, {
             { -20.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -30.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
             { -32.0f, 4.0f,  2.0f,  70.0f,  3.0f, 0.0f, 15.0f, false,  0.0f, 10000.0f } } },
 
-        // --- Instrument / bus ------------------------------------------------------
-        // Four jobs at once: fast low band for plosives and mic rumble, gentle RMS band
-        // for chest-voice level, presence control through the mids, de-esser on top.
-        // The low crossover sits at 120 Hz so a male fundamental (roughly 85-180 Hz)
-        // lands mostly in the RMS body band rather than under the fast plosive band —
-        // at 150 Hz with a -30 dB threshold the harness measured 21 dB of gain
-        // reduction on the low band, which thins the voice instead of de-popping it.
-        { "Vocal Bus", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1200.0f, 6500.0f, {
-            { -26.0f, 4.0f,  3.0f, 120.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f },
-            { -24.0f, 2.5f, 15.0f, 150.0f,  8.0f, 0.5f, 70.0f, false,  0.0f,     0.0f },
-            { -28.0f, 3.0f,  5.0f,  90.0f,  6.0f, 0.0f, 30.0f, false,  0.0f,     0.0f },
-            { -34.0f, 5.0f,  0.5f,  45.0f,  2.0f, 0.0f,  0.0f, false,  0.0f, 12000.0f } } },
+        // v1.7.0. Not Low End Control with a faster attack — a different job. Low End
+        // Control levels the whole bass region at 15 ms; a plosive is a single 20-40 ms
+        // blast of air, so this is 0.5 ms at 8:1 with a 2 dB knee and near-pure peak
+        // detection, and it releases in 60 ms so the note under the "p" comes straight
+        // back. The 25 Hz sidechain high-pass keeps stand rumble out of the trigger.
+        { "Plosive Control", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 2000.0f, 8000.0f, {
+            { -28.0f, 8.0f,  0.5f,  60.0f,  2.0f, 0.0f,  5.0f, false, 25.0f,     0.0f },
+            { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
+            { -30.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
+            { -38.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f } } },
 
-        // The 30 ms low-band attack is the point: the kick transient passes untouched
-        // and only the tail after it is compressed, which is what reads as punch. The
-        // high-mid band tightens the snare crack, the high band holds cymbals down.
-        { "Drum Bus Punch", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1500.0f, 6000.0f, {
-            { -20.0f, 3.0f, 30.0f, 120.0f,  4.0f, 1.0f, 30.0f, false, 25.0f,     0.0f },
-            { -24.0f, 2.5f, 20.0f, 140.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
-            { -28.0f, 3.0f,  8.0f, 100.0f,  4.0f, 0.5f, 25.0f, false,  0.0f,     0.0f },
-            { -34.0f, 2.5f,  3.0f,  70.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f } } },
+        // v1.7.0. XOVER1 pulled down to 45 Hz, near the bottom of its 20-500 Hz range,
+        // so the LOW band holds only traffic, HVAC, footfall and mic-stand rumble and
+        // not the bass fundamental — which is the whole difference between this and
+        // Low End Control. 8:1 with a 2 dB knee, and no sidechain high-pass: the
+        // subsonic content the other presets filter OUT of the detector is exactly what
+        // this one is listening FOR.
+        //
+        // The threshold is -22 dB rather than the -38 dB the band-level staircase would
+        // suggest, because the staircase is calibrated for bands that carry program
+        // material and this one is not: below 45 Hz there should be almost nothing, so
+        // the threshold has to sit above the noise floor of a clean recording or the
+        // preset compresses continuously. Authored at -40 dB it measured 31 dB of gain
+        // reduction on the harness — a gate, not a control.
+        { "Sub Rumble Control", "Corrective", 0.0f, 0.0f, 100.0f, false, 0, 45.0f, 2000.0f, 8000.0f, {
+            { -22.0f, 6.0f,  5.0f, 120.0f,  2.0f, 0.0f, 30.0f, false,  0.0f,     0.0f },
+            { -24.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
+            { -30.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f },
+            { -38.0f, 1.5f, 10.0f, 100.0f,  6.0f, 0.0f, 50.0f, true,   0.0f,     0.0f } } },
+
+        //======================================================================
+        // INSTRUMENTS — single sources, named by what is plugged in
+        //======================================================================
 
         // Crossed at 100 Hz and 800 Hz to split fundamental from growl. 5:1 on the
         // fundamental evens out note-to-note level; the sidechain high-pass keeps
         // subsonic energy out of the detector.
-        { "Bass Tighten", 0.0f, 0.0f, 100.0f, false, 0, 100.0f, 800.0f, 4000.0f, {
+        { "Bass Tighten", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 100.0f, 800.0f, 4000.0f, {
             { -18.0f, 5.0f,  8.0f, 150.0f,  4.0f, 1.5f, 60.0f, false, 30.0f,     0.0f },
             { -22.0f, 3.0f, 12.0f, 180.0f,  6.0f, 0.5f, 55.0f, false,  0.0f,     0.0f },
             { -30.0f, 2.0f,  5.0f, 100.0f,  6.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
@@ -414,27 +612,16 @@ namespace
         // The low band is boom control, not a gate on the body of the instrument —
         // the low E is 82 Hz and the body resonance sits near 100 Hz, both inside this
         // band, so 4:1 at -26 dB (12 dB of reduction in the harness) hollowed it out.
-        { "Acoustic Guitar", 0.0f, 0.0f, 100.0f, false, 0, 180.0f, 1500.0f, 7000.0f, {
+        { "Acoustic Guitar", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 180.0f, 1500.0f, 7000.0f, {
             { -22.0f, 3.0f, 10.0f, 150.0f,  4.0f, 0.0f, 40.0f, false, 30.0f,     0.0f },
             { -26.0f, 2.0f, 20.0f, 180.0f,  8.0f, 0.5f, 70.0f, false,  0.0f,     0.0f },
             { -30.0f, 2.5f,  4.0f,  90.0f,  6.0f, 0.0f, 25.0f, false,  0.0f,     0.0f },
             { -36.0f, 2.0f,  2.0f,  60.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f } } },
 
-        // Speech: heavy RMS levelling through the body band, a fast low band for
-        // plosives and desk rumble, de-esser on top, auto-makeup and +2 dB out so the
-        // result lands close to broadcast level without further gain staging.
-        // Low crossover at 120 Hz for the same reason as Vocal Bus: the fast low band
-        // is there to catch plosives and desk rumble, not to compress the voice itself.
-        { "Podcast Voice", 0.0f, 2.0f, 100.0f, true, 0, 120.0f, 1200.0f, 6000.0f, {
-            { -26.0f, 4.0f,  2.0f, 100.0f,  2.0f, 0.0f, 10.0f, false, 30.0f,     0.0f },
-            { -28.0f, 3.5f, 12.0f, 140.0f,  8.0f, 0.0f, 80.0f, false,  0.0f,     0.0f },
-            { -30.0f, 3.0f,  6.0f,  90.0f,  6.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
-            { -34.0f, 5.0f,  0.5f,  40.0f,  2.0f, 0.0f,  0.0f, false,  0.0f, 11000.0f } } },
-
         // v1.6.0. Crossed at 150 / 900 / 4000: rumble, body, pick and mids, then fizz.
         // The high band is trimmed slightly negative because amp sims and bright
         // single-coils rarely need more top once the fizz is under control.
-        { "Electric Guitar", 0.0f, 0.0f, 100.0f, false, 0, 150.0f, 900.0f, 4000.0f, {
+        { "Electric Guitar", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 150.0f, 900.0f, 4000.0f, {
             { -26.0f, 3.5f, 12.0f, 150.0f,  4.0f,  0.0f, 40.0f, false, 30.0f,     0.0f },
             { -24.0f, 2.5f, 18.0f, 180.0f,  8.0f,  0.5f, 65.0f, false,  0.0f,     0.0f },
             { -28.0f, 3.0f,  5.0f, 100.0f,  6.0f,  0.0f, 30.0f, false,  0.0f,     0.0f },
@@ -443,7 +630,7 @@ namespace
         // v1.6.0. Piano has the widest dynamic range of anything here, so every band is
         // deliberately gentle with a wide knee and RMS-leaning detection — the goal is
         // to stop the low register swamping the mix, not to level the performance.
-        { "Piano", 0.0f, 0.0f, 100.0f, false, 0, 160.0f, 1200.0f, 5000.0f, {
+        { "Piano", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 160.0f, 1200.0f, 5000.0f, {
             { -22.0f, 2.0f, 25.0f, 250.0f, 10.0f, 0.0f, 70.0f, false, 25.0f,     0.0f },
             { -24.0f, 1.8f, 20.0f, 220.0f, 10.0f, 0.0f, 75.0f, false,  0.0f,     0.0f },
             { -28.0f, 1.8f, 12.0f, 160.0f,  8.0f, 0.0f, 55.0f, false,  0.0f,     0.0f },
@@ -453,7 +640,7 @@ namespace
         // releases, heavily RMS. A fast attack on strings clamps the bow articulation
         // and turns a section into a pad, so every band is set to ride the swell
         // underneath the attack rather than catch it.
-        { "Strings Ensemble", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1500.0f, 6000.0f, {
+        { "Strings Ensemble", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1500.0f, 6000.0f, {
             { -24.0f, 1.6f, 60.0f, 500.0f, 14.0f, 0.0f, 85.0f, false, 30.0f,     0.0f },
             { -26.0f, 1.6f, 50.0f, 450.0f, 14.0f, 0.0f, 85.0f, false,  0.0f,     0.0f },
             { -30.0f, 1.5f, 40.0f, 400.0f, 14.0f, 0.0f, 80.0f, false,  0.0f,     0.0f },
@@ -462,7 +649,7 @@ namespace
         // v1.6.0. Brass blare concentrates between 1 and 4 kHz and rises sharply with
         // playing intensity, so the high-mid band is the aggressive one (4:1, 4 ms)
         // while the rest stays moderate.
-        { "Brass Section", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1000.0f, 4000.0f, {
+        { "Brass Section", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1000.0f, 4000.0f, {
             { -22.0f, 2.0f, 25.0f, 200.0f,  8.0f, 0.0f, 60.0f, false, 30.0f,     0.0f },
             { -24.0f, 2.2f, 15.0f, 180.0f,  8.0f, 0.0f, 60.0f, false,  0.0f,     0.0f },
             { -28.0f, 4.0f,  4.0f,  90.0f,  4.0f, 0.0f, 25.0f, false,  0.0f,     0.0f },
@@ -471,7 +658,7 @@ namespace
         // v1.6.0. Marimba, vibes, glockenspiel, tuned percussion. The 25-35 ms attacks
         // exist to let the mallet strike through untouched; what is being controlled is
         // the bloom and ring after it, which is why the releases are comparatively long.
-        { "Mallet Percussion", 0.0f, 0.0f, 100.0f, false, 0, 250.0f, 2000.0f, 7000.0f, {
+        { "Mallet Percussion", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 250.0f, 2000.0f, 7000.0f, {
             { -22.0f, 2.5f, 35.0f, 200.0f,  6.0f, 0.5f, 45.0f, false, 30.0f,     0.0f },
             { -24.0f, 2.5f, 30.0f, 220.0f,  6.0f, 0.0f, 50.0f, false,  0.0f,     0.0f },
             { -30.0f, 2.2f, 25.0f, 180.0f,  6.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
@@ -481,17 +668,117 @@ namespace
         // the work happens in the 5 kHz+ band, where breath and key noise live. Peak
         // detection with a 3 ms attack ducks the breath rather than the note, and the
         // sidechain low-pass keeps room air out of that decision.
-        { "Woodwind Breath", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1600.0f, 5000.0f, {
+        { "Woodwind Breath", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 200.0f, 1600.0f, 5000.0f, {
             { -24.0f, 2.0f, 30.0f, 250.0f, 10.0f,  0.0f, 75.0f, false, 30.0f,     0.0f },
             { -26.0f, 2.0f, 25.0f, 220.0f, 10.0f,  0.0f, 80.0f, false,  0.0f,     0.0f },
             { -30.0f, 2.0f, 15.0f, 150.0f,  8.0f,  0.0f, 55.0f, false,  0.0f,     0.0f },
             { -36.0f, 4.0f,  3.0f,  80.0f,  4.0f, -0.5f, 20.0f, false,  0.0f, 12000.0f } } },
 
-        // --- Effect ----------------------------------------------------------------
+        // v1.7.0. Close-miked kick, crossed at 110 Hz so the LOW band is the thump
+        // alone. Its 30 ms attack is the same trick Drum Bus Punch uses and for the same
+        // reason — the beater click arrives inside the first few milliseconds and must
+        // pass untouched, so the compressor only ever sees the body behind it. The upper
+        // bands tighten shell ring and remove the trailing rattle.
+        { "Kick Drum", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 110.0f, 800.0f, 5000.0f, {
+            { -22.0f, 4.0f, 30.0f, 140.0f,  3.0f, 1.0f, 25.0f, false, 25.0f,     0.0f },
+            { -28.0f, 3.0f, 20.0f, 120.0f,  4.0f, 0.0f, 35.0f, false,  0.0f,     0.0f },
+            { -32.0f, 2.5f,  8.0f, 100.0f,  4.0f, 0.0f, 25.0f, false,  0.0f,     0.0f },
+            { -40.0f, 2.0f,  3.0f,  70.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. The crack of a snare is a 2 ms event centred around 200 Hz and 4 kHz
+        // at once, and the ring that follows it is the problem. The LOMID band carries
+        // the fundamental and gets the strongest ratio with a +0.5 dB makeup to keep the
+        // body; the HIGH band is fast and short so the wire buzz is shortened rather
+        // than the stick attack softened.
+        { "Snare Drum", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 150.0f, 1200.0f, 5500.0f, {
+            { -26.0f, 3.0f, 20.0f, 120.0f,  4.0f, 0.0f, 30.0f, false, 30.0f,     0.0f },
+            { -26.0f, 3.5f, 15.0f, 130.0f,  4.0f, 0.5f, 35.0f, false,  0.0f,     0.0f },
+            { -30.0f, 3.0f,  6.0f,  90.0f,  4.0f, 0.0f, 25.0f, false,  0.0f,     0.0f },
+            { -36.0f, 2.5f,  2.0f,  60.0f,  3.0f, 0.0f, 15.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. Double bass, arco or pizzicato — not Bass Tighten with a new name.
+        // An upright's note-to-note level varies with where on the string it is stopped
+        // rather than with pick attack, so the attacks here are 20-25 ms and RMS-led
+        // (70%) where Bass Tighten is 8 ms and peak-led. Crossed at 90 Hz and 700 Hz to
+        // separate the body from the string, with a 12 kHz sidechain low-pass on the
+        // high band so bow noise is controlled without the room being pumped.
+        { "Upright Bass", "Instruments", 0.0f, 0.0f, 100.0f, false, 0, 90.0f, 700.0f, 3500.0f, {
+            { -20.0f, 3.5f, 20.0f, 250.0f,  6.0f,  1.0f, 70.0f, false, 25.0f,     0.0f },
+            { -24.0f, 2.5f, 25.0f, 260.0f,  8.0f,  0.5f, 70.0f, false,  0.0f,     0.0f },
+            { -30.0f, 2.2f, 12.0f, 150.0f,  6.0f,  0.0f, 50.0f, false,  0.0f,     0.0f },
+            { -38.0f, 2.5f,  4.0f,  90.0f,  4.0f, -0.5f, 25.0f, false,  0.0f, 12000.0f } } },
+
+        //======================================================================
+        // VOICE — spoken and sung sources
+        //
+        // Every preset here crosses at 120-140 Hz rather than the 200 Hz default. The
+        // fast low band exists to catch plosives and desk rumble, and a male
+        // fundamental (roughly 85-180 Hz) must land mostly in the RMS body band above
+        // it: at 150 Hz with a -30 dB threshold the harness measured 21 dB of gain
+        // reduction on the low band, which thins the voice instead of de-popping it.
+        //======================================================================
+
+        // Four jobs at once: fast low band for plosives and mic rumble, gentle RMS band
+        // for chest-voice level, presence control through the mids, de-esser on top.
+        { "Vocal Bus", "Voice", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1200.0f, 6500.0f, {
+            { -26.0f, 4.0f,  3.0f, 120.0f,  4.0f, 0.0f, 20.0f, false,  0.0f,     0.0f },
+            { -24.0f, 2.5f, 15.0f, 150.0f,  8.0f, 0.5f, 70.0f, false,  0.0f,     0.0f },
+            { -28.0f, 3.0f,  5.0f,  90.0f,  6.0f, 0.0f, 30.0f, false,  0.0f,     0.0f },
+            { -34.0f, 5.0f,  0.5f,  45.0f,  2.0f, 0.0f,  0.0f, false,  0.0f, 12000.0f } } },
+
+        // Speech: heavy RMS levelling through the body band, a fast low band for
+        // plosives and desk rumble, de-esser on top, auto-makeup and +2 dB out so the
+        // result lands close to broadcast level without further gain staging.
+        { "Podcast Voice", "Voice", 0.0f, 2.0f, 100.0f, true, 0, 120.0f, 1200.0f, 6000.0f, {
+            { -26.0f, 4.0f,  2.0f, 100.0f,  2.0f, 0.0f, 10.0f, false, 30.0f,     0.0f },
+            { -28.0f, 3.5f, 12.0f, 140.0f,  8.0f, 0.0f, 80.0f, false,  0.0f,     0.0f },
+            { -30.0f, 3.0f,  6.0f,  90.0f,  6.0f, 0.0f, 40.0f, false,  0.0f,     0.0f },
+            { -34.0f, 5.0f,  0.5f,  40.0f,  2.0f, 0.0f,  0.0f, false,  0.0f, 11000.0f } } },
+
+        // v1.7.0. Vocal Bus pushed to where a pop lead needs to sit — 3.5-5:1 rather
+        // than 2.5-4:1, a 2 ms low band on plosives, and a 6:1 de-esser instead of 5:1,
+        // because a lead sits far enough forward that sibilance survives a mix a bus
+        // vocal would hide it in. The LOMID body band keeps its 10 ms / 75% RMS setting:
+        // that one is holding the performance level, and tightening it is what makes a
+        // lead sound squeezed.
+        { "Lead Vocal Tight", "Voice", 0.0f, 0.0f, 100.0f, false, 0, 120.0f, 1200.0f, 6500.0f, {
+            { -28.0f, 5.0f,  2.0f, 100.0f,  3.0f, 0.0f, 15.0f, false, 30.0f,     0.0f },
+            { -26.0f, 3.5f, 10.0f, 130.0f,  6.0f, 0.5f, 75.0f, false,  0.0f,     0.0f },
+            { -28.0f, 3.5f,  4.0f,  80.0f,  5.0f, 0.0f, 30.0f, false,  0.0f,     0.0f },
+            { -34.0f, 6.0f,  0.4f,  40.0f,  2.0f, 0.0f,  0.0f, false,  0.0f, 12000.0f } } },
+
+        // v1.7.0. A stack of doubles is already level-averaged by having several takes
+        // sum together, so this goes the other way from Lead Vocal Tight: 2.2-2.5:1 with
+        // 8-12 dB knees, holding the stack as one block behind the lead. The de-esser is
+        // still fast and still strong (3.5:1 at 1.5 ms) because sibilance is the one
+        // thing stacking makes worse, not better — every double lands its "s" slightly
+        // apart and they smear into a single long one.
+        { "Backing Vocal Stack", "Voice", 0.0f, 0.0f, 100.0f, false, 0, 140.0f, 1300.0f, 6500.0f, {
+            { -24.0f, 2.5f, 10.0f, 150.0f,  8.0f,  0.0f, 50.0f, false, 30.0f,     0.0f },
+            { -26.0f, 2.2f, 18.0f, 200.0f, 12.0f,  0.5f, 80.0f, false,  0.0f,     0.0f },
+            { -30.0f, 2.2f, 10.0f, 140.0f, 10.0f,  0.0f, 60.0f, false,  0.0f,     0.0f },
+            { -36.0f, 3.5f,  1.5f,  60.0f,  4.0f, -0.5f, 10.0f, false,  0.0f, 12000.0f } } },
+
+        // v1.7.0. Harder than Podcast Voice, and deliberately so: dialogue has to stay
+        // intelligible under music and effects, which means a narrower dynamic range
+        // than a podcast listened to on its own. 4-5:1 throughout, 85% RMS on the body
+        // band, auto-makeup, and +3 dB out. The 1.5 ms low band is a plosive catcher at
+        // 5% peak-weighted detection — on a boom mic outdoors that band is doing as much
+        // wind work as plosive work.
+        { "Dialogue Leveller", "Voice", 0.0f, 3.0f, 100.0f, true, 0, 120.0f, 1100.0f, 6000.0f, {
+            { -30.0f, 5.0f,  1.5f,  80.0f,  2.0f, 0.0f,  5.0f, false, 30.0f,     0.0f },
+            { -30.0f, 4.0f, 10.0f, 120.0f,  6.0f, 0.0f, 85.0f, false,  0.0f,     0.0f },
+            { -32.0f, 3.5f,  5.0f,  80.0f,  5.0f, 0.0f, 45.0f, false,  0.0f,     0.0f },
+            { -36.0f, 5.0f,  0.4f,  40.0f,  2.0f, 0.0f,  0.0f, false,  0.0f, 11000.0f } } },
+
+        //======================================================================
+        // CREATIVE — the compression is the effect, not a transparency tool
+        //======================================================================
+
         // Deliberately destructive, then blended back at 35% via Mix. Low thresholds
         // and 12-15:1 ratios mean every band is compressing almost all the time, which
         // is the point — the dry path keeps the transients.
-        { "Parallel Crush", 0.0f, 0.0f, 35.0f, false, 0, 150.0f, 1800.0f, 7000.0f, {
+        { "Parallel Crush", "Creative", 0.0f, 0.0f, 35.0f, false, 0, 150.0f, 1800.0f, 7000.0f, {
             { -40.0f, 12.0f, 1.0f, 100.0f,  0.0f, 3.0f, 30.0f, false, 30.0f,     0.0f },
             { -40.0f, 14.0f, 0.5f,  90.0f,  0.0f, 3.0f, 25.0f, false,  0.0f,     0.0f },
             { -44.0f, 15.0f, 0.5f,  70.0f,  0.0f, 3.5f, 20.0f, false,  0.0f,     0.0f },
@@ -500,11 +787,74 @@ namespace
         // M/S Side mode: the mid channel passes through untouched and only the stereo
         // difference signal is compressed. The 4:1 low band pulls wandering stereo bass
         // toward the centre; the upper bands hold the width steady.
-        { "Wide and Controlled", 0.0f, 0.0f, 100.0f, false, 2, 150.0f, 2000.0f, 8000.0f, {
+        { "Wide and Controlled", "Creative", 0.0f, 0.0f, 100.0f, false, 2, 150.0f, 2000.0f, 8000.0f, {
             { -30.0f, 4.0f, 12.0f, 200.0f,  6.0f, 0.0f, 50.0f, false, 30.0f,     0.0f },
             { -28.0f, 2.0f, 20.0f, 250.0f, 10.0f, 0.0f, 70.0f, false,  0.0f,     0.0f },
             { -32.0f, 1.8f, 15.0f, 200.0f, 10.0f, 0.0f, 65.0f, false,  0.0f,     0.0f },
             { -38.0f, 1.6f, 10.0f, 150.0f, 10.0f, 0.0f, 60.0f, false,  0.0f,     0.0f } } },
+
+        // v1.7.0. The 400 ms release on the low band is the effect: 10:1 at a 0 dB knee
+        // slams the bass down in half a millisecond and then takes most of a bar to let
+        // it back up, so the low end swells between hits. +4 dB of makeup puts the
+        // recovered level above where it started. The other three bands stay at 1.5:1
+        // so only the bottom breathes — set them faster and the whole mix pumps instead.
+        { "Pumping Bass", "Creative", 0.0f, 0.0f, 100.0f, false, 0, 140.0f, 2000.0f, 8000.0f, {
+            { -34.0f, 10.0f, 0.5f, 400.0f,  0.0f, 4.0f,  0.0f, false,  0.0f,     0.0f },
+            { -26.0f,  1.5f, 15.0f, 150.0f,  8.0f, 0.0f, 60.0f, false,  0.0f,    0.0f },
+            { -30.0f,  1.5f, 15.0f, 150.0f,  8.0f, 0.0f, 50.0f, false,  0.0f,    0.0f },
+            { -38.0f,  1.5f, 10.0f, 120.0f,  8.0f, 0.0f, 50.0f, false,  0.0f,    0.0f } } },
+
+        // v1.7.0. Parallel Crush at full wet and tilted. The ratio climbs band by band
+        // (8:1 to 14:1) and the makeup climbs with it, so the crush gets harder and the
+        // level compensation gets larger toward the top — the spectrum ends up flatter
+        // and denser than it started. The 9 kHz sidechain low-pass on the high band
+        // stops the very top from self-triggering into a hiss.
+        { "Lo-Fi Squash", "Creative", 0.0f, 0.0f, 100.0f, false, 0, 180.0f, 1400.0f, 5000.0f, {
+            { -36.0f,  8.0f, 3.0f, 120.0f,  0.0f, 3.0f, 20.0f, false,  0.0f,     0.0f },
+            { -38.0f, 10.0f, 1.0f,  90.0f,  0.0f, 4.0f, 15.0f, false,  0.0f,     0.0f },
+            { -40.0f, 12.0f, 0.5f,  70.0f,  0.0f, 4.0f, 10.0f, false,  0.0f,     0.0f },
+            { -44.0f, 14.0f, 0.3f,  50.0f,  0.0f, 2.0f,  5.0f, false,  0.0f,  9000.0f } } },
+
+        // v1.7.0. A band-limited "small speaker" effect built without an EQ. The LOW and
+        // HIGH bands are set to 1:1 with -12 dB of makeup — the full negative range —
+        // which attenuates them cleanly, because makeup runs on every band that is not
+        // bypassed regardless of ratio. Bypassing them instead would pass them at
+        // unity and defeat the whole preset. The two middle bands, crossed at 300 Hz
+        // and 3 kHz, are then crushed at 6-8:1.
+        { "Telephone Squeeze", "Creative", 0.0f, 2.0f, 100.0f, false, 0, 300.0f, 3000.0f, 8000.0f, {
+            { -20.0f, 1.0f, 10.0f, 100.0f,  6.0f, -12.0f, 50.0f, false,  0.0f,   0.0f },
+            { -30.0f, 6.0f,  2.0f,  80.0f,  1.0f,   3.0f, 20.0f, false,  0.0f,   0.0f },
+            { -34.0f, 8.0f,  1.0f,  60.0f,  1.0f,   3.5f, 15.0f, false,  0.0f,   0.0f },
+            { -38.0f, 1.0f, 10.0f, 100.0f,  6.0f, -12.0f, 50.0f, false,  0.0f,   0.0f } } },
+
+        // v1.7.0. M/S Both: mid and side are compressed as separate signals through the
+        // same four bands, so the centre and the edges each get their own gain
+        // reduction and the image widens as the mix gets louder. Ratios of 4-6:1 with
+        // 2-3 dB knees make that movement obvious rather than subtle — this is the
+        // aggressive counterpart to Mid Focus Master and Wide and Controlled, which each
+        // touch only one half of the M/S pair.
+        { "Mid Side Slam", "Creative", 0.0f, 0.0f, 100.0f, false, 3, 150.0f, 1800.0f, 7000.0f, {
+            { -30.0f, 6.0f, 5.0f, 150.0f,  2.0f, 1.5f, 30.0f, false, 30.0f,      0.0f },
+            { -30.0f, 5.0f, 8.0f, 160.0f,  3.0f, 1.0f, 40.0f, false,  0.0f,      0.0f },
+            { -34.0f, 5.0f, 4.0f, 110.0f,  3.0f, 1.0f, 30.0f, false,  0.0f,      0.0f },
+            { -40.0f, 4.0f, 2.0f,  80.0f,  3.0f, 1.0f, 20.0f, false,  0.0f,      0.0f } } },
+
+        // v1.7.0. A dynamic tilt rather than a static one. The two low bands are nearly
+        // uncompressed and lifted (+2 dB and +1 dB); the two high bands are hit at 5:1
+        // and cut (-1.5 dB and -3 dB). Because the top is compressed rather than simply
+        // shelved down, the darkening tracks the material — quiet passages keep their
+        // air and loud ones lose it, which a fixed EQ curve cannot do.
+        //
+        // That last part is why the high band sits at -32 dB / 5:1 and not lower and
+        // harder. At -42 dB / 8:1 it measured 27 dB of gain reduction on steady noise,
+        // which means it was compressing all the time — a fixed tilt wearing a
+        // compressor's clothes, and the exact behaviour the paragraph above claims it
+        // avoids.
+        { "Dark Tilt", "Creative", 0.0f, 0.0f, 100.0f, false, 0, 160.0f, 1600.0f, 5000.0f, {
+            { -22.0f, 1.5f, 25.0f, 250.0f, 10.0f,  2.0f, 70.0f, false, 30.0f,    0.0f },
+            { -26.0f, 2.0f, 20.0f, 200.0f, 10.0f,  1.0f, 70.0f, false,  0.0f,    0.0f },
+            { -32.0f, 5.0f,  4.0f, 100.0f,  4.0f, -1.5f, 25.0f, false,  0.0f,    0.0f },
+            { -32.0f, 5.0f,  1.0f,  60.0f,  2.0f, -3.0f, 10.0f, false,  0.0f,    0.0f } } },
     };
 
     // Converts one engineering value through the parameter's own NormalisableRange.
@@ -569,6 +919,50 @@ OMultiBandCompressorAudioProcessor::buildFactoryPresets() const
     }
 
     return defs;
+}
+
+//==============================================================================
+// v1.7.0: PRESET CATEGORIES
+//
+// The category lives in the plugin's own table rather than in FactoryPresetDef, so
+// the shared preset-manager module — and the twenty-odd plugins vendoring it — is
+// untouched. That also means the category is *not* written into the Factory/*.json
+// files: it is recovered by name lookup here, which keeps a renamed or hand-edited
+// preset file from carrying a stale category around.
+//
+// A name that is not in kFactoryPresets is a user preset, and user presets have no
+// category of their own — they are all reported as "User" and grouped last.
+//==============================================================================
+
+juce::String OMultiBandCompressorAudioProcessor::getPresetCategory(const juce::String& presetName) const
+{
+    for (const auto& spec : kFactoryPresets)
+        if (presetName == spec.name)
+            return spec.category;
+
+    return kUserPresetCategory;
+}
+
+juce::StringArray OMultiBandCompressorAudioProcessor::getPresetCategoryOrder() const
+{
+    juce::StringArray order;
+
+    for (const auto* category : kPresetCategories)
+        order.add(category);
+
+   #if JUCE_DEBUG
+    // A category string in kFactoryPresets that is not in kPresetCategories would
+    // silently produce an eighth group in the browser, sorted after every real one.
+    // Catch the typo here rather than in the UI.
+    for (const auto& spec : kFactoryPresets)
+        jassert(order.contains(spec.category));
+   #endif
+
+    // Always last, and only meaningful once the user has saved something. The UI
+    // drops any group that ends up empty, so listing it unconditionally is safe.
+    order.add(kUserPresetCategory);
+
+    return order;
 }
 
 OMultiBandCompressorAudioProcessor::OMultiBandCompressorAudioProcessor()

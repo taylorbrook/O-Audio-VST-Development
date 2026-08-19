@@ -153,6 +153,32 @@ public:
     // Public so the editor can bind the WebView preset native functions to it.
     OuariconPresetManager presetManager;
 
+    //==========================================================================
+    // v1.7.0: preset categories.
+    //
+    // Held in this plugin's own preset table rather than in the shared
+    // OuariconPresetManager, so adding categories here costs the other plugins
+    // vendoring that module nothing. Public for the same reason presetManager is:
+    // the editor binds a WebView native function straight to these.
+    //==========================================================================
+
+    /** Reported for any preset name absent from the factory table. Always sorts last. */
+    static constexpr const char* kUserPresetCategory = "User";
+
+    /**
+     * Presets in this category are deliberately inert — every band sits at 1:1 and
+     * measures zero gain reduction. The verification harness keys its "should do
+     * nothing" check off this name, so an Init preset added later is covered without
+     * the harness needing to learn its name.
+     */
+    static constexpr const char* kInertPresetCategory = "Init";
+
+    /** Category for one preset, factory or user. Never returns an empty string. */
+    juce::String getPresetCategory(const juce::String& presetName) const;
+
+    /** Every category in browser display order, with kUserPresetCategory appended. */
+    juce::StringArray getPresetCategoryOrder() const;
+
 private:
     // Builds the v1.5.0 factory preset table. Values are authored in engineering
     // units and converted through each parameter's own NormalisableRange, so the
