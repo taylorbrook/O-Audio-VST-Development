@@ -231,6 +231,99 @@ body {
   box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
 }
 
+/* ── Preset dropdown (v1.3) ──────────────────────────────────────────────── */
+/* The wrapper shrink-wraps #preset-name (flex item in the band) and anchors
+   the absolutely-positioned panel. z-index on the wrapper lifts the open
+   panel above .groups — the band and main are siblings, so a band-level
+   stacking context is enough. */
+.preset-select {
+  position: relative;
+  z-index: 100;
+}
+
+/* Caret lives on the wrapper's ::after, NOT inside #preset-name — the
+   manager's _updateDisplay() textContent write would wipe any child node
+   (pattern_js_state_updater_overwrites_html_labels). */
+.preset-select::after {
+  content: "\25BE";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--brown-border);
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.preset-select.ready::after { opacity: 0.9; }
+.preset-select.ready .preset-name { cursor: pointer; }
+
+.preset-select.ready .preset-name:hover {
+  background: rgba(139, 168, 112, 0.25);
+}
+
+.preset-select .preset-name:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+.preset-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 6px 0;
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: 3px 4px 10px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+}
+
+.preset-dropdown[hidden] { display: none; }
+
+.preset-dropdown .dropdown-theme {
+  padding: 6px 12px 3px;
+  font-family: var(--serif);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--green-darkest);
+  border-bottom: 1px solid rgba(139, 115, 85, 0.35);
+  margin-bottom: 2px;
+}
+
+.preset-dropdown .dropdown-item {
+  padding: 4px 14px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-dropdown .dropdown-item:hover {
+  background: rgba(139, 168, 112, 0.35);
+}
+
+.preset-dropdown .dropdown-item.current {
+  color: var(--green-darkest);
+  font-weight: 700;
+}
+
+.preset-dropdown .dropdown-item.current::before {
+  content: "\2766\00a0";
+  font-size: 9px;
+}
+
 .preset-name {
   width: 300px;
   padding: 5px 10px;
@@ -381,6 +474,17 @@ body {
 
 .group-trigger .segment { width: 66px; }
 
+/* MODE is 3-up since v1.1 — stacked vertically at full ENGAGE width (140px).
+   Three side-by-side thirds of the 148px content box can't hold SCRATCH at
+   legible type, so the stack trades ~74px of the panel's vertical slack for
+   the standard 10px segment face. 140px matches ENGAGE and the SYNC pair's
+   total (66 + 8 + 66), keeping one aligned column. */
+.group-trigger #modeSegments {
+  flex-direction: column;
+  gap: 6px;
+}
+.group-trigger #modeSegments .segment { width: 140px; }
+
 .segment {
   width: 58px;
   padding: 7px 0;
@@ -515,6 +619,13 @@ body {
 
 /* Stop pane: two columns (Spin Down | Spin Up). */
 #pane-stop { gap: 56px; }
+
+/* Continuous pane (v1.1): character stack | rate slot | depth | chaos.
+   Gap budget MEASURED against the rendered row, not the column sum: the
+   CHARACTER caption widens its column to ~71px (past the 58px segments),
+   so 71 + 3×88 + 3·gap must fit the 398px content box. gap 34 overflowed
+   ~20px past BOTH panel borders; 16 leaves ~7px clearance per side. */
+#pane-continuous { gap: 16px; }
 
 .stop-col {
   display: flex;
@@ -734,4 +845,127 @@ body {
   text-transform: uppercase;
   color: var(--brown-border);
   opacity: 0.75;
+}
+
+/* ── Hover help: the "?" toggle (v1.4.0) ─────────────────────────────────── */
+/* ABSOLUTE, not a child of the header's flow. .header is text-align:center and
+   the 860 × 580 frame is a PLAN Locked Decision, so a button added to the
+   header's normal flow would shift the centred title. Positioned against
+   .frame (position:relative already) and inset past its 3 px border, this
+   costs the layout exactly nothing.
+
+   It is deliberately the RIGHT-MOST control on the page — the geometry that
+   surfaced pattern_fixed_tooltip_shrink_to_fit_edge in O-MultiBandCompressor
+   v1.4.1. Its own tip is therefore the strictest test of the clamp below, and
+   tests/ui_tooltip_clamp_check.js asserts it explicitly. */
+.help-toggle {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 50%;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.help-toggle:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Lit while the layer is on — same active vocabulary as .segment/.engage-btn,
+   so "on" reads identically everywhere on the page. */
+.help-toggle.active {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.help-toggle.active:hover {
+  background: var(--btn-active);
+  transform: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.help-toggle:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* ── Hover help: the tooltip surface (v1.4.0) ────────────────────────────── */
+/* Lifted from O-ReverseDelay v1.1.0 — the version carrying the verified
+   measure-then-pin placement. position:fixed anchors the tip to the viewport
+   rather than to .frame, so it escapes the frame's inset shadow; z-index 1000
+   clears .botanical-overlay (1), .frame (2) and .help-toggle (3).
+
+   max-width is load-bearing: app.js pins the MEASURED width in px, and the
+   assertion in tests/ui_tooltip_clamp_check.js is that no tip ever renders
+   narrower than its own shrink-to-fit. Changing this number means re-running
+   that check at the real 860 px width — the clamp gate is horizontal and
+   viewport-sensitive (pattern_tooltip_clamp_gate_viewport_sensitive). */
+.tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  max-width: 230px;
+  padding: 7px 10px;
+  background: linear-gradient(135deg, var(--bg-paper-light) 0%, var(--bg-paper-mid) 100%);
+  border: 1px solid var(--brown-frame);
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-family: var(--serif);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--green-mid);
+  margin-bottom: 3px;
+}
+
+.tooltip-body {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--brown-text);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+   can be clamped hard against the viewport edge while the arrow still points
+   at the control it describes. */
+.tooltip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after {
+  top: 100%;
+  border-top-color: var(--brown-frame);
+}
+
+.tooltip[data-placement="below"]::after {
+  bottom: 100%;
+  border-bottom-color: var(--brown-frame);
 }

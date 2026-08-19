@@ -40,7 +40,10 @@
 
     Free mode: sample-counting phase accumulator at CLOCK_FREE_RATE Hz —
     a pure function of samples elapsed, so it is block-size invariant by
-    construction. The sync no-playhead fallback reuses the same accumulator.
+    construction. Every sync fallback reuses the same accumulator: missing
+    playhead / position / PPQ, AND a host transport that is simply STOPPED
+    (v1.2.1 — Sync is the default mode, so emitting nothing while parked made
+    the plugin look broken during live audition).
 
   ==============================================================================
 */
@@ -64,7 +67,6 @@ public:
     {
         count      = 0;
         freePhase  = 0.0;
-        lastPPQ    = 0.0;
         wasPlaying = false;
     }
 
@@ -162,9 +164,22 @@ public:
                 push (off);
             }
         }
+        else if (! isPlaying)
+        {
+            // Transport STOPPED: fall back to the free-run accumulator rather
+            // than emitting nothing. Sync is the default mode, so without this
+            // the plugin is pure passthrough whenever the host is parked —
+            // auditioning live input reads as "the plugin is broken".
+            // Playing behaviour above is untouched.
+            runFree (numSamples, freeRateHz);
+        }
 
-        // Unconditional commit at block end.
-        lastPPQ    = ppqStart;
+        // Unconditional commit at block end. On the stopped->playing edge the
+        // free accumulator is rewound so the NEXT stop starts from phase 0
+        // instead of inheriting a partial period from the previous one.
+        if (isPlaying && ! wasPlaying)
+            freePhase = 0.0;
+
         wasPlaying = isPlaying;
     }
 
@@ -197,6 +212,5 @@ private:
     int    count      = 0;
     double fs         = 48000.0;
     double freePhase  = 0.0;
-    double lastPPQ    = 0.0;
     bool   wasPlaying = false;
 };

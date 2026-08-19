@@ -29,19 +29,35 @@
       Rung 0 — interpolation concealment: 30-80 ms FirstOrderTPTFilter dip,
                cutoff swept 20 kHz -> ~2 kHz -> back (triangular in log-f).
                TPT structure is unconditionally stable for cutoff sweeps.
-      Rung 1 — mute: 2-20 ms mute (1 ms gain ramps unless HARD_EDGES) with a
-               residual synthesized tick at mute start (ArtifactSynth).
+      Rung 1 — mute: 2 ms to a SEVERITY-SCALED ceiling (20 ms at severity 0,
+               150 ms from ~0.6 up — v1.6.0), 1 ms gain ramps unless
+               HARD_EDGES, with a residual synthesized tick at mute start.
       Rung 2 — buffer loop: the read head loops a CD_SEGMENT-ms window at
                EXACT intervals; a restart chirp fires at every boundary; the
-               boundary jump is crossfaded by the ReadHead (min ~1 ms) unless
-               HARD_EDGES. On release the head recovers by jumping FORWARD
-               toward writeAbs - minLag via the choke point.
+               boundary jump is crossfaded by the ReadHead — a 0.5 ms HARD
+               SPLICE, not the 3 ms default (v1.6.0) — unless HARD_EDGES. Above
+               severity kSectorSeverity the window is quantised to the CD
+               sector quantum, 1/75 s. On release the head recovers by jumping
+               FORWARD toward writeAbs - minLag via the choke point.
+      Rung 2t— servo seek, the terminal stage above severity kSeekSeverity
+               (v1.6.0): the loop does not recover instantly, it goes FULLY
+               SILENT for 100-400 ms first — buffer dry, sled hunting — and
+               only then takes the recovery jump, with a re-lock chirp.
 
-    State policy: Conceal/Mute are duration-bounded (<= 80 ms) and always
-    finish naturally — a new win or a release while they run does not abort
-    them (an abort would step the filter/gain discontinuously). Loop is
-    unbounded and persists while CD keeps winning ticks ("repeat count derives
-    from state duration"); release() performs the recovery jump.
+    Event CLASS (v1.9.0, improvement brief item 6): rungs 0 and 1 are OVERLAY —
+    filter and gain domain, orthogonal to head position — and fire whenever the
+    cd roll succeeds, whichever family owns the tick. Rung 2 is OWNER: it drives
+    the read head, so it contends with a tape rate event and a vinyl groove jump
+    and only one can win. See the rollRung/applyLoop/applyOverlay block below.
+
+    State policy: Conceal/Mute/Seek are duration-bounded and always finish
+    naturally — a new event or a release while they run does not abort them (an
+    abort would step the filter/gain discontinuously). Loop persists while CD
+    keeps winning ticks ("repeat count derives from state duration") and while
+    the capture ring can still afford another pass — each pass ages the head by
+    one segment, so the wrap is gated on the same lag budget the vinyl locked
+    groove uses, and a loop that exhausts it self-releases through the recovery
+    jump (v1.3.0). release() performs that same jump.
 
   ==============================================================================
 */
@@ -57,6 +73,20 @@
 class CDSkip
 {
 public:
+    // Severity above which a loop window is quantised to the CD sector
+    // quantum (brief item 14c). Real anti-shock loops land on sector
+    // boundaries; the audible signature is the 75 Hz-family buzz that comes
+    // with them. Implicit rather than a toggle: it belongs to "how broken is
+    // the disc", which is exactly what CD_SEVERITY already means.
+    static constexpr double kSectorSeverity = 0.5;
+    static constexpr double kSectorHz       = 75.0;   // 1/75 s = 13.33 ms
+
+    // Severity above which a loop RELEASE goes through the servo-seek stage
+    // instead of recovering instantly (brief item 18).
+    static constexpr double kSeekSeverity  = 0.85;
+    static constexpr double kSeekMinSeconds = 0.100;
+    static constexpr double kSeekMaxSeconds = 0.400;
+
     void prepare (double sampleRate)
     {
         fs = sampleRate;
@@ -79,55 +109,151 @@ public:
         eventDur       = 0;
         loopEndAbs     = 0.0;
         segmentSamples = 0;
+        seekDurSamples = 0;
         concealFilter.reset();
     }
 
     bool isActive() const noexcept  { return state != State::Idle; }
     bool isLooping() const noexcept { return state == State::Loop; }
 
-    // Called from Arbitration when the cd family wins a tick. Consumes 1 cd
-    // draw (rung) always, +1 cd draw (duration) for conceal/mute, +1
-    // artifactSynth draw for the mute tick.
-    void onWin (RngBank& rng, double severity, double segmentMs,
-                ReadHead& head, const CaptureRing& ring, bool hardEdges,
-                ArtifactSynth& art) noexcept
+    //==========================================================================
+    // OVERLAY / OWNER SPLIT (v1.9.0, improvement brief item 6)
+    //
+    // The CIRC ladder straddles the two event classes, which is precisely why
+    // item 6 names this family:
+    //
+    //   Conceal / Mute — OVERLAY. Filter and gain domain, applied to the
+    //                    rendered pair and orthogonal to head position (see
+    //                    processSample). Nothing about them needs to own the
+    //                    transport, so they fire whenever the cd roll succeeds,
+    //                    however the tick's ownership went.
+    //   Loop           — OWNER. It drives the read head, so it contends with a
+    //                    tape rate event and a vinyl groove jump and only one
+    //                    of the three can win.
+    //
+    // The old onWin did both jobs in one call, which is what confined the
+    // bounded rungs to ticks the cd family had already WON. It is split into a
+    // pure rollRung() decision plus the two apply paths below. The draw order
+    // is unchanged: rung first, then the event's own parameter draw, so a tick
+    // on which cd is the only firer consumes exactly the sequence every
+    // release since Phase 2.2 consumed.
+    //==========================================================================
+
+    enum class Rung { Conceal = 0, Mute = 1, Loop = 2 };
+
+    /** Pure classification. Consumes EXACTLY 1 cd draw and installs nothing —
+        Arbitration needs the rung before it can know whether this family is
+        contending for the tick or merely layering over it. */
+    static Rung rollRung (juce::Random& cdStream, double severity) noexcept
     {
-        const float  r         = rng.get (RngBank::cd).nextFloat();
+        const float  r         = cdStream.nextFloat();
         const double rungFloat = juce::jlimit (0.0, 2.999,
                                                severity * 3.0
                                                    + (static_cast<double> (r) - 0.5) * 1.5);
-        const int rung = static_cast<int> (rungFloat);
+        return static_cast<Rung> (static_cast<int> (rungFloat));
+    }
 
+    /** OWNER path — rung 2. Called only when cd holds the tick. Consumes +1 cd
+        draw (seek duration) for a loop ENTRY above kSeekSeverity, and nothing
+        otherwise. */
+    void applyLoop (RngBank& rng, double severity, double segmentMs,
+                    ReadHead& head, const CaptureRing& ring, bool hardEdges,
+                    ArtifactSynth& art) noexcept
+    {
         // A bounded event is still running: let it finish (aborting a
-        // mid-sweep filter or a mute ramp would be a discontinuity, not a
-        // concealment). The rung draw is already consumed — deterministic.
-        if (state == State::Conceal || state == State::Mute)
+        // mid-sweep filter, a mute ramp or a servo seek would be a
+        // discontinuity, not a concealment). The rung draw is already
+        // consumed — deterministic.
+        if (state == State::Conceal || state == State::Mute || state == State::Seek)
             return;
 
-        if (rung == 2)
+        if (state == State::Loop)
+            return;                                        // extend the running loop
+
+        segmentSamples = juce::jmax ((juce::int64) 16,
+                                     (juce::int64) juce::roundToIntAccurate (segmentMs * 0.001 * fs));
+
+        // Sector lock (v1.6.0, brief item 14c). CD_SEGMENT is a free
+        // 10-400 ms; a real anti-shock buffer loops whole sectors, so
+        // above kSectorSeverity the window snaps to the nearest multiple
+        // of fs/75. At 100 ms / 48 kHz that is 4800 -> 5120 samples, and
+        // the family of repeat rates it produces is the 75 Hz-related buzz
+        // the artifact is known by. Below the threshold the free value is
+        // used verbatim — a lightly damaged disc has not fallen back on
+        // whole-sector re-reads yet.
+        if (severity > kSectorSeverity)
         {
-            if (state == State::Loop)
-                return;                                    // extend the running loop
+            const double      sector = fs / kSectorHz;
+            const juce::int64 n      = juce::jmax (
+                (juce::int64) 1,
+                (juce::int64) juce::roundToIntAccurate (static_cast<double> (segmentSamples) / sector));
 
             segmentSamples = juce::jmax ((juce::int64) 16,
-                                         (juce::int64) juce::roundToIntAccurate (segmentMs * 0.001 * fs));
-
-            const double pos = head.getPosition();
-            loopEndAbs = pos;
-            head.clampAndScheduleJump (pos - static_cast<double> (segmentSamples),
-                                       ring.getTotalWritten(), hardEdges);
-            art.triggerChirp();
-            state = State::Loop;
-            return;
+                                         (juce::int64) juce::roundToIntAccurate (static_cast<double> (n) * sector));
         }
 
-        // Leaving a loop for a different rung: recover first.
+        // Arm the servo seek for THIS loop's eventual release (item 18).
+        // The duration is drawn here, at loop entry, rather than at
+        // release: the two paths that end a loop are release() and the
+        // lag-budget self-release inside processSample, and neither has an
+        // RngBank — the harness's block-size invariance depends on RNG
+        // being consumed only at ticks and at deterministic jump instants
+        // (pattern_rng_stream_interleave_blocksize). The draw is skipped
+        // entirely at or below kSeekSeverity, so the cd stream's pattern —
+        // and every render made before this feature existed — is
+        // bit-identical there.
+        if (severity > kSeekSeverity)
+        {
+            const float rs = rng.get (RngBank::cd).nextFloat();
+            seekDurSamples = juce::jmax (1, static_cast<int> (
+                (kSeekMinSeconds + (kSeekMaxSeconds - kSeekMinSeconds) * (double) rs) * fs));
+        }
+        else
+        {
+            seekDurSamples = 0;
+        }
+
+        const double pos = head.getPosition();
+        loopEndAbs = pos;
+        head.clampAndScheduleJump (pos - static_cast<double> (segmentSamples),
+                                   ring.getTotalWritten(), hardEdges,
+                                   head.getSpliceFadeSamples());
+        art.triggerChirp();
+        state = State::Loop;
+    }
+
+    /** OVERLAY path — rungs 0 and 1. Called whenever the cd roll succeeded and
+        classified as conceal or mute, REGARDLESS of which family owns the tick
+        (v1.9.0, item 6). Consumes +1 cd draw (duration) and, for the mute rung,
+        +1 artifactSynth draw for the residual tick.
+
+        Note what this does NOT do: it never calls release(). A running loop is
+        left through recoveryJump below, not through endLoop, because endLoop
+        can enter the 100-400 ms servo-seek stage — which would swallow the very
+        rung being installed here. That was already the rule for a rung change
+        under single-winner arbitration; it now also covers a conceal landing
+        under a foreign owner, which is the same situation seen from the other
+        side. Arbitration is responsible for NOT also calling release() on a
+        family that fired an overlay. */
+    void applyOverlay (RngBank& rng, Rung rung, double severity,
+                       ReadHead& head, const CaptureRing& ring, bool hardEdges,
+                       ArtifactSynth& art) noexcept
+    {
+        // Same bounded-event guard as the loop path, and for the same reason.
+        if (state == State::Conceal || state == State::Mute || state == State::Seek)
+            return;
+
+        // Leaving a loop for a different rung: recover first. Deliberately
+        // NOT through the servo seek — the CD family is still rolling events,
+        // so this is the disc changing its failure mode, not the terminal
+        // release the seek dramatises. Inserting 100-400 ms of silence here
+        // would also swallow the very rung this call is installing.
         if (state == State::Loop)
             recoveryJump (head, ring, hardEdges);
 
         const float r2 = rng.get (RngBank::cd).nextFloat();
 
-        if (rung == 0)
+        if (rung == Rung::Conceal)
         {
             eventDur = juce::jmax (1, static_cast<int> ((0.030 + 0.050 * (double) r2) * fs));
             eventT   = 0;
@@ -137,22 +263,35 @@ public:
         }
         else
         {
-            eventDur = juce::jmax (1, static_cast<int> ((0.002 + 0.018 * (double) r2) * fs));
+            // Severity-scaled mute ceiling (v1.6.0, brief item 14b). A real
+            // E32 mute lengthens as the disc worsens; pinning it at 2-20 ms
+            // made the whole rung sound the same at every setting. The span
+            // (not the 2 ms floor) scales: 18 ms at severity 0 — the literal
+            // v1.5.0 expression, bit-for-bit, since 0.130 * 0.0 is exactly
+            // 0.0 — reaching 148 ms by the severity where the loop rung takes
+            // over, for a 150 ms ceiling.
+            const double spanSec = 0.018
+                                   + 0.130 * juce::jlimit (0.0, 1.0, severity / 0.6);
+
+            eventDur = juce::jmax (1, static_cast<int> ((0.002 + spanSec * (double) r2) * fs));
             eventT   = 0;
             art.triggerTick (rng.get (RngBank::artifactSynth));
             state = State::Mute;
         }
     }
 
-    // No cd win this tick (or family disabled mid-event): the loop recovers
-    // by jumping forward toward the write head; bounded rungs finish alone.
+    // The cd family holds no ownership this tick — it rolled nothing, it rolled
+    // a loop and lost the tick to another transport, or the family was disabled
+    // mid-event. The loop recovers by jumping forward toward the write head
+    // (through the servo seek where the severity armed one); bounded rungs
+    // finish alone, since they never depended on ownership in the first place.
+    //
+    // NOT called for a family that fired an OVERLAY rung this tick — see
+    // applyOverlay, which exits a running loop on its own terms.
     void release (ReadHead& head, const CaptureRing& ring, bool hardEdges) noexcept
     {
         if (state == State::Loop)
-        {
-            recoveryJump (head, ring, hardEdges);
-            state = State::Idle;
-        }
+            endLoop (head, ring, hardEdges);
     }
 
     // Per-sample, AFTER ReadHead::renderSample (the loop-wrap check needs the
@@ -182,12 +321,50 @@ public:
                     state = State::Idle;
                 break;
 
+            case State::Seek:
+                // Servo seek (v1.6.0, brief item 18). The output has been
+                // fully muted since entry; when the timer expires the sled
+                // finds the data again — the recovery jump this stage delayed,
+                // plus the re-lock chirp. State goes Idle in the same sample,
+                // so the mute ramp below starts releasing immediately and the
+                // chirp (added on the artifact bus DOWNSTREAM of the mute
+                // multiply) is audible over it.
+                if (++eventT >= eventDur)
+                {
+                    recoveryJump (head, ring, hardEdges);
+                    art.triggerChirp();
+                    state = State::Idle;
+                }
+                break;
+
             case State::Loop:
                 if (head.getPosition() >= loopEndAbs)
                 {
-                    head.clampAndScheduleJump (head.getPosition() - static_cast<double> (segmentSamples),
-                                               ring.getTotalWritten(), hardEdges);
-                    art.triggerChirp();
+                    // Lag budget, mirroring VinylTransport's locked-groove
+                    // room gate (v1.3.0). Every pass ages the head by one
+                    // segment; when the ring can no longer carry another,
+                    // RELEASE through the intentional forward recovery jump
+                    // instead of wrapping again. Until now there was no gate
+                    // here at all: the loop kept wrapping until ReadHead's
+                    // lag-overflow clamp teleported the head forward while
+                    // this state machine still read Loop, and the next wrap
+                    // re-jumped from the teleported position. Recovery is now
+                    // a decision this family makes and owns.
+                    const juce::int64 tw  = ring.getTotalWritten();
+                    const double      lag = head.getLag (tw);
+
+                    if (lag + static_cast<double> (segmentSamples)
+                            <= head.getMaxLag() - 0.05 * fs)
+                    {
+                        head.clampAndScheduleJump (head.getPosition() - static_cast<double> (segmentSamples),
+                                                   tw, hardEdges,
+                                                   head.getSpliceFadeSamples());
+                        art.triggerChirp();
+                    }
+                    else
+                    {
+                        endLoop (head, ring, hardEdges);
+                    }
                 }
                 break;
 
@@ -198,7 +375,7 @@ public:
 
         // Mute gain, 1 ms linear ramps (instant under HARD_EDGES). Settled at
         // exactly 1.0f while idle, so the multiply is bit-exact (FUNC-02).
-        const float target = (state == State::Mute) ? 0.0f : 1.0f;
+        const float target = (state == State::Mute || state == State::Seek) ? 0.0f : 1.0f;
         if (hardEdges)
             muteGain = target;
         else if (muteGain < target)
@@ -211,14 +388,35 @@ public:
     }
 
 private:
-    enum class State { Idle, Conceal, Mute, Loop };
+    enum class State { Idle, Conceal, Mute, Loop, Seek };
 
     void recoveryJump (ReadHead& head, const CaptureRing& ring, bool hardEdges) noexcept
     {
         // Skip-ahead: forward toward writeAbs - minLag (minLag = 0 here; the
-        // choke point clamps).
+        // choke point clamps). Default 3 ms fade — this one is the player
+        // recovering, not the artifact.
         head.clampAndScheduleJump (static_cast<double> (ring.getTotalWritten() - 1),
                                    ring.getTotalWritten(), hardEdges);
+    }
+
+    // THE loop exit. Both terminal paths — release() and the lag-budget
+    // self-release — come through here so the servo-seek rung cannot be
+    // reachable from one and not the other.
+    void endLoop (ReadHead& head, const CaptureRing& ring, bool hardEdges) noexcept
+    {
+        if (seekDurSamples > 0)
+        {
+            // Terminal stage: mute NOW, jump later. seekDurSamples was drawn
+            // at loop entry (see onWin) and is non-zero only above
+            // kSeekSeverity.
+            eventT   = 0;
+            eventDur = seekDurSamples;
+            state    = State::Seek;
+            return;
+        }
+
+        recoveryJump (head, ring, hardEdges);
+        state = State::Idle;
     }
 
     State  state = State::Idle;
@@ -234,4 +432,9 @@ private:
 
     double      loopEndAbs     = 0.0;
     juce::int64 segmentSamples = 0;
+
+    // Servo-seek duration for the running loop's eventual release, drawn at
+    // loop entry. 0 means "this loop recovers instantly" — the only state
+    // below kSeekSeverity.
+    int seekDurSamples = 0;
 };

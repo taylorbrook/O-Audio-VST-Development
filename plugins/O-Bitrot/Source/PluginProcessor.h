@@ -30,19 +30,27 @@
 #pragma once
 #include <JuceHeader.h>
 
+#include <OuariconPresetManager.h>
+
 #include "dsp/CaptureRing.h"
 #include "dsp/RngBank.h"
 #include "dsp/MediaClock.h"
 #include "dsp/ReadHead.h"
 #include "dsp/TapeTransport.h"
+#include "dsp/TapeDropout.h"
+#include "dsp/TapeStopGain.h"
+#include "dsp/WowFlutter.h"
+#include "dsp/MediaNoise.h"
 #include "dsp/ArtifactSynth.h"
 #include "dsp/CDSkip.h"
 #include "dsp/VinylTransport.h"
+#include "dsp/VinylWarp.h"
 #include "dsp/Arbitration.h"
 #include "dsp/PacketLossStage.h"
 #include "dsp/CrushStage.h"
 #include "dsp/QuantStage.h"
 #include "dsp/CodecStage.h"
+#include "dsp/RotStage.h"
 
 class OBitrotAudioProcessor : public juce::AudioProcessor
 {
@@ -76,12 +84,30 @@ public:
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
 
-    // UI activity telemetry (event LEDs). Bits 0-3: tape, cd, vinyl, packet.
-    // OR-accumulated per sample inside processBlock (short events survive any
-    // block size), published once per block; editor timer reads at 30 Hz.
+    // Preset manager (Stage 4) — declared AFTER apvts (member init order).
+    // LITERAL plugin name: dev and release variants must share one preset
+    // library (~/Library/Ouaricon Bitrot/Presets/).
+    OuariconPresetManager presetManager { apvts, "Ouaricon Bitrot" };
+
+    // UI activity telemetry (event LEDs). Bits 0-4: tape, cd, vinyl, packet,
+    // rot. OR-accumulated per sample inside processBlock (short events survive
+    // any block size), published once per block; editor timer reads at 30 Hz.
     enum ActivityBits { kTapeActive = 1, kCdActive = 2,
-                        kVinylActive = 4, kPacketActive = 8 };
+                        kVinylActive = 4, kPacketActive = 8,
+                        kRotActive = 16 };
     std::atomic<uint32_t> uiActivityMask { 0 };
+
+    // ── Hover-help preference (v1.12.0) ─────────────────────────────────────
+    // NOT a parameter: it is a per-session UI preference, so it rides the
+    // APVTS state tree as a plain property rather than the parameter layout.
+    // An AudioParameterBool here would show up in every host's automation lane
+    // and in every one of the 28 factory presets — neither is wanted for a
+    // help layer, and it would move the layout off the 45 IDs every saved
+    // session is keyed to. Message thread only in practice (the two native
+    // fns), but atomic so a host that queries state off-thread cannot tear the
+    // read. Default FALSE: the "?" ships unlit and the layer stays silent
+    // until asked for.
+    std::atomic<bool> tooltipsEnabled { false };
 
 private:
     // ------------------------------------------------------------------------
@@ -98,11 +124,16 @@ private:
     std::atomic<float>* hardEdgesParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
 
-    // Tape (4)
+    // Tape (7 — TAPE_DROP and TAPE_WOW appended to the LAYOUT in v1.4.0,
+    // TAPE_HISS in v1.5.0; see createParameterLayout for why none of them are
+    // inserted into the tape block)
     std::atomic<float>* tapeEnableParam = nullptr;
     std::atomic<float>* tapeProbParam = nullptr;
     std::atomic<float>* tapeStopProbParam = nullptr;
     std::atomic<float>* tapeRampParam = nullptr;
+    std::atomic<float>* tapeDropParam = nullptr;
+    std::atomic<float>* tapeWowParam = nullptr;
+    std::atomic<float>* tapeHissParam = nullptr;
 
     // CD Skip (4)
     std::atomic<float>* cdEnableParam = nullptr;
@@ -110,22 +141,28 @@ private:
     std::atomic<float>* cdSeverityParam = nullptr;
     std::atomic<float>* cdSegmentParam = nullptr;
 
-    // Vinyl (4)
+    // Vinyl (6 — VINYL_WEAR appended in v1.5.0, VINYL_WARP in v1.7.0)
     std::atomic<float>* vinylEnableParam = nullptr;
     std::atomic<float>* vinylProbParam = nullptr;
     std::atomic<float>* vinylRpmParam = nullptr;
     std::atomic<float>* vinylPopParam = nullptr;
+    std::atomic<float>* vinylWearParam = nullptr;
+    std::atomic<float>* vinylWarpParam = nullptr;
 
-    // Packet Loss (4)
+    // Packet Loss (5 — PACKET_COMFORT appended in v1.5.0)
     std::atomic<float>* packetEnableParam = nullptr;
     std::atomic<float>* packetLossParam = nullptr;
     std::atomic<float>* packetBurstParam = nullptr;
     std::atomic<float>* packetConcealParam = nullptr;
+    std::atomic<float>* packetComfortParam = nullptr;
 
-    // Codec (3)
+    // Codec (5 — CODEC_NOISE and CODEC_MAINS appended in v1.5.0)
     std::atomic<float>* codecEnableParam = nullptr;
     std::atomic<float>* codecModeParam = nullptr;
     std::atomic<float>* codecMixParam = nullptr;
+    std::atomic<float>* codecNoiseParam = nullptr;
+    std::atomic<float>* codecMainsParam = nullptr;
+    std::atomic<float>* codecAgcParam   = nullptr;   // v1.8.0, brief item 16
 
     // Crush (6)
     std::atomic<float>* crushEnableParam = nullptr;
@@ -134,6 +171,14 @@ private:
     std::atomic<float>* crushJitterParam = nullptr;
     std::atomic<float>* crushEnvAmtParam = nullptr;
     std::atomic<float>* crushDitherParam = nullptr;
+
+    // Rot (5 — v1.10.0, brief item 8; appended to the LAYOUT, see
+    // createParameterLayout for why nothing is inserted into a family block)
+    std::atomic<float>* rotEnableParam = nullptr;
+    std::atomic<float>* rotProbParam   = nullptr;
+    std::atomic<float>* rotDepthParam  = nullptr;
+    std::atomic<float>* rotStickParam  = nullptr;
+    std::atomic<float>* rotGarbleParam = nullptr;
 
     // ------------------------------------------------------------------------
     // Stage 2 DSP engine (Phase 2.1: engine core + tape).
@@ -150,9 +195,17 @@ private:
     MediaClock     mediaClock;
     RngBank        rngBank;
     TapeTransport  tapeTransport;
+    TapeDropout    tapeDropout;      // v1.4.0: oxide-shed level+HF dip
+    TapeStopGain   tapeStopGain;     // v1.4.0: output dies with tape speed
+    WowFlutter     wowFlutter;       // v1.4.0: continuous speed-modulation bed
+    TapeBed        tapeBed;          // v1.5.0: stereo hiss, rides transport speed
+    VinylBed       vinylBed;         // v1.5.0: rumble + Poisson micro-ticks
+    CodecBed       codecBed;         // v1.5.0: mains hum + line crackle
+    VinylWarp      vinylWarp;        // v1.7.0: once-per-revolution warp wow
     CDSkip         cdSkip;           // Phase 2.2
     VinylTransport vinylTransport;   // Phase 2.2
     ArtifactSynth  artifactSynth;    // Phase 2.2: pops / ticks / chirps
+    RotStage       rotStage;         // v1.10.0: bit flips / sticky / wrong-decode
     Arbitration     arbitration;
     PacketLossStage packetStage;     // Phase 2.3: GE loss over its own 20 ms grid
     CodecStage      codecStage;
@@ -164,6 +217,13 @@ private:
     int    compLatencySamples = 0;
     int    lastSeed           = 0;    // per-block seed-change detection
     double lastAppliedRate    = 1.0;  // tape ramps start from the applied rate
+
+    // Post-event recovery threshold (v1.2.1): a tape release landing back on
+    // NORMAL with more lag than this takes ONE intentional crossfaded jump to
+    // live rather than leaving the +2% trim to claw it back over ~50x as long.
+    // 250 ms of lag already costs the trim ~12.5 s of stale playback.
+    static constexpr double kStopRecoverySeconds = 0.25;
+    double stopRecoveryLagSamples = kStopRecoverySeconds * 48000.0;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

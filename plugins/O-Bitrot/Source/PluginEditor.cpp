@@ -29,6 +29,9 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     tapeProbRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_PROB");
     tapeStopProbRelay  = std::make_unique<juce::WebSliderRelay>("TAPE_STOP_PROB");
     tapeRampRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_RAMP");
+    tapeDropRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_DROP");
+    tapeWowRelay       = std::make_unique<juce::WebSliderRelay>("TAPE_WOW");
+    tapeHissRelay      = std::make_unique<juce::WebSliderRelay>("TAPE_HISS");
     // CD Skip
     cdEnableRelay      = std::make_unique<juce::WebToggleButtonRelay>("CD_ENABLE");
     cdProbRelay        = std::make_unique<juce::WebSliderRelay>("CD_PROB");
@@ -39,15 +42,21 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     vinylProbRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_PROB");
     vinylRpmRelay      = std::make_unique<juce::WebComboBoxRelay>("VINYL_RPM");
     vinylPopRelay      = std::make_unique<juce::WebSliderRelay>("VINYL_POP");
+    vinylWearRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_WEAR");
+    vinylWarpRelay     = std::make_unique<juce::WebSliderRelay>("VINYL_WARP");
     // Packet
     packetEnableRelay  = std::make_unique<juce::WebToggleButtonRelay>("PACKET_ENABLE");
     packetLossRelay    = std::make_unique<juce::WebSliderRelay>("PACKET_LOSS");
     packetBurstRelay   = std::make_unique<juce::WebSliderRelay>("PACKET_BURST");
     packetConcealRelay = std::make_unique<juce::WebComboBoxRelay>("PACKET_CONCEAL");
+    packetComfortRelay = std::make_unique<juce::WebSliderRelay>("PACKET_COMFORT");
     // Codec
     codecEnableRelay   = std::make_unique<juce::WebToggleButtonRelay>("CODEC_ENABLE");
     codecModeRelay     = std::make_unique<juce::WebComboBoxRelay>("CODEC_MODE");
     codecMixRelay      = std::make_unique<juce::WebSliderRelay>("CODEC_MIX");
+    codecNoiseRelay    = std::make_unique<juce::WebSliderRelay>("CODEC_NOISE");
+    codecMainsRelay    = std::make_unique<juce::WebComboBoxRelay>("CODEC_MAINS");
+    codecAgcRelay      = std::make_unique<juce::WebSliderRelay>("CODEC_AGC");
     // Crush
     crushEnableRelay   = std::make_unique<juce::WebToggleButtonRelay>("CRUSH_ENABLE");
     crushBitsRelay     = std::make_unique<juce::WebSliderRelay>("CRUSH_BITS");
@@ -55,6 +64,12 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     crushJitterRelay   = std::make_unique<juce::WebSliderRelay>("CRUSH_JITTER");
     crushEnvAmtRelay   = std::make_unique<juce::WebSliderRelay>("CRUSH_ENV_AMT");
     crushDitherRelay   = std::make_unique<juce::WebSliderRelay>("CRUSH_DITHER");
+    // Rot (v1.10.0)
+    rotEnableRelay     = std::make_unique<juce::WebToggleButtonRelay>("ROT_ENABLE");
+    rotProbRelay       = std::make_unique<juce::WebSliderRelay>("ROT_PROB");
+    rotDepthRelay      = std::make_unique<juce::WebSliderRelay>("ROT_DEPTH");
+    rotStickRelay      = std::make_unique<juce::WebSliderRelay>("ROT_STICK");
+    rotGarbleRelay     = std::make_unique<juce::WebSliderRelay>("ROT_GARBLE");
     // Global
     clockModeRelay     = std::make_unique<juce::WebComboBoxRelay>("CLOCK_MODE");
     clockSyncDivRelay  = std::make_unique<juce::WebComboBoxRelay>("CLOCK_SYNC_DIV");
@@ -63,8 +78,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     hardEdgesRelay     = std::make_unique<juce::WebToggleButtonRelay>("HARD_EDGES");
     mixRelay           = std::make_unique<juce::WebSliderRelay>("MIX");
 
-    // 2. Create WebView with relay options (NO native functions in this plugin)
-    webView = std::make_unique<juce::WebBrowserComponent>(
+    // 2. Build WebView options: relays + the 10 preset native functions
+    auto options =
         juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
@@ -80,6 +95,9 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*tapeProbRelay)
             .withOptionsFrom(*tapeStopProbRelay)
             .withOptionsFrom(*tapeRampRelay)
+            .withOptionsFrom(*tapeDropRelay)
+            .withOptionsFrom(*tapeWowRelay)
+            .withOptionsFrom(*tapeHissRelay)
             .withOptionsFrom(*cdEnableRelay)
             .withOptionsFrom(*cdProbRelay)
             .withOptionsFrom(*cdSeverityRelay)
@@ -88,26 +106,217 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
             .withOptionsFrom(*vinylProbRelay)
             .withOptionsFrom(*vinylRpmRelay)
             .withOptionsFrom(*vinylPopRelay)
+            .withOptionsFrom(*vinylWearRelay)
+            .withOptionsFrom(*vinylWarpRelay)
             .withOptionsFrom(*packetEnableRelay)
             .withOptionsFrom(*packetLossRelay)
             .withOptionsFrom(*packetBurstRelay)
             .withOptionsFrom(*packetConcealRelay)
+            .withOptionsFrom(*packetComfortRelay)
             .withOptionsFrom(*codecEnableRelay)
             .withOptionsFrom(*codecModeRelay)
             .withOptionsFrom(*codecMixRelay)
+            .withOptionsFrom(*codecNoiseRelay)
+            .withOptionsFrom(*codecMainsRelay)
+            .withOptionsFrom(*codecAgcRelay)
             .withOptionsFrom(*crushEnableRelay)
             .withOptionsFrom(*crushBitsRelay)
             .withOptionsFrom(*crushRateRelay)
             .withOptionsFrom(*crushJitterRelay)
             .withOptionsFrom(*crushEnvAmtRelay)
             .withOptionsFrom(*crushDitherRelay)
+            .withOptionsFrom(*rotEnableRelay)
+            .withOptionsFrom(*rotProbRelay)
+            .withOptionsFrom(*rotDepthRelay)
+            .withOptionsFrom(*rotStickRelay)
+            .withOptionsFrom(*rotGarbleRelay)
             .withOptionsFrom(*clockModeRelay)
             .withOptionsFrom(*clockSyncDivRelay)
             .withOptionsFrom(*clockFreeRateRelay)
             .withOptionsFrom(*seedRelay)
             .withOptionsFrom(*hardEdgesRelay)
-            .withOptionsFrom(*mixRelay)
-    );
+            .withOptionsFrom(*mixRelay);
+
+    // ── HOVER-HELP PREFERENCE — 2 (v1.12.0) ────────────────────────────────
+    // The "?" toggle's state is a UI preference, not a parameter, so it round-
+    // trips through these two fns and the processor's state property rather
+    // than through a relay. Both complete synchronously.
+
+    options = options.withNativeFunction("setTooltipsEnabled",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                audioProcessor.tooltipsEnabled.store((bool) args[0],
+                                                     std::memory_order_release);
+
+            complete(juce::var(audioProcessor.tooltipsEnabled.load(
+                                   std::memory_order_acquire)));
+        });
+
+    // PULLED by the page at init, never pushed. A push from the constructor or
+    // from the 30 Hz timer tick fires before the inline module in index.html
+    // has evaluated, so the preference silently never arrives and the toggle
+    // reads OFF on every reopen — the O-FreqPulse WR-01 bug, avoided here by
+    // construction.
+    options = options.withNativeFunction("getTooltipsEnabled",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.tooltipsEnabled.load(
+                                   std::memory_order_acquire)));
+        });
+
+    // ── PRESET NATIVE FUNCTIONS — 10 (Stage 4) ─────────────────────────────
+    // Exactly the names modules/preset-manager.js requests; with the two
+    // hover-help fns above the total registered surface is 12 and the
+    // grep-diff parity gate runs at 12↔12. The synchronous eight capture `this`
+    // (completion never outlives the call). The two DIALOG fns defer their
+    // completion into a FileChooser callback: shared_ptr chooser captured
+    // into its own callback, SafePointer HOISTED to a local (MSVC rejects
+    // SafePointer(this) init-captures in nested lambdas), and on a dead
+    // editor the callback RETURNS — even complete(false) would UAF the dead
+    // WebView impl (pattern_webview_launchasync_safepointer_no_complete).
+    // Both dialog fns complete with {success, name} OBJECTS — the JS reads
+    // result.success / result.name; a bare bool reads as failure even when
+    // the file was written.
+
+    options = options.withNativeFunction("savePreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.savePreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    options = options.withNativeFunction("savePresetWithDialog",
+        [this](auto&, auto complete)
+        {
+            auto userDir = audioProcessor.presetManager.getUserPresetsDirectory();
+            userDir.createDirectory();
+
+            auto chooser = std::make_shared<juce::FileChooser>("Save Preset", userDir, "*.json");
+            juce::Component::SafePointer<OBitrotAudioProcessorEditor> safeThis(this);
+
+            chooser->launchAsync(
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete](const juce::FileChooser& fc)
+                {
+                    if (safeThis == nullptr)
+                        return;   // dead editor — never touch complete
+
+                    auto* result = new juce::DynamicObject();
+                    const auto results = fc.getResults();
+
+                    if (results.size() > 0)
+                    {
+                        // savePresetToFile HONORS the chosen path (the
+                        // O-DigiDelay bug was a dialog whose destination a
+                        // savePreset(name) call ignored).
+                        const auto file = results.getReference(0);
+                        const bool ok = safeThis->audioProcessor.presetManager.savePresetToFile(file);
+                        result->setProperty("success", ok);
+                        result->setProperty("name", file.getFileNameWithoutExtension());
+                    }
+                    else
+                    {
+                        result->setProperty("success", false);
+                        result->setProperty("name", juce::String());
+                    }
+
+                    complete(juce::var(result));
+                });
+        });
+
+    options = options.withNativeFunction("loadPreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.loadPreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    options = options.withNativeFunction("loadPresetFromFile",
+        [this](auto&, auto complete)
+        {
+            auto presetsDir = audioProcessor.presetManager.getPresetsDirectory();
+
+            auto chooser = std::make_shared<juce::FileChooser>("Load Preset", presetsDir, "*.json");
+            juce::Component::SafePointer<OBitrotAudioProcessorEditor> safeThis(this);
+
+            chooser->launchAsync(
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete](const juce::FileChooser& fc)
+                {
+                    if (safeThis == nullptr)
+                        return;   // dead editor — never touch complete
+
+                    auto* result = new juce::DynamicObject();
+                    const auto results = fc.getResults();
+
+                    if (results.size() > 0)
+                    {
+                        const auto file = results.getReference(0);
+                        const bool ok = safeThis->audioProcessor.presetManager.loadPresetFromFile(file);
+                        result->setProperty("success", ok);
+                        result->setProperty("name", file.getFileNameWithoutExtension());
+                    }
+                    else
+                    {
+                        result->setProperty("success", false);
+                        result->setProperty("name", juce::String());
+                    }
+
+                    complete(juce::var(result));
+                });
+        });
+
+    options = options.withNativeFunction("getPresetList",
+        [this](auto&, auto complete)
+        {
+            juce::Array<juce::var> list;
+            for (const auto& name : audioProcessor.presetManager.getPresetList())
+                list.add(juce::var(name));
+            complete(juce::var(list));
+        });
+
+    options = options.withNativeFunction("getCurrentPreset",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.presetManager.getCurrentPresetName()));
+        });
+
+    options = options.withNativeFunction("selectNextPreset",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.presetManager.getNextPreset()));
+        });
+
+    options = options.withNativeFunction("selectPreviousPreset",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(audioProcessor.presetManager.getPreviousPreset()));
+        });
+
+    options = options.withNativeFunction("deletePreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.deletePreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    options = options.withNativeFunction("isFactoryPreset",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete(juce::var(audioProcessor.presetManager.isFactoryPreset(args[0].toString())));
+            else
+                complete(juce::var(false));
+        });
+
+    webView = std::make_unique<juce::WebBrowserComponent>(options);
 
     addAndMakeVisible(*webView);
 
@@ -121,6 +330,12 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("TAPE_STOP_PROB"), *tapeStopProbRelay, nullptr);
     tapeRampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("TAPE_RAMP"), *tapeRampRelay, nullptr);
+    tapeDropAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("TAPE_DROP"), *tapeDropRelay, nullptr);
+    tapeWowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("TAPE_WOW"), *tapeWowRelay, nullptr);
+    tapeHissAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("TAPE_HISS"), *tapeHissRelay, nullptr);
     // CD Skip
     cdEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CD_ENABLE"), *cdEnableRelay, nullptr);
@@ -139,6 +354,10 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("VINYL_RPM"), *vinylRpmRelay, nullptr);
     vinylPopAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("VINYL_POP"), *vinylPopRelay, nullptr);
+    vinylWearAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("VINYL_WEAR"), *vinylWearRelay, nullptr);
+    vinylWarpAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("VINYL_WARP"), *vinylWarpRelay, nullptr);
     // Packet
     packetEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("PACKET_ENABLE"), *packetEnableRelay, nullptr);
@@ -148,6 +367,8 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("PACKET_BURST"), *packetBurstRelay, nullptr);
     packetConcealAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.apvts.getParameter("PACKET_CONCEAL"), *packetConcealRelay, nullptr);
+    packetComfortAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("PACKET_COMFORT"), *packetComfortRelay, nullptr);
     // Codec
     codecEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CODEC_ENABLE"), *codecEnableRelay, nullptr);
@@ -155,6 +376,12 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("CODEC_MODE"), *codecModeRelay, nullptr);
     codecMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("CODEC_MIX"), *codecMixRelay, nullptr);
+    codecNoiseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("CODEC_NOISE"), *codecNoiseRelay, nullptr);
+    codecMainsAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *audioProcessor.apvts.getParameter("CODEC_MAINS"), *codecMainsRelay, nullptr);
+    codecAgcAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("CODEC_AGC"), *codecAgcRelay, nullptr);
     // Crush
     crushEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.apvts.getParameter("CRUSH_ENABLE"), *crushEnableRelay, nullptr);
@@ -168,6 +395,17 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
         *audioProcessor.apvts.getParameter("CRUSH_ENV_AMT"), *crushEnvAmtRelay, nullptr);
     crushDitherAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.apvts.getParameter("CRUSH_DITHER"), *crushDitherRelay, nullptr);
+    // Rot (v1.10.0)
+    rotEnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_ENABLE"), *rotEnableRelay, nullptr);
+    rotProbAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_PROB"), *rotProbRelay, nullptr);
+    rotDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_DEPTH"), *rotDepthRelay, nullptr);
+    rotStickAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_STICK"), *rotStickRelay, nullptr);
+    rotGarbleAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.apvts.getParameter("ROT_GARBLE"), *rotGarbleRelay, nullptr);
     // Global
     clockModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.apvts.getParameter("CLOCK_MODE"), *clockModeRelay, nullptr);
@@ -188,7 +426,14 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
 #endif
 
     startTimerHz(30);
-    setSize(900, 620);
+
+    // 620 -> 740 in v1.10.0: the Rot plate is a new full-width row between the
+    // 3x2 family grid and the global strip. Growing the window rather than
+    // re-flowing the grid to four columns keeps every existing panel's internal
+    // layout pixel-identical — the four-column variant would have forced the
+    // vinyl RPM switch, the packet conceal dropdown and both codec switches
+    // into narrower boxes than their content needs.
+    setSize(900, 740);
 }
 
 OBitrotAudioProcessorEditor::~OBitrotAudioProcessorEditor()
@@ -209,8 +454,9 @@ void OBitrotAudioProcessorEditor::resized()
 
 void OBitrotAudioProcessorEditor::timerCallback()
 {
-    // Event LED bridge — fire-and-forget at 30 Hz. Payload bits 0-3 =
-    // tape, cd, vinyl, packet. Codec/Crush LEDs are UI-side (enable state).
+    // Event LED bridge — fire-and-forget at 30 Hz. Payload bits 0-4 =
+    // tape, cd, vinyl, packet, rot. Codec/Crush LEDs are UI-side (enable
+    // state); rot gets a real event bit because its events are discrete.
     if (! webView->isShowing())
         return;
 
@@ -250,6 +496,13 @@ OBitrotAudioProcessorEditor::getResource(const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("application/javascript")};
+    }
+
+    if (url == "/modules/preset-manager.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
             juce::String("application/javascript")};
     }
 

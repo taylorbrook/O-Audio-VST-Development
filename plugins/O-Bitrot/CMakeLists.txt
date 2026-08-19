@@ -8,7 +8,7 @@ juce_add_plugin(OBitrot
     PLUGIN_CODE OBrt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bitrot${OUARICON_DEV_SUFFIX}"
-    VERSION 0.1.0
+    VERSION 1.12.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_WEB_BROWSER TRUE
@@ -91,7 +91,13 @@ target_link_libraries(OBitrot PRIVATE OBitrot_gsm)
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OBitrot)
 
-# WebView UI Resources (no hyphenated filenames — BinaryData strips hyphens)
+# Shared modules — adds the module cpp/ include dir and configure-copies the
+# JS to Source/ui/public/modules/ (that IS this plugin's UI root; never
+# relocate the copy — it is re-created on every configure).
+ouaricon_add_module(OBitrot preset-manager)
+
+# WebView UI Resources (no hyphenated filenames — BinaryData strips hyphens;
+# preset-manager.js becomes BinaryData::presetmanager_js)
 juce_add_binary_data(OBitrot_UIResources
     SOURCES
         Source/ui/public/index.html
@@ -99,6 +105,7 @@ juce_add_binary_data(OBitrot_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/specimen.webp
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OBitrot PRIVATE OBitrot_UIResources)

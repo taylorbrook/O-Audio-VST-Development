@@ -94,6 +94,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -177,7 +178,7 @@ void setParam (TapestopProcessor& proc, const char* id, float engineeringValue)
         p->setValueNotifyingHost (p->convertTo0to1 (engineeringValue));
 }
 
-/** Resets ALL 14 parameters to the shipped defaults (createParameterLayout()).
+/** Resets ALL 19 parameters to the shipped defaults (createParameterLayout()).
     Traps: MIX neutral = 100 (not 0); ENGAGE explicitly forced OFF; the
     shipped SYNC_MODE default is Sync — probes that assert Free-ms timing must
     set SYNC_MODE = 1 explicitly after this. */
@@ -194,6 +195,11 @@ void setBaseline (TapestopProcessor& proc)
     setParam (proc, "START_CURVE",   50.0f);
     setParam (proc, "ENV_SYNC_DIV",   4.0f);   // 1 bar
     setParam (proc, "ENV_FREE_MS", 1000.0f);
+    setParam (proc, "CHARACTER",      0.0f);   // Wobble (v1.1)
+    setParam (proc, "CONT_RATE_SYNC_DIV", 2.0f);   // 1/4
+    setParam (proc, "CONT_RATE_HZ",   1.2f);
+    setParam (proc, "CONT_DEPTH",    35.0f);
+    setParam (proc, "CONT_CHAOS",    20.0f);
     setParam (proc, "TONE_TRACK",    60.0f);
     setParam (proc, "MIX",          100.0f);   // neutral is 100, NOT 0
     setParam (proc, "OUTPUT_GAIN",    0.0f);
@@ -310,6 +316,105 @@ StereoOut renderTimeline (TapestopProcessor& proc, int totalSamples,
 
         while (nextEvent < events.size() && events[nextEvent].atSample <= n)
             applyEvent (events[nextEvent++]);
+    }
+
+    return out;
+}
+
+/** A MESSAGE-THREAD call fired BETWEEN processBlock calls at this ABSOLUTE
+    timeline sample. Event only carries a float, so anything that is not an
+    APVTS write (an envelope commit, a preset load) needs this instead. */
+struct Action
+{
+    int                                       atSample;
+    std::function<void (TapestopProcessor&)>  fn;
+};
+
+/** renderTimeline with message-thread Actions interleaved. Same block-splitting
+    contract: no processBlock call spans an action or an event, both lists must
+    be sorted by atSample. Used by the mid-pass envelope-edit probe, where the
+    whole point is that the commit lands DURING a block sequence, not before it. */
+template <typename Fill>
+StereoOut renderWithActions (TapestopProcessor& proc, int totalSamples,
+                             const std::vector<int>& sizes,
+                             const std::vector<Event>& events,
+                             const std::vector<Action>& actions,
+                             Fill&& fill)
+{
+    juce::MidiBuffer midi;
+
+    StereoOut out;
+    out.L.reserve ((size_t) totalSamples);
+    out.R.reserve ((size_t) totalSamples);
+
+    int maxSize = 1;
+    for (int s : sizes)
+        maxSize = juce::jmax (maxSize, s);
+
+    juce::AudioBuffer<float> block (2, maxSize);
+
+    auto applyEvent = [&proc] (const Event& e)
+    {
+        if (std::strcmp (e.id, "@BPM") == 0)
+        {
+            jassert (gPlayHead != nullptr);
+            if (gPlayHead != nullptr)
+                gPlayHead->bpm = (double) e.value;
+            return;
+        }
+        setParam (proc, e.id, e.value);
+    };
+
+    size_t nextEvent  = 0;
+    size_t nextAction = 0;
+    size_t sizeIndex  = 0;
+    int    n          = 0;
+
+    while (nextEvent < events.size() && events[nextEvent].atSample <= 0)
+        applyEvent (events[nextEvent++]);
+
+    while (nextAction < actions.size() && actions[nextAction].atSample <= 0)
+        actions[nextAction++].fn (proc);
+
+    while (n < totalSamples)
+    {
+        int chunk = sizes[sizeIndex % sizes.size()];
+        ++sizeIndex;
+
+        chunk = juce::jmin (chunk, totalSamples - n);
+
+        if (nextEvent < events.size())
+            chunk = juce::jmin (chunk, events[nextEvent].atSample - n);
+
+        if (nextAction < actions.size())
+            chunk = juce::jmin (chunk, actions[nextAction].atSample - n);
+
+        if (chunk <= 0)
+            chunk = 1;
+
+        juce::AudioBuffer<float> view (block.getArrayOfWritePointers(), 2, chunk);
+
+        for (int s = 0; s < chunk; ++s)
+        {
+            view.setSample (0, s, fill (0, n + s));
+            view.setSample (1, s, fill (1, n + s));
+        }
+
+        proc.processBlock (view, midi);
+
+        for (int s = 0; s < chunk; ++s)
+        {
+            out.L.push_back (view.getSample (0, s));
+            out.R.push_back (view.getSample (1, s));
+        }
+
+        n += chunk;
+
+        while (nextEvent < events.size() && events[nextEvent].atSample <= n)
+            applyEvent (events[nextEvent++]);
+
+        while (nextAction < actions.size() && actions[nextAction].atSample <= n)
+            actions[nextAction++].fn (proc);
     }
 
     return out;
@@ -478,6 +583,12 @@ double hfRatio (const std::vector<float>& v, int lo, int hi) noexcept
 // covers that plus the fade-slope and stopped-fade terms.
 const double kDrySineDiffBound = 0.5 * juce::MathConstants<double>::twoPi * 440.0 / kFs;
 const double kP6Bound          = kDrySineDiffBound * 1.85 + 0.002;
+
+// v1.2 Glitch bound: slam holds the ±2 engine rail and a stutter pitch-ramp
+// can splice two voices both near |r| = 2 (equal-power sum → √(2²+2²) ≈ 2.83·d).
+// 3.0× covers that plus fade-slope margin; a genuine click is first-diff
+// ≈ 2A ≈ 1.0, still ~10× above this bound, so detection power is intact.
+const double kP6BoundGlitch    = kDrySineDiffBound * 3.0 + 0.004;
 
 // Shared resync timing constants (48 kHz): 250 ms catchup cap, 50 ms fade.
 constexpr int kCatchupLen = 12001;   // cap ticks (elapsed > cap → enter resync)
@@ -1462,6 +1573,534 @@ int main()
         check ("scratch-mode-switch-silent", bad < 0,
                bad < 0 ? "48000 samples memcmp-equal to input"
                        : "first diff @" + juce::String (bad));
+    }
+
+    // ── Scratch: mid-pass envelope edits cannot touch the in-flight pass ─────
+    // B1 regression gate. ScratchEnvelope double-buffers (bufA/bufB) and bakes
+    // into "whichever is not published", but the transport latches the LUT for
+    // an ENTIRE pass — up to 8 s. Double buffering only survives ONE outstanding
+    // reader generation, so the SECOND commit during a live pass used to bake
+    // straight into the buffer the audio thread was reading: torn envelope
+    // mid-pass (an r step — audible speed jerk) plus a formal data race.
+    // Reachable in normal use: the editor commits 50 ms after every pointer-up.
+    //
+    // Two commits are the minimum that reproduces it, and they must land DURING
+    // the pass — hence renderWithActions rather than renderTimeline. The fix is
+    // the transport's own copy taken at the engage edge (engageScratch memcpy),
+    // which makes the latch contract structural instead of probabilistic.
+    //
+    // Discriminator: the mid-pass commits move r from 0.5 to 1.5 then 2.0, so a
+    // torn read is a gross divergence, not a rounding difference. Verified to
+    // FAIL against the pre-fix build before the fix landed (first diff at the
+    // second commit's sample), which is what makes the PASS meaningful.
+    {
+        // r = 0.5 flat for the whole pass — what BOTH renders must produce.
+        const char* envBase   = R"({"v":1,"points":[{"x":0,"y":0.25},{"x":1,"y":0.25}]})";
+        const char* envEdit1  = R"({"v":1,"points":[{"x":0,"y":0.75},{"x":1,"y":0.75}]})";
+        const char* envEdit2  = R"({"v":1,"points":[{"x":0,"y":1.0},{"x":1,"y":1.0}]})";
+
+        const int engageAt = 4096;
+        const int total    = 110592;
+        const int commit1  = engageAt + 24000;   // 0.5 s into a 2 s pass
+        const int commit2  = engageAt + 48000;   // 1.0 s in — the unsafe one
+
+        auto setup = [&] (TapestopProcessor& p)
+        {
+            prepareAndSettle (p, 512);
+            setParam (p, "SYNC_MODE", 1.0f);
+            setParam (p, "MODE", 1.0f);
+            setParam (p, "ENV_FREE_MS", 2000.0f);
+        };
+
+        TapestopProcessor pRef;
+        setup (pRef);
+        const bool baseOk = pRef.commitScratchEnvelopeJson (envBase);
+
+        auto ref = renderWithActions (pRef, total, { 512 },
+                                      { { engageAt, "ENGAGE", 1.0f } },
+                                      {},
+                                      sine440);
+
+        TapestopProcessor pEdit;
+        setup (pEdit);
+        const bool editBaseOk = pEdit.commitScratchEnvelopeJson (envBase);
+
+        bool commitsOk = true;
+        auto edit = renderWithActions (
+            pEdit, total, { 512 },
+            { { engageAt, "ENGAGE", 1.0f } },
+            { { commit1, [&] (TapestopProcessor& p)
+                         { commitsOk &= p.commitScratchEnvelopeJson (envEdit1); } },
+              { commit2, [&] (TapestopProcessor& p)
+                         { commitsOk &= p.commitScratchEnvelopeJson (envEdit2); } } },
+            sine440);
+
+        juce::String diag;
+        const bool same = identicalVec (ref.L, edit.L, diag)
+                       && identicalVec (ref.R, edit.R, diag);
+
+        // Liveness: the pass must actually bend the pitch, or bit-identity is
+        // a comparison of two dry renders and proves nothing.
+        double dev = 0.0;
+        for (int n = engageAt + 1000; n < engageAt + 90000; ++n)
+            dev = juce::jmax (dev, (double) std::abs (ref.L[(size_t) n] - sine440 (0, n)));
+
+        check ("scratch-envelope-edit-midpass-inert",
+               baseOk && editBaseOk && commitsOk && same && dev > 0.01
+                 && allFinite (edit.L) && allFinite (edit.R),
+               same ? "2 mid-pass commits, in-flight pass bit-identical (dev="
+                        + juce::String (dev, 3) + ")"
+                    : "TORN: " + diag);
+    }
+
+    //==========================================================================
+    // ── v1.1 Continuous mode ─────────────────────────────────────────────────
+
+    // C-P0/P1a/P2 per character: determinism (two fresh instances bitwise),
+    // 512-vs-4096 bit-identity (this probe IS the enforcement of the seeded
+    // per-purpose RNG discipline), liveness (the engaged span must deviate
+    // from dry — a generator wired to nothing passes every other bound
+    // vacuously), and post-release bitwise dry through the full SpinUp →
+    // Catchup → ResyncXfade path. Edges at multiples of 4096.
+    {
+        const char* charNames[] = { "wobble", "random", "glitch" };
+
+        for (int c = 0; c < 3; ++c)
+        {
+            auto run = [c] (int blk)
+            {
+                TapestopProcessor p;
+                prepareAndSettle (p, blk);
+                setParam (p, "SYNC_MODE",    1.0f);   // Free
+                setParam (p, "MODE",         2.0f);   // Continuous
+                setParam (p, "CHARACTER",    (float) c);
+                setParam (p, "CONT_RATE_HZ", c == 2 ? 8.0f : 2.0f);   // glitch: 6000-sample cells
+                setParam (p, "CONT_DEPTH",  60.0f);
+                setParam (p, "CONT_CHAOS",  60.0f);
+                return renderTimeline (p, 122880, { blk },
+                                       { { 8192, "ENGAGE", 1.0f }, { 57344, "ENGAGE", 0.0f } },
+                                       noiseFill);
+            };
+
+            auto a = run (512);
+            auto b = run (512);
+            auto l = run (4096);
+
+            juce::String d0, d1;
+            const bool det = identicalVec (a.L, b.L, d0) && identicalVec (a.R, b.R, d1);
+
+            juce::String dL, dR;
+            const bool inv = identicalVec (a.L, l.L, dL) && identicalVec (a.R, l.R, dR);
+
+            double dev = 0.0;
+            for (int n = 16000; n < 50000; ++n)
+                dev = juce::jmax (dev, (double) std::abs (a.L[(size_t) n] - noiseFill (0, n)));
+
+            check ((juce::String ("C-P0-determinism-") + charNames[c]).toRawUTF8(),
+                   det && dev > 0.01,
+                   "runs " + d0 + "; engagedDev=" + juce::String (dev, 4));
+
+            check ((juce::String ("C-P1a-blocksize-") + charNames[c]).toRawUTF8(),
+                   inv, "L " + dL + "; R " + dR);
+
+            // Release @57344: spin-up ≤ 12000 (250 ms), catchup capped 12000,
+            // fade 2400 → dry well before 57344 + 32768.
+            const int bad = firstNonDry (a, noiseFill, 57344 + 32768, 122880);
+
+            check ((juce::String ("C-P2-null-after-release-") + charNames[c]).toRawUTF8(),
+                   bad < 0,
+                   bad < 0 ? "tail memcmp-equal to input"
+                           : "first diff @" + juce::String (bad));
+        }
+    }
+
+    // C-P0x (v1.2): glitch at CHAOS/DEPTH 100 — the everything-unlocked path
+    // (4 slots/cell, freeze/slam/chatter/shuffle, stutter roll + pitch-ramp
+    // all reachable). Same three gates as C-P0/P1a/P2: two fresh instances
+    // bitwise, 512-vs-4096 bit-identity, post-release bitwise dry. This is
+    // the enforcement that every NEW event type keeps all state inside
+    // tick() and every draw on the seeded per-purpose streams.
+    {
+        auto run = [] (int blk)
+        {
+            TapestopProcessor p;
+            prepareAndSettle (p, blk);
+            setParam (p, "SYNC_MODE",    1.0f);
+            setParam (p, "MODE",         2.0f);
+            setParam (p, "CHARACTER",    2.0f);
+            setParam (p, "CONT_RATE_HZ", 8.0f);
+            setParam (p, "CONT_DEPTH", 100.0f);
+            setParam (p, "CONT_CHAOS", 100.0f);
+            return renderTimeline (p, 122880, { blk },
+                                   { { 8192, "ENGAGE", 1.0f }, { 57344, "ENGAGE", 0.0f } },
+                                   noiseFill);
+        };
+
+        auto a = run (512);
+        auto b = run (512);
+        auto l = run (4096);
+
+        juce::String d0, d1;
+        const bool det = identicalVec (a.L, b.L, d0) && identicalVec (a.R, b.R, d1);
+
+        juce::String dL, dR;
+        const bool inv = identicalVec (a.L, l.L, dL) && identicalVec (a.R, l.R, dR);
+
+        double dev = 0.0;
+        for (int n = 16000; n < 50000; ++n)
+            dev = juce::jmax (dev, (double) std::abs (a.L[(size_t) n] - noiseFill (0, n)));
+
+        check ("C-P0x-glitch-max-determinism", det && dev > 0.01,
+               "runs " + d0 + "; engagedDev=" + juce::String (dev, 4));
+
+        check ("C-P0x-glitch-max-blocksize", inv, "L " + dL + "; R " + dR);
+
+        const int bad = firstNonDry (a, noiseFill, 57344 + 32768, 122880);
+        check ("C-P0x-glitch-max-null-after-release", bad < 0,
+               bad < 0 ? "tail memcmp-equal to input"
+                       : "first diff @" + juce::String (bad));
+    }
+
+    // C-P4c: debt stays bounded under a LONG worst-case hold. Random at max
+    // depth/chaos random-walks its position debt (rate mean-reverts, the
+    // integral does not) — the ±0.2 % servo must pin it; Glitch's one-sided
+    // event debt must be recentred by the debt-biased scheduler + soft budget
+    // + hard resync-snap. 40 s spans ≫ every modulation period in play
+    // (pattern_metric_window_vs_modulation_period). Bound: hard budget (6 s)
+    // + one glitch cell + margin, and NEVER the ring rail (the rail is the
+    // pitch-snap artifact; measured against the ACTUAL allocated span —
+    // pattern_test_fixture_mirrors_drift_silently).
+    for (int c = 1; c <= 2; ++c)
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE",    1.0f);
+        setParam (p, "MODE",         2.0f);
+        setParam (p, "CHARACTER",    (float) c);
+        setParam (p, "CONT_RATE_HZ", c == 2 ? 8.0f : 4.0f);
+        setParam (p, "CONT_DEPTH", 100.0f);
+        setParam (p, "CONT_CHAOS", 100.0f);
+        setParam (p, "ENGAGE",       1.0f);
+
+        const int total = (int) (40.0 * kFs);
+        juce::AudioBuffer<float> block (2, 512);
+        juce::MidiBuffer midi;
+
+        double maxDebt = 0.0;
+        int    n       = 0;
+        bool   finite  = true;
+
+        while (n < total)
+        {
+            const int chunk = juce::jmin (512, total - n);
+            juce::AudioBuffer<float> view (block.getArrayOfWritePointers(), 2, chunk);
+
+            for (int s = 0; s < chunk; ++s)
+            {
+                view.setSample (0, s, noiseAt (n + s));
+                view.setSample (1, s, noiseAt (n + s + 7919));
+            }
+
+            p.processBlock (view, midi);
+            finite = finite && std::isfinite (view.getSample (0, chunk - 1));
+
+            n += chunk;
+            maxDebt = juce::jmax (maxDebt, p.getDebtSamplesForTest());
+        }
+
+        const double hardBound = (6.0 + 2.0) * kFs;
+        const double rail      = (double) p.getRingSpanForTest()
+                               - (double) VarispeedVoice::kInterpGuard;
+
+        check ((juce::String ("C-P4c-debt-bound-") + (c == 1 ? "random" : "glitch")).toRawUTF8(),
+               finite && maxDebt < hardBound && maxDebt < rail,
+               "maxDebt=" + juce::String (maxDebt / kFs, 3) + " s (bound "
+                 + juce::String (hardBound / kFs, 1) + " s, rail "
+                 + juce::String (rail / kFs, 1) + " s)");
+    }
+
+    // C-P6: continuity. Wobble at full depth is C1 by construction (sines +
+    // filtered noise + 50 ms depth slew); Glitch may STEP r (2 ms slew) and
+    // splice positions (3–50 ms fades) but the WAVEFORM must stay inside a
+    // first-difference bound on a 440 Hz probe tone. Wobble uses the scratch
+    // r = ±1.8 precedent bound; Glitch (v1.2) uses the ±2-rail bound — slam
+    // holds r = 2 and ramped-stutter splices can sum two near-rail voices.
+    for (int c = 0; c <= 2; c += 2)
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+        setParam (p, "SYNC_MODE",    1.0f);
+        setParam (p, "MODE",         2.0f);
+        setParam (p, "CHARACTER",    (float) c);
+        setParam (p, "CONT_RATE_HZ", c == 2 ? 8.0f : 1.2f);
+        setParam (p, "CONT_DEPTH",  c == 2 ? 60.0f : 100.0f);
+        setParam (p, "CONT_CHAOS",  c == 2 ? 100.0f : 40.0f);
+
+        const int total = 192000;   // 4 s — ≥ 25 glitch cells at 8 Hz
+        auto y = renderTimeline (p, total, { 512 },
+                                 { { 4096, "ENGAGE", 1.0f } },
+                                 sine440);
+
+        const double diff = juce::jmax (maxFirstDiff (y.L, 8192, total),
+                                        maxFirstDiff (y.R, 8192, total));
+
+        double dev = 0.0;
+        for (int n2 = 48000; n2 < 96000; ++n2)
+            dev = juce::jmax (dev, (double) std::abs (y.L[(size_t) n2] - sine440 (0, n2)));
+
+        const double p6bound = c == 2 ? kP6BoundGlitch : kP6Bound;
+
+        check ((juce::String ("C-P6-continuity-") + (c == 0 ? "wobble" : "glitch")).toRawUTF8(),
+               allFinite (y.L) && allFinite (y.R) && diff <= p6bound && dev > 0.01,
+               "maxDiff=" + juce::String (diff, 5) + " (bound "
+                 + juce::String (p6bound, 5) + "), dev=" + juce::String (dev, 3));
+    }
+
+    // C-zipper: DEPTH is LIVE (16-sample-grid latch — two renders differing
+    // only in depth must diverge while engaged: liveness gate first,
+    // pattern_zipper_sweep_probe_needs_liveness_gate), and a mid-engage
+    // depth jump must ride the 50 ms slew with no step in the output.
+    {
+        auto run = [] (float depthLate)
+        {
+            TapestopProcessor p;
+            prepareAndSettle (p, 512);
+            setParam (p, "SYNC_MODE",    1.0f);
+            setParam (p, "MODE",         2.0f);
+            setParam (p, "CHARACTER",    0.0f);
+            setParam (p, "CONT_RATE_HZ", 1.2f);
+            setParam (p, "CONT_DEPTH",  35.0f);
+            setParam (p, "CONT_CHAOS",   0.0f);
+            return renderTimeline (p, 144000, { 512 },
+                                   { { 4096,  "ENGAGE",     1.0f },
+                                     { 72704, "CONT_DEPTH", depthLate } },
+                                   sine440);
+        };
+
+        auto swept  = run (100.0f);
+        auto steady = run (35.0f);
+
+        bool live = false;
+        for (int n = 80000; n < 130000 && ! live; ++n)
+            live = ! bitExact (swept.L[(size_t) n], steady.L[(size_t) n]);
+
+        const double stepDiff = juce::jmax (maxFirstDiff (swept.L, 72704 - 2400, 72704 + 4800),
+                                            maxFirstDiff (swept.R, 72704 - 2400, 72704 + 4800));
+
+        check ("C-zipper-depth-live-and-smooth",
+               live && stepDiff <= kP6Bound,
+               juce::String (live ? "live" : "DEAD PARAM") + "; step maxDiff="
+                 + juce::String (stepDiff, 5) + " (bound " + juce::String (kP6Bound, 5) + ")");
+    }
+
+    // C-preset-migration: a pre-1.1 preset stored MODE NORMALIZED over 2
+    // choices (Scratch = 1.0); over 3 choices the same fraction decodes as
+    // Continuous. The registered migration callback must remap it — and must
+    // NOT touch a 1.1.0-format preset (0.5 already = Scratch).
+    {
+        TapestopProcessor p;
+        prepareAndSettle (p, 512);
+
+        auto tmpDir = juce::File::getSpecialLocation (juce::File::tempDirectory);
+
+        auto writePreset = [&tmpDir] (const char* name, const char* version, double modeNorm)
+        {
+            auto* params = new juce::DynamicObject();
+            params->setProperty ("MODE",   modeNorm);
+            params->setProperty ("ENGAGE", 0.0);
+
+            auto* preset = new juce::DynamicObject();
+            preset->setProperty ("name",       name);
+            preset->setProperty ("version",    version);
+            preset->setProperty ("parameters", juce::var (params));
+
+            auto f = tmpDir.getChildFile (juce::String (name) + ".json");
+            f.replaceWithText (juce::JSON::toString (juce::var (preset), true));
+            return f;
+        };
+
+        auto oldFile = writePreset ("ot-mig-old", "1.0.0", 1.0);
+        auto newFile = writePreset ("ot-mig-new", "1.1.0", 0.5);
+
+        const bool loadedOld = p.presetManager.loadPresetFromFile (oldFile);
+        const int  modeOld   = (int) std::lround (
+            (double) p.parameters.getRawParameterValue ("MODE")->load());
+
+        const bool loadedNew = p.presetManager.loadPresetFromFile (newFile);
+        const int  modeNew   = (int) std::lround (
+            (double) p.parameters.getRawParameterValue ("MODE")->load());
+
+        oldFile.deleteFile();
+        newFile.deleteFile();
+
+        check ("C-preset-migration-mode",
+               loadedOld && modeOld == 1 && loadedNew && modeNew == 1,
+               "v1.0.0 n=1.0 -> index " + juce::String (modeOld)
+                 + " (want 1=Scratch); v1.1.0 n=0.5 -> index " + juce::String (modeNew)
+                 + " (want 1)");
+    }
+
+    // B3-trim-exact-rails: the engaged-trim blend must saturate at EXACTLY 1.0f
+    // while engaged and release to EXACTLY 0.0f as the resync fade completes.
+    // That is what makes the processor's 1 + (g-1)*trimAmount land on exactly
+    // 1.0 at the Bypassed handoff (OUTPUT_GAIN must never step into the bitwise
+    // dry path) and what makes reset()'s documented Bypassed baseline of 0 true.
+    //
+    // Driven at the TRANSPORT level, not through processBlock: the final fade
+    // tick is the one that flips the state to Bypassed, so the processor's
+    // post-tick isBypassed() re-check renders that sample DRY (PluginProcessor
+    // .cpp:927) — the value under test is never consumed, and NO rendered
+    // waveform can discriminate it. Swept across all supported rates because
+    // the two defects it covers differ in rate-dependence:
+    //   - target read BELOW the crossfade-completion block: the Bypassed flip
+    //     retargets the ramp to 1 on the final fade sample -> 2/xfLen at EVERY
+    //     rate (8.33e-4 @ 48 kHz).
+    //   - float-accumulator ramp instead of an integer position: lands on 0 at
+    //     44.1/48/192k but leaves 1.88e-5 .. 6.73e-5 at 88.2/96/176.4k.
+    // A 48 kHz-only probe would therefore have missed the second one entirely.
+    {
+        const double rates[] = { 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0 };
+
+        double       worstEnd  = 0.0;   // |trim| at the Bypassed handoff  (want 0)
+        double       worstSat  = 0.0;   // |1 - trim| while saturated      (want 0)
+        bool         allDone   = true;
+        juce::String detail;
+
+        for (double fs : rates)
+        {
+            CaptureBuffer     ring;
+            VarispeedVoice    voices[2];
+            TapestopTransport transport;
+
+            ring.prepare (fs, 4.0);
+            transport.prepare (fs);
+
+            int  n    = 0;
+            auto feed = [&n, &ring] { const float s = sineAt (n++, 220.0); ring.pushSample (s, s); };
+
+            for (int i = 0; i < 8192; ++i)   // pre-roll: the ring records while Bypassed
+                feed();
+
+            // ENGAGE: 100 ms spin-down, then hold Stopped well past the 50 ms
+            // trim ramp so it saturates on the 1 rail.
+            TapestopTransport::Tick t {};
+            transport.engage (0.100 * fs, 1.0, voices, ring);
+
+            for (int i = 0; i < (int) (0.500 * fs); ++i)
+            {
+                feed();
+                t = transport.tick (voices, ring);
+            }
+
+            const double atSat = (double) t.trimAmount;
+
+            // RELEASE: SpinUp -> Catchup -> ResyncXfade -> Bypassed.
+            transport.release (0.100 * fs, 1.0, voices, ring);
+
+            int guard = (int) (5.0 * fs);
+
+            while (! transport.isBypassed() && --guard > 0)
+            {
+                feed();
+                t = transport.tick (voices, ring);
+            }
+
+            const double atEnd = (double) t.trimAmount;
+
+            if (guard <= 0)
+                allDone = false;
+
+            worstEnd = juce::jmax (worstEnd, std::abs (atEnd));
+            worstSat = juce::jmax (worstSat, std::abs (atSat - 1.0));
+
+            if (! bitExact (t.trimAmount, 0.0f))
+                detail << " " << juce::String (fs / 1000.0, 1) << "k:end="
+                       << juce::String (atEnd, 9);
+        }
+
+        check ("B3-trim-exact-rails-6-rates",
+               allDone && ! (worstEnd > 0.0) && ! (worstSat > 0.0),
+               allDone ? ("worst |trim| at handoff=" + juce::String (worstEnd, 9)
+                            + ", worst |1-trim| saturated=" + juce::String (worstSat, 9)
+                            + (detail.isEmpty() ? juce::String (" - all 6 rates exact")
+                                                : juce::String (" - FAILING:") + detail))
+                       : juce::String ("resync never completed"));
+    }
+
+    //==========================================================================
+    // v1.4.0 — hover-help preference survives the state round-trip
+    //
+    // This probe exists because the OBVIOUS restore guard is wrong and nothing
+    // else in the build can see it. getStateInformation writes
+    // tooltipsEnabled as a BOOL var, so `if (tips.isBool())` reads as correct
+    // — but the value goes out through ValueTree::createXml and comes back
+    // through NamedValueSet::setFromXmlAttributes, which rebuilds every
+    // property as `var (value)` over the attribute STRING. What returns is a
+    // var holding "1", so a bool-or-int type test is false for every saved
+    // session and the preference silently restores as OFF forever. Build,
+    // auval and pluginval all pass either way; only a real round-trip shows it.
+    //
+    // Both directions are asserted, plus the pre-1.4.0 case: a state blob with
+    // no such property at all must leave the default (OFF) standing rather
+    // than reading a void var as false-by-accident and calling it a restore.
+    {
+        TapestopProcessor writer;
+        writer.tooltipsEnabled.store (true, std::memory_order_release);
+
+        juce::MemoryBlock blob;
+        writer.getStateInformation (blob);
+
+        TapestopProcessor reader;
+        reader.setStateInformation (blob.getData(), (int) blob.getSize());
+
+        const bool restoredTrue = reader.tooltipsEnabled.load (std::memory_order_acquire);
+
+        // ...and the other way, so a guard that hardcodes true cannot pass.
+        writer.tooltipsEnabled.store (false, std::memory_order_release);
+        juce::MemoryBlock blobOff;
+        writer.getStateInformation (blobOff);
+
+        TapestopProcessor readerOff;
+        readerOff.tooltipsEnabled.store (true, std::memory_order_release);
+        readerOff.setStateInformation (blobOff.getData(), (int) blobOff.getSize());
+
+        const bool restoredFalse = readerOff.tooltipsEnabled.load (std::memory_order_acquire);
+
+        check ("v140-tooltips-state-roundtrip",
+               restoredTrue && ! restoredFalse,
+               juce::String ("saved ON -> restored ")
+                   + (restoredTrue ? "ON" : "OFF (FAIL: the XML round-trip returns a "
+                                            "STRING var, not a bool)")
+                   + ", saved OFF -> restored " + (restoredFalse ? "ON (FAIL)" : "OFF"));
+
+        // Pre-1.4.0 blob: strip the attribute and confirm the default survives.
+        TapestopProcessor legacyWriter;
+        juce::MemoryBlock legacyBlob;
+        legacyWriter.getStateInformation (legacyBlob);
+
+        bool legacyOk = false;
+
+        if (auto xml = juce::AudioProcessor::getXmlFromBinary (legacyBlob.getData(),
+                                                               (int) legacyBlob.getSize()))
+        {
+            xml->removeAttribute ("tooltipsEnabled");
+            juce::MemoryBlock stripped;
+            juce::AudioProcessor::copyXmlToBinary (*xml, stripped);
+
+            TapestopProcessor legacyReader;
+            legacyReader.tooltipsEnabled.store (true, std::memory_order_release);
+            legacyReader.setStateInformation (stripped.getData(), (int) stripped.getSize());
+
+            // A pre-1.4.0 session must not be treated as "saved OFF": the
+            // property is absent, so whatever the instance already had stands.
+            legacyOk = legacyReader.tooltipsEnabled.load (std::memory_order_acquire);
+        }
+
+        check ("v140-tooltips-legacy-state-inert",
+               legacyOk,
+               legacyOk ? juce::String ("a blob with no tooltipsEnabled leaves the "
+                                        "instance's value untouched")
+                        : juce::String ("FAIL: an absent property was read as OFF"));
     }
 
     //==========================================================================

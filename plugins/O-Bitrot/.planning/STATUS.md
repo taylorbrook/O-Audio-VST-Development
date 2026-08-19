@@ -1,14 +1,14 @@
 ---
 plugin: O-Bitrot
 stage: 4
-phase: research
+phase: verify
 status: complete
-last_updated: 2026-08-15
+last_updated: 2026-08-16
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
 workflow_mode: manual
-next_action: plan_stage_4
+next_action: plugin_complete
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:b31cd60b3b7e9dca5cbae913ec92e01f3e0ce1af918527d7b56e5fae7ea287cb
@@ -21,12 +21,13 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) — ✓ VERIFIED; Stage 4 (Polish) next
-Status: VERIFICATION.md — ✅ VERIFIED; UI-01/UI-02 complete; independent re-runs this
-session: harness 44/44, pluginval s10 SUCCESS, build current, texture md5 + provenance,
-31-relay audit diff-identical to spec, native-fn grep-diff clean. Manual DAW LED/listening
-items carried (non-blocking) to the Stage-4 session.
-Progress: [#################>..] 85%
+Stage: 4 of 4 (Polish) — ✅ VERIFIED. PLUGIN COMPLETE — O-Bitrot v1.0.0
+Status: VERIFICATION.md — version bumped 1.0.0 (CMake + installed bundles confirmed);
+factory sentinel + 8 preset stamps regenerated at 1.0.0 (skew spot-check 0.80683 on
+disk); independent gate re-runs all green: harness 44/44, parity 10↔10, pluginval s10
+×3 VST3 + ×3 AU, auval PASS; session-state fns diff-confirmed untouched; installed.
+18/18 requirements complete. Manual DAW checklist remains open, non-gating.
+Progress: [####################] 100%
 
 ## Phase Progress
 
@@ -35,6 +36,9 @@ Progress: [#################>..] 85%
 |-------|--------|------|-------|
 | discuss | ✓ | 2026-08-15 | CONTEXT.md — preset-manager v1.0.5 + ~8 factory presets; automated-only gate (pluginval s10 ×2–3 + auval + harness 44/44); manual DAW checklist stays non-gating; local install only; 1.0.0 at verify; EB Garamond declined |
 | research | ✓ | 2026-08-15 | RESEARCH.md — presets store normalized 0..1 (no choice/bool adapter); factory defs in engineering units via batch convertTo0to1 (Tapestop PluginProcessor.cpp:232-242 pattern); 10 native fns (incl. undocumented savePresetWithDialog) parity 10↔10; band fits header's ~400 px empty center (grid has no vertical slack); no AsyncUpdater → cancelPendingUpdate gate N/A; module JS lands in Source/ui/public/modules/ (no 2nd binary-data target); draft 8-preset bank, slash-free names |
+| plan | ✓ | 2026-08-16 | PLAN.md — 9 execute tasks + version-bump-at-verify; header-center band (zero grid cost); no customState; 13-item pitfall checklist mapped to research gates G1–G15; harness 44/44 + parity 10↔10 + pluginval s10 ×2–3 gates |
+| execute | ✓ | 2026-08-16 | SUMMARY.md — 9/9 tasks; preset-manager v1.0.5 wired (include-path, no vendored copy); 8-preset factory bank all-31-IDs engineering units + batch convertTo0to1 (skew spot-check 0.8068 on disk); 10 native fns + /modules route; header-center band, zero grid change; harness 44/44; parity 10↔10; pluginval s10 ×3+×3; auval PASS; installed |
+| verify | ✓ | 2026-08-16 | VERIFICATION.md — ✅ VERIFIED; v1.0.0 bumped + confirmed in installed bundles; factory sentinel/stamps regenerated at 1.0.0; independent re-runs: harness 44/44, parity 10↔10, pluginval s10 ×3+×3, auval PASS; state fns diff-clean; 18/18 requirements complete — PLUGIN COMPLETE |
 
 ### Stage 3: GUI
 | Phase | Status | Date | Notes |
@@ -83,11 +87,14 @@ Progress: [#################>..] 85%
 
 ## Next Steps
 
-1. Stage 4 (Polish) plan — `/plugin-plan O-Bitrot 4-polish`
+1. Plugin complete — v1.0.0 installed locally. Optional: `/install-plugin O-Bitrot` to
+   re-install, `/package O-Bitrot` / `/publish O-Bitrot` in a future cycle.
 2. Manual DAW checklist (NON-GATING, user-driven follow-ups): per-family LED semantics
    soloed; dice/seed persistence in a project; sync-mode clocking; Stage-2 carried
    listening items (Logic smoke, MIX 50%/0% + HARD_EDGES, ENV_AMT voicing, Standalone
-   SEED persistence). EB Garamond woff2 bundling declined at 4-polish discuss.
+   SEED persistence); NEW — preset band click-through (load applies + enables flip,
+   save→load round-trip, prev/next wrap, two-click delete, dialog save-as/load-from-file).
+   EB Garamond woff2 bundling declined at 4-polish discuss.
 
 ## Context to Preserve
 

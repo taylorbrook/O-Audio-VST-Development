@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.5
+version: 1.0.6
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,10 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.6
+    date: 2026-08-16
+    changes:
+      - "O-Tapestop v1.1.0: optional setMigrationCallback(MigrationCallback) hook — applyPresetJson() invokes it with the preset's parameters DynamicObject and saved version string BEFORE the WR-01 reset/apply passes, so a plugin can remap stale normalized encodings (e.g. an AudioParameterChoice that gained an entry re-decodes the stored 0..1 fraction against the new choice count). Never called when unset — existing consumers unaffected"
   - version: 1.0.5
     date: 2026-07-16
     changes:
