@@ -30,12 +30,39 @@
 
     Crossfade gains per ARCHITECTURE (consumed from Phase 2.2's ResyncXfade):
 
-        fadeOut = hann(0.5 + phi/2)     // monotonic falling half
-        fadeIn  = hann(phi/2)           // monotonic rising half
+        fadeOut = hann(0.5 + phi/2) = cos^2(pi*phi/2)   // monotonic falling half
+        fadeIn  = hann(phi/2)       = sin^2(pi*phi/2)   // monotonic rising half
 
-    Equal-power by construction (sin^2 + cos^2 = 1). No normalisation
-    constants: exactly two voices, deterministic gains, no population
-    statistics.
+    This is a raised-cosine EQUAL-GAIN law, not equal-power — `SpliceLaw::
+    EqualPower` is a misnomer kept for compatibility. sin^2 + cos^2 = 1 holds
+    over the GAINS themselves, so what is constant across the fade is the
+    AMPLITUDE sum, not the power sum:
+
+        correlated:   (fadeOut + fadeIn)^2       = 1                  -> 0 dB, flat
+        decorrelated: fadeOut^2 + fadeIn^2       = (1 + cos^2(pi*phi))/2
+                                                 -> 0.5 at phi = 0.5, a 3.01 dB dip
+
+    So this law is exact on CORRELATED material and dips on decorrelated
+    material. True equal-power is the square root of these gains —
+    sin(pi*phi/2) / cos(pi*phi/2) — which flattens the decorrelated case and
+    instead over-sums correlated material by +3.01 dB at the midpoint. Neither
+    law is flat for both; the choice is which material the splice actually
+    sees. O-Tapestop's resync crossfade splices the live-head rider against a
+    voice seconds behind it, so the decorrelated case is the one that applies.
+
+    The 3.01 dB above is the law's analytic floor and assumes two EQUAL-power
+    decorrelated sources. The real splice is worse, because the fading voice is
+    a varispeed read of different material at a different level: harness probe
+    `AB-splice-equal-power` measures dip = -6.21 dB (and bump = -0.48 dB, i.e.
+    no correlated over-sum, as predicted). `AB-splice-linear` measures -6.99 dB
+    — a deeper dip, consistent with the linear law's power sum falling off
+    faster away from the midpoint (0.625 vs 0.750 at phi = 0.25) even though
+    both laws share the same 0.5 floor exactly at phi = 0.5. Do not quote 3 dB
+    as the plugin's resync dip; quote the measured figure.
+    See improvements/2026-08-16-audit-queue.md item 4 (B2b).
+
+    No normalisation constants: exactly two voices, deterministic gains, no
+    population statistics.
 
   ==============================================================================
 */

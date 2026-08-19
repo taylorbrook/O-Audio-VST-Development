@@ -60,15 +60,29 @@ public:
 
     void reset() noexcept
     {
-        state         = State::Idle;
-        applied       = 1.0;
-        target        = 1.0;
-        step          = 0.0;
-        rampRemaining = 0;
-        rampMs        = 150.0;
+        state            = State::Idle;
+        applied          = 1.0;
+        target           = 1.0;
+        step             = 0.0;
+        rampRemaining    = 0;
+        rampMs           = 150.0;
+        releaseCompleted = false;
+        stopInstalled    = false;
     }
 
     bool isIdle() const noexcept { return state == State::Idle; }
+
+    // One-shot: true for the single sample on which a Releasing ramp landed
+    // back on NORMAL. The processor consumes it to decide whether the event
+    // stranded the read head far enough behind to warrant an intentional
+    // recovery jump (a deep stop leaves seconds of lag that the +2%
+    // re-approach trim would take ~50x as long to claw back).
+    bool consumeReleaseComplete() noexcept
+    {
+        const bool r = releaseCompleted;
+        releaseCompleted = false;
+        return r;
+    }
 
     // fromRate: the rate that was actually applied last sample (may include
     // the ReadHead re-approach trim) — ramping from it avoids a rate step at
@@ -79,9 +93,22 @@ public:
         beginRamp (interval, newRampMs, fromRate);
     }
 
+    // One-shot: true for the single sample on which a stop was installed.
+    // TapeStopGain consumes it to ARM the output-dies-with-speed law (v1.4.0).
+    // The latch lives here rather than in the gain stage because only this
+    // class knows a stop from a bend — rate alone cannot tell them apart, and
+    // the 0.5x bend interval sits below the gain law's own threshold.
+    bool consumeStopInstalled() noexcept
+    {
+        const bool r = stopInstalled;
+        stopInstalled = false;
+        return r;
+    }
+
     void installStop (double newRampMs, double fromRate) noexcept
     {
-        state = State::Stop;
+        state         = State::Stop;
+        stopInstalled = true;
         beginRamp (0.0, newRampMs, fromRate);
     }
 
@@ -133,8 +160,9 @@ public:
 
         if (state == State::Releasing && rampRemaining == 0)
         {
-            state   = State::Idle;
-            applied = 1.0;
+            state            = State::Idle;
+            applied          = 1.0;
+            releaseCompleted = true;   // consumed by the processor, this sample
         }
 
         return applied;
@@ -164,4 +192,7 @@ private:
     double step          = 0.0;
     int    rampRemaining = 0;
     double rampMs        = 150.0;
+
+    bool   releaseCompleted = false;   // one-shot, see consumeReleaseComplete()
+    bool   stopInstalled    = false;   // one-shot, see consumeStopInstalled()
 };

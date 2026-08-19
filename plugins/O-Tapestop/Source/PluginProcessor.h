@@ -130,6 +130,17 @@ public:
     std::atomic<int>           uiState         { 0 };
     std::atomic<std::uint32_t> uiEnvGeneration { 0 };
 
+    // ── Hover-help preference (v1.4.0) ──────────────────────────────────────
+    // NOT a parameter: it is a per-session UI preference, so it rides the
+    // state tree as a plain property (like scratchEnvelopeJson) rather than
+    // the APVTS. An AudioParameterBool here would show up in every host's
+    // automation lane and in every preset — neither is wanted for a help
+    // layer. Message thread only in practice (the two native fns), but atomic
+    // so a host that queries state off-thread cannot tear the read.
+    // Default FALSE: the "?" ships unlit and the layer stays silent until
+    // asked for.
+    std::atomic<bool> tooltipsEnabled { false };
+
     // ── Ring sizing (research/ARCHITECTURE.md "Ring Sizing", BINDING) ────────
     // Worst-case debt growth is Scratch full-reverse: d(debt)/dt = 1 − r with
     // r = −2 ⇒ 3 s of debt per second of pass. Over the longest gesture
@@ -179,6 +190,11 @@ private:
                                const std::atomic<float>* msParam) const noexcept;
     double gestureDurationSamples (bool isStopGesture) const noexcept;
 
+    // Continuous-mode motion period in samples (v1.1): SYNC_MODE gates the
+    // CONT_RATE_SYNC_DIV / CONT_RATE_HZ pair (division duration vs 1/Hz).
+    // Read at the ENGAGE edge and on the absolute 16-sample grid.
+    double continuousPeriodSamples() const noexcept;
+
     // Cached raw parameter atomics — resolved once in the constructor
     // (getRawParameterValue), read per block on the audio thread
     // (research/ARCHITECTURE.md line 348, suite convention). Unused in the
@@ -194,6 +210,11 @@ private:
     std::atomic<float>* pStartCurve   = nullptr;
     std::atomic<float>* pEnvSyncDiv   = nullptr;
     std::atomic<float>* pEnvFreeMs    = nullptr;
+    std::atomic<float>* pCharacter    = nullptr;
+    std::atomic<float>* pContRateDiv  = nullptr;
+    std::atomic<float>* pContRateHz   = nullptr;
+    std::atomic<float>* pContDepth    = nullptr;
+    std::atomic<float>* pContChaos    = nullptr;
     std::atomic<float>* pToneTrack    = nullptr;
     std::atomic<float>* pMix          = nullptr;
     std::atomic<float>* pOutputGain   = nullptr;

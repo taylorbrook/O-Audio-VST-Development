@@ -88,10 +88,49 @@ namespace
     constexpr const char* kStutterEnv =
         R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.12,"y":0.5,"curve":0.0},{"x":0.13,"y":-0.75,"curve":0.0},{"x":0.37,"y":-0.75,"curve":0.0},{"x":0.38,"y":0.75,"curve":0.0},{"x":0.62,"y":0.75,"curve":0.0},{"x":0.63,"y":-0.75,"curve":0.0},{"x":0.87,"y":-0.75,"curve":0.0},{"x":0.88,"y":0.5,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
 
+    // ── v1.3 scratch envelopes ──────────────────────────────────────────────
+    // Transformer: rhythmic full-speed / dead-stop chop (y=0 is stopped).
+    constexpr const char* kTransformerEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.0},{"x":0.24,"y":0.5,"curve":0.0},{"x":0.25,"y":0.0,"curve":0.0},{"x":0.49,"y":0.0,"curve":0.0},{"x":0.5,"y":0.5,"curve":0.0},{"x":0.74,"y":0.5,"curve":0.0},{"x":0.75,"y":0.0,"curve":0.0},{"x":0.99,"y":0.0,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Tape rewind: dive into a held fast-reverse drag, then snap back to 1×.
+    constexpr const char* kRewindEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":-0.5},{"x":0.2,"y":-0.9,"curve":0.0},{"x":0.8,"y":-0.9,"curve":0.5},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Orbit: one smooth wide swing — overspeed crest into a shallow reverse
+    // trough and back. Gentle curves keep it seasick-smooth, never stepped.
+    constexpr const char* kOrbitEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.5,"curve":0.3},{"x":0.25,"y":0.95,"curve":-0.3},{"x":0.5,"y":-0.35,"curve":0.3},{"x":0.75,"y":0.7,"curve":-0.3},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
+    // Crab roll: four fast forward/reverse flicks per cycle.
+    constexpr const char* kCrabRollEnv =
+        R"({"v":1,"points":[{"x":0.0,"y":0.6,"curve":0.0},{"x":0.12,"y":-0.6,"curve":0.0},{"x":0.25,"y":0.6,"curve":0.0},{"x":0.37,"y":-0.6,"curve":0.0},{"x":0.5,"y":0.6,"curve":0.0},{"x":0.62,"y":-0.6,"curve":0.0},{"x":0.75,"y":0.6,"curve":0.0},{"x":0.87,"y":-0.6,"curve":0.0},{"x":1.0,"y":0.5,"curve":0.0}]})";
+
     // Division table {1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars, 4 bars} → beats.
     // ASSUMES 4/4 (suite precedent — recorded in stages/2-dsp/NOTES.md).
     // Indices match syncDivisionChoices() above.
     constexpr double kDivisionBeats[7] = { 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0 };
+
+    // CONT_DEPTH → peak fractional speed deviation, log-perceptual:
+    // 0 → 0.1 % (±2 cents), 0.5 → 1.1 %, 1 → 12 % (≈ ±2 semitones). Keeps
+    // r = 1 ± m deep inside the engine's [−2, +2] rail at every setting
+    // (research/o-tapestop-continuous-mode.md, "Parameters").
+    double continuousPeakDeviation(double depth01)
+    {
+        return 0.001 * std::pow(10.0, 2.08 * juce::jlimit(0.0, 1.0, depth01));
+    }
+
+    // "X.Y.Z" < "1.1.0"? Non-parsing / empty versions count as OLD — every
+    // O-Tapestop preset before the MODE append carried a version string, so
+    // an unknown one can only be pre-1.1 (or hand-mangled; remapping a 2-way
+    // MODE fraction is still the safe read of it).
+    bool presetVersionIsPre110(const juce::String& v)
+    {
+        auto tokens = juce::StringArray::fromTokens(v, ".", {});
+        const int major = tokens.size() > 0 ? tokens[0].getIntValue() : 0;
+        const int minor = tokens.size() > 1 ? tokens[1].getIntValue() : 0;
+        return major < 1 || (major == 1 && minor < 1);
+    }
 } // namespace
 
 TapestopProcessor::TapestopProcessor()
@@ -113,6 +152,11 @@ TapestopProcessor::TapestopProcessor()
     pStartCurve   = parameters.getRawParameterValue("START_CURVE");
     pEnvSyncDiv   = parameters.getRawParameterValue("ENV_SYNC_DIV");
     pEnvFreeMs    = parameters.getRawParameterValue("ENV_FREE_MS");
+    pCharacter    = parameters.getRawParameterValue("CHARACTER");
+    pContRateDiv  = parameters.getRawParameterValue("CONT_RATE_SYNC_DIV");
+    pContRateHz   = parameters.getRawParameterValue("CONT_RATE_HZ");
+    pContDepth    = parameters.getRawParameterValue("CONT_DEPTH");
+    pContChaos    = parameters.getRawParameterValue("CONT_CHAOS");
     pToneTrack    = parameters.getRawParameterValue("TONE_TRACK");
     pMix          = parameters.getRawParameterValue("MIX");
     pOutputGain   = parameters.getRawParameterValue("OUTPUT_GAIN");
@@ -124,7 +168,29 @@ TapestopProcessor::TapestopProcessor()
             && pStopSyncDiv != nullptr && pStopFreeMs != nullptr && pStopCurve != nullptr
             && pStartSyncDiv != nullptr && pStartFreeMs != nullptr && pStartCurve != nullptr
             && pEnvSyncDiv != nullptr && pEnvFreeMs != nullptr
+            && pCharacter != nullptr && pContRateDiv != nullptr && pContRateHz != nullptr
+            && pContDepth != nullptr && pContChaos != nullptr
             && pToneTrack != nullptr && pMix != nullptr && pOutputGain != nullptr);
+
+    // ── Preset migration (v1.1.0): MODE gained "Continuous" ─────────────────
+    // Presets store NORMALIZED values; a pre-1.1 MODE fraction n over 2
+    // choices (end = 1) decodes as round(n·1); over 3 choices (end = 2) the
+    // SAME fraction decodes as round(n·2) — Scratch (1.0) would load as
+    // Continuous. Remap: index = round(n_old·1), n_new = index/2. Runs before
+    // the WR-01 reset/apply passes; factory presets regenerate at the version
+    // bump (WR-04) and never hit the pre-1.1 gate.
+    presetManager.setMigrationCallback(
+        [](juce::DynamicObject& params, const juce::String& presetVersion)
+        {
+            if (!presetVersionIsPre110(presetVersion))
+                return;
+
+            if (params.hasProperty("MODE"))
+            {
+                const double nOld = (double) params.getProperty("MODE");
+                params.setProperty("MODE", std::round(juce::jlimit(0.0, 1.0, nOld)) * 0.5);
+            }
+        });
 
     // ── Preset custom state (Stage 4): the scratch-envelope blob ────────────
     // Save: the SAME string getStateInformation persists — opaque and
@@ -152,81 +218,185 @@ TapestopProcessor::TapestopProcessor()
             }
         });
 
-    // ── Factory bank (Stage 4): 8 presets ───────────────────────────────────
+    // ── Factory bank (Stage 4; +6 Continuous in v1.1; +14 in v1.3): 28 ──────
+    // v1.3 groups the bank into four display themes — Tape Stops, Scratch,
+    // Wobble & Warp, Glitch & Chaos. The grouping lives ONLY in js/app.js
+    // (PRESET_THEMES): getPresetList() stays a flat alphabetical sort and the
+    // preset JSON format is unchanged. Keep app.js's map in sync with the
+    // names here — an unmapped factory preset falls into the "User" group.
     // Authored in ENGINEERING units, then batch-converted through each
     // parameter's NormalisableRange below (CR-02) — raw-fraction authoring
     // would ignore the 0.35 skew on the three FREE_MS ranges
     // (pattern_factory_preset_normalized_ignores_skew). Choice params are
-    // authored as the INDEX. Every preset lists all 14 param IDs (defense in
-    // depth over the WR-01 reset) and carries an explicit envelope blob.
-    // Coverage: both MODEs, both SYNC_MODEs, curve extremes, all three time
-    // params exercised. ENGAGE is 0 everywhere — loading a preset must never
-    // fire a gesture by itself.
-    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
-        { "Classic Half-Bar Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "TONE_TRACK", 60.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
+    // authored as the INDEX. Every preset still EMITS all 19 param IDs (defense
+    // in depth over the WR-01 reset) and carries an explicit envelope blob —
+    // v1.3.6 stopped SPELLING all 19 out per preset and merges a base + a
+    // per-preset override map instead. 142 of the 532 entries actually differed
+    // from the base; the other 390 were transcription.
+    // Coverage: all three MODEs, both SYNC_MODEs, curve extremes, all three
+    // Continuous characters. ENGAGE is 0 everywhere — loading a preset must
+    // never fire a gesture by itself (it is in the base and no spec overrides
+    // it, which is now checkable at a glance rather than 28 times over).
 
-        { "Classic 1-Bar Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 4.0f }, { "STOP_FREE_MS", 1500.0f }, { "STOP_CURVE", 85.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 400.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "TONE_TRACK", 70.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
-        { "DJ Spinup",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 180.0f }, { "START_CURVE", 15.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "TONE_TRACK", 55.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
-        { "Baby Scratch",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
-            { "TONE_TRACK", 65.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kBabyScratchEnv) },
-
-        { "Chirp Flare",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
-            { "TONE_TRACK", 50.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kChirpFlareEnv) },
-
-        { "Tempo-Synced Short Stop",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 1.0f }, { "STOP_FREE_MS", 120.0f }, { "STOP_CURVE", 20.0f },
-            { "START_SYNC_DIV", 1.0f }, { "START_FREE_MS", 120.0f }, { "START_CURVE", 20.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "TONE_TRACK", 40.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
-        { "Slow-Tape Drag",
-          { { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 1.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 70.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 800.0f }, { "START_CURVE", 60.0f },
-            { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
-            { "TONE_TRACK", 90.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kDefaultWobbleEnv) },
-
-        { "Stutter-Scratch",
-          { { "ENGAGE", 0.0f }, { "MODE", 1.0f }, { "SYNC_MODE", 0.0f },
-            { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
-            { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f }, { "START_CURVE", 50.0f },
-            { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 250.0f },
-            { "TONE_TRACK", 45.0f }, { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f } },
-          envelopeCustomState(kStutterEnv) },
+    // ── The 19-ID base ──────────────────────────────────────────────────
+    // Verbatim the defaults in createParameterLayout(), in ENGINEERING
+    // units. Every spec below names ONLY what it changes; the merge loop
+    // re-emits all 19 IDs per preset, so the on-disk JSON is byte-identical
+    // to the fully-spelled-out table this replaces (v1.3.5 and earlier).
+    const std::map<juce::String, float> basePreset {
+        { "ENGAGE", 0.0f }, { "MODE", 0.0f }, { "SYNC_MODE", 0.0f },
+        { "STOP_SYNC_DIV", 3.0f }, { "STOP_FREE_MS", 500.0f }, { "STOP_CURVE", 50.0f },
+        { "START_SYNC_DIV", 2.0f }, { "START_FREE_MS", 250.0f },
+        { "START_CURVE", 50.0f }, { "ENV_SYNC_DIV", 4.0f }, { "ENV_FREE_MS", 1000.0f },
+        { "CHARACTER", 0.0f }, { "CONT_RATE_SYNC_DIV", 2.0f }, { "CONT_RATE_HZ", 1.2f },
+        { "CONT_DEPTH", 35.0f }, { "CONT_CHAOS", 20.0f }, { "TONE_TRACK", 60.0f },
+        { "MIX", 100.0f }, { "OUTPUT_GAIN", 0.0f }
     };
+
+    struct FactoryPresetSpec
+    {
+        const char* name;
+        std::map<juce::String, float> overrides;   // engineering units
+        const char* envelope = kDefaultWobbleEnv;  // 21 of 28 ride the default
+    };
+
+    const std::vector<FactoryPresetSpec> presetSpecs {
+        { "Classic Half-Bar Stop", {} },
+        { "Classic 1-Bar Stop",
+          { { "STOP_SYNC_DIV", 4.0f }, { "STOP_FREE_MS", 1500.0f },
+            { "STOP_CURVE", 85.0f }, { "START_FREE_MS", 400.0f },
+            { "TONE_TRACK", 70.0f } } },
+        { "DJ Spinup",
+          { { "START_FREE_MS", 180.0f }, { "START_CURVE", 15.0f },
+            { "TONE_TRACK", 55.0f } } },
+        { "Baby Scratch",
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
+            { "TONE_TRACK", 65.0f } }, kBabyScratchEnv },
+        { "Chirp Flare",
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
+            { "TONE_TRACK", 50.0f } }, kChirpFlareEnv },
+        { "Tempo-Synced Short Stop",
+          { { "STOP_SYNC_DIV", 1.0f }, { "STOP_FREE_MS", 120.0f },
+            { "STOP_CURVE", 20.0f }, { "START_SYNC_DIV", 1.0f },
+            { "START_FREE_MS", 120.0f }, { "START_CURVE", 20.0f },
+            { "TONE_TRACK", 40.0f } } },
+        { "Slow-Tape Drag",
+          { { "SYNC_MODE", 1.0f }, { "STOP_FREE_MS", 4000.0f }, { "STOP_CURVE", 70.0f },
+            { "START_FREE_MS", 800.0f }, { "START_CURVE", 60.0f },
+            { "TONE_TRACK", 90.0f } } },
+
+        // ── v1.3 Tape Stops additions ───────────────────────────────────────
+        { "Power Cut",
+          { { "SYNC_MODE", 1.0f }, { "STOP_FREE_MS", 180.0f }, { "STOP_CURVE", 15.0f },
+            { "START_FREE_MS", 300.0f }, { "START_CURVE", 40.0f },
+            { "TONE_TRACK", 85.0f } } },
+        { "Cassette Eject",
+          { { "SYNC_MODE", 1.0f }, { "STOP_FREE_MS", 2500.0f }, { "STOP_CURVE", 65.0f },
+            { "START_FREE_MS", 500.0f }, { "TONE_TRACK", 95.0f } } },
+        { "Two-Bar Dive",
+          { { "STOP_SYNC_DIV", 5.0f }, { "STOP_FREE_MS", 4000.0f },
+            { "STOP_CURVE", 80.0f }, { "TONE_TRACK", 75.0f } } },
+        { "Snap Back",
+          { { "STOP_SYNC_DIV", 2.0f }, { "STOP_FREE_MS", 250.0f },
+            { "STOP_CURVE", 40.0f }, { "START_SYNC_DIV", 0.0f },
+            { "START_FREE_MS", 60.0f }, { "START_CURVE", 10.0f },
+            { "TONE_TRACK", 50.0f } } },
+        { "Half-Mix Stop", { { "MIX", 50.0f } } },
+        { "Stutter-Scratch",
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 250.0f },
+            { "TONE_TRACK", 45.0f } }, kStutterEnv },
+
+        // ── v1.3 Scratch additions — each rides its own envelope shape ──────
+        { "Transformer",
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 2.0f }, { "ENV_FREE_MS", 500.0f },
+            { "TONE_TRACK", 45.0f } }, kTransformerEnv },
+        { "Tape Rewind",
+          { { "MODE", 1.0f }, { "ENV_FREE_MS", 1500.0f },
+            { "TONE_TRACK", 70.0f } }, kRewindEnv },
+        { "Orbit",
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 3.0f }, { "ENV_FREE_MS", 800.0f },
+            { "TONE_TRACK", 55.0f } }, kOrbitEnv },
+        { "Crab Roll",
+          { { "MODE", 1.0f }, { "ENV_SYNC_DIV", 1.0f }, { "ENV_FREE_MS", 200.0f },
+            { "TONE_TRACK", 40.0f } }, kCrabRollEnv },
+
+        // ── Continuous mode (v1.1) — depth/chaos values from the research
+        // synthesis (research/o-tapestop-continuous-mode.md, "Proposed factory
+        // presets"); wobble/random run Free, glitch runs Synced.
+        { "Subtle Wobble",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CONT_CHAOS", 15.0f },
+            { "TONE_TRACK", 30.0f } } },
+        { "Warped Record",
+          { { "MODE", 2.0f }, { "CONT_RATE_SYNC_DIV", 4.0f }, { "CONT_RATE_HZ", 0.55f },
+            { "CONT_DEPTH", 60.0f }, { "CONT_CHAOS", 35.0f },
+            { "TONE_TRACK", 55.0f } } },
+        { "Drunk Tape",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 1.0f },
+            { "CONT_RATE_HZ", 0.5f }, { "CONT_DEPTH", 55.0f },
+            { "CONT_CHAOS", 50.0f } } },
+        { "Seasick",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 1.0f },
+            { "CONT_RATE_HZ", 0.15f }, { "CONT_DEPTH", 75.0f }, { "CONT_CHAOS", 70.0f },
+            { "TONE_TRACK", 75.0f } } },
+
+        // ── v1.3 Wobble & Warp additions ────────────────────────────────────
+        { "Tape Flutter",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CONT_RATE_HZ", 7.0f },
+            { "CONT_DEPTH", 15.0f }, { "CONT_CHAOS", 25.0f },
+            { "TONE_TRACK", 30.0f } } },
+        { "Pitch Tide",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CONT_RATE_HZ", 0.08f },
+            { "CONT_DEPTH", 55.0f }, { "CONT_CHAOS", 10.0f },
+            { "TONE_TRACK", 50.0f } } },
+        { "Loose Capstan",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 1.0f },
+            { "CONT_RATE_HZ", 0.9f }, { "CONT_DEPTH", 45.0f }, { "CONT_CHAOS", 60.0f },
+            { "TONE_TRACK", 55.0f } } },
+        { "Glitch",
+          { { "MODE", 2.0f }, { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f },
+            { "CONT_RATE_HZ", 4.0f }, { "CONT_DEPTH", 60.0f }, { "CONT_CHAOS", 55.0f },
+            { "TONE_TRACK", 40.0f } } },
+        { "Total Meltdown",
+          { { "MODE", 2.0f }, { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 0.0f },
+            { "CONT_RATE_HZ", 8.0f }, { "CONT_DEPTH", 90.0f }, { "CONT_CHAOS", 95.0f },
+            { "TONE_TRACK", 65.0f } } },
+
+        // ── v1.3 Glitch & Chaos additions ───────────────────────────────────
+        { "Sputter",
+          { { "MODE", 2.0f }, { "CHARACTER", 2.0f }, { "CONT_RATE_SYNC_DIV", 1.0f },
+            { "CONT_RATE_HZ", 2.5f }, { "CONT_DEPTH", 40.0f }, { "CONT_CHAOS", 30.0f },
+            { "TONE_TRACK", 35.0f } } },
+        { "Data Rot",
+          { { "MODE", 2.0f }, { "SYNC_MODE", 1.0f }, { "CHARACTER", 2.0f },
+            { "CONT_RATE_SYNC_DIV", 1.0f }, { "CONT_RATE_HZ", 13.0f },
+            { "CONT_DEPTH", 75.0f }, { "CONT_CHAOS", 85.0f },
+            { "TONE_TRACK", 50.0f } } },
+    };
+
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;
+    factoryPresets.reserve(presetSpecs.size());
+
+    for (const auto& spec : presetSpecs)
+    {
+        auto params = basePreset;
+
+        // Walk the BASE, not the overrides: `params` can therefore only ever
+        // hold the 19 base IDs — a mistyped override ID can neither smuggle in
+        // a 20th key nor drop a real one. The jassert names the typo in Debug.
+        for (auto& [paramId, value] : params)
+            if (auto it = spec.overrides.find(paramId); it != spec.overrides.end())
+                value = it->second;
+
+        for (const auto& [paramId, value] : spec.overrides)
+        {
+            juce::ignoreUnused(value);
+            jassert(params.count(paramId) == 1);
+        }
+
+        factoryPresets.push_back({ spec.name,
+                                   std::move(params),
+                                   envelopeCustomState(spec.envelope) });
+    }
 
     // CR-02: engineering units → normalized through each parameter's
     // NormalisableRange, once, here. initializeFactoryPresets stores the
@@ -254,10 +424,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout TapestopProcessor::createPar
         "Engage",
         false));
 
+    // v1.1: "Continuous" APPENDED (existing indices keep their meaning).
+    // Sessions are safe (APVTS stores the index), but presets store the
+    // NORMALIZED value — the registered migration callback remaps pre-1.1.0
+    // saves (old n over 2 choices → same index over 3). VST3 automation
+    // lanes of MODE cannot be migrated (host-side normalized storage) —
+    // release-noted caveat.
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "MODE", 1 },
         "Mode",
-        juce::StringArray { "Stop", "Scratch" },
+        juce::StringArray { "Stop", "Scratch", "Continuous" },
         0));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
@@ -320,6 +496,40 @@ juce::AudioProcessorValueTreeState::ParameterLayout TapestopProcessor::createPar
         freeMsRange(),
         1000.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
+
+    // ── Continuous (Continuous mode, v1.1) ──────────────────────────────────
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "CHARACTER", 1 },
+        "Character",
+        juce::StringArray { "Wobble", "Random", "Glitch" },
+        0));
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "CONT_RATE_SYNC_DIV", 1 },
+        "Motion Rate",
+        syncDivisionChoices(),
+        2)); // 1/4
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "CONT_RATE_HZ", 1 },
+        "Motion Rate (Free)",
+        juce::NormalisableRange<float> { 0.05f, 20.0f, 0.0f, 0.3f },
+        1.2f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "CONT_DEPTH", 1 },
+        "Motion Depth",
+        percentRange(),
+        35.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "CONT_CHAOS", 1 },
+        "Motion Chaos",
+        percentRange(),
+        20.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // ── Output ──────────────────────────────────────────────────────────────
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -434,6 +644,19 @@ double TapestopProcessor::gestureDurationSamples(bool isStopGesture) const noexc
                          : durationFromParams(pStartSyncDiv, pStartFreeMs);
 }
 
+double TapestopProcessor::continuousPeriodSamples() const noexcept
+{
+    const bool sync = pSyncMode->load() < 0.5f;
+
+    if (sync)
+    {
+        const int div = juce::jlimit(0, 6, (int) std::lround((double) pContRateDiv->load()));
+        return juce::jmax(2.0, kDivisionBeats[div] * (60.0 / currentBpm) * currentFs);
+    }
+
+    return juce::jmax(2.0, currentFs / juce::jlimit(0.05, 20.0, (double) pContRateHz->load()));
+}
+
 void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                      juce::MidiBuffer& midiMessages)
 {
@@ -482,15 +705,30 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             // MODE is latched HERE (mid-gesture flips inert; disengaged
             // switches touch nothing — the Bypassed path never looks at it).
-            const bool scratchMode = pMode->load() > 0.5f;
+            // Index decode, NOT a boolean: 3 choices since v1.1 — a > 0.5f
+            // test would classify Continuous (index 2) as Scratch.
+            const int mode = juce::jlimit(0, 2, (int) std::lround((double) pMode->load()));
 
-            if (scratchMode)
+            if (mode == 1)
             {
                 // Scratch (FUNC-02): latch the envelope LUT pointer ONCE at
                 // this edge (load-acquire) and the pass length.
                 const auto* lut = scratchEnvelope.acquireLut();
                 transport.engageScratch(durationFromParams(pEnvSyncDiv, pEnvFreeMs),
                                         lut->data(), voices, capture);
+            }
+            else if (mode == 2)
+            {
+                // Continuous (v1.1): CHARACTER + seeds latch here; DEPTH and
+                // RATE stay live on the 16-sample grid below.
+                ContinuousMotion::Params mp;
+                mp.character     = (ContinuousMotion::Character)
+                                       juce::jlimit(0, 2, (int) std::lround((double) pCharacter->load()));
+                mp.depth01       = juce::jlimit(0.0, 1.0, (double) pContDepth->load() * 0.01);
+                mp.mPeak         = continuousPeakDeviation(mp.depth01);
+                mp.chaos         = juce::jlimit(0.0, 1.0, (double) pContChaos->load() * 0.01);
+                mp.periodSamples = continuousPeriodSamples();
+                transport.engageContinuous(mp, voices, capture);
             }
             else
             {
@@ -514,13 +752,19 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const double fcCeil  = juce::jmin(20000.0, 0.47 * currentFs);
     bool engagedAny = false;
 
+    // Continuous-mode live targets (v1.1): computed once per block from the
+    // atomics, PUSHED on the absolute 16-sample grid below (the toneTrack
+    // cadence — block-size invariant). Inert in every other transport state.
+    const double contDepth01 = juce::jlimit(0.0, 1.0, (double) pContDepth->load() * 0.01);
+    const double contMPeak   = continuousPeakDeviation(contDepth01);
+    const double contPeriod  = continuousPeriodSamples();
+
     // Capture is stereo-fixed; mono buses write/read channel 0 twice
     // (bounded by the BUFFER's channel count, never the layout's —
     // pattern_standalone_canonical_channelset_oob).
-    const int  chans = juce::jmin(buffer.getNumChannels(), 2);
-    const int  chR   = chans > 1 ? 1 : 0;
-    auto*      dL    = buffer.getWritePointer(0);
-    auto*      dR    = buffer.getWritePointer(chR);
+    const int  chR = buffer.getNumChannels() > 1 ? 1 : 0;
+    auto*      dL  = buffer.getWritePointer(0);
+    auto*      dR  = buffer.getWritePointer(chR);
 
     // UI readback (Stage 3): the carrier's last per-sample ratio this block.
     // Publish-only bookkeeping — no DSP path reads it.
@@ -584,6 +828,10 @@ void TapestopProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     const double fc    = 20000.0 * std::pow(150.0 / 20000.0,
                                                             toneAmt * (1.0 - speed));
                     toneFilter.setCutoffFrequency((float) juce::jmin(fc, fcCeil));
+
+                    // v1.1: DEPTH/RATE ride the same absolute grid (no-op
+                    // outside ContinuousMotionState).
+                    transport.setContinuousTargets(contMPeak, contDepth01, contPeriod);
                 }
 
                 // Both voices pass through the same filter (wet-path only,
@@ -687,6 +935,12 @@ void TapestopProcessor::getStateInformation(juce::MemoryBlock& destData)
     auto state = parameters.copyState();
     state.setProperty("scratchEnvelopeJson", scratchEnvelope.toJson(), nullptr);
 
+    // v1.4.0: the hover-help preference rides the same tree as one more plain
+    // property. Not a parameter (see PluginProcessor.h) — so it is saved and
+    // restored here rather than by the APVTS round-trip.
+    state.setProperty("tooltipsEnabled",
+                      tooltipsEnabled.load(std::memory_order_acquire), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -709,6 +963,28 @@ void TapestopProcessor::setStateInformation(const void* data, int sizeInBytes)
                 scratchEnvelope.setFromJson(blob.toString());
             else
                 scratchEnvelope.resetToDefault();
+
+            // v1.4.0: hover-help preference. A pre-1.4.0 session has no such
+            // property; getProperty returns a VOID var and the default (OFF)
+            // stands. The editor PULLS this via the getTooltipsEnabled native
+            // fn at page init rather than being pushed — a push here would race
+            // the WebView's load (the O-FreqPulse WR-01 lesson).
+            //
+            // isVoid() is the ONLY correct test here, and the obvious
+            // isBool()/isInt() one is wrong: getStateInformation writes a bool
+            // var, but the XML round-trip does not preserve the type.
+            // NamedValueSet::setFromXmlAttributes rebuilds every property as
+            // `var (value)` over the attribute STRING, so what comes back is a
+            // var holding "1" or "0" and a type test on bool or int is false
+            // for every saved session. The preference would have restored as
+            // OFF forever while every build, auval and pluginval run passed.
+            // var's bool conversion handles all three forms, so the cast is
+            // safe once the property is known to exist. Gated by a round-trip
+            // probe in tests/render-harness.
+            const juce::var tips = parameters.state.getProperty("tooltipsEnabled");
+
+            if (! tips.isVoid())
+                tooltipsEnabled.store((bool) tips, std::memory_order_release);
 
             // Stage 3: tell an open editor the envelope changed under it —
             // the editor timer compares this counter and pushes the sanitized

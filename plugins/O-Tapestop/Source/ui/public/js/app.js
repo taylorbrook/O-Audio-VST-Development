@@ -20,23 +20,25 @@
 // ============================================================================
 // O-Tapestop — WebView UI controller (Stage 3)
 //
-// Binds all 14 APVTS parameters two-way: 8 WebSliderRelay knobs + 5
-// WebComboBoxRelay controls (MODE and SYNC_MODE as segment pairs; the three
-// SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay (ENGAGE, the large
-// latching performance control — UI-02).
+// Binds all 19 APVTS parameters two-way: 11 WebSliderRelay knobs + 7
+// WebComboBoxRelay controls (MODE, SYNC_MODE and CHARACTER as segment
+// groups; the four SYNC_DIV divisions as selects) + 1 WebToggleButtonRelay
+// (ENGAGE, the large latching performance control — UI-02).
 //
-// Native-function surface is exactly THIRTEEN and must match PluginEditor.cpp:
+// Native-function surface is exactly FIFTEEN and must match PluginEditor.cpp:
 //   getParameterDefaults  (dblclick-reset, engineering units)
 //   commitEnvelope        (mouse-up + 50 ms debounce; completes with the
 //                          C++-sanitized echo, which we redraw from)
 //   requestEnvelope       (page init: current envelope JSON)
+//   setTooltipsEnabled    (v1.4.0: the "?" toggle's state → processor)
+//   getTooltipsEnabled    (v1.4.0: page init PULLS the saved preference)
 // plus the 10 preset fns requested by modules/preset-manager.js (Stage 4):
 //   savePreset, savePresetWithDialog, loadPreset, loadPresetFromFile,
 //   getPresetList, getCurrentPreset, selectNextPreset, selectPreviousPreset,
 //   deletePreset, isFactoryPreset
 // An unregistered fn is a silently dead control that passes build, auval AND
 // pluginval (pattern_webview_native_fn_bridge_gap) — the gate grep-diffs both
-// directions at 13↔13.
+// directions at 15↔15.
 //
 // Backend events (the sanctioned window.__JUCE__ use — backend events only;
 // parameter state comes through the Juce ES-module namespace,
@@ -70,16 +72,19 @@ const KNOB_IDS = [
   "STOP_FREE_MS", "STOP_CURVE",
   "START_FREE_MS", "START_CURVE",
   "ENV_FREE_MS",
+  "CONT_RATE_HZ", "CONT_DEPTH", "CONT_CHAOS",
   "TONE_TRACK", "MIX", "OUTPUT_GAIN",
 ];
 
-// Segment-pair combos (two named modes, not lists).
-const COMBO_MODE = "MODE";           // { Stop, Scratch }, default 0 = Stop
-const COMBO_SYNC = "SYNC_MODE";      // { Sync, Free },    default 0 = Sync
+// Segment-group combos (named modes, not lists).
+const COMBO_MODE      = "MODE";      // { Stop, Scratch, Continuous }, default 0
+const COMBO_SYNC      = "SYNC_MODE"; // { Sync, Free },                default 0
+const COMBO_CHARACTER = "CHARACTER"; // { Wobble, Random, Glitch },    default 0
 
 // Select-backed division combos — options built at runtime from
 // properties.choices (the C++ StringArray is the single source of truth).
-const DIVISION_IDS = ["STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV"];
+const DIVISION_IDS = ["STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV",
+                      "CONT_RATE_SYNC_DIV"];
 
 // The plugin's only bool parameter → its only ToggleState. A bool bound
 // through a slider or combo relay attaches without error and produces a
@@ -98,6 +103,9 @@ const fmtDb  = (v) => {
   if (r === 0) return "0.0 dB";
   return `${r > 0 ? "+" : "−"}${Math.abs(r).toFixed(1)} dB`;
 };
+// Rate range is 0.05–20 Hz (skew 0.3) — two decimals below 10 Hz keep the
+// low end legible.
+const fmtHz  = (v) => `${v >= 10 ? v.toFixed(1) : v.toFixed(2)} Hz`;
 
 const FORMAT = {
   STOP_FREE_MS:  fmtMs,
@@ -105,6 +113,9 @@ const FORMAT = {
   START_FREE_MS: fmtMs,
   START_CURVE:   fmtPct,
   ENV_FREE_MS:   fmtMs,
+  CONT_RATE_HZ:  fmtHz,
+  CONT_DEPTH:    fmtPct,
+  CONT_CHAOS:    fmtPct,
   TONE_TRACK:    fmtPct,
   MIX:           fmtPct,
   OUTPUT_GAIN:   fmtDb,
@@ -116,11 +127,19 @@ const KNOB_MAX_DEG   = 135;    // normalised 1.0
 const DRAG_TRAVEL_PX = 220;    // vertical px for a full 0→1 sweep
 const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment
 
+// ── Hover help (v1.4.0) ─────────────────────────────────────────────────────
+// TOOLTIP_MARGIN is both the gap between a tip and its control AND the gap it
+// keeps from the viewport edge — the same number on purpose, so the clamp
+// assertion in tests/ui_tooltip_clamp_check.js has one constant to check.
+const TOOLTIP_MARGIN   = 8;
+const TOOLTIP_DELAY_MS = 350;  // hover dwell before a tip appears
+
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
 const sliderState = {};        // id -> Juce SliderState
 let modeState     = null;      // Juce ComboBoxState (MODE)
 let syncState     = null;      // Juce ComboBoxState (SYNC_MODE)
+let characterState = null;     // Juce ComboBoxState (CHARACTER, v1.1)
 const divisionState = {};      // id -> Juce ComboBoxState
 let engageState   = null;      // Juce ToggleState (ENGAGE)
 let paramDefaults = null;      // { id: engineeringDefault } from the native fn
@@ -136,6 +155,14 @@ let lastFillKey    = "";       // change gate for the fill style writes
 
 let presetManager   = null;    // PresetManager instance (Stage 4)
 let deleteArmTimer  = null;    // two-click delete disarm timeout
+
+let tooltipEl         = null;  // #tooltip — the one shared surface
+let tooltipToggleEl   = null;  // #help-toggle
+let tooltipTimer      = null;  // dwell timer
+let tooltipTarget     = null;  // the [data-tip] currently hovered
+let tooltipSuppressed = false; // true between pointerdown and pointerup
+let tooltipsEnabled   = false; // the "?" state; PULLED from C++ at init
+let setTooltipsFn     = null;  // native fn, resolved once
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Function declarations (hoisted — safe to reference from init() below)
@@ -307,43 +334,79 @@ function bindSelectCombo(juce, paramId) {
   return st;
 }
 
-// ── MODE segment pair + centre-pane swap ────────────────────────────────────
-// Stop/Scratch copy is authored in index.html and never rewritten here —
-// classes + aria only (pattern_js_state_updater_overwrites_html_labels).
-// The pane swap is an instant .hidden toggle of two absolutely-positioned
-// panes in a fixed box: zero layout shift (locked decision).
+// ── MODE segment group + centre-pane swap ───────────────────────────────────
+// Stop/Scratch/Motion copy is authored in index.html and never rewritten here
+// — classes + aria only (pattern_js_state_updater_overwrites_html_labels).
+// The pane swap is an instant .hidden toggle of absolutely-positioned panes
+// in a fixed box: zero layout shift (locked decision). Three-way since v1.1.
 function bindModeSegments(juce) {
   const st = juce.getComboBoxState(COMBO_MODE);
   modeState = st;
 
-  const segStop    = document.getElementById("seg-mode-stop");
-  const segScratch = document.getElementById("seg-mode-scratch");
-  const paneStop    = document.getElementById("pane-stop");
-  const paneScratch = document.getElementById("pane-scratch");
+  const segs = [
+    document.getElementById("seg-mode-stop"),
+    document.getElementById("seg-mode-scratch"),
+    document.getElementById("seg-mode-cont"),
+  ];
+  const panes = [
+    document.getElementById("pane-stop"),
+    document.getElementById("pane-scratch"),
+    document.getElementById("pane-continuous"),
+  ];
 
-  if (!segStop || !segScratch || !paneStop || !paneScratch) {
+  if (segs.some((el) => !el) || panes.some((el) => !el)) {
     console.error("Missing MODE segment / pane elements");
     return;
   }
 
   const refresh = () => {
-    const isScratch = st.getChoiceIndex() === 1;   // { Stop, Scratch }, default 0
+    const idx = Math.min(2, Math.max(0, st.getChoiceIndex()));
 
-    segStop.classList.toggle("active", !isScratch);
-    segScratch.classList.toggle("active", isScratch);
-    segStop.setAttribute("aria-pressed", String(!isScratch));
-    segScratch.setAttribute("aria-pressed", String(isScratch));
-
-    paneStop.classList.toggle("hidden", isScratch);
-    paneScratch.classList.toggle("hidden", !isScratch);
+    segs.forEach((seg, i) => {
+      seg.classList.toggle("active", i === idx);
+      seg.setAttribute("aria-pressed", String(i === idx));
+    });
+    panes.forEach((pane, i) => pane.classList.toggle("hidden", i !== idx));
   };
 
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
   refresh();
 
-  segStop.addEventListener("click", () => st.setChoiceIndex(0));
-  segScratch.addEventListener("click", () => st.setChoiceIndex(1));
+  segs.forEach((seg, i) => seg.addEventListener("click", () => st.setChoiceIndex(i)));
+}
+
+// ── CHARACTER segment stack (Continuous pane, v1.1) ─────────────────────────
+// Same segment-group discipline as MODE: HTML-authored copy, classes + aria
+// only, choice index straight from the ComboBoxState.
+function bindCharacterSegments(juce) {
+  const st = juce.getComboBoxState(COMBO_CHARACTER);
+  characterState = st;
+
+  const segs = [
+    document.getElementById("seg-char-wobble"),
+    document.getElementById("seg-char-random"),
+    document.getElementById("seg-char-glitch"),
+  ];
+
+  if (segs.some((el) => !el)) {
+    console.error("Missing CHARACTER segment elements");
+    return;
+  }
+
+  const refresh = () => {
+    const idx = Math.min(2, Math.max(0, st.getChoiceIndex()));
+    segs.forEach((seg, i) => {
+      seg.classList.toggle("active", i === idx);
+      seg.setAttribute("aria-pressed", String(i === idx));
+    });
+  };
+
+  st.valueChangedEvent.addListener(refresh);
+  st.propertiesChangedEvent.addListener(refresh);
+  refresh();
+
+  segs.forEach((seg, i) => seg.addEventListener("click", () => st.setChoiceIndex(i)));
 }
 
 // ── SYNC_MODE segment pair + triple time-slot swap ──────────────────────────
@@ -364,6 +427,7 @@ function bindSyncSegments(juce) {
     ["wrap-STOP_SYNC_DIV",  "wrap-STOP_FREE_MS"],
     ["wrap-START_SYNC_DIV", "wrap-START_FREE_MS"],
     ["wrap-ENV_SYNC_DIV",   "wrap-ENV_FREE_MS"],
+    ["wrap-CONT_RATE_SYNC_DIV", "wrap-CONT_RATE_HZ"],   // Continuous pane (v1.1)
   ].map(([divId, msId]) => [document.getElementById(divId), document.getElementById(msId)]);
 
   if (!segSync || !segFree || wraps.some(([a, b]) => !a || !b)) {
@@ -507,6 +571,100 @@ function armedConfirmDelete() {
   return false;           // first click — armed only
 }
 
+// ── Themed dropdown (v1.3) ──────────────────────────────────────────────────
+// Display-side grouping ONLY: getPresetList() stays a flat case-insensitive
+// sort (factory + user) and the preset JSON format is untouched. This map
+// must track the factory names in PluginProcessor.cpp — an unmapped factory
+// preset is not lost, it just falls into the trailing "User" group.
+const PRESET_THEMES = [
+  ["Tape Stops", ["Classic Half-Bar Stop", "Classic 1-Bar Stop", "DJ Spinup",
+                  "Tempo-Synced Short Stop", "Slow-Tape Drag", "Power Cut",
+                  "Cassette Eject", "Two-Bar Dive", "Snap Back", "Half-Mix Stop"]],
+  ["Scratch", ["Baby Scratch", "Chirp Flare", "Stutter-Scratch", "Transformer",
+               "Tape Rewind", "Orbit", "Crab Roll"]],
+  ["Wobble & Warp", ["Subtle Wobble", "Warped Record", "Drunk Tape", "Seasick",
+                     "Tape Flutter", "Pitch Tide", "Loose Capstan"]],
+  ["Glitch & Chaos", ["Glitch", "Total Meltdown", "Sputter", "Data Rot"]],
+];
+
+// Rebuilt from scratch on every open — the list is small and this sidesteps
+// stale-list bugs after saves/deletes without extra refresh plumbing. Items
+// are JS-owned nodes, so textContent here is safe (the label-overwrite trap
+// only bites HTML-authored children of #preset-name itself).
+function buildPresetDropdown(panel) {
+  panel.textContent = "";
+  const all = presetManager.getPresetList();
+  const current = presetManager.getCurrentPreset();
+  const mapped = new Set(PRESET_THEMES.flatMap(([, names]) => names));
+
+  const addGroup = (label, names) => {
+    if (!names.length) return;
+    const head = document.createElement("div");
+    head.className = "dropdown-theme";
+    head.textContent = label;
+    panel.appendChild(head);
+    for (const name of names) {
+      const item = document.createElement("div");
+      item.className = "dropdown-item" + (name === current ? " current" : "");
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", name === current ? "true" : "false");
+      item.textContent = name;
+      item.addEventListener("click", async () => {
+        closePresetDropdown();
+        await presetManager.loadPreset(name);
+      });
+      panel.appendChild(item);
+    }
+  };
+
+  // Curated order within factory themes; only names the C++ side actually
+  // reported survive the filter (a renamed factory preset can't ghost-list).
+  for (const [label, names] of PRESET_THEMES)
+    addGroup(label, names.filter((n) => all.includes(n)));
+  addGroup("User", all.filter((n) => !mapped.has(n)));
+}
+
+function openPresetDropdown() {
+  const panel = document.getElementById("preset-dropdown");
+  const nameEl = document.getElementById("preset-name");
+  if (!panel || !nameEl) return;
+  buildPresetDropdown(panel);
+  panel.hidden = false;
+  nameEl.setAttribute("aria-expanded", "true");
+}
+
+function closePresetDropdown() {
+  const panel = document.getElementById("preset-dropdown");
+  const nameEl = document.getElementById("preset-name");
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  if (nameEl) nameEl.setAttribute("aria-expanded", "false");
+}
+
+function initPresetDropdown(selectEl, nameEl, panelEl) {
+  const toggle = () => {
+    if (!selectEl.classList.contains("ready")) return;
+    if (panelEl.hidden) openPresetDropdown();
+    else closePresetDropdown();
+  };
+
+  nameEl.addEventListener("click", toggle);
+  nameEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    else if (e.key === "Escape") closePresetDropdown();
+  });
+
+  // Outside click / Escape close. pointerdown (not click) so a drag that
+  // starts outside also dismisses; listeners are page-lifetime, matching the
+  // band itself.
+  document.addEventListener("pointerdown", (e) => {
+    if (!panelEl.hidden && !selectEl.contains(e.target)) closePresetDropdown();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePresetDropdown();
+  });
+}
+
 // Constructor + EXPLICIT DOM refs for all six band elements, plus
 // getNativeFunction — omitting it leaves the bar rendered but silently inert.
 // initialize() is called from init() below (post-bridge, view visible — a
@@ -536,12 +694,23 @@ function initPresets() {
     onConfirmDelete: () => armedConfirmDelete(),
   });
 
+  // Dropdown trigger (v1.3): wired before initialize() but gated on the
+  // wrapper's "ready" class, so a dead bridge leaves the name inert too.
+  const selectEl = document.getElementById("preset-select");
+  const panelEl = document.getElementById("preset-dropdown");
+  if (selectEl && panelEl) initPresetDropdown(selectEl, nameEl, panelEl);
+
   // The band shipped disabled in Stage 3's markup. Un-disable only after
   // initialize() resolves (native fns bound, first refresh done) — if the
   // bridge never comes up, the buttons stay honestly disabled instead of
-  // enabled-but-inert. (#preset-name is a div — nothing to un-disable.)
+  // enabled-but-inert. (#preset-name is a div — its enabled state is the
+  // wrapper's "ready" class + tabindex, granted on the same promise.)
   presetManager.initialize().then(() => {
     [prevEl, nextEl, saveEl, loadEl, deleteEl].forEach((el) => { el.disabled = false; });
+    if (selectEl && panelEl) {
+      selectEl.classList.add("ready");
+      nameEl.setAttribute("tabindex", "0");
+    }
   });
 }
 
@@ -621,11 +790,201 @@ function initReadback() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Hover help (v1.4.0)
+//
+// Ported from O-ReverseDelay v1.1.0 — the version carrying the VERIFIED
+// measure-then-pin placement, not the earlier shrink-to-fit variant
+// (pattern_fixed_tooltip_shrink_to_fit_edge). Two things differ here:
+//
+//   1. Every show is gated on `tooltipsEnabled`, the "?" toggle's state,
+//      which round-trips through the processor so it survives a session
+//      reload. The toggle's OWN tip carries data-tip-always and bypasses the
+//      gate — otherwise the one control that could turn help back on would be
+//      the one control unable to explain itself.
+//   2. The centre panel is three mode-switched panes. A tip on a hidden pane
+//      is unreachable, so tests/ui_tooltip_clamp_check.js sweeps all three —
+//      a single-pane sweep leaves a third of the anchors unverified forever.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function tooltipAllowed(target) {
+  return tooltipsEnabled || target.hasAttribute("data-tip-always");
+}
+
+function handleTooltipOver(e) {
+  const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (!target || target === tooltipTarget) return;
+
+  tooltipTarget = target;
+  clearTimeout(tooltipTimer);
+
+  if (tooltipSuppressed || !tooltipAllowed(target)) return;
+  tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+  const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (!target) return;
+
+  // Moving between children of the same control is not a real exit. Every
+  // knob cell wraps a knob, a label and a value readout, so without this the
+  // surface flickers off and back on as the pointer crosses them.
+  if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+  hideTooltip();
+}
+
+function showTooltip(target) {
+  // The pointer may have moved on, or gone down, during the dwell.
+  if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+  if (!tooltipAllowed(target)) return;
+
+  const title = target.getAttribute("data-tip-title");
+  const body  = target.getAttribute("data-tip");
+  if (!body) return;
+
+  // textContent, not innerHTML — the copy stays inert.
+  tooltipEl.textContent = "";
+
+  if (title) {
+    const titleEl = document.createElement("div");
+    titleEl.className = "tooltip-title";
+    titleEl.textContent = title;
+    tooltipEl.appendChild(titleEl);
+  }
+
+  const bodyEl = document.createElement("div");
+  bodyEl.className = "tooltip-body";
+  bodyEl.textContent = body;
+  tooltipEl.appendChild(bodyEl);
+
+  const anchor = target.getBoundingClientRect();
+
+  // MEASURE-THEN-PIN. A fixed-position box with `left` set and `width:auto`
+  // shrink-to-fits whatever space remains to its right, so measuring at the
+  // PREVIOUS offset under-reports the width, and applying a near-edge `left`
+  // afterwards re-wraps a 230 px tip into a ~70 px ribbon that never recovers
+  // on later hovers. Release the width, measure from the left edge, pin the
+  // result in px, and only then place.
+  //
+  // On this page the exposed control is the "?" toggle itself — right-most on
+  // the frame, 16 px from the edge. Build, auval and pluginval are all blind
+  // to it (pattern_fixed_tooltip_shrink_to_fit_edge).
+  tooltipEl.style.width = "";
+  tooltipEl.style.left  = "0px";
+  tooltipEl.style.top   = "0px";
+
+  // getBoundingClientRect, NOT offsetWidth: offsetWidth rounds, and a natural
+  // width of 208.48 px pinned at 208 px is narrower than the box's own
+  // shrink-to-fit — enough to push the last word onto a second line, after
+  // the height has already been read.
+  const width = tooltipEl.getBoundingClientRect().width;
+  tooltipEl.style.width = `${width}px`;
+
+  // Height is only stable once the width is definite. Read before the pin and
+  // the tip is PLACED at 28 px while it RENDERS at 42 px, landing on top of
+  // the control it describes.
+  const height = tooltipEl.getBoundingClientRect().height;
+
+  // Prefer above; flip below only when there is no room at the top. Computed
+  // as a real top edge rather than a centre plus translateY(-100%), so the
+  // clamp arithmetic and the box the browser lays out are the same geometry.
+  let top = anchor.top - height - TOOLTIP_MARGIN;
+  let placement = "above";
+
+  if (top < TOOLTIP_MARGIN) {
+    top = anchor.bottom + TOOLTIP_MARGIN;
+    placement = "below";
+  }
+
+  const anchorCentreX = anchor.left + anchor.width / 2;
+  const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+  const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top  = `${top}px`;
+  tooltipEl.dataset.placement = placement;
+
+  // The tip is clamped to the viewport, but the arrow still points at the
+  // control — held clear of the rounded corners.
+  const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+  tooltipEl.style.setProperty("--arrow-x", `${arrowX}px`);
+
+  tooltipEl.classList.add("visible");
+  tooltipEl.setAttribute("aria-hidden", "false");
+}
+
+function hideTooltip() {
+  clearTimeout(tooltipTimer);
+  tooltipTarget = null;
+
+  if (!tooltipEl) return;
+  tooltipEl.classList.remove("visible");
+  tooltipEl.setAttribute("aria-hidden", "true");
+}
+
+// Class + aria only — the button's "?" glyph is HTML-authored and must never
+// be written from here (pattern_js_state_updater_overwrites_html_labels).
+function applyTooltipsEnabled(enabled) {
+  tooltipsEnabled = !!enabled;
+
+  if (tooltipToggleEl) {
+    tooltipToggleEl.classList.toggle("active", tooltipsEnabled);
+    tooltipToggleEl.setAttribute("aria-pressed", tooltipsEnabled ? "true" : "false");
+  }
+
+  if (!tooltipsEnabled) hideTooltip();
+}
+
+function initTooltips() {
+  tooltipEl       = document.getElementById("tooltip");
+  tooltipToggleEl = document.getElementById("help-toggle");
+
+  if (!tooltipEl) { console.warn("Tooltip surface missing — hover help disabled"); return; }
+
+  document.addEventListener("mouseover", handleTooltipOver);
+  document.addEventListener("mouseout", handleTooltipOut);
+
+  // Any press begins a click or a drag: get the tip out of the way and keep it
+  // away until release, so it cannot hang over a knob mid-drag or over the
+  // envelope canvas mid-edit. CAPTURE phase, because the knobs and the canvas
+  // call preventDefault in their own pointerdown handlers.
+  document.addEventListener("pointerdown", () => {
+    tooltipSuppressed = true;
+    hideTooltip();
+  }, true);
+
+  document.addEventListener("pointerup", () => { tooltipSuppressed = false; }, true);
+
+  if (tooltipToggleEl) {
+    tooltipToggleEl.addEventListener("click", () => {
+      applyTooltipsEnabled(!tooltipsEnabled);
+      // Fire-and-forget: the page is already in the new state, and a failed
+      // persist must not leave the toggle disagreeing with what it shows.
+      if (setTooltipsFn) setTooltipsFn(tooltipsEnabled).catch(() => {});
+    });
+  }
+
+  // PULL the persisted preference. The C++ side deliberately never pushes it:
+  // a push from the editor constructor or the first 30 Hz tick fires before
+  // this module has evaluated, so it would silently never arrive and the
+  // toggle would read OFF on every reopen (the O-FreqPulse WR-01 bug).
+  try {
+    setTooltipsFn = Juce.getNativeFunction("setTooltipsEnabled");
+    Juce.getNativeFunction("getTooltipsEnabled")()
+      .then((enabled) => applyTooltipsEnabled(!!enabled))
+      .catch((e) => console.error("[help] getTooltipsEnabled failed:", e));
+  } catch (e) {
+    console.error("[help] native bridge unavailable:", e);
+  }
+}
+
 // ── Entry point ─────────────────────────────────────────────────────────────
 function init() {
   KNOB_IDS.forEach((id) => bindKnob(Juce, id));
   DIVISION_IDS.forEach((id) => { divisionState[id] = bindSelectCombo(Juce, id); });
   bindModeSegments(Juce);
+  bindCharacterSegments(Juce);
   bindSyncSegments(Juce);
   bindEngage(Juce);
 
@@ -633,6 +992,7 @@ function init() {
   initEnvelope(Juce);            // async; self-contained failure
   initReadback();
   initPresets();                 // preset band (Stage 4); async init inside
+  initTooltips();                // hover help (v1.4.0); async PULL inside
 }
 
 // Single call, at the BOTTOM of the module — every binding above is initialised.

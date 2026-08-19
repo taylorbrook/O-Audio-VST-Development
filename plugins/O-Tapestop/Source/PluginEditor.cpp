@@ -40,15 +40,17 @@ namespace
         "STOP_FREE_MS", "STOP_CURVE",
         "START_FREE_MS", "START_CURVE",
         "ENV_FREE_MS",
+        "CONT_RATE_HZ", "CONT_DEPTH", "CONT_CHAOS",
         "TONE_TRACK", "MIX", "OUTPUT_GAIN"
     };
 
-    // MODE and SYNC_MODE render as segment pairs, the three divisions as
-    // selects — the relay type is the same either way (all five are
-    // AudioParameterChoice).
+    // MODE, SYNC_MODE and CHARACTER render as segment groups, the four
+    // divisions as selects — the relay type is the same either way (all
+    // seven are AudioParameterChoice).
     const juce::StringArray kComboIds {
-        "MODE", "SYNC_MODE",
-        "STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV"
+        "MODE", "SYNC_MODE", "CHARACTER",
+        "STOP_SYNC_DIV", "START_SYNC_DIV", "ENV_SYNC_DIV",
+        "CONT_RATE_SYNC_DIV"
     };
 
     // ENGAGE is the plugin's only AudioParameterBool and therefore its only
@@ -156,9 +158,10 @@ TapestopEditor::TapestopEditor (TapestopProcessor& p)
     for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 13 ──────────────────────────────────────
-    // getParameterDefaults + commitEnvelope + requestEnvelope (Stage 3) + the
-    // 10 preset fns below (Stage 4). Grep-diffed against js/app.js AND
+    // ── NATIVE FUNCTIONS — exactly 15 ──────────────────────────────────────
+    // getParameterDefaults + commitEnvelope + requestEnvelope (Stage 3) +
+    // setTooltipsEnabled + getTooltipsEnabled (v1.4.0) + the 10 preset fns
+    // below (Stage 4). Grep-diffed against js/app.js AND
     // modules/preset-manager.js at the gate: an unregistered fn leaves its
     // control silently dead while build, auval and pluginval all pass
     // (pattern_webview_native_fn_bridge_gap).
@@ -214,9 +217,36 @@ TapestopEditor::TapestopEditor (TapestopProcessor& p)
             complete (juce::var (processorRef.getScratchEnvelopeJson()));
         });
 
+    // ── HOVER-HELP PREFERENCE — 2 (v1.4.0) ─────────────────────────────────
+    // The "?" toggle's state is a UI preference, not a parameter, so it round-
+    // trips through these two fns and the processor's state property rather
+    // than through a relay. Both complete synchronously.
+
+    options = options.withNativeFunction ("setTooltipsEnabled",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                processorRef.tooltipsEnabled.store ((bool) args[0],
+                                                    std::memory_order_release);
+
+            complete (juce::var (processorRef.tooltipsEnabled.load (
+                                     std::memory_order_acquire)));
+        });
+
+    // PULLED by the page at init, never pushed. A push from the constructor or
+    // from the first timer tick fires before js/app.js has evaluated, so the
+    // preference silently never arrives and the toggle reads OFF on every
+    // reopen — the O-FreqPulse WR-01 bug, avoided here by construction.
+    options = options.withNativeFunction ("getTooltipsEnabled",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.tooltipsEnabled.load (
+                                     std::memory_order_acquire)));
+        });
+
     // ── PRESET NATIVE FUNCTIONS — 10 (Stage 4) ─────────────────────────────
     // Exactly the names modules/preset-manager.js requests; total registered
-    // surface is now 13 and the grep-diff parity gate runs at 13↔13. The
+    // surface is now 15 and the grep-diff parity gate runs at 15↔15. The
     // synchronous eight capture `this` (completion never outlives the call).
     // The two DIALOG fns defer their completion into a FileChooser callback:
     // shared_ptr chooser captured into its own callback, SafePointer HOISTED

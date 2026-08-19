@@ -27,30 +27,53 @@
     deliberately independent of the MediaClock — burst statistics only hold
     on the packet grid (ARCHITECTURE decision).
 
-    GE mapping (per block, from PACKET_LOSS / PACKET_BURST):
-        piB  = loss01 * 0.6                      (stationary Bad occupancy)
-        E[B] = 1 + burst01 * 7                   (expected burst, packets)
-        pBG  = 1 / E[B]
-        pGB  = clamp(piB * pBG / (1 - piB), 0, 1)
+    GE mapping (per block, from PACKET_LOSS / PACKET_BURST), v1.2 — the knob
+    now spans clean -> true total failure:
+        piB   = loss01 * 0.95                    (stationary Bad occupancy)
+        E[B]  = 1 + burst01 * 7                  (expected burst, packets)
+        pBG   = 1 / E[B]
+        pGB   = clamp(piB * pBG / (1 - piB), 0, 1)
+        pBad  = 0.5 + 0.5 * loss01               (loss prob in Bad)
+        pGood = 0.01 * loss01 + t^2 * (0.90 - 0.01 * loss01),
+                t = max(0, (loss01 - 0.75) / 0.25)
+    The Good-state floor scales with loss01, so loss01 = 0 is loss-free
+    (no uninvited dropouts at knob zero). The top-quartile pGood ramp is
+    what makes full knob a TRUE >= ~95% loss: the Markov clamp caps Bad
+    occupancy at 1/(1 + pBG) (~0.89 even at burst 100%), so near total
+    failure the Good state must drop packets too.
     Advanced ONCE per packet (packet RNG stream): transition roll, then a
-    loss roll — lose with 0.5 in Bad, 0.01 in Good. EXACTLY 2 draws per
-    packet, unconditionally.
+    loss roll. EXACTLY 2 draws per packet, unconditionally.
 
     Concealment (PACKET_CONCEAL, latched per burst):
         0 Silence     — hard dropout.
         1 Repeat      — previous good packet, verbatim (robotic).
-        2 Decay       — repeat at -3 dB per repetition (fades over ~60 ms).
+        2 Decay       — pitch-aligned cyclic replay (same AMDF estimate as
+                        Substitute) when the packet is periodic, else
+                        packet-aligned replay; gain ramps -6 dB per
+                        repetition per sample and hard-floors to SILENCE by
+                        the end of the 3rd repetition (~60 ms), matching
+                        real PLC mute-out.
         3 Substitute  — AMDF period estimate (2-15 ms lags, decimated) on the
                         last good packet; replay the last T samples cyclically
                         at -1 dB per cycle. Auto-degrades to Decay when the
                         AMDF minimum >= 0.5x its mean (no periodicity).
+    Cyclic replay (Substitute, pitch-aligned Decay) crossfades each cycle
+    joint with a ~1 ms raised-cosine OLA (tail -> head, gain step inside
+    the fade); the resume index skips the pre-blended head samples so the
+    period is preserved.
+
+    Comfort noise (PACKET_COMFORT, v1.5.0): once a burst passes
+    ComfortNoise::kBurstPackets (3, ~60 ms) — exactly where Decay's ramp
+    reaches its silence floor — a spectrally-matched low-level noise bed
+    ramps in UNDER the concealment output, and back out over one packet when
+    the burst ends. That hiss floor is the cue that says the call is still up.
+    See ComfortNoise.h. Exactly transparent at PACKET_COMFORT 0.
 
     Crossfades: 1-5 ms at every good<->lost transition unless HARD_EDGES; the
     outgoing source keeps rendering during the fade (live input, or the
-    conceal machinery continuing). Repetition restarts WITHIN a burst are
+    conceal machinery continuing). Repeat-mode restarts WITHIN a burst are
     intentionally hard — the machine-gun edge is the packet-repeat aesthetic
-    (same spirit as the CD loop's hard repeats); Substitute is
-    period-continuous by construction.
+    (same spirit as the CD loop's hard repeats).
 
     DETERMINISM CONVENTION (documented invariant): the packet grid, the GE
     chain and the history capture run UNCONDITIONALLY — PACKET_ENABLE only
@@ -71,13 +94,23 @@
 
 #include <JuceHeader.h>
 #include "RngBank.h"
-#include "Arbitration.h"   // EnableFade
+#include "Arbitration.h"    // EnableFade
+#include "ComfortNoise.h"   // v1.5.0, brief item 19
 
 class PacketLossStage
 {
 public:
     // UI telemetry only: current packet is lost or the GE chain is in a burst.
     bool isConcealing() const noexcept { return lostCur || stateBad; }
+
+    // v1.8.0, brief item 7 — the loss flag for the packet covering the NEXT
+    // sample this stage will process, which is what CodecStage needs to decide
+    // whether the GSM frame closing on that sample arrived. Deliberately
+    // narrower than isConcealing(): a Bad-state packet that was not actually
+    // dropped is not a lost frame. Read it BEFORE processSample so the value
+    // belongs to that exact sample — the boundary at the end of processSample
+    // has already latched the NEXT packet's state.
+    bool isPacketLost() const noexcept { return lostCur; }
 
     // The only allocation.
     void prepare (double sampleRate, bool initiallyEnabled)
@@ -95,6 +128,7 @@ public:
         }
 
         enableFade.prepare (fs, initiallyEnabled);
+        comfortNoise.prepare (fs);
         reset();
     }
 
@@ -111,26 +145,38 @@ public:
         burstLen   = 0;
         fadeRemain = 0;
         fadeFromConceal = false;
-        concealMode = 2;
-        decayGain   = 1.0f;
-        subPeriod   = 0;
-        subIdx      = 0;
-        subGain     = 1.0f;
+        concealMode   = 2;
+        decayGain     = 1.0f;
+        prevDecayGain = 1.0f;
+        decayAligned  = false;
+        subPeriod     = 0;
+        subIdx        = 0;
+        subGain       = 1.0f;
+        olaLen        = 0;
+
+        comfortNoise.reset();
     }
 
     // Per-block parameter snapshot (cached atomics read by the processor).
     void setParams (float loss01, float burst01, int concealChoice,
-                    bool enabled, bool hardEdgesIn) noexcept
+                    bool enabled, bool hardEdgesIn, float comfort01) noexcept
     {
-        const double piB = juce::jlimit (0.0, 0.6, (double) loss01 * 0.6);
+        const double l   = juce::jlimit (0.0, 1.0, (double) loss01);
+        const double piB = 0.95 * l;
         const double eB  = 1.0 + juce::jlimit (0.0, 1.0, (double) burst01) * 7.0;
 
         pBG = 1.0 / eB;
         pGB = juce::jlimit (0.0, 1.0, piB * pBG / (1.0 - piB));
 
+        pLossBad = 0.5 + 0.5 * l;
+
+        const double t = juce::jmax (0.0, (l - 0.75) / 0.25);
+        pLossGood = 0.01 * l + t * t * (0.90 - 0.01 * l);
+
         concealChoiceParam = concealChoice;
         hardEdges          = hardEdgesIn;
         enableFade.setEnabled (enabled);
+        comfortNoise.setLevel (comfort01);
     }
 
     // Per-sample, stereo in place. RNG (packet stream) consumed ONLY at
@@ -143,6 +189,12 @@ public:
         auto* cR = pkt[curIdx].getWritePointer (1);
         cL[counter] = left;
         cR[counter] = right;
+
+        // 1b. Comfort-noise level/tilt trackers see GOOD samples only, so the
+        //     estimate holds through a burst rather than following the
+        //     concealment machinery's own decay down to nothing.
+        if (! lostCur)
+            comfortNoise.observe (left, right);
 
         // 2. Concealment render (needed while lost, or while fading back out
         //    of a burst — the outgoing source keeps rendering).
@@ -181,6 +233,20 @@ public:
 
         if (fadeRemain > 0)
             --fadeRemain;
+
+        // 3b. Comfort noise (v1.5.0, brief item 19). ADDED under the conceal
+        //     output for every mode — under Decay and Substitute, already at
+        //     or near silence by kBurstPackets, that reads as the crossfade
+        //     the item asks for; under Repeat it sits beneath the repeating
+        //     packet instead of dissolving that mode's machine-gun identity.
+        //     The draw runs unconditionally (determinism convention), and at
+        //     PACKET_COMFORT 0 the bed is exactly 0.0f.
+        comfortNoise.setActive (lostCur && burstLen >= ComfortNoise::kBurstPackets);
+
+        float cnL = 0.0f, cnR = 0.0f;
+        comfortNoise.renderSample (rng.get (RngBank::comfort), cnL, cnR);
+        pL += cnL;
+        pR += cnR;
 
         // 4. Enable fade wrapper. Exact rails keep the bypass bit-exact.
         const float g = enableFade.next();
@@ -232,7 +298,7 @@ private:
                 stateBad = true;
         }
 
-        const bool lostNext = rLoss < (stateBad ? 0.5f : 0.01f);
+        const bool lostNext = rLoss < (float) (stateBad ? pLossBad : pLossGood);
 
         if (lostNext)
         {
@@ -245,11 +311,22 @@ private:
             {
                 ++burstLen;
                 if (concealMode == 2)
-                    decayGain *= kMinus3dB;        // -3 dB per repetition
+                {
+                    // -6 dB per repetition (per-sample ramp toward the
+                    // target), hard-floored to silence by the end of the
+                    // 3rd repetition (~60 ms) — real PLC mutes out.
+                    prevDecayGain = decayGain;
+                    decayGain     = burstLen >= 3 ? 0.0f
+                                                  : decayGain * kMinus6dB;
+                }
             }
         }
         else
         {
+            // Burst over: hold the decay ramp flat for the fade-out tail.
+            if (prevLost && concealMode == 2)
+                prevDecayGain = decayGain;
+
             burstLen = 0;
         }
 
@@ -264,53 +341,84 @@ private:
 
     void startBurst() noexcept
     {
-        concealMode = concealChoiceParam;
-        decayGain   = kMinus3dB;                   // first repetition at -3 dB
-        subIdx      = 0;
-        subGain     = 1.0f;
+        concealMode   = concealChoiceParam;
+        prevDecayGain = 1.0f;                      // rep 1 ramps 0 -> -6 dB
+        decayGain     = kMinus6dB;
+        decayAligned  = false;
+        subIdx        = 0;
+        subGain       = 1.0f;
+        olaLen        = 0;
 
-        if (concealMode == 3)
+        if (concealMode == 2 || concealMode == 3)
         {
-            // AMDF on the last good packet (mono sum), decimated: lag step 2,
-            // up to 240 terms per lag — bounded, once per burst.
-            const auto* gL = pkt[goodIdx].getReadPointer (0);
-            const auto* gR = pkt[goodIdx].getReadPointer (1);
+            const int period = estimatePeriod();   // 0 = no periodicity
 
-            double best = 1.0e30, sum = 0.0;
-            int bestLag = 0, cnt = 0;
-
-            for (int lag = lagMin; lag <= lagMax; lag += 2)
+            if (concealMode == 3)
             {
-                const int terms = juce::jmin (240, packetSamples - lag);
-                double acc = 0.0;
-
-                for (int i = 0; i < terms; ++i)
-                {
-                    const int   na = packetSamples - 1 - i;
-                    const int   nb = na - lag;
-                    const float a  = 0.5f * (gL[na] + gR[na]);
-                    const float b  = 0.5f * (gL[nb] + gR[nb]);
-                    acc += std::abs ((double) a - (double) b);
-                }
-
-                acc /= (double) juce::jmax (1, terms);
-                sum += acc;
-                ++cnt;
-
-                if (acc < best)
-                {
-                    best    = acc;
-                    bestLag = lag;
-                }
+                if (period > 0)
+                    subPeriod = period;
+                else
+                    concealMode = 2;               // degrade: packet-aligned Decay
+            }
+            else if (period > 0)
+            {
+                subPeriod    = period;             // Decay, pitch-aligned
+                decayAligned = true;
             }
 
-            const double mean = sum / (double) juce::jmax (1, cnt);
-
-            if (bestLag < lagMin || best >= 0.5 * mean)
-                concealMode = 2;                   // no periodicity: degrade to Decay
-            else
-                subPeriod = bestLag;
+            if (period > 0)
+            {
+                // ~1 ms raised-cosine OLA at cycle joints; capped at T/3 so
+                // the resume index (olaLen) stays clear of the fade region.
+                olaLen = juce::jmin ((int) (0.001 * fs), period / 3);
+                if (olaLen < 2)
+                    olaLen = 0;
+            }
         }
+    }
+
+    // AMDF on the last good packet (mono sum), decimated: lag step 2,
+    // up to 240 terms per lag — bounded, once per burst. Returns the best
+    // lag, or 0 when the AMDF minimum >= 0.5x its mean (no periodicity).
+    int estimatePeriod() const noexcept
+    {
+        const auto* gL = pkt[goodIdx].getReadPointer (0);
+        const auto* gR = pkt[goodIdx].getReadPointer (1);
+
+        double best = 1.0e30, sum = 0.0;
+        int bestLag = 0, cnt = 0;
+
+        for (int lag = lagMin; lag <= lagMax; lag += 2)
+        {
+            const int terms = juce::jmin (240, packetSamples - lag);
+            double acc = 0.0;
+
+            for (int i = 0; i < terms; ++i)
+            {
+                const int   na = packetSamples - 1 - i;
+                const int   nb = na - lag;
+                const float a  = 0.5f * (gL[na] + gR[na]);
+                const float b  = 0.5f * (gL[nb] + gR[nb]);
+                acc += std::abs ((double) a - (double) b);
+            }
+
+            acc /= (double) juce::jmax (1, terms);
+            sum += acc;
+            ++cnt;
+
+            if (acc < best)
+            {
+                best    = acc;
+                bestLag = lag;
+            }
+        }
+
+        const double mean = sum / (double) juce::jmax (1, cnt);
+
+        if (bestLag < lagMin || best >= 0.5 * mean)
+            return 0;
+
+        return bestLag;
     }
 
     void renderConceal (float& outL, float& outR) noexcept
@@ -332,27 +440,71 @@ private:
 
             case 3:                                // Substitute: cyclic pitch-period replay
             {
-                const int idx = packetSamples - subPeriod + subIdx;
-                outL = gL[idx] * subGain;
-                outR = gR[idx] * subGain;
+                // -1 dB per cycle; the step lands inside the joint OLA.
+                cyclicSample (gL, gR, subGain, subGain * kMinus1dB, outL, outR);
 
                 if (++subIdx >= subPeriod)
                 {
-                    subIdx = 0;
-                    subGain *= kMinus1dB;          // -1 dB per cycle
+                    subIdx = olaLen;               // head already blended in
+                    subGain *= kMinus1dB;
                 }
                 break;
             }
 
             case 2:                                // Decay
             default:
-                outL = gL[counter] * decayGain;
-                outR = gR[counter] * decayGain;
+            {
+                // Per-sample ramp prev -> target across the packet; reaches
+                // exact silence by the end of the 3rd repetition.
+                const float g = prevDecayGain
+                              + (decayGain - prevDecayGain)
+                                    * (float) counter / (float) packetSamples;
+
+                if (decayAligned)                  // pitch-aligned replay
+                {
+                    cyclicSample (gL, gR, g, g, outL, outR);
+
+                    if (++subIdx >= subPeriod)
+                        subIdx = olaLen;
+                }
+                else                               // aperiodic: packet-aligned
+                {
+                    outL = gL[counter] * g;
+                    outR = gR[counter] * g;
+                }
                 break;
+            }
         }
     }
 
-    static constexpr float kMinus3dB = 0.70794578f;   // 10^(-3/20)
+    // One sample of cyclic replay of the last subPeriod samples of the good
+    // packet, with a raised-cosine OLA at the cycle joint: the outgoing tail
+    // (gain gTail) fades into the incoming head (gain gHead). Callers resume
+    // the next cycle at subIdx = olaLen, so the period is preserved.
+    void cyclicSample (const float* gL, const float* gR,
+                       float gTail, float gHead,
+                       float& outL, float& outR) const noexcept
+    {
+        const int s         = packetSamples - subPeriod;
+        const int fadeStart = subPeriod - olaLen;
+
+        if (olaLen > 0 && subIdx >= fadeStart)
+        {
+            const int   j = subIdx - fadeStart;
+            const float w = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::pi
+                                                     * ((float) j + 0.5f) / (float) olaLen));
+
+            outL = gL[s + subIdx] * gTail * (1.0f - w) + gL[s + j] * gHead * w;
+            outR = gR[s + subIdx] * gTail * (1.0f - w) + gR[s + j] * gHead * w;
+        }
+        else
+        {
+            outL = gL[s + subIdx] * gTail;
+            outR = gR[s + subIdx] * gTail;
+        }
+    }
+
+    static constexpr float kMinus6dB = 0.50118723f;   // 10^(-6/20)
     static constexpr float kMinus1dB = 0.89125094f;   // 10^(-1/20)
 
     double fs            = 48000.0;
@@ -367,24 +519,30 @@ private:
     int  goodIdx = 1;
 
     // GE chain
-    double pBG      = 1.0;
-    double pGB      = 0.0;
-    bool   stateBad = false;
-    bool   lostCur  = false;
-    int    burstLen = 0;
+    double pBG       = 1.0;
+    double pGB       = 0.0;
+    double pLossBad  = 0.5;
+    double pLossGood = 0.0;
+    bool   stateBad  = false;
+    bool   lostCur   = false;
+    int    burstLen  = 0;
 
     // Concealment state (latched per burst)
     int   concealChoiceParam = 2;
     int   concealMode        = 2;
-    float decayGain          = 1.0f;
+    float decayGain          = 1.0f;   // ramp target for the current packet
+    float prevDecayGain      = 1.0f;   // ramp start for the current packet
+    bool  decayAligned       = false;  // Decay found an AMDF period
     int   subPeriod          = 0;
     int   subIdx             = 0;
     float subGain            = 1.0f;
+    int   olaLen             = 0;      // cycle-joint OLA length, 0 = off
 
     // Boundary crossfade
     int  fadeRemain      = 0;
     bool fadeFromConceal = false;
     bool hardEdges       = false;
 
-    EnableFade enableFade;
+    EnableFade   enableFade;
+    ComfortNoise comfortNoise;   // v1.5.0, brief item 19
 };
