@@ -265,20 +265,34 @@ let stubTooltipsEnabled =
   (typeof window !== "undefined" && window.__stubTooltipsEnabled) || false;
 
 // ── Preset backend stub (Stage 4) ───────────────────────────────────────────
-// The 28 names seeded by the v1.11.0 factory bank, in the case-insensitive
-// sorted order getPresetList() returns.
-const FACTORY = [
-  "Answering Machine", "Bad Blocks", "Basement Reel",
-  "Cellphone 1998", "Chewed Tape", "Corrupt Archive",
-  "Dictaphone Memo", "Disintegration Loop I", "Disintegration Loop II",
-  "Disintegration Loop III", "Disintegration Loop IV", "Dropped Call",
-  "Dusty 45", "Eight-Bit Ruin", "Frozen Decoder",
-  "Gentle Rot", "Last Voicemail", "Locked Groove",
-  "Scratched CD-R", "Shellac 78", "Skipping Disc",
-  "Stuck Disc", "Thrift-Store Turntable", "Total Media Failure",
-  "Transatlantic Line", "Warped C-90", "Worn Cassette",
-  "Wrong Byte Offset",
+// The 28 names seeded by the v1.11.0 factory bank, in the NARRATIVE order and
+// grouping the constructor declares them in — which is what
+// getPresetListGrouped() returns (v1.13.0). Held this way round, and FACTORY
+// derived from it below, so the stub carries ONE list of names: a second flat
+// copy in sorted order is exactly the mirror that drifts silently
+// (pattern_test_fixture_mirrors_drift_silently).
+const FACTORY_CATEGORIES = [
+  { category: "Showcases", presets: [
+    "Worn Cassette", "Skipping Disc", "Locked Groove", "Dropped Call",
+    "Cellphone 1998", "Eight-Bit Ruin", "Total Media Failure", "Gentle Rot",
+    "Corrupt Archive"] },
+  { category: "Tape", presets: [
+    "Warped C-90", "Basement Reel", "Chewed Tape", "Dictaphone Memo"] },
+  { category: "Vinyl", presets: [
+    "Thrift-Store Turntable", "Dusty 45", "Shellac 78"] },
+  { category: "CD", presets: [
+    "Scratched CD-R", "Stuck Disc"] },
+  { category: "Phone & Network", presets: [
+    "Last Voicemail", "Answering Machine", "Transatlantic Line"] },
+  { category: "Rot", presets: [
+    "Bad Blocks", "Wrong Byte Offset", "Frozen Decoder"] },
+  { category: "Disintegration", presets: [
+    "Disintegration Loop I", "Disintegration Loop II",
+    "Disintegration Loop III", "Disintegration Loop IV"] },
 ];
+// getPresetList() returns every preset in case-insensitive sorted order; the
+// grouping above is authored order, so this flattens rather than mirrors.
+const FACTORY = FACTORY_CATEGORIES.flatMap((c) => c.presets);
 const userPresets = new Set();
 let currentPreset = "Default";
 
@@ -318,6 +332,19 @@ const PRESET_FNS = {
     currentPreset = name; return dialogResult(true, name);
   },
   getPresetList: () => presetList(),
+  // Mirrors the C++ shape: an ARRAY of {category, presets}, factory sections in
+  // narrative order, then a "User" section that is OMITTED when empty. Only
+  // names actually in presetList() are emitted, as the C++ side cross-checks.
+  getPresetListGrouped: () => {
+    const live = presetList();
+    const out = FACTORY_CATEGORIES
+      .map((c) => ({ category: c.category,
+                     presets: c.presets.filter((n) => live.includes(n)) }))
+      .filter((c) => c.presets.length > 0);
+    const user = live.filter((n) => !FACTORY.includes(n));
+    if (user.length > 0) out.push({ category: "User", presets: user });
+    return out;
+  },
   getCurrentPreset: () => currentPreset,
   selectNextPreset: () => neighbour(1),
   selectPreviousPreset: () => neighbour(-1),

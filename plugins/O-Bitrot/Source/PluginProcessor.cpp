@@ -1199,6 +1199,49 @@ OBitrotAudioProcessor::OBitrotAudioProcessor()
             { "ROT_STICK", 50.0f }, { "ROT_GARBLE", 30.0f } } },
     };
 
+    // ── Narrative categories for the preset menu (v1.13.0) ──────────────────
+    // The bank's grouping has always lived in the DECLARATION ORDER above and
+    // in the comment at the head of it. getPresetList() ends in presets.sort(),
+    // so until the menu shipped there was nowhere the grouping could be seen.
+    //
+    // Expressed as index SPANS over factoryPresets, never as a second list of
+    // names: a name literal repeated here would go stale the first time a
+    // preset is renamed and the mismatch would be silent — the preset would
+    // just quietly fall into "User"
+    // (pattern_test_fixture_mirrors_drift_silently). Spans are inclusive
+    // [first, last] and must tile [0, size) exactly; the loop below asserts it.
+    struct CategorySpan { const char* label; int first, last; };
+    static constexpr CategorySpan categorySpans[] {
+        { "Showcases",        0,  8 },   // 1-9   family + character showcases
+        { "Tape",             9, 12 },   // 10-13
+        { "Vinyl",           13, 15 },   // 14-16
+        { "CD",              16, 17 },   // 17-18
+        { "Phone & Network", 18, 20 },   // 19-21
+        { "Rot",             21, 23 },   // 22-24
+        { "Disintegration",  24, 27 },   // 25-28 the four-rung severity ladder
+    };
+
+    // Walked in authored order, so factoryCategoryOrder preserves the NARRATIVE
+    // sequence within each category — which is load-bearing for the
+    // Disintegration ladder (I → IV is a progression, not a set).
+    {
+        int expectedFirst = 0;
+        for (const auto& span : categorySpans)
+        {
+            jassert (span.first == expectedFirst);          // spans must tile,
+            jassert (span.last < (int) factoryPresets.size());  // and stay in range
+            for (int i = span.first; i <= span.last; ++i)
+                factoryCategoryOrder.push_back ({ factoryPresets[(size_t) i].name,
+                                                  span.label });
+            expectedFirst = span.last + 1;
+        }
+        // Every factory preset lands in exactly one category — a preset added
+        // to the vector without extending a span would otherwise show up under
+        // "User" beside the user's own saves.
+        jassert (expectedFirst == (int) factoryPresets.size());
+        juce::ignoreUnused (expectedFirst);
+    }
+
     // Engineering units → normalized through each parameter's
     // NormalisableRange, once, here. initializeFactoryPresets stores the
     // values verbatim and applyPresetJson feeds them back through

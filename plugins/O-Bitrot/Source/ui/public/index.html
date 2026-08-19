@@ -169,21 +169,119 @@
     border-color: var(--brown-frame);
     box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
   }
-  .preset-name {
+  /* The readout is the menu trigger (v1.13.0). The sunken-plate look that used
+     to live on .preset-name moved OUT to .preset-select, so the readout itself
+     is now bare text — it has to stay childless for _updateDisplay(), and the
+     caret needs to sit inside the same plate without being inside the text. */
+  .preset-select-wrap { position: relative; display: flex; }
+  .preset-select {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
     width: 140px;
     padding: 3px 8px 4px;
-    font-style: italic;
-    font-size: 11.5px;
-    letter-spacing: 0.4px;
-    text-align: center;
     color: var(--brown-text);
     background: var(--bg-paper-light);
     border: 1.5px solid var(--brown-border);
     border-radius: 4px;
     box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
+    font-family: var(--serif);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .preset-select:not(:disabled):hover { background: var(--knob-core); }
+  .preset-select:disabled { opacity: 0.4; cursor: default; }
+  /* Open state reads as pressed-in — the plate stays sunken but darkens, so the
+     trigger never looks like the raised .preset-btn beside it. */
+  .preset-select[aria-expanded="true"] {
+    background: var(--seg-a);
+    box-shadow: inset 1px 2px 4px rgba(0,0,0,0.28);
+  }
+  .preset-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-style: italic;
+    font-size: 11.5px;
+    letter-spacing: 0.4px;
+    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* The caret and this spacer are the same fixed width, one either side of the
+     readout, so the preset name centres on the PLATE's centre rather than on
+     the centre of what is left after the caret. Without the spacer the name
+     sits ~7px left of centre — the caret's box plus its gap — which reads as a
+     misaligned plate next to the symmetrical Save/Load/Delete row. */
+  .preset-select::before { content: ''; flex: 0 0 9px; }
+  .preset-caret {
+    flex: 0 0 9px;
+    text-align: right;
+    font-size: 8px;
+    line-height: 1;
+    color: rgba(92,64,51,0.75);
+    transition: transform 0.18s ease-out;
+  }
+  .preset-select[aria-expanded="true"] .preset-caret { transform: rotate(180deg); }
+
+  /* ============ preset menu (v1.13.0) ============
+     Anchored to the trigger's LEFT edge rather than centred: the band's x
+     position depends on the wordmark and plate widths either side of it, so a
+     centred menu would need measuring, while a left-anchored 372px panel is
+     provably inside the 900px frame from the band's own offset. .plugin sets
+     overflow:hidden, so max-height keeps the tail scrollable instead of clipped.
+     z-index sits ABOVE .tooltip (1000) — a tip anchored to the trigger places
+     itself "below" and would otherwise float over the open list. */
+  .preset-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 1200;
+    width: 372px;
+    max-height: 560px;
+    overflow-y: auto;
+    background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-frame);
+    border-radius: 4px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    font-family: var(--serif);
+    text-align: left;
+  }
+  .preset-menu.visible { display: block; }
+  .preset-menu-category {
+    padding: 5px 10px 4px;
+    font-variant: small-caps;
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    color: var(--brown-frame);
+    background: var(--seg-b);
+    border-bottom: 1px solid rgba(139,115,85,0.45);
+  }
+  .preset-menu-category:not(:first-child) { border-top: 1px solid rgba(139,115,85,0.45); }
+  .preset-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px 0;
+    padding: 3px;
+  }
+  .preset-menu-item {
+    padding: 4px 8px 5px;
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    color: var(--brown-text);
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .preset-menu-item:hover { background: var(--seg-a); }
+  .preset-menu-item.active {
+    background: var(--knob-ring);
+    color: var(--bg-paper-light);
+    font-style: normal;
   }
 
   /* ============ panel grid ============ */
@@ -671,11 +769,28 @@
         <!-- Preset band — element IDs are exactly the ones preset-manager.js
              binds. #preset-name stays childless (_updateDisplay writes
              textContent). Button copy lives in data-label / data-confirm,
-             never in JS. -->
+             never in JS.
+
+             v1.13.0: the name readout is now the TRIGGER for the preset menu.
+             #preset-name kept its id and is still childless — the caret is a
+             SIBLING inside the trigger, never a child of the readout, because
+             _updateDisplay() assigns textContent and would erase any markup
+             placed inside it (pattern_js_state_updater_overwrites_html_labels).
+             The arrows are unchanged: stepping and browsing are different
+             gestures and both stay one click. -->
         <div class="preset-band">
           <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list." disabled>&#9664;</button>
           <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list." disabled>&#9654;</button>
-          <div class="preset-name" id="preset-name" aria-live="polite" data-tip-title="Preset" data-tip="The preset currently loaded. The 28 factory presets are read-only — saving under the same name writes a user copy instead.">Default</div>
+          <div class="preset-select-wrap">
+            <button type="button" class="preset-select" id="preset-select"
+                    aria-haspopup="listbox" aria-expanded="false" aria-label="Browse presets"
+                    data-tip-title="Preset"
+                    data-tip="The preset currently loaded — click to browse all of them by category. The 28 factory presets are read-only; saving under the same name writes a user copy instead." disabled>
+              <span class="preset-name" id="preset-name" aria-live="polite">Default</span>
+              <span class="preset-caret" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="preset-menu" id="preset-menu" role="listbox" aria-label="Presets"></div>
+          </div>
           <button type="button" class="preset-btn" id="preset-save" data-label="Save" data-tip-title="Save" data-tip="Save the current settings as a user preset." disabled>Save</button>
           <button type="button" class="preset-btn" id="preset-load" data-label="Load" data-tip-title="Load" data-tip="Load a preset from a file." disabled>Load</button>
           <button type="button" class="preset-btn" id="preset-delete"
@@ -1327,22 +1442,175 @@
 
     const byId = (id) => document.getElementById(id);
     const els = ["preset-prev", "preset-next", "preset-name",
-                 "preset-save", "preset-load", "preset-delete"].map(byId);
+                 "preset-save", "preset-load", "preset-delete",
+                 "preset-select", "preset-menu"].map(byId);
 
     if (els.some((el) => !el)) {
       console.error("Missing preset-band elements — preset band disabled");
     } else {
-      const [prevEl, nextEl, nameEl, saveEl, loadEl, deleteEl] = els;
+      const [prevEl, nextEl, nameEl, saveEl, loadEl, deleteEl,
+             selectEl, menuEl] = els;
+
+      // ── preset menu (v1.13.0) ───────────────────────────────────────────
+      // The module has no menu of its own — its `menuButton` option is
+      // declared and never read — so the list lives here, as it does in every
+      // other plugin in the suite. It is a VIEW over the module's state, not a
+      // second source of truth: selection always goes through
+      // presetManager.loadPreset(), so the arrows and the menu cannot disagree
+      // about what is loaded.
+      let sections = [];              // [{ category, presets: [...] }] from C++
+      let presetWalkOrder = [];       // the menu flattened — what ◀ / ▶ step
+      let menuOpen = false;
+
+      // Resolved once. A gap between this name and the C++ withNativeFunction
+      // registration fails SILENTLY (pattern_webview_native_fn_bridge_gap), so
+      // a throw here is logged rather than swallowed — the band still works,
+      // it just loses the menu.
+      let getGrouped = null;
+      try {
+        getGrouped = Juce.getNativeFunction("getPresetListGrouped");
+      } catch (e) {
+        console.error("[preset-menu] getPresetListGrouped unavailable:", e);
+      }
+
+      const markActive = () => {
+        const current = presetManager.getCurrentPreset();
+        menuEl.querySelectorAll(".preset-menu-item").forEach((el) => {
+          const isCurrent = el.dataset.name === current;
+          el.classList.toggle("active", isCurrent);
+          el.setAttribute("aria-selected", isCurrent ? "true" : "false");
+        });
+      };
+
+      const buildMenu = () => {
+        menuEl.replaceChildren();
+        for (const section of sections) {
+          if (!section || !Array.isArray(section.presets)) continue;
+
+          const header = document.createElement("div");
+          header.className = "preset-menu-category";
+          header.textContent = section.category;
+          menuEl.appendChild(header);
+
+          const grid = document.createElement("div");
+          grid.className = "preset-menu-grid";
+          for (const name of section.presets) {
+            const item = document.createElement("div");
+            item.className = "preset-menu-item";
+            item.setAttribute("role", "option");
+            item.dataset.name = name;
+            item.textContent = name;
+            item.addEventListener("click", (e) => {
+              e.stopPropagation();
+              closeMenu();
+              // No local state written here: loadPreset() drives
+              // onPresetChanged, which is what repaints the readout and the
+              // highlight. Writing them here too would let the UI claim a
+              // preset loaded when the C++ side returned false.
+              presetManager.loadPreset(name);
+            });
+            grid.appendChild(item);
+          }
+          menuEl.appendChild(grid);
+        }
+        markActive();
+      };
+
+      const refreshMenu = async () => {
+        if (!getGrouped) return;
+        try {
+          const result = await getGrouped();
+          sections = Array.isArray(result) ? result : [];
+          // The walk order IS the menu, flattened. Derived here rather than
+          // fetched separately so the two can never describe different orders.
+          presetWalkOrder = sections.flatMap(
+            (s) => (s && Array.isArray(s.presets) ? s.presets : []));
+          buildMenu();
+        } catch (e) {
+          console.error("[preset-menu] getPresetListGrouped failed:", e);
+        }
+      };
+
+      // ── ◀ / ▶ step through the MENU, not the alphabet ───────────────────
+      // The module's prevButton/nextButton options are deliberately NOT passed
+      // to the constructor below: they bind to the native selectNextPreset /
+      // selectPreviousPreset, which walk OuariconPresetManager::getPresetList()
+      // — one case-insensitive alphabetical list. That agreed with every
+      // plugin's flat dropdown by COINCIDENCE, not by construction, and the
+      // moment this list groups by category the coincidence breaks with no
+      // warning: ▶ from "Thrift-Store Turntable" (first in Vinyl) lands on
+      // "Total Media Failure" (seventh in Showcases), because alphabetically
+      // that is what comes next. The highlight jumps backwards across sections.
+      // (pattern_grouping_preset_dropdown_breaks_prev_next, found by
+      // O-MultiBandCompressor v1.7.0.)
+      const stepPreset = async (delta) => {
+        if (presetWalkOrder.length === 0) return;
+        const index = presetWalkOrder.indexOf(presetManager.getCurrentPreset());
+        // Out-of-list current preset — "Default" on a fresh instance, or a
+        // preset loaded from a file — has no neighbour. Enter at the top going
+        // forward and at the bottom going back, rather than snapping to 0 in
+        // both directions.
+        const base = index >= 0 ? index : (delta > 0 ? -1 : 0);
+        const next = (base + delta + presetWalkOrder.length) % presetWalkOrder.length;
+        await presetManager.loadPreset(presetWalkOrder[next]);
+      };
+
+      prevEl.addEventListener("click", () => { stepPreset(-1); });
+      nextEl.addEventListener("click", () => { stepPreset(1); });
+
+      const openMenu = () => {
+        if (menuOpen) return;
+        menuOpen = true;
+        markActive();
+        menuEl.classList.add("visible");
+        selectEl.setAttribute("aria-expanded", "true");
+        // Scroll the loaded preset into view. With 28 factory presets the
+        // current one is usually below the fold, and a menu that always opens
+        // at the top hides the one row the user opened it to see. offsetTop is
+        // measured against .preset-menu itself (position:absolute, so it is
+        // the offsetParent) and only ever moves the menu's own scrollTop —
+        // scrollIntoView() could scroll the page instead.
+        const active = menuEl.querySelector(".preset-menu-item.active");
+        if (active) {
+          menuEl.scrollTop = Math.max(
+            0, active.offsetTop - (menuEl.clientHeight / 2));
+        }
+      };
+
+      const closeMenu = () => {
+        if (!menuOpen) return;
+        menuOpen = false;
+        menuEl.classList.remove("visible");
+        selectEl.setAttribute("aria-expanded", "false");
+      };
+
+      selectEl.addEventListener("click", (e) => {
+        e.stopPropagation();          // else the document handler closes it again
+        if (menuOpen) closeMenu(); else openMenu();
+      });
+      document.addEventListener("click", closeMenu);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeMenu();
+      });
 
       const presetManager = new PresetManager({
         displayElement: nameEl,   // stays childless — _updateDisplay writes textContent
-        prevButton: prevEl,
-        nextButton: nextEl,
+        // prevButton / nextButton are INTENTIONALLY omitted — see stepPreset
+        // above. Passing them would bind the module's alphabetical walk on top
+        // of ours and every arrow click would fire twice, landing two presets
+        // away in two different orders.
         saveButton: saveEl,
         loadButton: loadEl,
         deleteButton: deleteEl,
         getNativeFunction: Juce.getNativeFunction,
         onConfirmDelete: () => armedConfirmDelete(),
+        // Fires on every load, from the arrows OR the menu — one highlight
+        // path for both.
+        onPresetChanged: () => markActive(),
+        // Fires on every refresh(), which is what save / load-from-file /
+        // delete all end in. Rebuilding from C++ rather than patching the DOM
+        // keeps the User section honest about what is actually on disk.
+        onPresetListUpdated: () => { refreshMenu(); },
       });
 
       // The band ships disabled in the markup. Un-disable only after
@@ -1350,7 +1618,8 @@
       // the bridge never comes up, the buttons stay honestly disabled
       // instead of enabled-but-inert.
       presetManager.initialize().then(() => {
-        [prevEl, nextEl, saveEl, loadEl, deleteEl].forEach((el) => { el.disabled = false; });
+        [prevEl, nextEl, saveEl, loadEl, deleteEl, selectEl]
+          .forEach((el) => { el.disabled = false; });
       });
     }
   }
