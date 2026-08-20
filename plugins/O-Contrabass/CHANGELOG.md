@@ -4,6 +4,37 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.6.0] — 2026-08-20 — 10 new factory presets + preset browser dropdown
+
+### Added
+
+- **Two new 5-preset factory banks** (20 factory presets total):
+  - *Expressive* (bowing techniques): Sul Ponticello Bass, Sul Tasto Bass,
+    Overpressure Scratch, Flautando Bass, Espressivo Bass.
+  - *Texture* (sound design): Glass Drone, Quarter-Tone Drone, Tectonic Sub,
+    Warped Tape Bass, Whisper Pad.
+  - Authored in engineering units and converted through each param's
+    `NormalisableRange` (skew-safe, same path as the v1.0 banks). Texture-bank
+    presets carry explicit `TUNING_SYSTEM`/`NOTE_EXPRESSION` like the Drone
+    bank; `STRING_TENSION` remains omitted (v1.1 deferral). All names sort
+    after "Cinematic Bass Sustain", so the default landing preset is unchanged.
+    The version bump re-seeds factory presets on first instantiation
+    (`.factory-version` sentinel).
+- **Preset browser dropdown** — clicking the preset-name display (which was
+  already titled "Preset browser" but did nothing) now opens a styled dropdown
+  of all presets (factory + user); clicking an entry loads it. The list is
+  rebuilt from the preset-manager module on every open, rendered as ONE FLAT
+  LIST in the C++ order — the ◀/▶ buttons walk that same flat list, so
+  grouping/sorting in the menu would desync them (known regression pattern).
+  Frontend-only: uses existing module methods, native-fn bridge surface
+  unchanged at 32.
+
+### Testing
+
+- DSP untouched — 19 render goldens must remain byte-identical.
+- `ui_frontend_check` bridge-surface gate (32 = 32).
+- Build + auval + install via build-and-install.sh.
+
 ## [1.5.0] — 2026-08-19 — bow noise made realistic (pitched, jittered, body-colored)
 
 User report: "the noise part of the sound doesn't come off as realistic sounding."
