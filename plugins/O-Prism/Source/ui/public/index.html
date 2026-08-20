@@ -419,6 +419,41 @@ body {
     text-align: center;
 }
 
+/* Double-click value entry. The input is overlaid ON the readout span, which
+   keeps its own text (rendered transparent) so the box never changes size —
+   no layout shift when entry opens or closes.
+
+   Deliberately unstyled for colour: this same field opens over the dark knob
+   panels AND over the light mod-matrix rows (#F5E6D3 / #5C4033). The background
+   stays transparent so it picks up whatever it sits on, and attachValueEntry()
+   copies the readout's own computed colour onto the input — currentColor then
+   carries it to the underline. Hardcoding either palette would break the other. */
+.knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: normal;
+    text-align: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+}
+.knob-value-input::-webkit-outer-spin-button,
+.knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 /* ─── DROPDOWN ─── */
 .dropdown-group {
     display: inline-flex;
@@ -1912,6 +1947,118 @@ const startAnimationLoop = () => {
     }
 };
 
+// ─── DOUBLE-CLICK VALUE ENTRY ───
+
+// Scaled (C++ parameter units) -> normalised [0,1]. Mirrors JUCE's own
+// SliderState.getNormalisedValue(), but reads the range from state.properties
+// — the live values the WebSliderRelay pushes up from C++ — instead of the
+// constants the format helpers mirror by hand further down, so the entry path
+// cannot drift from C++ even if one of those mirrors does.
+//
+// Clamping before the pow() is not cosmetic: a scaled value below `start`
+// gives a negative base, and Math.pow(negative, skew) with a fractional skew
+// is NaN. That NaN would ride straight through setNormalisedValue() into the
+// parameter and stick there.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor on a value-readout span. formatFn renders a value;
+// formatFn.parse(text, currentText) converts typed text back to a SCALED value,
+// or returns null to reject it. Enter/blur commits, Esc cancels, and
+// unparseable input is discarded without ever writing the parameter.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the readout's ink BEFORE hiding it: this field opens over both the
+    // dark knob panels and the light mod-matrix rows, so it takes its colour
+    // from whatever it replaces rather than from a fixed palette. Must be
+    // captured first — the span's own colour is about to become transparent,
+    // so `inherit` on the input would resolve to invisible.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The span keeps its own text (rendered transparent) so its box stays
+    // exactly the size it was — the input is overlaid on top of it. Clearing
+    // the text instead would collapse the span to zero height and shift the
+    // whole knob column.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: the parameter may have moved (host
+        // automation, preset load) while readout updates were suppressed.
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        // Untouched text is never written back. Readouts are rounded for
+        // display — LFO Rate shows whole Hz above 10, so 19.43 reads "19 Hz",
+        // and a 0.4996 level reads "50%". Without this guard, merely opening
+        // the field and pressing Enter would quantise the parameter to whatever
+        // the readout had rounded to.
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() snaps to `interval` and clamps internally,
+            // so only the scaled->norm conversion needs guarding here.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        // Keep digits away from any global key handling while the field is open.
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // The readout sits inside the knob's drag target — without these, clicking
+    // into the field would start a knob drag underneath it.
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// defaultNorm is the Alt/Option-click reset target and is NORMALISED [0,1] —
+// it goes straight to setNormalisedValue(). It is NOT the parameter's scaled
+// default. For a skewed NormalisableRange the two differ a lot:
+// ampAttack's 0.01 s default is norm 0.0859, not 0.001. Eleven call sites had
+// the scaled value here and reset to the wrong place for ~20 versions (fixed
+// in v1.20.0); only skewed params were affected, which is why it went unseen.
+// To add or change one: norm = ((scaledDefault - start) / (end - start))^skew.
 function bindKnob(paramId, formatFn, defaultNorm, size) {
     const knobEl = document.getElementById('knob-' + paramId);
     const vine = document.getElementById('vine-' + paramId);
@@ -1939,13 +2086,28 @@ function bindKnob(paramId, formatFn, defaultNorm, size) {
         const norm = state.getNormalisedValue();
         animationState.targets[paramId].target = norm;
         startAnimationLoop();
-        if (valueEl && formatFn) valueEl.textContent = formatFn(norm);
+        // Suppressed while an entry field is open — textContent would wipe out
+        // the <input> that lives inside this span.
+        if (valueEl && formatFn && valueEl.dataset.editing !== '1')
+            valueEl.textContent = formatFn(norm);
     });
 
     // Drag interaction
     let isDragging = false;
     const knobVisual = knobEl.querySelector('.knob-visual');
     const dragTarget = knobVisual || knobEl;
+
+    // Alt/Option-click resets to default. Bound on the CAPTURE phase so it runs
+    // ahead of the drag handler below and can cancel it outright — on the bubble
+    // phase the knob would reset and then immediately start dragging.
+    knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        state.sliderDragStarted();
+        state.setNormalisedValue(defaultNorm);
+        state.sliderDragEnded();
+    }, true);
 
     dragTarget.addEventListener('mousedown', (e) => {
         isDragging = true;
@@ -1967,9 +2129,10 @@ function bindKnob(paramId, formatFn, defaultNorm, size) {
         state.setNormalisedValue(norm);
     });
 
-    // Double-click to reset
-    knobEl.addEventListener('dblclick', () => {
-        state.setNormalisedValue(defaultNorm);
+    // Double-click opens inline value entry (Alt/Option-click resets instead).
+    knobEl.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueEl, state, formatFn);
     });
 
     // Mouse wheel support
@@ -2094,6 +2257,91 @@ const reverbModRateFmt = (n) => {
     return v.toFixed(1) + ' Hz';
 };
 
+// ─── VALUE-ENTRY PARSERS ───
+// Inverse of the format helpers above: display text -> the parameter's SCALED
+// value (C++ units), or null to reject. Attached as a `.parse` property on each
+// formatter so all 70 bindKnob() call sites keep working untouched.
+//
+// Display units are NOT always the scaled units: pct knobs are 0..1 in C++ but
+// read 0-100%, delayFeedback tops out at 0.95 while reading 95%, and pan is
+// -1..1 shown as 30L / C / 30R. Each family converts back to the C++ unit here;
+// scaledToNorm() then normalises through state.properties.
+
+// First signed decimal in the string, or null if there isn't one.
+const numOf = (t) => {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+
+// Display value already IS the scaled value (dB, semitones, cents, plain Hz).
+const parseDirect = (t) => numOf(t);
+
+// Display is the scaled value x100 (percent readouts on 0..1 / -1..1 params).
+const parsePercent = (t) => {
+    const v = numOf(t);
+    return v === null ? null : v / 100;
+};
+
+// Hz readouts that switch to kHz above 1000. A bare number is always Hz — the
+// whole range is expressible in Hz, and on a knob reading "1.2kHz" someone
+// typing "440" means 440 Hz, not 440 kHz. Write "1.2k" to mean kHz.
+const parseFreq = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    return /k/i.test(String(t)) ? v * 1000 : v;
+};
+
+// Time readouts that flip between ms and s mid-range, on params scaled in
+// SECONDS. Here a bare number DOES inherit the unit currently on screen (unlike
+// frequency above) so re-typing what you see round-trips: "2" reads as 2 ms on
+// a knob showing "30ms" and as 2 s on one showing "1.4s". Bare seconds would
+// make every sub-second value unenterable. An explicit ms/s always wins.
+const parseSeconds = (t, currentText) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    const s = String(t);
+    if (/ms/i.test(s)) return v / 1000;    // checked before /s/ — "ms" contains "s"
+    if (/s/i.test(s)) return v;
+    return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+};
+
+pct.parse              = parsePercent;   // 0..1
+pctSigned.parse        = parsePercent;   // -1..1
+feedbackFmt.parse      = parsePercent;   // 0..0.95, reads 0-95% — still /100
+panFmt.parse = (t) => {
+    const s = String(t);
+    const v = numOf(s);
+    if (v === null) return /c/i.test(s) ? 0 : null;   // bare "C" = centre
+    if (/l/i.test(s)) return -Math.abs(v) / 100;
+    if (/r/i.test(s)) return Math.abs(v) / 100;
+    return v / 100;                                    // signed number also works
+};
+
+cutoffFmt.parse        = parseFreq;      // 20..20000 Hz
+midFreqFmt.parse       = parseFreq;      // 200..8000 Hz
+
+envTimeFmtA.parse      = parseSeconds;   // 0.001..10 s
+envTimeFmtR.parse      = parseSeconds;   // 0.001..20 s
+delayTimeFmt.parse     = parseSeconds;   // 0.001..2 s
+glideTimeFmt.parse     = parseSeconds;   // 0.001..5 s
+
+// Predelay is scaled in MILLISECONDS (0..200) and always reads "ms", so it is a
+// direct readout — routing it through parseSeconds would divide it by 1000.
+predelayFmt.parse      = parseDirect;
+
+dbFmt.parse            = parseDirect;    // -12..12 dB
+coarseFmt.parse        = parseDirect;    // -24..24 st (int)
+fineFmt.parse          = parseDirect;    // -100..100 ct
+unisonFmt.parse        = parseDirect;    // 1..8 (int)
+pbRangeFmt.parse       = parseDirect;    // 1..48 st (int)
+masterTuneFmt.parse    = parseDirect;    // 420..460 Hz
+octStretchFmt.parse    = parseDirect;    // 0.95..1.25
+chorusRateFmt.parse    = parseDirect;    // 0.1..10 Hz
+lfoRateFmt.parse       = parseDirect;    // 0.01..20 Hz
+reverbModRateFmt.parse = parseDirect;    // 0.1..5 Hz
+
 // ─── BIND SLIDER PARAMS ───
 
 // Osc A (9 knobs + 1 dropdown — wavetable selector handles dropdown binding)
@@ -2131,16 +2379,16 @@ bindDropdown(document.getElementById('select-noiseType'), 'noiseType', 6);
 bindKnob('noiseLevel', pct,       0.0);
 
 // Amp Envelope
-bindKnob('ampAttack',  envTimeFmtA, 0.001);
-bindKnob('ampDecay',   envTimeFmtA, 0.03);
+bindKnob('ampAttack',  envTimeFmtA, 0.0859);
+bindKnob('ampDecay',   envTimeFmtA, 0.2928);
 bindKnob('ampSustain', pct,         0.7);
-bindKnob('ampRelease', envTimeFmtR, 0.025);
+bindKnob('ampRelease', envTimeFmtR, 0.3305);
 
 // Filter Envelope
-bindKnob('filtAttack',   envTimeFmtA, 0.001);
-bindKnob('filtDecay',    envTimeFmtA, 0.05);
+bindKnob('filtAttack',   envTimeFmtA, 0.0859);
+bindKnob('filtDecay',    envTimeFmtA, 0.3502);
 bindKnob('filtSustain',  pct,         0.5);
-bindKnob('filtRelease',  envTimeFmtR, 0.025);
+bindKnob('filtRelease',  envTimeFmtR, 0.3305);
 bindKnob('filtAEnvDepth', pctSigned,  0.5);
 bindKnob('filtBEnvDepth', pctSigned,  0.5);
 
@@ -2166,25 +2414,25 @@ bindKnob('masterTune',    masterTuneFmt, 0.5);
 bindKnob('octaveStretch', octStretchFmt, 0.1667);
 bindKnob('pitchBendRange', pbRangeFmt,  0.0213);
 bindDropdown(document.getElementById('select-glideMode'), 'glideMode', 3);
-bindKnob('glideTime',     glideTimeFmt, 0.02);
+bindKnob('glideTime',     glideTimeFmt, 0.2534);
 
 // Reverb
 bindKnob('reverbSize',     pct,              0.5);
 bindKnob('reverbDamp',     pct,              0.5);
-bindKnob('reverbPredelay', predelayFmt,      0.1);
+bindKnob('reverbPredelay', predelayFmt,      0.3162);
 bindKnob('reverbMix',      pct,              0.0);
 bindKnob('reverbModDepth', pct,              0.3);
 bindKnob('reverbModRate',  reverbModRateFmt, 0.43);
 
 // Delay
-bindKnob('delayTime',     delayTimeFmt, 0.187);
+bindKnob('delayTime',     delayTimeFmt, 0.5562);
 bindKnob('delayFeedback', feedbackFmt,  0.316);
 bindDropdown(document.getElementById('select-delayMode'), 'delayMode', 2);
 bindDropdown(document.getElementById('select-delayDivision'), 'delayDivision', 18);
 bindKnob('delayMix',      pct,          0.0);
 
 // Chorus
-bindKnob('chorusRate',  chorusRateFmt, 0.091);
+bindKnob('chorusRate',  chorusRateFmt, 0.3832);
 bindKnob('chorusDepth', pct,           0.5);
 bindKnob('chorusMix',   pct,           0.0);
 
@@ -2196,7 +2444,7 @@ bindKnob('distMix',   pct, 0.0);
 // EQ
 bindKnob('eqLowGain',  dbFmt,      0.5);
 bindKnob('eqMidGain',  dbFmt,      0.5);
-bindKnob('eqMidFreq',  midFreqFmt, 0.1);
+bindKnob('eqMidFreq',  midFreqFmt, 0.4507);
 bindKnob('eqHighGain', dbFmt,      0.5);
 
 // ─── LFO Sync Toggle Binding ───
@@ -2372,9 +2620,10 @@ bindKnob('oscMix',    pct,     0.5, 'small');
         // Amount value display
         const valCol = document.createElement('span');
         valCol.className = 'mod-col-val';
-        const amtNorm = amtState.getNormalisedValue();
-        const amtDisplay = Math.round((amtNorm * 2 - 1) * 100);
-        valCol.textContent = (amtDisplay > 0 ? '+' : '') + amtDisplay + '%';
+        // pctSigned renders the same ±N% this row used to assemble inline, and
+        // carries the .parse needed for value entry. Sharing one formatter keeps
+        // the post-entry re-render identical to the live readout.
+        valCol.textContent = pctSigned(amtState.getNormalisedValue());
 
         row.appendChild(onCol);
         row.appendChild(slotCol);
@@ -2424,12 +2673,29 @@ bindKnob('oscMix',    pct,     0.5, 'small');
         amtState.valueChangedEvent.addListener(() => {
             const n = amtState.getNormalisedValue();
             slider.value = Math.round(n * 1000);
-            const disp = Math.round((n * 2 - 1) * 100);
-            valCol.textContent = (disp > 0 ? '+' : '') + disp + '%';
+            // Suppressed while an entry field is open — see attachValueEntry().
+            if (valCol.dataset.editing !== '1') valCol.textContent = pctSigned(n);
         });
 
-        // Double-click slider to reset to 0
-        slider.addEventListener('dblclick', () => { amtState.setNormalisedValue(0.5); });
+        // Double-click (slider or readout) opens value entry on the readout.
+        slider.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            attachValueEntry(valCol, amtState, pctSigned);
+        });
+        valCol.addEventListener('dblclick', () => attachValueEntry(valCol, amtState, pctSigned));
+
+        // Alt/Option-click resets to 0 (centre). Bound on the parent in the
+        // capture phase: at-target listeners fire in registration order
+        // regardless of the capture flag, so a handler on the slider itself
+        // would run after the drag-start above and be too late to cancel it.
+        amtCol.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            e.stopPropagation();
+            amtState.sliderDragStarted();
+            amtState.setNormalisedValue(0.5);
+            amtState.sliderDragEnded();
+        }, true);
     }
 })();
 
@@ -3275,8 +3541,12 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
             const offset = 127.24 - (norm * 127.24);
             refPitchVine.style.strokeDashoffset = offset;
         }
-        const hz = 415 + norm * 50;
-        if (refPitchValue) refPitchValue.textContent = `${hz.toFixed(1)} Hz`;
+        // masterTuneFmt maps through the parameter's real C++ range (420..460 Hz).
+        // The inline `415 + norm * 50` this replaces was a 415..465 mirror that
+        // had drifted from the parameter: right at centre, 5 Hz out at both ends.
+        // Suppressed while an entry field is open — see attachValueEntry().
+        if (refPitchValue && refPitchValue.dataset.editing !== '1')
+            refPitchValue.textContent = masterTuneFmt(norm);
     }
 
     if (masterTuneState) {
@@ -3285,15 +3555,32 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
     }
 
     if (refPitchKnob) {
+        // Alt/Option-click resets to 440 Hz. MUST stay registered ahead of the
+        // drag handler below and use stopImmediatePropagation(): both listeners
+        // sit on the same element, and at-target listeners fire in registration
+        // order regardless of the capture flag, so plain stopPropagation() would
+        // not stop the drag from starting on the very same event.
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (masterTuneState) {
+                masterTuneState.sliderDragStarted();
+                masterTuneState.setNormalisedValue(0.5);
+                masterTuneState.sliderDragEnded();
+            }
+            updateKnobVisual(0.5);
+        });
         refPitchKnob.addEventListener('mousedown', (e) => {
             knobDragging = true; knobStartY = e.clientY;
             knobStartValue = masterTuneState ? masterTuneState.getNormalisedValue() : 0.5;
             if (masterTuneState) masterTuneState.sliderDragStarted();
             e.preventDefault();
         });
-        refPitchKnob.addEventListener('dblclick', () => {
-            if (masterTuneState) masterTuneState.setNormalisedValue(0.5);
-            updateKnobVisual(0.5);
+        // Double-click opens inline value entry on the readout.
+        refPitchKnob.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            attachValueEntry(refPitchValue, masterTuneState, masterTuneFmt);
         });
     }
     // Named handlers so they are removable by identity. Stored on the
