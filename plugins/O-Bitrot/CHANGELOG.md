@@ -2,6 +2,115 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.13.0] — 2026-08-19
+
+The preset readout is now a **click-to-open menu**, and the menu restores the
+factory bank's **narrative grouping** — Showcases, Tape, Vinyl, CD, Phone &
+Network, Rot, Disintegration — which had been authored into the bank since
+v1.11.0 and visible nowhere.
+
+**This release changes no DSP and no parameter.** Nothing under `Source/dsp`
+moved, the layout is the same 45 IDs in the same order, and no preset's values
+changed. Every saved session and preset renders exactly as under v1.12.0.
+
+### Added
+
+- **A preset menu on the name readout.** Clicking the plate opens all 28
+  factory presets in seven labelled sections; clicking a name loads it.
+  Escape, a click outside, or selecting an item closes it, and reopening
+  scrolls the loaded preset into view rather than always opening at the top.
+- **The ◀ ▶ arrows now step through the MENU order.** They are kept — stepping
+  to a neighbour and browsing the bank are different gestures, and both stay
+  one click — but they no longer walk the alphabet. See *Fixed* below.
+- **`getPresetListGrouped`, an eleventh preset native fn** (registered surface
+  **12 → 13**, parity gate clean both directions). It returns an **array** of
+  `{category, presets}`, deliberately not an object keyed by category: an
+  object would make section order depend on JS string-key insertion order
+  surviving the C++ → JSON → JS round-trip, and the alternative — a
+  `CATEGORY_ORDER` list on the JS side, which is what O-Prism carries — is a
+  mirror of the C++ that drifts the first time a category is added. The array
+  carries the order in the data itself.
+- **`tests/ui_preset_menu_check.js`**, a browser render gate on the real page
+  at the real 900x740. The grouping has **three** descriptions — the C++
+  spans, the browser stub, and the rendered DOM — and any two can agree while
+  the third drifts, so the file parses the expected grouping out of
+  `PluginProcessor.cpp` and holds the other two to it. **33 checks.**
+
+### Changed
+
+- **The narrative grouping is now derived from declaration order, not stored
+  twice.** `getPresetList()` ends in `presets.sort(true)`, so the bank has
+  always come back alphabetically and the grouping the v1.11.0 constructor
+  comment describes ("nine showcases, then tape 10-13, vinyl 14-16…") existed
+  only in that comment. It is now a `categorySpans` table of inclusive index
+  ranges over the factory vector — **never a second list of names**. A repeated
+  name literal would go stale the first time a preset was renamed, and the
+  failure would be silent: the preset would simply fall into "User" beside the
+  user's own saves (`pattern_test_fixture_mirrors_drift_silently`). The spans
+  must tile `[0, size)` exactly; the constructor asserts it, and the render
+  gate re-asserts it where a Release build can still catch it.
+- **The readout markup was restructured, and `#preset-name` stays childless.**
+  The sunken-plate styling moved from `.preset-name` out to a new
+  `.preset-select` button, so the caret can share the plate as a **sibling** of
+  the readout. It cannot be a child: `_updateDisplay()` assigns `textContent`,
+  which would erase it on the first preset change
+  (`pattern_js_state_updater_overwrites_html_labels`). The gate asserts the
+  caret is still there, and still outside the readout, after several loads.
+- **The 53 hover-help anchors are unchanged.** The tip that was on
+  `#preset-name` moved to the trigger that now wraps it and gained the browse
+  affordance in its copy. Still 53/53, still 52/53 reachable in the shipped
+  state, edge clamp still engaged for 12.
+- **The menu sits at `z-index: 1200`, above `.tooltip`'s 1000.** A tip anchored
+  to the trigger places itself *below* it, which is exactly where the open menu
+  is; without this the tip floats over the list.
+
+### Fixed
+
+- **The ◀ ▶ arrows walked the alphabet while the menu showed categories.**
+  `PresetManager`'s `prevButton` / `nextButton` options bind to the native
+  `selectNextPreset` / `selectPreviousPreset`, which walk
+  `OuariconPresetManager::getPresetList()` — one case-insensitive alphabetical
+  list. Every plugin's **flat** dropdown renders that same order, so the
+  buttons and the visible list have always agreed **by coincidence, not by
+  construction**, and grouping this one broke the coincidence with nothing to
+  warn you: ▶ from "Thrift-Store Turntable" (first in Vinyl) landed on "Total
+  Media Failure" (seventh in Showcases), the highlight jumping backwards
+  across two sections. The options are now deliberately **not** passed, and
+  the arrows step a `presetWalkOrder` derived by flattening the rendered
+  sections — so the walk order cannot describe a different sequence from the
+  list. An out-of-list preset ("Default" on a fresh instance, or one loaded
+  from a file) enters at the top going forward and the bottom going back
+  rather than snapping to index 0 both ways.
+  (`pattern_grouping_preset_dropdown_breaks_prev_next`, found first by
+  O-MultiBandCompressor v1.7.0.)
+- **The preset name was 7.5px left of its plate's centre.** The caret is a flex
+  child, so the name centred on what was left after it rather than on the plate
+  — visibly off beside the symmetrical Save / Load / Delete row. A spacer of
+  the caret's exact width now sits opposite it; measured at **0.00px** and
+  asserted at a 1.0px limit, because an offset this size reads as sloppy rather
+  than as a bug and would never be caught by eye in review.
+
+### Notes
+
+- Bumping the version rewrites the 28 factory preset files — writes are
+  sentinel-gated on `JucePlugin_VersionString`. No values changed, so they
+  rewrite identically.
+- **Every assertion in the new gate was checked in both directions.** Breaking
+  a category span fails 3 checks; making the menu items inert fails 2; removing
+  the centring spacer fails 1 at the measured 7.50px; restoring the module's
+  arrow binding fails 2, reproducing the exact "Total Media Failure" landing.
+  A probe that passes with the fix reverted is decoration
+  (`pattern_probe_must_target_the_branch_the_fix_changed`).
+- **The arrow check had to be made positional to catch anything.** The first
+  version asserted only that the highlight *moved*, which passes even when the
+  arrows walk a completely different order — and it did pass, on the broken
+  build, printing the wrong landing in its own output. It now asserts ▶ from
+  item *i* lands on item *i+1* of the rendered list, that ◀ is its exact
+  inverse, and that ▶ from the last item wraps to the first.
+- Gates: render harness **109/109**, tooltip gate **53/53 anchors**, preset menu
+  gate **33/33**, auval PASS, pluginval strictness-10 SUCCESS, zero console
+  errors.
+
 ## [1.12.0] — 2026-08-18
 
 Hover help on **53 controls** and a header **"?"** toggle, with the preference

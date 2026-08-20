@@ -89,6 +89,17 @@ public:
     // library (~/Library/Ouaricon Bitrot/Presets/).
     OuariconPresetManager presetManager { apvts, "Ouaricon Bitrot" };
 
+    // ── Factory bank narrative order (v1.13.0) ──────────────────────────────
+    // (preset name, category label) for all 28 factory presets, in the order
+    // they are DECLARED in the constructor — which is the authored narrative
+    // sequence, not the alphabetical one getPresetList() returns. The preset
+    // menu walks this to build its category sections; anything in
+    // getPresetList() that is absent here is a user preset.
+    //
+    // Derived from index spans over the factory vector, never from a repeated
+    // list of names, so renaming a preset cannot silently orphan its category.
+    std::vector<std::pair<juce::String, juce::String>> factoryCategoryOrder;
+
     // UI activity telemetry (event LEDs). Bits 0-4: tape, cd, vinyl, packet,
     // rot. OR-accumulated per sample inside processBlock (short events survive
     // any block size), published once per block; editor timer reads at 30 Hz.
