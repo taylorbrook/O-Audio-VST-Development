@@ -1,17 +1,19 @@
 ---
 plugin: O-Emulator
-stage: 0
-status: complete
+stage: 1
+phase: discuss
+status: in-progress
 last_updated: 2026-08-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: mockup_then_foundation
+next_action: research
 next_stage: 1
-ready_for_implementation: false
+ready_for_implementation: true
 contract_checksums:
   brief: sha256:334b83d216a014678702b5cc20f08a84029b540f7c81e92e94df980e696ea01a
   parameter_spec_draft: sha256:6b6abad34dd0640ab4ba554a710342d8a9fdb7e05e4fc6cbaf4fa32ec7b9f5d5
+  parameter_spec: sha256:b38a4b91ebd4b3118f6556869e151332f8670f0dc10b9ee6ed8ee4708a22d770
   architecture: sha256:afa8e778cd9beef0ed6b227d5b45ef1325c1d4e236c2c80da86aeb47bcac7a67
   roadmap: sha256:14000c30527a64adac26a98686d567c86955951012909d33b31ae63df0612402
 ---
@@ -20,9 +22,21 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 (Research & Planning) — complete
-Status: Architecture and roadmap documented; UI mockup + parameter-spec finalization pending before Stage 1
-Progress: [##..................] 10%
+Stage: 1 (Foundation) — in progress
+Phase: discuss ✓ complete (2026-08-20) → next: research
+Status: Stage 1 CONTEXT.md created (pure passthrough shell, harness scaffolded in Stage 1, pluginval strictness 10)
+Progress: [####................] 18%
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-08-20 | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
 
 ## Completed So Far
 
@@ -41,9 +55,10 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. Create UI mockup (`/dream O-Emulator`) — console selector focal + 4 macro knobs; finalizes parameter-spec.md
-2. Stage 1: Foundation (`/implement O-Emulator`) — CMake, APVTS, stereo effect shell, pluginval smoke
-3. Review ARCHITECTURE.md and ROADMAP.md
+1. Stage 1: Foundation (`/implement O-Emulator`) — CMake, APVTS, stereo effect shell, pluginval smoke
+2. Review ARCHITECTURE.md and ROADMAP.md
+
+**Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
 ## Context to Preserve
 
@@ -59,3 +74,4 @@ Progress: [##..................] 10%
 - plugins/O-Emulator/.planning/research/ARCHITECTURE.md
 - plugins/O-Emulator/.planning/ROADMAP.md
 - plugins/O-Emulator/.planning/stages/0-ideation/CONTEXT.md
+- plugins/O-Emulator/.planning/parameter-spec.md (promoted from draft 2026-08-20, mockup skipped)
