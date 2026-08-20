@@ -124,10 +124,20 @@ function bindKnob(paramId, unit) {
     });
 
     knobElement.addEventListener('dblclick', () => {
+        const def = parseFloat(knobElement.dataset.default);
         state.sliderDragStarted();
-        state.setNormalisedValue(0.5);
+        state.setNormalisedValue(isNaN(def) ? 0.5 : scaledToNormalised(state, def));
         state.sliderDragEnded();
     });
+}
+
+// Skew-aware inverse of the parameter's NormalisableRange — a raw normalized
+// value would land skewed knobs (Speed, Distance) away from their default.
+function scaledToNormalised(state, scaled) {
+    const p = state.properties;
+    if (!p || p.end === p.start) return 0;
+    const norm = Math.pow((scaled - p.start) / (p.end - p.start), p.skew);
+    return Math.max(0, Math.min(1, norm));
 }
 
 function updateKnobRotation(knobElement, normalized) {
