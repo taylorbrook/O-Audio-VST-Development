@@ -35,6 +35,7 @@
 #include <map>
 #include <vector>
 #include "DSP/MultiBandProcessor.h"
+#include "DSP/PhaseMatchChain.h"
 #include "OuariconPresetManager.h"
 
 // FFT Configuration
@@ -141,6 +142,12 @@ private:
     // M/S scratch buffer, preallocated in prepareToPlay (CR-03) — avoids per-block AudioBuffer
     // allocation in Mid/Side modes.
     juce::AudioBuffer<float> msScratchBuffer;
+
+    // v1.6.1 phase matching: the crossover's band sum carries AP(f1)·AP(f2)·AP(f3), so
+    // anything summed/decoded against it needs the same rotation (see PhaseMatchChain.h).
+    PhaseMatchChain dryPhaseMatch;          // dry path of the Mix control (WR-03)
+    PhaseMatchChain passthroughPhaseMatch;  // uncompressed channel in Mid/Side modes (WR-02)
+    juce::AudioBuffer<float> dryScratchBuffer;  // preallocated dry copy for phase matching
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
