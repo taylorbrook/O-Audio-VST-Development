@@ -1,14 +1,14 @@
 ---
 plugin: O-Emulator
 stage: 1
-phase: execute
+phase: verify
 status: complete
 last_updated: 2026-08-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: verify
-next_stage: 1
+next_action: discuss
+next_stage: 2
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:334b83d216a014678702b5cc20f08a84029b540f7c81e92e94df980e696ea01a
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 (Foundation) — execute complete
-Phase: execute ✓ complete (2026-08-20) → next: verify
-Status: Shell built + installed; harness ALL PASS (digest 28e7675cdbec475c); pluginval strictness 10 SUCCESS VST3+AU (COMPAT-01)
-Progress: [######..............] 30%
+Stage: 1 (Foundation) — ✅ VERIFIED complete
+Phase: verify ✓ complete (2026-08-20) → next: Stage 2 discuss (Phase 2.1)
+Status: Stage 1 VERIFIED — all checks independently re-run at verify (build, harness 18/18, auval, pluginval 10 VST3+AU); COMPAT-01 complete
+Progress: [#######.............] 35%
 
 ## Phase Progress
 
@@ -36,7 +36,7 @@ Progress: [######..............] 30%
 | research | ✓ | 2026-08-20 | (ran in main checkout; RESEARCH.md copied here) |
 | plan | ✓ | 2026-08-20 | (ran in main checkout; PLAN.md copied here) |
 | execute | ✓ | 2026-08-20 | |
-| verify | | | |
+| verify | ✓ | 2026-08-20 | |
 
 ## Completed So Far
 
@@ -61,10 +61,16 @@ Progress: [######..............] 30%
 - PLUGINS.md own row → 🚧 Stage 1
 - Details: `stages/1-foundation/SUMMARY.md` (incl. reconciliation of discuss-worktree + plan-main-checkout strands)
 
+## Stage 1 Verification (2026-08-20)
+
+- ✅ VERIFIED — `stages/1-foundation/VERIFICATION.md`
+- COMPAT-01 → complete (pluginval strictness 10 SUCCESS VST3+AU, independently re-run)
+- Harness re-run ALL PASS (18 checks), digest matches baseline `28e7675cdbec475c`
+- REQUIREMENTS.md updated: 1 complete, 14 deferred to stage-2/3
+
 ## Next Steps
 
-1. `/plugin-verify O-Emulator 1-foundation` — goal-backward verification of Stage 1
-2. Stage 2 Phase 2.1 (engine skeleton + SNES end-to-end) via discuss phase
+1. Stage 2 Phase 2.1 (engine skeleton + SNES end-to-end) via `/plugin-discuss O-Emulator 2-dsp`
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
