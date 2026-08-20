@@ -160,6 +160,11 @@ OSpectralShaperAudioProcessor::OSpectralShaperAudioProcessor()
                         setSustainCurve(curve);
                     }
                 }
+
+                // State replaced the curves — tell the editor's poll to re-send
+                // them to the WebView. Bumped here (preset load / session
+                // restore) and nowhere else, so UI drag-edits never echo back.
+                curvesRevision.fetch_add(1, std::memory_order_release);
             }
         }
     );

@@ -281,6 +281,11 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
     // Set editor size (700x500 for Stage 3 full UI)
     setSize(700, 500);
 
+    // Baseline the curves revision BEFORE the timer starts: the initial curve
+    // push at editor-open lives in parentHierarchyChanged(), so the poll only
+    // needs to catch revisions bumped after construction.
+    lastSentCurvesRevision = processorRef.getCurvesRevision();
+
     // Start 60fps timer for visualization updates (Phase 3.3)
     startTimerHz(60);
 }
@@ -507,6 +512,19 @@ void OSpectralShaperAudioProcessorEditor::emitVisualizationFrame(
 
 void OSpectralShaperAudioProcessorEditor::timerCallback()
 {
+    // Re-send the curves when a preset load or session restore replaced them
+    // (curvesRevision is bumped only by the customLoad state callback, never
+    // by UI drag-edits, so this cannot fight an in-progress drag). Gated on
+    // hasNavigated: before navigation there is no page to evaluate against —
+    // lastSentCurvesRevision stays behind and the send happens once there is.
+    if (const auto revision = processorRef.getCurvesRevision();
+        hasNavigated && revision != lastSentCurvesRevision)
+    {
+        lastSentCurvesRevision = revision;
+        sendAttackCurveToJS();
+        sendSustainCurveToJS();
+    }
+
     auto& fifo = processorRef.getVisualizationFifo();
     const auto& buffer = processorRef.getVisualizationBuffer();
 

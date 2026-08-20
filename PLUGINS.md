@@ -36,13 +36,13 @@ Ouaricon Plugins:
 | O-SimpleReverb | 📦 Installed | 1.5.7 | Audio Effect (Reverb) | 2026-08-02 |
 | O-Polystutter | 📦 Installed | 1.13.0 | Audio Effect (Beat Repeater) | 2026-08-14 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.3.3 | Synth (Physical Modeling Harp) | 2026-08-02 |
-| O-MultiBandCompressor | 📦 Installed | 1.6.0 | Audio Effect (Dynamics) | 2026-07-23 |
+| O-MultiBandCompressor | 📦 Installed | 1.6.1 | Audio Effect (Dynamics) | 2026-08-19 |
 | O-Bass | 📦 Installed | 1.3.3 | Audio Effect (Bass Enhancer) | 2026-07-08 |
 | O-IntonationPad | 📦 Installed | 2.8.4 | Synth (Wavetable Pad) | 2026-08-02 |
 | O-Detune | 📦 Installed | 1.5.4 | Audio Effect (Detuning) | 2026-08-02 |
 | O-Freeze | 📦 Installed | 2.0.1 | Audio Effect (Granular Freeze) | 2026-07-01 |
 | O-FreqPulse | 📦 Installed | 1.17.0 | Audio Effect (Spectral Sequencer) | 2026-08-13 |
-| O-SpectralShaper | 📦 Installed | 1.6.0 | Audio Effect (Spectral Transient Shaper) | 2026-08-19 |
+| O-SpectralShaper | 📦 Installed | 1.6.1 | Audio Effect (Spectral Transient Shaper) | 2026-08-19 |
 | O-GrainScatter | 📦 Installed | 2.4.3 | Audio Effect (Granular Stutter Engine) | 2026-08-19 |
 | O-Chorus | 📦 Installed | 1.2.3 | Audio Effect (Chorus) | 2026-06-30 |
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
@@ -54,7 +54,7 @@ Ouaricon Plugins:
 | O-Bowed | 📦 Installed | 1.4.1 | Synth (Physical Model Bowed String) | 2026-07-08 |
 | O-Reed | 📦 Installed | 1.1.0 | Synth (Physical Modeling Reed Wind) | 2026-04-26 |
 | O-Wind | 📦 Installed | 1.16.3 | Synth (Physical Model Flute) | 2026-07-10 |
-| O-Contrabass | 📦 Installed | 1.4.0 | Synth (Physical Model Bowed Bass) | 2026-08-13 |
+| O-Contrabass | 📦 Installed | 1.5.0 | Synth (Physical Model Bowed Bass) | 2026-08-19 |
 | O-Bassoon | 🚧 Stage 0 | - | Synth (Physical Model Bassoon) | 2026-04-27 |
 | O-MicrotonalSampler | 📦 Installed | 1.23.10 | Synth (Microtonal Sampler) | 2026-08-08 |
 | O-simpleFM | 📦 Installed | 1.2.4 | Synth (Pedagogical 2-Op FM) | 2026-08-08 |

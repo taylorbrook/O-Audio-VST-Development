@@ -269,8 +269,9 @@ private:
 
     // ─── Phase 2.5 — Body Resonator + Bow Noise Generator ─────────────────────
     // 8-mode parallel bandpass body resonator (mono single-bank, runs at host
-    // rate AFTER 2× downsample at line 688). 3-band BPF + period-heuristic
-    // slip-burst bow noise generator summed AFTER body. Both per-block-pushed
+    // rate AFTER 2× downsample at line 688). 3-band BPF + pitch-synchronous
+    // comb + jittered slip-burst bow noise generator summed BEFORE body
+    // (v1.5.0 — body colors the noise like the string). Both per-block-pushed
     // via 30 ms SmoothedValue<Linear> ramps (CONTEXT line 152 + ARCHITECTURE
     // §152 + parameter-spec.md defaults: SIZE=0.75 / DAMPING=0.40 / MIX=0.80
     // / NOISE=0.35).

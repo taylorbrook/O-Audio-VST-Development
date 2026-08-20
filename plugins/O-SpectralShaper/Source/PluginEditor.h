@@ -66,6 +66,12 @@ private:
     // 3. NAVIGATION FLAG
     bool hasNavigated = false;
 
+    // Last curves revision pushed to the WebView. Compared against
+    // processorRef.getCurvesRevision() in timerCallback(): a mismatch means a
+    // preset load or session restore replaced the curves and the curve editors
+    // are showing stale shapes, so both curves are re-sent.
+    juce::uint32 lastSentCurvesRevision = 0;
+
     // 4. ATTACHMENTS LAST (depend on both relays and webView)
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> attackTimeAttachment;
