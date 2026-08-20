@@ -1,40 +1,61 @@
 ---
 plugin: O-Emulator
-stage: ideation
-status: creative_brief_complete
-last_updated: 2026-08-20 12:00:00
+stage: 0
+status: complete
+last_updated: 2026-08-20
+complexity_score: 5.0
+staged_implementation: true
+orchestration_mode: true
+next_action: mockup_then_foundation
+next_stage: 1
+ready_for_implementation: false
+contract_checksums:
+  brief: sha256:334b83d216a014678702b5cc20f08a84029b540f7c81e92e94df980e696ea01a
+  parameter_spec_draft: sha256:6b6abad34dd0640ab4ba554a710342d8a9fdb7e05e4fc6cbaf4fa32ec7b9f5d5
+  architecture: sha256:afa8e778cd9beef0ed6b227d5b45ef1325c1d4e236c2c80da86aeb47bcac7a67
+  roadmap: sha256:14000c30527a64adac26a98686d567c86955951012909d33b31ae63df0612402
 ---
 
-# Resume Point
+# O-Emulator Status
 
-## Current State: Creative Brief Complete
+## Current Position
 
-Creative brief has been finalized for O-Emulator. Ready to proceed to UI mockup or implementation.
+Stage: 0 (Research & Planning) — complete
+Status: Architecture and roadmap documented; UI mockup + parameter-spec finalization pending before Stage 1
+Progress: [##..................] 10%
 
 ## Completed So Far
 
 **Ideation:** ✓ Complete
-- Core concept defined (authentic retro console audio emulation)
-- Parameters specified (Console selector + Crush/Age/Reverb/Mix macros)
-- Use cases identified (lo-fi producers, chiptune/VGM, game audio, sound design)
-- Requirements extracted with acceptance criteria
+- Creative brief, requirements (15), draft parameters (5)
+
+**Stage 0:** ✓ Complete
+- Plugin type: Audio Effect (retro console emulation, stereo in/out)
+- Complexity tier 3, research depth DEEP
+- 9 features researched and documented (5 codecs, resampling, output stages, SPU reverb, age model, crush macro, mix, switching, invariance infra)
+- Professional examples researched: 5 (Plogue Chipcrusher, D16 Decimort 2, Inphonik RX950, C700/SnesPass, psx-reverb ports)
+- JUCE classes verified against local 8.0.14 source: Interpolators::Lagrange/WindowedSinc, dsp::DryWetMixer (+setWetLatency), dsp::IIR ArrayCoefficients, dsp::FirstOrderTPTFilter; dsp::Oversampling rejected (2^N only)
+- All HIGH/MEDIUM risks have documented fallbacks (SPU reverb → tuned Schroeder; closed-loop → open-loop encoders; arbitrary-ratio → integer-divisor rates)
+- Complexity score: 5.0 (capped) — Staged implementation (DSP 4 phases, GUI 2 phases)
+- ARCHITECTURE.md + ROADMAP.md documented
 
 ## Next Steps
 
-1. Stage 0 planning: `/plan O-Emulator` (recommended)
-2. Create UI mockup to visualize design
-3. Research console audio hardware details (BRR/SPU-ADPCM specs)
+1. Create UI mockup (`/dream O-Emulator`) — console selector focal + 4 macro knobs; finalizes parameter-spec.md
+2. Stage 1: Foundation (`/implement O-Emulator`) — CMake, APVTS, stereo effect shell, pluginval smoke
+3. Review ARCHITECTURE.md and ROADMAP.md
 
 ## Context to Preserve
 
-**Key Decisions:**
-- Plugin type: Effect
-- Core concept: Authentic codec emulation (real BRR/ADPCM/DPCM round-trips), NOT perceptual bitcrush approximation
-- 5 console modes: SNES, PS1, NES, Game Boy, Genesis
-- Authentic fixed sample rates per console (no rate knob)
-- SPU-style reverb available in ALL modes (creative choice)
-- CRT/TV speaker sim explicitly deselected for v1.0
+- Architecture: `plugins/O-Emulator/.planning/research/ARCHITECTURE.md`
+- Roadmap: `plugins/O-Emulator/.planning/ROADMAP.md`
+- Stage 0 context: `plugins/O-Emulator/.planning/stages/0-ideation/CONTEXT.md`
+- Complexity 5.0, staged; highest risk = SPU reverb register-model port
+- Constant worst-case latency across console modes; mix path uses exact setWetLatency pairing
+- GPL hygiene: implement codecs from specs, never port blargg/Nuked GPL code
 
-**Files Created:**
-- plugins/O-Emulator/.planning/BRIEF.md
-- plugins/O-Emulator/.planning/REQUIREMENTS.md
+## Files Created
+
+- plugins/O-Emulator/.planning/research/ARCHITECTURE.md
+- plugins/O-Emulator/.planning/ROADMAP.md
+- plugins/O-Emulator/.planning/stages/0-ideation/CONTEXT.md
