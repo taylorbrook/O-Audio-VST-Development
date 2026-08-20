@@ -19,6 +19,7 @@
 */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <algorithm>
 #include <cmath>
 
 #ifndef M_PI
@@ -51,6 +52,54 @@ OOrbitProcessor::OOrbitProcessor()
     sourceModeParam    = parameters.getRawParameterValue ("source_mode");
     lrOffsetParam      = parameters.getRawParameterValue ("lr_offset");
     mixParam           = parameters.getRawParameterValue ("mix");
+
+    // ── Factory preset bank (B1, v1.1.0) ────────────────────────────────────
+    // The 12 presets keep their v1.0.0 names and engineering-unit values
+    // (getFactoryPresets() is still the single authoring source); here they
+    // are converted through each parameter's own NormalisableRange into the
+    // normalized domain the preset-manager stores — raw-fraction authoring
+    // would ignore the skew on speed and distance.
+    const auto& factory = getFactoryPresets();
+
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryDefs;
+    factoryDefs.reserve (factory.size());
+    for (const auto& preset : factory)
+    {
+        OuariconPresetManager::FactoryPresetDef def;
+        def.name = preset.name;
+        for (const auto& [paramId, value] : preset.values)
+            if (auto* p = parameters.getParameter (paramId))
+                def.parameters[paramId] = p->convertTo0to1 (value);
+        factoryDefs.push_back (std::move (def));
+    }
+
+    // Category spans over the authored order — inclusive [first, last], must
+    // tile [0, size). A preset added without extending a span would show up
+    // under "User" in the menu beside the user's own saves.
+    struct CategorySpan { const char* label; int first, last; };
+    static constexpr CategorySpan categorySpans[] {
+        { "Stereo",   0,  4 },
+        { "Surround", 5,  7 },
+        { "Creative", 8, 11 },
+    };
+
+    {
+        int expectedFirst = 0;
+        for (const auto& span : categorySpans)
+        {
+            jassert (span.first == expectedFirst);
+            jassert (span.last < (int) factoryDefs.size());
+            for (int i = span.first; i <= span.last; ++i)
+                factoryCategoryOrder.push_back ({ factoryDefs[(size_t) i].name, span.label });
+            expectedFirst = span.last + 1;
+        }
+        jassert (expectedFirst == (int) factoryDefs.size());
+        juce::ignoreUnused (expectedFirst);
+    }
+
+    // Sentinel-gated: file writes happen only when JucePlugin_VersionString
+    // changes — auval/pluginval scan-storm safe.
+    presetManager.initializeFactoryPresets (factoryDefs);
 }
 
 OOrbitProcessor::~OOrbitProcessor() {}
@@ -63,9 +112,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOrbitProcessor::createParam
     auto motionGroup = std::make_unique<juce::AudioProcessorParameterGroup> (
         "motion", "Motion", "|");
 
+    // v1.1.0 appends "Ping-Pong" (C3) — append-only, never reorder: APVTS
+    // sessions persist the choice INDEX, so 0-3 keep their meaning.
     motionGroup->addChild (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "path", 1 }, "Path",
-        juce::StringArray { "Orbit", "Pendulum", "Linear", "Drift" }, 0));
+        juce::StringArray { "Orbit", "Pendulum", "Linear", "Drift", "Ping-Pong" }, 0));
 
     motionGroup->addChild (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "speed", 1 }, "Speed",
@@ -254,31 +305,13 @@ const std::vector<OOrbitProcessor::FactoryPreset>& OOrbitProcessor::getFactoryPr
     return presets;
 }
 
-int OOrbitProcessor::getNumPrograms()    { return (int) getFactoryPresets().size(); }
-int OOrbitProcessor::getCurrentProgram() { return currentProgramIndex; }
-
-void OOrbitProcessor::setCurrentProgram (int index)
-{
-    if (index < 0 || index >= getNumPrograms())
-        return;
-
-    currentProgramIndex = index;
-    const auto& preset = getFactoryPresets()[(size_t) index];
-
-    for (const auto& [paramId, value] : preset.values)
-    {
-        if (auto* param = parameters.getParameter (paramId))
-            param->setValueNotifyingHost (param->convertTo0to1 (value));
-    }
-}
-
-const juce::String OOrbitProcessor::getProgramName (int index)
-{
-    if (index < 0 || index >= getNumPrograms())
-        return {};
-    return getFactoryPresets()[(size_t) index].name;
-}
-
+// v1.1.0: the legacy Programs API is collapsed to a single program — the 12
+// factory presets now live in the preset-manager bank (categorized menu,
+// prev/next, user saves) like the rest of the suite.
+int OOrbitProcessor::getNumPrograms()                          { return 1; }
+int OOrbitProcessor::getCurrentProgram()                       { return 0; }
+void OOrbitProcessor::setCurrentProgram (int)                  {}
+const juce::String OOrbitProcessor::getProgramName (int)       { return "Default"; }
 void OOrbitProcessor::changeProgramName (int, const juce::String&) {}
 bool OOrbitProcessor::hasEditor() const                       { return true; }
 
@@ -384,7 +417,7 @@ void OOrbitProcessor::removeSpeakerFromLayout (int index)
     }
 }
 
-void OOrbitProcessor::moveSpeakerInLayout (int index, float azimuth, float elevation)
+void OOrbitProcessor::moveSpeakerInLayout (int index, float azimuth, float elevation, float distance)
 {
     if (! useCustomLayout)
     {
@@ -393,10 +426,23 @@ void OOrbitProcessor::moveSpeakerInLayout (int index, float azimuth, float eleva
     }
     if (index >= 0 && index < (int) customLayout.speakers.size())
     {
-        customLayout.speakers[(size_t) index].azimuth = azimuth;
-        customLayout.speakers[(size_t) index].elevation = elevation;
+        auto& spk = customLayout.speakers[(size_t) index];
+        spk.azimuth   = azimuth;
+        spk.elevation = juce::jlimit (-90.0f, 90.0f, elevation);
+        spk.distance  = juce::jlimit (0.1f, 30.0f, distance);
+        customLayout.is3D = std::any_of (customLayout.speakers.begin(), customLayout.speakers.end(),
+                                         [] (const Speaker& s) { return s.elevation != 0.0f; });
         applyLayout (customLayout);
     }
+}
+
+juce::File OOrbitProcessor::getLayoutsDirectory() const
+{
+    // Sibling of the preset store: ~/Library/Ouaricon Orbit/Layouts/
+    return juce::File::getSpecialLocation (juce::File::userHomeDirectory)
+        .getChildFile ("Library")
+        .getChildFile ("Ouaricon Orbit")
+        .getChildFile ("Layouts");
 }
 
 void OOrbitProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -508,14 +554,22 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     float lrOffset        = lrOffsetParam->load();
     float mixVal          = mixParam->load() / 100.0f;
 
-    // Read host BPM
+    // Read host BPM and beat position (C1: PPQ lock while the transport rolls)
     double hostBpm = 120.0;
+    double hostPpq = 0.0;
+    bool   ppqValid = false;
     if (auto* playHead = getPlayHead())
     {
         if (auto pos = playHead->getPosition())
         {
             if (auto bpm = pos->getBpm())
                 hostBpm = *bpm;
+
+            if (auto ppq = pos->getPpqPosition())
+            {
+                hostPpq = *ppq;
+                ppqValid = pos->getIsPlaying();
+            }
         }
     }
 
@@ -530,6 +584,7 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     motionEngine.setElevationRange (elevRange);
     motionEngine.setTempoSync (tempoSyncIdx);
     motionEngine.setHostBpm (hostBpm);
+    motionEngine.setHostPpq (hostPpq, ppqValid);
 
     // Update VBAP renderer
     vbapRenderer.setCenterDiverge (diverge);
@@ -688,6 +743,13 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 void OOrbitProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+
+    // v1.1.0: hover-help preference and current preset name ride the same
+    // tree as plain properties (not parameters).
+    state.setProperty ("tooltipsEnabled",
+                       tooltipsEnabled.load (std::memory_order_acquire), nullptr);
+    state.setProperty ("currentPreset", presetManager.getCurrentPresetName(), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
 
     if (useCustomLayout)
@@ -745,6 +807,20 @@ void OOrbitProcessor::setStateInformation (const void* data, int sizeInBytes)
         }
 
         parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+
+        // v1.1.0: hover-help preference. A pre-1.1.0 session has no property —
+        // getProperty returns a VOID var and the default (OFF) stands.
+        // isVoid() is the only correct gate: the XML round-trip rebuilds the
+        // property as a STRING var, so isBool()/isInt() are false for every
+        // saved session (critical_valuetree_xml_roundtrip_loses_type). var's
+        // bool conversion handles all forms once existence is known.
+        const juce::var tips = parameters.state.getProperty ("tooltipsEnabled");
+        if (! tips.isVoid())
+            tooltipsEnabled.store ((bool) tips, std::memory_order_release);
+
+        const juce::var presetName = parameters.state.getProperty ("currentPreset");
+        if (! presetName.isVoid())
+            presetManager.setCurrentPresetName (presetName.toString());
 
         if (useCustomLayout)
             applyLayout (customLayout);

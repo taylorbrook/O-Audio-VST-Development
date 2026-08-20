@@ -106,8 +106,18 @@ OOrbitEditor::OOrbitEditor (OOrbitProcessor& p)
         .withNativeFunction ("moveSpeaker", [this] (const auto& args, auto complete) {
             if (args.size() >= 3)
             {
+                // v1.1.0 (D1): optional 4th arg edits distance; older callers
+                // keep the speaker's current distance.
+                const int index = (int) args[0];
+                float distance = 1.0f;
+                const auto& layout = processorRef.getCurrentLayout();
+                if (index >= 0 && index < (int) layout.speakers.size())
+                    distance = layout.speakers[(size_t) index].distance;
+                if (args.size() >= 4)
+                    distance = (float)(double) args[3];
+
                 processorRef.moveSpeakerInLayout (
-                    (int) args[0], (float)(double) args[1], (float)(double) args[2]);
+                    index, (float)(double) args[1], (float)(double) args[2], distance);
                 complete (juce::var (true));
             }
             else
@@ -245,6 +255,358 @@ OOrbitEditor::OOrbitEditor (OOrbitProcessor& p)
                 });
         });
 
+    // ── Hover-help native fns (B2, v1.1.0) ─────────────────────────────────
+    // The page PULLS the persisted preference at init — a push from here or
+    // from the 30 Hz timer would fire before the JS module has evaluated and
+    // silently never arrive (the O-FreqPulse WR-01 bug).
+    options = options.withNativeFunction ("setTooltipsEnabled",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                processorRef.tooltipsEnabled.store ((bool) args[0], std::memory_order_release);
+            complete (juce::var (true));
+        });
+
+    options = options.withNativeFunction ("getTooltipsEnabled",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.tooltipsEnabled.load (std::memory_order_acquire)));
+        });
+
+    // ── Preset native fns (B1, v1.1.0) — 11 ────────────────────────────────
+    // Ten are exactly the names modules/preset-manager.js requests; the
+    // eleventh, getPresetListGrouped, feeds the categorized preset MENU. The
+    // synchronous nine capture `this` (completion never outlives the call).
+    // The two DIALOG fns defer their completion into a FileChooser callback:
+    // shared_ptr chooser captured into its own callback, SafePointer hoisted
+    // to a local, and on a dead editor the callback RETURNS — even
+    // complete(false) would UAF the dead WebView impl
+    // (pattern_webview_launchasync_safepointer_no_complete). Both dialog fns
+    // complete with {success, name} OBJECTS — the JS reads result.success.
+    options = options.withNativeFunction ("savePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete (juce::var (processorRef.presetManager.savePreset (args[0].toString())));
+            else
+                complete (juce::var (false));
+        });
+
+    options = options.withNativeFunction ("savePresetWithDialog",
+        [this] (auto&, auto complete)
+        {
+            auto userDir = processorRef.presetManager.getUserPresetsDirectory();
+            userDir.createDirectory();
+
+            auto chooser = std::make_shared<juce::FileChooser> ("Save Preset", userDir, "*.json");
+            juce::Component::SafePointer<OOrbitEditor> safeThis (this);
+
+            chooser->launchAsync (
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete] (const juce::FileChooser& fc)
+                {
+                    if (safeThis == nullptr)
+                        return;   // dead editor — never touch complete
+
+                    auto* result = new juce::DynamicObject();
+                    const auto results = fc.getResults();
+
+                    if (results.size() > 0)
+                    {
+                        // savePresetToFile HONORS the chosen path (the
+                        // O-DigiDelay bug was a dialog whose destination a
+                        // savePreset(name) call ignored).
+                        const auto file = results.getReference (0);
+                        const bool ok = safeThis->processorRef.presetManager.savePresetToFile (file);
+                        result->setProperty ("success", ok);
+                        result->setProperty ("name", file.getFileNameWithoutExtension());
+                    }
+                    else
+                    {
+                        result->setProperty ("success", false);
+                        result->setProperty ("name", juce::String());
+                    }
+
+                    complete (juce::var (result));
+                });
+        });
+
+    options = options.withNativeFunction ("loadPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete (juce::var (processorRef.presetManager.loadPreset (args[0].toString())));
+            else
+                complete (juce::var (false));
+        });
+
+    options = options.withNativeFunction ("loadPresetFromFile",
+        [this] (auto&, auto complete)
+        {
+            auto presetsDir = processorRef.presetManager.getPresetsDirectory();
+
+            auto chooser = std::make_shared<juce::FileChooser> ("Load Preset", presetsDir, "*.json");
+            juce::Component::SafePointer<OOrbitEditor> safeThis (this);
+
+            chooser->launchAsync (
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete] (const juce::FileChooser& fc)
+                {
+                    if (safeThis == nullptr)
+                        return;   // dead editor — never touch complete
+
+                    auto* result = new juce::DynamicObject();
+                    const auto results = fc.getResults();
+
+                    if (results.size() > 0)
+                    {
+                        const auto file = results.getReference (0);
+                        const bool ok = safeThis->processorRef.presetManager.loadPresetFromFile (file);
+                        result->setProperty ("success", ok);
+                        result->setProperty ("name", file.getFileNameWithoutExtension());
+                    }
+                    else
+                    {
+                        result->setProperty ("success", false);
+                        result->setProperty ("name", juce::String());
+                    }
+
+                    complete (juce::var (result));
+                });
+        });
+
+    options = options.withNativeFunction ("getPresetList",
+        [this] (auto&, auto complete)
+        {
+            juce::Array<juce::var> list;
+            for (const auto& name : processorRef.presetManager.getPresetList())
+                list.add (juce::var (name));
+            complete (juce::var (list));
+        });
+
+    options = options.withNativeFunction ("getCurrentPreset",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.presetManager.getCurrentPresetName()));
+        });
+
+    options = options.withNativeFunction ("selectNextPreset",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.presetManager.getNextPreset()));
+        });
+
+    options = options.withNativeFunction ("selectPreviousPreset",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.presetManager.getPreviousPreset()));
+        });
+
+    options = options.withNativeFunction ("deletePreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete (juce::var (processorRef.presetManager.deletePreset (args[0].toString())));
+            else
+                complete (juce::var (false));
+        });
+
+    options = options.withNativeFunction ("isFactoryPreset",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            if (args.size() > 0)
+                complete (juce::var (processorRef.presetManager.isFactoryPreset (args[0].toString())));
+            else
+                complete (juce::var (false));
+        });
+
+    // getPresetListGrouped — the preset MENU's only data source. Returns an
+    // ARRAY of { category, presets: [...] } so section order rides in the data
+    // itself (an object's key order surviving the C++ → JSON → JS round-trip
+    // is not guaranteed, and a CATEGORY_ORDER list in JS would drift). Factory
+    // sections come first in narrative order, then "User" holding everything
+    // getPresetList() returned that is not a known factory name. Cross-checked
+    // against the live list so a factory preset whose file failed to write is
+    // absent from the menu instead of listed and un-loadable.
+    options = options.withNativeFunction ("getPresetListGrouped",
+        [this] (auto&, auto complete)
+        {
+            const auto allPresets = processorRef.presetManager.getPresetList();
+
+            juce::Array<juce::var> sections;
+            juce::StringArray claimed;
+
+            juce::String openCategory;
+            juce::Array<juce::var> openNames;
+
+            const auto flushSection = [&sections, &openCategory, &openNames]()
+            {
+                if (openCategory.isNotEmpty() && ! openNames.isEmpty())
+                {
+                    auto* section = new juce::DynamicObject();
+                    section->setProperty ("category", openCategory);
+                    section->setProperty ("presets", openNames);
+                    sections.add (juce::var (section));
+                }
+                openNames.clear();
+            };
+
+            for (const auto& [presetName, categoryLabel] : processorRef.factoryCategoryOrder)
+            {
+                if (categoryLabel != openCategory)
+                {
+                    flushSection();
+                    openCategory = categoryLabel;
+                }
+
+                if (allPresets.contains (presetName))
+                {
+                    openNames.add (juce::var (presetName));
+                    claimed.add (presetName);
+                }
+            }
+            flushSection();
+
+            juce::Array<juce::var> userNames;
+            for (const auto& presetName : allPresets)
+                if (! claimed.contains (presetName))
+                    userNames.add (juce::var (presetName));
+
+            if (! userNames.isEmpty())
+            {
+                auto* section = new juce::DynamicObject();
+                section->setProperty ("category", "User");
+                section->setProperty ("presets", userNames);
+                sections.add (juce::var (section));
+            }
+
+            complete (juce::var (sections));
+        });
+
+    // ── Named custom-layout library (D2, v1.1.0) — 4 fns ───────────────────
+    // JSON files in ~/Library/Ouaricon Orbit/Layouts/, same schema as the
+    // export/import file format, listed in the editor toolbar dropdown.
+    options = options.withNativeFunction ("getLayoutList",
+        [this] (auto&, auto complete)
+        {
+            juce::Array<juce::var> list;
+            auto dir = processorRef.getLayoutsDirectory();
+            if (dir.isDirectory())
+            {
+                juce::StringArray names;
+                for (const auto& file : dir.findChildFiles (juce::File::findFiles, false, "*.json"))
+                    names.add (file.getFileNameWithoutExtension());
+                names.sort (true);
+                for (const auto& name : names)
+                    list.add (juce::var (name));
+            }
+            complete (juce::var (list));
+        });
+
+    options = options.withNativeFunction ("saveLayoutNamed",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            // Name is the JSON filename — strip path separators or the save
+            // silently lands elsewhere (critical_preset_name_slash_path_separator).
+            auto name = args.size() > 0 ? args[0].toString().replaceCharacters ("/\\:", "___").trim()
+                                        : juce::String();
+            if (name.isEmpty())
+            {
+                complete (juce::var (false));
+                return;
+            }
+
+            auto dir = processorRef.getLayoutsDirectory();
+            dir.createDirectory();
+
+            const auto& layout = processorRef.getCurrentLayout();
+            juce::DynamicObject::Ptr root = new juce::DynamicObject();
+            root->setProperty ("name", name);
+            root->setProperty ("is3D", layout.is3D);
+
+            juce::Array<juce::var> spkArr;
+            for (const auto& spk : layout.speakers)
+            {
+                auto* s = new juce::DynamicObject();
+                s->setProperty ("azimuth", spk.azimuth);
+                s->setProperty ("elevation", spk.elevation);
+                s->setProperty ("distance", spk.distance);
+                s->setProperty ("label", spk.label);
+                s->setProperty ("isLFE", spk.isLFE);
+                spkArr.add (juce::var (s));
+            }
+            root->setProperty ("speakers", juce::var (spkArr));
+
+            auto file = dir.getChildFile (name + ".json");
+            complete (juce::var (file.replaceWithText (
+                juce::JSON::toString (juce::var (root.get())))));
+        });
+
+    options = options.withNativeFunction ("loadLayoutNamed",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            auto name = args.size() > 0 ? args[0].toString() : juce::String();
+            auto file = processorRef.getLayoutsDirectory().getChildFile (name + ".json");
+            if (! file.existsAsFile())
+            {
+                complete (juce::var (false));
+                return;
+            }
+
+            auto json = juce::JSON::parse (file.loadFileAsString());
+            if (auto* root = json.getDynamicObject())
+            {
+                SpeakerLayout layout;
+                layout.name = root->getProperty ("name").toString();
+                layout.is3D = (bool) root->getProperty ("is3D");
+
+                if (auto* arr = root->getProperty ("speakers").getArray())
+                {
+                    for (const auto& item : *arr)
+                    {
+                        if (auto* obj = item.getDynamicObject())
+                        {
+                            Speaker spk;
+                            spk.azimuth   = (float)(double) obj->getProperty ("azimuth");
+                            spk.elevation = (float)(double) obj->getProperty ("elevation");
+                            spk.distance  = (float)(double) obj->getProperty ("distance");
+                            spk.label     = obj->getProperty ("label").toString();
+                            spk.isLFE     = (bool) obj->getProperty ("isLFE");
+                            layout.speakers.push_back (spk);
+                        }
+                    }
+                }
+
+                if (layout.speakers.size() >= 2)
+                {
+                    processorRef.setCustomSpeakerLayout (layout);
+
+                    juce::Array<juce::var> spkResult;
+                    for (const auto& spk : layout.speakers)
+                    {
+                        auto* s = new juce::DynamicObject();
+                        s->setProperty ("azimuth", spk.azimuth);
+                        s->setProperty ("elevation", spk.elevation);
+                        s->setProperty ("distance", spk.distance);
+                        s->setProperty ("label", spk.label);
+                        s->setProperty ("isLFE", spk.isLFE);
+                        spkResult.add (juce::var (s));
+                    }
+                    complete (juce::var (spkResult));
+                    return;
+                }
+            }
+            complete (juce::var (false));
+        });
+
+    options = options.withNativeFunction ("deleteLayoutNamed",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            auto name = args.size() > 0 ? args[0].toString() : juce::String();
+            auto file = processorRef.getLayoutsDirectory().getChildFile (name + ".json");
+            complete (juce::var (file.existsAsFile() && file.deleteFile()));
+        });
+
     // Windows-specific: set user data folder for plugin host compatibility
    #if JUCE_WINDOWS
     options = options.withWinWebView2Options (
@@ -307,7 +669,13 @@ OOrbitEditor::OOrbitEditor (OOrbitProcessor& p)
     // Add WebView to editor
     addAndMakeVisible (*webView);
 
-    // Set editor size (800x600 per Phase 3.1 spec)
+    // Resizable (D4, v1.1.0): 800x600 default, fixed 4:3 aspect. The canvas
+    // re-rasterizes on resize via the JS window resize listener (a canvas is a
+    // CSS replaced element — its bitmap does not follow CSS size on its own).
+    setResizable (true, true);
+    setResizeLimits (600, 450, 1600, 1200);
+    if (auto* constrainer = getConstrainer())
+        constrainer->setFixedAspectRatio (800.0 / 600.0);
     setSize (800, 600);
 
     // Start 30Hz timer for motion state push to JS visualizer
@@ -394,6 +762,12 @@ OOrbitEditor::getResource (const juce::String& url)
     if (path == "js/app.js")
         return juce::WebBrowserComponent::Resource {
             makeVector (BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String ("application/javascript") };
+
+    // BinaryData strips hyphens: preset-manager.js → presetmanager_js
+    if (path == "js/modules/preset-manager.js")
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
             juce::String ("application/javascript") };
 
     if (path == "js/juce/index.js")
