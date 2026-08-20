@@ -79,6 +79,12 @@ public:
     void setAttackCurve(const std::array<float, 32>& curve);
     void setSustainCurve(const std::array<float, 32>& curve);
 
+    // Bumped only when the curves are replaced from STATE (preset load /
+    // session restore), never by the setters above — the UI's own drag-edits
+    // must not echo back into the curve editors mid-drag. The editor polls
+    // this from its timer and re-sends both curves to the WebView on change.
+    juce::uint32 getCurvesRevision() const { return curvesRevision.load(std::memory_order_acquire); }
+
     // Visualization data structures (Phase 3.3)
     struct VisualizationFrame
     {
@@ -116,6 +122,7 @@ private:
     // Curve arrays (saved/loaded with plugin state)
     std::array<float, 32> attackCurve {};
     std::array<float, 32> sustainCurve {};
+    std::atomic<juce::uint32> curvesRevision { 0 };
 
     // Sample rate (cached for lookahead calculation)
     double currentSampleRate = 44100.0;
