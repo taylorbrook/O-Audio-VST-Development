@@ -1,5 +1,47 @@
 # O-Prism Changelog
 
+## v1.20.0 (2026-08-20)
+
+### Added
+- **Double-click any control to type a value.** Double-clicking a knob, a mod-matrix amount slider, or the A4 Ref knob now opens an inline entry field on the value readout, pre-filled with the current reading and text-selected. Enter (or clicking away) commits, Esc cancels. Covers all 84 controls: 67 `bindKnob()` knobs, 16 mod-matrix amount sliders, and the bespoke A4 Ref knob.
+  - Values are typed in the units shown. Explicit units are honoured — `1.2k`/`1.2kHz` on a frequency knob, `500ms` or `2s` on a time knob, `30L`/`C`/`30R` on a pan knob.
+  - A **bare** number on a *time* knob inherits the unit currently displayed (`2` reads as 2 ms on a knob showing `30ms`, as 2 s on one showing `1.4s`), because those readouts flip between ms and s mid-range and bare seconds would make every sub-second value unenterable. A bare number on a *frequency* knob is always Hz — the full range is expressible in Hz, and on a knob reading `1.2kHz` someone typing `440` means 440 Hz.
+  - Unparseable input is discarded without writing the parameter. Out-of-range input clamps to the parameter's limits.
+  - Commits are wrapped in `sliderDragStarted()`/`sliderDragEnded()`, so a typed value records as one clean automation gesture in the host.
+
+### Changed
+- **Reset-to-default moved from double-click to Alt/Option-click** on all the same controls, freeing double-click for value entry. Matches the Serum/Vital/Ableton convention.
+
+### Fixed
+- **Reset-to-default went to the wrong value on 11 skewed knobs.** Long-standing, present since these knobs were introduced. `bindKnob()`'s third argument is a **normalised** [0,1] reset target, but 11 call sites passed the parameter's **scaled** default instead — which is only the same number when the range is 0–1 and unskewed. That is exactly why it survived ~20 versions: every linear parameter was correct, and only skewed ones were off. Now corrected and verified against `createParameterLayout()`:
+
+| Parameter | Used to reset to | Now resets to |
+|---|---|---|
+| Amp / Filter Attack | 1 ms | 10 ms |
+| Amp Decay | 1.4 ms | 300 ms |
+| Amp / Filter Release | 1.1 ms | 500 ms |
+| Filter Decay | 2.9 ms | 500 ms |
+| Glide Time | 1.1 ms | 100 ms |
+| Delay Time | 17.6 ms | 375 ms |
+| Reverb Predelay | 2 ms | 20 ms |
+| Chorus Rate | 0.125 Hz | 1 Hz |
+| EQ Mid Freq | 211 Hz | 1 kHz |
+
+- **A4 Ref knob displayed the wrong frequency.** Its readout used an inline `415 + norm * 50` mapping (415–465 Hz) while the `masterTune` parameter is 420–460 Hz — correct only at centre and 5 Hz out at both ends of the range. It now renders through `masterTuneFmt`, which uses the parameter's real range. Found while making the readout editable; the audible tuning was always correct, only the number shown was wrong.
+
+### Technical Notes
+- Value entry converts typed text to the parameter's **scaled** value, then normalises through `state.properties` — the live `start`/`end`/`skew`/`interval` the `WebSliderRelay` pushes up from C++ — rather than the range constants the JS format helpers mirror by hand. The entry path therefore cannot drift from C++ even if one of those mirrors does. (The A4 Ref bug above was exactly such a drift.)
+- Each of the 21 format helpers gained a matching `.parse`, so all 70 `bindKnob()` call sites are unchanged. Display units are not always scaled units: `pct` knobs are 0–1 in C++ but read 0–100%, `delayFeedback` tops out at 0.95 while reading 95%, pan is −1…1 shown as `30L`/`C`/`30R`, and `reverbPredelay` is scaled in **milliseconds** (0–200) so it is a direct readout rather than a seconds param.
+- `scaledToNorm()` clamps before its `Math.pow()`. This is load-bearing, not cosmetic: a scaled value below `start` gives a negative base, and a negative base raised to a fractional skew is `NaN` — which would pass straight through `setNormalisedValue()` into the parameter and stick.
+- Text that has not been edited is never written back. Readouts are rounded (LFO Rate shows whole Hz above 10, so 19.43 reads `19 Hz`), so without that guard merely opening the field and pressing Enter would quantise the parameter to the rounded reading.
+- Readout updates are suppressed while an entry field is open — the `valueChanged` listeners assign `textContent`, which would wipe out the `<input>` living inside that span.
+- The Alt-click reset handlers are ordered deliberately. On the knobs and mod-matrix rows the reset binds to an **ancestor** in the capture phase so it lands ahead of the drag handler; on the A4 Ref knob both handlers sit on the *same* element, where at-target listeners fire in registration order regardless of the capture flag, so that one is registered first and uses `stopImmediatePropagation()`. Without this the control would reset and then immediately begin dragging from the same click.
+
+### Testing
+- Every one of the 68 `bindKnob()` reset targets is now checked against the C++ `NormalisableRange` by script (`defaultNorm` vs `((default−start)/(end−start))^skew`), which is how the 11 wrong ones surfaced. 58 match a parsed C++ declaration directly; the remaining 10 use helper-supplied defaults (`levelDefault`, the filter-prefix helper) and were confirmed by hand — both cutoffs default to 20 kHz → norm 1.0, the rest are linear 0–1.
+- 354-check format→parse→normalise round-trip harness across all 21 formatters at 12 points each, run against code extracted from the live `index.html` rather than a retyped copy. All pass. Four negative controls (dropping the `/100` in `parsePercent`, removing the `scaledToNorm` clamp, testing `/s/` before `/ms/`, routing predelay through `parseSeconds`) each fail the harness, confirming it discriminates.
+- 27 browser-driven DOM interaction checks against a faithful `SliderState` mock: entry opens pre-filled and selected, zero layout shift, input survives a `valueChanged` mid-edit, Esc cancels without writing, Enter commits wrapped in drag start/end, unedited Enter and garbage both write nothing, out-of-range clamps without `NaN`, Alt-click resets without starting a drag, plain mousedown still drags, and a second double-click while open is a no-op.
+
 ## v1.19.3 (2026-08-02)
 
 ### Fixed
