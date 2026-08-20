@@ -148,6 +148,29 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
                 })
 
             // =============================================================
+            // HOVER HELP (v1.7.0) — the "?" toggle's persistence pair.
+            // Completes with the stored value either way so JS could re-sync
+            // from the reply if it ever wanted to.
+            // =============================================================
+            .withNativeFunction("setTooltipsEnabled", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    processorRef.tooltipsEnabled.store((bool) args[0],
+                                                       std::memory_order_release);
+                complete(juce::var(processorRef.tooltipsEnabled.load(
+                                       std::memory_order_acquire)));
+            })
+
+            // PULLED by the page at init, never pushed — a push from the
+            // constructor or the 30 Hz timer fires before the inline module
+            // has evaluated, so the preference would silently never arrive
+            // and the toggle would read OFF on every reopen (the O-FreqPulse
+            // WR-01 bug, avoided here by construction).
+            .withNativeFunction("getTooltipsEnabled", [this](const auto&, auto complete) {
+                complete(juce::var(processorRef.tooltipsEnabled.load(
+                                       std::memory_order_acquire)));
+            })
+
+            // =============================================================
             // PRESET NATIVE FUNCTIONS (Task 8 — preset-manager v1.0.4
             // contract; 10 fns required by js/preset-manager.js)
             // =============================================================

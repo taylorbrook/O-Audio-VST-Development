@@ -4,6 +4,38 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.7.0] — 2026-08-20 — hover-help tooltips ("?" toggle) + one-line title
+
+### Added
+
+- **Hover help with a "?" toggle** (header, right of the tab strip). Ported
+  from O-Bitrot v1.12.0 — the verified measure-then-pin tooltip placement
+  (`pattern_fixed_tooltip_shrink_to_fit_edge`). Every control on the Main tab
+  and the header carries a `data-tip-title`/`data-tip` pair; tips show after a
+  350 ms dwell, prefer above the control, clamp to the viewport with the arrow
+  still tracking the anchor, and hide on any pointer-down so they never hang
+  over a knob mid-drag.
+  - The toggle's own tip is `data-tip-always` so the control that turns help
+    back on can always explain itself.
+  - Preference persists with the session: `setTooltipsEnabled` /
+    `getTooltipsEnabled` native fns (bridge surface 32 → 34, parity gate in
+    `tests/ui_frontend_check.js` updated) → `std::atomic<bool>` on the
+    processor → root XML **attribute** in get/setStateInformation. An
+    attribute, not a ValueTree property, because the ValueTree XML round-trip
+    rebuilds properties as strings and a typed guard on restore would never
+    fire (`critical_valuetree_xml_roundtrip_loses_type`). The page PULLS the
+    value at init (never pushed — the O-FreqPulse WR-01 race).
+  - The five old native `title=` attributes (preset bar, Load .scl) were
+    converted to `data-tip` so no control shows two competing tooltips.
+
+### Fixed
+
+- **Header title wrapped to two lines** ("O-" / "CONTRABASS"). Root cause:
+  `.plugin-name` is a flex item of `.preset-bar` with no `white-space` rule,
+  so flex shrink-to-fit took it to min-content and the browser broke the line
+  at the hyphen. Now `white-space: nowrap` + `flex-shrink: 0`; the header's
+  `flex: 1` spacer absorbs the reclaimed width, so nothing else moves.
+
 ## [1.6.0] — 2026-08-20 — 10 new factory presets + preset browser dropdown
 
 ### Added
