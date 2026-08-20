@@ -165,10 +165,12 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
                                    std::memory_order_acquire)));
         });
 
-    // ── PRESET NATIVE FUNCTIONS — 10 (Stage 4) ─────────────────────────────
-    // Exactly the names modules/preset-manager.js requests; with the two
-    // hover-help fns above the total registered surface is 12 and the
-    // grep-diff parity gate runs at 12↔12. The synchronous eight capture `this`
+    // ── PRESET NATIVE FUNCTIONS — 11 (Stage 4, +1 in v1.13.0) ──────────────
+    // Ten are exactly the names modules/preset-manager.js requests; the
+    // eleventh, getPresetListGrouped, is O-Bitrot's own and is consumed by the
+    // preset MENU in index.html, not by the module. With the two hover-help
+    // fns above the total registered surface is 13 and the grep-diff parity
+    // gate runs at 13↔13. The synchronous nine capture `this`
     // (completion never outlives the call). The two DIALOG fns defer their
     // completion into a FileChooser callback: shared_ptr chooser captured
     // into its own callback, SafePointer HOISTED to a local (MSVC rejects
@@ -314,6 +316,76 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
                 complete(juce::var(audioProcessor.presetManager.isFactoryPreset(args[0].toString())));
             else
                 complete(juce::var(false));
+        });
+
+    // getPresetListGrouped (v1.13.0) — the preset MENU's only data source.
+    //
+    // Returns an ARRAY of { category, presets: [...] }, deliberately not an
+    // object keyed by category: an object would make section order depend on
+    // JS string-key insertion-order semantics surviving the C++ → JSON → JS
+    // round-trip, and the alternative (a CATEGORY_ORDER list in JS) is a
+    // mirror of the C++ spans that would drift the first time a category is
+    // added. An array carries the order in the data itself.
+    //
+    // Factory sections come first, in NARRATIVE order (factoryCategoryOrder),
+    // then "User" holding everything getPresetList() returned that is not a
+    // known factory name — alphabetical, because getPresetList() ends in
+    // presets.sort(). Cross-checked against the live list rather than emitted
+    // blind, so a factory preset whose file failed to write is absent from the
+    // menu instead of listed and un-loadable. Empty categories are skipped.
+    options = options.withNativeFunction("getPresetListGrouped",
+        [this](auto&, auto complete)
+        {
+            const auto allPresets = audioProcessor.presetManager.getPresetList();
+
+            juce::Array<juce::var> sections;
+            juce::StringArray claimed;
+
+            juce::String openCategory;
+            juce::Array<juce::var> openNames;
+
+            const auto flushSection = [&sections, &openCategory, &openNames]()
+            {
+                if (openCategory.isNotEmpty() && ! openNames.isEmpty())
+                {
+                    auto* section = new juce::DynamicObject();
+                    section->setProperty("category", openCategory);
+                    section->setProperty("presets", openNames);
+                    sections.add(juce::var(section));
+                }
+                openNames.clear();
+            };
+
+            for (const auto& [presetName, categoryLabel] : audioProcessor.factoryCategoryOrder)
+            {
+                if (categoryLabel != openCategory)
+                {
+                    flushSection();
+                    openCategory = categoryLabel;
+                }
+
+                if (allPresets.contains(presetName))
+                {
+                    openNames.add(juce::var(presetName));
+                    claimed.add(presetName);
+                }
+            }
+            flushSection();
+
+            juce::Array<juce::var> userNames;
+            for (const auto& presetName : allPresets)
+                if (! claimed.contains(presetName))
+                    userNames.add(juce::var(presetName));
+
+            if (! userNames.isEmpty())
+            {
+                auto* section = new juce::DynamicObject();
+                section->setProperty("category", "User");
+                section->setProperty("presets", userNames);
+                sections.add(juce::var(section));
+            }
+
+            complete(juce::var(sections));
         });
 
     webView = std::make_unique<juce::WebBrowserComponent>(options);
