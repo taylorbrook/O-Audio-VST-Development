@@ -17,7 +17,7 @@ juce_add_plugin(OuariconOrbit
     PLUGIN_CODE OuOr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Orbit${OUARICON_DEV_SUFFIX}"
-    VERSION 1.0.0
+    VERSION 1.1.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
     IS_SYNTH FALSE
@@ -39,12 +39,24 @@ target_sources(OuariconOrbit
         Source/DSP/VBAPDataExchange.h
 )
 
+# Shared modules — adds the module cpp/ include dir. The module's default JS
+# copy targets Source/ui/public/modules/, but O-Orbit's UI root is
+# Resources/ui/, so the vendored copy is configure-file'd there explicitly.
+ouaricon_add_module(OuariconOrbit preset-manager)
+configure_file(
+    ${OUARICON_MODULES_DIR}/persistence/preset-manager/js/preset-manager.js
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/ui/js/modules/preset-manager.js
+    COPYONLY
+)
+
 # WebView UI Resources
+# (BinaryData strips hyphens: preset-manager.js -> presetmanager_js)
 juce_add_binary_data(OuariconOrbit_WebUI
     SOURCES
         Resources/ui/index.html
         Resources/ui/css/styles.css
         Resources/ui/js/app.js
+        Resources/ui/js/modules/preset-manager.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/shell.png

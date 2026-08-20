@@ -39,6 +39,18 @@ float MotionEngine::getEffectiveSpeed() const
 void MotionEngine::advance (int numSamples)
 {
     float effSpeed = getEffectiveSpeed();
+
+    // PPQ lock (C1): tempoMultipliers[i] is cycles-per-beat (Hz = bpm/60 * mult),
+    // so beat position * mult is the cycle phase directly. Derived in double —
+    // a long timeline's ppq * mult would lose cycle precision in float.
+    if (tempoSyncIndex > 0 && tempoSyncIndex < 15 && hostPpqValid)
+    {
+        double cycles = hostPpq * (double) tempoMultipliers[tempoSyncIndex];
+        double phase01 = cycles - std::floor (cycles);
+        phaseAccumulator = (float) (phase01 * 2.0 * M_PI);
+        noiseTime = (float) cycles;   // Drift bounces deterministically too
+    }
+
     float phaseOffset = phase * (float) M_PI / 180.0f;
     float halfWidth = width * 0.5f;
     float baseDist = 1.0f; // Reference distance
@@ -85,6 +97,20 @@ void MotionEngine::advance (int numSamples)
             break;
         }
 
+        case 4: // Ping-Pong (Linear that folds back — no saw-wrap discontinuity)
+        {
+            float t01 = phaseAccumulator / (2.0f * (float) M_PI);
+            float folded = t01 < 0.5f ? (2.0f * t01) : (2.0f - 2.0f * t01);
+            currentState.azimuth = width * folded - halfWidth;
+            currentState.elevation = elevationEnabled ? tilt : 0.0f;
+            currentState.distance = baseDist + depthFactor * baseDist;
+
+            phaseAccumulator += 2.0f * (float) M_PI * effSpeed * (float) numSamples / (float) sampleRate;
+            if (phaseAccumulator >= 2.0f * (float) M_PI)
+                phaseAccumulator -= 2.0f * (float) M_PI;
+            break;
+        }
+
         case 3: // Drift (Perlin fBm)
         {
             float azNoise = perlin.fbm (noiseTime, 4);
@@ -120,3 +146,9 @@ void MotionEngine::setElevationEnabled (bool enabled) { elevationEnabled = enabl
 void MotionEngine::setElevationRange (float degrees)  { elevationRange = degrees; }
 void MotionEngine::setTempoSync (int divisionIndex)   { tempoSyncIndex = divisionIndex; }
 void MotionEngine::setHostBpm (double bpm)            { hostBpm = bpm; }
+
+void MotionEngine::setHostPpq (double ppqPosition, bool transportPlaying)
+{
+    hostPpq = ppqPosition;
+    hostPpqValid = transportPlaying;
+}
