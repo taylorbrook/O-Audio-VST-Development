@@ -161,6 +161,15 @@ const BASE_RAKE = { front: 0.0, rear: 0.0 };
 // `duplicateLabel`, and those are exactly the two the Venue table can produce.
 const NEGOTIATED_LABELS = BASE_SPEAKERS.map((s) => s.label);
 
+// v1.1.0 — Data/OutputOrder.h's kDeviceOrder71 as abbreviations: index k holds
+// the label CoreAudio's measured Emagic_Default_7_1 device order places at
+// physical output k+1. Reproduced here because a stub is the fixture that
+// stands in for the plugin; the SHIPPED page carries no copy of this table —
+// per-speaker `output` arrives computed in the getVenueGeometry payload (D19).
+const DEVICE_ORDER_LABELS = ["L", "R", "Lrs", "Rrs", "C", "Lfe", "Lss", "Rss"];
+
+const outputNumberForLabel = (label) => DEVICE_ORDER_LABELS.indexOf(label) + 1;
+
 // Hull order as ConvexHull2D returns it: 6 points, 3 and 8 excluded.
 const BASE_HULL_SOURCES = [1, 2, 4, 5, 6, 7];
 
@@ -226,7 +235,9 @@ function geometryPayload() {
     },
     rigScale: 7.93165,
     venueName: "Default (placeholder — NOT measured)",
-    speakers: speakers.map((s) => ({ ...s })),
+    // v1.1.0: `output` rides each speaker — the 1-based physical output its
+    // label reaches under DEVICE_ORDER_LABELS, 0 for a label outside the set.
+    speakers: speakers.map((s) => ({ ...s, output: outputNumberForLabel(s.label) })),
     // Venue-scoped, so its own object rather than a per-speaker field.
     rake: { ...rake },
     hull,
@@ -555,6 +566,68 @@ function setVenue(payload) {
   return { ok: true, reason: "none", speaker: -1 };
 }
 
+// ── v1.1.0 — the speaker→output surface ────────────────────────────────────
+// PluginEditor.cpp's twins, semantics matched line for line: label edits
+// through the same validate-then-apply order setVenue uses. The swap and the
+// repair live HERE AND IN C++ and nowhere in the page — the page sends two
+// integers and renders what getVenueGeometry returns.
+
+function assignSpeakerOutput(speakerN, outputK) {
+  const n = Number(speakerN);
+  const k = Number(outputK);
+
+  if (!Number.isFinite(n) || n < 1 || n > speakers.length
+      || !Number.isFinite(k) || k < 1 || k > DEVICE_ORDER_LABELS.length)
+    return { ok: false, reason: "labelNotInSet", speaker: -1 };
+
+  // Swap semantics: speaker n takes output k; the previous holder of k takes
+  // n's old output. Unplaced speakers (label outside the set → 0) are repaired
+  // from the pool of unclaimed outputs, so the result is a permutation by
+  // construction.
+  const want = speakers.map((s) => outputNumberForLabel(s.label));
+  const prev = want[n - 1];
+
+  for (let j = 0; j < want.length; ++j)
+    if (j !== n - 1 && want[j] === k) want[j] = prev;
+
+  want[n - 1] = k;
+
+  const claimed = want.map(() => false);
+  for (const w of want) if (w >= 1) claimed[w - 1] = true;
+
+  for (let j = 0; j < want.length; ++j)
+    if (want[j] < 1)
+      for (let c = 0; c < claimed.length; ++c)
+        if (!claimed[c]) {
+          claimed[c] = true;
+          want[j] = c + 1;
+          break;
+        }
+
+  const labels = want.map((w) => DEVICE_ORDER_LABELS[w - 1]);
+  const why = diagnoseLabels(labels);
+  if (why.reason !== "none") return { ok: false, ...why };
+
+  speakers = speakers.map((s, i) => ({ ...s, label: labels[i] }));
+  venueGen += 1;
+  return { ok: true, reason: "none", speaker: -1 };
+}
+
+function applyOutputOrderPreset(id) {
+  const labels = id === "direct" ? DEVICE_ORDER_LABELS.slice()
+    : id === "roles" ? BASE_SPEAKERS.map((s) => s.label)
+      : null;
+
+  if (labels === null) return { ok: false, reason: "labelNotInSet", speaker: -1 };
+
+  const why = diagnoseLabels(labels);
+  if (why.reason !== "none") return { ok: false, ...why };
+
+  speakers = speakers.map((s, i) => ({ ...s, label: labels[i] }));
+  venueGen += 1;
+  return { ok: true, reason: "none", speaker: -1 };
+}
+
 // ── The .venue file slot ───────────────────────────────────────────────────
 // The real pair opens a NATIVE MODAL through FileChooser::launchAsync, which
 // Playwright cannot drive — UI-01 criterion 3 closes on three parts and the
@@ -652,8 +725,8 @@ function stopPing() {
   return { ok: true, reason: "none", ...pingState() };
 }
 
-// ── The EIGHTEEN native functions ──────────────────────────────────────────
-// Exactly the eighteen PluginEditor.cpp registers. Any other name REJECTS — see
+// ── The TWENTY native functions ────────────────────────────────────────────
+// Exactly the twenty PluginEditor.cpp registers. Any other name REJECTS — see
 // note 2 in the header. Section 3 of the static gate diffs this whitelist
 // against the C++ AS A SET, so a missing entry FAILS rather than passes; that is
 // what makes it safe for this file's unregistered-name behaviour to be STRICTER
@@ -663,6 +736,10 @@ function stopPing() {
 // getFieldGrid. UI-05 needs NO new function — getVenueGeometry already carries
 // per-speaker z, rake.front/rear, bbox and the centroid, all landed by 3.2's
 // P55 — and named-scene membership rides that same payload (P79).
+//
+// 18 -> 20 at v1.1.0: assignSpeakerOutput (the Room plan's double-click
+// popover) and applyOutputOrderPreset (the Venue rail's two one-click sets).
+// Per-speaker `output` itself rides getVenueGeometry — no read call was added.
 const NATIVE_FNS = {
   getParameterDefaults: () =>
     Object.fromEntries(Object.entries(RANGES).map(([id, r]) => [id, r.def])),
@@ -672,6 +749,11 @@ const NATIVE_FNS = {
   getStatus: () => ({ ...status, venueGen, scenesGen }),
 
   setVenue: (payload) => setVenue(payload),
+
+  // ── v1.1.0 ──
+  assignSpeakerOutput: (speakerN, outputK) => assignSpeakerOutput(speakerN, outputK),
+
+  applyOutputOrderPreset: (id) => applyOutputOrderPreset(id),
 
   saveVenue: () => saveVenue(),
 

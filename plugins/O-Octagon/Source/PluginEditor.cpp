@@ -53,6 +53,10 @@
 // written here would be unreachable by any probe.
 #include "Data/PresetPolicy.h"
 
+// v1.1.0 — the measured CoreAudio 7.1 device order, for the speaker→output UI. Header-only and
+// keyed on ChannelType; nothing in it touches a buffer index (R1 unchanged).
+#include "Data/OutputOrder.h"
+
 #include <array>
 #include <cmath>
 
@@ -371,6 +375,13 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                 // inverse. Still one call: P38's torn-read argument is untouched.
                 s->setProperty ("trimDb", venue.trimDb (i));
 
+                // v1.1.0. The 1-based PHYSICAL output this speaker's label reaches under the
+                // measured CoreAudio 7.1 device order, or 0 for a label outside the 7.1 set.
+                // COMPUTED HERE AND RETURNED WHOLE (D19): the page renders this number and never
+                // owns a device-order table of its own — a JS copy would be a mirrored fixture
+                // over R1, free to drift from the one in Data/OutputOrder.h.
+                s->setProperty ("output", oo::outorder::outputNumberForLabel (venue.labelAbbreviation (i)));
+
                 speakers.add (juce::var (s));
             }
 
@@ -560,6 +571,124 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             const auto rakeVar = payloadO->getProperty ("rake");
             edited.setRake (finiteOr (rakeVar, "front", edited.rakeFront()),
                             finiteOr (rakeVar, "rear",  edited.rakeRear()));
+
+            ochan::MapDiagnosis whyNot {};
+            const bool ok = processorRef.applyVenueEditChecked (edited, &whyNot);
+
+            complete (makeResult (ok, mapFailureName (whyNot.reason), whyNot.speakerIndex));
+        });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // v1.1.0 — the speaker→output surface (18 -> 20).
+    //
+    // Both are LABEL EDITS through the same guard setVenue uses: clone the live venue, rewrite
+    // the eight labels, applyVenueEditChecked(). Nothing new can reach the audio thread that the
+    // existing path could not already send it, and section 22's "one setVenue call site" is
+    // untouched — these are their own registrations, not a second write surface for the 42.
+    //
+    // THE ARITHMETIC LIVES HERE, NOT IN JS (D19). "Assign speaker n to output k" needs the
+    // measured device order and a permutation repair; a JS copy of either would be a mirrored
+    // fixture over R1. The page sends two integers and renders what getVenueGeometry returns.
+    // ══════════════════════════════════════════════════════════════════════
+
+    // (4b) assignSpeakerOutput (speakerN 1..8, outputK 1..8) — the Room plan's double-click
+    // popover. SWAP SEMANTICS: speaker n takes output k; the previous holder of k takes n's old
+    // output. A speaker whose label is outside the 7.1 set (output 0) is repaired from the pool
+    // of unclaimed outputs, so the result is a permutation BY CONSTRUCTION — the guard still
+    // validates it, but "every route passes through a duplicate" (the label column's reachability
+    // problem) does not arise here at all.
+    options = options.withNativeFunction ("assignSpeakerOutput",
+        [this] (auto& args, auto complete)
+        {
+            const int speakerN = args.size() > 0 ? static_cast<int> (args[0]) : 0;
+            const int outputK  = args.size() > 1 ? static_cast<int> (args[1]) : 0;
+
+            if (speakerN < 1 || speakerN > oo::VenueModel::kNumSpeakers
+                || outputK < 1 || outputK > oo::outorder::kNumOutputs)
+            {
+                complete (makeResult (false, "labelNotInSet", -1));
+                return;
+            }
+
+            oo::VenueModel edited = processorRef.getVenue();
+
+            // Current 1-based output per speaker; 0 marks a label the device-order table cannot
+            // place. Repairs below draw from the outputs no speaker currently claims.
+            std::array<int, oo::VenueModel::kNumSpeakers> want {};
+
+            for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                want[static_cast<std::size_t> (i)] =
+                    oo::outorder::outputNumberForLabel (edited.labelAbbreviation (i));
+
+            const auto sp   = static_cast<std::size_t> (speakerN - 1);
+            const int  prev = want[sp];
+
+            for (int j = 0; j < oo::VenueModel::kNumSpeakers; ++j)
+                if (j != speakerN - 1 && want[static_cast<std::size_t> (j)] == outputK)
+                    want[static_cast<std::size_t> (j)] = prev;   // may be 0 — repaired below
+
+            want[sp] = outputK;
+
+            // Permutation repair: hand each unplaced speaker an unclaimed output, in order. This
+            // is reachable only from labels the popover did not write (custom sets, duplicates
+            // typed in the table) — a clean swap never enters it.
+            std::array<bool, oo::outorder::kNumOutputs> claimed {};
+
+            for (const int w : want)
+                if (w >= 1 && w <= oo::outorder::kNumOutputs)
+                    claimed[static_cast<std::size_t> (w - 1)] = true;
+
+            for (auto& w : want)
+                if (w < 1 || w > oo::outorder::kNumOutputs)
+                    for (int k = 0; k < oo::outorder::kNumOutputs; ++k)
+                        if (! claimed[static_cast<std::size_t> (k)])
+                        {
+                            claimed[static_cast<std::size_t> (k)] = true;
+                            w = k + 1;
+                            break;
+                        }
+
+            for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                edited.setSpeakerLabel (i, oo::outorder::abbreviationForOutput (
+                                               want[static_cast<std::size_t> (i)]));
+
+            ochan::MapDiagnosis whyNot {};
+            const bool ok = processorRef.applyVenueEditChecked (edited, &whyNot);
+
+            complete (makeResult (ok, mapFailureName (whyNot.reason), whyNot.speakerIndex));
+        });
+
+    // (4c) applyOutputOrderPreset ("direct" | "roles") — the Venue screen's two one-click sets.
+    //
+    //   direct  speaker n → physical output n under the measured CoreAudio device order. The
+    //           one-click fix for a rig wired 1..8 in a CoreAudio host.
+    //   roles   the factory label assignment — surround ROLE order, exactly what
+    //           VenueModel::resetToDefaults() writes. Read from a default-constructed model
+    //           rather than transcribed, so this cannot drift from the factory table.
+    options = options.withNativeFunction ("applyOutputOrderPreset",
+        [this] (auto& args, auto complete)
+        {
+            const auto id = args.size() > 0 ? args[0].toString() : juce::String {};
+
+            oo::VenueModel edited = processorRef.getVenue();
+
+            if (id == "direct")
+            {
+                for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                    edited.setSpeakerLabel (i, oo::outorder::abbreviationForOutput (i + 1));
+            }
+            else if (id == "roles")
+            {
+                const oo::VenueModel factory;
+
+                for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                    edited.setSpeakerLabel (i, factory.labelAbbreviation (i));
+            }
+            else
+            {
+                complete (makeResult (false, "labelNotInSet", -1));
+                return;
+            }
 
             ochan::MapDiagnosis whyNot {};
             const bool ok = processorRef.applyVenueEditChecked (edited, &whyNot);

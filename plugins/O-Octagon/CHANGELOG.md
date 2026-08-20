@@ -1,5 +1,43 @@
 # O-Octagon Changelog
 
+## v1.1.0 (2026-08-20)
+
+### Added — speaker→output assignment (the in-space rig fix)
+
+**Root cause this addresses:** the plugin publishes a 7.1 layout and writes channel ROLES; the
+host decides which physical output each role reaches. Under CoreAudio (Logic, Standalone) the
+measured device order is `Emagic_Default_7_1` — `L R Lrs Rrs C Lfe Lss Rss` — so with the factory
+role-order labels, speakers 3–8 land on physical outputs 5, 6, 7, 8, 3, 4 (the exact permutation
+reported from in-space testing on an 8-channel interface, and the one measured at Stage 4 Gate
+16). That is correct role routing, not a defect; what was missing was a first-class way to say
+"speaker n is WIRED to output n."
+
+- **Double-click a speaker glyph on the Room plan** → a popover assigns that speaker's physical
+  output (1–8). Swap semantics: the previous holder of the chosen output takes the vacated one,
+  so the label set stays a permutation by construction and the venue guard can never see a
+  duplicate from this path.
+- **Output badges on the plan**: a glyph whose label reaches a different physical output than its
+  own number shows `→k` beside it (`→?` for a label outside the 7.1 set). A stock rig shows
+  nothing new; a remapped rig is legible at a glance.
+- **Venue rail, "Output order" group**: `Direct 1–8` writes the whole device-order label set in
+  one click — the single-click fix for a rig wired 1..8 in a CoreAudio host — and `Roles`
+  restores the factory surround-role labels.
+- Mechanism: all three are LABEL edits through the existing validated path
+  (`applyVenueEditChecked` → `buildSpeakerToBuffer` → `getChannelIndexForType`). No DSP change,
+  no parameter change, no buffer index anywhere; assignments persist with the venue, `.venue`
+  files, and presets, exactly as labels always have.
+- New native functions `assignSpeakerOutput` and `applyOutputOrderPreset` (bridge surface
+  18 → 20, closed three ways by `ui_frontend_check.js` §3); per-speaker `output` rides the
+  existing `getVenueGeometry` payload. The device-order table lives in `Source/Data/OutputOrder.h`
+  and in C++ only — the page renders numbers it is handed (D19).
+
+**Caveat, stated plainly:** the output numbering assumes the measured CoreAudio 7.1 device order.
+A non-CoreAudio host may map roles differently; the verify ping remains the 60-second ground
+truth in any host, and the popover says so.
+
+**Testing:** `ui_frontend_check.js` — all 42 sections pass, including the widened §3 closure.
+Default behavior unchanged: with factory labels the map, the solve, and the meters are untouched.
+
 ## v1.0.0 (unreleased — Stage 4 phase 4.2 Block C complete, 2026-08-14)
 
 ### Host validation (Logic Pro 12.3, BlackHole 64ch — phase 4.2)

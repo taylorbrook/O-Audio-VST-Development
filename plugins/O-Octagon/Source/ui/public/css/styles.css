@@ -355,6 +355,30 @@ html, body {
   text-anchor: middle;
 }
 
+/* v1.1.0 — a glyph is double-clickable (the speaker→output popover). The
+   controls layer above no longer swallows the plan's events — see
+   #plan-controls below. The glyph's DISPLAY-ONLY children never intercept the
+   pointer: the numeral sits exactly over the dot and would otherwise be the
+   element a click actually lands on. */
+.glyph { cursor: pointer; }
+
+.glyph .glyph-num,
+.glyph .glyph-out,
+.glyph .meter-track,
+.glyph .meter-arc,
+.glyph .meter-peak { pointer-events: none; }
+
+/* The output badge, above the meter arc. Written by roomplan.js from the
+   payload's per-speaker `output`; EMPTY on an identity assignment, so a stock
+   rig shows nothing new. The authored numeral below it is never touched. */
+.glyph-out {
+  fill: var(--level-hi);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+
 /* Speaker classification, straight from ConvexHull2D::classify() in the
    payload. UI-02 criterion 2 reads these classes off the DOM: on the default
    venue speakers 3 and 8 are ON_EDGE, not vertices. */
@@ -421,6 +445,60 @@ html, body {
   top: 0;
   width: calc(var(--plan-w) * 1px);
   height: calc(var(--plan-h) * 1px);
+
+  /* v1.1.0. The layer itself is a window, not a shield: its transparent box
+     was swallowing every event aimed at the SVG glyphs beneath it, which the
+     speaker→output popover's double-click needs. The real hit targets — the
+     puck, the weight cells, the popover — opt back in below. */
+  pointer-events: none;
+}
+
+#plan-controls > * { pointer-events: auto; }
+
+/* v1.1.0 — the speaker→output popover. WIDTH PINNED IN PX: roomplan.js clamps
+   it inside the plan box from offsetWidth, and a shrink-to-fit box measured at
+   an edge lies about its own size
+   (pattern_fixed_tooltip_shrink_to_fit_edge). */
+.out-pop {
+  position: absolute;
+  width: 168px;
+  padding: 8px 10px;
+  background: var(--panel-lift);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  z-index: 3;
+}
+
+.out-pop-title {
+  margin: 0 0 6px;
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+}
+
+.out-pop-num {
+  color: var(--level-hi);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.out-pop-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.out-btn.is-current {
+  border-color: var(--level-hi);
+  color: var(--level-hi);
+}
+
+.out-pop-note {
+  margin: 6px 0 0;
+  color: var(--ink-faint);
+  font-size: 9.5px;
 }
 
 .puck {
