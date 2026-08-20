@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.3.0** (2026-08-13). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.5.0** (2026-08-19). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,6 +13,20 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-08-19 — v1.5.0 bow noise made realistic (pitched, jittered, body-colored).**
+  User report: the noise component sounded fake. Root cause: band-passed white noise
+  summed *after* both string and body — an uncorrelated hiss layer that never touched
+  the instrument. Fix: pitch-synchronous feedback comb tuned to the tracked f0 (loop
+  gain 0.85, ~4 kHz damped, 70/30 blend), slip-burst jitter (±4% period / ±30%
+  amplitude from a second deterministic RNG stream), and the noise sum moved *before*
+  the body resonator with a +12 dB pre-body makeup (the body's wet bank tops out at
+  1.2 kHz, so noise survives via `(1−mix)·dry` — a −14 dB hit at default MIX=0.80).
+  Measured on string-A: 700–3000 Hz within +0.8 dB of v1.4, top octaves −3 to −5 dB
+  by design (damped comb tames the formerly over-bright hiss), overall RMS unchanged.
+  All 21 goldens re-baselined and reproduce byte-identical; no new quality-gate
+  failures vs v1.4 (a blockTime FAIL during batch regen was a wall-clock flake,
+  re-anchored from a quiet run; the old `sub-harmonics` audibility FAIL now passes).
+  No parameter/state/preset changes. **Not yet checked in Logic or Dorico.**
 - **2026-08-13 — v1.4.0 crossfade-seed carve-out removed; 21st golden.**
   v1.2 skipped `seedFundamental()` on legato string changes, citing a `microtonal-scala`
   segment reading 230 cents. That branch **never executed in the probe that justified

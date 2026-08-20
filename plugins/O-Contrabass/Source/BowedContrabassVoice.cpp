@@ -871,22 +871,10 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
     // 7. Downsample back to host rate (writes into `block` which aliases voiceBuffer).
     oversampling.processSamplesDown (block);
 
-    // === PHASE 2.5 NEW Step 8: Body resonator (8-mode parallel bandpass + 35 Hz HP dry path + wet/dry mix) ===
-    // Skip-bump SmoothedValue: advance smoother by numSamples and read the
-    // end-of-block value (per-block recompute pattern; coefficients re-derived
-    // once per block via recomputeCoefficients() inside processBlock).
-    // jmax guard handles numSamples==1 (skip(0) is a no-op return of current).
-    {
-        const float sz = bodySizeSmoothed.skip    (juce::jmax (1, numSamples - 1));
-        const float dp = bodyDampingSmoothed.skip (juce::jmax (1, numSamples - 1));
-        const float mx = bodyMixSmoothed.skip     (juce::jmax (1, numSamples - 1));
-        bodyResonator.setSize    (sz);
-        bodyResonator.setDamping (dp);
-        bodyResonator.setMix     (mx);
-        bodyResonator.processBlock (voiceBuffer.getWritePointer (0), numSamples);
-    }
-
-    // === PHASE 2.5 NEW Step 9: Bow noise (3-band BPF + period-heuristic slip bursts; sums after body) ===
+    // === Step 8 (v1.5.0 reorder): Bow noise (3-band BPF → pitch-synchronous comb + jittered slip bursts) ===
+    // Summed BEFORE the body resonator so the noise picks up the same body
+    // coloration as the string signal — post-body summing left it an
+    // uncorrelated hiss layer sitting on top of the tone.
     {
         // bowEnergy = clamp(0, 1, |v_bow| · F_bow / (v_ref · F_ref)) per
         // ARCHITECTURE §164 (v_ref = 0.3 m/s, F_ref = 2.0 N).
@@ -920,9 +908,30 @@ void BowedContrabassVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuff
         const float noiseLvl = bowNoiseSmoothed.skip (juce::jmax (1, numSamples - 1));
         bowNoiseGenerator.setNoiseLevel (noiseLvl);
 
+        // Pre-body makeup: the body's wet bank tops out at 1.2 kHz, so the
+        // 700–3000 Hz noise mostly survives via the (1−mix)·dry path — a
+        // −14 dB hit at the default MIX=0.80 that the old post-body sum never
+        // saw. 4.0× (+12 dB) restores the ear-calibrated BOW_NOISE preset
+        // levels at default mix (measured on the string-A render, 3–6 kHz band).
+        constexpr float kNoisePreBodyMakeup = 4.0f;
         float* mono = voiceBuffer.getWritePointer (0);
         for (int i = 0; i < numSamples; ++i)
-            mono[i] += bowNoiseGenerator.processSample();
+            mono[i] += kNoisePreBodyMakeup * bowNoiseGenerator.processSample();
+    }
+
+    // === Step 9 (v1.5.0 reorder): Body resonator (8-mode parallel bandpass + 35 Hz HP dry path + wet/dry mix) ===
+    // Skip-bump SmoothedValue: advance smoother by numSamples and read the
+    // end-of-block value (per-block recompute pattern; coefficients re-derived
+    // once per block via recomputeCoefficients() inside processBlock).
+    // jmax guard handles numSamples==1 (skip(0) is a no-op return of current).
+    {
+        const float sz = bodySizeSmoothed.skip    (juce::jmax (1, numSamples - 1));
+        const float dp = bodyDampingSmoothed.skip (juce::jmax (1, numSamples - 1));
+        const float mx = bodyMixSmoothed.skip     (juce::jmax (1, numSamples - 1));
+        bodyResonator.setSize    (sz);
+        bodyResonator.setDamping (dp);
+        bodyResonator.setMix     (mx);
+        bodyResonator.processBlock (voiceBuffer.getWritePointer (0), numSamples);
     }
     // === END PHASE 2.5 ===
 
