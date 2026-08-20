@@ -786,7 +786,16 @@ const NATIVE_FNS = {
   storeScene: (slot) => storeScene(slot),
 
   getFieldGrid: () => fieldGrid(),
+
+  // ── v1.2.0 ──
+  setTooltipsEnabled: (enabled) => { tooltipsEnabled = enabled === true; return tooltipsEnabled; },
+
+  getTooltipsEnabled: () => tooltipsEnabled,
 };
+
+// The hover-help ("?" toggle) preference — UI state, not a parameter, mirrored
+// here exactly as the processor's std::atomic<bool> holds it (default OFF).
+let tooltipsEnabled = false;
 
 // ── The invocation counter (PLAN-3.3 P81) ──────────────────────────────────
 // UI-04 criterion 2's puck half is "a puck drag must not move it", and the

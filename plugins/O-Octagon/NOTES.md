@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.1.0 (dev build installed; not released)
+- **Version:** 1.2.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -43,6 +43,11 @@
   rail's `Direct 1–8` / `Roles` one-click label sets. All label edits ride
   `applyVenueEditChecked`; the device-order table lives in `Source/Data/OutputOrder.h`. Bridge
   surface 18 → 20; both UI gates pass (42 + 28 sections); Playwright interaction probe green.
+- **2026-08-20 (v1.2.0):** Hover-help tooltips — "?" toggle in the header, 49 controls annotated
+  across both screens, ported from O-Contrabass v1.7.0 (measure-then-pin placement). Preference
+  persists as a root XML attribute in get/setStateInformation and is PULLED by the page at init.
+  Bridge surface 20 → 22 (`setTooltipsEnabled` / `getTooltipsEnabled`); both UI gates pass
+  (42 + 28 sections). UI state only — no parameter, no DSP change.
 
 ## Known Issues
 

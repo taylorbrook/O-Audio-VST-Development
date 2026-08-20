@@ -803,14 +803,32 @@ void OOctagonProcessor::getStateInformation (juce::MemoryBlock& destData)
     auto state = apvts.copyState();
 
     if (auto xml = state.createXml())
+    {
+        // v1.2.0 — hover-help preference rides the session as a root XML attribute, NOT a
+        // ValueTree property: the ValueTree XML round-trip rebuilds properties as strings, so an
+        // isBool() guard on restore would never fire (critical_valuetree_xml_roundtrip_loses_type).
+        // getBoolAttribute below sidesteps that class of bug entirely.
+        xml->setAttribute ("tooltipsEnabled", tooltipsEnabled.load (std::memory_order_acquire));
+
         copyXmlToBinary (*xml, destData);
+    }
 }
 
 void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
+    {
         if (xml->hasTagName (apvts.state.getType()))
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+
+        // v1.2.0 — pre-1.2.0 sessions have no attribute, so the default (OFF) stands. The editor
+        // PULLS this via the getTooltipsEnabled native fn at page init rather than being pushed —
+        // a push from here fires before the page module has evaluated, so the preference would
+        // silently never arrive (pattern_webview_one_shot_state_push_stale_on_preset_load).
+        if (xml->hasAttribute ("tooltipsEnabled"))
+            tooltipsEnabled.store (xml->getBoolAttribute ("tooltipsEnabled"),
+                                   std::memory_order_release);
+    }
 
     // ── ORDERING HAZARD (ARCHITECTURE §4.1). This sequence is not interchangeable ───────────────
     //
