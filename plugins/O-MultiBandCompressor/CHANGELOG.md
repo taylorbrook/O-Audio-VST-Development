@@ -1,5 +1,108 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.7.0 (2026-08-19)
+
+Twenty-five more factory presets (50 total), and a categorised preset browser to
+make a bank that size navigable.
+
+### Added
+
+- **Preset categories.** The browser now groups presets under seven headings — Init,
+  Mastering, Mix Bus, Corrective, Instruments, Voice, Creative — plus a User group
+  that appears once something has been saved. Headings stick to the top of the list
+  while their group scrolls.
+
+  The category lives in this plugin's own preset table, not in the shared
+  `OuariconPresetManager`, so the twenty-odd other plugins vendoring that module are
+  untouched. It is deliberately *not* written into the `Factory/*.json` files either:
+  it is recovered by name lookup, so a hand-edited or renamed preset file cannot carry
+  a stale category around. Anything absent from the factory table reports as "User",
+  which is exactly the set that should have a delete button — so the dropdown no
+  longer needs its old per-name `isFactoryPreset()` fan-out (N native round trips on
+  every list change) and makes one `getPresetCategories()` call instead.
+
+- **◀ / ▶ now walk the grouped order.** They previously stepped through
+  `getPresetList()`'s flat alphabetical order, which was also the dropdown's order, so
+  the two agreed. Grouping breaks that agreement, and the buttons have to follow what
+  the user can see — otherwise ▶ from the last Mastering preset lands in the middle of
+  Instruments. Navigation is now driven from the same flattened group order the
+  browser renders.
+
+- **Twenty-five presets.**
+  - *Init* (2): **Init 3-Band** (XOVER3 parked at 16 kHz, high band bypassed),
+    **Init Wide Bands** (80 / 700 / 6000 — an octave below the stock split in each
+    position, so a bass fundamental sits inside the low band rather than straddling a
+    crossover).
+  - *Mastering* (4): **Streaming Loudness**, **Club Master** (90 Hz low crossover,
+    3.5:1 — an uncontrolled sub is what actually distorts on a big rig), **Vinyl Prep**
+    (deliberately asymmetric: 4.5:1 low and a filtered 3:1 top, the two things that
+    damage a cutter head, with the mids left near-alone), **Mid Focus Master** (M/S
+    Mid — the mirror of *Wide and Controlled*).
+  - *Mix Bus* (6): **Drum Bus Glue** (the slow, RMS counterpart to *Drum Bus Punch* on
+    the same source), **Guitar Bus**, **Synth Bus**, **Percussion Bus**,
+    **Orchestral Bus**, **Room Mic Bus** (low thresholds plus auto-makeup, which lifts
+    the tail toward the transient rather than the reverse).
+  - *Corrective* (2): **Plosive Control** (0.5 ms at 8:1 — not *Low End Control* with a
+    faster attack; that one levels the bass region, this catches a single blast of air
+    and releases in 60 ms), **Sub Rumble Control** (XOVER1 at 45 Hz so the band holds
+    rumble and not the bass fundamental).
+  - *Instruments* (3): **Kick Drum**, **Snare Drum**, **Upright Bass** (20-25 ms and
+    RMS-led where *Bass Tighten* is 8 ms and peak-led, because an upright's level
+    varies with stopping position rather than pick attack).
+  - *Voice* (3): **Lead Vocal Tight**, **Backing Vocal Stack** (gentler overall but the
+    de-esser stays strong — stacking makes sibilance worse, not better, as every double
+    lands its "s" slightly apart), **Dialogue Leveller**.
+  - *Creative* (5): **Pumping Bass**, **Lo-Fi Squash**, **Telephone Squeeze**,
+    **Mid Side Slam** (M/S Both), **Dark Tilt**.
+
+### Changed
+
+- **The harness's "should be inert" check keys off the Init category, not the name
+  "Init Flat".** Any Init preset added later is covered without the harness learning
+  its name; the flip side is that an Init preset that ships a ratio above 1:1 now fails
+  there instead of passing as an ordinary working preset.
+
+- **The dropdown's max height is 420px, up from 260px.** Fifty presets across seven
+  groups did not fit; the editor is 640px tall and the bar sits at the top, so the open
+  list still clears the bottom edge.
+
+- **The delete-confirmation strip is now pinned to the top of the list.** It is
+  prepended into the scrolling container, so with a 50-entry list the confirmation for
+  a delete button well below the fold used to render off-screen — which reads as
+  nothing having happened.
+
+### Fixed
+
+- **`.preset-dropdown-header` was dead CSS.** Defined in v1.5.0, never referenced by
+  `app.js`. Its styling is now what `.preset-group-heading` uses, with the background
+  changed from `rgba(139,168,112,0.25)` to the same olive pre-composited onto the
+  dropdown's parchment — a translucent heading lets the rows it is pinned over show
+  through it.
+
+### Testing
+
+- The preset harness passes 50/50 with zero failures, and the reverse-order pass
+  reports every preset identical in both directions. Every preset that existed in
+  v1.6.0 measures byte-identical gain reduction to its v1.6.0 baseline, so none of the
+  existing sounds moved.
+- Two new presets were retuned after their first harness measurement, which is what the
+  harness is for:
+  - *Sub Rumble Control*, authored at -40 dB / 8:1 on the band-level staircase,
+    measured 31 dB of gain reduction — a gate, not a control. The staircase is
+    calibrated for bands carrying program material and this one is not: below 45 Hz
+    there should be almost nothing, so the threshold has to sit above the noise floor
+    of a clean recording. At -22 dB / 6:1 it measures 14.4 dB, in line with the rest of
+    the Corrective group.
+  - *Dark Tilt*'s high band, at -42 dB / 8:1, measured 27 dB and was therefore
+    compressing continuously — a fixed tilt wearing a compressor's clothes, and the
+    exact behaviour its own comment claimed it avoided. At -32 dB / 5:1 it measures
+    16.7 dB and actually tracks the material.
+- Grouping, the ◀ / ▶ walk order and the sticky headings were verified in a browser
+  against a stubbed JUCE backend, with the fixture generated from the C++ table so the
+  test cannot drift from it: 3 / 8 / 7 / 9 / 11 / 5 / 7 factory presets per group,
+  delete buttons only under User, and ▶ from the last Init preset landing on the first
+  Mastering preset rather than the next name alphabetically.
+- `auval -v aufx OMbc OuDv`: PASS. `pluginval --strictness-level 10`: SUCCESS.
 ## Version 1.6.1 (2026-08-19)
 
 Resolves the Critical and all five Warning findings from the 2026-08-19 deep code

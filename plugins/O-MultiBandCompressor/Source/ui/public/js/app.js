@@ -1192,23 +1192,90 @@ function hideTooltip() {
 let presetMgr = null;
 let presetDropdownEl = null;
 
-// Which of the listed presets are factory (read-only). isFactoryPreset() is one
-// native round-trip per name, so the answers are cached and only refreshed when the
-// list itself changes rather than on every dropdown open.
-let factoryPresetNames = new Set();
+// v1.7.0: category name -> its presets, in the order the browser shows them, plus the
+// flat walk of the same thing that the prev/next buttons step through. Both are rebuilt
+// from one getPresetCategories() native call whenever the preset list changes.
+//
+// Presets in the "User" category are the deletable ones. Before v1.7.0 that answer came
+// from isFactoryPreset(), one native round trip per name on every list change; the
+// category map carries the same information in a single call, because a name absent
+// from the C++ factory table is by definition a user preset.
+const USER_CATEGORY = 'User';
 
-async function refreshFactoryPresetNames() {
+let presetGroups = [];              // [{ category, names: [...] }], display order, non-empty only
+let presetWalkOrder = [];           // presetGroups flattened — the ◀ / ▶ sequence
+
+let getPresetCategoriesFn = null;
+
+async function refreshPresetCategories() {
     if (!presetMgr) return;
+
     const list = presetMgr.getPresetList();
+    let order = [];
+    let map = {};
+
     try {
-        const flags = await Promise.all(list.map((n) => presetMgr.isFactoryPreset(n)));
-        factoryPresetNames = new Set(list.filter((_, i) => flags[i]));
+        const result = await getPresetCategoriesFn();
+        order = (result && result.order) || [];
+        map = (result && result.categories) || {};
     } catch (e) {
-        // On failure treat everything as factory: that only hides delete buttons,
-        // whereas guessing "user" would offer to delete presets that cannot be deleted.
-        console.warn('Could not determine factory presets:', e);
-        factoryPresetNames = new Set(list);
+        // Fall back to one ungrouped list rather than losing the browser entirely. The
+        // fallback category is "User" so every preset keeps its delete button: the
+        // alternative — assuming factory — would strip the user's ability to remove
+        // their own presets, which is worse than offering a delete that then fails.
+        console.warn('Could not load preset categories, falling back to a flat list:', e);
+        order = [USER_CATEGORY];
+        map = {};
     }
+
+    // Own-property lookup, not map[name]: `categories` arrives as a plain object whose
+    // keys are preset names, and a user is free to save one called "constructor" or
+    // "toString" — a bare index would hand back the Object.prototype member instead of
+    // a category string and drop that preset out of every group.
+    const categoryOf = (name) =>
+        (Object.prototype.hasOwnProperty.call(map, name) ? map[name] : null) || USER_CATEGORY;
+
+    const presetCategories = new Map(list.map((name) => [name, categoryOf(name)]));
+
+    // The C++ order array is authoritative — do not re-sort it. Within a category the
+    // names keep getPresetList()'s alphabetical order. Empty categories are dropped so
+    // "User" does not show as a bare heading before anything has been saved.
+    presetGroups = order
+        .map((category) => ({
+            category,
+            names: list.filter((name) => presetCategories.get(name) === category)
+        }))
+        .filter((group) => group.names.length > 0);
+
+    // Any category C++ did not list (only reachable if the two tables drift) would
+    // otherwise vanish from the browser. Append the leftovers rather than hide them.
+    const grouped = new Set(presetGroups.flatMap((g) => g.names));
+    const orphans = list.filter((name) => !grouped.has(name));
+    if (orphans.length > 0) {
+        console.warn('Presets with an unlisted category:', orphans);
+        presetGroups.push({ category: 'Other', names: orphans });
+    }
+
+    presetWalkOrder = presetGroups.flatMap((group) => group.names);
+}
+
+// v1.7.0: prev/next are driven from presetWalkOrder rather than from the C++
+// selectNextPreset/selectPreviousPreset, which walk getPresetList()'s flat alphabetical
+// order. With the dropdown grouped by category those two orders no longer agree, and
+// the buttons have to follow what the user can see — otherwise ▶ from the last
+// Mastering preset lands somewhere in the middle of Instruments.
+async function stepPreset(delta) {
+    if (!presetMgr || presetWalkOrder.length === 0) return;
+
+    const current = presetMgr.getCurrentPreset();
+    const index = presetWalkOrder.indexOf(current);
+
+    // A preset loaded from an arbitrary file is not in the list; start from the top
+    // going forward, and from the bottom going backward.
+    const base = index >= 0 ? index : (delta > 0 ? -1 : 0);
+    const next = (base + delta + presetWalkOrder.length) % presetWalkOrder.length;
+
+    await presetMgr.loadPreset(presetWalkOrder[next]);
 }
 
 async function initializePresets() {
@@ -1222,10 +1289,14 @@ async function initializePresets() {
 
     const { PresetManager } = await import('../modules/preset-manager.js');
 
+    getPresetCategoriesFn = Juce.getNativeFunction('getPresetCategories');
+
     presetMgr = new PresetManager({
         displayElement: nameDisplay,
-        prevButton: document.getElementById('prevPreset'),
-        nextButton: document.getElementById('nextPreset'),
+        // prevButton / nextButton are deliberately NOT handed to the module: its
+        // selectPrevious/selectNext call through to the C++ walk of the flat
+        // alphabetical list, and v1.7.0 needs the grouped order instead. They are
+        // bound to stepPreset() below.
         saveButton: document.getElementById('savePreset'),
         loadButton: document.getElementById('loadPreset'),
         getNativeFunction: Juce.getNativeFunction,
@@ -1233,14 +1304,19 @@ async function initializePresets() {
         // module is handed an in-DOM confirmation instead of falling back to it.
         onConfirmDelete: confirmDeletePreset,
         onPresetListUpdated: () => {
-            refreshFactoryPresetNames().then(() => {
+            refreshPresetCategories().then(() => {
                 if (presetDropdownEl.classList.contains('show')) renderPresetDropdown();
             });
         }
     });
 
     await presetMgr.initialize();
-    await refreshFactoryPresetNames();
+    await refreshPresetCategories();
+
+    const prevButton = document.getElementById('prevPreset');
+    const nextButton = document.getElementById('nextPreset');
+    if (prevButton) prevButton.addEventListener('click', () => stepPreset(-1));
+    if (nextButton) nextButton.addEventListener('click', () => stepPreset(1));
 
     nameDisplay.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1283,10 +1359,9 @@ function hidePresetDropdown() {
 function renderPresetDropdown() {
     presetDropdownEl.innerHTML = '';
 
-    const list = presetMgr ? presetMgr.getPresetList() : [];
     const current = presetMgr ? presetMgr.getCurrentPreset() : '';
 
-    if (list.length === 0) {
+    if (presetGroups.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'preset-dropdown-item empty';
         empty.textContent = 'No presets';
@@ -1294,47 +1369,66 @@ function renderPresetDropdown() {
         return;
     }
 
-    // getPresetList() returns one case-insensitive alphabetical list with factory and
-    // user presets interleaved. The dropdown keeps that order rather than grouping,
-    // because it is also the order the ◀ / ▶ buttons step through.
-    list.forEach((name) => {
-        const isFactory = factoryPresetNames.has(name);
+    // v1.7.0: grouped under category headings, in the order C++ reports, with the
+    // ◀ / ▶ buttons walking the same sequence (see stepPreset). Within a group the
+    // names stay in getPresetList()'s alphabetical order.
+    //
+    // The listbox owns the options; the headings are presentational only. Marking them
+    // role="presentation" keeps a screen reader from counting them as selectable
+    // entries, and each group is wrapped so the heading and its items stay associated.
+    presetGroups.forEach((group) => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'preset-group';
+        groupEl.setAttribute('role', 'group');
+        groupEl.setAttribute('aria-label', group.category);
 
-        const item = document.createElement('div');
-        item.className = 'preset-dropdown-item' + (name === current ? ' active' : '');
-        item.setAttribute('role', 'option');
-        item.setAttribute('aria-selected', name === current ? 'true' : 'false');
+        const heading = document.createElement('div');
+        heading.className = 'preset-group-heading';
+        heading.setAttribute('role', 'presentation');
+        heading.textContent = group.category;
+        groupEl.appendChild(heading);
 
-        const label = document.createElement('span');
-        label.textContent = name;
-        item.appendChild(label);
+        group.names.forEach((name) => {
+            const item = document.createElement('div');
+            item.className = 'preset-dropdown-item' + (name === current ? ' active' : '');
+            item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', name === current ? 'true' : 'false');
 
-        // Factory presets are read-only, so they get no delete affordance.
-        if (!isFactory) {
-            const del = document.createElement('button');
-            del.type = 'button';
-            del.className = 'preset-delete';
-            del.textContent = '×';
-            del.setAttribute('aria-label', `Delete preset ${name}`);
-            // deletePreset() removes the file immediately — only promptDelete() runs
-            // the confirmation, and that one is hard-wired to the *current* preset.
-            // Confirm here so deleting any listed preset asks first.
-            del.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (!await confirmDeletePreset(name)) return;
-                await presetMgr.deletePreset(name);
-                await refreshFactoryPresetNames();
-                renderPresetDropdown();
+            const label = document.createElement('span');
+            label.textContent = name;
+            item.appendChild(label);
+
+            // Factory presets are read-only, so they get no delete affordance. The
+            // "User" category IS the set of user presets — anything the C++ factory
+            // table does not name comes back under it.
+            if (group.category === USER_CATEGORY) {
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'preset-delete';
+                del.textContent = '×';
+                del.setAttribute('aria-label', `Delete preset ${name}`);
+                // deletePreset() removes the file immediately — only promptDelete() runs
+                // the confirmation, and that one is hard-wired to the *current* preset.
+                // Confirm here so deleting any listed preset asks first.
+                del.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (!await confirmDeletePreset(name)) return;
+                    await presetMgr.deletePreset(name);
+                    await refreshPresetCategories();
+                    renderPresetDropdown();
+                });
+                item.appendChild(del);
+            }
+
+            item.addEventListener('click', async () => {
+                await presetMgr.loadPreset(name);
+                hidePresetDropdown();
             });
-            item.appendChild(del);
-        }
 
-        item.addEventListener('click', async () => {
-            await presetMgr.loadPreset(name);
-            hidePresetDropdown();
+            groupEl.appendChild(item);
         });
 
-        presetDropdownEl.appendChild(item);
+        presetDropdownEl.appendChild(groupEl);
     });
 }
 
