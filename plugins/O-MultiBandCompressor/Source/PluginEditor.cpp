@@ -520,12 +520,15 @@ void OMultiBandCompressorAudioProcessorEditor::sendGainReductionMeters()
     himidNorm = juce::jlimit(0.0f, 1.0f, himidNorm);
     highNorm = juce::jlimit(0.0f, 1.0f, highNorm);
 
-    // Call JavaScript function to update meters
-    juce::String script = juce::String::formatted(
-        "if (typeof updateGainReductionMeters === 'function') { "
-        "updateGainReductionMeters(%f, %f, %f, %f); }",
-        lowNorm, lomidNorm, himidNorm, highNorm
-    );
+    // Call JavaScript function to update meters.
+    // v1.6.1 (WR-01): built by juce::String(float, digits) concatenation, NOT
+    // String::formatted("%f") — formatted routes through vswprintf, which honours
+    // LC_NUMERIC, and a comma-decimal host locale turns the argument list into a
+    // JS syntax error on every tick (meters silently freeze). Matches sendSpectrumData.
+    juce::String script;
+    script << "if (typeof updateGainReductionMeters === 'function') { updateGainReductionMeters("
+           << juce::String(lowNorm, 6) << "," << juce::String(lomidNorm, 6) << ","
+           << juce::String(himidNorm, 6) << "," << juce::String(highNorm, 6) << "); }";
 
     webView->evaluateJavascript(script);
 }
@@ -549,12 +552,11 @@ void OMultiBandCompressorAudioProcessorEditor::sendInputOutputMeters()
     inputLevel = juce::jlimit(0.0f, 1.0f, inputLevel);
     outputLevel = juce::jlimit(0.0f, 1.0f, outputLevel);
 
-    // Call JavaScript function to update meters
-    juce::String script = juce::String::formatted(
-        "if (typeof updateInputOutputMeters === 'function') { "
-        "updateInputOutputMeters(%f, %f); }",
-        inputLevel, outputLevel
-    );
+    // Call JavaScript function to update meters (locale-safe — v1.6.1 WR-01, see
+    // sendGainReductionMeters).
+    juce::String script;
+    script << "if (typeof updateInputOutputMeters === 'function') { updateInputOutputMeters("
+           << juce::String(inputLevel, 6) << "," << juce::String(outputLevel, 6) << "); }";
 
     webView->evaluateJavascript(script);
 }
@@ -576,12 +578,12 @@ void OMultiBandCompressorAudioProcessorEditor::sendCrossoverPositions()
     float xover2 = xover2Param->load();
     float xover3 = xover3Param->load();
 
-    // Call JavaScript function to update crossover line positions
-    juce::String script = juce::String::formatted(
-        "if (typeof updateCrossoverPositions === 'function') { "
-        "updateCrossoverPositions(%f, %f, %f); }",
-        xover1, xover2, xover3
-    );
+    // Call JavaScript function to update crossover line positions (locale-safe —
+    // v1.6.1 WR-01, see sendGainReductionMeters).
+    juce::String script;
+    script << "if (typeof updateCrossoverPositions === 'function') { updateCrossoverPositions("
+           << juce::String(xover1, 2) << "," << juce::String(xover2, 2) << ","
+           << juce::String(xover3, 2) << "); }";
 
     webView->evaluateJavascript(script);
 }

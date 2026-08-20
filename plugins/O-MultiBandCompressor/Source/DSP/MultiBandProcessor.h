@@ -91,6 +91,7 @@ public:
                          const float* scLPFs,
                          const bool* scListens,
                          bool autoMakeupEnabled,
+                         bool linkedDetector,
                          std::atomic<float>* const* gainReductionMeters)
     {
         const int numSamples = buffer.getNumSamples();
@@ -138,6 +139,7 @@ public:
                 compressors[band].processStereo(
                     bandBuffers[band],
                     numChannels,
+                    linkedDetector,
                     thresholds[band],
                     ratios[band],
                     knees[band],
