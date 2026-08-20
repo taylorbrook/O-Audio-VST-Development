@@ -52,7 +52,7 @@ lastUpdated: 2026-08-20
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-1 |
 
 ### Quality (QUAL)
 
@@ -119,7 +119,7 @@ lastUpdated: 2026-08-20
 ### COMPAT-01: pluginval
 
 **Acceptance Criteria:**
-- [ ] pluginval strictness 10 passes for VST3 and AU on macOS
+- [x] pluginval strictness 10 passes for VST3 and AU on macOS (verified 2026-08-20, Stage 1 — re-run independently at verify phase)
 
 ### QUAL-01: No unintended artifacts
 
