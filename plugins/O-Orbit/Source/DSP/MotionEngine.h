@@ -50,6 +50,7 @@ public:
     void setElevationRange (float degrees);
     void setTempoSync (int divisionIndex);
     void setHostBpm (double bpm);
+    void setHostPpq (double ppqPosition, bool transportPlaying);
 
 private:
     float getEffectiveSpeed() const;
@@ -86,6 +87,13 @@ private:
     float elevationRange   = 45.0f;
     int   tempoSyncIndex   = 0;
     double hostBpm         = 120.0;
+
+    // PPQ lock (C1): when synced and the transport is rolling, phase is derived
+    // from the host's beat position instead of free-running, so offline bounces
+    // are deterministic and motion is downbeat-aligned. Free-run is the fallback
+    // whenever the transport is stopped or provides no PPQ (Standalone).
+    double hostPpq         = 0.0;
+    bool   hostPpqValid    = false;
 
     PerlinNoise perlin;
     MotionState currentState;

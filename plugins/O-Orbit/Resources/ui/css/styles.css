@@ -47,19 +47,27 @@ body {
 
 /* Header */
 #header {
-    height: 30px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 15px;
+    gap: 10px;
+    padding: 0 12px;
     border-bottom: 2px solid #8B7355;
 }
 
 #header h1 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: normal;
     letter-spacing: 2px;
     text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 #view-toggle {
@@ -76,9 +84,11 @@ body {
     background: rgba(139, 115, 85, 0.2);
 }
 
-/* Visualizer Container */
+/* Visualizer Container — vh-based so it scales with the resizable editor
+   (D4, v1.1.0); 53.3vh = the original 320px at the default 600px height */
 #visualizer-container {
-    height: 320px;
+    height: 53.3vh;
+    min-height: 240px;
     background: rgba(139, 115, 85, 0.08);
     border-bottom: 3px solid #8B7355;
     position: relative;
@@ -322,6 +332,13 @@ body {
     display: flex;
 }
 
+/* At the resizable editor's narrow end the toolbar scrolls instead of
+   wrapping over the canvas (D4) */
+#editor-toolbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
 #preset-buttons {
     display: flex;
     gap: 4px;
@@ -384,6 +401,253 @@ body {
 #downmix-badge.active {
     display: block;
 }
+
+/* ============ Preset band (v1.1.0) ============ */
+#preset-band {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.preset-nav {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 9px;
+    line-height: 1;
+    color: #3C2F2F;
+    background: rgba(139, 115, 85, 0.15);
+    border: 1px solid #8B7355;
+    border-radius: 50%;
+    cursor: pointer;
+}
+.preset-nav:hover:not(:disabled) { background: rgba(139, 115, 85, 0.3); }
+
+.preset-btn-hdr {
+    padding: 3px 7px;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: rgba(139, 163, 112, 0.2);
+    border: 1px solid #8BA870;
+    color: #3C2F2F;
+    cursor: pointer;
+}
+.preset-btn-hdr:hover:not(:disabled) { background: rgba(139, 163, 112, 0.4); }
+
+#preset-band button:disabled { opacity: 0.4; cursor: default; }
+
+#preset-select-wrap {
+    position: relative;
+    min-width: 0;
+}
+
+#preset-select {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 190px;
+    min-width: 130px;
+    padding: 3px 8px;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 11px;
+    font-style: italic;
+    color: #3C2F2F;
+    background: rgba(245, 230, 211, 0.8);
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    cursor: pointer;
+}
+#preset-select:hover:not(:disabled) { background: rgba(139, 115, 85, 0.15); }
+
+#preset-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+#preset-caret {
+    flex: 0 0 auto;
+    font-size: 8px;
+    transition: transform 0.15s;
+}
+#preset-select[aria-expanded="true"] #preset-caret { transform: rotate(180deg); }
+
+/* Categorized preset menu. Left-anchored under the trigger; z-index sits
+   above .tooltip (1000) and #botanical-overlay (1000). */
+#preset-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    z-index: 1200;
+    width: 300px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: #F5E6D3;
+    border: 1.5px solid #8B7355;
+    border-radius: 3px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    text-align: left;
+}
+#preset-menu.visible { display: block; }
+
+.preset-menu-category {
+    padding: 5px 10px 4px;
+    font-variant: small-caps;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #8B7355;
+    background: rgba(139, 115, 85, 0.12);
+    border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+}
+.preset-menu-category:not(:first-child) { border-top: 1px solid rgba(139, 115, 85, 0.45); }
+
+.preset-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px 0;
+    padding: 3px;
+}
+
+.preset-menu-item {
+    padding: 4px 8px 5px;
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    color: #3C2F2F;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-menu-item:hover { background: rgba(139, 115, 85, 0.2); }
+.preset-menu-item.active {
+    background: #8B7355;
+    color: #F5E6D3;
+    font-style: normal;
+}
+
+/* ============ Hover-help toggle (v1.1.0) ============ */
+#help-toggle {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 12px;
+    line-height: 1;
+    color: #5C6E3E;
+    background: rgba(139, 168, 112, 0.22);
+    border: 1.5px solid #8BA870;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.15);
+}
+#help-toggle:hover { background: rgba(139, 168, 112, 0.4); }
+#help-toggle.active {
+    background: rgba(139, 168, 112, 0.65);
+    border-color: #5C6E3E;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ============ Hover help: the tooltip surface (v1.1.0) ============
+   position:fixed anchors the tip to the viewport, escaping every overflow.
+   max-width is load-bearing: the script MEASURES the natural width and PINS
+   it in px before placing, so a near-edge tip clamps without re-wrapping
+   (pattern_fixed_tooltip_shrink_to_fit_edge). */
+.tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1100;
+    max-width: 230px;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 100%);
+    border: 1px solid #8B7355;
+    border-radius: 3px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    font-family: Garamond, 'EB Garamond', serif;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 110ms ease-out;
+}
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+    font-size: 10px;
+    font-weight: 600;
+    font-variant: small-caps;
+    letter-spacing: 0.8px;
+    color: #5C6E3E;
+    margin-bottom: 3px;
+}
+.tooltip-body {
+    font-size: 11px;
+    line-height: 1.35;
+    color: #3C2F2F;
+}
+
+/* Arrow tracks the anchor via --arrow-x so an edge-clamped tip still points
+   at its control. */
+.tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: #8B7355; }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: #8B7355; }
+
+/* ============ Layout library (D2, v1.1.0) ============ */
+#layout-library {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#layout-select {
+    max-width: 110px;
+    padding: 2px 4px;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 10px;
+    background: #F5E6D3;
+    border: 1px solid #8B7355;
+    color: #3C2F2F;
+}
+
+#layout-name {
+    width: 80px;
+    padding: 2px 5px;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 10px;
+    background: rgba(255, 248, 220, 0.8);
+    border: 1px solid #8B7355;
+    color: #3C2F2F;
+}
+#layout-name:focus { outline: none; border-color: #8BA870; }
+
+#layout-library button {
+    padding: 2px 6px;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: rgba(139, 163, 112, 0.2);
+    border: 1px solid #8BA870;
+    color: #3C2F2F;
+    cursor: pointer;
+}
+#layout-library button:hover { background: rgba(139, 163, 112, 0.4); }
 
 /* Botanical Overlay */
 #botanical-overlay {
