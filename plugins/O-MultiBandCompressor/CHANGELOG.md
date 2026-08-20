@@ -1,5 +1,77 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.6.1 (2026-08-19)
+
+Resolves the Critical and all five Warning findings from the 2026-08-19 deep code
+review (CODE_REVIEW.md): CR-01, WR-01..WR-05. No parameter, preset, or state-format
+changes.
+
+### Fixed
+
+- **M/S "Both" mode was not independent mid/side compression (CR-01).** Mode 3 sent
+  the [mid, side] buffer through the same stereo-linked path as L/R. The linked
+  detector averages its channels, and (M+S)/2 = ((L+R)+(L−R))/(2·√2) = L/√2 — the
+  detector was the left channel only, so a right-only signal produced zero gain
+  reduction. The single computed gain applied to both M and S is algebraically the
+  same as applying it to L and R, i.e. not M/S processing at all. Root cause: no
+  unlinked detector topology existed. `Compressor` now has a per-channel
+  (dual-mono) path — per-channel envelope detectors, gain-reduction ballistics,
+  sidechain filter state, and makeup state — selected by a `linkedDetector` flag
+  that only "Both" mode clears; every other path is element-[0]-only and
+  bit-compatible with v1.6.0. The band meter reports the deeper of the two
+  channels. Verified by probe: right-only noise now drives −16..−29 dB GR
+  (previously exactly 0), and a quiet-mid/loud-side signal's output side/mid ratio
+  collapses from 45:1 to 2.1:1 (shared-gain behaviour would keep 45:1).
+
+- **Meters and crossover lines froze on comma-decimal host locales (WR-01).** The
+  three 30 Hz UI pushes (`sendGainReductionMeters`, `sendInputOutputMeters`,
+  `sendCrossoverPositions`) built their JavaScript with
+  `juce::String::formatted("%f", …)`, which routes through `vswprintf` and honours
+  `LC_NUMERIC` — a comma-decimal locale (several Windows hosts) emitted
+  `updateGainReductionMeters(0,500000, …)`, a JS syntax error on every tick, and
+  all meters silently stopped. Now built with locale-independent
+  `juce::String(value, digits)` concatenation, matching `sendSpectrumData`.
+
+- **Mid/Side modes mirrored the stereo image near each crossover (WR-02).** The
+  processed channel exits the crossover carrying its AP(f1)·AP(f2)·AP(f3) all-pass
+  rotation (each LR4 pair sums to a 2nd-order all-pass); the passthrough channel
+  carried none, so around each crossover the two sat ≈180° apart and the M/S
+  decode swapped L and R even at 1:1 ratios. The passthrough channel now runs
+  through a matching chain of the same three all-passes (new `PhaseMatchChain`,
+  corners clamped identically to the crossover's via the shared
+  `CrossoverNetwork::clampCrossoverFrequencies`).
+
+- **Parallel (Mix < 100%) combing (WR-03).** The dry path was captured before the
+  crossover, so at intermediate Mix settings the un-rotated dry signal cancelled
+  against the wet path's all-pass rotation wherever the chain's phase passed −180°
+  — multiple notches, deepest near 50% (the shipped Parallel Crush preset at 35%
+  bakes this in). The dry copy now runs through the same `PhaseMatchChain` before
+  `pushDrySamples`, so dry and wet sum coherently at every Mix value.
+
+- **Makeup and Auto-Makeup gain stepped at block boundaries (WR-04).** `makeupDB`
+  was latched once per block and applied per sample unsmoothed — audible zipper on
+  Makeup knob turns and a hard multi-dB click when toggling AUTO_MAKEUP. Total
+  makeup (manual + auto) is now one-pole smoothed per sample (~15 ms), snapping on
+  the first sample after prepare/reset so sessions don't open with a fade-in.
+
+- **A single NaN input permanently disabled a band's compression (WR-05).** One
+  non-finite sample entering `EnvelopeDetector`'s sliding RMS sum could never be
+  subtracted back out; `rmsSum` stayed NaN, `GainComputer` returned 0 GR forever
+  (`std::min(0, NaN)` → 0), and the band silently stopped compressing until the
+  next `prepareToPlay`. The detector now zeroes non-finite inputs at entry and
+  self-heals a poisoned accumulator by rebuilding the window from silence. This is
+  the codebase's documented envelope-follower sticky-NaN pattern.
+
+### Testing
+
+- Preset render harness: 47/47 real presets engage, load-order-independence pass
+  clean across all 50. ("Init 3-Band" / "Init Wide Bands" flags come from the
+  parallel v1.7.0 preset work's on-disk factory set — 1:1-ratio init templates,
+  inert by design, not part of this branch's 25-preset factory list.)
+- CR-01 behavioral probe (right-only detector visibility, mono engagement,
+  channel-separation ratio): 3/3 pass.
+- auval (aufx OMbc OuDv): PASS.
+
 ## Version 1.6.0 (2026-07-23)
 
 Nine more factory presets (25 total), and a sidechain-filter bug found while

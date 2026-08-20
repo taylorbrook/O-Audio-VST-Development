@@ -615,6 +615,12 @@ void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int sa
     msScratchBuffer.setSize(1, samplesPerBlock, false, false, false);
     msScratchBuffer.clear();
 
+    // v1.6.1: phase-match chains (see PhaseMatchChain.h) + preallocated dry copy.
+    dryPhaseMatch.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
+    passthroughPhaseMatch.prepare(sampleRate, samplesPerBlock, 1);
+    dryScratchBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock, false, false, false);
+    dryScratchBuffer.clear();
+
     // CR-02: resolve all parameter pointers once (no per-block string building / map lookups).
     cacheParameterPointers();
 
@@ -639,6 +645,8 @@ void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int sa
     inputGain.reset();
     outputGain.reset();
     dryWetMixer.reset();
+    dryPhaseMatch.reset();
+    passthroughPhaseMatch.reset();
 }
 
 void OMultiBandCompressorAudioProcessor::cacheParameterPointers()
@@ -755,9 +763,22 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     // Set dry/wet mix ratio (0-100% to 0.0-1.0)
     dryWetMixer.setWetMixProportion(mixPercent / 100.0f);
 
-    // Capture dry signal for parallel compression
+    // Capture dry signal for parallel compression — phase-matched (v1.6.1, WR-03).
+    // The wet path exits the crossover carrying AP(f1)·AP(f2)·AP(f3); pushing the raw
+    // input combs against it at intermediate Mix settings (deepest near 50%). Run the
+    // same all-pass chain over a copy so dry and wet sum coherently at every Mix value.
+    dryPhaseMatch.updateCoefficients(xover1, xover2, xover3);
+    passthroughPhaseMatch.updateCoefficients(xover1, xover2, xover3);
+
+    for (int ch = 0; ch < numChannels; ++ch)
+        dryScratchBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
+    dryPhaseMatch.process(dryScratchBuffer, numChannels, numSamples);
+
     juce::dsp::AudioBlock<float> dryWetBlock(buffer);
-    dryWetMixer.pushDrySamples(dryWetBlock);
+    juce::dsp::AudioBlock<float> dryBlock(dryScratchBuffer.getArrayOfWritePointers(),
+                                          static_cast<size_t>(numChannels), 0,
+                                          static_cast<size_t>(numSamples));
+    dryWetMixer.pushDrySamples(dryBlock);
 
     // M/S Encoding (if enabled)
 
@@ -797,7 +818,7 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     // Process based on M/S mode
     if (msMode == 0 || numChannels != 2)
     {
-        // Mode 0: Off - Process L/R independently (standard stereo)
+        // Mode 0: Off - stereo-linked L/R (standard stereo)
         multibandProcessor.processMultiband(
             buffer,
             thresholds,
@@ -811,6 +832,7 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             scLPFs,
             scListens,
             autoMakeupEnabled,
+            true,   // linked detector
             grMeters
         );
     }
@@ -834,10 +856,16 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             scLPFs,
             scListens,
             autoMakeupEnabled,
+            true,   // linked detector (mono buffer — link is a no-op)
             grMeters
         );
 
         buffer.copyFrom(0, 0, msScratchBuffer, 0, 0, numSamples);
+
+        // v1.6.1 (WR-02): the processed mid now carries the crossover's
+        // AP(f1)·AP(f2)·AP(f3) rotation; run the untouched side through the same
+        // chain, or the M/S decode mirrors the stereo image around each crossover.
+        passthroughPhaseMatch.processChannel(buffer.getWritePointer(1), 0, numSamples);
     }
     else if (msMode == 2)
     {
@@ -859,14 +887,22 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             scLPFs,
             scListens,
             autoMakeupEnabled,
+            true,   // linked detector (mono buffer — link is a no-op)
             grMeters
         );
 
         buffer.copyFrom(1, 0, msScratchBuffer, 0, 0, numSamples);
+
+        // v1.6.1 (WR-02): same phase match as Mid mode, roles reversed.
+        passthroughPhaseMatch.processChannel(buffer.getWritePointer(0), 0, numSamples);
     }
     else if (msMode == 3)
     {
-        // Mode 3: Both - Independent compression for mid AND side
+        // Mode 3: Both - genuinely independent mid and side compression (v1.6.1).
+        // The detector must be UNLINKED here: averaging mid and side reduces to
+        // (M+S)/2 = L/sqrt(2) — a left-channel-only detector — and one shared gain
+        // on M and S is algebraically the same as on L and R. With unlinked
+        // per-channel detectors this really is 8 compressors (4 bands × M/S).
         multibandProcessor.processMultiband(
             buffer,
             thresholds,
@@ -880,6 +916,7 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             scLPFs,
             scListens,
             autoMakeupEnabled,
+            false,  // unlinked dual-mono detectors
             grMeters
         );
     }
