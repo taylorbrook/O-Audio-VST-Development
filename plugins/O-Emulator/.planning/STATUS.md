@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
 stage: 1
-phase: discuss
-status: in-progress
+phase: execute
+status: complete
 last_updated: 2026-08-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: research
+next_action: verify
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 (Foundation) — in progress
-Phase: discuss ✓ complete (2026-08-20) → next: research
-Status: Stage 1 CONTEXT.md created (pure passthrough shell, harness scaffolded in Stage 1, pluginval strictness 10)
-Progress: [####................] 18%
+Stage: 1 (Foundation) — execute complete
+Phase: execute ✓ complete (2026-08-20) → next: verify
+Status: Shell built + installed; harness ALL PASS (digest 28e7675cdbec475c); pluginval strictness 10 SUCCESS VST3+AU (COMPAT-01)
+Progress: [######..............] 30%
 
 ## Phase Progress
 
@@ -33,9 +33,9 @@ Progress: [####................] 18%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-08-20 | |
-| research | | | |
-| plan | | | |
-| execute | | | |
+| research | ✓ | 2026-08-20 | (ran in main checkout; RESEARCH.md copied here) |
+| plan | ✓ | 2026-08-20 | (ran in main checkout; PLAN.md copied here) |
+| execute | ✓ | 2026-08-20 | |
 | verify | | | |
 
 ## Completed So Far
@@ -53,10 +53,18 @@ Progress: [####................] 18%
 - Complexity score: 5.0 (capped) — Staged implementation (DSP 4 phases, GUI 2 phases)
 - ARCHITECTURE.md + ROADMAP.md documented
 
+## Completed — Stage 1 Execute (2026-08-20)
+
+- CMake target `OEmulator` (PLUGIN_CODE OEmu), APVTS 5 binding params, stereo passthrough shell, GenericAudioProcessorEditor
+- Render harness scaffolded (P0 contract / P1 passthrough / P2 ragged invariance) — ALL PASS, baseline digest `fnv1a64=28e7675cdbec475c`
+- Installed `O-Emulator-dev.{vst3,component}`; auval registered; **pluginval strictness 10 SUCCESS VST3+AU (COMPAT-01)**
+- PLUGINS.md own row → 🚧 Stage 1
+- Details: `stages/1-foundation/SUMMARY.md` (incl. reconciliation of discuss-worktree + plan-main-checkout strands)
+
 ## Next Steps
 
-1. Stage 1: Foundation (`/implement O-Emulator`) — CMake, APVTS, stereo effect shell, pluginval smoke
-2. Review ARCHITECTURE.md and ROADMAP.md
+1. `/plugin-verify O-Emulator 1-foundation` — goal-backward verification of Stage 1
+2. Stage 2 Phase 2.1 (engine skeleton + SNES end-to-end) via discuss phase
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
