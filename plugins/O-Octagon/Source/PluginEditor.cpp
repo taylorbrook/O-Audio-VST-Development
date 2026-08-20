@@ -1195,6 +1195,30 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             complete (juce::var (obj));
         });
 
+    // ── HOVER HELP (v1.2.0) — the "?" toggle's persistence pair ────────────────────────────
+    //
+    // UI state, not a parameter: no automation lane, no preset membership. The set completes
+    // with the stored value either way so the page could re-sync from the reply if it ever
+    // wanted to.
+    options = options.withNativeFunction ("setTooltipsEnabled",
+        [this] (auto& args, auto complete)
+        {
+            if (args.size() > 0)
+                processorRef.tooltipsEnabled.store ((bool) args[0], std::memory_order_release);
+
+            complete (juce::var (processorRef.tooltipsEnabled.load (std::memory_order_acquire)));
+        });
+
+    // PULLED by the page at init, never pushed — a push from the constructor or a poll tick
+    // fires before the page module has evaluated, so the preference would silently never
+    // arrive and the toggle would read OFF on every reopen
+    // (pattern_webview_one_shot_state_push_stale_on_preset_load).
+    options = options.withNativeFunction ("getTooltipsEnabled",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.tooltipsEnabled.load (std::memory_order_acquire)));
+        });
+
    #if JUCE_WINDOWS
     // WebView2's default user-data folder is denied in most DAW hosts; a failed
     // construction falls back to the IE backend with no resource provider, which

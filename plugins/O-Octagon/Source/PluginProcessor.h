@@ -276,6 +276,13 @@ public:
         thread is using, and that is this. */
     const oo::VenueSnapshot& getVenueSnapshot() const noexcept { return venuePublisher.read(); }
 
+    /** v1.2.0 — hover-help ("?" toggle) preference. UI state, not a parameter: no automation, no
+        preset membership. Written by the editor's setTooltipsEnabled native fn (message thread),
+        persisted as a root XML ATTRIBUTE in get/setStateInformation — not a ValueTree property,
+        whose XML round-trip rebuilds every property as a string so an isBool() guard on restore
+        would never fire (critical_valuetree_xml_roundtrip_loses_type). */
+    std::atomic<bool> tooltipsEnabled { false };
+
    #if OOCTAGON_INSTRUMENT
     /** The 17 smoothers' current values — test targets only (PLAN-2.2 P20). */
     std::array<float, oo::GainStage::kNumSmoothers> currentSmoothedGains() const noexcept

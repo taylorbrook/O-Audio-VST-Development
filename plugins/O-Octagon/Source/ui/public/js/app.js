@@ -559,6 +559,176 @@ async function pollStatus() {
   }
 }
 
+// ── hover help (v1.2.0) ────────────────────────────────────────────────────
+//
+// Ported from O-Contrabass v1.7.0, which carries the VERIFIED measure-then-pin
+// placement rather than the earlier shrink-to-fit variant
+// (pattern_fixed_tooltip_shrink_to_fit_edge).
+//
+// Every show is gated on `tipsEnabled`, the "?" toggle's state, which
+// round-trips through the processor so it survives a session reload. The
+// toggle's OWN tip carries data-tip-always and bypasses the gate — otherwise
+// the one control that could turn help back on would be the one control unable
+// to explain itself.
+//
+// All state lives in this closure — no module-level bindings, so nothing here
+// can join a TDZ chain (pattern_module_toplevel_init_tdz).
+
+function initHoverHelp() {
+  // TOOLTIP_MARGIN is both the gap between a tip and its control AND the gap
+  // it keeps from the viewport edge.
+  const TOOLTIP_MARGIN = 8;
+  const TOOLTIP_DELAY_MS = 350; // hover dwell before a tip appears
+
+  const tipEl = document.getElementById("tooltip");
+  const toggleEl = document.getElementById("help-toggle");
+
+  let tipTimer = null;
+  let tipTarget = null;
+  let tipSuppressed = false; // true between pointerdown and pointerup
+  let tipsEnabled = false;   // the "?" state; PULLED from C++ at init
+
+  const tipAllowed = (t) => tipsEnabled || t.hasAttribute("data-tip-always");
+
+  const hideTip = () => {
+    clearTimeout(tipTimer);
+    tipTarget = null;
+    if (tipEl === null) return;
+    tipEl.classList.remove("visible");
+    tipEl.setAttribute("aria-hidden", "true");
+  };
+
+  const showTip = (target) => {
+    // The pointer may have moved on, or gone down, during the dwell.
+    if (tipEl === null || tipSuppressed || target !== tipTarget) return;
+    if (!tipAllowed(target)) return;
+
+    const title = target.getAttribute("data-tip-title");
+    const body = target.getAttribute("data-tip");
+    if (body === null || body === "") return;
+
+    // textContent, not innerHTML — the copy stays inert. The tooltip's OWN
+    // nodes are the one place this module writes text, and they are never a
+    // label anything else authored (pattern_js_state_updater_overwrites_html_labels).
+    tipEl.textContent = "";
+    if (title !== null && title !== "") {
+      const t = document.createElement("div");
+      t.className = "tooltip-title";
+      t.textContent = title;
+      tipEl.appendChild(t);
+    }
+    const b = document.createElement("div");
+    b.className = "tooltip-body";
+    b.textContent = body;
+    tipEl.appendChild(b);
+
+    const anchor = target.getBoundingClientRect();
+
+    // MEASURE-THEN-PIN. A fixed-position box with `left` set and width:auto
+    // shrink-to-fits whatever space remains to its right, so measuring at the
+    // PREVIOUS offset under-reports the width, and a near-edge `left` re-wraps
+    // the tip into a narrow ribbon that never recovers. Release the width,
+    // measure from the left edge, pin the result in px, and only then place.
+    tipEl.style.width = "";
+    tipEl.style.left = "0px";
+    tipEl.style.top = "0px";
+
+    // getBoundingClientRect, NOT offsetWidth: offsetWidth rounds, and a pinned
+    // width narrower than the box's own shrink-to-fit pushes the last word
+    // onto a second line after the height was already read.
+    const width = tipEl.getBoundingClientRect().width;
+    tipEl.style.width = `${width}px`;
+
+    // Height is only stable once the width is definite.
+    const height = tipEl.getBoundingClientRect().height;
+
+    // Prefer above; flip below only when there is no room at the top.
+    let top = anchor.top - height - TOOLTIP_MARGIN;
+    let placement = "above";
+    if (top < TOOLTIP_MARGIN) {
+      top = anchor.bottom + TOOLTIP_MARGIN;
+      placement = "below";
+    }
+
+    const centreX = anchor.left + anchor.width / 2;
+    const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, centreX - width / 2));
+
+    tipEl.style.left = `${left}px`;
+    tipEl.style.top = `${top}px`;
+    tipEl.dataset.placement = placement;
+
+    // The tip is clamped to the viewport, but the arrow still points at the
+    // control — held clear of the rounded corners.
+    const arrowX = Math.max(10, Math.min(width - 10, centreX - left));
+    tipEl.style.setProperty("--arrow-x", `${arrowX}px`);
+
+    tipEl.classList.add("visible");
+    tipEl.setAttribute("aria-hidden", "false");
+  };
+
+  // Class + aria only — the button's "?" glyph is HTML-authored and must never
+  // be written from here (pattern_js_state_updater_overwrites_html_labels).
+  const applyTipsEnabled = (enabled) => {
+    tipsEnabled = enabled === true;
+    if (toggleEl !== null) {
+      toggleEl.classList.toggle("is-active", tipsEnabled);
+      toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+    }
+    if (!tipsEnabled) hideTip();
+  };
+
+  if (tipEl === null) {
+    console.warn("tooltip surface missing — hover help disabled");
+    return;
+  }
+
+  document.addEventListener("mouseover", (e) => {
+    const target = e.target.closest !== undefined ? e.target.closest("[data-tip]") : null;
+    if (target === null || target === tipTarget) return;
+    tipTarget = target;
+    clearTimeout(tipTimer);
+    if (tipSuppressed || !tipAllowed(target)) return;
+    tipTimer = setTimeout(() => showTip(target), TOOLTIP_DELAY_MS);
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    const target = e.target.closest !== undefined ? e.target.closest("[data-tip]") : null;
+    if (target === null) return;
+    // Moving between children of the same control is not a real exit — every
+    // cell wraps a label, a range and a value readout, so without this the
+    // surface flickers as the pointer crosses them.
+    if (e.relatedTarget !== null && target.contains(e.relatedTarget)) return;
+    hideTip();
+  });
+
+  // Any press begins a click or a drag: get the tip out of the way and keep it
+  // away until release, so it cannot hang over the puck mid-drag. CAPTURE
+  // phase, because the puck calls preventDefault in its own pointerdown.
+  document.addEventListener("pointerdown", () => {
+    tipSuppressed = true;
+    hideTip();
+  }, true);
+  document.addEventListener("pointerup", () => { tipSuppressed = false; }, true);
+
+  if (toggleEl !== null) {
+    toggleEl.addEventListener("click", () => {
+      applyTipsEnabled(!tipsEnabled);
+      // Fire-and-forget: the page is already in the new state, and a failed
+      // persist must not leave the toggle disagreeing with what it shows.
+      nativeFn("setTooltipsEnabled")(tipsEnabled).catch(() => {});
+    });
+  }
+
+  // PULL the persisted preference. The C++ side deliberately never pushes it:
+  // a push from the editor constructor or a poll tick fires before this module
+  // has evaluated, so it would silently never arrive and the toggle would read
+  // OFF on every reopen (pattern_webview_one_shot_state_push_stale_on_preset_load).
+  nativeFn("getTooltipsEnabled")()
+    .then((enabled) => applyTipsEnabled(enabled === true))
+    .catch((err) => console.error("getTooltipsEnabled failed", err));
+}
+
 // ── init ───────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -641,6 +811,14 @@ async function init() {
   } catch (err) {
     console.error("elevation failed to initialise", err);
     elevation = null;
+  }
+
+  // v1.2.0 — hover help, in its own try/catch under the same discipline: a
+  // throw out of the tooltip wiring must not take the bindings down.
+  try {
+    initHoverHelp();
+  } catch (err) {
+    console.error("hover help failed to initialise", err);
   }
 
   try {

@@ -1,5 +1,38 @@
 # O-Octagon Changelog
 
+## v1.2.0 (2026-08-20)
+
+### Added — hover-help tooltips ("?" toggle)
+
+Ported from O-Contrabass v1.7.0, which carries the VERIFIED measure-then-pin tooltip placement
+(pattern_fixed_tooltip_shrink_to_fit_edge) rather than the earlier shrink-to-fit variant.
+
+- **"?" toggle in the header** (between the screen tabs and the banners): when lit, resting the
+  pointer on a control for 350 ms shows a short description of what it does. 49 controls and
+  readouts annotated across both screens — the puck, the 8 in-plan weights, the nine
+  controls-column cells, scenes (named sets, U slots, STORE), the elevation strip, the SAFE and
+  MAP banners, the screen tabs, the venue rail (files, presets, output order, ping, rake, output
+  set) and the footer readouts.
+- **The preference persists with the session** as a root XML attribute in
+  get/setStateInformation — an attribute, not a ValueTree property, whose XML round-trip
+  rebuilds properties as strings so an `isBool()` guard on restore would never fire
+  (critical_valuetree_xml_roundtrip_loses_type). Pre-1.2.0 sessions restore with help OFF.
+- **The page PULLS the stored state at init** via `getTooltipsEnabled` — never pushed from C++,
+  which would fire before the page module evaluated and silently never arrive
+  (pattern_webview_one_shot_state_push_stale_on_preset_load).
+- The toggle's own tip carries `data-tip-always` and bypasses the enabled gate, so the one
+  control that can turn help back on is never the one control unable to explain itself.
+- Tooltip content is written via `textContent` only, into the surface's own created nodes —
+  no authored label is ever touched (pattern_js_state_updater_overwrites_html_labels), and the
+  surface is a sibling of `.frame`, keeping `#group-elevation` the controls column's last child
+  (ui_layout_check §22 stays non-vacuous).
+- New native functions `setTooltipsEnabled` / `getTooltipsEnabled` (bridge surface 20 → 22,
+  closed three ways by `ui_frontend_check.js` §3; §6's textContent whitelist grew by the
+  tooltip's three receivers with their own binding proofs).
+- UI state only: no parameter, no automation lane, no preset membership. DSP untouched.
+
+**Testing:** `ui_frontend_check.js` 42/42 and `ui_layout_check.js` 28/28 pass.
+
 ## v1.1.0 (2026-08-20)
 
 ### Added — speaker→output assignment (the in-space rig fix)

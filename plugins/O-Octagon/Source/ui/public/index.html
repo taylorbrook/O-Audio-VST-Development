@@ -72,16 +72,32 @@
 
       <nav class="screens" role="tablist" aria-label="Screen">
         <button type="button" class="screen-tab is-active" id="tab-room"
-                data-screen="room" role="tab" aria-selected="true">Room</button>
+                data-screen="room" role="tab" aria-selected="true"
+                data-tip-title="Room" data-tip="The performance view &#8212; plan, puck, weights, scenes, meters and the DBAP field.">Room</button>
         <button type="button" class="screen-tab" id="tab-venue"
-                data-screen="venue" role="tab" aria-selected="false">Venue</button>
+                data-screen="venue" role="tab" aria-selected="false"
+                data-tip-title="Venue" data-tip="The 42 measured values that define the room &#8212; positions, trims, rake &#8212; plus venue files, presets, output order and the verify ping.">Venue</button>
       </nav>
+
+      <!-- v1.2.0 — hover-help toggle. data-tip-always bypasses the enabled gate
+           so the one control that can turn help back on is never the one
+           control unable to explain itself. The "?" glyph is HTML-authored and
+           JS never writes it (pattern_js_state_updater_overwrites_html_labels). -->
+      <button type="button"
+              class="help-toggle"
+              id="help-toggle"
+              aria-pressed="false"
+              aria-label="Toggle hover help"
+              data-tip-always
+              data-tip-title="Hover help"
+              data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
 
       <!-- SAFE banner. Driven by getStatus().safeMode ONLY — the JS never
            re-derives which output sets count as SAFE; that rule lives beside
            isBusesLayoutSupported() in C++ (PLAN-3.1 P43). The label text is
            authored here and is never rewritten; JS toggles [hidden]. -->
-      <div class="safe-banner" id="safe-banner" role="status" hidden>
+      <div class="safe-banner" id="safe-banner" role="status" hidden
+           data-tip-title="Safe mode" data-tip="The host negotiated stereo, not the 8&#8202;&#183;&#8202;channel rig &#8212; what you hear is a fold-down. In Logic, insert via the slot's Stereo &#8594; 7.1 entry.">
         <span class="safe-tag">SAFE</span>
         <span class="safe-copy">Stereo fold &#8212; not the 8&#8202;&#183;&#8202;channel rig</span>
       </div>
@@ -98,7 +114,8 @@
            The MAP tag is authored here and never rewritten. Only .map-copy is
            written, and it carries the REASON and the ROW — in a hall, which row
            is the actionable half (PLAN-3.2 P54). -->
-      <div class="map-banner" id="map-banner" role="status" hidden>
+      <div class="map-banner" id="map-banner" role="status" hidden
+           data-tip-title="Map invalid" data-tip="A speaker label no longer resolves against the negotiated output set &#8212; the reason and the row to fix are printed here. Until fixed, the rig falls back to a raw stereo split.">
         <span class="map-tag">MAP</span>
         <span class="map-copy" id="map-invalid-copy">&#8212;</span>
       </div>
@@ -164,19 +181,20 @@
                      setValueAsPartOfGesture, which carries NO brackets of its
                      own (juce_ParameterAttachments.cpp:324 -> :76). -->
                 <div class="puck" id="puck" tabindex="0" role="slider"
-                     aria-label="Source position"><span class="puck-core"></span></div>
+                     aria-label="Source position"
+                     data-tip-title="Source" data-tip="Drag to move the source over the plan &#8212; writes Source X and Y together. Double-click a knob or slider elsewhere to reset it."><span class="puck-core"></span></div>
 
                 <!-- The 8 in-plan weight controls, sited at their speakers.
                      Labels authored here; roomplan.js positions the cell and
                      writes only .w-value. -->
-                <div class="w-cell" id="wcell-1" data-speaker="1"><span class="w-label">1</span><input type="range" class="w-range" id="ctl-w1" min="0" max="1" step="0.001" aria-label="Weight 1" /><span class="w-value" id="val-w1">&#8212;</span></div>
-                <div class="w-cell" id="wcell-2" data-speaker="2"><span class="w-label">2</span><input type="range" class="w-range" id="ctl-w2" min="0" max="1" step="0.001" aria-label="Weight 2" /><span class="w-value" id="val-w2">&#8212;</span></div>
-                <div class="w-cell" id="wcell-3" data-speaker="3"><span class="w-label">3</span><input type="range" class="w-range" id="ctl-w3" min="0" max="1" step="0.001" aria-label="Weight 3" /><span class="w-value" id="val-w3">&#8212;</span></div>
-                <div class="w-cell" id="wcell-4" data-speaker="4"><span class="w-label">4</span><input type="range" class="w-range" id="ctl-w4" min="0" max="1" step="0.001" aria-label="Weight 4" /><span class="w-value" id="val-w4">&#8212;</span></div>
-                <div class="w-cell" id="wcell-5" data-speaker="5"><span class="w-label">5</span><input type="range" class="w-range" id="ctl-w5" min="0" max="1" step="0.001" aria-label="Weight 5" /><span class="w-value" id="val-w5">&#8212;</span></div>
-                <div class="w-cell" id="wcell-6" data-speaker="6"><span class="w-label">6</span><input type="range" class="w-range" id="ctl-w6" min="0" max="1" step="0.001" aria-label="Weight 6" /><span class="w-value" id="val-w6">&#8212;</span></div>
-                <div class="w-cell" id="wcell-7" data-speaker="7"><span class="w-label">7</span><input type="range" class="w-range" id="ctl-w7" min="0" max="1" step="0.001" aria-label="Weight 7" /><span class="w-value" id="val-w7">&#8212;</span></div>
-                <div class="w-cell" id="wcell-8" data-speaker="8"><span class="w-label">8</span><input type="range" class="w-range" id="ctl-w8" min="0" max="1" step="0.001" aria-label="Weight 8" /><span class="w-value" id="val-w8">&#8212;</span></div>
+                <div class="w-cell" id="wcell-1" data-speaker="1" data-tip-title="Weight 1" data-tip="Speaker 1&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">1</span><input type="range" class="w-range" id="ctl-w1" min="0" max="1" step="0.001" aria-label="Weight 1" /><span class="w-value" id="val-w1">&#8212;</span></div>
+                <div class="w-cell" id="wcell-2" data-speaker="2" data-tip-title="Weight 2" data-tip="Speaker 2&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">2</span><input type="range" class="w-range" id="ctl-w2" min="0" max="1" step="0.001" aria-label="Weight 2" /><span class="w-value" id="val-w2">&#8212;</span></div>
+                <div class="w-cell" id="wcell-3" data-speaker="3" data-tip-title="Weight 3" data-tip="Speaker 3&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">3</span><input type="range" class="w-range" id="ctl-w3" min="0" max="1" step="0.001" aria-label="Weight 3" /><span class="w-value" id="val-w3">&#8212;</span></div>
+                <div class="w-cell" id="wcell-4" data-speaker="4" data-tip-title="Weight 4" data-tip="Speaker 4&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">4</span><input type="range" class="w-range" id="ctl-w4" min="0" max="1" step="0.001" aria-label="Weight 4" /><span class="w-value" id="val-w4">&#8212;</span></div>
+                <div class="w-cell" id="wcell-5" data-speaker="5" data-tip-title="Weight 5" data-tip="Speaker 5&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">5</span><input type="range" class="w-range" id="ctl-w5" min="0" max="1" step="0.001" aria-label="Weight 5" /><span class="w-value" id="val-w5">&#8212;</span></div>
+                <div class="w-cell" id="wcell-6" data-speaker="6" data-tip-title="Weight 6" data-tip="Speaker 6&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">6</span><input type="range" class="w-range" id="ctl-w6" min="0" max="1" step="0.001" aria-label="Weight 6" /><span class="w-value" id="val-w6">&#8212;</span></div>
+                <div class="w-cell" id="wcell-7" data-speaker="7" data-tip-title="Weight 7" data-tip="Speaker 7&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">7</span><input type="range" class="w-range" id="ctl-w7" min="0" max="1" step="0.001" aria-label="Weight 7" /><span class="w-value" id="val-w7">&#8212;</span></div>
+                <div class="w-cell" id="wcell-8" data-speaker="8" data-tip-title="Weight 8" data-tip="Speaker 8&#8217;s share of the DBAP solve, 0&#8211;1. Double-click the glyph to reassign its physical output; double-click the slider to reset."><span class="w-label">8</span><input type="range" class="w-range" id="ctl-w8" min="0" max="1" step="0.001" aria-label="Weight 8" /><span class="w-value" id="val-w8">&#8212;</span></div>
 
                 <!-- v1.1.0 — the speaker→output popover. Opened by DOUBLE-CLICK
                      on a speaker glyph; roomplan.js positions it through the
@@ -230,22 +248,22 @@
           <section class="group" id="group-position">
             <h2 class="group-title">Position</h2>
             <div class="group-body">
-              <div class="cell">
+              <div class="cell" data-tip-title="Source X" data-tip="Left&#8211;right position of the source, resolved against the measured speaker bounding box &#8212; the metres readout below is live.">
                 <span class="cell-label">Source X</span>
                 <input type="range" class="cell-range" id="ctl-srcX" min="0" max="1" step="0.0001" aria-label="Source X" />
                 <span class="cell-value" id="val-srcX">&#8212;</span>
               </div>
-              <div class="cell">
+              <div class="cell" data-tip-title="Source Y" data-tip="Front&#8211;back position of the source, resolved against the measured speaker bounding box.">
                 <span class="cell-label">Source Y</span>
                 <input type="range" class="cell-range" id="ctl-srcY" min="0" max="1" step="0.0001" aria-label="Source Y" />
                 <span class="cell-value" id="val-srcY">&#8212;</span>
               </div>
-              <div class="cell">
+              <div class="cell" data-tip-title="Source Z" data-tip="Source height, &#8722;2 to 8 m. The elevation strip shows it against the rake and the speaker heights &#8212; the marker clamps, the numbers never do.">
                 <span class="cell-label">Source Z</span>
                 <input type="range" class="cell-range" id="ctl-srcZ" min="0" max="1" step="0.0001" aria-label="Source Z" />
                 <span class="cell-value" id="val-srcZ">&#8212;</span>
               </div>
-              <div class="cell">
+              <div class="cell" data-tip-title="Width" data-tip="Spreads the source into sub-points around its position &#8212; wider reads as a broader image across the rig.">
                 <span class="cell-label">Width</span>
                 <input type="range" class="cell-range" id="ctl-width" min="0" max="1" step="0.0001" aria-label="Width" />
                 <span class="cell-value" id="val-width">&#8212;</span>
@@ -256,12 +274,12 @@
           <section class="group" id="group-solve">
             <h2 class="group-title">Solve</h2>
             <div class="group-body">
-              <div class="cell">
+              <div class="cell" data-tip-title="Rolloff" data-tip="DBAP distance rolloff. Higher concentrates energy in the nearest speakers; lower spreads it across the whole array.">
                 <span class="cell-label">Rolloff</span>
                 <input type="range" class="cell-range" id="ctl-rolloff" min="0" max="1" step="0.0001" aria-label="Rolloff" />
                 <span class="cell-value" id="val-rolloff">&#8212;</span>
               </div>
-              <div class="cell">
+              <div class="cell" data-tip-title="Blur" data-tip="Softens the distance differences the solve sees. Scaled with the rig, not in metres, so a patch means the same thing in a club and a hall.">
                 <span class="cell-label">Blur</span>
                 <input type="range" class="cell-range" id="ctl-blur" min="0" max="1" step="0.0001" aria-label="Blur" />
                 <span class="cell-value" id="val-blur">&#8212;</span>
@@ -272,12 +290,12 @@
           <section class="group" id="group-space">
             <h2 class="group-title">Space</h2>
             <div class="group-body">
-              <div class="cell">
+              <div class="cell" data-tip-title="Hull attenuation" data-tip="How strongly the source fades as it crosses outside the speaker hull.">
                 <span class="cell-label">Hull Atten</span>
                 <input type="range" class="cell-range" id="ctl-hullAtten" min="0" max="1" step="0.0001" aria-label="Hull Atten" />
                 <span class="cell-value" id="val-hullAtten">&#8212;</span>
               </div>
-              <div class="cell">
+              <div class="cell" data-tip-title="Air" data-tip="Distance air filter &#8212; high frequencies fall away as the source sits farther from the array, with the cutoff derived from the venue geometry.">
                 <span class="cell-label">Air</span>
                 <input type="range" class="cell-range" id="ctl-airAmount" min="0" max="1" step="0.0001" aria-label="Air" />
                 <span class="cell-value" id="val-airAmount">&#8212;</span>
@@ -288,7 +306,7 @@
           <section class="group" id="group-output">
             <h2 class="group-title">Output</h2>
             <div class="group-body">
-              <div class="cell">
+              <div class="cell" data-tip-title="Output" data-tip="Master trim for all eight channels.">
                 <span class="cell-label">Output</span>
                 <input type="range" class="cell-range" id="ctl-outputGain" min="0" max="1" step="0.0001" aria-label="Output" />
                 <span class="cell-value" id="val-outputGain">&#8212;</span>
@@ -331,19 +349,20 @@
                    mis-click destroys data the user measured. It auto-disarms
                    after one capture. -->
               <button type="button" class="store-toggle" id="btn-scene-store"
-                      aria-pressed="false" aria-label="Arm store">STORE</button>
+                      aria-pressed="false" aria-label="Arm store"
+                      data-tip-title="Store" data-tip="Arm, then click a U slot to capture the current eight weights into it. Disarms after one capture.">STORE</button>
             </div>
             <div class="scene-row" id="scene-row" role="group" aria-label="Weight scenes">
-              <button type="button" class="scene-btn" id="scene-ALL"   data-scene="ALL">ALL</button>
-              <button type="button" class="scene-btn" id="scene-FRONT" data-scene="FRONT">FRONT</button>
-              <button type="button" class="scene-btn" id="scene-REAR"  data-scene="REAR">REAR</button>
-              <button type="button" class="scene-btn" id="scene-LEFT"  data-scene="LEFT">LEFT</button>
-              <button type="button" class="scene-btn" id="scene-RIGHT" data-scene="RIGHT">RIGHT</button>
-              <button type="button" class="scene-btn" id="scene-SIDES" data-scene="SIDES">SIDES</button>
-              <button type="button" class="scene-btn is-slot" id="scene-slot1" data-scene="slot1" data-slot="1">U1</button>
-              <button type="button" class="scene-btn is-slot" id="scene-slot2" data-scene="slot2" data-slot="2">U2</button>
-              <button type="button" class="scene-btn is-slot" id="scene-slot3" data-scene="slot3" data-slot="3">U3</button>
-              <button type="button" class="scene-btn is-slot" id="scene-slot4" data-scene="slot4" data-slot="4">U4</button>
+              <button type="button" class="scene-btn" id="scene-ALL"   data-scene="ALL" data-tip-title="All" data-tip="All eight speakers at full weight.">ALL</button>
+              <button type="button" class="scene-btn" id="scene-FRONT" data-scene="FRONT" data-tip-title="Front" data-tip="The front speakers only &#8212; membership is derived from the measured geometry, not from fixed slot numbers.">FRONT</button>
+              <button type="button" class="scene-btn" id="scene-REAR"  data-scene="REAR" data-tip-title="Rear" data-tip="The rear speakers only, derived from the measured geometry.">REAR</button>
+              <button type="button" class="scene-btn" id="scene-LEFT"  data-scene="LEFT" data-tip-title="Left" data-tip="The left-side speakers only, derived from the measured geometry.">LEFT</button>
+              <button type="button" class="scene-btn" id="scene-RIGHT" data-scene="RIGHT" data-tip-title="Right" data-tip="The right-side speakers only, derived from the measured geometry.">RIGHT</button>
+              <button type="button" class="scene-btn" id="scene-SIDES" data-scene="SIDES" data-tip-title="Sides" data-tip="The side speakers only, derived from the measured geometry.">SIDES</button>
+              <button type="button" class="scene-btn is-slot" id="scene-slot1" data-scene="slot1" data-slot="1" data-tip-title="User scene 1" data-tip="Click to recall this stored weight scene. Arm STORE first to capture the current weights into it.">U1</button>
+              <button type="button" class="scene-btn is-slot" id="scene-slot2" data-scene="slot2" data-slot="2" data-tip-title="User scene 2" data-tip="Click to recall this stored weight scene. Arm STORE first to capture the current weights into it.">U2</button>
+              <button type="button" class="scene-btn is-slot" id="scene-slot3" data-scene="slot3" data-slot="3" data-tip-title="User scene 3" data-tip="Click to recall this stored weight scene. Arm STORE first to capture the current weights into it.">U3</button>
+              <button type="button" class="scene-btn is-slot" id="scene-slot4" data-scene="slot4" data-slot="4" data-tip-title="User scene 4" data-tip="Click to recall this stored weight scene. Arm STORE first to capture the current weights into it.">U4</button>
             </div>
           </section>
 
@@ -389,7 +408,7 @@
                 <span class="cell-value" id="elev-src">&#8212;</span>
               </span>
             </div>
-            <div class="elev-stage" id="elev-stage">
+            <div class="elev-stage" id="elev-stage" data-tip-title="Elevation" data-tip="The room side-on &#8212; rake line, speaker heights and the source marker. Ear is the listener height under the source; Source is its absolute height.">
               <svg id="elev-strip" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <g id="elev-axis"></g>
                 <line id="elev-rake-ext" class="elev-rake-ext" x1="0" y1="0" x2="0" y2="0" />
@@ -533,7 +552,7 @@
 
           <!-- The two rake heights. Venue-scoped, not per-speaker, which is why
                they sit under the table rather than in a ninth column. -->
-          <div class="venue-rake">
+          <div class="venue-rake" data-tip-title="Rake" data-tip="Audience rake &#8212; ear height at the front and rear of the seating. Heights between are interpolated along the room depth.">
             <span class="cell-label">Rake</span>
             <span class="cell-label vrake-key">Front</span>
             <input type="text" inputmode="decimal" class="vfield" id="vf-rake-front" aria-label="Rake front metres" />
@@ -547,7 +566,7 @@
 
           <!-- The NEGOTIATED output-set name (ROADMAP orphan 6). Stage 4's R2
                reads it off this screen. -->
-          <div class="rail-line">
+          <div class="rail-line" data-tip-title="Output set" data-tip="The surround format the host negotiated &#8212; speaker labels must resolve against it.">
             <span class="cell-label">Set</span>
             <span class="vcell-value" id="vset-name">&#8212;</span>
           </div>
@@ -577,8 +596,8 @@
           <div class="rail-group">
             <h3 class="group-title">Venue file</h3>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-venue-save">Save</button>
-              <button type="button" class="vbtn" id="btn-venue-load">Load</button>
+              <button type="button" class="vbtn" id="btn-venue-save" data-tip-title="Save venue" data-tip="Write the 42 measured values to a .venue file &#8212; independent of musical presets.">Save</button>
+              <button type="button" class="vbtn" id="btn-venue-load" data-tip-title="Load venue" data-tip="Load a .venue file. Rejected if its labels do not resolve against the negotiated output set.">Load</button>
             </div>
           </div>
 
@@ -589,10 +608,10 @@
                document.createElement, never assigned as HTML. -->
           <div class="rail-group">
             <h3 class="group-title">Preset</h3>
-            <select class="vselect" id="preset-list" aria-label="Preset"></select>
+            <select class="vselect" id="preset-list" aria-label="Preset" data-tip-title="Preset" data-tip="Musical presets carry the 17 parameters and the four user scenes &#8212; never the 42 measured venue values."></select>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-preset-save">Save</button>
-              <button type="button" class="vbtn" id="btn-preset-load">Load</button>
+              <button type="button" class="vbtn" id="btn-preset-save" data-tip-title="Save preset" data-tip="Save the current parameters and user scenes as a preset.">Save</button>
+              <button type="button" class="vbtn" id="btn-preset-load" data-tip-title="Load preset" data-tip="Load the selected preset. The venue is untouched.">Load</button>
             </div>
             <span class="vcell-value" id="vpreset-current">&#8212;</span>
           </div>
@@ -607,8 +626,8 @@
           <div class="rail-group">
             <h3 class="group-title">Output order</h3>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-oo-direct">Direct 1&#8211;8</button>
-              <button type="button" class="vbtn" id="btn-oo-roles">Roles</button>
+              <button type="button" class="vbtn" id="btn-oo-direct" data-tip-title="Direct 1&#8211;8" data-tip="Wire speaker n to physical output n under the measured CoreAudio device order &#8212; the one-click fix for a rig cabled 1&#8211;8.">Direct 1&#8211;8</button>
+              <button type="button" class="vbtn" id="btn-oo-roles" data-tip-title="Roles" data-tip="Restore the factory surround-role labels.">Roles</button>
             </div>
             <span class="vcell-value" id="voo-state">&#8212;</span>
           </div>
@@ -619,7 +638,7 @@
                confirming that speaker N is speaker N. -->
           <div class="rail-group">
             <h3 class="group-title">Ping</h3>
-            <div class="ping-grid">
+            <div class="ping-grid" data-tip-title="Verify ping" data-tip="Sound a confirmation ping from one speaker. The lit number is what the plugin reports playing &#8212; never a timer.">
             <button type="button" class="vbtn ping-btn" id="btn-ping-1" data-speaker="1">1</button>
             <button type="button" class="vbtn ping-btn" id="btn-ping-2" data-speaker="2">2</button>
             <button type="button" class="vbtn ping-btn" id="btn-ping-3" data-speaker="3">3</button>
@@ -630,8 +649,8 @@
             <button type="button" class="vbtn ping-btn" id="btn-ping-8" data-speaker="8">8</button>
             </div>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-ping-auto">Auto</button>
-              <button type="button" class="vbtn" id="btn-ping-stop">Stop</button>
+              <button type="button" class="vbtn" id="btn-ping-auto" data-tip-title="Auto ping" data-tip="Step the ping around all eight speakers in order.">Auto</button>
+              <button type="button" class="vbtn" id="btn-ping-stop" data-tip-title="Stop" data-tip="Stop the ping.">Stop</button>
             </div>
             <span class="vcell-value" id="vping-state">&#8212;</span>
           </div>
@@ -652,13 +671,19 @@
          displaying it is Phase 3.2 work and putting it on screen now would be a
          non-goal landing in a 3.1 diff. -->
     <footer class="footer">
-      <span class="readout-label">Source</span>
+      <span class="readout-label" data-tip-title="Source" data-tip="The source position in metres, resolved against the live venue geometry.">Source</span>
       <span class="readout" id="readout-metres">&#8212;</span>
-      <span class="readout-label">Envelope</span>
+      <span class="readout-label" data-tip-title="Envelope" data-tip="The drawn plan extent in metres &#8212; the speaker bounding box plus its margin.">Envelope</span>
       <span class="readout" id="readout-envelope">&#8212;</span>
     </footer>
 
   </div>
+
+  <!-- v1.2.0 — the one shared tooltip surface. A SIBLING of .frame, never a
+       child of .controls-column: ui_layout_check §22 asserts #group-elevation
+       is that column's LAST child, and position:fixed anchors this to the
+       viewport anyway. Content is written via textContent only. -->
+  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
   <script type="module" src="js/app.js"></script>
 </body>
