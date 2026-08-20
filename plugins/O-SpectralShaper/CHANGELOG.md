@@ -1,5 +1,20 @@
 # O-SpectralShaper Changelog
 
+## [1.6.2] - 2026-08-20
+
+### Fixed
+- **The editor no longer freezes when audio is processed faster than realtime.** Opening the UI during an offline bounce — or any render that is not rate-limited to the clock — could hang the whole message thread indefinitely: the window never finished appearing and the plugin stopped responding until the host was killed. Realtime playback was never affected, which is why this survived to release.
+- **Root cause:** the editor's 60 Hz visualization drain was `while (fifo.getNumReady() > 0)`, re-asking the audio thread how many frames were pending on *every* iteration. The producer is one frame per FFT hop (`HOP_SIZE` 256 → 187 frames/sec at 48 kHz), so at realtime the loop drains ~3 frames and the count reaches zero. Under a faster-than-realtime render the audio thread refills the FIFO faster than the message thread can emit, the count never reaches zero, and `timerCallback()` never returns — starving the message loop that WebView2 needs to finish opening. **Fix:** snapshot `getNumReady()` once before the loop and read exactly that many frames, so frames arriving mid-drain wait for the next tick instead of extending the current one. Emission is additionally capped at the 16 newest frames of the snapshot, with the entire snapshot retired via `finishedRead()` whether or not it was emitted (leaving skipped frames ready would re-create the same stall on the following tick).
+- **Caught by:** Windows `pluginval` strictness 10, which hung in *"Open editor whilst processing"* until its 10-minute timeout and failed the v1.6.1 release build. The plain *"Editor"* test — which opens the editor with no concurrent `processBlock` — passed in 1.0 s, isolating the fault to the concurrent path.
+
+### Changed
+- **Visualization frames are no longer serialized when the browser is hidden.** `emitVisualizationFrame` now returns before building its ~4 kB JSON payload (289 float→string conversions) if the WebView is not visible. The gate is `isVisible()` — deliberately the exact condition JUCE tests inside `emitEventIfBrowserIsVisible()`, not the stricter `isShowing()` — so it can only skip payloads that were already going to be discarded, and cannot stall the spectrogram during window reparenting.
+
+### Notes
+- No DSP, parameter, preset-format or state-format changes. Presets and sessions from 1.6.x load unchanged; the audio path is untouched.
+- The 16-frame cap is clear of every realtime hop rate — ~3 frames/tick at 48 kHz, ~13 at 192 kHz — so no frame is dropped during normal playback at any supported sample rate. It engages only when a render outruns the clock, where the extra columns are stale before they could be drawn.
+- This is the first O-SpectralShaper release to pass through the Windows `pluginval` gate: `ci-tests.yml` runs `pluginval` on O-Octagon only, so the strictness-10 editor tests are first reached at release-tag time by `build-and-release.yml`. The defect dates from the Phase 3.3 visualization work, not from 1.6.1.
+
 ## [1.6.1] - 2026-08-19
 
 ### Fixed

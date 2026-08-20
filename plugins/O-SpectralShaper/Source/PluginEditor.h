@@ -66,6 +66,13 @@ private:
     // 3. NAVIGATION FLAG
     bool hasNavigated = false;
 
+    // Upper bound on visualization frames emitted per timer tick. Caps the work
+    // one tick can do when processBlock is running faster than realtime (offline
+    // bounce, plugin validator); see the drain loop in timerCallback(). Sized
+    // clear of every realtime hop rate — 48 kHz is ~3 frames/tick, 192 kHz ~13 —
+    // so no frame is ever dropped during normal playback.
+    static constexpr int maxVisualizationFramesPerTick = 16;
+
     // Last curves revision pushed to the WebView. Compared against
     // processorRef.getCurvesRevision() in timerCallback(): a mismatch means a
     // preset load or session restore replaced the curves and the curve editors
