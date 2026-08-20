@@ -23,7 +23,7 @@ status: complete
 - Only `main` remains, **ahead of origin/main by 14 commits — not pushed** (push wasn't requested)
 - No worktrees, no dirty files (besides these planning artifacts)
 
-## Follow-ups
-- Push main when ready
-- O-GrainScatter v2.4.4, O-MultiBandCompressor v1.7.0, O-Orbit v1.1.0, O-SpectralShaper v1.6.1, O-Contrabass v1.5.0 all need build+install (`./scripts/build-and-install.sh`) before DAW testing — only MBC was compile-verified
-- MBC v1.7.0's 50 presets were authored before v1.6.1's compressor changes landed; worth a quick listen for preset-tuning drift
+## Follow-ups (all resolved same session)
+- ~~Build+install~~ — all 5 plugins built and installed via `./scripts/build-and-install.sh`; all 5 AUs confirmed registered via `auval -a`
+- ~~MBC preset drift~~ — re-ran the preset render harness on the MERGED sources: 47/47 real presets engage, load-order-independence clean across all 50, 0 failures (same result as v1.6.1's pre-merge run). Audible differences are the intended WR fixes only (e.g. Parallel Crush loses its baked-in WR-03 combing)
+- ~~Push~~ — main pushed to origin
