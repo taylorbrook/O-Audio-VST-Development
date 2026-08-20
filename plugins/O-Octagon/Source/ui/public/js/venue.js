@@ -538,6 +538,31 @@ export function createVenueScreen(deps) {
 
   window.addEventListener("pagehide", stopPingPoll);
 
+  // ── v1.1.0 — the output-order presets ────────────────────────────────────
+  // Two one-click label sets, applied WHOLE in C++ (applyOutputOrderPreset)
+  // through the same guard the table's commit uses. NOT a second setVenue call
+  // site (section 22): their own registration, and the device-order table
+  // lives in C++ (D19). Committed state — the label column, the plan badges —
+  // converges on the venueGen poll (P64); the completion feeds only the
+  // advisory line beside the buttons, exactly as requestPing's refusal does.
+  const ooStateNode = need("voo-state");
+
+  function requestOutputOrder(id) {
+    nativeFn("applyOutputOrderPreset")(id)
+      .then((result) => {
+        if (result === null || typeof result !== "object") return;
+
+        const value = ooStateNode;
+        value.textContent = result.ok === true
+          ? (id === "direct" ? "direct 1–8" : "roles")
+          : String(result.reason ?? "");
+      })
+      .catch((err) => console.error("applyOutputOrderPreset failed", err));
+  }
+
+  need("btn-oo-direct").addEventListener("click", () => requestOutputOrder("direct"));
+  need("btn-oo-roles").addEventListener("click", () => requestOutputOrder("roles"));
+
   refreshPresets();
 
   // ── The surface app.js drives ────────────────────────────────────────────

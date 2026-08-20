@@ -574,6 +574,14 @@ async function init() {
       sliders,
       weightIds: WEIGHT_IDS,
       onSourceMoved: renderMetres,
+
+      // v1.1.0 — the popover's write path. Two integers to C++, which owns the
+      // device-order table and the swap (D19). No state is established here:
+      // badges and the venue table converge on the venueGen poll (P64), and a
+      // dropped completion costs only this log line.
+      assignOutput: (speakerN, outputK) =>
+        nativeFn("assignSpeakerOutput")(speakerN, outputK)
+          .catch((err) => console.error("assignSpeakerOutput failed", err)),
     });
   } catch (err) {
     console.error("room plan failed to initialise", err);

@@ -212,16 +212,20 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     const fnsBlock = S.stubJs.match(/const NATIVE_FNS = \{([\s\S]*?)\n\};/);
     if (fnsBlock) for (const m of fnsBlock[1].matchAll(/^\s{2}([A-Za-z0-9_]+):/gm)) stubbed.add(m[1]);
 
-    // 3 -> 13 at Phase 3.2 (P65), 13 -> 18 at Phase 3.3 (P81). This literal MOVES EVERY TIME and
-    // FAILS LOUDLY until every one of the eighteen exists in all three places, which is the only
-    // way a count assertion is worth anything: a count that silently tracked whatever was
-    // registered would assert nothing at all.
+    // 3 -> 13 at Phase 3.2 (P65), 13 -> 18 at Phase 3.3 (P81), 18 -> 20 at v1.1.0. This literal
+    // MOVES EVERY TIME and FAILS LOUDLY until every one of the twenty exists in all three places,
+    // which is the only way a count assertion is worth anything: a count that silently tracked
+    // whatever was registered would assert nothing at all.
     //
-    // The five new ones are getMeters, getScenes, applyScene, storeScene and getFieldGrid. UI-05
+    // The five 3.3 ones are getMeters, getScenes, applyScene, storeScene and getFieldGrid. UI-05
     // adds NONE — getVenueGeometry already carries per-speaker z, rake.front/rear, the bbox and
     // the centroid (3.2's P55), and named-scene membership rides that same payload (P79).
-    check(registered.size === 18,
-        `PluginEditor.cpp registers exactly 18 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    //
+    // v1.1.0 adds the two WRITES of the speaker→output surface: assignSpeakerOutput (the Room
+    // plan's double-click popover) and applyOutputOrderPreset (the Venue rail's one-click sets).
+    // The READ side rides getVenueGeometry as per-speaker `output` — no new read call.
+    check(registered.size === 20,
+        `PluginEditor.cpp registers exactly 20 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);

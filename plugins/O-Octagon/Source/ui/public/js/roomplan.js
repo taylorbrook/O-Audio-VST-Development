@@ -178,6 +178,22 @@ export function createRoomPlan(deps) {
   const meterArcs = deps.weightIds.map((_, i) => document.getElementById(`meter-${i + 1}`));
   const meterPeaks = deps.weightIds.map((_, i) => document.getElementById(`mpeak-${i + 1}`));
 
+  // v1.1.0. The per-glyph output badge — a dedicated value node this module
+  // owns, beside the AUTHORED numeral it must never touch
+  // (pattern_js_state_updater_overwrites_html_labels). Content comes whole from
+  // the payload's per-speaker `output` (D19); this file renders the number and
+  // never owns a device-order table.
+  const outBadges = deps.weightIds.map((_, i) => document.getElementById(`gout-${i + 1}`));
+
+  // The speaker→output popover. Opened by double-click on a glyph; its eight
+  // numerals are authored in index.html and this module toggles classes on
+  // them. `assignOutput` is app.js's wrapper around assignSpeakerOutput — the
+  // swap arithmetic lives in C++, and authoritative state converges on the
+  // venueGen poll, never on the completion (P64).
+  const outPop = document.getElementById("out-pop");
+  const outPopButtons = deps.weightIds.map((_, i) => document.getElementById(`out-btn-${i + 1}`));
+  let outPopSpeaker = 0;   // 1-based; 0 = closed
+
   // 2 * pi * 15, the meter arc's radius in index.html. Authored ONCE, here,
   // where the dash arithmetic is — a second copy in the CSS would be a
   // mirrored constant free to drift from the r attribute it describes.
@@ -331,6 +347,19 @@ export function createRoomPlan(deps) {
       g.classList.toggle("is-vertex", s.class === "VERTEX");
       g.classList.toggle("is-onedge", s.class === "ON_EDGE");
       g.classList.toggle("is-interior", s.class === "INTERIOR");
+
+      // v1.1.0 — the output badge. Empty when the speaker already reaches its
+      // own physical output; "→k" when remapped; "→?" for a label outside the
+      // 7.1 set. The number arrives COMPUTED from the payload (D19) — this
+      // file renders it and owns no device-order table. The badge is this
+      // module's own value node; the authored numeral beside it is untouched.
+      const value = outBadges[i];
+      if (value !== null && value !== undefined) {
+        const out = Number(s.output);
+        value.textContent = out === i + 1
+          ? ""
+          : `→${out >= 1 && out <= outBadges.length ? out : "?"}`;
+      }
     });
   }
 
@@ -426,11 +455,101 @@ export function createRoomPlan(deps) {
     puck.style.top = `${p.y}px`;
   }
 
+  // ── v1.1.0 — the speaker→output popover ──────────────────────────────────
+  //
+  // Double-click a glyph, pick the physical output that speaker is wired to.
+  // The choice travels as two integers to assignSpeakerOutput; the swap and
+  // the device-order table live in C++ (D19), and the authoritative result —
+  // badges, highlight, the venue table's label column — converges on the
+  // venueGen poll, never on the completion (P64). The completion is used for
+  // nothing; the popover has already closed by the time it settles.
+
+  function renderOutPop() {
+    if (outPop === null || outPopSpeaker === 0 || geometry === null || view === null) return;
+
+    const s = geometry.speakers[outPopSpeaker - 1];
+    if (s === undefined) return;
+
+    const value = document.getElementById("outpop-num");
+    if (value !== null) value.textContent = String(outPopSpeaker);
+
+    const current = Number(s.output);
+
+    outPopButtons.forEach((b, k) => {
+      if (b === null || b === undefined) return;
+      b.classList.toggle("is-current", current === k + 1);
+    });
+
+    // Sited at the glyph and clamped inside the plan box — the weight cells'
+    // discipline. The popover is visible by the time this measures it, and its
+    // width is PINNED in the CSS: a shrink-to-fit box measured at the viewport
+    // edge lies about its own size
+    // (pattern_fixed_tooltip_shrink_to_fit_edge).
+    const p = metresToPx(s.x, s.y, view);
+    const left = Math.min(view.w - outPop.offsetWidth, Math.max(0, p.x - outPop.offsetWidth / 2));
+    const top = Math.min(view.h - outPop.offsetHeight, Math.max(0, p.y + 20));
+
+    outPop.style.left = `${left}px`;
+    outPop.style.top = `${top}px`;
+  }
+
+  function openOutPop(speakerN) {
+    if (outPop === null) return;
+    outPopSpeaker = speakerN;
+    outPop.hidden = false;
+    renderOutPop();
+  }
+
+  function closeOutPop() {
+    outPopSpeaker = 0;
+    if (outPop !== null) outPop.hidden = true;
+  }
+
+  glyphs.forEach((g, i) => {
+    if (g === null || g === undefined) return;
+
+    g.addEventListener("dblclick", (e) => {
+      openOutPop(i + 1);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+
+  outPopButtons.forEach((b, k) => {
+    if (b === null || b === undefined) return;
+
+    b.addEventListener("click", () => {
+      const speakerN = outPopSpeaker;
+      closeOutPop();
+
+      if (speakerN === 0 || typeof deps.assignOutput !== "function") return;
+
+      // Fire and move on. Truth arrives on the venueGen poll (P64); app.js's
+      // wrapper owns the error log.
+      deps.assignOutput(speakerN, k + 1);
+    });
+  });
+
+  document.addEventListener("pointerdown", (e) => {
+    if (outPopSpeaker === 0 || outPop === null) return;
+    if (outPop.contains(e.target)) return;
+    closeOutPop();
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeOutPop();
+  });
+
   function draw() {
     drawBackdrop();
     drawGeometryLayer();
     placeWeightCells();
     renderPuck();
+
+    // An open popover follows the venue it describes — a re-fit or a venue
+    // edit moves the glyph it is anchored to and may change the highlighted
+    // output.
+    renderOutPop();
   }
 
   // ── The puck gesture ─────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.0.0 (dev build installed; not released)
+- **Version:** 1.1.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -36,6 +36,13 @@
   installed `-dev` bundles were measured byte-identical to freeze `378fb4cd` (VST3 `928cd447…`,
   AU `cc54db02…`), the same binaries every Block C gate validated, so no rm/copy and no cache
   clear was performed — nothing changed on disk that a cache could go stale against.
+- **2026-08-20 (v1.1.0):** Speaker→output assignment, prompted by in-space testing on an
+  8-channel rig: the reported permutation (3→5, 4→6, 7→3, 8→4) matched the measured CoreAudio
+  `Emagic_Default_7_1` device order exactly — correct role routing, not a defect. Added the Room
+  plan's double-click output popover (swap semantics), per-glyph `→k` badges, and the Venue
+  rail's `Direct 1–8` / `Roles` one-click label sets. All label edits ride
+  `applyVenueEditChecked`; the device-order table lives in `Source/Data/OutputOrder.h`. Bridge
+  surface 18 → 20; both UI gates pass (42 + 28 sections); Playwright interaction probe green.
 
 ## Known Issues
 
