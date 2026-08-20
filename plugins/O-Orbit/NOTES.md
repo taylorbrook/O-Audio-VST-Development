@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.1
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Spatial Orbiter)
 
 ## Lifecycle Timeline
@@ -11,10 +11,11 @@
 - **2026-02-11:** v1.0.0 implemented and installed.
 - **2026-08-19:** Full code review produced `.planning/improvements/v1.1-review-findings.md` (defects + feature backlog).
 - **2026-08-19:** v1.0.1 — Part A defect fixes: Depth param wired to the distance model, RT-safe IIR coefficients (ArrayCoefficients), per-sample mix smoothing, multichannel dry/wet semantics, skew-aware double-click knob reset. pluginval strictness 10 + auval clean.
+- **2026-08-19:** v1.1.0 — Parts B–D: preset-manager migration (categorized menu + user presets), hover help, PPQ-locked tempo sync, Ping-Pong path, speaker-editor elevation/distance editing, named layout library, height visualization, resizable editor.
 
 ## Known Issues
 
-- Feature backlog (preset-manager migration, hover help, PPQ sync, ping-pong path, speaker-editor upgrades) tracked in `.planning/improvements/v1.1-review-findings.md` Parts B–D, deferred to a v1.1.0 milestone.
+- C2 (Doppler) and C4 (custom drawn path) from `.planning/improvements/v1.1-review-findings.md` remain deferred — separate brief if pursued.
 - No offline render harness — regression coverage is pluginval/auval + manual DAW testing only.
 
 ## Additional Notes

@@ -20,6 +20,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <OuariconPresetManager.h>
 #include "DSP/MotionEngine.h"
 #include "DSP/VBAPRenderer.h"
 #include "DSP/DistanceModel.h"
@@ -64,6 +65,21 @@ public:
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // Preset persistence (B1, v1.1.0): shared preset-manager module. The 12
+    // factory presets from getFactoryPresets() are registered (skew-aware,
+    // via convertTo0to1) in the constructor; the legacy Programs API is
+    // collapsed to a single program like the rest of the suite.
+    OuariconPresetManager presetManager { parameters, "Ouaricon Orbit" };
+
+    // Factory preset name → category label, in authored (narrative) order.
+    // Sole data source for the editor's getPresetListGrouped native fn.
+    std::vector<std::pair<juce::String, juce::String>> factoryCategoryOrder;
+
+    // Hover-help preference (B2, v1.1.0). Not a parameter: not automatable,
+    // not part of the sound. Rides the APVTS tree as a plain property in
+    // get/setStateInformation; the editor PULLS it at page init.
+    std::atomic<bool> tooltipsEnabled { false };
+
     // UI motion snapshot (written by audio thread, read by UI timer)
     std::atomic<float> uiAzimuthL  { 0.0f };
     std::atomic<float> uiElevationL { 0.0f };
@@ -84,8 +100,12 @@ public:
     void setCustomSpeakerLayout (const SpeakerLayout& layout);
     void addSpeakerToLayout (float azimuth, float elevation, float distance, const juce::String& label);
     void removeSpeakerFromLayout (int index);
-    void moveSpeakerInLayout (int index, float azimuth, float elevation);
+    void moveSpeakerInLayout (int index, float azimuth, float elevation, float distance);
     bool isUsingCustomLayout() const { return useCustomLayout; }
+
+    // Named custom-layout library (D2, v1.1.0): JSON files (same schema as
+    // export/import) in ~/Library/Ouaricon Orbit/Layouts/.
+    juce::File getLayoutsDirectory() const;
 
     struct FactoryPreset
     {
@@ -96,7 +116,6 @@ public:
     static const std::vector<FactoryPreset>& getFactoryPresets();
 
 private:
-    int currentProgramIndex = 0;
     static float shortestArc (float from, float to);
     static float wrapAngle (float angle);
 
