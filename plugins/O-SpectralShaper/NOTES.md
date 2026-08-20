@@ -2,13 +2,14 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.0
+- **Version:** 1.6.0
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
 
 - **2026-02-03:** Creative brief completed — per-frequency transient shaping concept finalized
 - **2026-02-07:** v1.1.0 released and installed
+- **2026-08-19 (v1.6.0):** Preset readout is now a click-to-open menu grouped by seven narrative categories; factory bank grown 9 → 29 presets with purpose-authored 32-band curves. Added `getPresetListGrouped` (categorySpans pattern from O-Bitrot v1.13.0) and rebound the ◀ ▶ arrows to the flattened menu order — the module's native alphabetical walk would desync from the grouped display (`pattern_grouping_preset_dropdown_breaks_prev_next`). New headless gate `tests/ui_preset_menu_check.js` (32/32, walk-order probe negative-controlled).
 - **2026-03-08 (v1.1.1):** Fix three critical bugs — attack/sustain time knobs, curve data race, lookahead latency reporting
 - **2026-03-08 (v1.1.2):** Fix thread safety — SafePointer for callAfterDelay, curve value clamping/NaN protection, division-by-zero in NodeCurve
 - **2026-03-08 (v1.1.3):** Performance optimizations — cache APVTS pointers, eliminate magic numbers, reuse FFT magnitudes, pre-allocate JSON, cache band frequencies

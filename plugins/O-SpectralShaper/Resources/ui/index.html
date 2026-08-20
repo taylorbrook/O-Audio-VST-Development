@@ -32,14 +32,15 @@
             <h1>O-SpectralShaper</h1>
             <div class="preset-bar">
                 <button class="preset-nav-btn" id="preset-prev" data-tooltip="Previous Preset: Step back through the preset list.">&lsaquo;</button>
-                <span class="preset-name" id="preset-name" data-tooltip="Preset Name: The currently loaded preset. Factory presets cannot be overwritten — use Save to store your own.">Default</span>
+                <span class="preset-name" id="preset-name" role="button" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Preset Name: The currently loaded preset — click to open the preset menu, grouped by category. Factory presets cannot be overwritten — use Save to store your own.">Default</span>
                 <button class="preset-nav-btn" id="preset-next" data-tooltip="Next Preset: Step forward through the preset list.">&rsaquo;</button>
                 <button class="preset-action-btn" id="preset-save" data-tooltip="Save Preset: Store the current settings — including both shaping curves — as a user preset.">Save</button>
                 <button class="preset-action-btn" id="preset-load" data-tooltip="Load Preset: Open a preset file from disk.">Load</button>
+                <div class="preset-menu" id="preset-menu" role="listbox" aria-label="Presets"></div>
             </div>
             <div class="header-right">
                 <button class="tooltip-toggle" id="tooltip-toggle" aria-pressed="false" aria-label="Toggle tooltips">?</button>
-                <div class="version">v1.5.0</div>
+                <div class="version">v1.6.0</div>
             </div>
         </div>
 
