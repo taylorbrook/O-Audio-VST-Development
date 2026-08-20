@@ -489,6 +489,15 @@ void OSpectralShaperAudioProcessorEditor::emitVisualizationFrame(
 {
     if (!webView) return;
 
+    // Bail BEFORE building the payload, not after. emitEventIfBrowserIsVisible()
+    // already drops the event when the browser is hidden, but the ~4 kB JSON
+    // below (289 float→String conversions) is built unconditionally on the way
+    // to it, and it is the dominant per-frame cost when a backlog drains. The
+    // gate is isVisible() — deliberately the exact condition JUCE itself tests
+    // in emitEventIfBrowserIsVisible(), not the stricter isShowing(), so this
+    // can only skip frames that were going to be discarded anyway.
+    if (!webView->isVisible()) return;
+
     // Pre-allocate to avoid repeated heap allocations at 60fps
     // 257 bins * ~10 chars + 32 bands * ~10 chars + overhead ≈ 3200 bytes
     juce::String json;
@@ -528,14 +537,45 @@ void OSpectralShaperAudioProcessorEditor::timerCallback()
     auto& fifo = processorRef.getVisualizationFifo();
     const auto& buffer = processorRef.getVisualizationBuffer();
 
-    while (fifo.getNumReady() > 0)
+    // Snapshot the pending count ONCE, then read exactly that many frames.
+    //
+    // This was `while (fifo.getNumReady() > 0)`, which re-asks the audio thread
+    // how much is pending on every iteration. At realtime that terminates:
+    // HOP_SIZE 256 at 48 kHz produces 187 frames/sec against this 60 Hz timer,
+    // so ~3 frames drain per tick and the count reaches zero. But processBlock
+    // is not rate-limited during an offline bounce or a validator's editor test
+    // — the producer then outruns the message thread, getNumReady() never
+    // returns 0, and timerCallback() never returns. The message loop starves and
+    // the WebView never finishes opening: Windows pluginval strictness 10 hung
+    // in "Open editor whilst processing" until its 10-minute timeout and failed
+    // the v1.6.1 release build. A snapshot bounds the work per tick to what was
+    // pending when the tick began, so frames arriving mid-drain wait for the
+    // next tick instead of extending this one.
+    const int ready = fifo.getNumReady();
+
+    if (ready <= 0)
+        return;
+
+    int start1, size1, start2, size2;
+    fifo.prepareToRead(ready, start1, size1, start2, size2);
+    const int total = size1 + size2;
+
+    // Emit at most maxVisualizationFramesPerTick, taking the NEWEST of the
+    // snapshot. A backlog deeper than that only builds when the producer is
+    // running faster than realtime, and those columns are already stale by the
+    // time they would be drawn. The cap is well clear of every realtime rate:
+    // 187 frames/sec at 48 kHz is ~3 per tick, and even 192 kHz is ~13, so
+    // nothing is dropped during normal playback at any supported sample rate.
+    const int firstToEmit = juce::jmax(0, total - maxVisualizationFramesPerTick);
+
+    for (int i = firstToEmit; i < total; ++i)
     {
-        int start1, size1, start2, size2;
-        fifo.prepareToRead(1, start1, size1, start2, size2);
-
-        if (size1 > 0)
-            emitVisualizationFrame(buffer[static_cast<size_t>(start1)]);
-
-        fifo.finishedRead(size1 + size2);
+        const int index = i < size1 ? start1 + i : start2 + (i - size1);
+        emitVisualizationFrame(buffer[static_cast<size_t>(index)]);
     }
+
+    // Retire the whole snapshot, including frames the cap skipped — otherwise
+    // the dropped ones stay ready and every later tick re-reads the same
+    // backlog, which reinstates the stall this fix removes.
+    fifo.finishedRead(total);
 }
