@@ -4,6 +4,29 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.7.1] — 2026-08-20 — VU meter reads program level (0 VU = −18 dBFS)
+
+### Fixed
+
+- **Output-section VU meter never moved.** Root cause: calibration, not
+  wiring. The C++ → JS `vuLevel` feed (post-limiter/post-gain RMS in true
+  dBFS) and the JS listener were both correct — verified end-to-end against
+  the browser shim — but the face maps −20..+3 dB directly onto dBFS, and the
+  instrument's real program level never reaches that window: the max-sustain
+  reference render (`e1-max-sustain.wav`, velocity 0.7, OUTPUT_GAIN 0 dB)
+  peaks at −23.3 dBFS with −29 dBFS RMS, so the needle sat pinned at the
+  −20 rest stop for everything the synth can produce.
+  - Fix (UI-only, `index.html`): 0 VU is now referenced to **−18 dBFS RMS**
+    (EBU R68 alignment level) — `VU_REF_DBFS = -18` applied at event receive.
+    Max-sustain now reads ≈ −11 VU, multi-string fortissimo approaches 0 VU,
+    and +12 dB of OUTPUT_GAIN can push into the red — the face finally spans
+    the instrument's usable range.
+  - Receive-side clamp at the −20 face floor: silence is −80 dBFS, and
+    without the clamp the needle ballistics ease toward −62 VU off-face,
+    making the next note's rise start seconds late.
+  - VU tooltip now states the reference ("0 VU = −18 dBFS RMS").
+  - No DSP or bridge change — goldens-safe; the payload stays true dBFS.
+
 ## [1.7.0] — 2026-08-20 — hover-help tooltips ("?" toggle) + one-line title
 
 ### Added

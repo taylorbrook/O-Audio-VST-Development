@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.7.0** (2026-08-20). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.7.1** (2026-08-20). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,6 +13,13 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-08-20 — v1.7.1 VU meter calibration fix.** The output-section VU never
+  moved: the feed and listener were correct (verified end-to-end in the browser
+  shim), but the face mapped −20..+3 directly onto dBFS while the instrument's
+  program level tops out around −29 dBFS RMS (e1-max-sustain render) — the
+  needle was pinned for everything the synth can produce. UI-only fix: 0 VU
+  referenced to −18 dBFS RMS (EBU), receive-side clamp at the −20 face floor so
+  silence (−80 dBFS) doesn't ease the needle seconds off-face. No DSP change.
 - **2026-08-20 — v1.7.0 hover-help tooltips ("?" toggle) + one-line title.**
   Ported O-Bitrot v1.12.0's verified measure-then-pin hover-help system: every
   Main-tab/header control carries data-tip copy, 350 ms dwell, viewport-clamped
