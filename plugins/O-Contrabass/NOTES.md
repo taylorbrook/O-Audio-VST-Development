@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.7.1** (2026-08-20). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.7.2** (2026-08-20). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,6 +13,14 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-08-20 — v1.7.2 Tuning tab restored to the 3-column layout.** Shared-module
+  bug: scala-tuning-engine v3.0.0 emitted four direct children under the 3-column
+  `.tuning-panel` grid (the O-Bells `.tuning-center-column` wrapper was never
+  backported) and the CSS had no placement rules, so grid auto-placement scattered
+  the viz-mode buttons/visualization/controls across cells. Fixed in the module
+  (v3.0.1: 3-child template + column-wrapper CSS + `min-width:0` on the stretch
+  slider); O-Wind/O-Bowed/O-Reed/O-Bassoon pick the fix up at their next rebuild.
+  UI resources only — no C++/DSP/parameter change.
 - **2026-08-20 — v1.7.1 VU meter calibration fix.** The output-section VU never
   moved: the feed and listener were correct (verified end-to-end in the browser
   shim), but the face mapped −20..+3 directly onto dBFS while the instrument's

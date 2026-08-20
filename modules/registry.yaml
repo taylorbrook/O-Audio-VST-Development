@@ -272,7 +272,7 @@ modules:
 
   - name: scala-tuning-engine
     path: tuning/scala-tuning-engine
-    version: 2.0.0
+    version: 3.0.1
     description: |
       Complete microtonal tuning system extracted from O-Lyrica with:
       - 12-TET, custom scales (Scala .scl/.kbm), MTS-ESP support

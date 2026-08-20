@@ -17,7 +17,7 @@
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-/* ===== scala-tuning-engine - Tuning Panel Styles v3.0.0 =====
+/* ===== scala-tuning-engine - Tuning Panel Styles v3.0.1 =====
  * Add these styles to your plugin's <style> block or as a separate CSS file.
  * These styles work with tuning-panel.js to create the complete tuning UI.
  *
@@ -109,6 +109,28 @@
     .tuning-panel .viz-btn { font-size: 8px; padding: 4px 6px; }
     .tuning-panel .tuning-file-buttons { grid-template-columns: 1fr; }
     .tuning-panel .ref-knob { width: 36px; height: 36px; }
+}
+
+
+/* ===================================================================
+   GRID COLUMN WRAPPERS
+   The .tuning-panel grid has exactly 3 children: intervals column,
+   center column (viz toggle + visualization), controls panel. The
+   center wrapper is load-bearing — without it the toggle and the
+   viz-container auto-place into separate grid cells.
+   =================================================================== */
+
+.tuning-intervals-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tuning-center-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
 }
 
 
@@ -598,6 +620,9 @@
 
 .octave-stretch-slider {
     flex: 1;
+    /* range inputs have ~129px intrinsic width; without min-width:0 the
+       flex item can't shrink and pushes the value readout out of the card */
+    min-width: 0;
     height: 4px;
     -webkit-appearance: none;
     background: linear-gradient(to right, var(--tuning-border), var(--tuning-accent));

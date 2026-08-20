@@ -4,6 +4,32 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.7.2] — 2026-08-20 — Tuning tab restored to the 3-column layout
+
+### Fixed
+
+- **Tuning tab layout was scrambled**: the Circle/Polar/Matrix/True Keys/
+  Rotation buttons rendered as five page-height columns across the middle of
+  the tab, the scale visualization was squeezed into a small card at the far
+  right, and the Tuning Library / A4 REF / Stretch / file-button stack wrapped
+  onto a second row down the left edge. Root cause: shared-module bug, not
+  plugin code. `scala-tuning-engine` v3.0.0 (`js/tuning-panel.js` +
+  `snippets/tuning-panel.css`) emits **four** direct children under the
+  3-column `.tuning-panel` grid — the O-Bells `.tuning-center-column` wrapper
+  that groups the viz-mode toggle with the viz container was never backported,
+  and the CSS has no grid-placement rules, so grid auto-placement scattered
+  the children (toggle → 1fr center cell stretched to row height, viz → 200px
+  right cell, controls panel → row 2 left cell).
+  - Fix (module v3.0.1, propagates to every consumer at its next rebuild —
+    O-Wind, O-Bowed, O-Reed, O-Bassoon reference the same canonical files):
+    the JS template now matches O-Bells' proven structure — exactly three
+    grid children (`.tuning-intervals-column`, `.tuning-center-column`,
+    `.tuning-controls-panel`) — and the CSS gains the two column-wrapper
+    rules. The former `.tuning-viz-container` wrapper class (referenced by
+    no stylesheet) is renamed `.tuning-intervals-column`.
+  - No C++, DSP, or parameter change — UI resources only; the plugin
+    rebuild re-embeds the corrected module files via BinaryData.
+
 ## [1.7.1] — 2026-08-20 — VU meter reads program level (0 VU = −18 dBFS)
 
 ### Fixed
