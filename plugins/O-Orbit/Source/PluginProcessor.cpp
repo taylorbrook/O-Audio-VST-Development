@@ -430,12 +430,10 @@ void OOrbitProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     dryBuffer.setSize (2, samplesPerBlock);
     spatialBuffer.setSize (24, samplesPerBlock);
 
-    // Smoothed values: 20ms ramp
-    speedSmoothed.reset (sampleRate, 0.02);
-    widthSmoothed.reset (sampleRate, 0.02);
-    depthSmoothed.reset (sampleRate, 0.02);
-    tiltSmoothed.reset (sampleRate, 0.02);
+    // Smoothed values: 20ms ramp, snapped to the current param so playback
+    // doesn't start with a fade-in from zero
     mixSmoothed.reset (sampleRate, 0.02);
+    mixSmoothed.setCurrentAndTargetValue (mixParam->load() / 100.0f);
 
     // Reset gain smoothing
     previousGains.fill (0.0f);
@@ -533,10 +531,6 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     motionEngine.setTempoSync (tempoSyncIdx);
     motionEngine.setHostBpm (hostBpm);
 
-    // Update distance model
-    distanceModel.updateDistance (dist, airAbs, attenCurve);
-    distanceModelR.updateDistance (dist, airAbs, attenCurve);
-
     // Update VBAP renderer
     vbapRenderer.setCenterDiverge (diverge);
 
@@ -548,6 +542,13 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     // Advance motion engine and get current state for this block
     motionEngine.advance (numSamples);
     MotionState endState = motionEngine.getCurrentState();
+
+    // Update distance model: the Distance param scales the motion engine's
+    // distance (a Depth-driven multiplier around 1.0), so Depth produces
+    // audible near/far motion
+    float effectiveDist = std::max (0.1f, dist * endState.distance);
+    distanceModel.updateDistance (effectiveDist, airAbs, attenCurve, numSamples);
+    distanceModelR.updateDistance (effectiveDist, airAbs, attenCurve, numSamples);
 
     // Save previous gains for smoothing, compute new block gains
     previousGains = currentGains;
@@ -648,21 +649,28 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             buffer.copyFrom (ch, 0, spatialBuffer, ch, 0, numSamples);
     }
 
-    // Apply dry/wet mix
-    for (int ch = 0; ch < std::min (totalNumOutputChannels, totalNumInputChannels); ++ch)
+    // Apply dry/wet mix: wet scales on ALL output channels (keeps the spatial
+    // balance constant as mix decreases), dry blends only into its native input
+    // channels. Mix is smoothed per-sample to avoid zipper under automation.
+    mixSmoothed.setTargetValue (mixVal);
+    int dryChannels = std::min (totalNumOutputChannels, totalNumInputChannels);
+    for (int s = 0; s < numSamples; ++s)
     {
-        for (int s = 0; s < numSamples; ++s)
+        float m = mixSmoothed.getNextValue();
+        float dryGain = 1.0f - m;
+
+        for (int ch = 0; ch < totalNumOutputChannels; ++ch)
         {
-            float dry = dryBuffer.getSample (ch, s);
-            float wet = buffer.getSample (ch, s);
-            buffer.setSample (ch, s, mixVal * wet + (1.0f - mixVal) * dry);
+            float wet = m * buffer.getSample (ch, s);
+            float dry = (ch < dryChannels) ? dryGain * dryBuffer.getSample (ch, s) : 0.0f;
+            buffer.setSample (ch, s, wet + dry);
         }
     }
 
     // Update UI motion snapshot (relaxed atomics, read by editor timer)
     uiAzimuthL.store (endState.azimuth, std::memory_order_relaxed);
     uiElevationL.store (endState.elevation, std::memory_order_relaxed);
-    uiDistance.store (dist, std::memory_order_relaxed);
+    uiDistance.store (effectiveDist, std::memory_order_relaxed);
 
     if (sourceMode == 1)
     {

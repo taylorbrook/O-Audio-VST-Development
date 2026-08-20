@@ -1,17 +1,21 @@
 # O-Orbit Notes
 
 ## Status
-- **Current Status:** 💡 Ideated
-- **Version:** N/A
+- **Current Status:** 📦 Installed
+- **Version:** 1.0.1
 - **Type:** Audio Effect (Spatial Orbiter)
 
 ## Lifecycle Timeline
 
 - **2026-02-09:** Creative brief created. Universal orbital spatializer with VBAP rendering to arbitrary speaker arrays.
+- **2026-02-11:** v1.0.0 implemented and installed.
+- **2026-08-19:** Full code review produced `.planning/improvements/v1.1-review-findings.md` (defects + feature backlog).
+- **2026-08-19:** v1.0.1 — Part A defect fixes: Depth param wired to the distance model, RT-safe IIR coefficients (ArrayCoefficients), per-sample mix smoothing, multichannel dry/wet semantics, skew-aware double-click knob reset. pluginval strictness 10 + auval clean.
 
 ## Known Issues
 
-None (pre-implementation)
+- Feature backlog (preset-manager migration, hover help, PPQ sync, ping-pong path, speaker-editor upgrades) tracked in `.planning/improvements/v1.1-review-findings.md` Parts B–D, deferred to a v1.1.0 milestone.
+- No offline render harness — regression coverage is pluginval/auval + manual DAW testing only.
 
 ## Additional Notes
 

@@ -160,11 +160,8 @@ private:
     SpeakerLayout pendingLayout;
     std::atomic<bool> layoutPending { false };
 
-    // Smoothed values
-    juce::SmoothedValue<float> speedSmoothed;
-    juce::SmoothedValue<float> widthSmoothed;
-    juce::SmoothedValue<float> depthSmoothed;
-    juce::SmoothedValue<float> tiltSmoothed;
+    // Smoothed values (mix is the only per-sample smoothed parameter; motion
+    // params are phase-integrated and VBAP gains interpolate per block already)
     juce::SmoothedValue<float> mixSmoothed;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OOrbitProcessor)
