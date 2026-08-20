@@ -107,12 +107,20 @@ public:
     // and when they do change it designs into stack-allocated coefficient arrays and writes
     // the taps in place — no heap allocation and no trig-heavy redesign on the audio thread
     // when the params are static. (CR-01)
-    void updateCoefficients(float xover1Hz, float xover2Hz, float xover3Hz)
+    // The DSP-side frequency-ordering clamp. Static and public so PhaseMatchChain
+    // (v1.6.1) reproduces EXACTLY the frequencies the crossover actually runs — the
+    // phase-match all-passes cancel the crossover's rotation only at identical corners.
+    static void clampCrossoverFrequencies(float& xover1Hz, float& xover2Hz, float& xover3Hz)
     {
         // Validate frequency ordering: xover1 < xover2 < xover3
         xover1Hz = juce::jlimit(20.0f, 500.0f, xover1Hz);
         xover2Hz = juce::jlimit(std::max(xover1Hz + 100.0f, 200.0f), 5000.0f, xover2Hz);
         xover3Hz = juce::jlimit(std::max(xover2Hz + 100.0f, 2000.0f), 16000.0f, xover3Hz);
+    }
+
+    void updateCoefficients(float xover1Hz, float xover2Hz, float xover3Hz)
+    {
+        clampCrossoverFrequencies(xover1Hz, xover2Hz, xover3Hz);
 
         // Early-out when nothing has moved — the common case, every block.
         if (xover1Hz == lastXover1 && xover2Hz == lastXover2 && xover3Hz == lastXover3

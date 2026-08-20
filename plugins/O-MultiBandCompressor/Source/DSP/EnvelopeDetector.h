@@ -29,6 +29,7 @@
 */
 
 #pragma once
+#include <cmath>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
@@ -59,6 +60,21 @@ public:
     // Process single sample and return detected level (linear, not dB)
     float processSample(float input, float peakRmsBlend)
     {
+        // v1.6.1 (WR-05): a single non-finite sample from upstream would otherwise
+        // enter rmsSum and the ring buffer, and the sliding-sum subtraction can never
+        // remove it — rmsSum is NaN forever, GainComputer returns 0 GR on every sample,
+        // and the band silently stops compressing until the next prepareToPlay.
+        if (!std::isfinite(input))
+            input = 0.0f;
+
+        // Self-heal if the accumulator was already poisoned (e.g. state predating
+        // this guard): rebuild the window from silence.
+        if (!std::isfinite(rmsSum))
+        {
+            std::fill(rmsBuffer.begin(), rmsBuffer.end(), 0.0f);
+            rmsSum = 0.0f;
+        }
+
         // Peak detection: absolute value
         float currentPeak = std::abs(input);
 
