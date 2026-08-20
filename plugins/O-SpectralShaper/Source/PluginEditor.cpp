@@ -158,6 +158,75 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                 else
                     complete(false);
             })
+            // getPresetListGrouped (v1.6.0) — the preset MENU's only data source.
+            //
+            // Returns an ARRAY of { category, presets: [...] }, deliberately not
+            // an object keyed by category: an object would make section order
+            // depend on JS string-key insertion-order semantics surviving the
+            // C++ → JSON → JS round-trip, and the alternative (a CATEGORY_ORDER
+            // list in JS) is a mirror of the C++ spans that would drift the
+            // first time a category is added. An array carries the order in the
+            // data itself.
+            //
+            // Factory sections come first, in NARRATIVE order
+            // (factoryCategoryOrder), then "User" holding everything
+            // getPresetList() returned that is not a known factory name —
+            // alphabetical, because getPresetList() sorts. Cross-checked
+            // against the live list rather than emitted blind, so a factory
+            // preset whose file failed to write is absent from the menu instead
+            // of listed and un-loadable. Empty categories are skipped.
+            .withNativeFunction("getPresetListGrouped", [this](auto&, auto complete) {
+                const auto allPresets = processorRef.presetManager.getPresetList();
+
+                juce::Array<juce::var> sections;
+                juce::StringArray claimed;
+
+                juce::String openCategory;
+                juce::Array<juce::var> openNames;
+
+                const auto flushSection = [&sections, &openCategory, &openNames]()
+                {
+                    if (openCategory.isNotEmpty() && ! openNames.isEmpty())
+                    {
+                        auto* section = new juce::DynamicObject();
+                        section->setProperty("category", openCategory);
+                        section->setProperty("presets", openNames);
+                        sections.add(juce::var(section));
+                    }
+                    openNames.clear();
+                };
+
+                for (const auto& [presetName, categoryLabel] : processorRef.factoryCategoryOrder)
+                {
+                    if (categoryLabel != openCategory)
+                    {
+                        flushSection();
+                        openCategory = categoryLabel;
+                    }
+
+                    if (allPresets.contains(presetName))
+                    {
+                        openNames.add(juce::var(presetName));
+                        claimed.add(presetName);
+                    }
+                }
+                flushSection();
+
+                juce::Array<juce::var> userNames;
+                for (const auto& presetName : allPresets)
+                    if (! claimed.contains(presetName))
+                        userNames.add(juce::var(presetName));
+
+                if (! userNames.isEmpty())
+                {
+                    auto* section = new juce::DynamicObject();
+                    section->setProperty("category", "User");
+                    section->setProperty("presets", userNames);
+                    sections.add(juce::var(section));
+                }
+
+                complete(juce::var(sections));
+            })
             .withNativeFunction("loadPresetFromFile", [this, makeDialogResult](auto&, auto complete) {
                 fileChooser = std::make_unique<juce::FileChooser>(
                     "Load Preset",

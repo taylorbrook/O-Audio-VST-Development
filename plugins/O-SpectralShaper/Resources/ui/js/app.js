@@ -425,16 +425,154 @@ window.setSustainCurveFromCPP = function(data) {
 function initializePresetManager() {
     console.log('Initializing preset manager...');
 
+    const nameEl = document.getElementById('preset-name');
+    const menuEl = document.getElementById('preset-menu');
+    const prevEl = document.getElementById('preset-prev');
+    const nextEl = document.getElementById('preset-next');
+
+    // ── preset menu (v1.6.0) ────────────────────────────────────────────────
+    // The module has no menu of its own, so the list lives here. It is a VIEW
+    // over the module's state, not a second source of truth: selection always
+    // goes through presetManager.loadPreset(), the same call the arrows make,
+    // so the arrows and the menu cannot disagree about what is loaded.
+    let sections = [];          // [{ category, presets: [...] }] from C++
+    let menuOpen = false;
+
+    // The ◀ ▶ arrows walk THIS order — the grouped menu order, flattened —
+    // not the module's native selectNext/selectPrevious, which walk the C++
+    // flat alphabetical list and would desync from the visible grouping
+    // (pattern_grouping_preset_dropdown_breaks_prev_next). That is also why
+    // prevButton/nextButton are NOT passed to the PresetManager constructor:
+    // the module would bind them to its own native navigation.
+    let presetWalkOrder = [];
+
+    // Resolved once. A gap between this name and the C++ withNativeFunction
+    // registration fails SILENTLY (pattern_webview_native_fn_bridge_gap), so
+    // a throw here is logged rather than swallowed — the band still works,
+    // it just loses the menu.
+    let getGrouped = null;
+    try {
+        getGrouped = Juce.getNativeFunction('getPresetListGrouped');
+    } catch (e) {
+        console.error('[preset-menu] getPresetListGrouped unavailable:', e);
+    }
+
+    const markActive = () => {
+        const current = app.presetManager ? app.presetManager.currentPreset : '';
+        menuEl.querySelectorAll('.preset-menu-item').forEach((el) => {
+            const isCurrent = el.dataset.name === current;
+            el.classList.toggle('active', isCurrent);
+            el.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
+        });
+    };
+
+    const closeMenu = () => {
+        if (!menuOpen) return;
+        menuOpen = false;
+        menuEl.classList.remove('visible');
+        nameEl.setAttribute('aria-expanded', 'false');
+    };
+
+    const openMenu = () => {
+        if (menuOpen) return;
+        menuOpen = true;
+        markActive();
+        menuEl.classList.add('visible');
+        nameEl.setAttribute('aria-expanded', 'true');
+        // Scroll the loaded preset into view. With 29 factory presets the
+        // current one is usually below the fold, and a menu that always opens
+        // at the top hides the one row the user opened it to see. offsetTop is
+        // measured against .preset-menu itself (position:absolute, so it is
+        // the offsetParent) and only ever moves the menu's own scrollTop —
+        // scrollIntoView() could scroll the page instead.
+        const active = menuEl.querySelector('.preset-menu-item.active');
+        if (active) {
+            menuEl.scrollTop = Math.max(
+                0, active.offsetTop - (menuEl.clientHeight / 2));
+        }
+    };
+
+    const buildMenu = () => {
+        menuEl.replaceChildren();
+        presetWalkOrder = [];
+        for (const section of sections) {
+            if (!section || !Array.isArray(section.presets)) continue;
+
+            const header = document.createElement('div');
+            header.className = 'preset-menu-category';
+            header.textContent = section.category;
+            menuEl.appendChild(header);
+
+            for (const name of section.presets) {
+                presetWalkOrder.push(name);
+                const item = document.createElement('div');
+                item.className = 'preset-menu-item';
+                item.setAttribute('role', 'option');
+                item.dataset.name = name;
+                item.textContent = name;
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeMenu();
+                    // No local state written here: loadPreset() drives
+                    // onPresetChanged, which is what repaints the readout and
+                    // the highlight. Writing them here too would let the UI
+                    // claim a preset loaded when the C++ side returned false.
+                    app.presetManager.loadPreset(name);
+                });
+                menuEl.appendChild(item);
+            }
+        }
+        markActive();
+    };
+
+    const refreshMenu = async () => {
+        if (!getGrouped) return;
+        try {
+            const result = await getGrouped();
+            sections = Array.isArray(result) ? result : [];
+            buildMenu();
+        } catch (e) {
+            console.error('[preset-menu] getPresetListGrouped failed:', e);
+        }
+    };
+
+    // ◀ ▶ step through the flattened MENU order, wrapping at the ends. A
+    // preset loaded from a file (not in the list) enters at the top going
+    // forward, the bottom going back.
+    const stepPreset = async (delta) => {
+        if (presetWalkOrder.length === 0) return;
+        const index = presetWalkOrder.indexOf(app.presetManager.currentPreset);
+        const base = index >= 0 ? index : (delta > 0 ? -1 : 0);
+        const next = (base + delta + presetWalkOrder.length) % presetWalkOrder.length;
+        await app.presetManager.loadPreset(presetWalkOrder[next]);
+    };
+
+    nameEl.addEventListener('click', (e) => {
+        e.stopPropagation();      // else the document handler closes it again
+        if (menuOpen) closeMenu(); else openMenu();
+    });
+    document.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeMenu();
+    });
+    prevEl.addEventListener('click', () => stepPreset(-1));
+    nextEl.addEventListener('click', () => stepPreset(1));
+
     app.presetManager = new PresetManager({
-        displayElement: document.getElementById('preset-name'),
-        prevButton: document.getElementById('preset-prev'),
-        nextButton: document.getElementById('preset-next'),
+        displayElement: nameEl,   // stays childless — _updateDisplay writes textContent
         saveButton: document.getElementById('preset-save'),
         loadButton: document.getElementById('preset-load'),
         getNativeFunction: Juce.getNativeFunction,
+        // Fires on every load, from the arrows OR the menu — one highlight
+        // path for both.
         onPresetChanged: (name) => {
             console.log('Preset changed:', name);
-        }
+            markActive();
+        },
+        // Fires on every refresh(), which is what save / load-from-file all
+        // end in. Rebuilding from C++ rather than patching the DOM keeps the
+        // User section honest about what is actually on disk.
+        onPresetListUpdated: () => { refreshMenu(); }
     });
 
     app.presetManager.initialize();

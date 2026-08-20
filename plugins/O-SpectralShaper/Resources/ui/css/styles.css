@@ -210,8 +210,82 @@ body::after {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: default;
+    cursor: pointer;
     box-shadow: inset 1px 1px 2px rgba(92, 64, 51, 0.12);
+}
+
+.preset-name:hover {
+    background: rgba(139, 168, 112, 0.28);
+    border-color: var(--green-dark);
+}
+
+/* Menu affordance. A ::after pseudo-element, NOT a child node: the preset
+   module's _updateDisplay() writes textContent to #preset-name, which erases
+   any real child on the first preset change
+   (pattern_js_state_updater_overwrites_html_labels). */
+.preset-name::after {
+    content: ' \25BE';           /* ▾ */
+    font-size: 9px;
+    color: var(--brown-soft);
+}
+
+/* ── Preset menu (v1.6.0) ─────────────────────────────────────────────────
+   Click-to-open dropdown anchored under the preset bar, grouped by category.
+   Category headers are sticky, so their background MUST be opaque — a
+   translucent tint lets the rows show straight through once a header pins
+   (pattern_grouping_preset_dropdown_breaks_prev_next). */
+.preset-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 26px;              /* aligned under the preset name, clear of ‹ */
+    z-index: 200;
+    width: 260px;
+    max-height: 380px;
+    overflow-y: auto;
+    background: var(--paper-light);
+    border: 1px solid var(--brown-frame);
+    border-radius: 4px;
+    box-shadow: 2px 4px 14px var(--shadow-medium);
+}
+
+.preset-menu.visible { display: block; }
+
+.preset-menu-category {
+    position: sticky;
+    top: 0;
+    padding: 4px 10px 3px;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--green-darkest);
+    background: var(--paper-accent);   /* opaque — sticky header requirement */
+    border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+}
+
+.preset-menu-category:not(:first-child) {
+    border-top: 1px solid rgba(139, 115, 85, 0.45);
+}
+
+.preset-menu-item {
+    padding: 4px 12px;
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    color: var(--brown-text);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.preset-menu-item:hover {
+    background: rgba(139, 168, 112, 0.28);
+}
+
+.preset-menu-item.active {
+    background: rgba(107, 142, 78, 0.42);
+    color: var(--green-darkest);
+    font-weight: 600;
 }
 
 .preset-nav-btn {

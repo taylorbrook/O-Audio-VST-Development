@@ -67,6 +67,12 @@ public:
     // Preset manager (public for editor native function access)
     OuariconPresetManager presetManager;
 
+    // Narrative category order for the preset menu (v1.6.0). Built once in the
+    // constructor from the categorySpans table over the factory bank's
+    // DECLARATION order; consumed by the editor's getPresetListGrouped native
+    // function. Pairs of { preset name, category label }.
+    std::vector<std::pair<juce::String, juce::String>> factoryCategoryOrder;
+
     // Curve access for UI (thread-safe via STFTProcessor)
     const std::array<float, 32>& getAttackCurve() const { return attackCurve; }
     const std::array<float, 32>& getSustainCurve() const { return sustainCurve; }

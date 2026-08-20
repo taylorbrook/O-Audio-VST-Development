@@ -1,5 +1,20 @@
 # O-SpectralShaper Changelog
 
+## [1.6.0] - 2026-08-19
+
+### Added
+- **The preset readout is now a click-to-open menu, grouped by category.** Clicking the preset name in the header drops a scrollable menu of the whole bank under seven narrative headings — Essentials, Drums & Percussion, Cymbals & Air, Vocals & Speech, Instruments, Mix & Master, Creative — with sticky category headers, the loaded preset highlighted and scrolled into view, and a `▾` affordance on the readout. Selection goes through the same `loadPreset()` path the ◀ ▶ arrows use, so the menu and the arrows cannot disagree about what is loaded. Escape or a click anywhere outside closes it.
+- **Factory bank grown 9 → 29 presets.** Twenty new presets, each with purpose-authored 32-band attack/sustain curves (band frequencies taken from the analyzer's log spacing, values in the ±12 dB curve range) and parameter values in engineering units converted through each parameter's own `NormalisableRange` — the CR-02 skew lesson applied from the start. New: Extra Snap; Kick Tightener, Snare Crack, Tom Focus, Room Tamer, Percussion Sparkle; Hat De-Harsh, Shimmer Sustain; Plosive Guard, Vocal Presence, Breath & Air; Strum Snap, Piano Hammer, Bass Definition, String Swell, Pick Bite; Low-End Tightener, Master Polish; Attack Eraser, Infinite Bloom. All nine pre-existing presets keep their exact values and names.
+- **`getPresetListGrouped` native function (ported from O-Bitrot v1.13.0).** Categories are expressed as index *spans* over the factory vector's declaration order — never a second list of names, which would go stale silently on the first rename — and the constructor asserts the spans tile the bank exactly. The function returns an ordered array of `{category, presets}` sections cross-checked against the live preset list, then a "User" section holding everything else on disk (omitted when empty).
+
+### Fixed
+- **The ◀ ▶ arrows now step through the menu's grouped order.** The preset-manager module's native prev/next walk the C++ flat *alphabetical* list, which matched the old flat display only by coincidence; against a grouped menu, ▶ from the last drum preset would land mid-way through another category (`pattern_grouping_preset_dropdown_breaks_prev_next`). The arrows are now bound in `app.js` to the flattened menu order (`presetWalkOrder`), wrapping at the ends; a preset loaded from a file enters the walk at the top going forward, the bottom going back.
+
+### Notes
+- No DSP and no parameter changed: same 7 parameter IDs, same ranges, same state format. Existing sessions and user presets load unchanged; the 20 new factory presets appear on first launch (factory files are refreshed at startup).
+- Verified by a new headless gate, `tests/ui_preset_menu_check.js` (ported from O-Bitrot): it derives the expected grouping from `PluginProcessor.cpp` itself, holds the browser stub and the rendered DOM to it, and drives the real page at the shipping 700×500 — 32/32 checks. The walk-order probe was negative-controlled: rebinding the arrows to the module's alphabetical navigation makes exactly that check fail (▶ from "Cymbal Control" lands on "De-Esser" instead of "Hat De-Harsh").
+- The category header background is opaque (`--paper-accent`) because the headers are `position: sticky` — a translucent tint lets rows show through once a header pins. The `▾` affordance is a CSS `::after`, not a child node, because the module's `_updateDisplay()` writes `textContent` to the readout and would erase any real child on the first preset change.
+
 ## [1.5.0] - 2026-08-13
 
 ### Added
