@@ -4,6 +4,52 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.5.0] — 2026-08-19 — bow noise made realistic (pitched, jittered, body-colored)
+
+User report: "the noise part of the sound doesn't come off as realistic sounding."
+
+### Root cause
+
+The bow noise never touched the instrument. It was band-passed white noise
+(700/1500/3000 Hz) summed into the output **after** both the waveguide string and
+the body resonator — an uncorrelated hiss layer pasted on top of the tone. Real
+bow noise originates at the bow-string contact and is comb-filtered by the string
+(pitched at f0 harmonics) and colored by the body. Two secondary defects: the
+slip-burst envelope retriggered *exactly* every period at *identical* amplitude
+(a metronomic buzz), and the static noise spectrum ignored the played note.
+
+### Changed — `BowNoiseGenerator` (Source/DSP/BowNoiseGenerator.h)
+
+- **Pitch-synchronous comb filter**: feedback comb tuned to the tracked
+  fundamental (loop gain 0.85, one-pole ~4 kHz damping in the loop,
+  ≈ unity-RMS normalisation, 70/30 pitched/raw blend). The hiss now sings at
+  harmonics of the played note.
+- **Jittered slip bursts**: re-trigger period wanders ±4% and burst amplitude
+  ±30% per event, from a *second* deterministic RNG stream (event-rate draws,
+  sample-position determined — block-size invariance preserved; one stream per
+  phase per pattern_rng_stream_interleave_blocksize).
+- `prepare()` is no longer `noexcept` (allocates the comb delay buffer;
+  prepare-time only, never on the audio thread).
+
+### Changed — noise routing (Source/BowedContrabassVoice.cpp)
+
+- Noise now sums **before** the body resonator (Step 8/9 swapped), so it picks
+  up the same body coloration as the string signal.
+- +12 dB (`4.0×`) pre-body makeup at the sum site: the body's wet bank tops out
+  at 1.2 kHz, so the noise bands survive mainly via the `(1−mix)·dry` path — a
+  −14 dB hit at default MIX=0.80 the old post-body sum never saw. Measured on
+  the string-A render: 700–3000 Hz restored to within +0.8 dB of v1.4.0;
+  3–6 kHz −3.0 dB / 6–12 kHz −4.8 dB remain by design (comb damping taming the
+  formerly over-bright hiss). Overall RMS unchanged (−26.4 dBFS both).
+
+### Compatibility
+
+No parameter, state, or preset format changes — `BOW_NOISE` range and preset
+values unchanged; sessions and presets load as-is. **All 20 render goldens
+re-baselined** (`reproduce-goldens.sh --regenerate`) — the noise path is audible
+in every render at the default BOW_NOISE=0.35, so byte-drift is the intended
+outcome of this change, not a regression.
+
 ## [1.4.0] — 2026-08-13 — legato string changes speak too (crossfade-seed carve-out removed)
 
 Removes the v1.2.0 "don't seed across a string crossfade" carve-out. Notes that land

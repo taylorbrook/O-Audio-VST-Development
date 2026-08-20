@@ -41,11 +41,16 @@
       - processSample()         noexcept
       - reset()                 noexcept
 
-    Output composition (per ARCHITECTURE §"Bow Noise Generator"):
+    Output composition (per ARCHITECTURE §"Bow Noise Generator", revised v1.5.0):
       - 3 parallel bandpass filters on white noise, averaged.
-      - bandSum * bowEnergy = continuous component.
-      - bandSum * slipEnvelope = burst component (period-heuristic
-        re-trigger every fundamental period; decays via kSlipDecayAtSr).
+      - bandSum → pitch-synchronous feedback comb tuned to the fundamental
+        (damped loop), mixed kCombMix wet against the un-combed bandSum.
+        Pitches the hiss at harmonics of f0 like a real bowed string.
+      - pitched * bowEnergy = continuous component.
+      - pitched * slipEnvelope = burst component. Slip re-trigger period is
+        jittered ±kSlipPeriodJitter and burst amplitude ±30% per event
+        (separate RNG stream from the white noise — one stream per phase
+        preserves block-size invariance).
       - Final = (continuous + burst) * noiseLevel.
 
   ==============================================================================
@@ -53,19 +58,35 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <vector>
 #include <juce_core/juce_core.h>
 #include <juce_dsp/juce_dsp.h>
 
 class BowNoiseGenerator
 {
 public:
-    inline void prepare (double sampleRate, int voiceIndex) noexcept
+    // Not noexcept: allocates the comb delay buffer (prepare-time only).
+    inline void prepare (double sampleRate, int voiceIndex)
     {
         sr = sampleRate;
         // O-Bowed pattern verbatim — deterministic per-voice seed.
         noiseRandom.setSeed (static_cast<juce::int64> (voiceIndex * 31337));
+        // Separate stream for slip jitter draws (event-rate, sample-position
+        // determined) so interleaving never perturbs the white-noise sequence.
+        jitterRandom.setSeed (static_cast<juce::int64> (voiceIndex * 31337 + 7919));
+
+        // Comb sized for the lowest trackable fundamental (kCombMinF0).
+        combBuffer.assign (static_cast<size_t> (std::ceil (sampleRate / kCombMinF0)) + 1, 0.0f);
+        combWrite     = 0;
+        combPeriod    = 0;
+        combDampState = 0.0f;
+        // One-pole LP in the comb loop, ~4 kHz corner: keeps the pitched
+        // hiss from ringing metallic at high harmonics.
+        combDampCoeff = 1.0f - std::exp (static_cast<float> (-juce::MathConstants<double>::twoPi
+                                                             * 4000.0 / sampleRate));
 
         juce::dsp::ProcessSpec spec { sampleRate, 1u, 1u };
         for (size_t i = 0; i < kNumBpf; ++i)
@@ -101,12 +122,16 @@ public:
         if (f0 < 1.0f)
         {
             slipPeriodSamples = 0;
+            combPeriod        = 0;
             return;
         }
         const int newPeriod = juce::roundToInt (sr / f0);
         slipPeriodSamples = newPeriod;
         if (slipCounter > newPeriod)
             slipCounter = newPeriod;
+
+        combPeriod = combBuffer.empty() ? 0
+                   : juce::jlimit (2, static_cast<int> (combBuffer.size()) - 1, newPeriod);
     }
 
     inline float processSample() noexcept
@@ -114,11 +139,16 @@ public:
         if (noiseLevel < 0.001f)
             return 0.0f;
 
-        // Period-heuristic slip-burst trigger
+        // Period-heuristic slip-burst trigger, jittered per event: real slip
+        // events wander in timing (±kSlipPeriodJitter) and strength (±30%) —
+        // an exactly metronomic, constant-amplitude retrigger reads as a buzz.
         if (slipPeriodSamples > 0 && --slipCounter <= 0)
         {
-            slipEnvelope = bowEnergy;
-            slipCounter  = slipPeriodSamples;
+            slipEnvelope = bowEnergy * (0.7f + 0.6f * jitterRandom.nextFloat());
+            const float pj = 1.0f + kSlipPeriodJitter
+                                    * (2.0f * jitterRandom.nextFloat() - 1.0f);
+            slipCounter  = juce::jmax (1, juce::roundToInt (
+                               static_cast<float> (slipPeriodSamples) * pj));
         }
         slipEnvelope *= kSlipDecayAtSr;
 
@@ -129,8 +159,23 @@ public:
             bandSum += bpfs[i].processSample (white);
         bandSum *= (1.0f / static_cast<float> (kNumBpf));
 
-        const float continuous = bandSum * bowEnergy;
-        const float burst      = bandSum * slipEnvelope;
+        // Pitch-synchronous feedback comb (damped loop) pitches the hiss at
+        // harmonics of the played fundamental. kCombNorm ≈ sqrt(1 − g²)
+        // restores approx. unity RMS through the resonant loop.
+        float pitched = bandSum;
+        if (combPeriod > 0)
+        {
+            const size_t n = combBuffer.size();
+            const float delayed = combBuffer[(combWrite + n - static_cast<size_t> (combPeriod)) % n];
+            combDampState += combDampCoeff * (delayed - combDampState);
+            const float combed = bandSum + kCombFeedback * combDampState;
+            combBuffer[combWrite] = combed;
+            combWrite = (combWrite + 1) % n;
+            pitched = kCombMix * (combed * kCombNorm) + (1.0f - kCombMix) * bandSum;
+        }
+
+        const float continuous = pitched * bowEnergy;
+        const float burst      = pitched * slipEnvelope;
         return (continuous + burst) * noiseLevel;
     }
 
@@ -138,6 +183,9 @@ public:
     {
         for (auto& f : bpfs)
             f.reset();
+        std::fill (combBuffer.begin(), combBuffer.end(), 0.0f);
+        combWrite     = 0;
+        combDampState = 0.0f;
         slipCounter  = 0;
         slipEnvelope = 0.0f;
         bowEnergy    = 0.0f;
@@ -154,8 +202,23 @@ private:
     // ARCHITECTURE §165 slip-burst decay (per-sample at 48 kHz).
     static constexpr float kSlipDecay = 0.999f;
 
+    // v1.5.0 realism constants (tuned by rendered A/B).
+    static constexpr float kCombMinF0       = 20.0f;   // comb buffer sizing floor
+    static constexpr float kCombFeedback    = 0.85f;   // loop gain — comb peak strength
+    static constexpr float kCombNorm        = 0.527f;  // ≈ sqrt(1 − 0.85²), unity-RMS trim
+    static constexpr float kCombMix         = 0.70f;   // pitched vs raw hiss blend
+    static constexpr float kSlipPeriodJitter = 0.04f;  // ±4% slip re-trigger timing wander
+
     juce::Random noiseRandom;
+    juce::Random jitterRandom;   // slip-event draws only — separate stream per phase
     std::array<juce::dsp::IIR::Filter<float>, kNumBpf> bpfs;
+
+    // Pitch-synchronous comb state (buffer allocated in prepare()).
+    std::vector<float> combBuffer;
+    size_t combWrite     = 0;
+    int    combPeriod    = 0;
+    float  combDampState = 0.0f;
+    float  combDampCoeff = 0.4f;
 
     // Period-heuristic slip-burst state
     int   slipPeriodSamples = 0;
