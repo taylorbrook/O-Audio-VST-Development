@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.3] - 2026-08-19
+
+Licensing release — no audible or behavioral change.
+
+### Changed
+- Added AGPL-3.0 license notice headers to all Ouaricon-authored source files (repo relicensed to AGPL-3.0 on 2026-08-01; JUCE used under AGPLv3).
+
 ## [2.4.2] - 2026-07-09
 
 Info-finding cleanup sweep (CODE_REVIEW.md v2.4.0 review, IN-* items — the 2 critical + 12 warning findings were resolved in v2.4.1). No audible or behavioral change; dead-code removal, a per-block micro-optimization, and defensive state resets.
