@@ -686,13 +686,32 @@ void OContrabassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 void OContrabassAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     if (auto xml = presetManager.getStateAsXml())
+    {
+        // v1.7.0 — hover-help preference rides the session as a root XML
+        // attribute, NOT a ValueTree property: the ValueTree XML round-trip
+        // rebuilds properties as strings, so an isBool() guard on restore
+        // would never fire (critical_valuetree_xml_roundtrip_loses_type).
+        // getBoolAttribute below sidesteps that class of bug entirely.
+        xml->setAttribute("tooltipsEnabled",
+                          tooltipsEnabled.load(std::memory_order_acquire));
         copyXmlToBinary(*xml, destData);
+    }
 }
 
 void OContrabassAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
+    {
+        // Pre-1.7.0 sessions have no attribute — the default (OFF) stands.
+        // The editor PULLS this via the getTooltipsEnabled native fn at page
+        // init rather than being pushed — a push from here would race the
+        // WebView's load (the O-FreqPulse WR-01 bug).
+        if (xml->hasAttribute("tooltipsEnabled"))
+            tooltipsEnabled.store(xml->getBoolAttribute("tooltipsEnabled"),
+                                  std::memory_order_release);
+
         presetManager.setStateFromXml(xml.get());
+    }
 }
 
 //==============================================================================

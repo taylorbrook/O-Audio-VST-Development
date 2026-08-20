@@ -133,6 +133,12 @@ public:
     // NOTE: Do NOT declare getLatencySamples() here — it is non-virtual in JUCE 8.
     // Use setLatencySamples(N) inside prepareToPlay() instead.
 
+    // v1.7.0 — hover-help ("?" toggle) preference. UI state, not a parameter:
+    // no automation, no preset membership. Written by the editor's
+    // setTooltipsEnabled native fn (message thread), persisted as an XML
+    // attribute in get/setStateInformation so it survives a session reload.
+    std::atomic<bool> tooltipsEnabled { false };
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
