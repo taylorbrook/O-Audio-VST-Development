@@ -1002,7 +1002,7 @@ body {
                     </div>
                 </div>
                 <div class="vu-block">
-                    <canvas class="viz-canvas vu-face" id="canvas-vu" data-tip-title="VU meter" data-tip="Output level after the limiter, VU-ballistic."></canvas>
+                    <canvas class="viz-canvas vu-face" id="canvas-vu" data-tip-title="VU meter" data-tip="Output level after the limiter, VU-ballistic. 0 VU = −18 dBFS RMS."></canvas>
                 </div>
             </div>
         </div>
@@ -1695,11 +1695,20 @@ const VU_W = 150, VU_H = 46;
 const vuCtx = setupCanvas("canvas-vu", VU_W, VU_H);
 const vu = { needleDb: -20, targetDb: -20, cx: VU_W / 2, cy: 86, r: 66, aMin: -48, aMax: 48 };
 
+// v1.7.1 — 0 VU is referenced to −18 dBFS RMS (EBU alignment level), not
+// 0 dBFS. The feed is true post-limiter dBFS; unreferenced, the whole face
+// (−20..+3) sat above anything the instrument outputs (max-sustain render:
+// −29 dBFS RMS) and the needle never left its pin.
+const VU_REF_DBFS = -18;
+
 if (window.__JUCE__ && window.__JUCE__.backend) {
     window.__JUCE__.backend.addEventListener("vuLevel", (payload) => {
         try {
             const d = (typeof payload === "string") ? JSON.parse(payload) : payload;
-            if (d && typeof d.db === "number") vu.targetDb = d.db;
+            // Clamp at the face floor: silence is −80 dBFS, and easing the
+            // needle toward −62 VU off-face would make the next note's rise
+            // start seconds late.
+            if (d && typeof d.db === "number") vu.targetDb = Math.max(-20, d.db - VU_REF_DBFS);
         } catch (e) { /* malformed feed frame — ignore */ }
     });
 }
