@@ -8,15 +8,15 @@
   "infiniteSustain": 1.0,
   "stringStiffness": -1.0,
   "totalSamples": 882000,
-  "peak": 0.128106042742729,
+  "peak": 0.128344535827637,
   "nanCount": 0,
   "infCount": 0,
-  "rmsMid_s5_s6": 0.05171861499548,
+  "rmsMid_s5_s6": 0.051792982965708,
   "rmsFinal_lastSecond": 0.0,
   "rmsRatio_final_over_mid": 0.0,
-  "blockMicros_median": 131.334000000000003,
-  "blockMicros_max": 222.207999999999998,
-  "blockTime_max_over_median": 1.691930497814732,
+  "blockMicros_median": 143.667000000000002,
+  "blockMicros_max": 263.625,
+  "blockTime_max_over_median": 1.834972540666959,
   "pass_nan": true,
   "pass_peak": true,
   "pass_blockTime": true,
@@ -58,15 +58,15 @@
     529200
   ],
   "perSegmentRms": [
-    0.032505638897419,
-    0.046510897576809,
-    0.034600358456373,
-    0.040471609681845,
-    0.03286125138402
+    0.032566763460636,
+    0.04656819999218,
+    0.034655518829823,
+    0.040463052690029,
+    0.032911479473114
   ],
   "pass_allSegmentsAudible": true,
-  "segmentLevelConsistency": 0.939459621906281,
+  "segmentLevelConsistency": 0.939728081226349,
   "pass_segmentLevelConsistency": true,
-  "rmsContinuityAtTransitions": 0.617143392562866,
+  "rmsContinuityAtTransitions": 0.620467007160187,
   "pass_rmsContinuityAtTransitions": true
 }

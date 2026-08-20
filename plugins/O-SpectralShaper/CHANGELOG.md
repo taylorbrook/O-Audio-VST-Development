@@ -1,5 +1,15 @@
 # O-SpectralShaper Changelog
 
+## [1.6.1] - 2026-08-19
+
+### Fixed
+- **Curve editors now update when a preset is loaded.** Every preset already carried full 32-band attack/sustain curve data (all 29 factory presets since 1.6.0 via `makeCurveState`, user presets via the preset manager's `customState`), and loading one did change the DSP — but the WebView curve editors received curve data exactly once, 100 ms after the editor first attached (`parentHierarchyChanged`). No load path (menu, ◀ ▶ arrows, `loadPreset`, load-from-file, session restore with the editor open) ever re-sent the curves, so the editors kept drawing the previous preset's shapes and the bank *looked* like it shipped without curve settings.
+- **Root cause:** one-shot C++→JS curve push with no notification on state-driven curve replacement. **Fix:** the processor keeps a `curvesRevision` atomic bumped *only* in the preset manager's `customLoad` callback — deliberately not in `setAttackCurve`/`setSustainCurve`, so the UI's own drag-edits never echo back into an in-progress drag. The editor's existing 60 fps timer polls the revision and re-sends both curves through the existing `sendAttackCurveToJS`/`sendSustainCurveToJS` path when it changes. This covers every load path, including session restore, with no new bridge functions.
+
+### Notes
+- No DSP, parameter, preset-format or state-format changes. Presets and sessions from 1.6.0 load unchanged.
+- The timer send is gated on `hasNavigated`; before the page exists the revision simply stays pending and is delivered on the first tick after navigation. `sendCurveToJS` already guards with `if (window.fn)` on the JS side.
+
 ## [1.6.0] - 2026-08-19
 
 ### Added

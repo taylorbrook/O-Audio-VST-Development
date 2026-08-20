@@ -2,13 +2,14 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.6.0
+- **Version:** 1.6.1
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
 
 - **2026-02-03:** Creative brief completed — per-frequency transient shaping concept finalized
 - **2026-02-07:** v1.1.0 released and installed
+- **2026-08-19 (v1.6.1):** Curve editors now update when a preset is loaded. Every preset already carried curve data and the DSP did change — but the C++→JS curve push happened exactly once at editor open, so the editors kept drawing the previous preset's shapes. Fix: `curvesRevision` atomic bumped only in the preset manager's `customLoad` callback (never by UI drag-edits, so no echo into an in-progress drag), polled by the editor's existing 60 fps timer which re-sends both curves. Covers menu, ◀ ▶, load-from-file and session restore.
 - **2026-08-19 (v1.6.0):** Preset readout is now a click-to-open menu grouped by seven narrative categories; factory bank grown 9 → 29 presets with purpose-authored 32-band curves. Added `getPresetListGrouped` (categorySpans pattern from O-Bitrot v1.13.0) and rebound the ◀ ▶ arrows to the flattened menu order — the module's native alphabetical walk would desync from the grouped display (`pattern_grouping_preset_dropdown_breaks_prev_next`). New headless gate `tests/ui_preset_menu_check.js` (32/32, walk-order probe negative-controlled).
 - **2026-03-08 (v1.1.1):** Fix three critical bugs — attack/sustain time knobs, curve data race, lookahead latency reporting
 - **2026-03-08 (v1.1.2):** Fix thread safety — SafePointer for callAfterDelay, curve value clamping/NaN protection, division-by-zero in NodeCurve
@@ -20,6 +21,7 @@
 
 ## Known Issues
 
+- **pluginval strictness-10 "Open editor whilst processing" times out (pre-existing):** reproducible on v1.6.0 and v1.6.1 builds alike (negative-controlled 2026-08-19 by rebuilding the v1.6.0 backup — identical 30 s timeout), while O-Bitrot passes the same test, so it is O-SpectralShaper-specific but not caused by the v1.6.1 change. All non-GUI tests pass at strictness 10 and auval passes. Likely the WebView + 60 fps visualization editor under pluginval's audio-thread load; needs a separate pass.
 - **Two sibling plugins still ship a watermarked stock texture:** `O-Lyrica/Resources/ui/images/paper1.jpg` and `O-Gain/Source/ui/public/images/paper1.jpg` are byte-identical (md5 `b7c865c45f2fb95a7a8651071da186e6`) to the tiled-"Adobe Stock" image removed from this plugin in v1.4.0. Both are compiled into their BinaryData and shipped. Needs a separate pass.
 - **Lookahead control is inert (deferred):** enabling Lookahead delays detection and signal equally, so it produces no audible change — it only adds reported latency. True lookahead (detection ahead of the shaped output) requires an STFTProcessor detect/apply split and is deferred to a future release. The v1.3.2 fix only stopped the per-block latency re-reporting from the audio thread.
 
