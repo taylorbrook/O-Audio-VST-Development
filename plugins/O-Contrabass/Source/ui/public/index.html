@@ -169,6 +169,39 @@ body {
 }
 .preset-name-display:hover { background: rgba(237, 217, 190, 0.1); }
 
+/* Preset dropdown (v1.6.0) — flat list in C++ order (matches ◀/▶ walk;
+   grouping would desync them). Fixed-position, width pinned to the display. */
+.preset-menu {
+    position: fixed;
+    width: 300px;
+    max-height: 340px;
+    overflow-y: auto;
+    z-index: 200;
+    background: linear-gradient(#4A3226, #3E2A20);
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    padding: 4px 0;
+}
+.preset-menu[hidden] { display: none; }
+.preset-menu-item {
+    padding: 5px 12px;
+    font-size: 13px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    color: var(--bg-paper);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-menu-item:hover { background: rgba(237, 217, 190, 0.15); }
+.preset-menu-item.current {
+    color: var(--green-accent);
+    font-weight: bold;
+}
+.preset-menu-item.current::before { content: "\25B8\00A0"; }
+
 .header-spacer { flex: 1; }
 
 .header-whale { opacity: 0.75; margin-right: 4px; }
@@ -622,6 +655,7 @@ body {
         <div class="preset-name-display" id="preset-name" title="Preset browser">Default &mdash; Arco Foundation</div>
         <button class="preset-nav-btn" id="preset-next" title="Next preset">&#9654;</button>
         <button class="preset-save-btn" id="preset-save" title="Save preset">Save</button>
+        <div class="preset-menu" id="preset-menu" hidden></div>
         <!-- Stage 3 Task 9 (D3) — Main/Tuning tab strip -->
         <nav class="tab-strip">
             <button class="tab-btn active" data-tab="main">Main</button>
@@ -1669,6 +1703,49 @@ updateDroneAwake();
             onPresetChanged: (name) => console.log("[preset] loaded:", name)
         });
         await presetManager.initialize();
+
+        /* Preset dropdown (v1.6.0) — click the name display to browse.
+           Built fresh from presetManager.presetList on every open (refresh()
+           first, so presets saved since init appear). ONE FLAT LIST in the
+           C++ order — the ◀/▶ buttons walk that same list, so any visual
+           regrouping/sorting here would desync them. Only presetManager
+           methods are used: no new getNativeFunction calls, bridge surface
+           stays at 32 (ui_frontend_check). */
+        const nameDisplay = document.getElementById("preset-name");
+        const menu = document.getElementById("preset-menu");
+
+        function closeMenu() { menu.hidden = true; }
+
+        async function openMenu() {
+            await presetManager.refresh();
+            menu.textContent = "";
+            for (const name of presetManager.presetList) {
+                const item = document.createElement("div");
+                item.className = "preset-menu-item"
+                    + (name === presetManager.currentPreset ? " current" : "");
+                item.textContent = name;
+                item.addEventListener("click", async () => {
+                    closeMenu();
+                    await presetManager.loadPreset(name);
+                });
+                menu.appendChild(item);
+            }
+            const r = nameDisplay.getBoundingClientRect();
+            menu.style.left = r.left + "px";
+            menu.style.top  = (r.bottom + 4) + "px";
+            menu.hidden = false;
+        }
+
+        nameDisplay.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (menu.hidden) openMenu(); else closeMenu();
+        });
+        document.addEventListener("click", (e) => {
+            if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeMenu();
+        });
     } catch (e) {
         console.error("[preset-bar] init failed:", e);
     }

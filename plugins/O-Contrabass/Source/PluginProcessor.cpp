@@ -287,7 +287,8 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
         });
 
     // ── Stage 4 (Polish) FUNC-04 — factory presets ────────────────────────────
-    // Two 5-preset banks (Orchestral + Drone), authored in ENGINEERING UNITS and
+    // Four 5-preset banks (Orchestral + Drone + v1.6 Expressive + v1.6 Texture),
+    // authored in ENGINEERING UNITS and
     // converted once through each param's NormalisableRange (skew-safe). The 4
     // skewed params (BOW_SPEED 0.5, BOW_PRESSURE 0.5, BRIGHTNESS 0.25,
     // VIBRATO_ONSET 0.5) recall 4×–30× wrong if authored as raw normalized
@@ -402,6 +403,109 @@ OContrabassAudioProcessor::OContrabassAudioProcessor()
              {"SLOW_LFO_RATE", 0.12f}, {"SLOW_LFO_DEPTH", 0.40f}, {"INFINITE_SUSTAIN", 0.85f},
              {"SUB_HARMONICS", 0.20f}, {"WIDTH", 1.5f}, {"MASTER_SAT_AMOUNT", 0.40f},
              {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        // ── Expressive bank (v1.6.0 — bowing techniques) ──────────────────────
+        // All names sort after "Cinematic Bass Sustain" so the default landing
+        // preset is unchanged. STRING_TENSION stays omitted (v1.1 deferral).
+        {
+            "Sul Ponticello Bass",
+            {{"BOW_SPEED", 0.22f}, {"BOW_PRESSURE", 1.8f}, {"BOW_POSITION", 0.03f},
+             {"BRIGHTNESS", 8000.0f}, {"OUTPUT_GAIN", -1.0f}, {"ROSIN", 0.80f},
+             {"BOW_NOISE", 0.55f}, {"BODY_SIZE", 0.75f}, {"BODY_DAMPING", 0.30f},
+             {"BODY_MIX", 0.75f}, {"STRING_STIFFNESS", 0.34f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 5.0f}, {"VIBRATO_DEPTH", 6.0f}, {"VIBRATO_ONSET", 700.0f},
+             {"WIDTH", 1.1f}, {"MASTER_SAT_AMOUNT", 0.50f}}
+        },
+        {
+            "Sul Tasto Bass",
+            {{"BOW_SPEED", 0.12f}, {"BOW_PRESSURE", 0.8f}, {"BOW_POSITION", 0.24f},
+             {"BRIGHTNESS", 2600.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.55f},
+             {"BOW_NOISE", 0.22f}, {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.50f},
+             {"BODY_MIX", 0.82f}, {"STRING_STIFFNESS", 0.28f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 4.2f}, {"VIBRATO_DEPTH", 7.0f}, {"VIBRATO_ONSET", 900.0f},
+             {"WIDTH", 1.0f}, {"MASTER_SAT_AMOUNT", 0.35f}}
+        },
+        {
+            "Overpressure Scratch",
+            {{"BOW_SPEED", 0.06f}, {"BOW_PRESSURE", 5.5f}, {"BOW_POSITION", 0.06f},
+             {"BRIGHTNESS", 5500.0f}, {"OUTPUT_GAIN", -2.0f}, {"ROSIN", 0.90f},
+             {"BOW_NOISE", 0.70f}, {"BODY_SIZE", 0.78f}, {"BODY_DAMPING", 0.25f},
+             {"BODY_MIX", 0.78f}, {"STRING_STIFFNESS", 0.35f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_DEPTH", 0.0f}, {"RELEASE", 0.6f}, {"WIDTH", 1.0f},
+             {"MASTER_SAT_AMOUNT", 0.65f}}
+        },
+        {
+            "Flautando Bass",
+            {{"BOW_SPEED", 0.30f}, {"BOW_PRESSURE", 0.25f}, {"BOW_POSITION", 0.22f},
+             {"BRIGHTNESS", 3200.0f}, {"OUTPUT_GAIN", 1.0f}, {"ROSIN", 0.45f},
+             {"BOW_NOISE", 0.15f}, {"BODY_SIZE", 0.80f}, {"BODY_DAMPING", 0.45f},
+             {"BODY_MIX", 0.80f}, {"STRING_STIFFNESS", 0.26f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 4.8f}, {"VIBRATO_DEPTH", 4.0f}, {"VIBRATO_ONSET", 1000.0f},
+             {"WIDTH", 1.2f}, {"MASTER_SAT_AMOUNT", 0.30f}}
+        },
+        {
+            "Espressivo Bass",
+            {{"BOW_SPEED", 0.24f}, {"BOW_PRESSURE", 1.6f}, {"BOW_POSITION", 0.08f},
+             {"BRIGHTNESS", 5000.0f}, {"OUTPUT_GAIN", 0.5f}, {"ROSIN", 0.75f},
+             {"BOW_NOISE", 0.40f}, {"BODY_SIZE", 0.78f}, {"BODY_DAMPING", 0.32f},
+             {"BODY_MIX", 0.84f}, {"STRING_STIFFNESS", 0.30f}, {"ACTIVE_STRINGS", 4.0f},
+             {"VIBRATO_RATE", 6.0f}, {"VIBRATO_DEPTH", 22.0f}, {"VIBRATO_ONSET", 250.0f},
+             {"WIDTH", 1.1f}, {"MASTER_SAT_AMOUNT", 0.45f}}
+        },
+        // ── Texture bank (v1.6.0 — sound design; explicit TUNING_SYSTEM(=2
+        // 12-TET) + NOTE_EXPRESSION(=1) like the Drone bank so the reset-to-
+        // defaults pass doesn't clobber intent) ───────────────────────────────
+        {
+            "Glass Drone",
+            {{"BOW_SPEED", 0.16f}, {"BOW_PRESSURE", 0.6f}, {"BOW_POSITION", 0.04f},
+             {"BRIGHTNESS", 9000.0f}, {"OUTPUT_GAIN", -1.5f}, {"ROSIN", 0.70f},
+             {"BOW_NOISE", 0.35f}, {"BODY_SIZE", 0.70f}, {"BODY_DAMPING", 0.25f},
+             {"BODY_MIX", 0.72f}, {"ACTIVE_STRINGS", 4.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.10f}, {"SLOW_LFO_DEPTH", 0.35f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.10f}, {"WIDTH", 1.6f}, {"MASTER_SAT_AMOUNT", 0.40f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Quarter-Tone Drone",
+            {{"BOW_SPEED", 0.12f}, {"BOW_PRESSURE", 1.4f}, {"BOW_POSITION", 0.10f},
+             {"BRIGHTNESS", 3600.0f}, {"ROSIN", 0.60f}, {"BOW_NOISE", 0.28f},
+             {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.32f}, {"BODY_MIX", 0.85f},
+             {"ACTIVE_STRINGS", 4.0f}, {"DETUNE_E", 0.0f}, {"DETUNE_A", 50.0f},
+             {"DETUNE_D", -50.0f}, {"DETUNE_G", 50.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.20f}, {"SLOW_LFO_DEPTH", 0.30f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.25f}, {"WIDTH", 1.3f}, {"MASTER_SAT_AMOUNT", 0.50f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Tectonic Sub",
+            {{"BOW_SPEED", 0.09f}, {"BOW_PRESSURE", 1.8f}, {"BOW_POSITION", 0.11f},
+             {"BRIGHTNESS", 900.0f}, {"OUTPUT_GAIN", -1.0f}, {"ROSIN", 0.55f},
+             {"BOW_NOISE", 0.18f}, {"BODY_SIZE", 0.95f}, {"BODY_DAMPING", 0.35f},
+             {"BODY_MIX", 0.90f}, {"ACTIVE_STRINGS", 2.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.08f}, {"SLOW_LFO_DEPTH", 0.50f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.85f}, {"WIDTH", 1.0f}, {"MASTER_SAT_AMOUNT", 0.60f},
+             {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Warped Tape Bass",
+            {{"BOW_SPEED", 0.13f}, {"BOW_PRESSURE", 1.3f}, {"BOW_POSITION", 0.12f},
+             {"BRIGHTNESS", 2800.0f}, {"OUTPUT_GAIN", 0.0f}, {"ROSIN", 0.58f},
+             {"BOW_NOISE", 0.25f}, {"BODY_SIZE", 0.82f}, {"BODY_DAMPING", 0.40f},
+             {"BODY_MIX", 0.80f}, {"ACTIVE_STRINGS", 4.0f}, {"DETUNE_E", -8.0f},
+             {"DETUNE_A", 6.0f}, {"DETUNE_D", -5.0f}, {"DETUNE_G", 8.0f},
+             {"VIBRATO_DEPTH", 0.0f}, {"SLOW_LFO_RATE", 0.60f}, {"SLOW_LFO_DEPTH", 0.60f},
+             {"INFINITE_SUSTAIN", 0.90f}, {"SUB_HARMONICS", 0.15f}, {"WIDTH", 1.4f},
+             {"MASTER_SAT_AMOUNT", 0.75f}, {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
+        },
+        {
+            "Whisper Pad",
+            {{"BOW_SPEED", 0.07f}, {"BOW_PRESSURE", 0.30f}, {"BOW_POSITION", 0.18f},
+             {"BRIGHTNESS", 2000.0f}, {"OUTPUT_GAIN", -4.0f}, {"ROSIN", 0.45f},
+             {"BOW_NOISE", 0.50f}, {"BODY_SIZE", 0.85f}, {"BODY_DAMPING", 0.60f},
+             {"BODY_MIX", 0.80f}, {"ACTIVE_STRINGS", 4.0f}, {"VIBRATO_DEPTH", 0.0f},
+             {"SLOW_LFO_RATE", 0.12f}, {"SLOW_LFO_DEPTH", 0.30f}, {"INFINITE_SUSTAIN", 1.0f},
+             {"SUB_HARMONICS", 0.10f}, {"RELEASE", 8.0f}, {"WIDTH", 1.7f},
+             {"MASTER_SAT_AMOUNT", 0.35f}, {"TUNING_SYSTEM", 2.0f}, {"NOTE_EXPRESSION", 1.0f}}
         }
     };
 

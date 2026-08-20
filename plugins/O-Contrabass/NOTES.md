@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.5.0** (2026-08-19). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.6.0** (2026-08-20). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,7 +13,14 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
-- **2026-08-19 — v1.5.0 bow noise made realistic (pitched, jittered, body-colored).**
+- **2026-08-20 — v1.6.0 10 new factory presets + preset browser dropdown.**
+  Two new 5-preset banks (Expressive: bowing techniques; Texture: sound design),
+  engineering-unit authored, skew-safe, 20 factory presets total. The preset-name
+  display now opens a dropdown of all presets (factory + user) — one flat list in
+  the C++ order so the ◀/▶ walk stays in sync; frontend-only, bridge surface
+  unchanged at 32. DSP untouched: 21/21 goldens byte-identical, auval PASS,
+  ui_frontend_check ALL PASS, re-seed sentinel produced all 20 preset JSONs with
+  exact skew round-trip. **Dropdown not yet visually checked in a DAW.**
   User report: the noise component sounded fake. Root cause: band-passed white noise
   summed *after* both string and body — an uncorrelated hiss layer that never touched
   the instrument. Fix: pitch-synchronous feedback comb tuned to the tracked f0 (loop
