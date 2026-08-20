@@ -150,9 +150,9 @@ int main()
         return 1;
     }
 
-    std::printf("%-22s %8s %8s %8s %8s   %s\n",
-                "PRESET", "LOW", "LOMID", "HIMID", "HIGH", "VERDICT");
-    std::printf("%s\n", juce::String::repeatedString("-", 78).toRawUTF8());
+    std::printf("%-22s %-12s %8s %8s %8s %8s   %s\n",
+                "PRESET", "CATEGORY", "LOW", "LOMID", "HIMID", "HIGH", "VERDICT");
+    std::printf("%s\n", juce::String::repeatedString("-", 92).toRawUTF8());
 
     int enginesFound = 0;
     int failures = 0;
@@ -165,9 +165,12 @@ int main()
         const auto measured = measurePreset(processor, name, loadFailed);
         forward[name] = measured;
 
+        const auto category = processor.getPresetCategory(name);
+
         if (loadFailed)
         {
-            std::printf("%-22s  LOAD FAILED\n", name.toRawUTF8());
+            std::printf("%-22s %-12s  LOAD FAILED\n",
+                        name.toRawUTF8(), category.toRawUTF8());
             ++failures;
             continue;
         }
@@ -187,9 +190,14 @@ int main()
             verdict = "*** NON-FINITE OUTPUT ***";
             ++failures;
         }
-        else if (name == "Init Flat")
+        else if (category == OMultiBandCompressorAudioProcessor::kInertPresetCategory)
         {
-            // The one preset that is meant to do nothing.
+            // v1.7.0: keyed off the category, not off the single name "Init Flat".
+            // Every Init preset is 1:1 on all four bands by definition, so the whole
+            // group is expected to measure zero — and a new one added later is covered
+            // without this check having to learn its name. The flip side is that an
+            // Init preset that accidentally ships a ratio above 1:1 now fails here
+            // instead of passing as a normal working preset.
             verdict = (engaged == 0) ? "inert (correct)" : "*** should be inert ***";
             if (engaged != 0) ++failures;
         }
@@ -204,8 +212,9 @@ int main()
             ++enginesFound;
         }
 
-        std::printf("%-22s %7.2f %8.2f %8.2f %8.2f   %s\n",
+        std::printf("%-22s %-12s %7.2f %8.2f %8.2f %8.2f   %s\n",
                     name.toRawUTF8(),
+                    category.toRawUTF8(),
                     peakGr[0], peakGr[1], peakGr[2], peakGr[3],
                     verdict.toRawUTF8());
     }
