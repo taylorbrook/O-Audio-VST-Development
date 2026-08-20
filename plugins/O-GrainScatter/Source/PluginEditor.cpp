@@ -210,7 +210,7 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
 #endif
 
     startTimerHz(30);
-    setSize(900, 850);
+    setSize(900, 800);
 }
 
 GrainScatterEditor::~GrainScatterEditor()

@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.4.2
+- **Version:** 2.4.4
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-08-19 (v2.4.4):** UI layout fix (authored as 2.4.3 pre-licensing-release; renumbered at merge) — the Spatial Audio section was clipped off the bottom of the editor (content ran to y=884.5 in an 850 px window, cutting the bottom row of spatial knob readouts and the mode hint). Root cause: `.controls-area` used `grid-template-rows: 1fr 1fr`, forcing the Beat Sync / Euclidean Rhythm row to match the taller Core Engine / Pitch & Scale row (199.5 px rendered for 111 px of content). Changed to `auto auto` (row 2 now 112 px), shortened the editor 850 → 800 px, made `.plugin-container` size from `setSize()` rather than hard-coding 900×850, and let `.viz-area` absorb the remaining slack via `flex: 1 1 auto; min-height: 200px`.
+- **2026-08-19 (v2.4.3):** Licensing release — AGPL-3.0 notice headers added to all Ouaricon-authored source files. No audible or behavioral change.
 - **2026-07-09 (v2.4.2):** Info-finding cleanup sweep (CODE_REVIEW.md IN-* items). Applied IN-01 (removed dead `getCrossfadeGain()` + `crossfadeDirection`), IN-02 (removed dead `TempoTracker::lastPpq`), IN-05 (`GrainPool::clearVoices()` in `prepareToPlay`), IN-09 (cached HOA write pointers per block), IN-10 (documented distance split-semantics), IN-11 (`reset()` resets `TempoTracker`), IN-14 (removed dead `.dimmed-spatial` CSS), IN-15 (`timerCallback` early-returns when hidden). Reviewed & no change needed: IN-03 (not a bug), IN-04/IN-06 (already fixed in v2.4.1), IN-07 (intended stutter), IN-08 (negligible), IN-12/IN-13 (acceptable/documented). No audible or behavioral change.
 - **2026-07-08 (v2.4.1):** Code-review resolution pass — fixed all 2 critical + 12 warning CODE_REVIEW.md findings. CR-01 dead Scan knob (missing relay/attachment), CR-02 RT realloc in reset(), WR-01 block-held spatial feedback, WR-02 swing dropping off-beats + Euclidean desync, WR-03 freeze-engage memcpy, WR-04 spawn cap, WR-05 feedback/LPF NaN guards, WR-06 control-rate SH trig, WR-07 block-size clamp, WR-08 distance-LPF smoothing, WR-09 bpm<=0 guard, WR-10/WR-11 skew-correct readouts + `getParameterDefaults` native fn, WR-12 CMake version 2.1.0→2.4.1
 - **2026-03-09 (v2.4.0):** Added grain scan position (`scan_position` 0-100%) — sweeps base grain read position through delay/freeze buffer (0-2 seconds)
