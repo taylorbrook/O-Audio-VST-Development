@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
 stage: 4
-phase: discuss
-status: stage_4_discuss_complete
+phase: research
+status: stage_4_research_complete
 last_updated: 2026-08-21
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_research
+next_action: stage_4_plan
 next_stage: 4
 ready_for_implementation: true
 contract_checksums:
@@ -22,9 +22,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 (Polish) — discuss ✓ (2026-08-21)
-Phase: discuss complete → next: Stage 4 research
-Status: Stage-4 scope pinned — preset-manager v1.0.6 + 15+ factory presets (10 per-console signatures + utility bank), 6 inherited human gates in Logic Pro, final validation, local install only; constraints in stages/4-polish/CONTEXT.md
+Stage: 4 (Polish) — research ✓ (2026-08-21)
+Phase: research complete → next: Stage 4 plan
+Status: Integration approach pinned — `ouaricon_add_module` (NOT vendoring; JS configure-copied + gitignored), O-Bitrot v1.13.0 as reference, 10 native fns (bridge audit re-anchors 10↔10), factory presets authored denormalized + convertTo0to1 batch, flat list keeps module prev/next; findings in stages/4-polish/RESEARCH.md
 Progress: [##################..] 91%
 
 ## Phase Progress
@@ -60,6 +60,7 @@ Progress: [##################..] 91%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-08-21 | |
+| research | ✓ | 2026-08-21 | |
 
 ## Completed So Far
 
@@ -142,9 +143,13 @@ Progress: [##################..] 91%
 - `stages/4-polish/CONTEXT.md`: preset-manager v1.0.6 vendored + 15+ factory presets (2 per-console signatures ×5 + ~5–8 cross-console utility), flat alphabetical, authored in denormalized values; 6 inherited human gates run in Logic Pro (inspector check via dev Standalone); final validation (pluginval 10, auval, harness digests unchanged, CHANGELOG, docs); release target = local install only
 - Constraints: bridge audit counts change when preset-manager adds native fns (re-anchor the grep-diff), applyPresetJson resets to defaults first, no "/" in preset names, harness must stay digest-identical (UI-layer-only change)
 
+## Completed — Stage 4 Research (2026-08-21)
+
+- `stages/4-polish/RESEARCH.md`: O-Bitrot v1.13.0 confirmed reference (newest preset work, same aesthetic); house pattern is `ouaricon_add_module(OEmulator preset-manager)` — canonical header via include dir + JS configure-copied to `Source/ui/public/modules/` (gitignored), NOT vendoring; module already carries WR-01 reset-to-defaults, sentinel-gated factory writes, name sanitization, migration hook (unused at v1.0.0); editor registers 10 native fns (dialog fns: hoisted SafePointer, bare-return on dead editor, `{success,name}` DynamicObject); bridge audit re-anchors 10↔10 with JS hits in the generated module file, index.html stays 0; factory presets authored denormalized in C++ + one `convertTo0to1` batch pass, all 5 IDs per preset; flat list ⇒ pass prev/next straight to the JS module (no walker override); harness compiles the new processor member cleanly and digests must stay identical
+
 ## Next Steps
 
-1. `/plugin-research O-Emulator 4-polish` — investigate preset-manager v1.0.6 integration + preset authoring approach
+1. `/plugin-plan O-Emulator 4-polish` — task breakdown: module wiring, 10 native fns, preset-band UI, factory bank values, gates + validation
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
