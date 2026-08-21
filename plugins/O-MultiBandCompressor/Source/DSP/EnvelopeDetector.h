@@ -90,8 +90,11 @@ public:
         rmsBuffer[rmsWritePosition] = newSample;
         rmsWritePosition = (rmsWritePosition + 1) % rmsWindowSize;
 
-        // Calculate RMS
-        float currentRms = std::sqrt(std::max(0.0f, rmsSum / static_cast<float>(rmsWindowSize)));
+        // Calculate RMS, calibrated so a steady sine reads its PEAK level (AES-17
+        // style +3 dB, v1.9.0). Uncalibrated RMS reads a sine 3 dB under its peak,
+        // which shifted the peak/RMS blend's effective threshold down with it.
+        float currentRms = kRmsSineCalibration
+            * std::sqrt(std::max(0.0f, rmsSum / static_cast<float>(rmsWindowSize)));
 
         // Blend: 0.0 = peak, 1.0 = RMS
         float blend = peakRmsBlend / 100.0f;  // Convert 0-100% to 0-1
@@ -101,6 +104,9 @@ public:
     }
 
 private:
+    // sqrt(2): makes a steady full-scale sine's RMS reading equal its peak (v1.9.0).
+    static constexpr float kRmsSineCalibration = 1.41421356237f;
+
     double currentSampleRate = 44100.0;
 
     // RMS circular buffer
