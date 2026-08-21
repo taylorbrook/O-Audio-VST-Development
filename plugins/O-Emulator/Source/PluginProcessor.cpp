@@ -24,11 +24,13 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 2 / Phase 2.1: engine skeleton + SNES end-to-end. The APVTS
+    Stage 2 / Phase 2.2: SNES + PS1 pipelines + SPU reverb. The APVTS
     parameters below are the BINDING contract from .planning/parameter-spec.md
     — IDs, types, ranges and defaults are frozen. Wired so far: `crush`
-    (drive + BRR shift floor) and `mix` (latency-compensated DryWetMixer).
-    `console`/`age`/`reverb` drive nothing until Phases 2.2-2.4.
+    (drive + shift floor), `mix` (latency-compensated DryWetMixer), `console`
+    (SNES/PS1; 2.2 interim hard switch, indices 2-4 map to SNES until the
+    Phase 2.3 crossfader) and `reverb` (SPU send level). `age` drives nothing
+    until Phase 2.4.
 
   ==============================================================================
 */
@@ -81,9 +83,12 @@ OEmulatorAudioProcessor::OEmulatorAudioProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
-    crushParam = apvts.getRawParameterValue("crush");
-    mixParam   = apvts.getRawParameterValue("mix");
-    jassert(crushParam != nullptr && mixParam != nullptr);
+    crushParam   = apvts.getRawParameterValue("crush");
+    mixParam     = apvts.getRawParameterValue("mix");
+    consoleParam = apvts.getRawParameterValue("console");
+    reverbParam  = apvts.getRawParameterValue("reverb");
+    jassert(crushParam != nullptr && mixParam != nullptr
+            && consoleParam != nullptr && reverbParam != nullptr);
 }
 
 OEmulatorAudioProcessor::~OEmulatorAudioProcessor() = default;
@@ -152,8 +157,11 @@ void OEmulatorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     }
 
     // Block-header parameter latch (atomics; consumed at chunk boundaries
-    // inside the engine).
+    // inside the engine). Console read once per block (ARCHITECTURE thread
+    // boundaries); the switch applies at the next chunk boundary.
+    engine.setConsoleIndex((int) consoleParam->load());
     engine.setCrushPercent(crushParam->load());
+    engine.setReverbSendPercent(reverbParam->load());
     dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
 
     juce::dsp::AudioBlock<float> block(buffer);

@@ -50,7 +50,9 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    // SPU reverb Hall tail (RT60 ~0.9 s) — 2 s tells hosts to keep rendering
+    // through the decay on bounce.
+    double getTailLengthSeconds() const override { return 2.0; }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -93,10 +95,13 @@ private:
         exactly into setWetLatency. */
     int totalLatencySamples = 0;
 
-    // Cached parameter atomics (audio-thread reads). age/reverb exist in the
-    // APVTS but drive nothing until Phases 2.2/2.4; console until 2.3.
+    // Cached parameter atomics (audio-thread reads). `age` exists in the
+    // APVTS but drives nothing until Phase 2.4. `console` selects SNES/PS1
+    // (2.2 interim hard switch; indices 2-4 map to SNES until Phase 2.3).
     std::atomic<float>* crushParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
+    std::atomic<float>* consoleParam = nullptr;
+    std::atomic<float>* reverbParam = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OEmulatorAudioProcessor)
 };

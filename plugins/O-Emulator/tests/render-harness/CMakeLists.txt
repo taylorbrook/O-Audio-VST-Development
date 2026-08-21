@@ -25,6 +25,8 @@ target_sources(O-Emulator-render-test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/BrrCodec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/ConsoleEngine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/ConsoleResampler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/SpuAdpcmCodec.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/SpuReverb.cpp
 )
 
 target_include_directories(O-Emulator-render-test PRIVATE

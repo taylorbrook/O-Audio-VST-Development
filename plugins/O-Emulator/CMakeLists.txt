@@ -26,6 +26,8 @@ target_sources(OEmulator
         Source/dsp/BrrCodec.cpp
         Source/dsp/ConsoleEngine.cpp
         Source/dsp/ConsoleResampler.cpp
+        Source/dsp/SpuAdpcmCodec.cpp
+        Source/dsp/SpuReverb.cpp
 )
 
 # Include paths

@@ -55,6 +55,30 @@
                         (pattern_reanchor_cross_version_digest_probe); the
                         Phase 2.1 anchor is recorded at the phase commit.
 
+    Phase 2.2 probes (PS1 + SPU reverb):
+
+      F  PS1!=SNES    — same material through both consoles: renders differ,
+                        and PS1's 9-14 kHz band collapses vs SNES (22050 Hz
+                        domain + lower AA corner).
+      Z2 PS1 latency  — the PS1 pipeline lands on the SAME reported worst-case
+                        figure (xcorr peak within ±15).
+      R0 reverb live  — reverb 0 vs 100 renders differ, bounded (macro
+                        min != max liveness).
+      R1 IR tail      — wet-minus-dry isolates the reverb return on an
+                        impulse: first reflection lands in the comb-delay
+                        window after the aligned direct arrival, the early
+                        tail is live, and the decay is short/murky (1.6-2.0 s
+                        window << 50-450 ms window).
+      R2 stability    — 60 s of noise @ reverb 100 % + crush 100 %: finite,
+                        bounded, no growth (last-5s RMS vs 5-10s RMS).
+      AN2 invariance  — block-size digest sweep RE-RUN with the reverb + PS1
+                        codec engaged.
+      D2 digest       — Phase 2.2 canonical (PS1 + reverb) anchor, 0-sentinel
+                        RECORD pattern. The Phase 2.1 SNES anchor is expected
+                        to SURVIVE 2.2 (reverb defaults to 0 and sits behind
+                        an exact-inactive gate; the SNES op sequence and
+                        priming are unchanged) — probe D still asserts it.
+
     Conventions (O-Bitrot harness header): setBaseline() first in every
     probe; setValueNotifyingHost only; position-hashed excitation; liveness
     clauses on every potentially-vacuous probe; no wall-clock in verdicts;
@@ -89,10 +113,21 @@ namespace
         pipeline is not in the signal path). */
     constexpr juce::uint64 kDigestStage1PassthroughRetired = 0x28e7675cdbec475cULL;
 
-    /** Phase 2.1 canonical SNES digest — 0 means NOT YET RECORDED: the probe
-        prints the digest and passes with a RECORD-ME notice; fill this in at
-        the Phase 2.1 commit (first green run on the reference machine). */
+    /** Phase 2.1 canonical SNES digest (recorded at the 2.1 commit). STILL
+        ASSERTED in Phase 2.2: the canonical render keeps reverb at its
+        default 0, which holds the reverb path behind ConsoleEngine's sticky
+        exact-inactive gate (no send, no tick, no `+=` on the output — an
+        unconditional sum would flip -0.0 samples and move this digest), and
+        the SNES pipeline's op sequence and upsample priming are unchanged.
+        If this probe fails after a 2.2+ change, that is a REGRESSION signal
+        on the SNES path, not a re-anchor event. */
     constexpr juce::uint64 kDigestAnchor21CanonicalSnes = 0x59d72af3f1b80676ULL;
+
+    /** Phase 2.2 canonical PS1+reverb digest — 0 means NOT YET RECORDED: the
+        probe prints the digest and passes with a RECORD-ME notice; fill this
+        in at the Phase 2.2 commit (first green run on the reference
+        machine). */
+    constexpr juce::uint64 kDigestAnchor22Ps1ReverbCanonical = 0x58cb7f909f6a6e30ULL;
 
     //==========================================================================
     int failures = 0;
@@ -145,6 +180,13 @@ namespace
         if (n < 100800) return std::numeric_limits<float>::quiet_NaN(); // 100 ms NaN
         return 0.5f * (float) std::sin (2.0 * juce::MathConstants<double>::pi
                                         * kSigHz * (double) (n - 100800) / kFs);
+    }
+
+    /** Single impulse well past the latency + smoother warm-up (100 ms). */
+    float impulseAt (int ch, int n)
+    {
+        juce::ignoreUnused (ch);
+        return n == 4800 ? 0.9f : 0.0f;
     }
 
     using InputFn = float (*) (int ch, int n);
@@ -306,6 +348,14 @@ namespace
     {
         const auto* p = b.getReadPointer (ch);
         return std::vector<float> (p, p + b.getNumSamples());
+    }
+
+    double rmsRange (const std::vector<float>& x, int from, int to)
+    {
+        double acc = 0.0;
+        for (int n = from; n < to; ++n)
+            acc += (double) x[(size_t) n] * (double) x[(size_t) n];
+        return std::sqrt (acc / (double) juce::jmax (1, to - from));
     }
 
     //==========================================================================
@@ -794,6 +844,253 @@ int main()
     }
 
     //==========================================================================
+    // F — FUNC-01 (partial): PS1 and SNES are measurably distinct on the same
+    // material. PS1's 22050 Hz domain + 9.9 kHz AA corner collapse the
+    // 9-14 kHz band SNES still carries.
+    {
+        const int total = kRenderSamples;
+        const int off   = 12288;
+
+        auto snes = makeProc();
+        auto ps1  = makeProc();
+        setParam (*ps1, "console", 1.0f);
+
+        juce::AudioBuffer<float> outS, outP;
+        renderInto (*snes, outS, total, { 512 }, noiseHalfAt);
+        renderInto (*ps1,  outP, total, { 512 }, noiseHalfAt);
+
+        const double diff = maxAbsDiff (outS, outP);
+
+        const auto sS = analyze (channelToVector (outS, 0), off, kFs);
+        const auto sP = analyze (channelToVector (outP, 0), off, kFs);
+
+        const double hiS = sS.bandEnergy (9000.0, 14000.0);
+        const double hiP = sP.bandEnergy (9000.0, 14000.0);
+        const double hiRatio = hiP / (hiS + 1.0e-12);
+
+        const bool differs = diff > 1.0e-3;
+        const bool darker  = hiRatio < 0.5;
+        const bool live    = outS.getMagnitude (0, 0, total) > 1.0e-4f
+                          && outP.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("F PS1!=SNES", differs && darker && live,
+               juce::String ("maxAbsDiff ") + juce::String (diff, 5)
+                   + ", 9-14 kHz PS1/SNES energy ratio " + juce::String (hiRatio, 4)
+                   + " (< 0.5)"
+                   + (differs ? "" : " — CONSOLE DOES NOT REACH THE DSP")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // Z2 — the PS1 pipeline lands on the SAME reported worst-case latency
+    // (constant across modes — no PDC renegotiation on console switch).
+    {
+        auto p = makeProc();
+        setParam (*p, "console", 1.0f);
+        setParam (*p, "crush", 0.0f);
+
+        const int total = kRenderSamples;
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseHalfAt);
+
+        std::vector<float> in ((size_t) total);
+        for (int n = 0; n < total; ++n)
+            in[(size_t) n] = noiseHalfAt (0, n);
+
+        const auto outV = channelToVector (out, 0);
+
+        double corr = 0.0;
+        const int off = 8192, len = 8192;
+        const int lag = xcorrBestLag (in, outV, off, len,
+                                      juce::jmax (0, kComp - 200), kComp + 200, corr);
+
+        const bool aligned = std::abs (lag - kComp) <= 15;
+        const bool corrOk  = corr > 0.2;
+
+        check ("Z2 PS1 latency-xcorr", aligned && corrOk,
+               juce::String ("peak lag ") + juce::String (lag)
+                   + " vs reported " + juce::String (kComp)
+                   + " (budget ±15), corr " + juce::String (corr, 3)
+                   + (corrOk ? "" : " — DECORRELATED, probe vacuous"));
+    }
+
+    //==========================================================================
+    // R0 — `reverb` macro min != max liveness (FUNC-02 clause for the newly
+    // wired knob), plus boundedness at full send.
+    {
+        const int total = kRenderSamples;
+
+        auto dry = makeProc();                          // reverb 0 (baseline)
+        auto wet = makeProc();
+        setParam (*wet, "reverb", 100.0f);
+
+        juce::AudioBuffer<float> outD, outW;
+        renderInto (*dry, outD, total, { 512 }, noiseHalfAt);
+        renderInto (*wet, outW, total, { 512 }, noiseHalfAt);
+
+        const double diff = maxAbsDiff (outD, outW);
+        const bool differs = diff > 1.0e-3;
+        const bool bounded = outW.getMagnitude (0, 0, total) < 4.0f;
+        const bool live    = outW.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("R0 reverb min!=max", differs && bounded && live,
+               juce::String ("maxAbsDiff(0% vs 100%)=") + juce::String (diff, 5)
+                   + (differs ? "" : " — REVERB DOES NOT REACH THE DSP")
+                   + (bounded ? "" : " — UNBOUNDED")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // R1 — DSP-04 impulse-response tail structure. Wet-minus-dry isolates the
+    // reverb return exactly (the direct path is value-identical in both
+    // renders; the return is 0.0 until the first reflection). Criteria:
+    //   - first reflection lands in the comb-delay window after the ALIGNED
+    //     direct arrival (comb1 = 353 ticks ≈ 16 ms ≈ 768 host samples; the
+    //     window [300, 1800] also bounds the L119 alignment error)
+    //   - early tail live; late tail (1.6-2.0 s) far below it (short murky
+    //     decay, RT60 ≈ 0.9 s)
+    {
+        auto wet = makeProc();
+        setParam (*wet, "crush", 0.0f);
+        setParam (*wet, "reverb", 100.0f);
+
+        auto dry = makeProc();
+        setParam (*dry, "crush", 0.0f);
+
+        const int total = 120000;   // 2.5 s
+        juce::AudioBuffer<float> outW, outD;
+        renderInto (*wet, outW, total, { 512 }, impulseAt);
+        renderInto (*dry, outD, total, { 512 }, impulseAt);
+
+        std::vector<float> diff ((size_t) total);
+        for (int n = 0; n < total; ++n)
+            diff[(size_t) n] = outW.getSample (0, n) - outD.getSample (0, n);
+
+        const int n0 = 4800 + kComp;   // aligned direct arrival of the impulse
+
+        int firstTail = -1;
+        for (int n = n0 + 150; n < total; ++n)
+            if (std::abs (diff[(size_t) n]) > 1.0e-5f)
+            {
+                firstTail = n;
+                break;
+            }
+
+        const double early = rmsRange (diff, n0 + 2400,  n0 + 21600);   // 50-450 ms
+        const double late  = rmsRange (diff, n0 + 76800, n0 + 96000);   // 1.6-2.0 s
+
+        const bool tailLive  = early > 1.0e-4;
+        const bool decays    = late < 0.1 * early;
+        const bool combDelay = firstTail >= n0 + 300 && firstTail <= n0 + 1800;
+
+        check ("R1 DSP-04 IR-tail", tailLive && decays && combDelay,
+               juce::String ("first reflection @+") + juce::String (firstTail - n0)
+                   + " (window [300, 1800]), early RMS " + juce::String (early, 6)
+                   + ", late RMS " + juce::String (late, 7)
+                   + " (< 0.1x early)"
+                   + (tailLive ? "" : " — NO TAIL, probe vacuous"));
+    }
+
+    //==========================================================================
+    // R2 — QUAL-01/DSP-04 stability: 60 s of noise at reverb 100 % +
+    // crush 100 % — finite, bounded, and NO growth (the feedback network's
+    // stability-by-construction, measured).
+    {
+        auto p = makeProc();
+        setParam (*p, "console", 1.0f);      // PS1: SPU codec + reverb together
+        setParam (*p, "crush", 100.0f);
+        setParam (*p, "reverb", 100.0f);
+
+        const int total = 60 * (int) kFs;
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, noiseHalfAt);
+
+        bool allFinite = true;
+        float peak = 0.0f;
+        int firstBad = -1;
+
+        for (int ch = 0; ch < 2 && allFinite; ++ch)
+        {
+            const auto* o = out.getReadPointer (ch);
+            for (int n = 0; n < total; ++n)
+            {
+                if (! std::isfinite (o[n]))
+                {
+                    allFinite = false;
+                    firstBad = n;
+                    break;
+                }
+                peak = juce::jmax (peak, std::abs (o[n]));
+            }
+        }
+
+        const auto v = channelToVector (out, 0);
+        const double rmsEarly = rmsRange (v, 5 * (int) kFs, 10 * (int) kFs);
+        const double rmsLate  = rmsRange (v, 55 * (int) kFs, total);
+
+        const bool bounded  = peak < 4.0f;
+        const bool noGrowth = rmsLate < 3.0 * rmsEarly;
+        const bool live     = rmsEarly > 1.0e-3;
+
+        check ("R2 60s stability", allFinite && bounded && noGrowth && live,
+               juce::String ("finite ") + (allFinite ? "yes" : juce::String ("NO @") + juce::String (firstBad))
+                   + ", peak " + juce::String (peak, 4)
+                   + ", RMS 5-10s " + juce::String (rmsEarly, 5)
+                   + " vs 55-60s " + juce::String (rmsLate, 5)
+                   + (noGrowth ? "" : " — GROWING")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // AN2 — PERF-02 block-size invariance RE-RUN with the Phase 2.2 paths
+    // engaged: PS1 codec + reverb send/tick/return.
+    {
+        const int total = kRenderSamples;
+
+        auto configure = [] (OEmulatorAudioProcessor& proc)
+        {
+            setBaseline (proc);
+            setParam (proc, "console", 1.0f);
+            setParam (proc, "crush", 65.0f);
+            setParam (proc, "reverb", 60.0f);
+        };
+
+        auto ref = makeProc();
+        configure (*ref);
+        juce::AudioBuffer<float> outRef;
+        renderInto (*ref, outRef, total, { 512 }, noiseHalfAt);
+
+        const std::vector<std::vector<int>> sizeSets
+            { { 64 }, { 4096 }, { 1, 7, 64, 333, 4096 } };
+        const char* setNames2[] = { "{64}", "{4096}", "{1,7,64,333,4096}" };
+
+        bool ok = true;
+        juce::String detail;
+
+        for (size_t s = 0; s < sizeSets.size(); ++s)
+        {
+            auto proc = makeProc();
+            configure (*proc);
+
+            juce::AudioBuffer<float> out;
+            renderInto (*proc, out, total, sizeSets[s], noiseHalfAt);
+
+            if (! bitIdentical (outRef, out))
+            {
+                ok = false;
+                detail << setNames2[s] << ": " << firstDifference (outRef, out) << "; ";
+            }
+        }
+
+        const bool live = outRef.getMagnitude (0, 0, total) > 1.0e-4f;
+        if (ok && live)
+            detail = "PS1 + reverb: 3 block-size regimes vs fixed {512}, all bit-identical";
+
+        check ("AN2 PERF-02 reverb-engaged", ok && live,
+               detail + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
     // D — digest anchors (plan decision #1). Canonical render: baseline
     // (SNES, crush 50, mix 100), flat {512}. Excitation is FULL-SCALE noiseAt
     // — the SAME signal the Stage-1 anchor was recorded with, so the
@@ -827,6 +1124,42 @@ int main()
         {
             std::printf ("  [NOTE] kDigestAnchor21CanonicalSnes unrecorded — RECORD "
                          "%016llx at the Phase 2.1 commit\n",
+                         (unsigned long long) digest);
+        }
+    }
+
+    //==========================================================================
+    // D2 — Phase 2.2 canonical digest: PS1 + reverb engaged (the paths 2.2
+    // added), full-scale noise, flat {512}. 0-sentinel RECORD pattern.
+    {
+        auto p = makeProc();
+        setParam (*p, "console", 1.0f);
+        setParam (*p, "reverb", 60.0f);
+
+        std::vector<float> flat;
+        renderInterleaved (*p, flat, kRenderSamples, noiseAt);
+
+        const juce::uint64 digest = fnv1a64 (flat);
+
+        std::printf ("  digest-2.2: fnv1a64=%016llx (PS1 + reverb 60%%, flat 512)\n",
+                     (unsigned long long) digest);
+
+        // The PS1+reverb render must not degenerate to the SNES canonical or
+        // the Stage-1 passthrough (liveness of the new paths in the digest).
+        check ("D2 phase-2.2 render distinct", digest != kDigestAnchor21CanonicalSnes
+                   && digest != kDigestStage1PassthroughRetired,
+               "PS1+reverb digest differs from the SNES and passthrough anchors");
+
+        if (kDigestAnchor22Ps1ReverbCanonical != 0)
+        {
+            check ("D2 phase-2.2 anchor", digest == kDigestAnchor22Ps1ReverbCanonical,
+                   juce::String::formatted ("expected %016llx",
+                       (unsigned long long) kDigestAnchor22Ps1ReverbCanonical));
+        }
+        else
+        {
+            std::printf ("  [NOTE] kDigestAnchor22Ps1ReverbCanonical unrecorded — RECORD "
+                         "%016llx at the Phase 2.2 commit\n",
                          (unsigned long long) digest);
         }
     }
