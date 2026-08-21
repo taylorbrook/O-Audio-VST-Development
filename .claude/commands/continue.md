@@ -33,31 +33,36 @@ Resume the Plugin Freedom System session from where you left off. Restores conte
 
 ## Process
 
-1. **Load checkpoint skill**
+1. **Verify location**
+   Run `git branch --show-current`.
+   If the result is not `main`, STOP and surface the branch — do not load state.
+   Otherwise continue.
+
+2. **Load checkpoint skill**
    @.claude/skills/session-checkpoint/SKILL.md
 
-2. **Load active plugin state**
+3. **Load active plugin state**
    Read `PLUGINS.md` for the plugin roster and status column, then read
    `plugins/{plugin}/.planning/STATUS.md` for per-plugin state. STATUS.md is
    authoritative. Identify the focused plugin via `focused: true` in STATUS.md
    frontmatter (or use the specified plugin name).
 
-3. **Run state validation**
+4. **Run state validation**
    @.claude/skills/state-validation/SKILL.md
    If issues found: present recovery options before proceeding
    If healthy: continue to restoration
 
-4. **Restore from checkpoint**
+5. **Restore from checkpoint**
    Load `checkpoints/{plugin}/latest.json`
    Parse checkpoint state
    Load referenced context files
 
-5. **Display resume summary**
+6. **Display resume summary**
    Show: plugin, stage, phase, last task, next task
    Show: files modified in last session
    Show: next command to run
 
-6. **Ready prompt**
+7. **Ready prompt**
    End with clear next action
 
 ## Validation on Resume
@@ -160,6 +165,26 @@ Plan: 02-01-PLAN.md
 Next step: Run /plugin:execute to continue plan execution
 
 Copy command: /plugin:execute
+```
+
+**Wrong branch:**
+```
+RESUME HALTED - WRONG BRANCH
+============================
+Current branch: improve/o-someplugin-v1.2
+Expected: main
+
+STATUS.md is branch-versioned. The state file for this plugin may not
+describe the work that lives on this branch, so resuming here risks
+redoing or clobbering finished work.
+
+All plugin work belongs on main (see CLAUDE.md, Parallel Plugin Development).
+
+Options:
+1. git switch main, then re-run /continue
+2. Confirm you intend to resume on this branch anyway
+
+No state was loaded. Waiting for your choice.
 ```
 
 **Resume with validation issues:**
