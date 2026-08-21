@@ -224,8 +224,12 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // v1.1.0 adds the two WRITES of the speaker→output surface: assignSpeakerOutput (the Room
     // plan's double-click popover) and applyOutputOrderPreset (the Venue rail's one-click sets).
     // The READ side rides getVenueGeometry as per-speaker `output` — no new read call.
-    check(registered.size === 20,
-        `PluginEditor.cpp registers exactly 20 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    //
+    // v1.2.0 adds the hover-help ("?" toggle) persistence pair: setTooltipsEnabled (the toggle's
+    // click) and getTooltipsEnabled (PULLED by the page at init — a C++ push would fire before
+    // the module evaluated and silently never arrive).
+    check(registered.size === 22,
+        `PluginEditor.cpp registers exactly 22 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);
@@ -290,11 +294,22 @@ head(6, 'HTML-authored labels are never written via textContent');
     // AUTHORED text is ever overwritten, not that only two identifiers exist. 3.3 adds the
     // elevation strip's two readings (UI-05/2), which are .cell-value nodes in the group title row,
     // beside an authored <h2> exactly as .safe-copy sits beside .safe-tag.
-    const VALUE_RECEIVERS = new Set(['value', 'el', 'earOut', 'srcOut']);
+    // v1.2.0 adds the hover-help surface's three: tipEl is #tooltip itself — a node no label
+    // shares, whose whole content is rebuilt per show — and t / b are createElement'd title and
+    // body children that never existed in the authored HTML at all.
+    const VALUE_RECEIVERS = new Set(['value', 'el', 'earOut', 'srcOut', 'tipEl', 't', 'b']);
 
     check(receivers.size > 0, `textContent is written through ${receivers.size} receiver(s)`);
     check([...receivers].every(r => VALUE_RECEIVERS.has(r)),
         `every textContent write goes through a dedicated value node — receivers {${[...receivers].sort().join(', ')}}`);
+
+    // ...and the three v1.2.0 receivers really are the tooltip's own nodes: tipEl binds the one
+    // shared surface, and t / b are created fresh inside showTip, never queried from the page.
+    check(/const tipEl = document\.getElementById\("tooltip"\)/.test(S.appJs),
+        'tipEl binds #tooltip — the one shared hover-help surface');
+    check(/const t = document\.createElement\("div"\)/.test(S.appJs)
+          && /const b = document\.createElement\("div"\)/.test(S.appJs),
+        't / b are createElement\'d tooltip children, not authored nodes');
 
     // ...and the two 3.3 receivers really are bound to dedicated value nodes, not to a heading.
     check(/const earOut = document\.getElementById\("elev-ear"\)/.test(ELEVATION_SRC)
@@ -612,7 +627,7 @@ head(15, 'the stub\'s 17 ranges + defaults match createParameterLayout() PARSED 
     // The two neutral-default traps, named so a failure says WHICH.
     for (let i = 1; i <= 8; ++i)
         check(layout.get(`w${i}`)?.def === 1, `w${i} defaults to 1.0, NOT its range minimum`);
-    check(layout.get('blur')?.def === 0.1, 'blur defaults to 0.10, a non-endpoint');
+    check(layout.get('blur')?.def === 0.03, 'blur defaults to 0.03, a non-endpoint');
     check(layout.get('airAmount')?.def === 0.35, 'airAmount defaults to 0.35, a non-endpoint');
 }
 

@@ -132,14 +132,19 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
         float width, rolloff, blur, hullAtten, airAmount, outputGain;
     };
 
+    // v1.3.0 — blur column rescaled ÷3 (rounded to 2 dp): kBlurScale tripled (0.5 → 1.5), and
+    // these rows were AUTHORED as radii, not knob positions — the sound each preset ships is the
+    // point, so the radius is what survives the rescale. Width and rolloff columns stay put: they
+    // are engineering values and the live-range conversion below moves them onto the widened
+    // ranges untouched. Concert Default's blur must remain EXACTLY the shipped default (0.03).
     static constexpr Row rows[] = {
         //  name              width  rolloff  blur  hullAtten  air   outGain
         { "Dry Point",         0.0f,   6.0f,  0.00f,    2.2f, 0.00f,   0.0f },
-        { "Concert Default",   0.0f,   4.0f,  0.10f,    1.0f, 0.35f,   0.0f },
-        { "Chamber",           1.5f,   4.5f,  0.18f,    1.4f, 0.25f,   0.0f },
-        { "Wide Hall",         3.0f,   3.5f,  0.35f,    0.7f, 0.55f,  -1.5f },
-        { "Distant Field",     4.5f,   3.0f,  0.55f,    0.4f, 0.85f,  -3.0f },
-        { "Enveloping",        6.0f,   3.0f,  0.80f,    0.0f, 0.45f,  -2.0f },
+        { "Concert Default",   0.0f,   4.0f,  0.03f,    1.0f, 0.35f,   0.0f },
+        { "Chamber",           1.5f,   4.5f,  0.06f,    1.4f, 0.25f,   0.0f },
+        { "Wide Hall",         3.0f,   3.5f,  0.12f,    0.7f, 0.55f,  -1.5f },
+        { "Distant Field",     4.5f,   3.0f,  0.18f,    0.4f, 0.85f,  -3.0f },
+        { "Enveloping",        6.0f,   3.0f,  0.27f,    0.0f, 0.45f,  -2.0f },
     };
 
     // The single conversion. Reads the LIVE range, so a range change moves the presets with it

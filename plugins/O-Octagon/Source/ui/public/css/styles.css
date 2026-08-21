@@ -1171,3 +1171,86 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   margin-right: 14px;
   white-space: nowrap;
 }
+
+/* ══ Hover help (v1.2.0) ═════════════════════════════════════════════════ */
+
+/* The "?" toggle. A flex child of .header between the screen tabs and the
+   banners, in the tabs' own vocabulary: --rule border, --panel hover, and the
+   lit state reuses .screen-tab.is-active's ink-on-level-mid inversion. */
+.help-toggle {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.help-toggle:hover { color: var(--ink); background: var(--panel); }
+
+.help-toggle.is-active {
+  color: var(--ground);
+  background: var(--level-mid);
+  border-color: var(--level-mid);
+}
+
+/* The one shared tooltip surface — ported from O-Contrabass v1.7.0, which
+   carries the VERIFIED measure-then-pin placement rather than the earlier
+   shrink-to-fit variant (pattern_fixed_tooltip_shrink_to_fit_edge).
+   position:fixed anchors it to the VIEWPORT; z-index 20 clears everything on
+   this page (the plan stack tops out at 3, and #out-pop sits in flow).
+
+   max-width is load-bearing: the script pins the MEASURED width in px. */
+.tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  max-width: 240px;
+  padding: 7px 10px;
+  background: var(--panel-lift);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  font-family: var(--serif);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--level-mid);
+  margin-bottom: 3px;
+}
+
+.tooltip-body {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+   can be clamped against the viewport edge while the arrow still points at
+   the control it describes. */
+.tooltip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--rule); }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--rule); }
