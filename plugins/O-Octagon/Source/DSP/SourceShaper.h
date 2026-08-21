@@ -61,8 +61,15 @@ struct SubPoints
 */
 namespace shaper
 {
-    /// §3.4.1 step 3. Room-relative so the collapse radius is venue-portable (≈ 1.19 m by default).
-    inline constexpr float kFadeFraction = 0.15f;
+    /// §3.4.1 step 3. Room-relative so the collapse radius is venue-portable (≈ 0.40 m by default).
+    ///
+    /// v1.3.0: 0.15 → 0.05. At 0.15 the collapse radius was ~1.19 m on the default rig, and the
+    /// DEFAULT centre puck sits only ~0.46 m from the centroid — so the shipped position suppressed
+    /// width to 39% of its dialled value, exactly where a user first tries the control. 0.05 keeps
+    /// the collapse (the 180° axis flip still happens only while the sub-points are coincident at
+    /// the exact centroid) but shrinks the guarded zone below the default puck offset. The faster
+    /// axis rotation near the centroid is still smoothed by the 5 ms gain ramps.
+    inline constexpr float kFadeFraction = 0.05f;
 
     /// §3.4.1 step 4. Below this bearing length the puck is AT the centroid and the direction of
     /// "outward" is undefined.

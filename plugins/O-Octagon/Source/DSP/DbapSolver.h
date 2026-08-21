@@ -57,8 +57,9 @@ namespace oo
 namespace instr
 {
 #if OOCTAGON_INSTRUMENT
-    /// PERF-02/3 — std::pow calls. Expected EXACTLY 16 per control block (8 per sub-point, via the
-    /// t = pow(d,-a) reuse). The bound of 32 alone would still pass if the reuse were dropped.
+    /// PERF-02/3 — std::pow calls. Expected EXACTLY 32 per control block since v1.3.0: 8 per
+    /// sub-point solve (via the t = pow(d,-a) reuse) plus 8 per sub-point z-cue reference solve
+    /// (GainStage). A direct solve pair (probe AE) is still exactly 16 — that is the reuse claim.
     inline std::atomic<std::uint64_t> powCalls { 0 };
 
     /// PERF-02/1,2 — completed solves. Must NOT increment across blocks with nothing changed.
@@ -164,9 +165,16 @@ namespace dbap
 
     inline constexpr float kInvTwentyLog10Two = 1.0f / 6.020599913f;  ///< 1 / (20·log10 2)
     inline constexpr float kMinDistance       = 0.05f;                ///< metres, hard d_i floor
-    inline constexpr float kMaxBlurMetres     = 8.0f;                 ///< absolute r_s ceiling
-    inline constexpr float kBlurScale         = 0.5f;                 ///< blur=1 → r_s = 0.5·rigScale
+    inline constexpr float kMaxBlurMetres     = 24.0f;                ///< absolute r_s ceiling
+    inline constexpr float kBlurScale         = 1.5f;                 ///< blur=1 → r_s = 1.5·rigScale
     inline constexpr float kDenomEpsilon      = 1e-20f;               ///< all-zero-weight detector
+
+    // v1.3.0 re-scale: kBlurScale 0.5 → 1.5 (and the backstop 8 → 24 m so it stays above
+    // 1.5·rigScale on any plausible rig). At 0.5 the max radius (~4 m on the default rig) barely
+    // exceeded the ~3 m speaker-to-ear vertical offset that already blurs every distance, so the
+    // full sweep moved the channel spread by only ~2 dB. At 1.5, blur = 1 reaches ~1.5× the RMS
+    // rig radius and the field genuinely washes out (~3 dB spread). Presets saved under < 1.3.0
+    // are re-mapped ÷3 by the editor's migration hook so their authored radii are preserved.
 
     static_assert (kMinDistance > 0.0f,
                    "d_i floor must be strictly positive: DBAP divides by d_i^a");

@@ -30,15 +30,62 @@ namespace oo
 
 namespace
 {
+    //==========================================================================
+    // v1.3.0 — the srcZ proximity cue (§ audibility fix).
+    //
+    // DBAP normalises to Σ v_i² = 1, so a source rising toward (or above) the speaker plane changes
+    // all eight distances nearly equally and the normalisation cancels almost everything: measured
+    // over the default rig, the full −2 → +8 m sweep moved individual channels by ~1-2 dB and the
+    // overall level by exactly nothing. Inside the hull there is no trim and no air filter either
+    // (designed — see the note at solveSubPoint), so srcZ had no audible pathway at all.
+    //
+    // The cue restores one from the quantity the solver already computes: 1/k = √denom, the field
+    // BEFORE normalisation (P69). It rises as the source nears the speakers and falls as it recedes.
+    // Each sub-point's gain vector is trimmed by (invK_z / invK_0)^kZCueExponent, where invK_0 is
+    // the SAME solve with srcZ removed — same (possibly hull-projected) x/y, same a, same r_s, same
+    // weights, ear-plane height. Referencing to the ear plane rather than to an absolute distance
+    // means the cue is EXACTLY 1.0 at srcZ = 0 (identical inputs → bit-identical invK → pow(1, γ)
+    // = 1.0), so the shipped default is bit-transparent to this feature.
+    //
+    // Measured on the default rig at the puck's front-left position: −3 dB at z = −2 (sunk below
+    // the plane), +4.5 dB approaching the speaker plane, −2 dB at z = +8 flying above the array —
+    // a monotonic rise-then-recede narrative on top of the (sharper) focus change the solve itself
+    // contributes. The clamp keeps a pathological venue from turning the cue into a fader.
+    //
+    // The reference solve runs UNCONDITIONALLY, srcZ = 0 included — same rule as the width = 0
+    // second solve below: no branch may change the arithmetic path between control boundaries
+    // (QUAL-03), and it keeps probe AE/BJ's pow budget EXACT (now 32 per solve pair, was 16).
+    inline constexpr float kZCueExponent = 2.5f;
+    inline constexpr float kZCueMinGain  = 0.5011872f;   // −6 dB
+    inline constexpr float kZCueMaxGain  = 1.9952623f;   // +6 dB
+
+    float zCueGain (float invK, float invKRef) noexcept
+    {
+        // Degenerate on either side (all-zero weights writes 0.0f) → no cue rather than a NaN/inf
+        // that would latch the SmoothedValue targets.
+        if (! (invK > 0.0f) || ! (invKRef > 0.0f))
+            return 1.0f;
+
+        const float cue = std::pow (invK / invKRef, kZCueExponent);
+
+        return cue < kZCueMinGain ? kZCueMinGain
+             : cue > kZCueMaxGain ? kZCueMaxGain
+             : cue;
+    }
+
     /** §5 steps 4 and 5 for one sub-point: classify against the hull, project if outside, solve.
+
+        @param srcZ    the height offset already baked into `point`, so the z-cue reference solve
+                       can strip it back off without re-deriving the audience plane.
+        @param outZCue the srcZ proximity trim for this sub-point (see block comment above).
 
         @returns d_hull — the distance from the sub-point to the hull boundary, in metres, and
                  EXACTLY 0.0f when the sub-point is inside. §5 step 6 consumes it for both the gain
                  trim and the air cutoff.
     */
-    float solveSubPoint (const VenueSnapshot& s, Vec3 point, float a, float rs,
+    float solveSubPoint (const VenueSnapshot& s, Vec3 point, float srcZ, float a, float rs,
                          const float w[GainStage::kNumSpeakers],
-                         float outV[GainStage::kNumSpeakers]) noexcept
+                         float outV[GainStage::kNumSpeakers], float& outZCue) noexcept
     {
         Vec3 solvePosition = point;
 
@@ -69,7 +116,23 @@ namespace
         // The hull is 2D on the floor while DBAP distances stay 3D (§3.1.1). A source at srcZ = +8 m
         // above room centre is therefore INSIDE the hull and receives no attenuation — designed
         // behaviour, srcZ being a musical control rather than an error condition. Not a bug to fix.
-        dbap::solve (s.spk.data(), w, solvePosition, a, rs, outV);
+        // (Since v1.3.0 srcZ IS audible inside the hull, via the proximity cue below — a level
+        // trim, not a hull attenuation.)
+        float invK = 0.0f;
+        dbap::solve (s.spk.data(), w, solvePosition, a, rs, outV, &invK);
+
+        // The z-cue reference: the same solve with the height offset stripped. Same projected x/y,
+        // same everything else, so at srcZ = 0 the two solves have IDENTICAL inputs and the cue is
+        // exactly 1.0. The gain vector it writes is discarded — only the un-normalised field is
+        // wanted here.
+        Vec3 refPosition = solvePosition;
+        refPosition.z -= srcZ;
+
+        float vRef[GainStage::kNumSpeakers];
+        float invKRef = 0.0f;
+        dbap::solve (s.spk.data(), w, refPosition, a, rs, vRef, &invKRef);
+
+        outZCue = zCueGain (invK, invKRef);
 
         return dHull;
     }
@@ -201,17 +264,23 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     // BOTH solves run unconditionally, INCLUDING at width = 0 where the two sub-points coincide and
     // the second is arithmetically redundant. It still must not be elided: a branch that changes
     // the arithmetic path between control boundary A and boundary B is exactly the class of bug
-    // QUAL-03 exists to catch (§3.4.3), and powCalls == 16 must hold EXACTLY at every width.
-    const float dHullL = solveSubPoint (snapshot, subPoints.left,  a, rs, w, vL);
-    const float dHullR = solveSubPoint (snapshot, subPoints.right, a, rs, w, vR);
+    // QUAL-03 exists to catch (§3.4.3), and powCalls == 32 must hold EXACTLY at every width
+    // (16 for the two sub-point solves + 16 for their z-cue reference solves since v1.3.0).
+    float zCueL = 1.0f;
+    float zCueR = 1.0f;
 
-    // ── §5 step 6 — hull gain trim and air cutoff, PER SUB-POINT ──────────────────────────────
+    const float dHullL = solveSubPoint (snapshot, subPoints.left,  p[params::srcZ], a, rs, w, vL, zCueL);
+    const float dHullR = solveSubPoint (snapshot, subPoints.right, p[params::srcZ], a, rs, w, vR, zCueR);
+
+    // ── §5 step 6 — hull gain trim, z-cue and air cutoff, PER SUB-POINT ───────────────────────
     //
-    // The trim folds into v BEFORE step 7 rather than at the setTargetValue line, which is what
+    // The trims fold into v BEFORE step 7 rather than at the setTargetValue line, which is what
     // makes DSP-07/1's "folded into that sub-point's gain vector" literally true rather than
-    // approximately true.
-    const float trimL = hullproc::hullTrimGain (p[params::hullAtten], dHullL);
-    const float trimR = hullproc::hullTrimGain (p[params::hullAtten], dHullR);
+    // approximately true. The z-cue multiplies in at the same site: at srcZ = 0 it is exactly
+    // 1.0f, and x * 1.0f is bit-identical, so the pre-1.3.0 arithmetic is preserved verbatim at
+    // the default height.
+    const float trimL = hullproc::hullTrimGain (p[params::hullAtten], dHullL) * zCueL;
+    const float trimR = hullproc::hullTrimGain (p[params::hullAtten], dHullR) * zCueR;
 
     for (int i = 0; i < kNumSpeakers; ++i)
     {

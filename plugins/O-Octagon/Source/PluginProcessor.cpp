@@ -82,15 +82,28 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         makeFloat ("srcX",  "Source X", linearRange (0.0f, 1.0f), 0.5f),
         makeFloat ("srcY",  "Source Y", linearRange (0.0f, 1.0f), 0.5f),
         makeFloat ("srcZ",  "Source Z", linearRange (-2.0f, 8.0f), 0.0f, "m"),
-        makeFloat ("width", "Width",    linearRange (0.0f, 6.0f), 0.0f, "m")));
+        // v1.3.0: width max 6 → 12 m. At 6 m the two sub-points' gain vectors differed by ≤ 2.5 dB
+        // per channel in the geometrically flat default field — barely audible. 12 m puts them near
+        // opposite walls of the default room at full width. Presets saved under < 1.3.0 carry the
+        // old normalised encoding and are re-mapped (÷2) by the editor's migration hook.
+        makeFloat ("width", "Width",    linearRange (0.0f, 12.0f), 0.0f, "m")));
 
     // ── Solve ───────────────────────────────────────────────────────────────────
     // "dB/2x" rather than "dB/doubling": Logic truncates the unit field hard and the prose form
     // does not survive it (RESEARCH §3.2).
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "solve", "Solve", "|",
-        makeFloat ("rolloff", "Rolloff", linearRange (3.0f, 6.0f), 4.0f, "dB/2x"),
-        makeFloat ("blur",    "Blur",    linearRange (0.0f, 1.0f), 0.10f)));
+        // v1.3.0: rolloff max 6 → 12 dB/2x. The paper's 3-6 range maps to exponents a = 0.5-1.0 —
+        // the gentle half of DBAP's useful range; over the default rig the max-to-min channel
+        // spread only reached ~13 dB at R = 6. R = 12 (a ≈ 2) reaches ~25 dB: a real focus
+        // control. Default 4.0 unchanged; < 1.3.0 presets re-mapped (÷3 in normalised terms) by
+        // the editor's migration hook.
+        makeFloat ("rolloff", "Rolloff", linearRange (3.0f, 12.0f), 4.0f, "dB/2x"),
+        // v1.3.0: default 0.10 → 0.03. kBlurScale tripled (0.5 → 1.5, DbapSolver.h) so blur = 1 is
+        // a true wash; 0.03 keeps the shipped default radius at ~0.36 m (was 0.40 m) — audibly the
+        // same starting point. Concert Default (PresetPolicy.h) moves with it: that preset must
+        // stay exactly the shipped defaults.
+        makeFloat ("blur",    "Blur",    linearRange (0.0f, 1.0f), 0.03f)));
 
     // ── Weights ─────────────────────────────────────────────────────────────────
     // No label, deliberately: these are DBAP weights, not percentages of anything. Inventing
