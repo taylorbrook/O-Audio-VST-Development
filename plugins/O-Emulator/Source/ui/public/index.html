@@ -123,13 +123,71 @@
     text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
   }
   .wordmark .fleuron { font-size: 15px; color: rgba(60,47,47,0.55); margin-right: 8px; vertical-align: 3px; }
-  /* Reserved preset-bar slot (Stage 4 — preset-manager v1.0.6 lands with the
-     factory presets). Empty in v1.0 but holds its width+height so the header
-     geometry never shifts when the band arrives. */
+  /* ============ preset band (Stage 4 — preset-manager v1.0.6) ============
+     Prev/next + name plate + save/load/delete, no menu in v1.0. Element IDs
+     are exactly the ones preset-manager.js binds; #preset-name stays
+     childless (_updateDisplay writes textContent). Button copy lives in
+     data-label / data-confirm, never in JS. Sized compact — the header also
+     carries the wordmark and the plate line; final width call at the visual
+     gate. */
   .preset-band {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     align-self: flex-end;
-    min-width: 200px;
     min-height: 26px;
+    padding-bottom: 1px;
+  }
+  .preset-nav,
+  .preset-btn {
+    font-family: var(--serif);
+    font-variant: small-caps;
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    color: var(--brown-text);
+    background: rgba(250,240,230,0.75);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .preset-nav {
+    width: 20px;
+    height: 20px;
+    padding: 0 0 1px;
+    font-size: 8px;
+    line-height: 1;
+  }
+  .preset-btn { padding: 2px 7px 3px; }
+  .preset-nav:not(:disabled):hover,
+  .preset-btn:not(:disabled):hover {
+    background: var(--knob-core);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 5px rgba(0,0,0,0.25);
+  }
+  .preset-nav:disabled,
+  .preset-btn:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  #preset-delete[data-armed="1"] {
+    background: rgba(139,69,19,0.3);
+    border-color: var(--brown-frame);
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+  }
+  .preset-name {
+    width: 96px;
+    padding: 3px 8px 4px;
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--brown-text);
+    background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
   }
   .hdr-right { text-align: right; line-height: 1.45; padding-bottom: 1px; }
   .hdr-right .brand {
@@ -296,7 +354,17 @@
       <!-- ================= header ================= -->
       <div class="hdr">
         <div class="wordmark"><span class="fleuron">❦</span>O-EMULATOR</div>
-        <div class="preset-band" aria-hidden="true"></div>
+        <!-- Preset band — IDs are exactly the ones preset-manager.js binds.
+             All buttons ship disabled and are un-disabled only after
+             presetManager.initialize() resolves. -->
+        <div class="preset-band">
+          <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+          <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
+          <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+          <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
+          <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+          <button type="button" class="preset-btn" id="preset-delete" data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+        </div>
         <div class="hdr-right">
           <div class="brand">Ouaricon Audio</div>
           <div class="plate">A Survey of Extinct Consoles · Plate CDLXXXVII</div>
@@ -348,6 +416,9 @@
   // ES-module namespace, never through the raw injected backend global
   // (repo pattern critical_juce_webview_namespace_vs_postmessage).
   import * as Juce from "./js/juce/index.js";
+  // Preset UI module (Stage 4) — the generated copy under modules/ tracks the
+  // canonical preset-manager source at every CMake configure.
+  import { PresetManager } from "./modules/preset-manager.js";
 
   // Native application feel
   document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
@@ -554,6 +625,79 @@
     buttons.forEach((b) =>
       b.addEventListener("click", () => state.setChoiceIndex(+b.dataset.value)));
   });
+
+  // ================= preset band (Stage 4) — modules/preset-manager.js ======
+  // Constructor + EXPLICIT DOM refs for all six band elements, plus
+  // getNativeFunction — omitting it leaves the band rendered but silently
+  // inert. NEVER createPresetBar() (innerHTML-wipes, no delete button).
+  // This block runs LAST in the module script: the page is loaded in a
+  // visible WebView, so native-fn completions are not dropped
+  // (a hidden view drops them and initialize() would hang).
+  {
+    let deleteArmTimer = null;
+
+    // Two-click armed delete — first call arms the button and shows its
+    // data-confirm copy; a second call within 2.5 s confirms. Never
+    // window.confirm() — native confirm dialogs inside a JUCE WebView are
+    // unreliable. Button copy comes from data-label / data-confirm, never
+    // JS literals (pattern_js_state_updater_overwrites_html_labels).
+    const armedConfirmDelete = () => {
+      const btn = document.getElementById("preset-delete");
+      if (!btn) return false;
+
+      const disarm = () => {
+        if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
+        btn.dataset.armed = "0";
+        btn.textContent = btn.dataset.label || "Delete";
+      };
+
+      if (btn.dataset.armed === "1") {
+        disarm();
+        return true;          // second click within the window — confirmed
+      }
+
+      btn.dataset.armed = "1";
+      btn.textContent = btn.dataset.confirm || "Confirm?";
+      deleteArmTimer = setTimeout(disarm, 2500);
+      return false;           // first click — armed only
+    };
+
+    const byId = (id) => document.getElementById(id);
+    const els = ["preset-prev", "preset-next", "preset-name",
+                 "preset-save", "preset-load", "preset-delete"].map(byId);
+
+    if (els.some((el) => !el)) {
+      console.error("Missing preset-band elements — preset band disabled");
+    } else {
+      const [prevEl, nextEl, nameEl, saveEl, loadEl, deleteEl] = els;
+
+      const presetManager = new PresetManager({
+        displayElement: nameEl,   // stays childless — _updateDisplay writes textContent
+        // The list is FLAT alphabetical (no menu, no grouping), so the
+        // module's native prev/next walkers agree with the display order by
+        // construction — pass the arrows straight in, unlike O-Bitrot whose
+        // grouped menu forced a walk-order override.
+        prevButton: prevEl,
+        nextButton: nextEl,
+        saveButton: saveEl,
+        loadButton: loadEl,
+        deleteButton: deleteEl,
+        getNativeFunction: Juce.getNativeFunction,
+        onConfirmDelete: () => armedConfirmDelete(),
+        // Knobs/segments/accent all refresh through relay listeners on preset
+        // load — no extra work needed here.
+      });
+
+      // The band ships disabled in the markup. Un-disable only after
+      // initialize() resolves (native fns bound, first refresh done) — if
+      // the bridge never comes up, the buttons stay honestly disabled
+      // instead of enabled-but-inert.
+      presetManager.initialize().then(() => {
+        [prevEl, nextEl, saveEl, loadEl, deleteEl]
+          .forEach((el) => { el.disabled = false; });
+      });
+    }
+  }
 </script>
 </body>
 </html>

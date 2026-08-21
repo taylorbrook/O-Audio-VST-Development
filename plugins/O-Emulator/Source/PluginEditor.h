@@ -37,9 +37,12 @@ private:
     OEmulatorAudioProcessor& audioProcessor;
 
     // ========================================================================
-    // NATIVE-FUNCTION SURFACE — ZERO in v1.0. All five parameters ride relays;
-    // the info readout is a static JS table. The Stage-3.2 bridge audit
-    // grep-diffs at 0<->0 (getNativeFunction must not appear in index.html).
+    // NATIVE-FUNCTION SURFACE — exactly 10 (Stage 4, preset-manager v1.0.6):
+    // the ten names modules/preset-manager.js resolves. All five parameters
+    // still ride relays; the info readout is a static JS table. The bridge
+    // audit runs at 10<->10: withNativeFunction in PluginEditor.cpp (10) <->
+    // getNativeFunction in the generated modules/preset-manager.js (10) +
+    // index.html (0).
     // ========================================================================
 
     // ========================================================================

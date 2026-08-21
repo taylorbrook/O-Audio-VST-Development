@@ -89,6 +89,67 @@ OEmulatorAudioProcessor::OEmulatorAudioProcessor()
     ageParam     = apvts.getRawParameterValue("age");
     jassert(crushParam != nullptr && mixParam != nullptr && consoleParam != nullptr
             && reverbParam != nullptr && ageParam != nullptr);
+
+    // ── Factory preset bank (Stage 4) — 16 presets ──────────────────────────
+    // Authored DENORMALIZED in engineering units (console = choice index:
+    // SNES=0, PS1=1, NES=2, Game Boy=3, Genesis=4; floats = percent), then
+    // batch-converted through each parameter's NormalisableRange below. All
+    // ranges are linear today, but the conversion is kept as the house idiom —
+    // robust to any future range change.
+    //
+    // Every preset lists all 5 IDs (defense in depth over the module's
+    // reset-to-defaults pass). Names are ASCII-only and slash-free — a name is
+    // a FILENAME (sanitizer rewrites '/' silently). getPresetList() sorts
+    // case-insensitively, so the browser order is alphabetical regardless of
+    // declaration order here. Renaming a shipped factory preset strands its
+    // old .json permanently — adding is safe, renaming is not.
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets {
+        { "Crush Extreme",
+          { { "console", 2.0f }, { "crush", 100.0f }, { "age", 30.0f }, { "reverb", 0.0f }, { "mix", 100.0f } } },
+        { "GB Pocket Speaker",
+          { { "console", 3.0f }, { "crush", 75.0f }, { "age", 55.0f }, { "reverb", 0.0f }, { "mix", 100.0f } } },
+        { "GB Signature",
+          { { "console", 3.0f }, { "crush", 40.0f }, { "age", 12.0f }, { "reverb", 0.0f }, { "mix", 100.0f } } },
+        { "Genesis Arcade Floor",
+          { { "console", 4.0f }, { "crush", 70.0f }, { "age", 50.0f }, { "reverb", 25.0f }, { "mix", 100.0f } } },
+        { "Genesis Signature",
+          { { "console", 4.0f }, { "crush", 45.0f }, { "age", 10.0f }, { "reverb", 0.0f }, { "mix", 100.0f } } },
+        { "Lo-Fi Drums",
+          { { "console", 0.0f }, { "crush", 55.0f }, { "age", 25.0f }, { "reverb", 8.0f }, { "mix", 100.0f } } },
+        { "NES Basement",
+          { { "console", 2.0f }, { "crush", 80.0f }, { "age", 70.0f }, { "reverb", 10.0f }, { "mix", 100.0f } } },
+        { "NES Signature",
+          { { "console", 2.0f }, { "crush", 45.0f }, { "age", 15.0f }, { "reverb", 0.0f }, { "mix", 100.0f } } },
+        { "Parallel Grit",
+          { { "console", 4.0f }, { "crush", 85.0f }, { "age", 35.0f }, { "reverb", 0.0f }, { "mix", 45.0f } } },
+        { "PS1 Demo Disc",
+          { { "console", 1.0f }, { "crush", 70.0f }, { "age", 45.0f }, { "reverb", 55.0f }, { "mix", 100.0f } } },
+        { "PS1 Signature",
+          { { "console", 1.0f }, { "crush", 40.0f }, { "age", 8.0f }, { "reverb", 30.0f }, { "mix", 100.0f } } },
+        { "Reverb Chamber",
+          { { "console", 1.0f }, { "crush", 20.0f }, { "age", 10.0f }, { "reverb", 85.0f }, { "mix", 100.0f } } },
+        { "SNES Signature",
+          { { "console", 0.0f }, { "crush", 35.0f }, { "age", 10.0f }, { "reverb", 12.0f }, { "mix", 100.0f } } },
+        { "SNES Worn Cart",
+          { { "console", 0.0f }, { "crush", 65.0f }, { "age", 60.0f }, { "reverb", 20.0f }, { "mix", 100.0f } } },
+        { "Subtle Glue",
+          { { "console", 0.0f }, { "crush", 15.0f }, { "age", 5.0f }, { "reverb", 0.0f }, { "mix", 35.0f } } },
+        { "Tape Wash",
+          { { "console", 1.0f }, { "crush", 30.0f }, { "age", 65.0f }, { "reverb", 40.0f }, { "mix", 85.0f } } },
+    };
+
+    // Engineering units → normalized through each parameter's
+    // NormalisableRange, once, here. initializeFactoryPresets stores the
+    // values verbatim and applyPresetJson feeds them back through
+    // setValueNotifyingHost (normalized domain).
+    for (auto& preset : factoryPresets)
+        for (auto& [paramId, value] : preset.parameters)
+            if (auto* p = apvts.getParameter(paramId))
+                value = p->convertTo0to1(value);
+
+    // Sentinel-gated (module v1.0.4+): file writes happen only when
+    // JucePlugin_VersionString changes — auval/pluginval scan-storm safe.
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 OEmulatorAudioProcessor::~OEmulatorAudioProcessor() = default;
@@ -189,14 +250,17 @@ juce::AudioProcessorEditor* OEmulatorAudioProcessor::createEditor()
 
 void OEmulatorAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = apvts.copyState();
-
-    // Version stamp from day one — every house preset-migration gate keys off
-    // this attribute, and adding it at v1.0.0 costs nothing.
-    state.setProperty("pluginVersion", JucePlugin_VersionString, nullptr);
-
-    if (auto xml = state.createXml())
+    // Delegated to the preset manager (Stage 4) so `currentPreset` rides the
+    // session state — the preset-name display survives a DAW save/reload.
+    if (auto xml = presetManager.getStateAsXml())
+    {
+        // Version stamp kept from day one — every house preset-migration gate
+        // keys off this attribute. getStateAsXml() does not write it, so it is
+        // re-added here (as an XML attribute; the pre-Stage-4 code carried it
+        // as a ValueTree property, which lands in the same place).
+        xml->setAttribute("pluginVersion", JucePlugin_VersionString);
         copyXmlToBinary(*xml, destData);
+    }
 }
 
 void OEmulatorAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
@@ -204,7 +268,7 @@ void OEmulatorAudioProcessor::setStateInformation(const void* data, int sizeInBy
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(apvts.state.getType()))
-        apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+        presetManager.setStateFromXml(xmlState.get());
 }
 
 // Factory function

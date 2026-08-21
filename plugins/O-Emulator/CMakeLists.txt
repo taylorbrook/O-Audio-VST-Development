@@ -62,10 +62,14 @@ target_link_libraries(OEmulator
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OEmulator)
 
+# Shared modules — adds the module cpp/ include dir and configure-copies the
+# JS to Source/ui/public/modules/ (that IS this plugin's UI root; never
+# relocate the copy — it is re-created on every configure and gitignored).
+ouaricon_add_module(OEmulator preset-manager)
+
 # WebView UI resources — exactly ONE binary-data target (two collide on the
 # BinaryData namespace); no hyphens in resource filenames (juce_add_binary_data
-# strips them). Preset-manager module (ouaricon_add_module) lands in Stage 4
-# with the factory presets.
+# strips them: preset-manager.js becomes BinaryData::presetmanager_js).
 juce_add_binary_data(OEmulator_UIResources
     SOURCES
         Source/ui/public/index.html
@@ -73,6 +77,7 @@ juce_add_binary_data(OEmulator_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/specimen.webp
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OEmulator PRIVATE OEmulator_UIResources)

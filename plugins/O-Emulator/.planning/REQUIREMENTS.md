@@ -39,7 +39,7 @@ lastUpdated: 2026-08-21
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | UI-01 | Console selector is the focal UI element with four macro knobs (Crush, Age, Reverb, Mix) | should | partial | stage-3 |
-| UI-02 | Factory presets showcasing each console's signature sound | nice | pending | stage-4 |
+| UI-02 | Factory presets showcasing each console's signature sound | nice | complete | stage-4 |
 
 ### Performance (PERF)
 
