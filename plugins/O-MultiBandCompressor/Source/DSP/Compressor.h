@@ -24,10 +24,12 @@
     Single-band feed-forward compressor with soft knee
     O-MultiBandCompressor
 
-    Two detector topologies (v1.6.1):
-      - linked (all L/R paths, Mid-only, Side-only): channels averaged into ONE
-        detector, one gain applied to every channel — element [0] of each state
-        array, bit-compatible with the pre-1.6.1 behaviour.
+    Two detector topologies (v1.6.1, link corrected v1.9.0):
+      - linked (all L/R paths, Mid-only, Side-only): each channel sidechain-filtered
+        on its own state, rectified, then linked on the MAX into ONE detector
+        (element [0]), one gain applied to every channel. (Pre-1.9.0 this averaged
+        the SIGNED samples — a mono fold-down that under-read panned and
+        decorrelated content and could not see anti-phase content at all.)
       - unlinked dual-mono (M/S "Both" mode): each channel gets its own detector,
         sidechain filters, ballistics and makeup state. Without this, averaging
         mid and side collapses the detector to (M+S)/2 = L/sqrt(2) — the left
@@ -40,6 +42,8 @@
 */
 
 #pragma once
+#include <algorithm>
+#include <cmath>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "EnvelopeDetector.h"
@@ -140,10 +144,10 @@ public:
     // Process stereo buffer with sidechain filtering and auto-makeup.
     // numActiveChannels: how many channels of `buffer` actually carry signal (WR-02) —
     // the band buffers are preallocated stereo, but in mono M/S modes only channel 0 is
-    // filled; averaging the silent channel into the detector halves the level (−6 dB).
-    // linkedDetector: true = stereo-linked (average channels into one detector, one
-    // shared gain); false = unlinked dual-mono, one detector chain per channel
-    // (M/S "Both" mode — v1.6.1).
+    // filled; the silent channel must stay out of the sidechain filters and gain loop.
+    // linkedDetector: true = stereo-linked (max of per-channel rectified sidechains
+    // into one detector, one shared gain — v1.9.0); false = unlinked dual-mono, one
+    // detector chain per channel (M/S "Both" mode — v1.6.1).
     void processStereo(juce::AudioBuffer<float>& buffer,
                       int numActiveChannels,
                       bool linkedDetector,
@@ -185,29 +189,31 @@ public:
         {
             if (linkedDetector)
             {
-                // Stereo link: average all channels into detector [0], one shared gain.
-                float detectorInput = 0.0f;
+                // Stereo link (v1.9.0): filter each channel on its own sidechain state,
+                // rectify, then link on the MAX of the rectified channels — one detector,
+                // one shared gain. The previous signed average (L+R)/2 was a mono
+                // fold-down of the sidechain: hard-panned content read −6 dB, decorrelated
+                // stereo ~−3 dB, and anti-phase content was invisible to the detector.
+                float linkedLevel = 0.0f;
+                float filteredCh[2] = { 0.0f, 0.0f };
                 for (int channel = 0; channel < numChannels; ++channel)
                 {
-                    detectorInput += chanData[channel][sample];
+                    filteredCh[channel] = applySidechainFilters(channel, chanData[channel][sample]);
+                    linkedLevel = std::max(linkedLevel, std::abs(filteredCh[channel]));
                 }
-                detectorInput /= static_cast<float>(numChannels);
 
-                // Apply sidechain filtering to detector signal (not audio path)
-                float filteredSidechain = applySidechainFilters(0, detectorInput);
-
-                // Sidechain listen mode: replace audio output with filtered sidechain
+                // Sidechain listen mode: each channel outputs its own filtered signal
                 if (scListen)
                 {
                     for (int channel = 0; channel < numChannels; ++channel)
                     {
-                        chanData[channel][sample] = filteredSidechain;
+                        chanData[channel][sample] = filteredCh[channel];
                     }
                     continue; // Skip compression processing in listen mode
                 }
 
                 const float totalGain = computeChannelGain(
-                    0, filteredSidechain, thresholdDB, ratio, kneeDB,
+                    0, linkedLevel, thresholdDB, ratio, kneeDB,
                     makeupDB, peakRmsBlend, autoMakeupEnabled);
 
                 // Apply gain to all channels
