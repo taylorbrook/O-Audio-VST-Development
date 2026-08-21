@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
 stage: 4
-phase: execute
-status: stage_4_execute_complete_human_gates_pending
+phase: verify
+status: stage_4_polish_verify_partial_human_gates_pending
 last_updated: 2026-08-21
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_verify
+next_action: stage_4_human_gates_logic_pro
 next_stage: 4
 ready_for_implementation: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 (Polish) — execute ✓ (2026-08-21)
-Phase: execute complete → next: Stage 4 verify (6 human gates in Logic Pro)
-Status: preset-manager v1.0.6 integrated (10 native fns, preset band live, state fns delegate — currentPreset rides sessions); 16 factory presets on disk + sentinel; all automated gates green — harness ALL PASS digest-identical (9cf6baa8d3b61b14 / b23fe10b74526fab / dad157a01f7c393f), pluginval 10 VST3+AU SUCCESS, auval PASS, bridge audit 10↔10; installed via build-and-install.sh; CHANGELOG created, PLUGINS.md → 📦 Installed 1.0.0, UI-02 complete (UI-01 flips at verify with the human gates)
-Progress: [###################.] 97%
+Stage: 4 (Polish) — verify ⚠ PARTIAL (2026-08-21): automated ✓, human gates pending
+Phase: verify (automated) complete → next: 6 human gates in Logic Pro + factory-preset audition
+Status: VERIFICATION.md written — independent re-run all green: harness ALL PASS digest-identical (9cf6baa8d3b61b14 / b23fe10b74526fab / dad157a01f7c393f), pluginval 10 VST3+AU SUCCESS, auval PASS, bridge audit 10↔10 (name sets match exactly, index.html 0 direct), one binary-data target, 16 factory presets + sentinel 1.0.0, install clean; REQUIREMENTS 14/15 complete, UI-01 stays partial until the Logic Pro pass flips it
+Progress: [###################.] 98%
 
 ## Phase Progress
 
@@ -63,6 +63,7 @@ Progress: [###################.] 97%
 | research | ✓ | 2026-08-21 | |
 | plan | ✓ | 2026-08-21 | |
 | execute | ✓ | 2026-08-21 | (automated tasks 1–7 + 9 done; task 8 human gates → verify) |
+| verify | ⚠ | 2026-08-21 | (automated ✓ independently re-run; 6 human gates in Logic Pro pending) |
 
 ## Completed So Far
 
@@ -154,9 +155,17 @@ Progress: [###################.] 97%
 - `stages/4-polish/PLAN.md`: 9 tasks — (1) CMake `ouaricon_add_module` + UIResources JS, (2) processor member + state-fn delegation w/ pluginVersion attribute, (3) factory bank: 16 presets with exact denormalized values (10 console signatures + 6 utility, all 5 IDs each, convertTo0to1 batch), (4) 10 native fns (SafePointer-local, bare-return on dead editor, `{success,name}`), (5) preset-band UI (module prev/next, armed delete confirm, mount last, no menu), (6) automated gates — harness digests must stay identical, pluginval 10, auval, bridge audit 10↔10, (7) install, (8) 6 Logic Pro human gates + preset audition, (9) CHANGELOG/PLUGINS.md/REQUIREMENTS.md closure
 - Research open items resolved: no click-menu in v1.0; CHANGELOG single 1.0.0 section; band width settled at visual gate
 
+## Stage 4 Verification (2026-08-21)
+
+- ⚠ PARTIAL (automated ✓) — `stages/4-polish/VERIFICATION.md`
+- Independently re-run: harness ALL PASS, digest anchors identical (preset-manager confirmed UI/state-layer only); pluginval strictness 10 SUCCESS VST3+AU; auval `* * PASS`
+- Audits: bridge 10↔10 with exact name-set match, index.html 0 direct calls, `__JUCE__` 0 authored, one binary-data target, 16 factory JSON + sentinel 1.0.0, install clean (no alternate-variant orphans), PLUGINS.md single row
+- 6 human gates + factory-preset audition pending in Logic Pro; UI-01 flips to complete when they pass
+
 ## Next Steps
 
-1. `/plugin-execute O-Emulator 4-polish` — implement the 9-task plan
+1. Run the 6 human gates in Logic Pro (checklist in `stages/4-polish/VERIFICATION.md`) + audition the 16 factory presets
+2. Report results — pass flips UI-01 → complete, stage 4 → ✅ VERIFIED, plugin complete
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
