@@ -26,12 +26,14 @@ namespace oemu
 {
 
 void ConsoleResampler::prepare (double hostRate, double consoleRate,
-                                float aaCutoffHz, int primeConsoleSamples)
+                                float aaCutoffHz, int primeConsoleSamples,
+                                UpsampleMode upsampleMode)
 {
     jassert (hostRate > 0.0 && consoleRate > 0.0);
 
     ratio = hostRate / consoleRate;
     primeCount = juce::jlimit (0, kUpCap - 16, primeConsoleSamples);
+    mode = upsampleMode;
 
     // Keep the AA corner strictly below the HOST Nyquist too (it already is
     // at every supported rate; this is belt-and-braces for exotic hosts).
@@ -77,6 +79,8 @@ void ConsoleResampler::reset()
     upRead = 0;
     upFill = 0;
     upPhase = 0.0;
+    zohL = 0.0f;
+    zohR = 0.0f;
 
     // Latency alignment: pre-queue zeros so the console stream reaches the
     // Gaussian exactly when the reported latency says it should.
@@ -167,6 +171,38 @@ void ConsoleResampler::pushConsoleSample (float l, float r) noexcept
 void ConsoleResampler::upsample (float* outL, float* outR, int numHost) noexcept
 {
     const double inc = 1.0 / ratio;   // console samples per host sample
+
+    if (mode == UpsampleMode::zoh)
+    {
+        // Zero-order hold: sample repeat, no interpolation (2A03/GB/YM2612
+        // had none) — the images fold in by design.
+        for (int i = 0; i < numHost; ++i)
+        {
+            upPhase += inc;
+
+            while (upPhase >= 1.0)
+            {
+                upPhase -= 1.0;
+
+                if (upFill > 0)
+                {
+                    zohL = upRing[0][upRead];
+                    zohR = upRing[1][upRead];
+                    upRead = (upRead + 1) & (kUpCap - 1);
+                    --upFill;
+                }
+                else
+                {
+                    jassertfalse;   // priming makes this unreachable
+                }
+            }
+
+            outL[i] = zohL;
+            outR[i] = zohR;
+        }
+
+        return;
+    }
 
     for (int i = 0; i < numHost; ++i)
     {

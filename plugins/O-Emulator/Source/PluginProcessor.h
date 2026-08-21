@@ -74,6 +74,7 @@ public:
     int getFeederChunkPhaseForTest() const noexcept { return engine.getChunkPhaseForTest(); }
     std::uint64_t getFeederAbsoluteSamplesForTest() const noexcept { return engine.getAbsoluteSamplesForTest(); }
     int getUpsampleFillForTest() const noexcept { return engine.getUpsampleFillForTest(); }
+    float getOutputLpHzForTest(int console) const noexcept { return engine.getOutputLpHzForTest(console); }
 #endif
 
 private:
@@ -96,8 +97,8 @@ private:
     int totalLatencySamples = 0;
 
     // Cached parameter atomics (audio-thread reads). `age` exists in the
-    // APVTS but drives nothing until Phase 2.4. `console` selects SNES/PS1
-    // (2.2 interim hard switch; indices 2-4 map to SNES until Phase 2.3).
+    // APVTS but drives nothing until Phase 2.4. `console` selects any of the
+    // five pipelines (30 ms equal-power crossfade mid-stream).
     std::atomic<float>* crushParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
     std::atomic<float>* consoleParam = nullptr;

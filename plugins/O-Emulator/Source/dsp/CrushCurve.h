@@ -75,6 +75,56 @@ struct CrushCurve
 
     static float ps1DriveDb (float crushPct) noexcept    { return snesDriveDb (crushPct); }
     static int   ps1ShiftFloor (float crushPct) noexcept { return snesShiftFloor (crushPct); }
+
+    // ── NES row (Phase 2.3) ──────────────────────────────────────────────────
+    // Crush walks DOWN the 16-entry NTSC DPCM timer table: index 15
+    // (33.1 kHz) at 0 % to index 0 (~4.2 kHz) at 100 % (ARCHITECTURE "Crush
+    // Mapping"). Integer steps by design; micro-fades land in Phase 2.4.
+
+    static float nesDriveDb (float crushPct) noexcept { return snesDriveDb (crushPct); }
+
+    static int nesRateIndex (float crushPct) noexcept
+    {
+        const float c = juce::jlimit (0.0f, 100.0f, crushPct);
+        return 15 - (int) std::lround ((double) c * 0.15);
+    }
+
+    // ── Game Boy row (Phase 2.3) ─────────────────────────────────────────────
+    // Crush reduces the wave-channel level count 16 -> 8 -> 4 at the top of
+    // the range (ARCHITECTURE: "GB: crush reduces effective wave steps").
+
+    static float gbDriveDb (float crushPct) noexcept { return snesDriveDb (crushPct); }
+
+    static int gbLevels (float crushPct) noexcept
+    {
+        const float c = juce::jlimit (0.0f, 100.0f, crushPct);
+        return c < 70.0f ? 16 : (c < 90.0f ? 8 : 4);
+    }
+
+    // ── Genesis row (Phase 2.3) ──────────────────────────────────────────────
+    // Crush lowers the effective DAC update rate 26.3 kHz -> 8 kHz linearly
+    // (ARCHITECTURE: mirrors real Z80-driven playback rates).
+
+    static float genesisDriveDb (float crushPct) noexcept { return snesDriveDb (crushPct); }
+
+    static double genesisUpdateRateHz (float crushPct) noexcept
+    {
+        const double c = (double) juce::jlimit (0.0f, 100.0f, crushPct);
+        return 26320.0 - c * 183.20;   // 100 % -> 8000 Hz
+    }
+
+    // ── Console dispatch (indices per the ConsoleSpec table order) ───────────
+    static float driveDbFor (int consoleIndex, float crushPct) noexcept
+    {
+        switch (consoleIndex)
+        {
+            case 1:  return ps1DriveDb (crushPct);
+            case 2:  return nesDriveDb (crushPct);
+            case 3:  return gbDriveDb (crushPct);
+            case 4:  return genesisDriveDb (crushPct);
+            default: return snesDriveDb (crushPct);
+        }
+    }
 };
 
 } // namespace oemu
