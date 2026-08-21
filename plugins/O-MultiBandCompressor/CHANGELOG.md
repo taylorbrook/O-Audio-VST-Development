@@ -1,5 +1,44 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.9.0 (2026-08-20)
+
+Bands now engage at sensible thresholds. Two detector-level fixes, both raising
+what the sidechain actually reads.
+
+### Fixed
+
+- **Stereo link no longer mono-sums the sidechain.** Linked mode (the default,
+  M/S off) averaged the *signed* samples — `(L+R)/2` — before rectification.
+  That is a mono fold-down of the detector: hard-panned content read −6 dB,
+  decorrelated stereo (cymbals, wide synths, reverb — most of what lives in the
+  HIMID/HIGH bands) read ~3–6 dB low, and anti-phase content was invisible to
+  the detector entirely. Root cause of "bands only activate with the threshold
+  really low." Each channel is now filtered on its own sidechain state
+  (both filter states already existed for the unlinked path), rectified, and
+  linked on the **max** of the channels — the standard stereo-link topology.
+  Mono and centered content detect identically to before.
+- **RMS reading calibrated +3 dB (AES-17 style).** A steady full-scale sine's
+  RMS now reads its peak level instead of 3 dB under it, so the peak/RMS blend
+  no longer shifts the effective threshold down as it moves toward RMS.
+
+### Changed
+
+- **SC Listen in linked mode is now true stereo**: each channel outputs its own
+  filtered sidechain signal instead of both channels carrying the mono sum.
+- **Existing presets/sessions compress somewhat harder on stereo material** —
+  the detector now sees level it previously under-read (mostly HIMID/HIGH;
+  the LOW band's largely-correlated content barely shifts). Parameter IDs,
+  ranges, and state format are unchanged; nothing breaks loading.
+
+### Testing
+
+- Render harness: 47/47 active presets engage, all Init presets inert,
+  order-independence clean, no non-finite output. A/B against the v1.8.0
+  detector (baseline rebuilt from backup): every active preset deepens by
+  ~2–3.5 dB GR with no preset changing which bands engage. On the harness's
+  mostly-correlated noise bed the RMS calibration dominates the shift; on
+  wide stereo program the link fix contributes more.
+
 ## Version 1.8.0 (2026-08-20)
 
 All 39 dials now use the suite's house knob instead of a styled range input.
