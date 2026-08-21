@@ -593,35 +593,84 @@ body {
     gap: 2px;
 }
 
+/* ===== v1.8.0: SEED CROSS-SECTION KNOB =====
+   Ported from O-ReverseDelay (the house dial, shared by ~20 plugins) so this
+   plugin stops being the only effect driving its controls with a bare
+   <input type="range">. The old dial was a flat circle whose slider thumb was
+   zeroed to 0x0 in both engines, so nothing on the control itself ever showed
+   its position — only the text readout underneath moved.
+
+   The palette needed no translation: O-ReverseDelay's knob variables are the
+   same seven colours this stylesheet already used, and .placeholder-circle
+   below is already this exact ring formula. Values are inlined rather than
+   promoted to custom properties because the rest of this file is written that
+   way; a :root token block is a separate change.
+
+   Geometry is NOT ported. O-ReverseDelay's knob is 56px; the four band columns
+   here have three knob rows inside 900x640, so the three established sizes
+   (36 / 28 / 44) are kept and only the face changes. The stem lengths below are
+   set per size to land at ~85% of each radius. */
 .knob {
-    -webkit-appearance: none;
-    appearance: none;
+    position: relative;
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #FFF8DC, #C9A27B);
     border: 2px solid #8B7355;
-    outline: none;
-    cursor: pointer;
+    cursor: ns-resize;
+    transition: transform 0.1s ease;
+    background:
+        radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+        conic-gradient(from 0deg,
+            #F5DEB3 0deg,   #F5DEB3 18deg,  #8B7355 18deg,  #8B7355 19deg,
+            #E8D5B7 19deg,  #E8D5B7 36deg,  #8B7355 36deg,  #8B7355 37deg,
+            #F5DEB3 37deg,  #F5DEB3 54deg,  #8B7355 54deg,  #8B7355 55deg,
+            #E8D5B7 55deg,  #E8D5B7 72deg,  #8B7355 72deg,  #8B7355 73deg,
+            #F5DEB3 73deg,  #F5DEB3 90deg,  #8B7355 90deg,  #8B7355 91deg,
+            #E8D5B7 91deg,  #E8D5B7 108deg, #8B7355 108deg, #8B7355 109deg,
+            #F5DEB3 109deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 127deg,
+            #E8D5B7 127deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
+            #F5DEB3 145deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 163deg,
+            #E8D5B7 163deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 181deg,
+            #F5DEB3 181deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 199deg,
+            #E8D5B7 199deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
+            #F5DEB3 217deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 235deg,
+            #E8D5B7 235deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 253deg,
+            #F5DEB3 253deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 271deg,
+            #E8D5B7 271deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
+            #F5DEB3 289deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 307deg,
+            #E8D5B7 307deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 325deg,
+            #F5DEB3 325deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 343deg,
+            #E8D5B7 343deg, #E8D5B7 360deg),
+        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
     box-shadow:
-        inset 1px 1px 3px rgba(0,0,0,0.2),
-        inset -1px -1px 2px rgba(255,248,220,0.5),
-        2px 2px 4px rgba(0,0,0,0.15);
-    position: relative;
+        inset 1px 1px 3px rgba(0, 0, 0, 0.3),
+        inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+        2px 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-.knob::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 0;
-    height: 0;
+.knob:hover  { transform: scale(1.05); }
+.knob:active { transform: scale(0.98); }
+
+.knob:focus-visible {
+    outline: 2px dotted #6B8E23;
+    outline-offset: 3px;
 }
 
-.knob::-moz-range-thumb {
-    width: 0;
-    height: 0;
-    border: none;
-    background: transparent;
+/* Indicator: botanical stem line from centre outwards. transform-origin sits at
+   the stem's BOTTOM (50% 100%), which after the -50%/-100% translate is the
+   knob's centre — so rotate() sweeps the free end around the face. app.js
+   writes the rotation as -135deg .. +135deg. */
+.knob-stem {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 15px;
+    border-radius: 1px;
+    background: #5C4033;
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(0deg);
+    pointer-events: none;
 }
 
 .knob-label {
@@ -637,6 +686,45 @@ body {
     color: #5C4033;
     font-weight: 600;
     min-height: 11px;
+}
+
+/* ===== v1.8.0: DOUBLE-CLICK VALUE ENTRY =====
+   The input is overlaid ON the readout, which keeps its own text (rendered
+   transparent) so the box never changes size — nothing shifts when entry opens
+   or closes. Colour is deliberately not set here: this same field opens over
+   the band .knob-value readouts and the footer .control-value ones, which sit
+   on different backgrounds, so attachValueEntry() copies each readout's own
+   computed colour onto the input and currentColor carries it to the underline.
+
+   text-align is inherited rather than centred: .knob-value is centred by its
+   flex parent, and inheriting keeps the typed text sitting where the readout
+   it replaced was. */
+.knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: normal;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.knob-value-input::-webkit-outer-spin-button,
+.knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 /* ===== v1.5.0: DETECTOR / SIDECHAIN SUB-GROUP =====
@@ -668,6 +756,13 @@ body {
 .knob-sm {
     width: 28px;
     height: 28px;
+}
+
+/* Shorter stem so the small detector dials keep the same ~85%-of-radius reach
+   as the 36px ones. Without this the 15px stem would overshoot a 14px radius
+   and poke through the ring. */
+.knob-sm .knob-stem {
+    height: 12px;
 }
 
 /* Button Row */
@@ -747,35 +842,17 @@ body {
     margin-top: 4px;
 }
 
-/* Global Knobs */
+/* Global Knobs
+   v1.8.0: these carry .knob too now, so the face, border, shadow and stem all
+   come from the shared rule above — only the size and the matching stem length
+   are set here. */
 .global-knob {
-    -webkit-appearance: none;
-    appearance: none;
     width: 44px;
     height: 44px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #FFF8DC, #C9A27B);
-    border: 2px solid #8B7355;
-    outline: none;
-    cursor: pointer;
-    box-shadow:
-        inset 1px 1px 3px rgba(0,0,0,0.2),
-        inset -1px -1px 2px rgba(255,248,220,0.5),
-        2px 2px 4px rgba(0,0,0,0.15);
 }
 
-.global-knob::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 0;
-    height: 0;
-}
-
-.global-knob::-moz-range-thumb {
-    width: 0;
-    height: 0;
-    border: none;
-    background: transparent;
+.global-knob .knob-stem {
+    height: 19px;
 }
 
 /* Toggle Button */

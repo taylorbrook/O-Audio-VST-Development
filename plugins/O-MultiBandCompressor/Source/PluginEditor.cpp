@@ -167,6 +167,37 @@ OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEdit
                     complete(enabled);
                 })
 
+            // v1.8.0: Alt/Option-click on a knob resets it to its default. The
+            // properties payload the WebSliderRelay pushes to the page carries
+            // start/end/skew but no default, so the page has to ask for them.
+            //
+            // Returned NORMALISED, which is what getDefaultValue() already
+            // holds and what setNormalisedValue() on the page consumes — the
+            // round trip is then exact with no pow() in between. Sending
+            // engineering units instead would make every skewed parameter
+            // (attack, release, both sidechain filters) depend on the page
+            // inverting the skew correctly just to sit still.
+            //
+            // Walking the APVTS rather than a hand-listed set of ids: a list
+            // would silently omit any parameter added later, and the symptom —
+            // one knob that ignores Alt-click — is easy to miss.
+            .withNativeFunction("getParameterDefaults",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    auto* obj = new juce::DynamicObject();
+
+                    // processorRef.getParameters() is this plugin's own
+                    // accessor and returns the APVTS — it shadows
+                    // AudioProcessor::getParameters(), so the flat parameter
+                    // array is reached through the APVTS's processor reference.
+                    for (auto* param : processorRef.getParameters().processor.getParameters())
+                        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                            obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
+
+                    complete(juce::var(obj));
+                })
+
             // ========== v1.5.0: PRESET MANAGER NATIVE FUNCTIONS ==========
             // The two dialog-driven calls capture a SafePointer rather than `this`:
             // the editor can be destroyed while the OS file dialog is still open, and

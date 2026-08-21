@@ -138,4 +138,29 @@ Professional 4-band multiband compressor designed for mixing and mastering workf
 
 ---
 
-*Last updated: 2026-08-19*
+## v1.8.0 — house dials
+
+The 39 controls were `<input type="range">` circles until v1.8.0 and are now the
+suite's seed cross-section knob, ported from **O-ReverseDelay** — the reference
+copy for both the face and the pointer-captured drag. There is no shared knob
+module in this repo: every plugin carries its own copy, so a fix here does not
+propagate and a fix elsewhere does not arrive.
+
+Two things worth knowing before touching them again:
+
+- **Sizes are local, the face is not.** The 36 / 28 / 44 px sizes are this
+  plugin's own — the reference knob is 56 px, which does not fit four band
+  columns of three knob rows in 900×640. Stem lengths are set per size to reach
+  ~85% of each radius; changing a knob size means changing its stem too.
+- **Everything the binders touch is declared above the `initializeUI()` call.**
+  That call sits at module top level in `app.js`, so a `const` moved below it
+  would still be in its temporal dead zone and would throw, taking every later
+  initializer on the module with it.
+
+Value entry converts typed text through the live `start`/`end`/`skew` from C++
+rather than the display formulas, so it stays correct even though the six main
+readouts still use hand-written range maths rather than `getScaledValue()`.
+
+---
+
+*Last updated: 2026-08-20*
