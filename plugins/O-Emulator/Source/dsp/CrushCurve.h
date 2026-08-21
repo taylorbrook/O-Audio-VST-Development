@@ -113,6 +113,23 @@ struct CrushCurve
         return 26320.0 - c * 183.20;   // 100 % -> 8000 Hz
     }
 
+    // ── AA-open row (Phase 2.4, all consoles) ────────────────────────────────
+    // Crush >= 80 % progressively opens the anti-alias pre-filter ("developer
+    // didn't pre-filter the sample" aliasing). Returns an index into the
+    // resampler's PRECOMPUTED coefficient sets — stepped at control-chunk
+    // boundaries, never a coefficient factory on the audio thread.
+
+    static int aaOpenIndex (float crushPct) noexcept
+    {
+        const float c = juce::jlimit (0.0f, 100.0f, crushPct);
+
+        if (c < 80.0f) return 0;
+        if (c < 85.0f) return 1;
+        if (c < 90.0f) return 2;
+        if (c < 95.0f) return 3;
+        return 4;
+    }
+
     // ── Console dispatch (indices per the ConsoleSpec table order) ───────────
     static float driveDbFor (int consoleIndex, float crushPct) noexcept
     {

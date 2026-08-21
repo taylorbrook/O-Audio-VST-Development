@@ -59,6 +59,7 @@ public:
     void prepare (const juce::dsp::ProcessSpec& spec, float lpCutoffHz, ClipMode mode)
     {
         clipMode = mode;
+        currentLpHz = lpCutoffHz;
 
         lp.prepare (spec);
         lp.setType (juce::dsp::FirstOrderTPTFilterType::lowpass);
@@ -69,6 +70,20 @@ public:
         dc.setCutoffFrequency (10.0f);
 
         reset();
+    }
+
+    /** Age dulling (Task 17): per-chunk corner update, gated on the
+        CONTROLLING VALUE — the guard caches the value itself, never an
+        enabled flag, so nothing can go stale
+        (pattern_conditional_coeff_update_leaks_enabled_flag). TPT structure
+        is modulation-safe, so this is just a cheap coefficient refresh. */
+    void setLpCutoffHz (float hz) noexcept
+    {
+        if (! juce::approximatelyEqual (hz, currentLpHz))
+        {
+            currentLpHz = hz;
+            lp.setCutoffFrequency (hz);
+        }
     }
 
     void reset()
@@ -123,6 +138,7 @@ public:
 private:
     juce::dsp::FirstOrderTPTFilter<float> lp, dc;
     ClipMode clipMode = ClipMode::soft;
+    float currentLpHz = 0.0f;
 };
 
 } // namespace oemu
