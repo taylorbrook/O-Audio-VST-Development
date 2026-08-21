@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
-stage: 1
-phase: verify
+stage: 2
+phase: plan
 status: complete
 last_updated: 2026-08-20
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: discuss
+next_action: execute
 next_stage: 2
 ready_for_implementation: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 1 (Foundation) — ✅ VERIFIED complete
-Phase: verify ✓ complete (2026-08-20) → next: Stage 2 discuss (Phase 2.1)
-Status: Stage 1 VERIFIED — all checks independently re-run at verify (build, harness 18/18, auval, pluginval 10 VST3+AU); COMPAT-01 complete
-Progress: [#######.............] 35%
+Stage: 2 (DSP) — plan phase complete, ready to execute
+Phase: plan ✓ complete (2026-08-20) → next: Stage 2 execute
+Status: Stage 1 VERIFIED; Stage 2 discuss/research/plan complete (ran in main checkout ahead of Stage 1; artifacts moved here 2026-08-20)
+Progress: [########............] 40%
 
 ## Phase Progress
 
@@ -38,10 +38,28 @@ Progress: [#######.............] 35%
 | execute | ✓ | 2026-08-20 | |
 | verify | ✓ | 2026-08-20 | |
 
+### Stage 2: DSP
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-08-20 | (ran in main checkout; CONTEXT.md moved here) |
+| research | ✓ | 2026-08-20 | (ran in main checkout; RESEARCH.md moved here) |
+| plan | ✓ | 2026-08-20 | (ran in main checkout; PLAN.md moved here) |
+| execute | — | | |
+| verify | — | | |
+
 ## Completed So Far
 
 **Ideation:** ✓ Complete
 - Creative brief, requirements (15), draft parameters (5)
+
+**Stage 2 discuss phase:** ✓ Complete (2026-08-20)
+- `stages/2-dsp/CONTEXT.md`: reverb register-model-first, closed-loop encoders, harness gate per phase + one /plugin-verify, internal-probe validation
+
+**Stage 2 research phase:** ✓ Complete (2026-08-20)
+- `stages/2-dsp/RESEARCH.md`: JUCE 8.0.14 APIs verified from source (DryWetMixer ctor-sizing gotcha, Interpolators consumed-count semantics, Butterworth Q table for 8th-order AA); O-Bitrot harness identified as primary template with exact files/probe bodies to copy; fixed-chunk FIFO precedents (O-Octagon GainStage counter, O-Texture OverlapAddProcessor, O-Bitrot CodecStage); no reusable DSP modules — all codec/resampler/reverb code net-new; dsp-agent.md pitfalls mapped to phases
+
+**Stage 2 plan phase:** ✓ Complete (2026-08-20)
+- `stages/2-dsp/PLAN.md`: 20 tasks across the 4 ROADMAP phases (2.1 SNES end-to-end 8 tasks, 2.2 PS1+reverb 3, 2.3 quantizers+switching 4, 2.4 age+polish 5); resolves research open items (per-phase digest anchors with re-anchor discipline, kMaxWetLatencySamples=1024, Butterworth Q table, 5 ms crush micro-fades); two `⟨STAGE-1⟩` placeholders (harness CMake target name, final param IDs) — resolve against Stage 1 artifacts before execution
 
 **Stage 0:** ✓ Complete
 - Plugin type: Audio Effect (retro console emulation, stereo in/out)
@@ -70,7 +88,7 @@ Progress: [#######.............] 35%
 
 ## Next Steps
 
-1. Stage 2 Phase 2.1 (engine skeleton + SNES end-to-end) via `/plugin-discuss O-Emulator 2-dsp`
+1. Stage 2 execute (Phase 2.1 engine skeleton + SNES end-to-end first) via `/plugin-execute O-Emulator 2-dsp` — run from THIS worktree (`VST-development-emulator`, branch `feat/o-emulator-impl`)
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
