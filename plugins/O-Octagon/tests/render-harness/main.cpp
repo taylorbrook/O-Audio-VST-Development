@@ -50,7 +50,7 @@
       BG QUAL-01 under D4's scope — one representative live venue edit during playback
       BH P29/H5 — the permanent-silence latch FUNC-07's multiply would otherwise have armed
       BI QUAL-03 with width, trim and BOTH filters live — AL's and AM's shapes, re-run
-      BJ PERF-01/02 as numbers — airCutoffUpdates == solveRuns·2, and powCalls STILL exactly 16
+      BJ PERF-01/02 as numbers — airCutoffUpdates == solveRuns·2, and powCalls STILL exactly 32
 
     ── Phase 2.1 ────────────────────────────────────────────────────────────────────────────────
       Q' Lane speakerToBuffer[j] reproduces the input at unity with w = δ_ij — RE-SPECIFIED at 2.2
@@ -1784,7 +1784,8 @@ int main()
         const auto solvesWhenIdle = oo::instr::get (oo::instr::solveRuns);
         const auto powWhenIdle    = oo::instr::get (oo::instr::powCalls);
 
-        // 3. A parameter change -> exactly one solve, and 16 pow with it.
+        // 3. A parameter change -> exactly one solve, and 32 pow with it (v1.3.0: 16 for the
+        //    two sub-point solves + 16 for their z-cue reference solves in GainStage).
         oo::instr::resetCounters();
         setParam (proc, "srcX", 0.22f);
         renderBlocks (1);
@@ -1848,7 +1849,7 @@ int main()
         const bool ok = foundOutside
                      && insideProjections == 0
                      && solvesWhenIdle == 0 && powWhenIdle == 0
-                     && solvesAfterParam == 1 && powAfterParam == 16
+                     && solvesAfterParam == 1 && powAfterParam == 32
                      && outsideProjections >= 2
                      && solvesAfterVenue == 1;
 
@@ -3646,7 +3647,8 @@ int main()
 
             renderBlocks (2);                         // settle, so the dirty check is quiescent
 
-            // 1. A parameter change -> exactly one solve, two cutoff updates, and STILL 16 pow.
+            // 1. A parameter change -> exactly one solve, two cutoff updates, and STILL 32 pow
+            //    (v1.3.0: two sub-point solves + two z-cue reference solves, 8 each).
             oo::instr::resetCounters();
             setParam (proc, "srcZ", 1.25f);
             renderBlocks (1);
@@ -3689,7 +3691,7 @@ int main()
             const bool solvesRan = solves1 == 1 && solvesN >= static_cast<std::uint64_t> (blocks);
 
             const bool placement = cutoffs1 == solves1 * 2 && cutoffsN == solvesN * 2;
-            const bool powIntact = pow1 == 16;
+            const bool powIntact = pow1 == 32;
             const bool filtered  = filteredN == totalSamples * 2;
             const bool advanced  = advancesN == totalSamples;
 
@@ -5215,7 +5217,7 @@ int main()
 
             const bool sixApplied = near (readEng ("width"),      4.5f,  1.0e-3f)
                                  && near (readEng ("rolloff"),    3.0f,  1.0e-3f)
-                                 && near (readEng ("blur"),       0.55f, 1.0e-3f)
+                                 && near (readEng ("blur"),       0.18f, 1.0e-3f)   // v1.3.0 rescale (was 0.55)
                                  && near (readEng ("hullAtten"),  0.4f,  1.0e-3f)
                                  && near (readEng ("airAmount"),  0.85f, 1.0e-3f)
                                  && near (readEng ("outputGain"), -3.0f, 1.0e-2f);

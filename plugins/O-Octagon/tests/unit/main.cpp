@@ -1589,11 +1589,12 @@ int main()
             invariant = invariant && near (scaled, 2.0f * base, 1.0e-4f);
         }
 
-        // The §3.3.2 table, including the value D2 corrected at this phase's discuss boundary.
-        const bool table = near (oo::dbap::blurToRadius (0.0f,  rigScale), 0.0f,  1.0e-6f)
-                        && near (oo::dbap::blurToRadius (0.10f, rigScale), 0.40f, 0.01f)
-                        && near (oo::dbap::blurToRadius (0.50f, rigScale), 1.98f, 0.01f)
-                        && near (oo::dbap::blurToRadius (1.0f,  rigScale), 3.97f, 0.01f);
+        // The §3.3.2 table at the v1.3.0 scale (kBlurScale 1.5 — the audibility rescale; the
+        // pre-1.3 values were exactly a third of these).
+        const bool table = near (oo::dbap::blurToRadius (0.0f,  rigScale), 0.0f,   1.0e-6f)
+                        && near (oo::dbap::blurToRadius (0.10f, rigScale), 1.19f,  0.01f)
+                        && near (oo::dbap::blurToRadius (0.50f, rigScale), 5.95f,  0.01f)
+                        && near (oo::dbap::blurToRadius (1.0f,  rigScale), 11.90f, 0.01f);
 
         // The absolute backstop: a mistyped 1000 m coordinate must not produce an r_s that swamps
         // the array.
@@ -1604,9 +1605,9 @@ int main()
 
         check ("AG blur-to-radius", ok,
                juce::String ("blur 0.50 -> ") + juce::String (oo::dbap::blurToRadius (0.50f, rigScale), 4)
-                   + " m (§3.3.2 says 1.98), "
+                   + " m (v1.3.0 scale says 5.95), "
                    + (invariant ? "scaling invariant holds" : "INVARIANT VIOLATED")
-                   + ", " + (capped ? "8 m cap enforced" : "CAP NOT ENFORCED"));
+                   + ", " + (capped ? "24 m cap enforced" : "CAP NOT ENFORCED"));
     }
 
     //==========================================================================
@@ -2068,7 +2069,7 @@ int main()
         //
         //    THE FALLBACK'S DIRECTION IS UNOBSERVABLE THROUGH shape(), BY CONSTRUCTION, and saying
         //    so is more useful than pretending otherwise: rFade collapses wEff to 0 everywhere
-        //    inside 0.15·rigScale ≈ 1.19 m, and 1e-6 m is deep inside that. What the fallback
+        //    inside 0.05·rigScale ≈ 0.40 m (v1.3.0), and 1e-6 m is deep inside that. What the fallback
         //    EXISTS for is the 0/0 — without it b̂ = (0/0, 0/0) = NaN and both sub-points are NaN.
         //    So: finite, and both land BIT-EXACTLY on the puck. That fails loudly if the guard goes.
         {

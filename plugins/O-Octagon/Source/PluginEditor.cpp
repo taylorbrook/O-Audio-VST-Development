@@ -1195,6 +1195,30 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             complete (juce::var (obj));
         });
 
+    // ── HOVER HELP (v1.2.0) — the "?" toggle's persistence pair ────────────────────────────
+    //
+    // UI state, not a parameter: no automation lane, no preset membership. The set completes
+    // with the stored value either way so the page could re-sync from the reply if it ever
+    // wanted to.
+    options = options.withNativeFunction ("setTooltipsEnabled",
+        [this] (auto& args, auto complete)
+        {
+            if (args.size() > 0)
+                processorRef.tooltipsEnabled.store ((bool) args[0], std::memory_order_release);
+
+            complete (juce::var (processorRef.tooltipsEnabled.load (std::memory_order_acquire)));
+        });
+
+    // PULLED by the page at init, never pushed — a push from the constructor or a poll tick
+    // fires before the page module has evaluated, so the preference would silently never
+    // arrive and the toggle would read OFF on every reopen
+    // (pattern_webview_one_shot_state_push_stale_on_preset_load).
+    options = options.withNativeFunction ("getTooltipsEnabled",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.tooltipsEnabled.load (std::memory_order_acquire)));
+        });
+
    #if JUCE_WINDOWS
     // WebView2's default user-data folder is denied in most DAW hosts; a failed
     // construction falls back to the IE backend with no resource provider, which
@@ -1230,6 +1254,45 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     presetManager.setCustomStateCallbacks (
         [this] { return processorRef.scenesToVar(); },
         [this] (const juce::var& payload) { processorRef.scenesFromVar (payload); });
+
+    // ── v1.3.0 PRESET MIGRATION (preset-manager v1.0.6 hook) ────────────────────────────────
+    //
+    // Presets store NORMALISED 0..1 fractions, and v1.3.0 moved three encodings:
+    //   rolloff  range 3-6  → 3-12 dB/2x   (same engineering value ⇒ old fraction ÷ 3)
+    //   width    range 0-6  → 0-12 m       (same metres            ⇒ old fraction ÷ 2)
+    //   blur     kBlurScale 0.5 → 1.5      (same RADIUS            ⇒ old fraction ÷ 3;
+    //                                       the 0-1 range itself is unchanged)
+    // Sessions are unaffected — the APVTS stores denormalised values
+    // (critical_apvts_denormalised_vs_preset_normalised) — so only this JSON path migrates.
+    //
+    // The gate is the MAJOR.MINOR pair, parsed leniently: any preset stamped < 1.3 migrates, and
+    // an unparseable version string is treated as pre-1.3 (every shipped version that wrote
+    // presets predates 1.3, so the failure mode of a mangled stamp is the migration running —
+    // correct for all presets that exist today).
+    presetManager.setMigrationCallback (
+        [] (juce::DynamicObject& parameters, const juce::String& presetVersion)
+        {
+            const auto tokens = juce::StringArray::fromTokens (presetVersion, ".", {});
+            const int  major  = tokens.size() > 0 ? tokens[0].getIntValue() : 0;
+            const int  minor  = tokens.size() > 1 ? tokens[1].getIntValue() : 0;
+
+            if (major > 1 || (major == 1 && minor >= 3))
+                return;
+
+            const auto rescale = [&parameters] (const char* id, float factor)
+            {
+                const juce::Identifier key { id };
+
+                if (parameters.hasProperty (key))
+                    parameters.setProperty (key,
+                        juce::jlimit (0.0f, 1.0f,
+                                      static_cast<float> (parameters.getProperty (key)) * factor));
+            };
+
+            rescale ("rolloff", 1.0f / 3.0f);
+            rescale ("width",   1.0f / 2.0f);
+            rescale ("blur",    1.0f / 3.0f);
+        });
 
     // ── THE SIX FACTORY PRESETS (Phase 4.1, P92) ───────────────────────────────────────────
     //

@@ -25,7 +25,7 @@ The original DBAP paper's equations 3-6 and 9-10 are WRONG
 edition:
 
     a      = rolloff / (20 * log10(2))
-    r_s    = min(blur * 0.5 * rigScale, 8.0)                  [metres]
+    r_s    = min(blur * 1.5 * rigScale, 24.0)                 [metres]  (v1.3.0 scale)
     d_i    = max(sqrt(dx^2 + dy^2 + dz^2 + r_s^2), 0.05)      [metres, 3D — the z term is real]
     u_i    = w_i * d_i^(-a)
     S      = sum(u_i^2)
@@ -67,8 +67,8 @@ NUM_SPEAKERS = 8
 # §3.3.1 constants, restated here rather than parsed out of the C++ — a reference that reads its
 # constants from the thing it checks is not a reference.
 MIN_DISTANCE = 0.05
-MAX_BLUR_METRES = 8.0
-BLUR_SCALE = 0.5
+MAX_BLUR_METRES = 24.0   # v1.3.0 audibility rescale (was 8.0)
+BLUR_SCALE = 1.5         # v1.3.0 audibility rescale (was 0.5)
 DENOM_EPSILON = 1e-20
 
 # ARCHITECTURE §OQ4's default venue. The fixture is SELF-CONTAINED (CONTEXT-2.2 D3): it carries

@@ -1,5 +1,83 @@
 # O-Octagon Changelog
 
+## v1.3.0 (2026-08-20)
+
+### Changed — srcZ / rolloff / width / blur made audibly effective (the flat-field fix)
+
+**Root cause (measured, not guessed):** the default rig hangs speakers at 4.50–5.40 m while the
+source rides the 1.10–3.20 m ear plane, so every source→speaker distance carries a ~3 m constant
+vertical offset. That offset compresses the distance ratios DBAP feeds on: even with the puck
+parked next to a speaker, the max-to-min channel spread was only **8.5 dB** at defaults — and
+Σv² = 1 normalisation removes every overall-level cue. All four reported controls only reshaped
+that already-flat field: full blur sweep moved the spread ~2 dB, srcZ ~1–2 dB per channel (and
+zero overall), width ≤ 2.5 dB between sub-point vectors (and 39% suppressed by the centroid fade
+at the DEFAULT puck position), rolloff's exposed 3–6 dB/2x range mapped to exponents a = 0.5–1.0 —
+the gentle half of DBAP's useful range.
+
+- **Source Z — proximity level cue** (GainStage): each sub-point's gains are trimmed by
+  `(invK_z / invK_0)^2.5`, clamped ±6 dB, where `invK` is the un-normalised DBAP field `1/k = √denom`
+  the solver already computes and `invK_0` is the identical solve with the height offset stripped.
+  At srcZ = 0 the two solves have identical inputs, the cue is exactly 1.0, and the pre-1.3.0
+  arithmetic is preserved bit-for-bit. Rising toward the speaker plane now gets louder and sharper
+  (+4.5 dB measured at the front-left puck); flying above the array recedes (−2 dB at +8 m; −3 dB
+  sunk to −2 m). Costs one reference solve per sub-point at control rate only: the pow budget is
+  now exactly 32 per solve pair (probes BJ/BL updated; probe AE's 16-per-direct-pair reuse claim
+  unchanged).
+- **Rolloff range 3–6 → 3–12 dB/2x** (default 4 unchanged): R = 12 (a ≈ 2) reaches a 25 dB spread —
+  a real focus control. Presets saved under < 1.3.0 are migrated (see below).
+- **Blur `kBlurScale` 0.5 → 1.5** (backstop `kMaxBlurMetres` 8 → 24 m): blur = 1 now reaches
+  1.5 × the RMS rig radius and genuinely washes the source across the array (spread → 2.8 dB).
+  Parameter default rescaled 0.10 → 0.03 and the factory-preset blur column ÷3, so every shipped
+  patch keeps its authored radius. Python oracle (`gen_dbap_reference.py`) re-anchored to the new
+  spec constants and the fixture regenerated — a spec change, not a silent re-record.
+- **Width max 6 → 12 m**, and `kFadeFraction` 0.15 → 0.05 so the default centre puck (0.46 m from
+  the centroid) no longer sits inside the width-collapse zone (was ~1.19 m, now ~0.40 m; the 180°
+  axis-flip guard at the exact centroid is preserved). Width remains inherently subtle on MONO
+  material — it separates the L and R feeds in space; a mono decorrelator is a possible future
+  improvement, deliberately out of scope here.
+
+**Preset migration** (preset-manager v1.0.6 hook, editor-side): user presets stamped < 1.3 have
+rolloff ÷3, width ÷2 and blur ÷3 applied to their stored normalised fractions — each preset keeps
+its audible meaning on the new ranges. Sessions are unaffected (APVTS stores denormalised values).
+Factory .json files regenerate automatically via the WR-04 version sentinel.
+
+**Testing:** unit 45/45, render-harness 50/50 (pow-budget probes updated 16 → 32 through the
+GainStage path, Distant Field blur expectation 0.55 → 0.18), ui_frontend_check 42/42 (stub ranges
+synced), ui_layout_check 28/28.
+
+## v1.2.0 (2026-08-20)
+
+### Added — hover-help tooltips ("?" toggle)
+
+Ported from O-Contrabass v1.7.0, which carries the VERIFIED measure-then-pin tooltip placement
+(pattern_fixed_tooltip_shrink_to_fit_edge) rather than the earlier shrink-to-fit variant.
+
+- **"?" toggle in the header** (between the screen tabs and the banners): when lit, resting the
+  pointer on a control for 350 ms shows a short description of what it does. 49 controls and
+  readouts annotated across both screens — the puck, the 8 in-plan weights, the nine
+  controls-column cells, scenes (named sets, U slots, STORE), the elevation strip, the SAFE and
+  MAP banners, the screen tabs, the venue rail (files, presets, output order, ping, rake, output
+  set) and the footer readouts.
+- **The preference persists with the session** as a root XML attribute in
+  get/setStateInformation — an attribute, not a ValueTree property, whose XML round-trip
+  rebuilds properties as strings so an `isBool()` guard on restore would never fire
+  (critical_valuetree_xml_roundtrip_loses_type). Pre-1.2.0 sessions restore with help OFF.
+- **The page PULLS the stored state at init** via `getTooltipsEnabled` — never pushed from C++,
+  which would fire before the page module evaluated and silently never arrive
+  (pattern_webview_one_shot_state_push_stale_on_preset_load).
+- The toggle's own tip carries `data-tip-always` and bypasses the enabled gate, so the one
+  control that can turn help back on is never the one control unable to explain itself.
+- Tooltip content is written via `textContent` only, into the surface's own created nodes —
+  no authored label is ever touched (pattern_js_state_updater_overwrites_html_labels), and the
+  surface is a sibling of `.frame`, keeping `#group-elevation` the controls column's last child
+  (ui_layout_check §22 stays non-vacuous).
+- New native functions `setTooltipsEnabled` / `getTooltipsEnabled` (bridge surface 20 → 22,
+  closed three ways by `ui_frontend_check.js` §3; §6's textContent whitelist grew by the
+  tooltip's three receivers with their own binding proofs).
+- UI state only: no parameter, no automation lane, no preset membership. DSP untouched.
+
+**Testing:** `ui_frontend_check.js` 42/42 and `ui_layout_check.js` 28/28 pass.
+
 ## v1.1.0 (2026-08-20)
 
 ### Added — speaker→output assignment (the in-space rig fix)
