@@ -1,6 +1,8 @@
 # DSP Agent Memory
 
 ## Learned Patterns
+- O-Emulator: When a worst-case latency FORMULA (not the structural path) is the reported figure, close the gap by priming the wet path's internal ring with zeros computed at prepare (prime = (reported - estimatedStructural) in that domain) -- the xcorr probe then lands on the reported figure without a host-domain alignment delay
+- O-Emulator: A streaming block codec (BRR 16 / SPU-ADPCM 28) is cleanest as a constant-BlockLen-delay processSample(): emit prevDecoded[slot], write pending[slot], encode when full -- constant latency in every state, no FIFO management, block-size invariant by construction
 - O-Prism: Wavetable mipmap anti-aliasing (FFT -> zero high bins -> IFFT per octave level) is the industry standard approach used by Serum/Vital/Surge -- always prefer over runtime oversampling for polyphonic synths due to CPU scaling with voice count
 - O-Prism: JUCE 8 StateVariableTPTFilter only supports LP/BP/HP natively; notch filter = LP output + HP output from the same SVF state (not a separate mode)
 - O-Prism: For 24dB filter slopes, cascade two StateVariableTPTFilter instances; apply resonance to first stage only to prevent excessive resonance buildup and self-oscillation

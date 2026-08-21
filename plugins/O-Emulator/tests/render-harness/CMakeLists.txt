@@ -22,6 +22,9 @@ target_sources(O-Emulator-render-test PRIVATE
     # #if JUCE_WEB_BROWSER guard so this target keeps compiling
     # (pattern_render_harness_breaks_on_webview_editor).
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/PluginProcessor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/BrrCodec.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/ConsoleEngine.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/dsp/ConsoleResampler.cpp
 )
 
 target_include_directories(O-Emulator-render-test PRIVATE
@@ -64,6 +67,10 @@ message(STATUS
     "plugin target")
 
 target_compile_definitions(O-Emulator-render-test PRIVATE
+    # Harness-only instrumentation accessors (chunk phase, FIFO fill, computed
+    # latency) — O-Tapestop idiom; never defined for the shipping targets.
+    OUARICON_RENDER_HARNESS=1
+
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
     JUCE_WEB_BROWSER=0
