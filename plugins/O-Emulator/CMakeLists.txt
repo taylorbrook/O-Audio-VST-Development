@@ -23,6 +23,9 @@ juce_add_plugin(OEmulator
 target_sources(OEmulator
     PRIVATE
         Source/PluginProcessor.cpp
+        Source/dsp/BrrCodec.cpp
+        Source/dsp/ConsoleEngine.cpp
+        Source/dsp/ConsoleResampler.cpp
 )
 
 # Include paths

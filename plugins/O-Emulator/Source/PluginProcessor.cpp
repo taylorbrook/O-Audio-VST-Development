@@ -24,14 +24,18 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 1 (Foundation): passthrough shell. The APVTS parameters below are the
-    BINDING contract from .planning/parameter-spec.md — IDs, types, ranges and
-    defaults are frozen; they drive nothing until Stage 2.
+    Stage 2 / Phase 2.1: engine skeleton + SNES end-to-end. The APVTS
+    parameters below are the BINDING contract from .planning/parameter-spec.md
+    — IDs, types, ranges and defaults are frozen. Wired so far: `crush`
+    (drive + BRR shift floor) and `mix` (latency-compensated DryWetMixer).
+    `console`/`age`/`reverb` drive nothing until Phases 2.2-2.4.
 
   ==============================================================================
 */
 
 #include "PluginProcessor.h"
+
+#include <cmath>
 
 // NOTE: no PluginEditor.h include in this TU — when Stage 3 adds the WebView
 // editor, its include goes inside a #if JUCE_WEB_BROWSER guard directly above
@@ -77,15 +81,33 @@ OEmulatorAudioProcessor::OEmulatorAudioProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
+    crushParam = apvts.getRawParameterValue("crush");
+    mixParam   = apvts.getRawParameterValue("mix");
+    jassert(crushParam != nullptr && mixParam != nullptr);
 }
 
 OEmulatorAudioProcessor::~OEmulatorAudioProcessor() = default;
 
-void OEmulatorAudioProcessor::prepareToPlay(double, int)
+void OEmulatorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Stage 1: nothing to prepare. Phase 2.1 computes the constant worst-case
-    // latency figure here and pairs setLatencySamples(N) with
-    // DryWetMixer::setWetLatency(N) atomically.
+    // Constant worst-case latency, all console modes (plan decision #2).
+    // Order proven in O-Bitrot PluginProcessor.cpp:1263-1310: compute ->
+    // jassert bound -> setLatencySamples -> prepare the stages (handing the
+    // SAME integer to the engine, which aligns its structural delay onto it)
+    // -> dryWetMixer.prepare -> linear rule -> setWetLatency AFTER prepare.
+    totalLatencySamples = oemu::ConsoleEngine::computeLatencySamples(sampleRate);
+    jassert(totalLatencySamples <= kMaxWetLatencySamples);
+    setLatencySamples(totalLatencySamples);
+
+    engine.prepare(sampleRate, samplesPerBlock, totalLatencySamples);
+
+    const juce::dsp::ProcessSpec spec { sampleRate,
+                                        (juce::uint32) juce::jmax(1, samplesPerBlock),
+                                        2u };
+    dryWetMixer.prepare(spec);
+    dryWetMixer.setMixingRule(juce::dsp::DryWetMixingRule::linear);
+    dryWetMixer.setWetLatency((float) totalLatencySamples);
+    dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
 }
 
 void OEmulatorAudioProcessor::releaseResources()
@@ -104,10 +126,42 @@ void OEmulatorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
 {
     juce::ScopedNoDenormals noDenormals;
 
-    for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
-        buffer.clear(ch, 0, buffer.getNumSamples());
+    const int numSamples = buffer.getNumSamples();
 
-    // Stage 1: pure passthrough — input stays in the buffer untouched.
+    // Bound by buffer.getNumChannels() (Standalone canonical-channelset trap).
+    for (int ch = getTotalNumInputChannels();
+         ch < getTotalNumOutputChannels() && ch < buffer.getNumChannels(); ++ch)
+        buffer.clear(ch, 0, numSamples);
+
+    // Defensive: prepared (latency computed), stereo buffer, non-empty block.
+    if (numSamples == 0 || buffer.getNumChannels() < 2 || totalLatencySamples <= 0)
+        return;
+
+    // Scrub non-finite INPUT at the boundary (QUAL-01). The DryWetMixer's
+    // Thiran dry delay computes alpha*(x - v) and holds NaN FOREVER once
+    // poisoned (0 * NaN == NaN even at integer delay) — and the codec/filter
+    // state behind it fares no better. Finite samples are never touched, so
+    // the mix-0% null stays bit-exact (FUNC-02). O-Bitrot pattern,
+    // PluginProcessor.cpp:1364-1379.
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        auto* d = buffer.getWritePointer(ch);
+        for (int n = 0; n < numSamples; ++n)
+            if (! std::isfinite(d[n]))
+                d[n] = 0.0f;
+    }
+
+    // Block-header parameter latch (atomics; consumed at chunk boundaries
+    // inside the engine).
+    engine.setCrushPercent(crushParam->load());
+    dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
+
+    juce::dsp::AudioBlock<float> block(buffer);
+    auto stereo = block.getSubsetChannelBlock(0, 2);
+
+    dryWetMixer.pushDrySamples(stereo);   // clean dry BEFORE the pipeline
+    engine.process(buffer);               // wet, in place on ch 0/1
+    dryWetMixer.mixWetSamples(stereo);    // dry delayed by setWetLatency
 }
 
 juce::AudioProcessorEditor* OEmulatorAudioProcessor::createEditor()
