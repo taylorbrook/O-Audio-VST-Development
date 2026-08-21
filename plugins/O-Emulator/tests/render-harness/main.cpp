@@ -79,6 +79,36 @@
                         an exact-inactive gate; the SNES op sequence and
                         priming are unchanged) — probe D still asserts it.
 
+    Phase 2.3 probes (NES/GB/Genesis + console switching):
+
+      M1 mode matrix  — all five consoles pairwise distinct on the same
+                        material: time-domain maxAbsDiff AND a normalized
+                        6-band spectral-profile L1 distance per pair.
+      M2 corners      — per-console output-corner evidence: RATIOS against
+                        the input render (extreme-top energy halved or
+                        better, centroid darkened, mid band live) + the five
+                        DAC-LP corners read from the LIVE prepared filters
+                        against the ARCHITECTURE table. (An earlier
+                        GB<NES centroid-ordering clause was retired: DPCM's
+                        slew-limiter character dominates the NES spectrum
+                        regardless of its 14 kHz corner — see the in-probe
+                        comment.)
+      M3 switch       — mid-render SNES -> NES switch via a timeline event on
+                        a sine (no processBlock spans the event): reported
+                        latency unchanged, no clicks (fade-region max delta
+                        bounded by the steady regions' own staircase deltas),
+                        equal-power fade-region RMS neither dips nor doubles.
+      M4 NES DC       — NES DPCM's unipolar offset fully blocked at the mixer
+                        boundary: output mean ~ 0 while live.
+      M5 reverb x5    — reverb 0 vs 100 changes the render in ALL five modes.
+      AN3 invariance  — block-size digest sweep re-run per new mode
+                        (NES/GB/Genesis, crush + reverb engaged).
+      D3 digest       — Phase 2.3 switch-matrix anchor (timeline render
+                        fading through all five consoles), 0-sentinel RECORD
+                        pattern. Anchors 2.1/2.2 SURVIVE structurally — see
+                        the constants block for the two survival arguments
+                        (idle-crossfader branch; first-chunk instant switch).
+
     Conventions (O-Bitrot harness header): setBaseline() first in every
     probe; setValueNotifyingHost only; position-hashed excitation; liveness
     clauses on every potentially-vacuous probe; no wall-clock in verdicts;
@@ -120,14 +150,35 @@ namespace
         unconditional sum would flip -0.0 samples and move this digest), and
         the SNES pipeline's op sequence and upsample priming are unchanged.
         If this probe fails after a 2.2+ change, that is a REGRESSION signal
-        on the SNES path, not a re-anchor event. */
+        on the SNES path, not a re-anchor event.
+
+        Phase 2.3 status: SURVIVES, structurally. The canonical render never
+        changes console, so the ConsoleCrossfader's idle branch renders the
+        single active pipeline through the exact 2.2 sequence (the fade
+        scratch copies and gain math are behind isFading()); the SNES row,
+        Gaussian branch, and priming formula are unchanged (prime stays 33 at
+        the anchored rates). */
     constexpr juce::uint64 kDigestAnchor21CanonicalSnes = 0x59d72af3f1b80676ULL;
 
-    /** Phase 2.2 canonical PS1+reverb digest — 0 means NOT YET RECORDED: the
-        probe prints the digest and passes with a RECORD-ME notice; fill this
-        in at the Phase 2.2 commit (first green run on the reference
-        machine). */
+    /** Phase 2.2 canonical PS1+reverb digest (recorded at the 2.2 commit).
+
+        Phase 2.3 status: SURVIVES, structurally. The render selects PS1 on a
+        fresh instance, which takes the FIRST-CHUNK INSTANT SWITCH path —
+        before any chunk has rendered there is nothing to crossfade, and the
+        instant path reproduces 2.2's chunk-0 hard switch bit-exactly (the
+        2.2-era reverb.reset() it drops is a structural no-op on the still
+        all-zero reverb state). Mid-stream switches always fade; only renders
+        that switch consoles AFTER audio has flowed produce new output, and
+        those carry their own Phase 2.3 anchor below. */
     constexpr juce::uint64 kDigestAnchor22Ps1ReverbCanonical = 0x58cb7f909f6a6e30ULL;
+
+    /** Phase 2.3 canonical switch-matrix digest (a timeline render fading
+        through all five consoles mid-stream). Recorded from the FIRST 2.3
+        harness run — valid despite that run's M2 failure because the M2 fix
+        was MEASUREMENT-ONLY (a retired centroid-ordering clause replaced by
+        a live-corner contract read; zero DSP changes), so the rendered bytes
+        are unchanged. */
+    constexpr juce::uint64 kDigestAnchor23SwitchMatrix = 0x03ca7037593af84aULL;
 
     //==========================================================================
     int failures = 0;
@@ -252,6 +303,62 @@ namespace
             int chunk = sizes[si % sizes.size()];
             ++si;
             chunk = juce::jmin (chunk, totalSamples - n);
+            if (chunk <= 0)
+                chunk = 1;
+
+            juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), 2, chunk);
+
+            for (int ch = 0; ch < 2; ++ch)
+                for (int s = 0; s < chunk; ++s)
+                    block.setSample (ch, s, input (ch, n + s));
+
+            proc.processBlock (block, midi);
+
+            for (int ch = 0; ch < 2; ++ch)
+                dest.copyFrom (ch, n, block, ch, 0, chunk);
+
+            n += chunk;
+        }
+    }
+
+    /** Timeline event: a parameter write applied when the render reaches
+        `sample`. renderTimeline clamps its processBlock calls so NO call
+        spans an event (O-Tapestop Event/renderTimeline model) — which is
+        what makes automation-carrying probes legal at arbitrary offsets. */
+    struct TimelineEvent
+    {
+        int sample;
+        const char* id;
+        float value;
+    };
+
+    void renderTimeline (OEmulatorAudioProcessor& proc, juce::AudioBuffer<float>& dest,
+                         int totalSamples, const std::vector<int>& sizes, InputFn input,
+                         const std::vector<TimelineEvent>& events)
+    {
+        juce::MidiBuffer midi;
+
+        dest.setSize (2, totalSamples);
+        dest.clear();
+
+        juce::AudioBuffer<float> scratch (2, kMaxBlock);
+
+        int    n  = 0;
+        size_t si = 0, ei = 0;
+
+        while (n < totalSamples)
+        {
+            while (ei < events.size() && events[ei].sample <= n)
+            {
+                setParam (proc, events[ei].id, events[ei].value);
+                ++ei;
+            }
+
+            int chunk = sizes[si % sizes.size()];
+            ++si;
+            chunk = juce::jmin (chunk, totalSamples - n);
+            if (ei < events.size())
+                chunk = juce::jmin (chunk, events[ei].sample - n);   // never span an event
             if (chunk <= 0)
                 chunk = 1;
 
@@ -1091,6 +1198,341 @@ int main()
     }
 
     //==========================================================================
+    // M1/M2 — FUNC-01 five-mode spectral distinctness matrix + DSP-03
+    // per-console output-corner evidence. One render per console on the same
+    // material, everything measured as ratios/distances, never absolutes.
+    {
+        const int total = kRenderSamples;
+        const int off   = 12288;
+        const char* names[5] = { "SNES", "PS1", "NES", "GB", "GEN" };
+
+        juce::AudioBuffer<float> outs[5];
+        Spectrum spectra[5];
+
+        for (int c = 0; c < 5; ++c)
+        {
+            auto p = makeProc();
+            setParam (*p, "console", (float) c);
+            renderInto (*p, outs[c], total, { 512 }, noiseHalfAt);
+            spectra[c] = analyze (channelToVector (outs[c], 0), off, kFs);
+        }
+
+        std::vector<float> in ((size_t) total);
+        for (int n = 0; n < total; ++n)
+            in[(size_t) n] = noiseHalfAt (0, n);
+        const auto sIn = analyze (in, off, kFs);
+
+        // Normalized 6-band energy profile for the pairwise matrix.
+        auto profileOf = [] (const Spectrum& s)
+        {
+            const double edges[7] = { 200.0, 1000.0, 3000.0, 6000.0,
+                                      10000.0, 16000.0, 22000.0 };
+            std::array<double, 6> p {};
+            double tot = 0.0;
+            for (int k = 0; k < 6; ++k)
+            {
+                p[(size_t) k] = s.bandEnergy (edges[k], edges[k + 1]);
+                tot += p[(size_t) k];
+            }
+            for (auto& v : p)
+                v /= (tot + 1.0e-12);
+            return p;
+        };
+
+        std::array<double, 6> profiles[5];
+        for (int c = 0; c < 5; ++c)
+            profiles[c] = profileOf (spectra[c]);
+
+        // ── M1: pairwise distinctness ───────────────────────────────────────
+        bool ok = true;
+        juce::String detail;
+
+        for (int a = 0; a < 5; ++a)
+        {
+            if (outs[a].getMagnitude (0, 0, total) <= 1.0e-4f)
+            {
+                ok = false;
+                detail << names[a] << " SILENT; ";
+            }
+
+            for (int b = a + 1; b < 5; ++b)
+            {
+                const double diff = maxAbsDiff (outs[a], outs[b]);
+
+                double dist = 0.0;
+                for (int k = 0; k < 6; ++k)
+                    dist += std::abs (profiles[a][(size_t) k] - profiles[b][(size_t) k]);
+
+                if (diff <= 1.0e-3 || dist <= 0.02)
+                {
+                    ok = false;
+                    detail << names[a] << "/" << names[b]
+                           << " diff " << juce::String (diff, 5)
+                           << " dist " << juce::String (dist, 4) << "; ";
+                }
+            }
+        }
+
+        if (ok)
+            detail = "10 pairs distinct (time-domain + 6-band profile)";
+
+        check ("M1 FUNC-01 mode-matrix", ok, detail);
+
+        // ── M2: per-console corners as ratios vs the input ──────────────────
+        bool ok2 = true;
+        juce::String detail2;
+
+        const double centIn = sIn.centroid (100.0, 21000.0);
+        const double topIn  = sIn.bandEnergy (18000.0, 22000.0);
+
+        double cent[5] {};
+
+        for (int c = 0; c < 5; ++c)
+        {
+            cent[c] = spectra[c].centroid (100.0, 21000.0);
+
+            const double topRatio = spectra[c].bandEnergy (18000.0, 22000.0)
+                                  / (topIn + 1.0e-12);
+            const double midRatio = spectra[c].bandEnergy (500.0, 3000.0)
+                                  / (sIn.bandEnergy (500.0, 3000.0) + 1.0e-12);
+
+            if (! (topRatio < 0.5 && cent[c] < 0.85 * centIn && midRatio > 0.02))
+            {
+                ok2 = false;
+                detail2 << names[c] << " top " << juce::String (topRatio, 3)
+                        << " cent " << juce::String (cent[c], 0)
+                        << " mid " << juce::String (midRatio, 3) << "; ";
+            }
+        }
+
+        // ── RETIRED CLAUSE (first 2.3 run, measured): `centroid GB < NES`.
+        // The premise ("domain 33.1 kHz + 14 kHz corner => NES brighter")
+        // ignored the CODEC: DPCM's ±2-step counter is a slew-rate limiter,
+        // and at the baseline crush 50 the timer is walked to index 7
+        // (8363.4 Hz), a slew ceiling of 2·8363/64 ≈ 261 FS/s — broadband
+        // near-FS noise is therefore ~1/f²-shaped far below the output
+        // corner (measured NES centroid 602 Hz; consistency cross-checks:
+        // M4 RMS 0.0406 vs the ~0.03-0.05 slew-ceiling prediction, M3
+        // post-switch delta 0.0179 ≈ one ±2 step through the 14 kHz TPT).
+        // The codec character, not the output stage, sets the NES centroid
+        // on this excitation — the clause measured the wrong observable and
+        // NO time-domain excitation can see the NES corner through the slew
+        // limiter. DSP-03's actual claim (per-console output-stage corners)
+        // is asserted below from the LIVE prepared filters instead
+        // (pattern_probe_must_target_the_branch_the_fix_changed: the corner
+        // claim now has a probe that fails if a corner is mis-set, which the
+        // centroid ordering never cleanly did).
+        {
+            auto probe = makeProc();
+
+            // ARCHITECTURE Pipeline Manager table (the binding contract this
+            // checks, same role as P0 for parameter-spec.md).
+            const float expectedLpHz[5] = { 10000.0f, 12000.0f, 14000.0f,
+                                            8000.0f, 12000.0f };
+
+            for (int c = 0; c < 5; ++c)
+            {
+                const float actual = probe->getOutputLpHzForTest (c);
+                if (! juce::approximatelyEqual (actual, expectedLpHz[c]))
+                {
+                    ok2 = false;
+                    detail2 << names[c] << " LP " << juce::String (actual, 0)
+                            << " != " << juce::String (expectedLpHz[c], 0) << "; ";
+                }
+            }
+        }
+
+        if (ok2)
+            detail2 = juce::String ("all corners dark vs input (centroids ")
+                    + juce::String (cent[0], 0) + "/" + juce::String (cent[1], 0) + "/"
+                    + juce::String (cent[2], 0) + "/" + juce::String (cent[3], 0) + "/"
+                    + juce::String (cent[4], 0) + " vs in " + juce::String (centIn, 0) + ")";
+
+        check ("M2 DSP-03 output-corners", ok2, detail2);
+    }
+
+    //==========================================================================
+    // M3 — FUNC-04 mid-render console switch (SNES -> NES) via a timeline
+    // event at a non-aligned sample. Criteria: reported latency unchanged
+    // (no PDC renegotiation), no clicks (the fade region's max sample delta
+    // bounded by the steady regions' own intrinsic staircase deltas), and
+    // the equal-power fade neither dips nor doubles the RMS.
+    {
+        auto p = makeProc();
+        const int latBefore = p->getLatencySamples();
+
+        const int total = 96000;
+        const int eventAt = 43211;
+        juce::AudioBuffer<float> out;
+        renderTimeline (*p, out, total, { 512 }, sineAt,
+                        { { eventAt, "console", 2.0f } });
+
+        const int latAfter = p->getLatencySamples();
+        const auto v = channelToVector (out, 0);
+
+        auto maxDeltaIn = [&v] (int from, int to)
+        {
+            double m = 0.0;
+            for (int n = from + 1; n < to; ++n)
+                m = juce::jmax (m, std::abs ((double) v[(size_t) n]
+                                             - (double) v[(size_t) (n - 1)]));
+            return m;
+        };
+
+        const double dBefore = maxDeltaIn (24000, 43000);
+        const double dAfter  = maxDeltaIn (60000, 90000);
+        const double dSwitch = maxDeltaIn (43150, 46600);
+
+        const double rmsBefore = rmsRange (v, 24000, 43000);
+        const double rmsAfter  = rmsRange (v, 60000, 90000);
+        const double rmsFade   = rmsRange (v, 43250, 43250 + 1440);
+
+        const bool latencySame = latBefore == latAfter && latBefore == kComp;
+        const bool noClick = dSwitch <= 2.5 * juce::jmax (dBefore, dAfter) + 1.0e-4;
+        const bool noDip   = rmsFade >= 0.4 * juce::jmin (rmsBefore, rmsAfter)
+                          && rmsFade <= 2.5 * juce::jmax (rmsBefore, rmsAfter);
+        const bool live    = rmsBefore > 1.0e-3 && rmsAfter > 1.0e-3;
+
+        check ("M3 FUNC-04 switch", latencySame && noClick && noDip && live,
+               juce::String ("latency ") + juce::String (latBefore) + "->" + juce::String (latAfter)
+                   + ", deltas before/switch/after "
+                   + juce::String (dBefore, 4) + "/" + juce::String (dSwitch, 4) + "/"
+                   + juce::String (dAfter, 4)
+                   + ", RMS before/fade/after "
+                   + juce::String (rmsBefore, 4) + "/" + juce::String (rmsFade, 4) + "/"
+                   + juce::String (rmsAfter, 4)
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M4 — the NES DPCM unipolar offset is fully blocked at the mixer
+    // boundary (structural 10 Hz DC blocker): live output, mean ~ 0.
+    {
+        auto p = makeProc();
+        setParam (*p, "console", 2.0f);
+        setParam (*p, "crush", 70.0f);   // reduced timer rate: maximum DPCM character
+
+        const int total = kRenderSamples;
+        juce::AudioBuffer<float> out;
+        renderInto (*p, out, total, { 512 }, sineAt);
+
+        const auto v = channelToVector (out, 0);
+
+        double mean = 0.0;
+        for (int n = 8192; n < total; ++n)
+            mean += (double) v[(size_t) n];
+        mean /= (double) (total - 8192);
+
+        const double rms = rmsRange (v, 8192, total);
+
+        const bool blocked = std::abs (mean) < 0.005;
+        const bool live    = rms > 1.0e-3;
+
+        check ("M4 NES DC-blocked", blocked && live,
+               juce::String ("mean ") + juce::String (mean, 6)
+                   + " (|.| < 0.005), RMS " + juce::String (rms, 4)
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // M5 — FUNC-03: the reverb send is functional in ALL five modes.
+    {
+        const int total = kRenderSamples;
+        const char* names[5] = { "SNES", "PS1", "NES", "GB", "GEN" };
+
+        bool ok = true;
+        juce::String detail;
+
+        for (int c = 0; c < 5; ++c)
+        {
+            auto dry = makeProc();
+            setParam (*dry, "console", (float) c);
+
+            auto wet = makeProc();
+            setParam (*wet, "console", (float) c);
+            setParam (*wet, "reverb", 100.0f);
+
+            juce::AudioBuffer<float> outD, outW;
+            renderInto (*dry, outD, total, { 512 }, noiseHalfAt);
+            renderInto (*wet, outW, total, { 512 }, noiseHalfAt);
+
+            const double diff = maxAbsDiff (outD, outW);
+            const bool live = outW.getMagnitude (0, 0, total) > 1.0e-4f;
+
+            if (diff <= 1.0e-3 || ! live)
+            {
+                ok = false;
+                detail << names[c] << " diff " << juce::String (diff, 5)
+                       << (live ? "" : " SILENT") << "; ";
+            }
+        }
+
+        if (ok)
+            detail = "reverb 0 vs 100 changes the render in all 5 modes";
+
+        check ("M5 FUNC-03 reverb-all-modes", ok, detail);
+    }
+
+    //==========================================================================
+    // AN3 — PERF-02 block-size invariance re-run per NEW mode (NES/GB/GEN),
+    // crush + reverb engaged.
+    {
+        const int total = kRenderSamples;
+        const char* names[3] = { "NES", "GB", "GEN" };
+
+        bool ok = true;
+        juce::String detail;
+
+        for (int m = 0; m < 3; ++m)
+        {
+            const float consoleIdx = (float) (m + 2);
+
+            auto configure = [consoleIdx] (OEmulatorAudioProcessor& proc)
+            {
+                setBaseline (proc);
+                setParam (proc, "console", consoleIdx);
+                setParam (proc, "crush", 65.0f);
+                setParam (proc, "reverb", 40.0f);
+            };
+
+            auto ref = makeProc();
+            configure (*ref);
+            juce::AudioBuffer<float> outRef;
+            renderInto (*ref, outRef, total, { 512 }, noiseHalfAt);
+
+            if (outRef.getMagnitude (0, 0, total) <= 1.0e-4f)
+            {
+                ok = false;
+                detail << names[m] << " SILENT; ";
+            }
+
+            const std::vector<std::vector<int>> sizeSets
+                { { 64 }, { 1, 7, 64, 333, 4096 } };
+
+            for (const auto& sizes : sizeSets)
+            {
+                auto proc = makeProc();
+                configure (*proc);
+
+                juce::AudioBuffer<float> out;
+                renderInto (*proc, out, total, sizes, noiseHalfAt);
+
+                if (! bitIdentical (outRef, out))
+                {
+                    ok = false;
+                    detail << names[m] << " size " << sizes[0] << ": "
+                           << firstDifference (outRef, out) << "; ";
+                }
+            }
+        }
+
+        if (ok)
+            detail = "NES/GB/GEN x {64},{ragged} vs {512}: all bit-identical";
+
+        check ("AN3 PERF-02 per-mode", ok, detail);
+    }
+
+    //==========================================================================
     // D — digest anchors (plan decision #1). Canonical render: baseline
     // (SNES, crush 50, mix 100), flat {512}. Excitation is FULL-SCALE noiseAt
     // — the SAME signal the Stage-1 anchor was recorded with, so the
@@ -1160,6 +1602,58 @@ int main()
         {
             std::printf ("  [NOTE] kDigestAnchor22Ps1ReverbCanonical unrecorded — RECORD "
                          "%016llx at the Phase 2.2 commit\n",
+                         (unsigned long long) digest);
+        }
+    }
+
+    //==========================================================================
+    // D3 — Phase 2.3 canonical switch-matrix digest: a timeline render fading
+    // through all five consoles MID-STREAM (the crossfader math is inside
+    // this digest), crush + reverb engaged, full-scale noise, flat {512}.
+    // 0-sentinel RECORD pattern.
+    {
+        auto p = makeProc();
+        setParam (*p, "crush", 65.0f);
+        setParam (*p, "reverb", 40.0f);
+
+        juce::AudioBuffer<float> buf;
+        renderTimeline (*p, buf, kRenderSamples, { 512 }, noiseAt,
+                        { { 6000,  "console", 2.0f },     // SNES -> NES (fade)
+                          { 12000, "console", 3.0f },     // -> GB
+                          { 18000, "console", 4.0f },     // -> Genesis
+                          { 24000, "console", 1.0f } });  // -> PS1
+
+        std::vector<float> flat;
+        flat.reserve ((size_t) kRenderSamples * 2);
+        for (int n = 0; n < kRenderSamples; ++n)
+            for (int ch = 0; ch < 2; ++ch)
+                flat.push_back (buf.getSample (ch, n));
+
+        const juce::uint64 digest = fnv1a64 (flat);
+
+        std::printf ("  digest-2.3: fnv1a64=%016llx (5-console switch matrix, flat 512)\n",
+                     (unsigned long long) digest);
+
+        // Liveness: the switching render must not degenerate to any prior
+        // canonical, and must be a real signal.
+        const bool live = buf.getMagnitude (0, 0, kRenderSamples) > 1.0e-4f;
+        check ("D3 phase-2.3 render distinct", live
+                   && digest != kDigestAnchor21CanonicalSnes
+                   && digest != kDigestAnchor22Ps1ReverbCanonical
+                   && digest != kDigestStage1PassthroughRetired,
+               live ? "switch-matrix digest distinct from all prior anchors"
+                    : "SILENT, probe vacuous");
+
+        if (kDigestAnchor23SwitchMatrix != 0)
+        {
+            check ("D3 phase-2.3 anchor", digest == kDigestAnchor23SwitchMatrix,
+                   juce::String::formatted ("expected %016llx",
+                       (unsigned long long) kDigestAnchor23SwitchMatrix));
+        }
+        else
+        {
+            std::printf ("  [NOTE] kDigestAnchor23SwitchMatrix unrecorded — RECORD "
+                         "%016llx at the Phase 2.3 commit\n",
                          (unsigned long long) digest);
         }
     }

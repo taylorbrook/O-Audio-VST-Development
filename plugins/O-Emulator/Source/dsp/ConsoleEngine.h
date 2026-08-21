@@ -20,39 +20,44 @@
 /*
   ==============================================================================
 
-    O-Emulator — ConsoleEngine (Stage 2, Tasks 6/9/11 — SNES + PS1 + reverb)
+    O-Emulator — ConsoleEngine (Stage 2, Tasks 6/9/11/13/14 — all 5 consoles)
 
     The shared processing skeleton (ARCHITECTURE "One shared engine
     skeleton"), run inside the fixed-chunk walk:
 
         AA -> downsample -> drive/clip -> codec round-trip
-           -> [reverb send tap] -> upsample -> [+ reverb return]
-           -> output stage (LP + clip) -> DC blocker
+           -> [reverb send tap] -> upsample (Gaussian or ZOH) -> [+ return]
+           -> output stage (LP + per-console clip) -> DC blocker
 
-    Phase 2.2 state: SNES (BRR) and PS1 (SPU-ADPCM) pipelines are both
-    pre-allocated and prepared; the SPU reverb is wired in every mode.
-    NES/GB/Genesis + the 30 ms crossfader land in Phase 2.3 — until then a
-    console change is an interim HARD switch at a chunk boundary (incoming
-    pipeline reset from silence), and console indices 2-4 map to SNES.
+    Phase 2.3 state: all five console pipelines pre-allocated and prepared
+    (SNES/BRR, PS1/SPU-ADPCM, NES/DPCM, GB/4-bit, Genesis/8-bit+ladder);
+    SPU reverb wired in every mode; console switching is click-safe via the
+    30 ms equal-power ConsoleCrossfader.
 
-    ── Reverb routing (ARCHITECTURE Processing Order 4/5 + plan L119) ────────
-    The send tap is POST-CODEC in the CONSOLE domain, linear-resampled into
-    the fixed 22050 Hz reverb domain; the return is linear-resampled to host
-    rate through its own PRIMED alignment ring so the round trip joins the
-    direct path time-aligned BEFORE the pre-output-stage sum — you cannot
-    blend first and delay after when structural delays differ.
+    ── Console switching (Task 14) ───────────────────────────────────────────
+    Console choice is latched once per block and applied at the next chunk
+    boundary. Mid-stream: the OLD pipeline keeps rendering through the fade
+    (on a copy of the input chunk), the NEW pipeline starts from reset, and
+    only those two render concurrently; a request arriving mid-fade is
+    QUEUED until the fade completes. Latency is constant worst-case across
+    modes, so no PDC renegotiation ever happens. The single reverb instance
+    PERSISTS across switches (the tail carries over, fed/returned through
+    the new pipeline); only the new pipeline drives the send during a fade.
 
-    ── The reverb-inactive gate (digest anchor preservation, L110) ───────────
-    While `reverb` has NEVER been > 0 (sticky, evaluated at chunk
-    boundaries), the send/tick/return code does not run and the return sum is
-    skipped entirely. This is an EXACT-0.0 rail: renders with reverb at its
-    default 0 are bit-identical to Phase 2.1 (a `x += 0.0f` sum would flip
-    -0.0 samples to +0.0 and silently move the recorded anchor). Once active,
-    it stays active so the tail keeps rendering after the send closes.
+    ── First-chunk instant switch (digest anchor preservation) ───────────────
+    A console selected BEFORE any chunk has been processed (fresh instance /
+    right after prepare) activates INSTANTLY — there is no audio to
+    crossfade, and this reproduces Phase 2.2's chunk-0 hard-switch sequence
+    bit-exactly, which is what keeps the recorded 2.2 PS1+reverb digest
+    anchor structurally valid. Mid-stream switches always fade.
+
+    ── The reverb-inactive gate (2.2, unchanged) ─────────────────────────────
+    While `reverb` has never been > 0 the send/tick/return code does not run
+    and the return sum is skipped (exact-0.0 rail: an unconditional += would
+    flip -0.0 samples and move the recorded anchors).
 
     Control updates happen ONCE PER FIXED CHUNK (chunk-rate SmoothedValues) —
-    trajectories are pure functions of the absolute chunk index, block-size
-    invariant by construction (O-Octagon GainStage control-grid model).
+    block-size invariant by construction (O-Octagon control-grid model).
 
   ==============================================================================
 */
@@ -63,12 +68,16 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "BrrCodec.h"
+#include "ConsoleCrossfader.h"
 #include "ConsoleResampler.h"
 #include "CrushCurve.h"
+#include "DpcmCodec.h"
 #include "FixedChunkFeeder.h"
+#include "GenesisDac.h"
 #include "OutputStage.h"
 #include "SpuAdpcmCodec.h"
 #include "SpuReverb.h"
+#include "WaveQuantizer.h"
 
 #include <cmath>
 
@@ -76,14 +85,15 @@ namespace oemu
 {
 
 /** Per-console pipeline configuration (ARCHITECTURE Pipeline Manager table).
-    Rows 0 (SNES) and 1 (PS1) are wired; rows 2-4 are data awaiting Phase 2.3
-    (their codecBlockLen is 1 — streaming quantizers, no block buffering). */
+    All five rows are ACTIVE as of Phase 2.3. codecBlockLen is the codec's
+    structural delay in console samples (0 for the streaming quantizers). */
 struct ConsoleSpec
 {
-    double rate;                  // fixed console-domain rate, Hz
-    float outputLpHz;             // output-stage DAC LP corner at host rate
-    int codecBlockLen;            // codec structural delay, console samples
-    OutputStage::ClipMode clip;   // per-console clip character
+    double rate;                             // fixed console-domain rate, Hz
+    float outputLpHz;                        // output-stage DAC LP corner
+    int codecBlockLen;                       // structural codec delay
+    OutputStage::ClipMode clip;              // per-console clip character
+    ConsoleResampler::UpsampleMode upsample; // Gaussian vs zero-order hold
 };
 
 //==============================================================================
@@ -92,7 +102,10 @@ struct ConsoleSpec
     ARCHITECTURE "SPU Reverb" notes). Push-driven: each console sample may
     emit 0..n reverb ticks through the templated callback (no std::function
     on the audio thread). `rel` is a bounded running countdown in input-sample
-    units — deterministic per console sample, block-size invariant. */
+    units — deterministic per console sample, block-size invariant.
+
+    NOTE: for GB (16384 Hz < 22050 Hz) `step` < 1, so one input sample can
+    emit more than one tick — the while loop is the correct form. */
 struct ReverbSend
 {
     void prepare (double consoleRate)
@@ -239,17 +252,18 @@ public:
     void reset();
 
     /** Crush target, percent 0–100, latched once per processBlock; consumed
-        (smoothed) at fixed-chunk boundaries. Audio thread only. */
+        (smoothed / per-console mapped) at fixed-chunk boundaries. */
     void setCrushPercent (float pct) noexcept { crushTargetPct = pct; }
 
     /** Reverb send target, percent 0–100, latched once per processBlock. */
     void setReverbSendPercent (float pct) noexcept { reverbTargetPct = pct; }
 
-    /** Console choice (0 SNES, 1 PS1; 2-4 map to SNES until Phase 2.3),
-        latched once per block, applied at the next chunk boundary. */
+    /** Console choice 0-4 (SNES/PS1/NES/GB/Genesis), latched once per block,
+        applied at the next chunk boundary (crossfaded mid-stream, instant
+        before the first chunk). */
     void setConsoleIndex (int index) noexcept
     {
-        pendingPipeline = (index == 1) ? 1 : 0;
+        pendingPipeline = juce::jlimit (0, 4, index);
     }
 
     /** In-place wet processing of channels 0/1. */
@@ -261,33 +275,40 @@ public:
     int getUpsampleFillForTest() const noexcept { return pipelines[activePipeline].resampler.getUpFillForTest(); }
     int getActivePipelineForTest() const noexcept { return activePipeline; }
     bool getReverbEverActiveForTest() const noexcept { return reverbEverActive; }
+    bool getIsFadingForTest() const noexcept { return crossfader.isFading(); }
+    float getOutputLpHzForTest (int console) const noexcept
+    {
+        return pipelines[juce::jlimit (0, 4, console)].outputStage.getLpCutoffForTest();
+    }
 #endif
 
 private:
     //==========================================================================
     /** One complete console pipeline — resampler, codecs, output stage,
         reverb send/return glue — pre-allocated per console (ARCHITECTURE:
-        console switch never allocates; this is also the unit Phase 2.3's
-        crossfader renders two of). */
+        console switch never allocates; the crossfader renders two of these
+        concurrently during a fade). */
     struct Pipeline
     {
         void prepare (const ConsoleSpec& spec, int consoleIdx,
                       double hostRate, int reportedLatencySamples,
-                      float initialDriveGain);
+                      float crushPct);
 
         /** RT-safe (no allocation): fixed-array memsets, primed rings, state
-            zeroes on already-sized filters. Used by the interim hard switch. */
-        void reset (float initialDriveGain) noexcept;
+            zeroes on already-sized filters. Used at fade starts. */
+        void reset (float crushPct) noexcept;
 
         void processChunk (float* inL, float* inR, float* outL, float* outR,
-                           float driveTargetGain, int shiftFloor,
-                           float sendGain, bool reverbActive,
+                           float crushPct, float sendGain, bool reverbActive,
                            SpuReverb& reverb) noexcept;
 
         int consoleIndex = 0;
         ConsoleResampler resampler;
         BrrCodec brr[2];
         SpuAdpcmCodec spu[2];
+        DpcmCodec dpcm[2];
+        WaveQuantizer gbq[2];
+        GenesisDac gen[2];
         OutputStage outputStage;
         ReverbSend send;
         ReverbReturn ret;
@@ -295,13 +316,11 @@ private:
         /** Chunk-rate drive smoother (~20 ms), one step per fixed chunk. */
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> driveGain;
 
-        float consoleBuf[2][128] {};
         static constexpr int kConsoleCap = 128;
+        float consoleBuf[2][kConsoleCap] {};
     };
 
     void processChunk (float* inL, float* inR, float* outL, float* outR) noexcept;
-
-    float currentDriveTargetGain (int pipelineIndex) const noexcept;
 
     // ── Latency-alignment estimates (documented ±few samples; the harness
     //    xcorr probes budget ±15 on top — L120) ──────────────────────────────
@@ -309,24 +328,42 @@ private:
         θ_i the pole angles (11.25°, 33.75°, 56.25°, 78.75°) → Σ = 5.126.
         Host-sample GD = 5.126 · hostRate / (2π · cutoffHz). Gives the same
         prime (33) as Phase 2.1's fixed 3.0 estimate at 44.1/48 kHz for SNES —
-        the anchored rates — while tracking PS1's lower cutoff correctly. */
+        the anchored rates — while tracking each console's cutoff correctly. */
     static constexpr double kButterworthGdSum = 5.126;
 
     static constexpr double kDownHoldbackEstHost    = 5.0;  // FIFO residual (−3 margin) + Lagrange base latency
-    static constexpr double kGaussHistoryEstConsole = 2.0;  // interp point sits ~2 samples behind newest
+    static constexpr double kGaussHistoryEstConsole = 2.0;  // Gaussian interp point ~2 samples behind newest
+    static constexpr double kZohHistoryEstConsole   = 0.5;  // ZOH holds the last consumed sample (~0.5 avg)
 
     static constexpr ConsoleSpec kConsoleSpecs[5] = {
-        { 32000.0, 10000.0f, BrrCodec::kBlockLen,      OutputStage::ClipMode::soft },  // SNES — ACTIVE
-        { 22050.0, 12000.0f, SpuAdpcmCodec::kBlockLen, OutputStage::ClipMode::hard },  // PS1  — ACTIVE (2.2)
-        { 33144.0, 14000.0f, 1,                        OutputStage::ClipMode::hard },  // NES      — Phase 2.3
-        { 16384.0,  8000.0f, 1,                        OutputStage::ClipMode::hard },  // Game Boy — Phase 2.3
-        { 26320.0, 12000.0f, 1,                        OutputStage::ClipMode::hard },  // Genesis  — Phase 2.3
+        { 32000.0, 10000.0f, BrrCodec::kBlockLen,      OutputStage::ClipMode::soft,
+          ConsoleResampler::UpsampleMode::gaussian },                                 // SNES
+        { 22050.0, 12000.0f, SpuAdpcmCodec::kBlockLen, OutputStage::ClipMode::hard,
+          ConsoleResampler::UpsampleMode::gaussian },                                 // PS1
+        { 33144.0, 14000.0f, 0,                        OutputStage::ClipMode::hard,
+          ConsoleResampler::UpsampleMode::zoh },                                      // NES
+        { 16384.0,  8000.0f, 0,                        OutputStage::ClipMode::crunchy,
+          ConsoleResampler::UpsampleMode::zoh },                                      // Game Boy
+        { 26320.0, 12000.0f, 0,                        OutputStage::ClipMode::hard,
+          ConsoleResampler::UpsampleMode::zoh },                                      // Genesis
     };
 
     FixedChunkFeeder feeder;
-    Pipeline pipelines[2];        // [0] SNES, [1] PS1
+    Pipeline pipelines[5];
     int activePipeline = 0;
     int pendingPipeline = 0;
+
+    ConsoleCrossfader crossfader;
+
+    /** Fade scratch: a pristine copy of the input chunk for the fading-out
+        pipeline (the active one AA-filters the feeder buffers in place), and
+        its output chunk. Touched only while fading. */
+    float fadeIn[2][FixedChunkFeeder::kChunk] {};
+    float fadeOut[2][FixedChunkFeeder::kChunk] {};
+
+    /** False until the first chunk has rendered — gates the instant-switch
+        path (see header). */
+    bool anyChunkProcessed = false;
 
     SpuReverb reverb;
 

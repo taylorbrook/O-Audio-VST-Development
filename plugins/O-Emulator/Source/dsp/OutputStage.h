@@ -52,8 +52,9 @@ class OutputStage
 {
 public:
     /** Per-console clip character (ARCHITECTURE Pipeline Manager table):
-        soft = gentle tanh (SNES), hard = int16-rail clamp (PS1). */
-    enum class ClipMode { soft, hard };
+        soft = gentle tanh (SNES), hard = int16-rail clamp (PS1/NES/Genesis),
+        crunchy = sharp-knee cubic with flat tops (Game Boy). */
+    enum class ClipMode { soft, hard, crunchy };
 
     void prepare (const juce::dsp::ProcessSpec& spec, float lpCutoffHz, ClipMode mode)
     {
@@ -78,12 +79,24 @@ public:
 
     /** DAC LP + per-console clip. Soft (tanh) is transparent below ~-10 dBFS
         and rounds the int16-rail peaks the codec domain already bounded;
-        hard clamps at the rails (PS1 character). */
+        hard clamps at the rails; crunchy is the classic sharp-knee cubic
+        (1.5y − 0.5y³, clamped — flat tops with a harder onset than tanh). */
     float processColor (int channel, float x) noexcept
     {
         const float y = lp.processSample (channel, x);
-        return clipMode == ClipMode::hard ? juce::jlimit (-1.0f, 1.0f, y)
-                                          : std::tanh (y);
+
+        switch (clipMode)
+        {
+            case ClipMode::hard:
+                return juce::jlimit (-1.0f, 1.0f, y);
+
+            case ClipMode::crunchy:
+                return juce::jlimit (-1.0f, 1.0f, 1.5f * y - 0.5f * y * y * y);
+
+            case ClipMode::soft:
+            default:
+                return std::tanh (y);
+        }
     }
 
     /** 10 Hz DC blocker — LAST stage before the mixer. */
@@ -99,6 +112,13 @@ public:
         lp.snapToZero();
         dc.snapToZero();
     }
+
+#if OUARICON_RENDER_HARNESS
+    /** The LIVE DAC-LP corner as prepare() configured it — probe M2 reads
+        this from every pipeline (a contract check against the ARCHITECTURE
+        table, from the prepared object rather than a mirrored constant). */
+    float getLpCutoffForTest() const noexcept { return lp.getCutoffFrequency(); }
+#endif
 
 private:
     juce::dsp::FirstOrderTPTFilter<float> lp, dc;

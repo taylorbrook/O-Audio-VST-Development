@@ -63,15 +63,22 @@ namespace oemu
 class ConsoleResampler
 {
 public:
+    /** Console -> host interpolation character (ARCHITECTURE resampler spec):
+        gaussian = S-DSP 4-tap (SNES/PS1, the dark rolloff); zoh = zero-order
+        hold (NES/GB/Genesis — the aliasing images ARE the sound; the output
+        stage LP then dulls them as the real RC filters did). */
+    enum class UpsampleMode { gaussian, zoh };
+
     /** Upsample ring capacity (power of two). Fill sits near the priming
-        count (~30–35 console samples at all supported rates) ± a few samples
+        count (up to ~55 console samples across modes/rates) ± a few samples
         of production jitter. */
     static constexpr int kUpCap = 256;
 
     /** @param primeConsoleSamples  zeros pre-queued into the upsample ring —
         the latency-alignment term computed by ConsoleEngine. */
     void prepare (double hostRate, double consoleRate,
-                  float aaCutoffHz, int primeConsoleSamples);
+                  float aaCutoffHz, int primeConsoleSamples,
+                  UpsampleMode upsampleMode);
 
     void reset();
 
@@ -118,11 +125,16 @@ private:
     float upRing[2][kUpCap] {};
     int upWrite = 0, upRead = 0, upFill = 0;
 
+    /** ZOH mode's held sample pair (the most recently consumed console
+        sample — sample repeat between advances). */
+    float zohL = 0.0f, zohR = 0.0f;
+
     /** Console samples per host sample; the phase accumulator is a running
         double, reset only in prepare()/reset(). */
     double upPhase = 0.0;
     double ratio = 1.5;        // host samples consumed per console sample
     int primeCount = 0;
+    UpsampleMode mode = UpsampleMode::gaussian;
 };
 
 } // namespace oemu
