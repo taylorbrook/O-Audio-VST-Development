@@ -38,8 +38,8 @@
 
 #include <cmath>
 
-// NOTE: no PluginEditor.h include in this TU — when Stage 3 adds the WebView
-// editor, its include goes inside a #if JUCE_WEB_BROWSER guard directly above
+// NOTE: no top-of-file PluginEditor.h include in this TU — the WebView
+// editor's include lives inside a #if JUCE_WEB_BROWSER guard directly above
 // createEditor() so the render harness (JUCE_WEB_BROWSER=0, no editor sources)
 // keeps compiling this file (pattern_render_harness_breaks_on_webview_editor).
 
@@ -173,9 +173,18 @@ void OEmulatorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     dryWetMixer.mixWetSamples(stereo);    // dry delayed by setWetLatency
 }
 
+#if JUCE_WEB_BROWSER
+#include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* OEmulatorAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);   // Stages 1-2; WebView editor lands in Stage 3
+#if JUCE_WEB_BROWSER
+    return new OEmulatorAudioProcessorEditor(*this);
+#else
+    // Render harness builds with JUCE_WEB_BROWSER=0 and no editor sources.
+    return new juce::GenericAudioProcessorEditor(*this);
+#endif
 }
 
 void OEmulatorAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

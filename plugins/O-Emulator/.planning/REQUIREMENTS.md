@@ -4,7 +4,7 @@
 version: 1.0.0
 plugin: O-Emulator
 created: 2026-08-20
-lastUpdated: 2026-08-20
+lastUpdated: 2026-08-21
 ---
 
 ## Overview
@@ -38,8 +38,8 @@ lastUpdated: 2026-08-20
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Console selector is the focal UI element with four macro knobs (Crush, Age, Reverb, Mix) | should | pending | stage-3 |
-| UI-02 | Factory presets showcasing each console's signature sound | nice | pending | stage-3 |
+| UI-01 | Console selector is the focal UI element with four macro knobs (Crush, Age, Reverb, Mix) | should | partial | stage-3 |
+| UI-02 | Factory presets showcasing each console's signature sound | nice | pending | stage-4 |
 
 ### Performance (PERF)
 
@@ -126,6 +126,14 @@ lastUpdated: 2026-08-20
 **Acceptance Criteria:**
 - [x] Pathological input probe (silence, DC, full-scale noise, NaN-adjacent denormals) produces bounded, finite output at all parameter extremes
 
+### UI-01: Console selector focal + 4 macro knobs
+
+**Acceptance Criteria (stage-3 verify, 2026-08-21):**
+- [x] Selector focal (5 segments) + CRUSH/AGE/REVERB/MIX knobs implemented per CONTEXT sketch at 620×430
+- [x] All 5 params bound two-way via relays; `data-param` IDs match parameter-spec.md exactly; bridge audit 0↔0 native fns
+- [x] Render harness digests identical to Stage-2 baseline (GUI touched no DSP); pluginval 10 + auval re-pass
+- [ ] HUMAN: live automation → UI refresh, preset-load refresh, visual/interaction pass (folds into Stage-4 DAW pass)
+
 ---
 
 ## Traceability
@@ -134,8 +142,8 @@ lastUpdated: 2026-08-20
 |-------|----------------------|
 | stage-1 | COMPAT-01 |
 | stage-2 | FUNC-01..04, DSP-01..05, PERF-01..02, QUAL-01 |
-| stage-3 | UI-01, UI-02 |
-| stage-4 | COMPAT-*, all remaining |
+| stage-3 | UI-01 (partial — human gates pending) |
+| stage-4 | UI-02 (deferred from stage-3), COMPAT-*, all remaining |
 
 ## Out of Scope (v1.0)
 
