@@ -19,7 +19,7 @@
 */
 /**
  * tuning-panel.js
- * scala-tuning-engine module v3.0.0
+ * scala-tuning-engine module v3.0.1
  *
  * Complete tuning panel UI component for WebView-based JUCE plugins.
  * Includes:
@@ -83,13 +83,16 @@ export class TuningPanel {
             <div class="tuning-panel-root">
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->
-                <div class="tuning-viz-container">
+                <div class="tuning-intervals-column">
                     <div class="interval-list" id="interval-list">
                         <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
                     </div>
                 </div>
 
-                <!-- Visualization Mode Toggle -->
+                <!-- CENTER: Viz Toggle + Visualization (single grid child —
+                     the .tuning-panel grid is 3 columns; without this wrapper
+                     auto-placement scatters the toggle/viz across columns) -->
+                <div class="tuning-center-column">
                 <div class="viz-mode-toggle">
                     <button class="viz-btn active" data-mode="circle">Circle</button>
                     <button class="viz-btn" data-mode="polar">Polar</button>
@@ -98,7 +101,6 @@ export class TuningPanel {
                     <button class="viz-btn" data-mode="rotation">Rotation</button>
                 </div>
 
-                <!-- CENTER: Visualization Container -->
                 <div class="viz-container" id="viz-container">
                     <div class="viz-view active" id="circle-view">
                         <div class="pitch-circle">
@@ -120,6 +122,7 @@ export class TuningPanel {
                         <div class="tk-hint">Hold 2+ notes to see intervals</div>
                     </div>
                     <div class="viz-view rotation-view" id="rotation-view"></div>
+                </div>
                 </div>
 
                 <!-- RIGHT: Controls Panel -->

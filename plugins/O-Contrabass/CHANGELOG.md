@@ -4,6 +4,118 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.7.2] — 2026-08-20 — Tuning tab restored to the 3-column layout
+
+### Fixed
+
+- **Tuning tab layout was scrambled**: the Circle/Polar/Matrix/True Keys/
+  Rotation buttons rendered as five page-height columns across the middle of
+  the tab, the scale visualization was squeezed into a small card at the far
+  right, and the Tuning Library / A4 REF / Stretch / file-button stack wrapped
+  onto a second row down the left edge. Root cause: shared-module bug, not
+  plugin code. `scala-tuning-engine` v3.0.0 (`js/tuning-panel.js` +
+  `snippets/tuning-panel.css`) emits **four** direct children under the
+  3-column `.tuning-panel` grid — the O-Bells `.tuning-center-column` wrapper
+  that groups the viz-mode toggle with the viz container was never backported,
+  and the CSS has no grid-placement rules, so grid auto-placement scattered
+  the children (toggle → 1fr center cell stretched to row height, viz → 200px
+  right cell, controls panel → row 2 left cell).
+  - Fix (module v3.0.1, propagates to every consumer at its next rebuild —
+    O-Wind, O-Bowed, O-Reed, O-Bassoon reference the same canonical files):
+    the JS template now matches O-Bells' proven structure — exactly three
+    grid children (`.tuning-intervals-column`, `.tuning-center-column`,
+    `.tuning-controls-panel`) — and the CSS gains the two column-wrapper
+    rules. The former `.tuning-viz-container` wrapper class (referenced by
+    no stylesheet) is renamed `.tuning-intervals-column`.
+  - No C++, DSP, or parameter change — UI resources only; the plugin
+    rebuild re-embeds the corrected module files via BinaryData.
+
+## [1.7.1] — 2026-08-20 — VU meter reads program level (0 VU = −18 dBFS)
+
+### Fixed
+
+- **Output-section VU meter never moved.** Root cause: calibration, not
+  wiring. The C++ → JS `vuLevel` feed (post-limiter/post-gain RMS in true
+  dBFS) and the JS listener were both correct — verified end-to-end against
+  the browser shim — but the face maps −20..+3 dB directly onto dBFS, and the
+  instrument's real program level never reaches that window: the max-sustain
+  reference render (`e1-max-sustain.wav`, velocity 0.7, OUTPUT_GAIN 0 dB)
+  peaks at −23.3 dBFS with −29 dBFS RMS, so the needle sat pinned at the
+  −20 rest stop for everything the synth can produce.
+  - Fix (UI-only, `index.html`): 0 VU is now referenced to **−18 dBFS RMS**
+    (EBU R68 alignment level) — `VU_REF_DBFS = -18` applied at event receive.
+    Max-sustain now reads ≈ −11 VU, multi-string fortissimo approaches 0 VU,
+    and +12 dB of OUTPUT_GAIN can push into the red — the face finally spans
+    the instrument's usable range.
+  - Receive-side clamp at the −20 face floor: silence is −80 dBFS, and
+    without the clamp the needle ballistics ease toward −62 VU off-face,
+    making the next note's rise start seconds late.
+  - VU tooltip now states the reference ("0 VU = −18 dBFS RMS").
+  - No DSP or bridge change — goldens-safe; the payload stays true dBFS.
+
+## [1.7.0] — 2026-08-20 — hover-help tooltips ("?" toggle) + one-line title
+
+### Added
+
+- **Hover help with a "?" toggle** (header, right of the tab strip). Ported
+  from O-Bitrot v1.12.0 — the verified measure-then-pin tooltip placement
+  (`pattern_fixed_tooltip_shrink_to_fit_edge`). Every control on the Main tab
+  and the header carries a `data-tip-title`/`data-tip` pair; tips show after a
+  350 ms dwell, prefer above the control, clamp to the viewport with the arrow
+  still tracking the anchor, and hide on any pointer-down so they never hang
+  over a knob mid-drag.
+  - The toggle's own tip is `data-tip-always` so the control that turns help
+    back on can always explain itself.
+  - Preference persists with the session: `setTooltipsEnabled` /
+    `getTooltipsEnabled` native fns (bridge surface 32 → 34, parity gate in
+    `tests/ui_frontend_check.js` updated) → `std::atomic<bool>` on the
+    processor → root XML **attribute** in get/setStateInformation. An
+    attribute, not a ValueTree property, because the ValueTree XML round-trip
+    rebuilds properties as strings and a typed guard on restore would never
+    fire (`critical_valuetree_xml_roundtrip_loses_type`). The page PULLS the
+    value at init (never pushed — the O-FreqPulse WR-01 race).
+  - The five old native `title=` attributes (preset bar, Load .scl) were
+    converted to `data-tip` so no control shows two competing tooltips.
+
+### Fixed
+
+- **Header title wrapped to two lines** ("O-" / "CONTRABASS"). Root cause:
+  `.plugin-name` is a flex item of `.preset-bar` with no `white-space` rule,
+  so flex shrink-to-fit took it to min-content and the browser broke the line
+  at the hyphen. Now `white-space: nowrap` + `flex-shrink: 0`; the header's
+  `flex: 1` spacer absorbs the reclaimed width, so nothing else moves.
+
+## [1.6.0] — 2026-08-20 — 10 new factory presets + preset browser dropdown
+
+### Added
+
+- **Two new 5-preset factory banks** (20 factory presets total):
+  - *Expressive* (bowing techniques): Sul Ponticello Bass, Sul Tasto Bass,
+    Overpressure Scratch, Flautando Bass, Espressivo Bass.
+  - *Texture* (sound design): Glass Drone, Quarter-Tone Drone, Tectonic Sub,
+    Warped Tape Bass, Whisper Pad.
+  - Authored in engineering units and converted through each param's
+    `NormalisableRange` (skew-safe, same path as the v1.0 banks). Texture-bank
+    presets carry explicit `TUNING_SYSTEM`/`NOTE_EXPRESSION` like the Drone
+    bank; `STRING_TENSION` remains omitted (v1.1 deferral). All names sort
+    after "Cinematic Bass Sustain", so the default landing preset is unchanged.
+    The version bump re-seeds factory presets on first instantiation
+    (`.factory-version` sentinel).
+- **Preset browser dropdown** — clicking the preset-name display (which was
+  already titled "Preset browser" but did nothing) now opens a styled dropdown
+  of all presets (factory + user); clicking an entry loads it. The list is
+  rebuilt from the preset-manager module on every open, rendered as ONE FLAT
+  LIST in the C++ order — the ◀/▶ buttons walk that same flat list, so
+  grouping/sorting in the menu would desync them (known regression pattern).
+  Frontend-only: uses existing module methods, native-fn bridge surface
+  unchanged at 32.
+
+### Testing
+
+- DSP untouched — 19 render goldens must remain byte-identical.
+- `ui_frontend_check` bridge-surface gate (32 = 32).
+- Build + auval + install via build-and-install.sh.
+
 ## [1.5.0] — 2026-08-19 — bow noise made realistic (pitched, jittered, body-colored)
 
 User report: "the noise part of the sound doesn't come off as realistic sounding."

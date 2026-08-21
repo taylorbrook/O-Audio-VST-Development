@@ -130,6 +130,11 @@ body {
     letter-spacing: 2.5px;
     text-transform: uppercase;
     margin-right: 6px;
+    /* v1.7.0 — the span is a flex item of .preset-bar, so it shrinks to
+       min-content and wraps at the hyphen ("O-" / "CONTRABASS"). The header's
+       spacer absorbs the reclaimed width, nothing else moves. */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 .plugin-name .o-dash { color: var(--green-accent); }
 
@@ -169,6 +174,39 @@ body {
 }
 .preset-name-display:hover { background: rgba(237, 217, 190, 0.1); }
 
+/* Preset dropdown (v1.6.0) — flat list in C++ order (matches ◀/▶ walk;
+   grouping would desync them). Fixed-position, width pinned to the display. */
+.preset-menu {
+    position: fixed;
+    width: 300px;
+    max-height: 340px;
+    overflow-y: auto;
+    z-index: 200;
+    background: linear-gradient(#4A3226, #3E2A20);
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    padding: 4px 0;
+}
+.preset-menu[hidden] { display: none; }
+.preset-menu-item {
+    padding: 5px 12px;
+    font-size: 13px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    color: var(--bg-paper);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-menu-item:hover { background: rgba(237, 217, 190, 0.15); }
+.preset-menu-item.current {
+    color: var(--green-accent);
+    font-weight: bold;
+}
+.preset-menu-item.current::before { content: "\25B8\00A0"; }
+
 .header-spacer { flex: 1; }
 
 .header-whale { opacity: 0.75; margin-right: 4px; }
@@ -179,6 +217,89 @@ body {
     text-transform: uppercase;
     opacity: 0.55;
 }
+
+/* ============ hover help: the "?" toggle (v1.7.0) ============
+   A flex child of .preset-bar between the spacer and the whale — the spacer
+   absorbs its width so nothing re-centres. Idiom matches the header's own
+   vocabulary: .tab-btn borders/hover, and the lit state reuses .tab-btn.active
+   (rgba(150,181,122,0.25) + --green-accent). */
+.help-toggle {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    margin-right: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--bg-paper);
+    background: none;
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: background 0.15s, opacity 0.15s;
+}
+.help-toggle:hover { background: rgba(237, 217, 190, 0.15); opacity: 1; }
+.help-toggle.active {
+    background: rgba(150, 181, 122, 0.25);
+    border-color: var(--green-accent);
+    color: var(--green-accent);
+    opacity: 1;
+}
+
+/* ============ hover help: the tooltip surface (v1.7.0) ============
+   Ported from O-Bitrot v1.12.0 (itself from O-Tapestop v1.4.0) — the VERIFIED
+   measure-then-pin variant. position:fixed anchors the tip to the VIEWPORT so
+   it escapes .plugin-root's overflow:hidden; z-index 1000 clears the preset
+   menu (200).
+
+   max-width is load-bearing: the script pins the MEASURED width in px
+   (pattern_fixed_tooltip_shrink_to_fit_edge). */
+.tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    max-width: 230px;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, var(--bg-paper) 0%, var(--bg-paper-dark) 100%);
+    border: 1px solid var(--brown-frame);
+    border-radius: 3px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    font-family: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 110ms ease-out;
+}
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+    font-size: 10px;
+    font-weight: 600;
+    font-variant: small-caps;
+    letter-spacing: 0.8px;
+    color: var(--green-dark);
+    margin-bottom: 3px;
+}
+.tooltip-body {
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--brown-text);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+   can be clamped against the viewport edge while the arrow still points at
+   the control it describes. */
+.tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-frame); }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-frame); }
 
 /* ============================ Main grid =================================== */
 .main {
@@ -618,16 +739,30 @@ body {
     <!-- ==================== Header / preset bar ==================== -->
     <div class="preset-bar">
         <span class="plugin-name">O<span class="o-dash">-</span>Contrabass</span>
-        <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&#9664;</button>
-        <div class="preset-name-display" id="preset-name" title="Preset browser">Default &mdash; Arco Foundation</div>
-        <button class="preset-nav-btn" id="preset-next" title="Next preset">&#9654;</button>
-        <button class="preset-save-btn" id="preset-save" title="Save preset">Save</button>
+        <button class="preset-nav-btn" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list.">&#9664;</button>
+        <div class="preset-name-display" id="preset-name" data-tip-title="Preset" data-tip="The preset currently loaded &mdash; click to browse the full list. Factory presets are read-only; saving under the same name writes a user copy.">Default &mdash; Arco Foundation</div>
+        <button class="preset-nav-btn" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list.">&#9654;</button>
+        <button class="preset-save-btn" id="preset-save" data-tip-title="Save" data-tip="Save the current settings as a user preset.">Save</button>
+        <div class="preset-menu" id="preset-menu" hidden></div>
         <!-- Stage 3 Task 9 (D3) — Main/Tuning tab strip -->
         <nav class="tab-strip">
-            <button class="tab-btn active" data-tab="main">Main</button>
-            <button class="tab-btn" data-tab="tuning">Tuning</button>
+            <button class="tab-btn active" data-tab="main" data-tip-title="Main" data-tip="The playing surface &mdash; bow, body, strings, expression, drone and output.">Main</button>
+            <button class="tab-btn" data-tab="tuning" data-tip-title="Tuning" data-tip="The full tuning panel &mdash; intervals table, scale library, generators, .scl/.kbm files.">Tuning</button>
         </nav>
         <div class="header-spacer"></div>
+        <!-- v1.7.0 — hover-help toggle. data-tip-always bypasses the enabled
+             gate so the one control that can turn help back on is never the
+             one control unable to explain itself. The "?" glyph is
+             HTML-authored and must never be written from JS
+             (pattern_js_state_updater_overwrites_html_labels). -->
+        <button type="button"
+                class="help-toggle"
+                id="help-toggle"
+                aria-pressed="false"
+                aria-label="Toggle hover help"
+                data-tip-always
+                data-tip-title="Hover help"
+                data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
         <svg class="header-whale" width="44" height="16" viewBox="0 0 44 16" xmlns="http://www.w3.org/2000/svg">
             <path d="M 6,9 C 12,4 24,3.4 33,4.4 C 37,5 40.5,6 42,8.2 C 40.5,10.4 36,11.6 30,11.6 C 21,11.6 12,11 6,9.6 Z
                      M 6.4,9.2 L 2.6,5.4 C 1.6,7 1.8,8.6 1.6,9.4 C 1.4,10.6 1,12 0.6,13 C 2,12.2 4,11 5,10.2 Z"
@@ -646,29 +781,29 @@ body {
             <div class="panel sec-bow">
                 <div class="panel-label"><span><span class="numeral">I</span> &middot; Bow</span><span class="sublabel">arco</span></div>
                 <div class="param-row" style="margin-top: 22px;">
-                    <div class="knob-control" data-param="BOW_SPEED">
+                    <div class="knob-control" data-param="BOW_SPEED" data-tip-title="Bow speed" data-tip="How fast the bow travels, 0.02&ndash;1.5 m/s. Slow bows choke and darken; fast bows loosen and sing.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Speed</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BOW_PRESSURE">
+                    <div class="knob-control" data-param="BOW_PRESSURE" data-tip-title="Bow pressure" data-tip="Bow force on the string, 0.05&ndash;8 N. Too light skates into surface sound, too heavy drives into raucous scratch &mdash; the Schelleng diagram shows where you are.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Pressure</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BOW_POSITION">
+                    <div class="knob-control" data-param="BOW_POSITION" data-tip-title="Bow position" data-tip="Where the bow crosses the string, as fraction &beta; of its length. Near the bridge (low &beta;) is brighter but harder to speak; toward the fingerboard is warmer.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Position</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="param-row" style="margin-top: 26px;">
-                    <div class="knob-control" data-param="ROSIN">
+                    <div class="knob-control" data-param="ROSIN" data-tip-title="Rosin" data-tip="Bow grip &mdash; the strength of the stick-slip friction. More rosin bites harder and speaks faster.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Rosin</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BOW_NOISE">
+                    <div class="knob-control" data-param="BOW_NOISE" data-tip-title="Bow noise" data-tip="Level of the bow-hair noise bed &mdash; the breathy scratch riding under the tone.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Noise</div>
                         <div class="knob-value"></div>
@@ -677,7 +812,7 @@ body {
                          Occupies the row's existing third slot (the row is sized
                          for three, as the Speed/Pressure/Position row above it),
                          so no panel geometry changes. -->
-                    <div class="knob-control" data-param="RELEASE">
+                    <div class="knob-control" data-param="RELEASE" data-tip-title="Release" data-tip="How long the string keeps ringing once the bow lifts, 0.05&ndash;20 s.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Release</div>
                         <div class="knob-value"></div>
@@ -688,7 +823,7 @@ body {
             <!-- SCHELLENG DIAGRAM (adjacent to Bow knobs — LOCKED) -->
             <div class="panel sec-schelleng">
                 <div class="panel-label"><span>Schelleng Diagram</span><span class="sublabel">bow operating point</span></div>
-                <canvas class="viz-canvas" id="canvas-schelleng"></canvas>
+                <canvas class="viz-canvas" id="canvas-schelleng" data-tip-title="Schelleng diagram" data-tip="Where the current bow speed &times; pressure sits. The green band is the Helmholtz regime &mdash; the singing zone between surface sound and raucous; its wedge shifts with bow position &beta;."></canvas>
                 <div class="viz-caption">speed &times; pressure, log&ndash;log &middot; wedge shifts with &beta;</div>
             </div>
 
@@ -696,28 +831,28 @@ body {
             <div class="panel sec-body">
                 <div class="panel-label"><span><span class="numeral">II</span> &middot; Body</span><span class="sublabel">resonator &middot; 8 modes</span></div>
                 <div class="param-row" style="margin-top: 2px;">
-                    <div class="knob-control" data-param="BODY_SIZE">
+                    <div class="knob-control" data-param="BODY_SIZE" data-tip-title="Body size" data-tip="Size of the modeled body resonator. Larger bodies shift the eight modes down &mdash; more chest, less bark.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Size</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BODY_DAMPING">
+                    <div class="knob-control" data-param="BODY_DAMPING" data-tip-title="Body damping" data-tip="How quickly the body modes ring out. High damping dries and tightens the resonance.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Damping</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BODY_MIX">
+                    <div class="knob-control" data-param="BODY_MIX" data-tip-title="Body mix" data-tip="Balance of body resonance against the raw string signal.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Mix</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BRIGHTNESS">
+                    <div class="knob-control" data-param="BRIGHTNESS" data-tip-title="Brightness" data-tip="Master tone low-pass, 80 Hz&ndash;12 kHz. Below it the instrument darkens toward felt.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Brightness</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
-                <canvas class="viz-canvas" id="canvas-spectrum" style="margin-top: 6px;"></canvas>
+                <canvas class="viz-canvas" id="canvas-spectrum" style="margin-top: 6px;" data-tip-title="Body response" data-tip="The resonator's frequency response &mdash; the eight modal peaks the string drives. Moves with Size, Damping and Brightness."></canvas>
             </div>
         </div>
 
@@ -728,17 +863,17 @@ body {
             <div class="panel sec-strings">
                 <div class="panel-label"><span><span class="numeral">III</span> &middot; Strings</span><span class="sublabel">E1&ndash;G3</span></div>
                 <div class="strings-top">
-                    <div class="knob-control" data-param="STRING_TENSION">
+                    <div class="knob-control" data-param="STRING_TENSION" data-tip-title="Tension" data-tip="String tension. Tighter strings respond faster and sound more focused; slack strings growl and flex.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Tension</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="STRING_STIFFNESS">
+                    <div class="knob-control" data-param="STRING_STIFFNESS" data-tip-title="Stiffness" data-tip="String inharmonicity. Stiffer strings sharpen the upper partials &mdash; wound steel versus gut.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Stiffness</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="stepper-block">
+                    <div class="stepper-block" data-tip-title="Active strings" data-tip="How many of the four strings (E&ndash;A&ndash;D&ndash;G, low to high) are on the instrument. Notes land on the string that can reach them.">
                         <div class="stepper-label">Active Strings</div>
                         <div class="segmented" data-param="ACTIVE_STRINGS">
                             <button data-val="1">1</button>
@@ -750,24 +885,24 @@ body {
                     </div>
                 </div>
                 <div class="finetuner-block">
-                    <div class="finetuner-title">Fine Tuners &middot; cents</div>
+                    <div class="finetuner-title" data-tip-title="Fine tuners" data-tip="Per-string detune in cents, &plusmn;1200&cent;. Double-click a fader to return it to 0.">Fine Tuners &middot; cents</div>
                     <div class="finetuner-row">
-                        <div class="finetuner" data-param="DETUNE_E" data-string="E">
+                        <div class="finetuner" data-param="DETUNE_E" data-string="E" data-tip-title="E fine tuner" data-tip="Detune of the low E string in cents, &plusmn;1200&cent;.">
                             <div class="string-name">E</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
                         </div>
-                        <div class="finetuner" data-param="DETUNE_A" data-string="A">
+                        <div class="finetuner" data-param="DETUNE_A" data-string="A" data-tip-title="A fine tuner" data-tip="Detune of the A string in cents, &plusmn;1200&cent;.">
                             <div class="string-name">A</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
                         </div>
-                        <div class="finetuner" data-param="DETUNE_D" data-string="D">
+                        <div class="finetuner" data-param="DETUNE_D" data-string="D" data-tip-title="D fine tuner" data-tip="Detune of the D string in cents, &plusmn;1200&cent;.">
                             <div class="string-name">D</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
                         </div>
-                        <div class="finetuner" data-param="DETUNE_G" data-string="G">
+                        <div class="finetuner" data-param="DETUNE_G" data-string="G" data-tip-title="G fine tuner" data-tip="Detune of the high G string in cents, &plusmn;1200&cent;.">
                             <div class="string-name">G</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
@@ -780,36 +915,36 @@ body {
             <div class="panel sec-expression">
                 <div class="panel-label"><span><span class="numeral">IV</span> &middot; Expression</span><span class="sublabel">vibrato &middot; bow drift</span></div>
                 <div style="display: flex; gap: 14px; margin-top: 6px;">
-                    <div class="knob-control macro-knob" data-param="EXPRESSION_MACRO" style="margin-top: 14px;">
+                    <div class="knob-control macro-knob" data-param="EXPRESSION_MACRO" style="margin-top: 14px;" data-tip-title="Expression" data-tip="One-knob intensity macro &mdash; leans bow speed, pressure and vibrato together from restful to fervent.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Expression</div>
                         <div class="knob-value"></div>
                     </div>
                     <div style="flex: 1;">
                         <div class="param-row">
-                            <div class="knob-control" data-param="VIBRATO_RATE">
+                            <div class="knob-control" data-param="VIBRATO_RATE" data-tip-title="Vibrato rate" data-tip="Vibrato speed, 0.1&ndash;12 Hz.">
                                 <div class="knob-wrapper"></div>
                                 <div class="knob-label">Vib Rate</div>
                                 <div class="knob-value"></div>
                             </div>
-                            <div class="knob-control" data-param="VIBRATO_DEPTH">
+                            <div class="knob-control" data-param="VIBRATO_DEPTH" data-tip-title="Vibrato depth" data-tip="Vibrato width in cents, 0&ndash;50&cent;. At 0 the left hand holds still.">
                                 <div class="knob-wrapper"></div>
                                 <div class="knob-label">Vib Depth</div>
                                 <div class="knob-value"></div>
                             </div>
-                            <div class="knob-control" data-param="VIBRATO_ONSET">
+                            <div class="knob-control" data-param="VIBRATO_ONSET" data-tip-title="Vibrato onset" data-tip="Delay before vibrato blooms after a note starts, 0&ndash;3000 ms &mdash; the straight-tone attack of a real player.">
                                 <div class="knob-wrapper"></div>
                                 <div class="knob-label">Vib Onset</div>
                                 <div class="knob-value"></div>
                             </div>
                         </div>
                         <div class="param-row" style="margin-top: 10px;">
-                            <div class="knob-control" data-param="SLOW_LFO_RATE">
+                            <div class="knob-control" data-param="SLOW_LFO_RATE" data-tip-title="LFO rate" data-tip="Rate of the slow bow drift, 0.05&ndash;2 Hz &mdash; a once-per-phrase wander of the bowing.">
                                 <div class="knob-wrapper"></div>
                                 <div class="knob-label">LFO Rate</div>
                                 <div class="knob-value"></div>
                             </div>
-                            <div class="knob-control" data-param="SLOW_LFO_DEPTH">
+                            <div class="knob-control" data-param="SLOW_LFO_DEPTH" data-tip-title="LFO depth" data-tip="Depth of the slow bow drift. At 0 the bow holds perfectly steady.">
                                 <div class="knob-wrapper"></div>
                                 <div class="knob-label">LFO Depth</div>
                                 <div class="knob-value"></div>
@@ -823,14 +958,14 @@ body {
             <div class="panel sec-drone" id="drone-panel">
                 <div class="panel-label"><span><span class="numeral">V</span> &middot; Drone</span></div>
                 <div class="param-row" style="margin-top: 4px;">
-                    <div class="knob-control" data-param="INFINITE_SUSTAIN">
+                    <div class="knob-control" data-param="INFINITE_SUSTAIN" data-tip-title="Infinite sustain" data-tip="Bow-forever amount. Raise it and held notes stop decaying &mdash; the drone wakes.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Inf. Sustain</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="param-row" style="margin-top: 10px;">
-                    <div class="knob-control" data-param="SUB_HARMONICS">
+                    <div class="knob-control" data-param="SUB_HARMONICS" data-tip-title="Sub-harmonics" data-tip="Level of the sub-harmonic layer beneath the played note &mdash; tectonic weight under the drone.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Sub-Harm.</div>
                         <div class="knob-value"></div>
@@ -843,31 +978,31 @@ body {
             <div class="panel sec-output">
                 <div class="panel-label"><span><span class="numeral">VI</span> &middot; Output</span></div>
                 <div class="param-row" style="margin-top: 2px;">
-                    <div class="knob-control" data-param="OUTPUT_GAIN">
+                    <div class="knob-control" data-param="OUTPUT_GAIN" data-tip-title="Level" data-tip="Output level, &minus;60 to +12 dB.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Level</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="WIDTH">
+                    <div class="knob-control" data-param="WIDTH" data-tip-title="Width" data-tip="Stereo width. 1.00&times; is the natural body image; 0 collapses to mono, 2&times; exaggerates.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Width</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="param-row" style="margin-top: 6px;">
-                    <div class="knob-control" data-param="MASTER_SAT_AMOUNT">
+                    <div class="knob-control" data-param="MASTER_SAT_AMOUNT" data-tip-title="Saturate" data-tip="Master saturator blend &mdash; gentle harmonic warmth on the summed output.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Saturate</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="LIMITER_CEILING_DB">
+                    <div class="knob-control" data-param="LIMITER_CEILING_DB" data-tip-title="Ceiling" data-tip="Limiter ceiling, &minus;6 to 0 dBFS. The output never crosses this.">
                         <div class="knob-wrapper"></div>
                         <div class="knob-label">Ceiling</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="vu-block">
-                    <canvas class="viz-canvas vu-face" id="canvas-vu"></canvas>
+                    <canvas class="viz-canvas vu-face" id="canvas-vu" data-tip-title="VU meter" data-tip="Output level after the limiter, VU-ballistic. 0 VU = −18 dBFS RMS."></canvas>
                 </div>
             </div>
         </div>
@@ -876,13 +1011,13 @@ body {
         <div class="row-3 panel sec-microtonal">
             <span class="strip-label"><span class="numeral">VII</span> &middot; Microtonal</span>
 
-            <div class="knob-control mini-knob" data-param="REFERENCE_PITCH">
+            <div class="knob-control mini-knob" data-param="REFERENCE_PITCH" data-tip-title="Reference pitch" data-tip="Concert pitch for A4, 220&ndash;880 Hz. Everything tunes around it.">
                 <div class="knob-wrapper"></div>
                 <div class="knob-label">A4</div>
                 <div class="knob-value"></div>
             </div>
 
-            <div class="strip-field">
+            <div class="strip-field" data-tip-title="Tuning system" data-tip="Where the tuning comes from &mdash; a loaded Scala scale, an MTS-ESP master, or plain 12-TET.">
                 <span class="strip-field-label">Tuning System</span>
                 <select class="dropdown-select" id="tuning-system-select">
                     <!-- D1: label "Scala" (no TUN parser in TuningEngine 2.1.0;
@@ -893,9 +1028,9 @@ body {
                 </select>
             </div>
 
-            <button class="scl-btn" id="scl-load-btn" title="Load a Scala tuning file (.scl)">Load .scl&hellip;</button>
+            <button class="scl-btn" id="scl-load-btn" data-tip-title="Load .scl" data-tip="Load a Scala tuning file (.scl) and switch the tuning system to it.">Load .scl&hellip;</button>
 
-            <div class="toggle-field" id="note-expression-toggle">
+            <div class="toggle-field" id="note-expression-toggle" data-tip-title="Note expression" data-tip="Per-note VST3 pitch (Note Expression) for hosts like Cubase and Dorico &mdash; microtonal scores play in tune.">
                 <div class="toggle-track"><div class="toggle-thumb"></div></div>
                 <span class="strip-field-label">Note Expression</span>
             </div>
@@ -913,6 +1048,11 @@ body {
     </div>
 
 </div><!-- /.plugin-root -->
+
+<!-- The one shared tooltip surface. A SIBLING of .plugin-root, never a child:
+     position:fixed still resolves against the viewport, but keeping it outside
+     means .plugin-root's overflow:hidden can never clip it. -->
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
 <script type="module">
 "use strict";
@@ -1555,11 +1695,20 @@ const VU_W = 150, VU_H = 46;
 const vuCtx = setupCanvas("canvas-vu", VU_W, VU_H);
 const vu = { needleDb: -20, targetDb: -20, cx: VU_W / 2, cy: 86, r: 66, aMin: -48, aMax: 48 };
 
+// v1.7.1 — 0 VU is referenced to −18 dBFS RMS (EBU alignment level), not
+// 0 dBFS. The feed is true post-limiter dBFS; unreferenced, the whole face
+// (−20..+3) sat above anything the instrument outputs (max-sustain render:
+// −29 dBFS RMS) and the needle never left its pin.
+const VU_REF_DBFS = -18;
+
 if (window.__JUCE__ && window.__JUCE__.backend) {
     window.__JUCE__.backend.addEventListener("vuLevel", (payload) => {
         try {
             const d = (typeof payload === "string") ? JSON.parse(payload) : payload;
-            if (d && typeof d.db === "number") vu.targetDb = d.db;
+            // Clamp at the face floor: silence is −80 dBFS, and easing the
+            // needle toward −62 VU off-face would make the next note's rise
+            // start seconds late.
+            if (d && typeof d.db === "number") vu.targetDb = Math.max(-20, d.db - VU_REF_DBFS);
         } catch (e) { /* malformed feed frame — ignore */ }
     });
 }
@@ -1669,6 +1818,49 @@ updateDroneAwake();
             onPresetChanged: (name) => console.log("[preset] loaded:", name)
         });
         await presetManager.initialize();
+
+        /* Preset dropdown (v1.6.0) — click the name display to browse.
+           Built fresh from presetManager.presetList on every open (refresh()
+           first, so presets saved since init appear). ONE FLAT LIST in the
+           C++ order — the ◀/▶ buttons walk that same list, so any visual
+           regrouping/sorting here would desync them. Only presetManager
+           methods are used: no new getNativeFunction calls, bridge surface
+           stays at 32 (ui_frontend_check). */
+        const nameDisplay = document.getElementById("preset-name");
+        const menu = document.getElementById("preset-menu");
+
+        function closeMenu() { menu.hidden = true; }
+
+        async function openMenu() {
+            await presetManager.refresh();
+            menu.textContent = "";
+            for (const name of presetManager.presetList) {
+                const item = document.createElement("div");
+                item.className = "preset-menu-item"
+                    + (name === presetManager.currentPreset ? " current" : "");
+                item.textContent = name;
+                item.addEventListener("click", async () => {
+                    closeMenu();
+                    await presetManager.loadPreset(name);
+                });
+                menu.appendChild(item);
+            }
+            const r = nameDisplay.getBoundingClientRect();
+            menu.style.left = r.left + "px";
+            menu.style.top  = (r.bottom + 4) + "px";
+            menu.hidden = false;
+        }
+
+        nameDisplay.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (menu.hidden) openMenu(); else closeMenu();
+        });
+        document.addEventListener("click", (e) => {
+            if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeMenu();
+        });
     } catch (e) {
         console.error("[preset-bar] init failed:", e);
     }
@@ -1712,6 +1904,183 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
             activateTuningPanel();
     });
 });
+
+// ================= hover help (v1.7.0) ======================================
+// Ported from O-Bitrot v1.12.0 (itself from O-Tapestop v1.4.0), which carries
+// the VERIFIED measure-then-pin placement rather than the earlier
+// shrink-to-fit variant (pattern_fixed_tooltip_shrink_to_fit_edge).
+//
+// Every show is gated on `tipsEnabled`, the "?" toggle's state, which
+// round-trips through the processor so it survives a session reload. The
+// toggle's OWN tip carries data-tip-always and bypasses the gate — otherwise
+// the one control that could turn help back on would be the one control
+// unable to explain itself.
+//
+// This block runs LAST and declares its own bindings, so nothing above can
+// reach into it (pattern_module_toplevel_init_tdz).
+{
+    // TOOLTIP_MARGIN is both the gap between a tip and its control AND the
+    // gap it keeps from the viewport edge.
+    const TOOLTIP_MARGIN = 8;
+    const TOOLTIP_DELAY_MS = 350;   // hover dwell before a tip appears
+
+    const tipEl = document.getElementById("tooltip");
+    const toggleEl = document.getElementById("help-toggle");
+
+    let tipTimer = null;
+    let tipTarget = null;
+    let tipSuppressed = false;      // true between pointerdown and pointerup
+    let tipsEnabled = false;        // the "?" state; PULLED from C++ at init
+    let setTipsFn = null;           // native fn, resolved once
+
+    const tipAllowed = (t) => tipsEnabled || t.hasAttribute("data-tip-always");
+
+    const hideTip = () => {
+        clearTimeout(tipTimer);
+        tipTarget = null;
+        if (!tipEl) return;
+        tipEl.classList.remove("visible");
+        tipEl.setAttribute("aria-hidden", "true");
+    };
+
+    const showTip = (target) => {
+        // The pointer may have moved on, or gone down, during the dwell.
+        if (!tipEl || tipSuppressed || target !== tipTarget) return;
+        if (!tipAllowed(target)) return;
+
+        const title = target.getAttribute("data-tip-title");
+        const body = target.getAttribute("data-tip");
+        if (!body) return;
+
+        // textContent, not innerHTML — the copy stays inert.
+        tipEl.textContent = "";
+        if (title) {
+            const t = document.createElement("div");
+            t.className = "tooltip-title";
+            t.textContent = title;
+            tipEl.appendChild(t);
+        }
+        const b = document.createElement("div");
+        b.className = "tooltip-body";
+        b.textContent = body;
+        tipEl.appendChild(b);
+
+        const anchor = target.getBoundingClientRect();
+
+        // MEASURE-THEN-PIN. A fixed-position box with `left` set and
+        // width:auto shrink-to-fits whatever space remains to its right, so
+        // measuring at the PREVIOUS offset under-reports the width, and a
+        // near-edge `left` re-wraps the tip into a narrow ribbon that never
+        // recovers. Release the width, measure from the left edge, pin the
+        // result in px, and only then place.
+        tipEl.style.width = "";
+        tipEl.style.left = "0px";
+        tipEl.style.top = "0px";
+
+        // getBoundingClientRect, NOT offsetWidth: offsetWidth rounds, and a
+        // pinned width narrower than the box's own shrink-to-fit pushes the
+        // last word onto a second line after the height was already read.
+        const width = tipEl.getBoundingClientRect().width;
+        tipEl.style.width = `${width}px`;
+
+        // Height is only stable once the width is definite.
+        const height = tipEl.getBoundingClientRect().height;
+
+        // Prefer above; flip below only when there is no room at the top.
+        let top = anchor.top - height - TOOLTIP_MARGIN;
+        let placement = "above";
+        if (top < TOOLTIP_MARGIN) {
+            top = anchor.bottom + TOOLTIP_MARGIN;
+            placement = "below";
+        }
+
+        const centreX = anchor.left + anchor.width / 2;
+        const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+        const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, centreX - width / 2));
+
+        tipEl.style.left = `${left}px`;
+        tipEl.style.top = `${top}px`;
+        tipEl.dataset.placement = placement;
+
+        // The tip is clamped to the viewport, but the arrow still points at
+        // the control — held clear of the rounded corners.
+        const arrowX = Math.max(10, Math.min(width - 10, centreX - left));
+        tipEl.style.setProperty("--arrow-x", `${arrowX}px`);
+
+        tipEl.classList.add("visible");
+        tipEl.setAttribute("aria-hidden", "false");
+    };
+
+    // Class + aria only — the button's "?" glyph is HTML-authored and must
+    // never be written from here
+    // (pattern_js_state_updater_overwrites_html_labels).
+    const applyTipsEnabled = (enabled) => {
+        tipsEnabled = !!enabled;
+        if (toggleEl) {
+            toggleEl.classList.toggle("active", tipsEnabled);
+            toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+        }
+        if (!tipsEnabled) hideTip();
+    };
+
+    if (!tipEl) {
+        console.warn("Tooltip surface missing — hover help disabled");
+    } else {
+        document.addEventListener("mouseover", (e) => {
+            const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+            if (!target || target === tipTarget) return;
+            tipTarget = target;
+            clearTimeout(tipTimer);
+            if (tipSuppressed || !tipAllowed(target)) return;
+            tipTimer = setTimeout(() => showTip(target), TOOLTIP_DELAY_MS);
+        });
+
+        document.addEventListener("mouseout", (e) => {
+            const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+            if (!target) return;
+            // Moving between children of the same control is not a real exit.
+            // Every knob cell wraps a label, a knob and a value readout, so
+            // without this the surface flickers as the pointer crosses them.
+            if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+            hideTip();
+        });
+
+        // Any press begins a click or a drag: get the tip out of the way and
+        // keep it away until release, so it cannot hang over a knob mid-drag.
+        // CAPTURE phase, because the knobs call preventDefault in their own
+        // pointerdown handlers.
+        document.addEventListener("pointerdown", () => {
+            tipSuppressed = true;
+            hideTip();
+        }, true);
+        document.addEventListener("pointerup", () => { tipSuppressed = false; }, true);
+
+        if (toggleEl) {
+            toggleEl.addEventListener("click", () => {
+                applyTipsEnabled(!tipsEnabled);
+                // Fire-and-forget: the page is already in the new state, and a
+                // failed persist must not leave the toggle disagreeing with
+                // what it shows.
+                if (setTipsFn) setTipsFn(tipsEnabled).catch(() => {});
+            });
+        }
+
+        // PULL the persisted preference. The C++ side deliberately never
+        // pushes it: a push from the editor constructor or the 30 Hz tick
+        // fires before this module has evaluated, so it would silently never
+        // arrive and the toggle would read OFF on every reopen
+        // (pattern_webview_one_shot_state_push_stale_on_preset_load / the
+        // O-FreqPulse WR-01 bug).
+        try {
+            setTipsFn = Juce.getNativeFunction("setTooltipsEnabled");
+            Juce.getNativeFunction("getTooltipsEnabled")()
+                .then((enabled) => applyTipsEnabled(!!enabled))
+                .catch((e) => console.error("[help] getTooltipsEnabled failed:", e));
+        } catch (e) {
+            console.error("[help] native bridge unavailable:", e);
+        }
+    }
+}
 
 requestAnimationFrame(tick);
 </script>
