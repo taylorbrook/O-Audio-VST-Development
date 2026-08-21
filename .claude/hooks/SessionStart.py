@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -20,6 +21,181 @@ def get_version_output(cmd, args=None):
         return output.splitlines()[0] if output else None
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return None
+
+
+def run_git(args, cwd, timeout=1):
+    """Run a git command (list form only, never shell) and return stripped stdout.
+
+    Returns None on non-zero exit, timeout, or a missing/unusable git binary -
+    mirroring get_version_output()'s degrade-instead-of-raise contract.
+    """
+    try:
+        result = subprocess.run(
+            ["git"] + args,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def _sanitize_frontmatter_value(value):
+    """Bound what plugin-authored STATUS.md text can inject into session context."""
+    value = value.split(" #")[0]
+    value = value.strip()
+    value = "".join(ch for ch in value if ord(ch) >= 32)
+    return value[:60]
+
+
+def _scan_inflight_plugins(repo_root):
+    """Read plugins/*/.planning/STATUS.md frontmatter; return non-complete plugins."""
+    done = {"complete", "plugin_complete", "installed"}
+    key_re = re.compile(r"^(plugin|stage|status|phase):\s*(.*)$")
+    inflight = []
+
+    for status_path in sorted(repo_root.glob("plugins/*/.planning/STATUS.md")):
+        try:
+            with status_path.open("r", encoding="utf-8", errors="replace") as fh:
+                lines = []
+                for i, line in enumerate(fh):
+                    if i >= 40:
+                        break
+                    lines.append(line.rstrip("\n"))
+        except OSError:
+            continue
+
+        if not lines or lines[0].strip() != "---":
+            continue  # no frontmatter - 8 of 37 files look like this
+
+        fields = {}
+        for line in lines[1:]:
+            if line.strip() == "---":
+                break
+            match = key_re.match(line)
+            if match and match.group(1) not in fields:
+                fields[match.group(1)] = _sanitize_frontmatter_value(match.group(2))
+
+        status = fields.get("status", "")
+        if status in done:
+            continue
+
+        name = fields.get("plugin") or status_path.parent.parent.name
+        inflight.append((name, fields.get("stage", "?"), status or "?"))
+
+    return inflight
+
+
+def print_git_context():
+    """Print the session's location coordinates. Everything here goes to STDOUT -
+    stdout is what enters the fresh session's context; stderr does not."""
+    started = time.monotonic()
+    deadline = 1.5  # cumulative wall-clock budget vs the hook's timeout: 5000
+
+    def out_of_time():
+        return (time.monotonic() - started) > deadline
+
+    repo_root = Path(os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd())
+
+    print("=== Git Context ===")
+
+    toplevel = run_git(["rev-parse", "--show-toplevel"], repo_root)
+    if not toplevel:
+        print("[INFO] Git context unavailable (not a git repository)")
+        print()
+        return
+    repo_root = Path(toplevel)
+
+    truncated = False
+
+    # ---- Branch ----
+    if out_of_time():
+        truncated = True
+    else:
+        branch = run_git(["branch", "--show-current"], repo_root)
+        if branch is None:
+            truncated = True
+        elif branch == "main":
+            print("[OK] Branch: main")
+        elif branch == "":
+            print("[WARN] Branch: (detached HEAD)")
+        else:
+            print(
+                f"[WARN] Branch: {branch} — expected main; "
+                "all plugin work belongs on main"
+            )
+
+    # ---- Worktrees ----
+    if out_of_time():
+        truncated = True
+    else:
+        wt_out = run_git(["worktree", "list", "--porcelain"], repo_root)
+        if wt_out is None:
+            truncated = True
+        else:
+            count = sum(
+                1 for line in wt_out.splitlines() if line.startswith("worktree ")
+            )
+            if count > 1:
+                print(
+                    f"[WARN] Worktrees: {count} — extra checkouts exist; "
+                    "run git worktree list"
+                )
+            else:
+                print(f"[OK] Worktrees: {count}")
+
+    # ---- Working tree ----
+    if out_of_time():
+        truncated = True
+    else:
+        status_out = run_git(["status", "--porcelain"], repo_root)
+        if status_out is None:
+            truncated = True
+        elif status_out == "":
+            print("[OK] Working tree: clean")
+        else:
+            lines = status_out.splitlines()
+            staged = sum(1 for line in lines if line[:1] not in (" ", "?", ""))
+            print(f"[INFO] Working tree: {len(lines)} changed, {staged} staged")
+
+    # ---- Unpushed ----
+    if out_of_time():
+        truncated = True
+    else:
+        ahead = run_git(["rev-list", "--count", "origin/main..HEAD"], repo_root)
+        if ahead is not None:  # None = no remote configured; skip the line entirely
+            try:
+                n = int(ahead)
+            except ValueError:
+                n = None
+            if n is not None:
+                if n > 0:
+                    print(f"[INFO] Unpushed: {n} commit(s) ahead of origin/main")
+                else:
+                    print("[OK] Unpushed: 0")
+
+    # ---- In-flight plugins ----
+    if out_of_time():
+        truncated = True
+    else:
+        inflight = _scan_inflight_plugins(repo_root)
+        if inflight:
+            print("In-flight plugins (plugins/*/.planning/STATUS.md):")
+            for name, stage, status in inflight[:12]:
+                print(f"  - {name} — stage {stage} — {status}")
+            if len(inflight) > 12:
+                print(f"  ... and {len(inflight) - 12} more")
+        else:
+            print("[OK] No in-flight plugins")
+
+    if truncated:
+        print("[INFO] Git context truncated (slow repository)")
+
+    print()
 
 
 def main():
@@ -351,6 +527,13 @@ def main():
 
     print("===========================")
     print()
+
+    # ---- Git Context (location: branch / worktrees / dirty / unpushed / in-flight) ----
+    # Wrapped so no defect in this section can ever block session start.
+    try:
+        print_git_context()
+    except Exception:
+        pass
 
     # Never block session start (allow user to see errors and fix)
     sys.exit(0)
