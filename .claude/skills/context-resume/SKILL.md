@@ -73,11 +73,34 @@ Copy this checklist to track your progress:
 
 ```
 Context Resume Progress:
+- [ ] Step 0: Verify location (git branch --show-current == main)
 - [ ] Step 1: Locate handoff file (check 2 locations, disambiguate if needed)
 - [ ] Step 2: Parse context (YAML + markdown body)
 - [ ] Step 3: Present summary (wait for user confirmation)
 - [ ] Step 4: Route to continuation skill (load context files first)
 ```
+
+### Step 0: Verify Location
+
+Before reading any state file, confirm which branch is checked out:
+
+```bash
+git branch --show-current
+```
+
+- **Output is `main`** → proceed silently to Step 1. No output to the user.
+- **Any other value, including empty output (detached HEAD)** → **STOP.** Do not load STATUS.md, do not route, do not auto-switch.
+
+On a non-main branch, print the branch you found and explain that STATUS.md is branch-versioned — the file about to be read may not describe the work that lives on this branch. Then offer two choices and wait:
+
+1. Switch to `main` and resume there
+2. Explicitly confirm resuming on this branch anyway
+
+**NEVER** auto-proceed and **NEVER** auto-switch. All plugin work belongs on `main` (see `## Parallel Plugin Development` in CLAUDE.md); a resume on a stray branch is how finished work gets silently redone or clobbered.
+
+**Validation:** MUST complete before Step 1.
+
+---
 
 ### Step 1: Locate Handoff File
 
@@ -233,6 +256,7 @@ Resume is successful when:
 
 **MUST do when executing this skill:**
 
+0. **MUST** run `git branch --show-current` before reading any state file, and STOP with the branch surfaced when it is not `main` (Step 0)
 1. **ALWAYS** check `plugins/[Name]/.planning/STATUS.md` first
 2. **MUST** parse YAML carefully - handle missing optional fields gracefully
 3. **MUST** present time-ago in human-readable format (not raw timestamps)
@@ -248,6 +272,7 @@ Resume is successful when:
 
 **NEVER do these common mistakes:**
 
+- Resuming without first confirming which branch is checked out — STATUS.md is branch-versioned, so on a stray branch the file reads as current while describing a different lineage of work
 - Auto-proceeding after summary without waiting for user confirmation
 - Invoking continuation skill before loading contract files from `.planning/`
 - Presenting raw YAML/markdown instead of formatted human-readable summary
