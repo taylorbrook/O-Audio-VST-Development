@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
-stage: 3
-phase: verify
-status: stage_3_verified_automated_human_gates_pending
+stage: 4
+phase: discuss
+status: stage_4_discuss_complete
 last_updated: 2026-08-21
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_discuss
+next_action: stage_4_research
 next_stage: 4
 ready_for_implementation: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — verify ⚠ PARTIAL (2026-08-21): all automated gates green, human visual/interaction gates pending
-Phase: verify complete → next: Stage 4 discuss
-Status: WebView GUI shipped and verified — harness ALL PASS with digests byte-identical to Stage-2 baseline (9cf6baa8d3b61b14 / b23fe10b74526fab / dad157a01f7c393f), pluginval strictness 10 SUCCESS VST3+AU, auval PASS, bridge audit 0↔0, paper.jpg md5 clean; 6 human DAW checks fold into Stage 4 (list in stages/3-gui/VERIFICATION.md)
-Progress: [##################..] 90%
+Stage: 4 (Polish) — discuss ✓ (2026-08-21)
+Phase: discuss complete → next: Stage 4 research
+Status: Stage-4 scope pinned — preset-manager v1.0.6 + 15+ factory presets (10 per-console signatures + utility bank), 6 inherited human gates in Logic Pro, final validation, local install only; constraints in stages/4-polish/CONTEXT.md
+Progress: [##################..] 91%
 
 ## Phase Progress
 
@@ -55,6 +55,11 @@ Progress: [##################..] 90%
 | plan | ✓ | 2026-08-21 | |
 | execute | ✓ | 2026-08-21 | |
 | verify | ⚠ | 2026-08-21 | (automated ✓; human gates → Stage 4) |
+
+### Stage 4: Polish
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-08-21 | |
 
 ## Completed So Far
 
@@ -132,9 +137,14 @@ Progress: [##################..] 90%
 - REQUIREMENTS.md: UI-01 → partial (human gates only); UI-02 → deferred to stage-4 (preset manager lands there)
 - 6 human DAW checks pending (visual pass, crossfade audibility, knob feel, automation refresh, preset reload, console errors) — fold into Stage 4
 
+## Completed — Stage 4 Discuss (2026-08-21)
+
+- `stages/4-polish/CONTEXT.md`: preset-manager v1.0.6 vendored + 15+ factory presets (2 per-console signatures ×5 + ~5–8 cross-console utility), flat alphabetical, authored in denormalized values; 6 inherited human gates run in Logic Pro (inspector check via dev Standalone); final validation (pluginval 10, auval, harness digests unchanged, CHANGELOG, docs); release target = local install only
+- Constraints: bridge audit counts change when preset-manager adds native fns (re-anchor the grep-diff), applyPresetJson resets to defaults first, no "/" in preset names, harness must stay digest-identical (UI-layer-only change)
+
 ## Next Steps
 
-1. `/implement O-Emulator` — Stage 4 (Polish): preset manager + factory presets (UI-02), human DAW gates from stage-3 VERIFICATION.md, final validation/install
+1. `/plugin-research O-Emulator 4-polish` — investigate preset-manager v1.0.6 integration + preset authoring approach
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
