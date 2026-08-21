@@ -89,6 +89,23 @@ public:
     int downsample (float* l, float* r, int numHost,
                     float* outL, float* outR, int maxOut) noexcept;
 
+    /** Crush AA-open (Task 18): swap to PRECOMPUTED coefficient set k
+        (0 = nominal 0.45·consoleRate). RT-safe: the sets are allocated in
+        prepare() and permanently owned by aaSets, so the Ptr swap is pure
+        refcounting — no allocation, no free, never a make* factory on the
+        audio thread. Call only from a micro-fade trough (the state
+        transient is masked by the dip). */
+    void setAaOpenIndex (int k) noexcept;
+
+    int getAaOpenIndex() const noexcept { return aaSetIndex; }
+
+    /** Age drift (Task 17): per-chunk resample-ratio factor applied to the
+        Lagrange decimation ONLY (production counts stay computed from the
+        nominal ratio, so the walk lands in ring fill, which is bounded by
+        the engine's drift-offset clamp + the priming floor). 1.0 = exact
+        nominal path, bit-identical to no drift. */
+    void setDriftRatioFactor (double f) noexcept { driftFactor = f; }
+
     /** Queue one decoded console-domain stereo sample for the upsampler. */
     void pushConsoleSample (float l, float r) noexcept;
 
@@ -113,7 +130,14 @@ private:
     // slot) is comfortable headroom.
     static constexpr int kDownCap = 192;
 
+    /** AA-open coefficient sets: cutoff multipliers per set (set 0 nominal). */
+    static constexpr int kNumAaSets = 5;
+    static constexpr double kAaOpenMult[kNumAaSets] { 1.0, 1.6, 2.5, 4.0, 6.0 };
+
     juce::dsp::IIR::Filter<float> aa[2][4];
+    juce::dsp::IIR::Coefficients<float>::Ptr aaSets[kNumAaSets][4];
+    int aaSetIndex = 0;
+    double driftFactor = 1.0;
     juce::Interpolators::Lagrange lagrange[2];
     float downFifo[2][kDownCap + 1] {};   // +1: the cleared guard slot
     int downFill = 0;

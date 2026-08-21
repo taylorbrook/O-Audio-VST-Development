@@ -39,22 +39,37 @@ void ConsoleResampler::prepare (double hostRate, double consoleRate,
     // at every supported rate; this is belt-and-braces for exotic hosts).
     const float cutoff = juce::jmin (aaCutoffHz, (float) (0.45 * hostRate));
 
-    // ArrayCoefficients: raw 6-element arrays, no heap churn beyond the one
-    // prepare-time Coefficients object per stage (never on the audio thread —
-    // Phase 2.4's AA-open steps between sets PRECOMPUTED here).
+    // ArrayCoefficients: raw 6-element arrays; ALL coefficient objects (the
+    // nominal set 0 AND the crush AA-open sets) are allocated HERE and owned
+    // permanently by aaSets, so the audio-thread set swap is pure Ptr
+    // refcounting — the swapped-out object's count never reaches zero and
+    // nothing is ever freed on the audio thread.
+    for (int k = 0; k < kNumAaSets; ++k)
+    {
+        const float setCutoff = juce::jmin ((float) ((double) cutoff * kAaOpenMult[k]),
+                                            (float) (0.47 * hostRate));
+
+        for (int s = 0; s < 4; ++s)
+        {
+            const auto c = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (
+                               hostRate, setCutoff, kButterworthQ8[s]);
+
+            aaSets[k][s] = new juce::dsp::IIR::Coefficients<float> (c[0], c[1], c[2],
+                                                                    c[3], c[4], c[5]);
+        }
+    }
+
+    aaSetIndex = 0;
     for (int ch = 0; ch < 2; ++ch)
     {
         for (int s = 0; s < 4; ++s)
         {
-            const auto c = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (
-                               hostRate, cutoff, kButterworthQ8[s]);
-
-            aa[ch][s].coefficients
-                = new juce::dsp::IIR::Coefficients<float> (c[0], c[1], c[2],
-                                                           c[3], c[4], c[5]);
+            aa[ch][s].coefficients = aaSets[0][s];
             aa[ch][s].reset();
         }
     }
+
+    driftFactor = 1.0;
 
     GaussianInterpolator::warmTable();   // magic-static init OFF the audio thread
 
@@ -63,6 +78,18 @@ void ConsoleResampler::prepare (double hostRate, double consoleRate,
 
 void ConsoleResampler::reset()
 {
+    // Back to the nominal AA set (the pipeline re-applies its crush-derived
+    // set right after a reset). All 2nd-order, so no state realloc happens.
+    if (aaSetIndex != 0)
+    {
+        aaSetIndex = 0;
+        for (int ch = 0; ch < 2; ++ch)
+            for (int s = 0; s < 4; ++s)
+                aa[ch][s].coefficients = aaSets[0][s];
+    }
+
+    driftFactor = 1.0;
+
     for (int ch = 0; ch < 2; ++ch)
     {
         for (auto& stage : aa[ch])
@@ -125,6 +152,13 @@ int ConsoleResampler::downsample (float* l, float* r, int numHost,
     if (numOut == 0)
         return 0;
 
+    // Drift (Task 17): the PRODUCTION count above always uses the nominal
+    // ratio; only the interpolator's read rate is modulated (±15 cents max,
+    // so consumed stays within the FIFO's −3 margin + guard sample). The
+    // fill self-regulates chunk to chunk; the accumulated time offset lands
+    // in the upsample ring, whose priming floor covers it.
+    const double readRatio = ratio * driftFactor;
+
     float* outs[2] = { outL, outR };
     int consumed0 = 0;
 
@@ -132,7 +166,7 @@ int ConsoleResampler::downsample (float* l, float* r, int numHost,
     {
         downFifo[ch][downFill] = 0.0f;   // +1 cleared guard sample
 
-        const int consumed = lagrange[ch].process (ratio, downFifo[ch],
+        const int consumed = lagrange[ch].process (readRatio, downFifo[ch],
                                                    outs[ch], numOut);
 
         if (ch == 0)
@@ -154,6 +188,18 @@ int ConsoleResampler::downsample (float* l, float* r, int numHost,
                       (size_t) downFill * sizeof (float));
 
     return numOut;
+}
+
+void ConsoleResampler::setAaOpenIndex (int k) noexcept
+{
+    k = juce::jlimit (0, kNumAaSets - 1, k);
+    if (k == aaSetIndex)
+        return;
+
+    aaSetIndex = k;
+    for (int ch = 0; ch < 2; ++ch)
+        for (int s = 0; s < 4; ++s)
+            aa[ch][s].coefficients = aaSets[k][s];   // refcount-only swap
 }
 
 void ConsoleResampler::pushConsoleSample (float l, float r) noexcept

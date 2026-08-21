@@ -24,13 +24,12 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Stage 2 / Phase 2.2: SNES + PS1 pipelines + SPU reverb. The APVTS
-    parameters below are the BINDING contract from .planning/parameter-spec.md
-    — IDs, types, ranges and defaults are frozen. Wired so far: `crush`
-    (drive + shift floor), `mix` (latency-compensated DryWetMixer), `console`
-    (SNES/PS1; 2.2 interim hard switch, indices 2-4 map to SNES until the
-    Phase 2.3 crossfader) and `reverb` (SPU send level). `age` drives nothing
-    until Phase 2.4.
+    Stage 2 COMPLETE (Phase 2.4): all five console pipelines, SPU reverb,
+    click-safe crossfaded switching, age model (noise/hum bed, dulling,
+    drift) and the full crush macro (drive, integer steps with micro-fades,
+    AA-open). The APVTS parameters below are the BINDING contract from
+    .planning/parameter-spec.md — IDs, types, ranges and defaults are frozen.
+    All five macros are live.
 
   ==============================================================================
 */
@@ -87,8 +86,9 @@ OEmulatorAudioProcessor::OEmulatorAudioProcessor()
     mixParam     = apvts.getRawParameterValue("mix");
     consoleParam = apvts.getRawParameterValue("console");
     reverbParam  = apvts.getRawParameterValue("reverb");
-    jassert(crushParam != nullptr && mixParam != nullptr
-            && consoleParam != nullptr && reverbParam != nullptr);
+    ageParam     = apvts.getRawParameterValue("age");
+    jassert(crushParam != nullptr && mixParam != nullptr && consoleParam != nullptr
+            && reverbParam != nullptr && ageParam != nullptr);
 }
 
 OEmulatorAudioProcessor::~OEmulatorAudioProcessor() = default;
@@ -161,6 +161,7 @@ void OEmulatorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     // boundaries); the switch applies at the next chunk boundary.
     engine.setConsoleIndex((int) consoleParam->load());
     engine.setCrushPercent(crushParam->load());
+    engine.setAgePercent(ageParam->load());
     engine.setReverbSendPercent(reverbParam->load());
     dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
 

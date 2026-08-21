@@ -109,6 +109,30 @@
                         the constants block for the two survival arguments
                         (idle-crossfader branch; first-chunk instant switch).
 
+    Phase 2.4 probes (age model + crush polish + PERF audit):
+
+      G1 age x5       — age 0 vs 100 changes the render in every mode.
+      G2 bed scaling  — silence in: bed RMS strictly rising over age
+                        10/40/70/100, absent at 0.
+      G3 bed rates    — bed level within ±1.5 dB of 48 kHz at 44.1/96/192 kHz
+                        (white-fed-stage normalization, makeProcAtRate).
+      G4 drift        — interpolated zero-crossing pitch: < 3 cents wobble at
+                        age 0, alive (> 1 cent) but bounded (< 25 cents) at
+                        age 100; no resampler instability.
+      G5 offline      — bit-identical under setNonRealtime(true).
+      G6 macros x5    — all four knobs min != max in all five modes.
+      G7 sweeps       — every knob swept 0 -> 100 through timeline steps
+                        (crush on SNES/NES/GB crosses every integer step +
+                        the AA-open breakpoints): finite, bounded, and the
+                        20 ms windowed RMS never collapses (no dropout; the
+                        5 ms micro-fade dips stay inside the floor).
+      P1 cpu          — render/realtime ratio <= 0.15 (the one sanctioned
+                        wall-clock probe).
+      D/D2/D3         — RE-ANCHORED: the age bed (default 20 %) rides on
+                        every wet render, so all three prior anchors are
+                        retired + moved-asserted; new 0-sentinel anchors
+                        recorded at the 2.4 commit.
+
     Conventions (O-Bitrot harness header): setBaseline() first in every
     probe; setValueNotifyingHost only; position-hashed excitation; liveness
     clauses on every potentially-vacuous probe; no wall-clock in verdicts;
@@ -120,6 +144,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -181,6 +206,27 @@ namespace
     constexpr juce::uint64 kDigestAnchor23SwitchMatrix = 0x03ca7037593af84aULL;
 
     //==========================================================================
+    // ── Phase 2.4 re-anchor (Task 19, retire/moved-assert discipline) ────────
+    //
+    // The age bed (default age = 20 %) now injects noise + hum into EVERY wet
+    // render, so ALL THREE prior canonical anchors MOVED, structurally:
+    //   - 2.1 SNES canonical:  bed audible at −73-ish dB on the wet path.
+    //   - 2.2 PS1 + reverb:    bed + PS1's upsample priming grew a drift-
+    //                          headroom floor (prime 4 -> 8 console samples).
+    //   - 2.3 switch matrix:   bed + the priming change + age dulling.
+    // The retired values are kept below and asserted MOVED
+    // (pattern_reanchor_cross_version_digest_probe); the new anchors follow
+    // the 0-sentinel RECORD pattern.
+
+    constexpr juce::uint64 kDigestAnchor21CanonicalSnesRetired24  = kDigestAnchor21CanonicalSnes;
+    constexpr juce::uint64 kDigestAnchor22Ps1ReverbRetired24      = kDigestAnchor22Ps1ReverbCanonical;
+    constexpr juce::uint64 kDigestAnchor23SwitchMatrixRetired24   = kDigestAnchor23SwitchMatrix;
+
+    constexpr juce::uint64 kDigestAnchor24CanonicalSnes = 0x9cf6baa8d3b61b14ULL;   // recorded at the 2.4 commit
+    constexpr juce::uint64 kDigestAnchor24Ps1Reverb     = 0xb23fe10b74526fabULL;   // recorded at the 2.4 commit
+    constexpr juce::uint64 kDigestAnchor24SwitchMatrix  = 0xdad157a01f7c393fULL;   // recorded at the 2.4 commit
+
+    //==========================================================================
     int failures = 0;
 
     void check (const char* name, bool ok, const juce::String& detail = {})
@@ -240,6 +286,14 @@ namespace
         return n == 4800 ? 0.9f : 0.0f;
     }
 
+    /** Digital silence: under it the AGE BED is the ONLY thing in the wet
+        output, so its level can be read directly (O-Bitrot bed model). */
+    float silentAt (int ch, int n)
+    {
+        juce::ignoreUnused (ch, n);
+        return 0.0f;
+    }
+
     using InputFn = float (*) (int ch, int n);
 
     //==========================================================================
@@ -277,6 +331,49 @@ namespace
         p->prepareToPlay (kFs, kMaxBlock);
         setBaseline (*p);
         return p;
+    }
+
+    /** Fresh processor at an arbitrary sample rate — the noise bed claims
+        rate invariance, and that claim needs other rates to mean anything. */
+    std::unique_ptr<OEmulatorAudioProcessor> makeProcAtRate (double fs)
+    {
+        auto p = std::make_unique<OEmulatorAudioProcessor>();
+        p->setPlayConfigDetails (2, 2, fs, kMaxBlock);
+        p->prepareToPlay (fs, kMaxBlock);
+        setBaseline (*p);
+        return p;
+    }
+
+    /** Mean frequency over [from, from+len) from LINEARLY INTERPOLATED upward
+        zero crossings (O-Bitrot model — resolves ~0.01 %, needed because the
+        whole drift budget is ±15 cents ≈ ±0.87 %). 0 if < 2 full cycles. */
+    double meanFreqZeroCross (const std::vector<float>& x, int from, int len, double fs)
+    {
+        double firstT = -1.0, lastT = -1.0;
+        int cycles = 0;
+
+        for (int n = from + 1; n < from + len; ++n)
+        {
+            if (x[(size_t) (n - 1)] <= 0.0f && x[(size_t) n] > 0.0f)
+            {
+                const double d = (double) x[(size_t) n] - (double) x[(size_t) (n - 1)];
+                const double frac = d > 0.0 ? (double) (-x[(size_t) (n - 1)]) / d : 0.0;
+                const double t = (double) (n - 1) + frac;
+
+                if (firstT < 0.0)
+                    firstT = t;
+                else
+                {
+                    lastT = t;
+                    ++cycles;
+                }
+            }
+        }
+
+        if (cycles < 2 || lastT <= firstT)
+            return 0.0;
+
+        return fs * (double) cycles / (lastT - firstT);
     }
 
     //==========================================================================
@@ -772,12 +869,15 @@ int main()
 
     //==========================================================================
     // Z — measured wet latency vs reported. Crush 0 (most transparent round
-    // trip); xcorr peak of output against input must land within ±15 samples
-    // of kComp (grid jitter + 8th-order Butterworth passband group delay +
-    // priming-estimate error, L120).
+    // trip) and AGE 0 (drift is a bounded time-offset walk — tens of host
+    // samples at full depth — and the reported figure is deliberately the
+    // NOMINAL one, so the measurement must run drift-free); xcorr peak within
+    // ±15 samples of kComp (grid jitter + IIR group delay + priming-estimate
+    // error, L120).
     {
         auto p = makeProc();
         setParam (*p, "crush", 0.0f);
+        setParam (*p, "age", 0.0f);
 
         const int total = kRenderSamples;
         juce::AudioBuffer<float> out;
@@ -995,6 +1095,7 @@ int main()
         auto p = makeProc();
         setParam (*p, "console", 1.0f);
         setParam (*p, "crush", 0.0f);
+        setParam (*p, "age", 0.0f);   // drift-free — see probe Z
 
         const int total = kRenderSamples;
         juce::AudioBuffer<float> out;
@@ -1011,6 +1112,8 @@ int main()
         const int lag = xcorrBestLag (in, outV, off, len,
                                       juce::jmax (0, kComp - 200), kComp + 200, corr);
 
+        // PS1's drift-headroom priming floor (2.4) sits ~+9 host samples
+        // above its exact alignment — still inside the ±15 budget.
         const bool aligned = std::abs (lag - kComp) <= 15;
         const bool corrOk  = corr > 0.2;
 
@@ -1533,6 +1636,336 @@ int main()
     }
 
     //==========================================================================
+    // G1 — DSP-05/FUNC-02: age min != max in ALL five modes.
+    {
+        const int total = kRenderSamples / 2;
+        const char* names[5] = { "SNES", "PS1", "NES", "GB", "GEN" };
+
+        bool ok = true;
+        juce::String detail;
+
+        for (int c = 0; c < 5; ++c)
+        {
+            auto lo = makeProc();
+            setParam (*lo, "console", (float) c);
+            setParam (*lo, "age", 0.0f);
+
+            auto hi = makeProc();
+            setParam (*hi, "console", (float) c);
+            setParam (*hi, "age", 100.0f);
+
+            juce::AudioBuffer<float> outLo, outHi;
+            renderInto (*lo, outLo, total, { 512 }, noiseHalfAt);
+            renderInto (*hi, outHi, total, { 512 }, noiseHalfAt);
+
+            const double diff = maxAbsDiff (outLo, outHi);
+            const bool live = outHi.getMagnitude (0, 0, total) > 1.0e-4f;
+
+            if (diff <= 1.0e-3 || ! live)
+            {
+                ok = false;
+                detail << names[c] << " diff " << juce::String (diff, 5)
+                       << (live ? "" : " SILENT") << "; ";
+            }
+        }
+
+        if (ok)
+            detail = "age 0 vs 100 changes the render in all 5 modes";
+
+        check ("G1 age min!=max x5", ok, detail);
+    }
+
+    //==========================================================================
+    // G2 — DSP-05 continuous scaling: under SILENCE the bed is the ONLY
+    // output, so its level is read directly; strictly rising across ages,
+    // and effectively absent at age 0.
+    {
+        const int total = kRenderSamples;
+        const float ages[4] = { 10.0f, 40.0f, 70.0f, 100.0f };
+        double rms[4] {};
+
+        for (int a = 0; a < 4; ++a)
+        {
+            auto p = makeProc();
+            setParam (*p, "age", ages[a]);
+
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, silentAt);
+            rms[a] = rmsRange (channelToVector (out, 0), 12000, total);
+        }
+
+        auto z = makeProc();
+        setParam (*z, "age", 0.0f);
+        juce::AudioBuffer<float> outZ;
+        renderInto (*z, outZ, total, { 512 }, silentAt);
+        const double rmsZero = rmsRange (channelToVector (outZ, 0), 12000, total);
+
+        const bool rising = rms[0] < rms[1] && rms[1] < rms[2] && rms[2] < rms[3];
+        const bool offAt0 = rmsZero < 1.0e-6;
+        const bool live   = rms[3] > 1.0e-4;
+
+        check ("G2 age-bed scaling", rising && offAt0 && live,
+               juce::String ("bed RMS 10/40/70/100% = ")
+                   + juce::String (rms[0], 7) + "/" + juce::String (rms[1], 7) + "/"
+                   + juce::String (rms[2], 7) + "/" + juce::String (rms[3], 7)
+                   + ", age0 " + juce::String (rmsZero, 9)
+                   + (rising ? "" : " — NOT MONOTONIC")
+                   + (live ? "" : " — BED SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // G3 — DSP-05 noise-bed level RATE invariance (the white-fed stage is
+    // normalized; pattern_noise_bed_level_is_rate_dependent). Silence input,
+    // age 60, bed RMS within ±1.5 dB of the 48 kHz figure at 44.1/96/192 kHz.
+    {
+        auto bedRmsAt = [] (double fs)
+        {
+            auto p = makeProcAtRate (fs);
+            setParam (*p, "age", 60.0f);
+
+            const int total = (int) fs;   // 1 s
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, silentAt);
+            return rmsRange (channelToVector (out, 0), total / 2, total);
+        };
+
+        const double ref = bedRmsAt (48000.0);
+        const double rates[3] = { 44100.0, 96000.0, 192000.0 };
+
+        bool ok = ref > 1.0e-4;   // liveness
+        juce::String detail = juce::String ("48k ") + juce::String (ref, 6);
+
+        for (const double fs : rates)
+        {
+            const double v = bedRmsAt (fs);
+            const double dB = 20.0 * std::log10 (juce::jmax (1.0e-12, v / ref));
+            detail << ", " << juce::String (fs / 1000.0, 1) << "k "
+                   << juce::String (dB, 2) << "dB";
+            if (std::abs (dB) > 1.5)
+                ok = false;
+        }
+
+        check ("G3 bed rate-invariance", ok, detail
+                   + (ref > 1.0e-4 ? "" : " — BED SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // G4 — DSP-05 drift: bounded (±15 cents + measurement slack) and ALIVE at
+    // age 100, absent at age 0. Interpolated zero-crossing mean frequency per
+    // 0.25 s window (integer-lag methods can't resolve a sub-percent wobble).
+    {
+        auto renderPitch = [] (float agePct, std::vector<double>& centsDev)
+        {
+            auto p = makeProc();
+            setParam (*p, "crush", 0.0f);
+            setParam (*p, "age", agePct);
+
+            const int total = 4 * (int) kFs;
+            juce::AudioBuffer<float> out;
+            renderInto (*p, out, total, { 512 }, sineAt);
+            const auto v = channelToVector (out, 0);
+
+            // 0.125 s windows: short enough that a drift episode between two
+            // offset-rail flips is not diluted away
+            // (pattern_metric_window_vs_modulation_period).
+            centsDev.clear();
+            for (int off = 24000; off + 6000 <= total; off += 6000)
+            {
+                const double f = meanFreqZeroCross (v, off, 6000, kFs);
+                if (f > 0.0)
+                    centsDev.push_back (1200.0 * std::log2 (f / kSigHz));
+            }
+        };
+
+        std::vector<double> dev0, dev100;
+        renderPitch (0.0f, dev0);
+        renderPitch (100.0f, dev100);
+
+        double max0 = 0.0, max100 = 0.0;
+        for (const double d : dev0)   max0   = juce::jmax (max0,   std::abs (d));
+        for (const double d : dev100) max100 = juce::jmax (max100, std::abs (d));
+
+        const bool stable0  = ! dev0.empty() && max0 < 3.0;
+        const bool bounded  = ! dev100.empty() && max100 < 25.0;
+        const bool alive    = max100 > 1.0;
+
+        check ("G4 drift bounded+live", stable0 && bounded && alive,
+               juce::String ("age0 max |dev| ") + juce::String (max0, 2)
+                   + "c, age100 " + juce::String (max100, 2)
+                   + "c (need 1..25)"
+                   + (alive ? "" : " — DRIFT DOES NOT REACH THE RESAMPLER")
+                   + (stable0 ? "" : " — WOBBLE AT AGE 0"));
+    }
+
+    //==========================================================================
+    // G5 — offline == real-time: the engine has no wall-clock/thread
+    // dependence, and the host's non-realtime flag must not grow one.
+    {
+        auto rt = makeProc();
+        setParam (*rt, "crush", 65.0f);
+        setParam (*rt, "reverb", 40.0f);
+
+        auto off = makeProc();
+        off->setNonRealtime (true);
+        setParam (*off, "crush", 65.0f);
+        setParam (*off, "reverb", 40.0f);
+
+        juce::AudioBuffer<float> outRt, outOff;
+        renderInto (*rt, outRt, kRenderSamples, { 512 }, noiseHalfAt);
+        renderInto (*off, outOff, kRenderSamples, { 512 }, noiseHalfAt);
+
+        const bool identical = bitIdentical (outRt, outOff);
+        const bool live = outRt.getMagnitude (0, 0, kRenderSamples) > 1.0e-4f;
+
+        check ("G5 offline==realtime", identical && live,
+               (identical ? juce::String ("bit-identical with setNonRealtime(true)")
+                          : firstDifference (outRt, outOff))
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // G6 — FUNC-02: ALL four macro knobs min != max in ALL five modes.
+    {
+        const int total = kRenderSamples / 2;
+        const char* names[5] = { "SNES", "PS1", "NES", "GB", "GEN" };
+        const char* knobs[4] = { "crush", "age", "reverb", "mix" };
+
+        bool ok = true;
+        juce::String detail;
+
+        for (int c = 0; c < 5; ++c)
+        {
+            for (int k = 0; k < 4; ++k)
+            {
+                auto lo = makeProc();
+                setParam (*lo, "console", (float) c);
+                setParam (*lo, knobs[k], 0.0f);
+
+                auto hi = makeProc();
+                setParam (*hi, "console", (float) c);
+                setParam (*hi, knobs[k], 100.0f);
+
+                juce::AudioBuffer<float> outLo, outHi;
+                renderInto (*lo, outLo, total, { 512 }, noiseHalfAt);
+                renderInto (*hi, outHi, total, { 512 }, noiseHalfAt);
+
+                if (maxAbsDiff (outLo, outHi) <= 1.0e-3)
+                {
+                    ok = false;
+                    detail << names[c] << "/" << knobs[k] << " INERT; ";
+                }
+            }
+        }
+
+        if (ok)
+            detail = "20 knob/mode pairs all live (min != max)";
+
+        check ("G6 macros x modes", ok, detail);
+    }
+
+    //==========================================================================
+    // G7 — smoothing audit (L114): sweep every knob 0 -> 100 in 20 timeline
+    // steps; the crush sweeps cross EVERY integer step (shift floor, NES rate
+    // walk, GB 16->8->4, AA-open) so the 5 ms micro-fades are in the render.
+    // Bounds are on the CONTROL TRAJECTORY's audible symptoms, not raw sample
+    // deltas (the crush IS a stepper): bounded, finite, and no dropout — the
+    // 20 ms windowed RMS never collapses below 5 % of its median (a stuck
+    // fade or a hard mute would).
+    {
+        struct Sweep { const char* knob; float console; };
+        const Sweep sweeps[] = {
+            { "crush", 0.0f }, { "crush", 2.0f }, { "crush", 3.0f },
+            { "age", 0.0f }, { "reverb", 1.0f }, { "mix", 0.0f },
+        };
+
+        bool ok = true;
+        juce::String detail;
+
+        for (const auto& sw : sweeps)
+        {
+            auto p = makeProc();
+            setParam (*p, "console", sw.console);
+
+            const int total = kRenderSamples;
+            std::vector<TimelineEvent> events;
+            for (int s = 0; s < 20; ++s)
+                events.push_back ({ 1024 + s * 1500, sw.knob, (float) (s + 1) * 5.0f });
+
+            juce::AudioBuffer<float> out;
+            renderTimeline (*p, out, total, { 512 }, noiseHalfAt, events);
+
+            const auto v = channelToVector (out, 0);
+
+            bool finiteOk = true;
+            float peak = 0.0f;
+            for (const float x : v)
+            {
+                if (! std::isfinite (x)) { finiteOk = false; break; }
+                peak = juce::jmax (peak, std::abs (x));
+            }
+
+            // Windowed RMS floor vs median (mix sweep excluded from the
+            // dropout clause: mix 0 near the start legitimately nulls the
+            // early wet/dry blend against the delayed dry — it is not a
+            // dropout; its liveness is covered by G6).
+            std::vector<double> wins;
+            for (int off = 4096; off + 960 <= total; off += 960)
+                wins.push_back (rmsRange (v, off, off + 960));
+
+            auto sorted = wins;
+            std::sort (sorted.begin(), sorted.end());
+            const double median = sorted[sorted.size() / 2];
+            double minWin = 1.0e9;
+            for (const double wv : wins)
+                minWin = juce::jmin (minWin, wv);
+
+            const bool noDropout = std::strcmp (sw.knob, "mix") == 0
+                                       ? true
+                                       : minWin > 0.05 * median;
+            const bool bounded = peak < 4.0f;
+            const bool live = median > 1.0e-3;
+
+            if (! (finiteOk && bounded && noDropout && live))
+            {
+                ok = false;
+                detail << sw.knob << "@c" << (int) sw.console
+                       << (finiteOk ? "" : " NONFINITE")
+                       << (bounded ? "" : " UNBOUNDED")
+                       << (noDropout ? "" : juce::String (" DROPOUT min/med ")
+                                                + juce::String (minWin / juce::jmax (1.0e-12, median), 4))
+                       << (live ? "" : " SILENT") << "; ";
+            }
+        }
+
+        if (ok)
+            detail = "6 sweeps: finite, bounded, no dropout (micro-fades in-band)";
+
+        check ("G7 sweep smoothing-audit", ok, detail);
+    }
+
+    //==========================================================================
+    // P1 — PERF-01 CPU ratio (the ONE sanctioned wall-clock use, O-Bitrot P1
+    // shape): 5 s canonical render must take <= 0.15x realtime.
+    {
+        auto p = makeProc();
+        setParam (*p, "reverb", 40.0f);   // reverb ticking included in the cost
+
+        const int total = 5 * (int) kFs;
+        juce::AudioBuffer<float> out;
+
+        const double t0 = juce::Time::getMillisecondCounterHiRes();
+        renderInto (*p, out, total, { 512 }, noiseHalfAt);
+        const double elapsedSec = (juce::Time::getMillisecondCounterHiRes() - t0) * 0.001;
+
+        const double ratio = elapsedSec / ((double) total / kFs);
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("P1 PERF-01 cpu-ratio", ratio <= 0.15 && live,
+               juce::String ("render/realtime ratio ") + juce::String (ratio, 3)
+                   + " (<= 0.15)" + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
     // D — digest anchors (plan decision #1). Canonical render: baseline
     // (SNES, crush 50, mix 100), flat {512}. Excitation is FULL-SCALE noiseAt
     // — the SAME signal the Stage-1 anchor was recorded with, so the
@@ -1549,23 +1982,26 @@ int main()
         std::printf ("  digest: fnv1a64=%016llx (%d samples x 2ch, flat 512)\n",
                      (unsigned long long) digest, kRenderSamples);
 
-        // Retired Stage-1 anchor must have MOVED — a match means the engine
-        // is not in the signal path at mix 100.
-        check ("D stage-1 anchor moved", digest != kDigestStage1PassthroughRetired,
+        // Retired anchors must have MOVED: Stage-1 (wet path in the signal
+        // path at all) and the 2.1 value (the Phase 2.4 age bed at default
+        // age 20 % now rides on every wet render).
+        check ("D retired anchors moved",
                digest != kDigestStage1PassthroughRetired
-                   ? juce::String ("passthrough digest retired")
-                   : juce::String ("digest UNCHANGED from Stage 1 — wet path inert"));
+                   && digest != kDigestAnchor21CanonicalSnesRetired24,
+               digest != kDigestAnchor21CanonicalSnesRetired24
+                   ? juce::String ("Stage-1 and 2.1 anchors both retired+moved")
+                   : juce::String ("digest UNCHANGED from 2.1 — AGE BED NOT IN THE WET PATH"));
 
-        if (kDigestAnchor21CanonicalSnes != 0)
+        if (kDigestAnchor24CanonicalSnes != 0)
         {
-            check ("D phase-2.1 anchor", digest == kDigestAnchor21CanonicalSnes,
+            check ("D phase-2.4 anchor", digest == kDigestAnchor24CanonicalSnes,
                    juce::String::formatted ("expected %016llx",
-                       (unsigned long long) kDigestAnchor21CanonicalSnes));
+                       (unsigned long long) kDigestAnchor24CanonicalSnes));
         }
         else
         {
-            std::printf ("  [NOTE] kDigestAnchor21CanonicalSnes unrecorded — RECORD "
-                         "%016llx at the Phase 2.1 commit\n",
+            std::printf ("  [NOTE] kDigestAnchor24CanonicalSnes unrecorded — RECORD "
+                         "%016llx at the Phase 2.4 commit\n",
                          (unsigned long long) digest);
         }
     }
@@ -1586,22 +2022,25 @@ int main()
         std::printf ("  digest-2.2: fnv1a64=%016llx (PS1 + reverb 60%%, flat 512)\n",
                      (unsigned long long) digest);
 
-        // The PS1+reverb render must not degenerate to the SNES canonical or
-        // the Stage-1 passthrough (liveness of the new paths in the digest).
-        check ("D2 phase-2.2 render distinct", digest != kDigestAnchor21CanonicalSnes
+        // Moved-asserts: the 2.2 value retired (age bed + PS1's new priming
+        // floor), and the render must stay distinct from the SNES canonical.
+        check ("D2 retired anchor moved",
+               digest != kDigestAnchor22Ps1ReverbRetired24
                    && digest != kDigestStage1PassthroughRetired,
-               "PS1+reverb digest differs from the SNES and passthrough anchors");
+               digest != kDigestAnchor22Ps1ReverbRetired24
+                   ? juce::String ("2.2 anchor retired+moved")
+                   : juce::String ("digest UNCHANGED from 2.2 — bed/priming changes inert"));
 
-        if (kDigestAnchor22Ps1ReverbCanonical != 0)
+        if (kDigestAnchor24Ps1Reverb != 0)
         {
-            check ("D2 phase-2.2 anchor", digest == kDigestAnchor22Ps1ReverbCanonical,
+            check ("D2 phase-2.4 anchor", digest == kDigestAnchor24Ps1Reverb,
                    juce::String::formatted ("expected %016llx",
-                       (unsigned long long) kDigestAnchor22Ps1ReverbCanonical));
+                       (unsigned long long) kDigestAnchor24Ps1Reverb));
         }
         else
         {
-            std::printf ("  [NOTE] kDigestAnchor22Ps1ReverbCanonical unrecorded — RECORD "
-                         "%016llx at the Phase 2.2 commit\n",
+            std::printf ("  [NOTE] kDigestAnchor24Ps1Reverb unrecorded — RECORD "
+                         "%016llx at the Phase 2.4 commit\n",
                          (unsigned long long) digest);
         }
     }
@@ -1634,26 +2073,29 @@ int main()
         std::printf ("  digest-2.3: fnv1a64=%016llx (5-console switch matrix, flat 512)\n",
                      (unsigned long long) digest);
 
-        // Liveness: the switching render must not degenerate to any prior
-        // canonical, and must be a real signal.
+        // Moved-asserts: the 2.3 value retired (age bed + dulling + priming),
+        // liveness, and distinctness from every other anchor.
         const bool live = buf.getMagnitude (0, 0, kRenderSamples) > 1.0e-4f;
-        check ("D3 phase-2.3 render distinct", live
-                   && digest != kDigestAnchor21CanonicalSnes
-                   && digest != kDigestAnchor22Ps1ReverbCanonical
+        check ("D3 retired anchor moved", live
+                   && digest != kDigestAnchor23SwitchMatrixRetired24
+                   && digest != kDigestAnchor21CanonicalSnesRetired24
+                   && digest != kDigestAnchor22Ps1ReverbRetired24
                    && digest != kDigestStage1PassthroughRetired,
-               live ? "switch-matrix digest distinct from all prior anchors"
-                    : "SILENT, probe vacuous");
+               live ? juce::String (digest != kDigestAnchor23SwitchMatrixRetired24
+                                        ? "2.3 anchor retired+moved"
+                                        : "digest UNCHANGED from 2.3 — age paths inert")
+                    : juce::String ("SILENT, probe vacuous"));
 
-        if (kDigestAnchor23SwitchMatrix != 0)
+        if (kDigestAnchor24SwitchMatrix != 0)
         {
-            check ("D3 phase-2.3 anchor", digest == kDigestAnchor23SwitchMatrix,
+            check ("D3 phase-2.4 anchor", digest == kDigestAnchor24SwitchMatrix,
                    juce::String::formatted ("expected %016llx",
-                       (unsigned long long) kDigestAnchor23SwitchMatrix));
+                       (unsigned long long) kDigestAnchor24SwitchMatrix));
         }
         else
         {
-            std::printf ("  [NOTE] kDigestAnchor23SwitchMatrix unrecorded — RECORD "
-                         "%016llx at the Phase 2.3 commit\n",
+            std::printf ("  [NOTE] kDigestAnchor24SwitchMatrix unrecorded — RECORD "
+                         "%016llx at the Phase 2.4 commit\n",
                          (unsigned long long) digest);
         }
     }

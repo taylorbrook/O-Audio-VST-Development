@@ -96,13 +96,13 @@ private:
         exactly into setWetLatency. */
     int totalLatencySamples = 0;
 
-    // Cached parameter atomics (audio-thread reads). `age` exists in the
-    // APVTS but drives nothing until Phase 2.4. `console` selects any of the
-    // five pipelines (30 ms equal-power crossfade mid-stream).
+    // Cached parameter atomics (audio-thread reads). All five macros are
+    // live as of Phase 2.4.
     std::atomic<float>* crushParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
     std::atomic<float>* consoleParam = nullptr;
     std::atomic<float>* reverbParam = nullptr;
+    std::atomic<float>* ageParam = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OEmulatorAudioProcessor)
 };

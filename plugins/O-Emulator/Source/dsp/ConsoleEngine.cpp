@@ -28,22 +28,68 @@ namespace oemu
 //==============================================================================
 // Pipeline
 
+ConsoleEngine::StepSet ConsoleEngine::Pipeline::computeSteps (float crushPct) const noexcept
+{
+    StepSet s;
+    s.aaIndex = CrushCurve::aaOpenIndex (crushPct);
+
+    switch (consoleIndex)
+    {
+        case 0:  s.codecStep = CrushCurve::snesShiftFloor (crushPct); break;
+        case 1:  s.codecStep = CrushCurve::ps1ShiftFloor (crushPct); break;
+        case 2:  s.codecStep = CrushCurve::nesRateIndex (crushPct); break;
+        case 3:  s.codecStep = CrushCurve::gbLevels (crushPct); break;
+        default: s.codecStep = 0; break;   // Genesis: rate is continuous, not a step
+    }
+
+    return s;
+}
+
+void ConsoleEngine::Pipeline::applySteps (const StepSet& s) noexcept
+{
+    switch (consoleIndex)
+    {
+        case 0:
+            brr[0].setShiftFloor (s.codecStep);
+            brr[1].setShiftFloor (s.codecStep);
+            break;
+        case 1:
+            spu[0].setShiftFloor (s.codecStep);
+            spu[1].setShiftFloor (s.codecStep);
+            break;
+        case 2:
+            dpcm[0].setRateIndex (s.codecStep);
+            dpcm[1].setRateIndex (s.codecStep);
+            break;
+        case 3:
+            gbq[0].setLevels (s.codecStep);
+            gbq[1].setLevels (s.codecStep);
+            break;
+        default:
+            break;
+    }
+
+    resampler.setAaOpenIndex (s.aaIndex);
+    applied = s;
+}
+
 void ConsoleEngine::Pipeline::prepare (const ConsoleSpec& spec, int consoleIdx,
                                        double hostRate, int reportedLatencySamples,
                                        float crushPct)
 {
     consoleIndex = consoleIdx;
+    baseLpHz = spec.outputLpHz;
 
     const double hostPerConsole = hostRate / spec.rate;
     const double hostPerReverb  = hostRate / SpuReverb::kRate;
 
-    // ── Latency alignment (plan decision #2 + Task 7) ────────────────────────
-    // The REPORTED figure is the worst-case formula; this console's wet path
-    // is structurally shorter, so the difference is made up by priming the
-    // upsample ring with zeros (console-domain):
-    //
-    //   est = feeder + aaGD + downHoldback + (codecBlock + upsampleHist)·host/console
-    //   prime = round((reported − est) · console/host)
+    // ── Latency alignment: prime the upsample ring onto the reported figure.
+    // Floored so at least ±kMinDriftOffsetHost host samples of drift offset
+    // (plus 4 console samples of jitter) can never drain the ring — this
+    // floor moved PS1's prime 4 -> 8 in Phase 2.4 (~+9 host samples of
+    // structural delay at 48 kHz, still inside the xcorr probes' ±15). The
+    // pipeline's ACTUAL drift rail (maxDriftOffsetHost below) is whatever
+    // its final priming absorbs. ───────────────────────────────────────────
     const float aaCutoff = (float) (0.45 * spec.rate);
 
     const double aaGdHost = kButterworthGdSum * hostRate
@@ -59,11 +105,17 @@ void ConsoleEngine::Pipeline::prepare (const ConsoleSpec& spec, int consoleIdx,
                          + kDownHoldbackEstHost
                          + ((double) spec.codecBlockLen + upsampleHist) * hostPerConsole;
 
-    const int prime = juce::jlimit (0, ConsoleResampler::kUpCap - 16,
-                                    (int) std::lround (((double) reportedLatencySamples
-                                                        - estHost)
-                                                       / hostPerConsole));
-    jassert (prime > 0);   // the worst-case formula exceeds every mode's structural delay
+    const int primeAligned = (int) std::lround (((double) reportedLatencySamples - estHost)
+                                                / hostPerConsole);
+
+    const int primeFloor = (int) std::ceil (kMinDriftOffsetHost / hostPerConsole) + 4;
+
+    const int prime = juce::jlimit (primeFloor, ConsoleResampler::kUpCap - 16,
+                                    primeAligned);
+
+    // What the priming actually absorbs = this pipeline's drift rail.
+    maxDriftOffsetHost = juce::jlimit (2.0, 64.0,
+                                       (double) (prime - 4) * hostPerConsole);
 
     resampler.prepare (hostRate, spec.rate, aaCutoff, prime, spec.upsample);
 
@@ -83,12 +135,6 @@ void ConsoleEngine::Pipeline::prepare (const ConsoleSpec& spec, int consoleIdx,
     outputStage.prepare (ps, spec.outputLpHz, spec.clip);
 
     // ── Reverb send/return alignment (L119) ──────────────────────────────────
-    // The RETURN must join the direct path time-aligned at the sum point.
-    // Direct-path delay from a decoded console sample to the sum:
-    //   directHost = (prime + upsampleHist) · host/console
-    // Return-path structural terms: the send lerp history (~1 console sample)
-    // and the return lerp history (~1 reverb sample); the remainder is the
-    // return ring's priming (floored at 4 for production-jitter headroom).
     send.prepare (spec.rate);
 
     const double directHost  = ((double) prime + upsampleHist) * hostPerConsole;
@@ -100,11 +146,20 @@ void ConsoleEngine::Pipeline::prepare (const ConsoleSpec& spec, int consoleIdx,
                                                           / hostPerReverb));
     ret.prepare (hostRate, retPrime);
 
-    // Chunk-rate smoother: one step per fixed chunk keeps the trajectory a
-    // pure function of the absolute chunk index (block-size invariance).
+    // ── Control smoothing + micro-fade constants ─────────────────────────────
     driveGain.reset (hostRate / (double) FixedChunkFeeder::kChunk, 0.02);
     driveGain.setCurrentAndTargetValue (
         juce::Decibels::decibelsToGain (CrushCurve::driveDbFor (consoleIndex, crushPct)));
+
+    fadeChunks = (int) std::lround (0.005 * hostRate / (double) FixedChunkFeeder::kChunk);
+    if ((fadeChunks & 1) != 0)
+        ++fadeChunks;
+    fadeChunks = juce::jmax (2, fadeChunks);
+    fadeHalfChunks = fadeChunks / 2;
+    fadePos = -1;
+
+    applySteps (computeSteps (crushPct));
+    pending = applied;
 }
 
 void ConsoleEngine::Pipeline::reset (float crushPct) noexcept
@@ -119,75 +174,68 @@ void ConsoleEngine::Pipeline::reset (float crushPct) noexcept
     gen[0].reset();
     gen[1].reset();
     outputStage.reset();
+    outputStage.setLpCutoffHz (baseLpHz);
     send.reset();
     ret.reset();
     driveGain.setCurrentAndTargetValue (
         juce::Decibels::decibelsToGain (CrushCurve::driveDbFor (consoleIndex, crushPct)));
+
+    fadePos = -1;
+    applySteps (computeSteps (crushPct));   // immediate — nothing rendered yet
+    pending = applied;
 }
 
 void ConsoleEngine::Pipeline::processChunk (float* inL, float* inR,
                                             float* outL, float* outR,
-                                            float crushPct, float sendGain,
-                                            bool reverbActive,
+                                            float crushPct, float agePct,
+                                            double driftFactor,
+                                            float sendGain, bool reverbActive,
                                             SpuReverb& reverb) noexcept
 {
-    // ── Control-chunk update (once per 32 host samples, never per host block:
-    //    pattern_block_rate_envelope_breaks_blocksize_invariance) ───────────
+    // ── Continuous controls (once per fixed chunk) ──────────────────────────
     driveGain.setTargetValue (
         juce::Decibels::decibelsToGain (CrushCurve::driveDbFor (consoleIndex, crushPct)));
     const float drive = driveGain.getNextValue();
 
-    // Per-console crush mapping (CrushCurve rows). Integer steps by design;
-    // the 5 ms micro-fades land in Phase 2.4.
-    switch (consoleIndex)
+    // Age dulling: corner × (1.0 -> 0.45); value-gated re-derive inside.
+    outputStage.setLpCutoffHz (baseLpHz * (1.0f - 0.55f * agePct * 0.01f));
+
+    // Genesis's DAC update rate is continuous (no integer step, no fade).
+    if (consoleIndex == 4)
     {
-        case 0:
+        const double hz = CrushCurve::genesisUpdateRateHz (crushPct);
+        gen[0].setUpdateRateHz (hz);
+        gen[1].setUpdateRateHz (hz);
+    }
+
+    resampler.setDriftRatioFactor (driftFactor);
+
+    // ── Integer steps: 5 ms equal-gain micro-fade state machine (Task 18).
+    //    Fade down, apply EVERYTHING pending at the trough, fade up. ─────────
+    const StepSet target = computeSteps (crushPct);
+
+    if (fadePos < 0)
+    {
+        if (target != applied)
         {
-            const int shiftFloor = CrushCurve::snesShiftFloor (crushPct);
-            brr[0].setShiftFloor (shiftFloor);
-            brr[1].setShiftFloor (shiftFloor);
-            break;
-        }
-        case 1:
-        {
-            const int shiftFloor = CrushCurve::ps1ShiftFloor (crushPct);
-            spu[0].setShiftFloor (shiftFloor);
-            spu[1].setShiftFloor (shiftFloor);
-            break;
-        }
-        case 2:
-        {
-            const int idx = CrushCurve::nesRateIndex (crushPct);
-            dpcm[0].setRateIndex (idx);
-            dpcm[1].setRateIndex (idx);
-            break;
-        }
-        case 3:
-        {
-            const int lv = CrushCurve::gbLevels (crushPct);
-            gbq[0].setLevels (lv);
-            gbq[1].setLevels (lv);
-            break;
-        }
-        case 4:
-        default:
-        {
-            const double hz = CrushCurve::genesisUpdateRateHz (crushPct);
-            gen[0].setUpdateRateHz (hz);
-            gen[1].setUpdateRateHz (hz);
-            break;
+            fadePos = 0;
+            pending = target;
         }
     }
+    else if (fadePos < fadeHalfChunks)
+    {
+        pending = target;                    // latch the latest until the trough
+    }
+
+    if (fadePos == fadeHalfChunks)
+        applySteps (pending);                // gain ~0 here — the step is inaudible
 
     // ── AA + decimation (in place on the caller's chunk buffers) ────────────
     const int nConsole = resampler.downsample (inL, inR, FixedChunkFeeder::kChunk,
                                                consoleBuf[0], consoleBuf[1],
                                                kConsoleCap);
 
-    // ── Drive -> int16-rail clip -> codec round trip -> upsample queue.
-    //    The reverb send tap is POST-CODEC in the console domain: the reverb
-    //    hears the degraded signal, exactly as the SPU processed already-
-    //    ADPCM'd voices (ARCHITECTURE Processing Order 4). ──────────────────
+    // ── Drive -> int16-rail clip -> codec round trip -> upsample queue ──────
     for (int i = 0; i < nConsole; ++i)
     {
         const float xl = juce::jlimit (-1.0f, 1.0f, consoleBuf[0][i] * drive);
@@ -234,10 +282,7 @@ void ConsoleEngine::Pipeline::processChunk (float* inL, float* inR,
     // ── Upsample back to host rate (Gaussian or ZOH per console) ────────────
     resampler.upsample (outL, outR, FixedChunkFeeder::kChunk);
 
-    // ── Reverb return joins pre-output-stage, time-aligned via its primed
-    //    ring (L119). Skipped entirely behind the inactive gate — an
-    //    unconditional `+= 0.0f` would flip -0.0 samples and silently move
-    //    the recorded digest anchors. ─────────────────────────────────────────
+    // ── Reverb return joins pre-output-stage (exact-inactive gate) ──────────
     if (reverbActive)
     {
         for (int i = 0; i < FixedChunkFeeder::kChunk; ++i)
@@ -249,9 +294,7 @@ void ConsoleEngine::Pipeline::processChunk (float* inL, float* inR,
         }
     }
 
-    // ── Output stage: DAC LP + per-console clip, then the 10 Hz DC blocker
-    //    (structural NES-DPCM DC removal at the mixer boundary).
-    //    Phase 2.4's Age bed injects BETWEEN color and dcBlock. ─────────────
+    // ── Output stage: DAC LP (age-dulled) + per-console clip + DC blocker ───
     for (int i = 0; i < FixedChunkFeeder::kChunk; ++i)
     {
         outL[i] = outputStage.processDcBlock (0, outputStage.processColor (0, outL[i]));
@@ -259,6 +302,34 @@ void ConsoleEngine::Pipeline::processChunk (float* inL, float* inR,
     }
 
     outputStage.snapToZero();
+
+    // ── Micro-fade dip applied to the finished chunk (the engine's age bed
+    //    is added AFTER this, so hiss/hum ride through the dip — authentic).
+    //    Linear (equal-gain) V: 1 -> 0 over the first half, 0 -> 1 over the
+    //    second; the trough coincides with applySteps above. ────────────────
+    if (fadePos >= 0)
+    {
+        const int halfSamples = fadeHalfChunks * FixedChunkFeeder::kChunk;
+        const int base = fadePos * FixedChunkFeeder::kChunk;
+
+        for (int i = 0; i < FixedChunkFeeder::kChunk; ++i)
+        {
+            const int p = base + i;
+            const float g = p < halfSamples
+                                ? (float) (halfSamples - p) / (float) halfSamples
+                                : (float) (p + 1 - halfSamples) / (float) halfSamples;
+            outL[i] *= g;
+            outR[i] *= g;
+        }
+
+        if (++fadePos >= fadeChunks)
+        {
+            fadePos = -1;
+
+            // A change that arrived during the ramp-up starts the next fade
+            // at the following chunk (computeSteps re-evaluates then).
+        }
+    }
 }
 
 //==============================================================================
@@ -266,12 +337,10 @@ void ConsoleEngine::Pipeline::processChunk (float* inL, float* inR,
 
 void ConsoleEngine::prepare (double hostRate, int maxBlockSize, int reportedLatencySamples)
 {
-    juce::ignoreUnused (maxBlockSize);   // all buffers are chunk-sized members
+    juce::ignoreUnused (maxBlockSize);
 
     feeder.prepare();
 
-    // All five pipelines pre-allocated and prepared — console switch never
-    // allocates (ARCHITECTURE, PERF-01).
     for (int c = 0; c < 5; ++c)
         pipelines[c].prepare (kConsoleSpecs[c], c, hostRate, reportedLatencySamples,
                               crushTargetPct);
@@ -282,10 +351,22 @@ void ConsoleEngine::prepare (double hostRate, int maxBlockSize, int reportedLate
     reverb.reset();
     reverbEverActive = false;
 
+    ageModel.prepare (hostRate);
+
     const double chunkRate = hostRate / (double) FixedChunkFeeder::kChunk;
     sendGainSmoothed.reset (chunkRate, 0.02);
     sendGainSmoothed.setCurrentAndTargetValue (
         juce::jlimit (0.0f, 1.0f, reverbTargetPct * 0.01f));
+
+    ageSmoothed.reset (chunkRate, 0.02);
+    ageSmoothed.setCurrentAndTargetValue (juce::jlimit (0.0f, 100.0f, ageTargetPct));
+
+    // Drift: own stream, fixed seed, ~0.3 Hz smoothing at the chunk rate.
+    driftRng = 0x1234ABCDu;
+    driftWalk = 0.0;
+    driftSlow = 0.0;
+    driftSmoothCoeff = juce::jmin (1.0, juce::MathConstants<double>::twoPi * 0.3 / chunkRate);
+    driftOffsetHost = 0.0;
 
     activePipeline = 0;
     pendingPipeline = 0;
@@ -302,8 +383,14 @@ void ConsoleEngine::reset()
     anyChunkProcessed = false;
     reverb.reset();
     reverbEverActive = false;
+    ageModel.reset();
     sendGainSmoothed.setCurrentAndTargetValue (
         juce::jlimit (0.0f, 1.0f, reverbTargetPct * 0.01f));
+    ageSmoothed.setCurrentAndTargetValue (juce::jlimit (0.0f, 100.0f, ageTargetPct));
+    driftRng = 0x1234ABCDu;
+    driftWalk = 0.0;
+    driftSlow = 0.0;
+    driftOffsetHost = 0.0;
     activePipeline = pendingPipeline;
 }
 
@@ -324,58 +411,78 @@ void ConsoleEngine::process (juce::AudioBuffer<float>& buffer) noexcept
 void ConsoleEngine::processChunk (float* inL, float* inR,
                                   float* outL, float* outR) noexcept
 {
-    // ── Console switch, applied at the chunk boundary ───────────────────────
+    // ── Console switch (Task 14; first-chunk instant path) ──────────────────
     if (pendingPipeline != activePipeline)
     {
         if (! anyChunkProcessed)
         {
-            // First-chunk INSTANT switch: no audio has flowed, nothing to
-            // crossfade — and this reproduces the Phase 2.2 chunk-0 hard
-            // switch bit-exactly (reverb state is still all-zero, so the
-            // 2.2-era reverb.reset() is a structural no-op), which is what
-            // keeps the recorded 2.2 digest anchor valid.
             activePipeline = pendingPipeline;
             pipelines[activePipeline].reset (crushTargetPct);
+            driftOffsetHost = 0.0;
         }
         else if (! crossfader.isFading())
         {
-            // Mid-stream: 30 ms equal-power fade. Old renders through it,
-            // new starts from reset; a request during a fade stays QUEUED
-            // (pendingPipeline holds it) until the fade completes — only two
-            // pipelines ever render concurrently. The reverb persists: its
-            // tail carries across, fed/returned through the NEW pipeline.
             crossfader.begin (activePipeline);
             activePipeline = pendingPipeline;
             pipelines[activePipeline].reset (crushTargetPct);
+            driftOffsetHost = 0.0;   // the new pipeline's rings start at prime
         }
     }
 
+    // ── Chunk-rate control smoothing ────────────────────────────────────────
     sendGainSmoothed.setTargetValue (juce::jlimit (0.0f, 1.0f, reverbTargetPct * 0.01f));
     const float sendGain = sendGainSmoothed.getNextValue();
 
-    // Sticky activation gate: latched on the raw target so the smoother's
-    // ramp starts from an armed reverb; never un-latches (the tail must keep
-    // rendering after the send closes).
     if (reverbTargetPct > 0.0f)
         reverbEverActive = true;
 
+    ageSmoothed.setTargetValue (juce::jlimit (0.0f, 100.0f, ageTargetPct));
+    const float ageVal = ageSmoothed.getNextValue();
+
+    // ── Drift walk (Task 17): own stream, consumed UNCONDITIONALLY every
+    //    chunk. Rails: the walk is dimensionless in [−1, 1] (exact at every
+    //    rate); the accumulated time offset is clamped in host samples (a
+    //    buffer bound, covered by the priming floor). Factor is EXACTLY 1.0
+    //    at age 0, so drift-free renders take the bit-nominal path. ─────────
+    {
+        driftRng ^= driftRng << 13;
+        driftRng ^= driftRng >> 17;
+        driftRng ^= driftRng << 5;
+        const double rnd = (double) driftRng / 2147483648.0 - 1.0;   // [−1, 1)
+
+        driftWalk = juce::jlimit (-1.0, 1.0, driftWalk * 0.999 + rnd * 0.02);
+        driftSlow += driftSmoothCoeff * (driftWalk - driftSlow);
+    }
+
+    const double cents = 15.0 * driftSlow * ((double) ageVal * 0.01);
+    double driftFactor = cents != 0.0 ? std::exp2 (cents / 1200.0) : 1.0;
+
+    double offsetDelta = (driftFactor - 1.0) * (double) FixedChunkFeeder::kChunk;
+    if (std::abs (driftOffsetHost + offsetDelta)
+        > pipelines[activePipeline].maxDriftOffsetHost)
+    {
+        // At the rail: hold the offset and push the walk back toward centre.
+        driftFactor = 1.0;
+        offsetDelta = 0.0;
+        driftWalk *= -0.5;
+        driftSlow *= -0.5;
+    }
+    driftOffsetHost += offsetDelta;
+
+    // ── Render (single pipeline, or two during a crossfade) ─────────────────
     if (crossfader.isFading())
     {
-        // Pristine input copy BEFORE the active pipeline AA-filters the
-        // feeder buffers in place.
         std::memcpy (fadeIn[0], inL, sizeof (fadeIn[0]));
         std::memcpy (fadeIn[1], inR, sizeof (fadeIn[1]));
 
         pipelines[activePipeline].processChunk (inL, inR, outL, outR,
-                                                crushTargetPct, sendGain,
-                                                reverbEverActive, reverb);
+                                                crushTargetPct, ageVal, driftFactor,
+                                                sendGain, reverbEverActive, reverb);
 
-        // The fading-out pipeline neither feeds nor pulls the reverb — the
-        // single reverb instance belongs to the active pipeline.
         pipelines[crossfader.fadingIndex()].processChunk (fadeIn[0], fadeIn[1],
                                                           fadeOut[0], fadeOut[1],
-                                                          crushTargetPct, 0.0f,
-                                                          false, reverb);
+                                                          crushTargetPct, ageVal, 1.0,
+                                                          0.0f, false, reverb);
 
         crossfader.mixChunk (outL, outR, fadeOut[0], fadeOut[1],
                              FixedChunkFeeder::kChunk);
@@ -383,9 +490,14 @@ void ConsoleEngine::processChunk (float* inL, float* inR,
     else
     {
         pipelines[activePipeline].processChunk (inL, inR, outL, outR,
-                                                crushTargetPct, sendGain,
-                                                reverbEverActive, reverb);
+                                                crushTargetPct, ageVal, driftFactor,
+                                                sendGain, reverbEverActive, reverb);
     }
+
+    // ── Age bed (Task 16): ONE bed, engine level, wet path only — hiss/hum
+    //    ride on top of whatever the pipeline(s) produced. RNG streams
+    //    advance unconditionally inside. ──────────────────────────────────────
+    ageModel.processChunk (outL, outR, FixedChunkFeeder::kChunk, ageVal);
 
     anyChunkProcessed = true;
 }
