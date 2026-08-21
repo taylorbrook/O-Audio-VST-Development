@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
 stage: 4
-phase: research
-status: stage_4_research_complete
+phase: plan
+status: stage_4_plan_complete
 last_updated: 2026-08-21
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_4_plan
+next_action: stage_4_execute
 next_stage: 4
 ready_for_implementation: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 4 (Polish) — research ✓ (2026-08-21)
-Phase: research complete → next: Stage 4 plan
-Status: Integration approach pinned — `ouaricon_add_module` (NOT vendoring; JS configure-copied + gitignored), O-Bitrot v1.13.0 as reference, 10 native fns (bridge audit re-anchors 10↔10), factory presets authored denormalized + convertTo0to1 batch, flat list keeps module prev/next; findings in stages/4-polish/RESEARCH.md
-Progress: [##################..] 91%
+Stage: 4 (Polish) — plan ✓ (2026-08-21)
+Phase: plan complete → next: Stage 4 execute
+Status: PLAN.md — 9 tasks (CMake module wiring → processor+state fns → 16-preset factory bank with exact denormalized values → 10 editor native fns → preset-band UI → automated gates digest-identical → install → 6 Logic gates → docs); open items resolved: 16 presets named+valued, no click-menu in v1.0, CHANGELOG single 1.0.0 section
+Progress: [##################..] 93%
 
 ## Phase Progress
 
@@ -61,6 +61,7 @@ Progress: [##################..] 91%
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-08-21 | |
 | research | ✓ | 2026-08-21 | |
+| plan | ✓ | 2026-08-21 | |
 
 ## Completed So Far
 
@@ -147,9 +148,14 @@ Progress: [##################..] 91%
 
 - `stages/4-polish/RESEARCH.md`: O-Bitrot v1.13.0 confirmed reference (newest preset work, same aesthetic); house pattern is `ouaricon_add_module(OEmulator preset-manager)` — canonical header via include dir + JS configure-copied to `Source/ui/public/modules/` (gitignored), NOT vendoring; module already carries WR-01 reset-to-defaults, sentinel-gated factory writes, name sanitization, migration hook (unused at v1.0.0); editor registers 10 native fns (dialog fns: hoisted SafePointer, bare-return on dead editor, `{success,name}` DynamicObject); bridge audit re-anchors 10↔10 with JS hits in the generated module file, index.html stays 0; factory presets authored denormalized in C++ + one `convertTo0to1` batch pass, all 5 IDs per preset; flat list ⇒ pass prev/next straight to the JS module (no walker override); harness compiles the new processor member cleanly and digests must stay identical
 
+## Completed — Stage 4 Plan (2026-08-21)
+
+- `stages/4-polish/PLAN.md`: 9 tasks — (1) CMake `ouaricon_add_module` + UIResources JS, (2) processor member + state-fn delegation w/ pluginVersion attribute, (3) factory bank: 16 presets with exact denormalized values (10 console signatures + 6 utility, all 5 IDs each, convertTo0to1 batch), (4) 10 native fns (SafePointer-local, bare-return on dead editor, `{success,name}`), (5) preset-band UI (module prev/next, armed delete confirm, mount last, no menu), (6) automated gates — harness digests must stay identical, pluginval 10, auval, bridge audit 10↔10, (7) install, (8) 6 Logic Pro human gates + preset audition, (9) CHANGELOG/PLUGINS.md/REQUIREMENTS.md closure
+- Research open items resolved: no click-menu in v1.0; CHANGELOG single 1.0.0 section; band width settled at visual gate
+
 ## Next Steps
 
-1. `/plugin-plan O-Emulator 4-polish` — task breakdown: module wiring, 10 native fns, preset-band UI, factory bank values, gates + validation
+1. `/plugin-execute O-Emulator 4-polish` — implement the 9-task plan
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
