@@ -66,6 +66,15 @@ struct CrushCurve
 
         return (int) std::lround ((double) (c - 50.0f) * 0.16);
     }
+
+    // ── PS1 row (Phase 2.2) ──────────────────────────────────────────────────
+    // ARCHITECTURE gives SNES and PS1 the SAME crush semantics ("SNES/PS1:
+    // ... shift-floor that rises with crush" + the shared 0..+12 dB drive), so
+    // the PS1 row delegates to the ADPCM curve above. Kept as named rows so
+    // Phase 2.4's per-console tuning can split them without touching callers.
+
+    static float ps1DriveDb (float crushPct) noexcept    { return snesDriveDb (crushPct); }
+    static int   ps1ShiftFloor (float crushPct) noexcept { return snesShiftFloor (crushPct); }
 };
 
 } // namespace oemu

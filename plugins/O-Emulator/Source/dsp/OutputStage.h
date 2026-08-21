@@ -51,8 +51,14 @@ namespace oemu
 class OutputStage
 {
 public:
-    void prepare (const juce::dsp::ProcessSpec& spec, float lpCutoffHz)
+    /** Per-console clip character (ARCHITECTURE Pipeline Manager table):
+        soft = gentle tanh (SNES), hard = int16-rail clamp (PS1). */
+    enum class ClipMode { soft, hard };
+
+    void prepare (const juce::dsp::ProcessSpec& spec, float lpCutoffHz, ClipMode mode)
     {
+        clipMode = mode;
+
         lp.prepare (spec);
         lp.setType (juce::dsp::FirstOrderTPTFilterType::lowpass);
         lp.setCutoffFrequency (lpCutoffHz);
@@ -70,12 +76,14 @@ public:
         dc.reset();
     }
 
-    /** DAC LP + gentle soft clip (SNES character). tanh: transparent below
-        ~-10 dBFS, rounds the int16-rail peaks the codec domain already
-        bounded. */
+    /** DAC LP + per-console clip. Soft (tanh) is transparent below ~-10 dBFS
+        and rounds the int16-rail peaks the codec domain already bounded;
+        hard clamps at the rails (PS1 character). */
     float processColor (int channel, float x) noexcept
     {
-        return std::tanh (lp.processSample (channel, x));
+        const float y = lp.processSample (channel, x);
+        return clipMode == ClipMode::hard ? juce::jlimit (-1.0f, 1.0f, y)
+                                          : std::tanh (y);
     }
 
     /** 10 Hz DC blocker — LAST stage before the mixer. */
@@ -94,6 +102,7 @@ public:
 
 private:
     juce::dsp::FirstOrderTPTFilter<float> lp, dc;
+    ClipMode clipMode = ClipMode::soft;
 };
 
 } // namespace oemu
