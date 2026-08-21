@@ -1,14 +1,14 @@
 ---
 plugin: O-Emulator
 stage: 3
-phase: plan
-status: complete
+phase: verify
+status: stage_3_verified_automated_human_gates_pending
 last_updated: 2026-08-21
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_3_execute
-next_stage: 3
+next_action: stage_4_discuss
+next_stage: 4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:334b83d216a014678702b5cc20f08a84029b540f7c81e92e94df980e696ea01a
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — plan ✓ complete (2026-08-21)
-Phase: plan ✓ complete → next: execute
-Status: Stage-3 PLAN.md written — 10 tasks across ROADMAP 3.1 (asset prep, HTML/CSS scaffold, CMake binary-data, editor+relays, JS bindings, 3.1 gate) and 3.2 (typed value entry, accent polish, freshness+bridge audit, final validation); Stage 2 remains ✅ VERIFIED (52 harness checks, pluginval strictness 10 VST3+AU, auval)
-Progress: [################....] 75%
+Stage: 3 (GUI) — verify ⚠ PARTIAL (2026-08-21): all automated gates green, human visual/interaction gates pending
+Phase: verify complete → next: Stage 4 discuss
+Status: WebView GUI shipped and verified — harness ALL PASS with digests byte-identical to Stage-2 baseline (9cf6baa8d3b61b14 / b23fe10b74526fab / dad157a01f7c393f), pluginval strictness 10 SUCCESS VST3+AU, auval PASS, bridge audit 0↔0, paper.jpg md5 clean; 6 human DAW checks fold into Stage 4 (list in stages/3-gui/VERIFICATION.md)
+Progress: [##################..] 90%
 
 ## Phase Progress
 
@@ -53,8 +53,8 @@ Progress: [################....] 75%
 | discuss | ✓ | 2026-08-21 | |
 | research | ✓ | 2026-08-21 | |
 | plan | ✓ | 2026-08-21 | |
-| execute | | | |
-| verify | | | |
+| execute | ✓ | 2026-08-21 | |
+| verify | ⚠ | 2026-08-21 | (automated ✓; human gates → Stage 4) |
 
 ## Completed So Far
 
@@ -119,9 +119,22 @@ Progress: [################....] 75%
 
 - `stages/3-gui/RESEARCH.md`: O-Bitrot identified as primary template (same aesthetic, proven `.seg` segmented combos via `getComboBoxState`, WebView+harness coexistence, clean paper.jpg md5-verified); 5 per-console accent hexes designed with contrast numbers (plum/slate/brick/olive/teal, all ≥3.66:1 vs paper); dino PNG verified (1007×665 RGBA, real alpha, wide 1.96:1 content bbox → crop+WebP, right-bleed placement numbers); knob = O-Bitrot setupKnob base + O-Prism attachValueEntry on dblclick (reset → Alt-click); window 620×430; preset-load freshness needs NO revision counter (zero native fns, relay listeners fire on preset load); CMake needs only binary-data target + editor sources (WebView flags pre-planted Stage 1)
 
+## Completed — Stage 3 Execute (2026-08-21)
+
+- WebView GUI: Naturalist frame 620×430, 5-segment console selector + per-console accents + static info readout, 4×60px knobs (drag/shift/wheel/dblclick entry/Alt-reset), dino specimen overlay; 5 relays + 5 three-arg attachments, zero native fns
+- Details + deviations: `stages/3-gui/SUMMARY.md`
+
+## Stage 3 Verification (2026-08-21)
+
+- ⚠ PARTIAL (automated ✓) — `stages/3-gui/VERIFICATION.md`
+- Independently re-run: harness ALL PASS, digest anchors identical to Stage-2 baseline; pluginval strictness 10 SUCCESS VST3+AU; auval `* * PASS`
+- Audits: bridge 0↔0, `window.__JUCE__` 0 authored, param IDs = binding spec, paper.jpg md5 clean, one binary-data target, no hyphenated resources, harness CMake untouched
+- REQUIREMENTS.md: UI-01 → partial (human gates only); UI-02 → deferred to stage-4 (preset manager lands there)
+- 6 human DAW checks pending (visual pass, crossfade audibility, knob feel, automation refresh, preset reload, console errors) — fold into Stage 4
+
 ## Next Steps
 
-1. `/plugin-plan O-Emulator 3-gui` — task breakdown for ROADMAP 3.1/3.2 (all work on `main` in this checkout; trunk-based since 2026-08-21)
+1. `/implement O-Emulator` — Stage 4 (Polish): preset manager + factory presets (UI-02), human DAW gates from stage-3 VERIFICATION.md, final validation/install
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 

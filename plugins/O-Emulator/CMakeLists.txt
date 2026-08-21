@@ -23,6 +23,7 @@ juce_add_plugin(OEmulator
 target_sources(OEmulator
     PRIVATE
         Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp
         Source/dsp/BrrCodec.cpp
         Source/dsp/ConsoleEngine.cpp
         Source/dsp/ConsoleResampler.cpp
@@ -61,9 +62,20 @@ target_link_libraries(OEmulator
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OEmulator)
 
-# Stage 3 will add here: ouaricon_add_module(OEmulator preset-manager) and the
-# single juce_add_binary_data UI-resources target (exactly one — two binary-data
-# targets collide on the BinaryData namespace; no hyphens in resource filenames).
+# WebView UI resources — exactly ONE binary-data target (two collide on the
+# BinaryData namespace); no hyphens in resource filenames (juce_add_binary_data
+# strips them). Preset-manager module (ouaricon_add_module) lands in Stage 4
+# with the factory presets.
+juce_add_binary_data(OEmulator_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper.jpg
+        Source/ui/public/img/specimen.webp
+)
+
+target_link_libraries(OEmulator PRIVATE OEmulator_UIResources)
 
 # Compile definitions — WebView flags set now so Stage 3 never touches plugin
 # identity/format config.
