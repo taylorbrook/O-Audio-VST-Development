@@ -1,13 +1,13 @@
 ---
 plugin: O-Emulator
 stage: 3
-phase: discuss
+phase: research
 status: complete
 last_updated: 2026-08-21
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: stage_3_research
+next_action: stage_3_plan
 next_stage: 3
 ready_for_implementation: true
 contract_checksums:
@@ -22,10 +22,10 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 (GUI) — discuss ✓ complete (2026-08-21)
-Phase: discuss ✓ complete → next: research
-Status: Stage-3 CONTEXT.md written — all UI design decisions made (mockup was skipped, so discuss carried the design); Stage 2 remains ✅ VERIFIED (52 harness checks, pluginval strictness 10 VST3+AU, auval)
-Progress: [##############......] 68%
+Stage: 3 (GUI) — research ✓ complete (2026-08-21)
+Phase: research ✓ complete → next: plan
+Status: Stage-3 RESEARCH.md written — all discuss open questions resolved (accent hexes, segmented-control + choice-relay pattern from O-Bitrot, dino asset verified, 620×430); Stage 2 remains ✅ VERIFIED (52 harness checks, pluginval strictness 10 VST3+AU, auval)
+Progress: [###############.....] 70%
 
 ## Phase Progress
 
@@ -51,7 +51,7 @@ Progress: [##############......] 68%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-08-21 | |
-| research | | | |
+| research | ✓ | 2026-08-21 | |
 | plan | | | |
 | execute | | | |
 | verify | | | |
@@ -115,9 +115,13 @@ Progress: [##############......] 68%
 - `stages/3-gui/CONTEXT.md`: Ouaricon Naturalist aesthetic (dino-skeleton specimen, unused elsewhere); segmented console selector top + info readout (`BRR 4-bit · 32 kHz · Gaussian` style, static JS table) + single row of 4 knobs, ~620×400; per-console accent color within the earth-tone palette; drag + double-click value entry (O-ReverseDelay + O-Prism families); preset-manager deferred to Stage 4 (header reserves space)
 - Constraints noted: parameter-spec frozen; avoid the watermarked Adobe Stock paper texture; segmented control is a deliberate deviation from the template's 4+-choice dropdown default
 
+## Completed — Stage 3 Research (2026-08-21)
+
+- `stages/3-gui/RESEARCH.md`: O-Bitrot identified as primary template (same aesthetic, proven `.seg` segmented combos via `getComboBoxState`, WebView+harness coexistence, clean paper.jpg md5-verified); 5 per-console accent hexes designed with contrast numbers (plum/slate/brick/olive/teal, all ≥3.66:1 vs paper); dino PNG verified (1007×665 RGBA, real alpha, wide 1.96:1 content bbox → crop+WebP, right-bleed placement numbers); knob = O-Bitrot setupKnob base + O-Prism attachValueEntry on dblclick (reset → Alt-click); window 620×430; preset-load freshness needs NO revision counter (zero native fns, relay listeners fire on preset load); CMake needs only binary-data target + editor sources (WebView flags pre-planted Stage 1)
+
 ## Next Steps
 
-1. `/plugin-research O-Emulator 3-gui` — resolve accent hex values, segmented-control styling, choice-relay pattern, dino PNG placement (all work on `main` in this checkout; trunk-based since 2026-08-21)
+1. `/plugin-plan O-Emulator 3-gui` — task breakdown for ROADMAP 3.1/3.2 (all work on `main` in this checkout; trunk-based since 2026-08-21)
 
 **Note:** UI mockup phase skipped (user decision, 2026-08-20). parameter-spec.md was promoted directly from parameter-spec-draft.md + ARCHITECTURE.md Parameter Mapping and is the BINDING Stage 1+ contract. Stage 3 (GUI) will design the UI from the brief's UI Concept (console selector focal + 4 macro knobs) without a pre-existing mockup.
 
