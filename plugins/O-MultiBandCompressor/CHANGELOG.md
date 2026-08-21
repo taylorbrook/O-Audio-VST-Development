@@ -1,5 +1,68 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.8.0 (2026-08-20)
+
+All 39 dials now use the suite's house knob instead of a styled range input.
+
+### Changed
+
+- **The dials are the seed cross-section knob used across the rest of the suite.**
+  Through v1.7.0 every control here was an `<input type="range">` dressed up as a
+  flat circle, with `::-webkit-slider-thumb` and `::-moz-range-thumb` both sized to
+  `0x0` — so the control itself never showed its own position. Only the text
+  underneath moved, and the drag was horizontal, which is not how any other plugin
+  in the suite behaves. They are now a `<div class="knob">` with a rotating
+  `.knob-stem`, ported from O-ReverseDelay: twenty alternating cream and tan wedges
+  under an outer ring, with a brown stem sweeping −135° to +135°.
+
+  The palette needed no translation — O-ReverseDelay's knob colours are the same
+  seven this stylesheet already used, and the unused `.placeholder-circle` rule in
+  it was already this exact ring formula. The house knob had been designed into
+  this plugin and never wired up.
+
+  Geometry is deliberately *not* ported. O-ReverseDelay's knob is 56 px; four band
+  columns with three knob rows have to fit 900×640 here, so the three established
+  sizes (36 / 28 / 44 px) are kept and only the face changes. Stem lengths are set
+  per size to land at about 85% of each radius.
+
+### Added
+
+- **Drag, wheel and keyboard.** Vertical drag, 220 px for the full sweep, held with
+  `setPointerCapture` so the pointer leaving the knob mid-drag does not drop it.
+  Shift drags five times finer. Wheel and arrow keys step 0.02, and the knobs are
+  focusable with `role="slider"`, carrying `aria-valuenow`/`aria-valuetext` and
+  borrowing their name from the caption beside them.
+
+  The drag ends on `pointerup`, `pointercancel` *and* `lostpointercapture`, and the
+  handler is idempotent. All four paths can fire, and a drag released outside the
+  window that never closed its gesture would leave the host writing automation for
+  a parameter nobody is touching.
+
+- **Double-click a readout to type a value.** Enter or clicking away commits, Esc
+  cancels, and text that cannot be read is discarded without ever writing the
+  parameter. Frequencies take a `k` suffix ("1.5k"); a bare number is always Hz,
+  because on a knob reading "1.2 kHz" someone typing "440" means 440 Hz. "Off"
+  works on both sidechain filters, "Peak" and "RMS" on the detector blend.
+
+  Typed values convert through the live `start`/`end`/`skew` the WebSliderRelay
+  pushes up from C++, not through the display formulas, so entry cannot drift from
+  the real ranges. Text left untouched is never written back — the readouts are
+  rounded, so committing an unedited field would otherwise quantise the parameter
+  to whatever the display had rounded to.
+
+- **Alt/Option-click resets a knob to its default**, read from the APVTS through a
+  new `getParameterDefaults` native function. Sent normalised, which is what
+  `getDefaultValue()` already holds and what the page consumes, so the round trip
+  is exact with no skew inversion in between. A hardcoded JS table would have
+  drifted silently the moment a range moved, and only on the skewed parameters —
+  the same bug O-Prism carried unnoticed for about twenty versions.
+
+### Notes
+
+The readout formatters are untouched. They were correct and working, and rewriting
+them onto `getScaledValue()` is a separate change with its own regression surface;
+value entry does not depend on them.
+
 ## Version 1.7.0 (2026-08-19)
 
 Twenty-five more factory presets (50 total), and a categorised preset browser to

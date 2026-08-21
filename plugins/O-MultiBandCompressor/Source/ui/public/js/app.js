@@ -35,11 +35,100 @@ console.log('O-MultiBandCompressor UI initializing...');
 // Parameter binding state
 const parameterStates = {};
 
+// ========== v1.8.0: SEED-DIAL KNOB INFRASTRUCTURE ==========
+//
+// Everything in this block is declared ABOVE the initializeUI() call below on
+// purpose. That call sits at module top level, so anything it reaches during
+// binding must already be initialised — a `const` declared further down would
+// still be in its temporal dead zone and would throw, taking every later
+// initializer on the module with it.
+
+// The stem sweeps 270 degrees, the house range across the suite.
+const KNOB_MIN_DEG = -135;      // normalised 0.0
+const KNOB_MAX_DEG = 135;       // normalised 1.0
+
+// Vertical pixels for a full 0 -> 1 sweep. Drag is absolute from the press
+// point rather than accumulated from movementY: an absolute mapping cannot
+// drift away from the pointer over a long drag, and it survives the pointer
+// briefly leaving the element.
+const DRAG_TRAVEL_PX = 220;
+const FINE_TRAVEL_PX = 1100;    // shift-drag, 5x finer
+const NUDGE_STEP = 0.02;        // wheel / arrow-key increment
+
+// Normalised defaults keyed by parameter id, fetched from the C++ APVTS at
+// start-up. A hardcoded JS table would drift from the NormalisableRange the
+// moment a range moved, and silently: only skewed parameters would land wrong.
+// Alt-click is simply inert until this arrives rather than guessing a value.
+const parameterDefaults = {};
+
+// ---------- value-entry parsers ----------
+// Inverse of the formatters further down: display text -> the parameter's
+// SCALED value, in the units its NormalisableRange is declared in, or null to
+// reject. Rejected text is discarded without ever writing the parameter.
+//
+// Display units and scaled units line up more closely here than in most of the
+// suite: MIX and PEAK_RMS are declared 0..100 in C++, not 0..1, so a percent
+// readout parses as a plain number and must NOT be divided by 100.
+
+// First signed decimal in the string, or null if there isn't one.
+const numOf = (text) => {
+    const m = String(text).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+
+// dB, ratios, ms and the 0..100 percent params: the number on screen already IS
+// the scaled value. "4.0:1" yields 4.0, "-20 dB" yields -20.
+const parseDirect = (t) => numOf(t);
+
+// Hz readouts that switch to kHz above 1000 (see formatHz). A bare number is
+// always Hz — the whole range is expressible in Hz, and on a knob reading
+// "1.2 kHz" someone typing "440" means 440 Hz, not 440 kHz. Write "1.2k" for
+// kHz. Both sidechain filters read "Off" at the bottom of their range.
+const parseFreq = (t) => {
+    const s = String(t);
+    if (/off/i.test(s)) return 0;
+    const v = numOf(s);
+    if (v === null) return null;
+    return /k/i.test(s) ? v * 1000 : v;
+};
+
+// Peak/RMS blend, declared 0..100 in C++, whose two rails read as words.
+const parseBlend = (t) => {
+    const s = String(t);
+    if (/peak/i.test(s)) return 0;
+    if (/rms/i.test(s) && numOf(s) === null) return 100;
+    return numOf(s);
+};
+
+// Scaled (C++ units) -> normalised [0,1]. Mirrors JUCE's NormalisableRange but
+// reads start/end/skew from the live properties the WebSliderRelay pushes up
+// from C++, so the entry path cannot drift from the ranges even if one of the
+// hand-written formatters below does.
+//
+// Clamping before the pow() is not cosmetic: a scaled value below `start` gives
+// a negative base, and Math.pow(negative, fractional) is NaN. That NaN would
+// ride straight through setNormalisedValue() into the parameter and stick.
+function scaledToNorm(scaled, props) {
+    const start = props.start;
+    const end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (scaled - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
 // Initialize immediately (JUCE module handles backend connection internally)
 initializeUI();
 
 function initializeUI() {
     console.log('Initializing parameter bindings');
+
+    // Before the bindings: Alt-click reset reads this map. It is a promise, so
+    // it lands after the first render either way — the knobs just have no reset
+    // target for the first moment, which is why the handler tolerates a miss.
+    initializeParameterDefaults();
 
     // Initialize all parameter bindings
     bindGlobalParameters();
@@ -65,19 +154,20 @@ function bindGlobalParameters() {
     bindSlider('input-gain', 'INPUT_GAIN', (norm) => {
         const db = norm * 48.0 - 24.0;
         return db.toFixed(1) + ' dB';
-    });
+    }, parseDirect);
 
     // Output Gain: -24 to +24 dB
     bindSlider('output-gain', 'OUTPUT_GAIN', (norm) => {
         const db = norm * 48.0 - 24.0;
         return db.toFixed(1) + ' dB';
-    });
+    }, parseDirect);
 
-    // Mix: 0-100%
+    // Mix: 0-100%. The C++ range is 0..100, not 0..1, so the percent on screen
+    // is already the scaled value and parseDirect is correct here.
     bindSlider('mix', 'MIX', (norm) => {
         const pct = norm * 100.0;
         return pct.toFixed(0) + '%';
-    });
+    }, parseDirect);
 
     // Auto-Makeup: bool
     bindToggle('auto-makeup', 'AUTO_MAKEUP');
@@ -102,37 +192,37 @@ function bindBandParameters(bandPrefix, bandId) {
     bindSlider(`${bandId}-threshold`, `${bandPrefix}_THRESHOLD`, (norm) => {
         const db = norm * 60.0 - 60.0;
         return db.toFixed(1) + ' dB';
-    });
+    }, parseDirect);
 
     // Ratio: 1:1 to 20:1
     bindSlider(`${bandId}-ratio`, `${bandPrefix}_RATIO`, (norm) => {
         const ratio = 1.0 + norm * 19.0;
         return ratio.toFixed(1) + ':1';
-    });
+    }, parseDirect);
 
     // Attack: 0.1 to 200 ms (WR-04: APVTS skew 0.3 → value = min + (max−min)·norm^(1/skew))
     bindSlider(`${bandId}-attack`, `${bandPrefix}_ATTACK`, (norm) => {
         const ms = 0.1 + (200 - 0.1) * Math.pow(norm, 1 / 0.3);
         return ms.toFixed(1) + ' ms';
-    });
+    }, parseDirect);
 
     // Release: 10 to 2000 ms (WR-04: APVTS skew 0.3 → value = min + (max−min)·norm^(1/skew))
     bindSlider(`${bandId}-release`, `${bandPrefix}_RELEASE`, (norm) => {
         const ms = 10 + (2000 - 10) * Math.pow(norm, 1 / 0.3);
         return ms.toFixed(0) + ' ms';
-    });
+    }, parseDirect);
 
     // Knee: 0 to 24 dB
     bindSlider(`${bandId}-knee`, `${bandPrefix}_KNEE`, (norm) => {
         const db = norm * 24.0;
         return db.toFixed(1) + ' dB';
-    });
+    }, parseDirect);
 
     // Makeup: -12 to +24 dB
     bindSlider(`${bandId}-makeup`, `${bandPrefix}_MAKEUP`, (norm) => {
         const db = norm * 36.0 - 12.0;
         return db.toFixed(1) + ' dB';
-    });
+    }, parseDirect);
 
     // Solo, Bypass, SC Listen: bool
     bindToggle(`${bandId}-solo`, `${bandPrefix}_SOLO`);
@@ -153,15 +243,17 @@ function bindBandParameters(bandPrefix, bandId) {
         if (pct <= 0.5) return 'Peak';
         if (pct >= 99.5) return 'RMS';
         return `${pct.toFixed(0)}% RMS`;
-    });
+    }, parseBlend);
 
     // SC HPF: 0 Hz means the filter is off (see Compressor::updateSidechainFilters)
     bindScaledSlider(`${bandId}-sc-hpf`, `${bandPrefix}_SC_HPF`, (hz) =>
-        hz < 1.0 ? 'Off' : formatHz(hz));
+        hz < 1.0 ? 'Off' : formatHz(hz), parseFreq);
 
-    // SC LPF: the DSP treats 0 and anything at or above 20 kHz as off
+    // SC LPF: the DSP treats 0 and anything at or above 20 kHz as off.
+    // parseFreq maps a typed "off" to 0, the bottom of the range — matching the
+    // tooltip's "fully left is Off" rather than the equally-off top end.
     bindScaledSlider(`${bandId}-sc-lpf`, `${bandPrefix}_SC_LPF`, (hz) =>
-        (hz < 1.0 || hz >= 20000.0) ? 'Off' : formatHz(hz));
+        (hz < 1.0 || hz >= 20000.0) ? 'Off' : formatHz(hz), parseFreq);
 }
 
 function formatHz(hz) {
@@ -171,12 +263,244 @@ function formatHz(hz) {
 
 // ========== BINDING HELPERS ==========
 
-function bindSlider(elementId, parameterId, formatValue) {
+// v1.8.0: the dials were <input type="range"> circles through v1.7.0. Both
+// engines' slider thumbs were sized to 0x0, so the control itself never showed
+// its own position and dragging was horizontal, which is not how any other
+// plugin in the suite behaves. They are now the house seed-cross-section knob:
+// a <div class="knob"> whose child .knob-stem is rotated to the value.
+
+// Points the stem at `norm`. Kept in one place because the three sizes differ
+// only in stem LENGTH (set in CSS), never in the angle.
+function setKnobStem(element, norm) {
+    const stem = element.querySelector('.knob-stem');
+    if (!stem) return;
+    const deg = KNOB_MIN_DEG + norm * (KNOB_MAX_DEG - KNOB_MIN_DEG);
+    stem.style.transform = `translate(-50%, -100%) rotate(${deg}deg)`;
+}
+
+// A bare <div role="slider"> has no accessible name of its own, so it borrows
+// the caption beside it: band knobs sit in a .knob-control next to .knob-label,
+// the three footer knobs in a .control-group under .control-label.
+function labelKnob(element) {
+    if (element.hasAttribute('aria-label')) return;
+    const cell = element.closest('.knob-control') || element.closest('.control-group');
+    const label = cell ? cell.querySelector('.knob-label, .control-label') : null;
+    const text = label && label.textContent ? label.textContent.trim() : '';
+    if (text) element.setAttribute('aria-label', text);
+    element.setAttribute('aria-valuemin', '0');
+    element.setAttribute('aria-valuemax', '1');
+}
+
+// Drag / wheel / keyboard / Alt-click / double-click, shared by both binders.
+// `render` redraws stem, ARIA and readout from live state; `parseScaled` may be
+// undefined, which simply leaves that knob without value entry.
+function attachKnobBehaviour(element, sliderState, render, valueDisplay, parseScaled, parameterId) {
+    let dragging = false;
+    let startY = 0;
+    let startNorm = 0;
+
+    const setNorm = (n) => {
+        sliderState.setNormalisedValue(Math.min(1, Math.max(0, n)));
+        render();
+    };
+
+    // Wheel and arrow keys are discrete edits, not drags, but the host still
+    // wants a gesture around each one or the change is not recorded as
+    // automation.
+    const nudge = (delta) => {
+        sliderState.sliderDragStarted();
+        setNorm(sliderState.getNormalisedValue() + delta);
+        sliderState.sliderDragEnded();
+    };
+
+    const onMove = (e) => {
+        if (!dragging) return;
+        const travel = e.shiftKey ? FINE_TRAVEL_PX : DRAG_TRAVEL_PX;
+        setNorm(startNorm + (startY - e.clientY) / travel);
+        e.preventDefault();
+    };
+
+    // Idempotent, and bound to all four termination paths. A drag released
+    // outside the window, or interrupted by the host stealing the pointer,
+    // must still close the gesture — otherwise the parameter stays latched in
+    // a "being dragged" state and the host keeps writing automation for it.
+    const onUp = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        sliderState.sliderDragEnded();
+        element.removeEventListener('pointermove', onMove);
+        element.removeEventListener('pointerup', onUp);
+        element.removeEventListener('pointercancel', onUp);
+        element.removeEventListener('lostpointercapture', onUp);
+        if (e && e.pointerId !== undefined) {
+            try { element.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+        }
+    };
+
+    element.addEventListener('pointerdown', (e) => {
+        // Alt/Option-click resets to the C++ default instead of starting a drag.
+        if (e.altKey) {
+            const def = parameterDefaults[parameterId];
+            if (def !== undefined) {
+                sliderState.sliderDragStarted();
+                sliderState.setNormalisedValue(def);
+                sliderState.sliderDragEnded();
+                render();
+            }
+            e.preventDefault();
+            return;
+        }
+
+        dragging = true;
+        startY = e.clientY;
+        startNorm = sliderState.getNormalisedValue();
+        sliderState.sliderDragStarted();
+        try { element.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+        element.addEventListener('pointermove', onMove);
+        element.addEventListener('pointerup', onUp);
+        element.addEventListener('pointercancel', onUp);
+        element.addEventListener('lostpointercapture', onUp);
+        e.preventDefault();
+    });
+
+    element.addEventListener('wheel', (e) => {
+        nudge(e.deltaY < 0 ? NUDGE_STEP : -NUDGE_STEP);
+        e.preventDefault();
+    }, { passive: false });
+
+    element.addEventListener('keydown', (e) => {
+        let delta = 0;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') delta = NUDGE_STEP;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') delta = -NUDGE_STEP;
+        else return;
+        nudge(e.shiftKey ? delta / 5 : delta);
+        e.preventDefault();
+    });
+
+    // Double-click opens inline numeric entry; Alt-click already reset above,
+    // so an Alt-double-click must not also open the field.
+    element.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueDisplay, sliderState, render, parseScaled);
+    });
+}
+
+// Opens an inline editor over a value readout. Enter or blur commits, Esc
+// cancels, and unparseable input is discarded without writing the parameter.
+function attachValueEntry(valueEl, sliderState, render, parseScaled) {
+    if (!valueEl || !sliderState || typeof parseScaled !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+
+    // Read the readout's ink BEFORE hiding it. The band readouts and the footer
+    // ones sit on different backgrounds, so the field takes its colour from
+    // whatever it replaces; `inherit` would resolve to transparent once the
+    // span's own colour is cleared below.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The span keeps its own text, rendered transparent, so its box stays
+    // exactly the size it was and the knob column does not shift. Clearing the
+    // text instead would collapse it to zero height.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: the parameter may have moved under host
+        // automation or a preset load while readout updates were suppressed.
+        render();
+    };
+
+    const commit = () => {
+        if (closed) return;
+        // Untouched text is never written back. Readouts are rounded for
+        // display — Release shows whole ms, so 104.6 reads "105" — and without
+        // this guard, merely opening the field and pressing Enter would
+        // quantise the parameter to whatever the readout had rounded to.
+        if (input.value === currentText) { close(); return; }
+        const scaled = parseScaled(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() clamps and snaps to `interval` itself, so
+            // only the scaled -> norm conversion needs guarding here.
+            sliderState.sliderDragStarted();
+            sliderState.setNormalisedValue(scaledToNorm(scaled, sliderState.properties || {}));
+            sliderState.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        // Keep digits and arrows away from the knob's own key handler while the
+        // field is open.
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // The readout is a sibling of the knob, not a child, so these are belt and
+    // braces — but a stray pointerdown reaching the knob would start a drag
+    // underneath the open field.
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// Pulls every parameter's default, normalised, from the C++ APVTS. Guarded
+// because the same page is opened in a plain browser for UI checks, where
+// native integration does not exist — there Alt-click is simply inert.
+function initializeParameterDefaults() {
+    let getDefaults = null;
+
+    try {
+        getDefaults = Juce.getNativeFunction('getParameterDefaults');
+    } catch (e) {
+        console.warn('Parameter defaults not available, Alt-click reset disabled:', e);
+        return;
+    }
+
+    getDefaults()
+        .then((defaults) => {
+            if (!defaults || typeof defaults !== 'object') return;
+            Object.keys(defaults).forEach((id) => {
+                const v = Number(defaults[id]);
+                if (isFinite(v)) parameterDefaults[id] = Math.min(1, Math.max(0, v));
+            });
+            console.log(`Parameter defaults loaded: ${Object.keys(parameterDefaults).length}`);
+        })
+        .catch((e) => console.warn('Could not read parameter defaults:', e));
+}
+
+// `formatValue` receives the NORMALISED value. `parseScaled` is the inverse for
+// double-click entry and converts display text to the parameter's scaled units.
+function bindSlider(elementId, parameterId, formatValue, parseScaled) {
     const element = document.getElementById(elementId);
     const valueDisplay = document.getElementById(`${elementId}-value`);
 
     if (!element) {
-        console.warn(`Slider element not found: ${elementId}`);
+        console.warn(`Knob element not found: ${elementId}`);
         return;
     }
 
@@ -185,45 +509,31 @@ function bindSlider(elementId, parameterId, formatValue) {
         const sliderState = Juce.getSliderState(parameterId);
         parameterStates[parameterId] = sliderState;
 
-        // Initialize element with current value
-        const initialNorm = sliderState.getNormalisedValue();
-        element.value = initialNorm;
-        if (valueDisplay && formatValue) {
-            valueDisplay.textContent = formatValue(initialNorm);
-        }
+        const render = () => {
+            const norm = sliderState.getNormalisedValue();
+            setKnobStem(element, norm);
+            element.setAttribute('aria-valuenow', norm.toFixed(3));
 
-        // Update parameter when UI changes
-        element.addEventListener('input', (e) => {
-            const norm = parseFloat(e.target.value);
-            sliderState.setNormalisedValue(norm);
-
-            if (valueDisplay && formatValue) {
-                valueDisplay.textContent = formatValue(norm);
+            if (!formatValue) return;
+            const text = formatValue(norm);
+            element.setAttribute('aria-valuetext', text);
+            // Suppressed while an entry field is open — writing textContent
+            // would wipe out the <input> living inside this span.
+            if (valueDisplay && valueDisplay.dataset.editing !== '1') {
+                valueDisplay.textContent = text;
             }
-        });
+        };
 
-        // Notify JUCE when drag starts/ends
-        element.addEventListener('mousedown', () => {
-            sliderState.sliderDragStarted();
-        });
-
-        element.addEventListener('mouseup', () => {
-            sliderState.sliderDragEnded();
-        });
+        labelKnob(element);
+        render();
+        attachKnobBehaviour(element, sliderState, render, valueDisplay, parseScaled, parameterId);
 
         // Update UI when parameter changes (automation, preset load)
-        sliderState.valueChangedEvent.addListener(() => {
-            const norm = sliderState.getNormalisedValue();
-            element.value = norm;
+        sliderState.valueChangedEvent.addListener(render);
 
-            if (valueDisplay && formatValue) {
-                valueDisplay.textContent = formatValue(norm);
-            }
-        });
-
-        console.log(`Bound slider: ${parameterId} → #${elementId}`);
+        console.log(`Bound knob: ${parameterId} → #${elementId}`);
     } catch (e) {
-        console.error(`Failed to bind slider ${parameterId}:`, e);
+        console.error(`Failed to bind knob ${parameterId}:`, e);
     }
 }
 
@@ -232,12 +542,12 @@ function bindSlider(elementId, parameterId, formatValue) {
 // The range and skew arrive from C++ via propertiesChanged, which lands *after* the
 // first render — hence the propertiesChangedEvent listener, without which every
 // readout would sit at its start-of-range value until the knob is first touched.
-function bindScaledSlider(elementId, parameterId, formatScaled) {
+function bindScaledSlider(elementId, parameterId, formatScaled, parseScaled) {
     const element = document.getElementById(elementId);
     const valueDisplay = document.getElementById(`${elementId}-value`);
 
     if (!element) {
-        console.warn(`Slider element not found: ${elementId}`);
+        console.warn(`Knob element not found: ${elementId}`);
         return;
     }
 
@@ -246,25 +556,23 @@ function bindScaledSlider(elementId, parameterId, formatScaled) {
         parameterStates[parameterId] = sliderState;
 
         const render = () => {
-            element.value = sliderState.getNormalisedValue();
-            if (valueDisplay && formatScaled) {
-                valueDisplay.textContent = formatScaled(sliderState.getScaledValue());
+            const norm = sliderState.getNormalisedValue();
+            setKnobStem(element, norm);
+            element.setAttribute('aria-valuenow', norm.toFixed(3));
+
+            if (!formatScaled) return;
+            // getScaledValue() reflects the value actually held by the
+            // parameter, so read it back rather than converting norm here.
+            const text = formatScaled(sliderState.getScaledValue());
+            element.setAttribute('aria-valuetext', text);
+            if (valueDisplay && valueDisplay.dataset.editing !== '1') {
+                valueDisplay.textContent = text;
             }
         };
 
+        labelKnob(element);
         render();
-
-        element.addEventListener('input', (e) => {
-            sliderState.setNormalisedValue(parseFloat(e.target.value));
-            // getScaledValue() reflects the value just written, so read it back rather
-            // than converting the raw normalised value here.
-            if (valueDisplay && formatScaled) {
-                valueDisplay.textContent = formatScaled(sliderState.getScaledValue());
-            }
-        });
-
-        element.addEventListener('mousedown', () => sliderState.sliderDragStarted());
-        element.addEventListener('mouseup', () => sliderState.sliderDragEnded());
+        attachKnobBehaviour(element, sliderState, render, valueDisplay, parseScaled, parameterId);
 
         // Automation and preset loads
         sliderState.valueChangedEvent.addListener(render);
@@ -272,9 +580,9 @@ function bindScaledSlider(elementId, parameterId, formatScaled) {
         // First arrival of the real range/skew from C++
         sliderState.propertiesChangedEvent.addListener(render);
 
-        console.log(`Bound scaled slider: ${parameterId} → #${elementId}`);
+        console.log(`Bound scaled knob: ${parameterId} → #${elementId}`);
     } catch (e) {
-        console.error(`Failed to bind slider ${parameterId}:`, e);
+        console.error(`Failed to bind knob ${parameterId}:`, e);
     }
 }
 
