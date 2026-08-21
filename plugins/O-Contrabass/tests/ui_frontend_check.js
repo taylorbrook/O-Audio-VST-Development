@@ -120,8 +120,8 @@ console.log('== O-Contrabass ui_frontend_check ==');
     check(dead.length === 0,
         'no dead C++ registrations (registered but never called from JS)'
         + (dead.length ? ' — DEAD: ' + dead.join(', ') : ''));
-    check(called.size === 32 && registered.size === 32,
-        `bridge surface is exactly 32 fns (2 mockup + 10 preset + 20 tuning) — got JS=${called.size} C++=${registered.size}`);
+    check(called.size === 34 && registered.size === 34,
+        `bridge surface is exactly 34 fns (2 mockup + 10 preset + 20 tuning + 2 hover-help) — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');
 }

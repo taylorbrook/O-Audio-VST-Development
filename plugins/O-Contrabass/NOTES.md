@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.5.0** (2026-08-19). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.7.2** (2026-08-20). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,7 +13,44 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
-- **2026-08-19 — v1.5.0 bow noise made realistic (pitched, jittered, body-colored).**
+- **2026-08-20 — v1.7.2 Tuning tab restored to the 3-column layout.** Shared-module
+  bug: scala-tuning-engine v3.0.0 emitted four direct children under the 3-column
+  `.tuning-panel` grid (the O-Bells `.tuning-center-column` wrapper was never
+  backported) and the CSS had no placement rules, so grid auto-placement scattered
+  the viz-mode buttons/visualization/controls across cells. Fixed in the module
+  (v3.0.1: 3-child template + column-wrapper CSS + `min-width:0` on the stretch
+  slider); O-Wind/O-Bowed/O-Reed/O-Bassoon pick the fix up at their next rebuild.
+  UI resources only — no C++/DSP/parameter change.
+- **2026-08-20 — v1.7.1 VU meter calibration fix.** The output-section VU never
+  moved: the feed and listener were correct (verified end-to-end in the browser
+  shim), but the face mapped −20..+3 directly onto dBFS while the instrument's
+  program level tops out around −29 dBFS RMS (e1-max-sustain render) — the
+  needle was pinned for everything the synth can produce. UI-only fix: 0 VU
+  referenced to −18 dBFS RMS (EBU), receive-side clamp at the −20 face floor so
+  silence (−80 dBFS) doesn't ease the needle seconds off-face. No DSP change.
+- **2026-08-20 — v1.7.0 hover-help tooltips ("?" toggle) + one-line title.**
+  Ported O-Bitrot v1.12.0's verified measure-then-pin hover-help system: every
+  Main-tab/header control carries data-tip copy, 350 ms dwell, viewport-clamped
+  with anchor-tracking arrow, hidden on pointer-down. "?" toggle in the header
+  (tab-strip active vocabulary); preference persists as a root XML *attribute*
+  in get/setStateInformation (not a ValueTree property —
+  critical_valuetree_xml_roundtrip_loses_type) and is PULLED by the page at
+  init (O-FreqPulse WR-01 race avoided). Bridge surface 32 → 34, parity gate
+  updated. Title fix: `.plugin-name` got `white-space: nowrap` +
+  `flex-shrink: 0` — it was wrapping at the hyphen under flex min-content.
+  DSP untouched: 21/21 goldens byte-identical, auval PASS, ui_frontend_check
+  ALL PASS, browser visual check of title/toggle/tip styling.
+  **Not yet checked in a DAW; the persistence round-trip (toggle → close →
+  reopen session) needs a live host to verify.**
+
+- **2026-08-20 — v1.6.0 10 new factory presets + preset browser dropdown.**
+  Two new 5-preset banks (Expressive: bowing techniques; Texture: sound design),
+  engineering-unit authored, skew-safe, 20 factory presets total. The preset-name
+  display now opens a dropdown of all presets (factory + user) — one flat list in
+  the C++ order so the ◀/▶ walk stays in sync; frontend-only, bridge surface
+  unchanged at 32. DSP untouched: 21/21 goldens byte-identical, auval PASS,
+  ui_frontend_check ALL PASS, re-seed sentinel produced all 20 preset JSONs with
+  exact skew round-trip. **Dropdown not yet visually checked in a DAW.**
   User report: the noise component sounded fake. Root cause: band-passed white noise
   summed *after* both string and body — an uncorrelated hiss layer that never touched
   the instrument. Fix: pitch-synchronous feedback comb tuned to the tracked f0 (loop
