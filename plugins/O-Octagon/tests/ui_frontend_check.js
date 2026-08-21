@@ -627,7 +627,7 @@ head(15, 'the stub\'s 17 ranges + defaults match createParameterLayout() PARSED 
     // The two neutral-default traps, named so a failure says WHICH.
     for (let i = 1; i <= 8; ++i)
         check(layout.get(`w${i}`)?.def === 1, `w${i} defaults to 1.0, NOT its range minimum`);
-    check(layout.get('blur')?.def === 0.1, 'blur defaults to 0.10, a non-endpoint');
+    check(layout.get('blur')?.def === 0.03, 'blur defaults to 0.03, a non-endpoint');
     check(layout.get('airAmount')?.def === 0.35, 'airAmount defaults to 0.35, a non-endpoint');
 }
 

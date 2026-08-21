@@ -258,12 +258,12 @@
                 <input type="range" class="cell-range" id="ctl-srcY" min="0" max="1" step="0.0001" aria-label="Source Y" />
                 <span class="cell-value" id="val-srcY">&#8212;</span>
               </div>
-              <div class="cell" data-tip-title="Source Z" data-tip="Source height, &#8722;2 to 8 m. The elevation strip shows it against the rake and the speaker heights &#8212; the marker clamps, the numbers never do.">
+              <div class="cell" data-tip-title="Source Z" data-tip="Source height, &#8722;2 to 8 m. Rising toward the speaker plane gets louder and sharper; flying above the array recedes (&#177;6 dB proximity cue). The elevation strip shows it against the rake and the speaker heights &#8212; the marker clamps, the numbers never do.">
                 <span class="cell-label">Source Z</span>
                 <input type="range" class="cell-range" id="ctl-srcZ" min="0" max="1" step="0.0001" aria-label="Source Z" />
                 <span class="cell-value" id="val-srcZ">&#8212;</span>
               </div>
-              <div class="cell" data-tip-title="Width" data-tip="Spreads the source into sub-points around its position &#8212; wider reads as a broader image across the rig.">
+              <div class="cell" data-tip-title="Width" data-tip="Spreads the source into sub-points around its position, up to 12 m apart &#8212; wider reads as a broader image across the rig. Strongest on stereo material: it pulls the L and R feeds to different parts of the room.">
                 <span class="cell-label">Width</span>
                 <input type="range" class="cell-range" id="ctl-width" min="0" max="1" step="0.0001" aria-label="Width" />
                 <span class="cell-value" id="val-width">&#8212;</span>
@@ -274,12 +274,12 @@
           <section class="group" id="group-solve">
             <h2 class="group-title">Solve</h2>
             <div class="group-body">
-              <div class="cell" data-tip-title="Rolloff" data-tip="DBAP distance rolloff. Higher concentrates energy in the nearest speakers; lower spreads it across the whole array.">
+              <div class="cell" data-tip-title="Rolloff" data-tip="DBAP distance rolloff, 3&#8211;12 dB per distance doubling. Higher concentrates energy hard into the nearest speakers; lower spreads it across the whole array.">
                 <span class="cell-label">Rolloff</span>
                 <input type="range" class="cell-range" id="ctl-rolloff" min="0" max="1" step="0.0001" aria-label="Rolloff" />
                 <span class="cell-value" id="val-rolloff">&#8212;</span>
               </div>
-              <div class="cell" data-tip-title="Blur" data-tip="Softens the distance differences the solve sees. Scaled with the rig, not in metres, so a patch means the same thing in a club and a hall.">
+              <div class="cell" data-tip-title="Blur" data-tip="Softens the distance differences the solve sees &#8212; full blur washes the source across the whole array. Scaled with the rig, not in metres, so a patch means the same thing in a club and a hall.">
                 <span class="cell-label">Blur</span>
                 <input type="range" class="cell-range" id="ctl-blur" min="0" max="1" step="0.0001" aria-label="Blur" />
                 <span class="cell-value" id="val-blur">&#8212;</span>

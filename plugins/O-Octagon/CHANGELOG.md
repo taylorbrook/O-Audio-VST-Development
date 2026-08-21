@@ -1,5 +1,50 @@
 # O-Octagon Changelog
 
+## v1.3.0 (2026-08-20)
+
+### Changed — srcZ / rolloff / width / blur made audibly effective (the flat-field fix)
+
+**Root cause (measured, not guessed):** the default rig hangs speakers at 4.50–5.40 m while the
+source rides the 1.10–3.20 m ear plane, so every source→speaker distance carries a ~3 m constant
+vertical offset. That offset compresses the distance ratios DBAP feeds on: even with the puck
+parked next to a speaker, the max-to-min channel spread was only **8.5 dB** at defaults — and
+Σv² = 1 normalisation removes every overall-level cue. All four reported controls only reshaped
+that already-flat field: full blur sweep moved the spread ~2 dB, srcZ ~1–2 dB per channel (and
+zero overall), width ≤ 2.5 dB between sub-point vectors (and 39% suppressed by the centroid fade
+at the DEFAULT puck position), rolloff's exposed 3–6 dB/2x range mapped to exponents a = 0.5–1.0 —
+the gentle half of DBAP's useful range.
+
+- **Source Z — proximity level cue** (GainStage): each sub-point's gains are trimmed by
+  `(invK_z / invK_0)^2.5`, clamped ±6 dB, where `invK` is the un-normalised DBAP field `1/k = √denom`
+  the solver already computes and `invK_0` is the identical solve with the height offset stripped.
+  At srcZ = 0 the two solves have identical inputs, the cue is exactly 1.0, and the pre-1.3.0
+  arithmetic is preserved bit-for-bit. Rising toward the speaker plane now gets louder and sharper
+  (+4.5 dB measured at the front-left puck); flying above the array recedes (−2 dB at +8 m; −3 dB
+  sunk to −2 m). Costs one reference solve per sub-point at control rate only: the pow budget is
+  now exactly 32 per solve pair (probes BJ/BL updated; probe AE's 16-per-direct-pair reuse claim
+  unchanged).
+- **Rolloff range 3–6 → 3–12 dB/2x** (default 4 unchanged): R = 12 (a ≈ 2) reaches a 25 dB spread —
+  a real focus control. Presets saved under < 1.3.0 are migrated (see below).
+- **Blur `kBlurScale` 0.5 → 1.5** (backstop `kMaxBlurMetres` 8 → 24 m): blur = 1 now reaches
+  1.5 × the RMS rig radius and genuinely washes the source across the array (spread → 2.8 dB).
+  Parameter default rescaled 0.10 → 0.03 and the factory-preset blur column ÷3, so every shipped
+  patch keeps its authored radius. Python oracle (`gen_dbap_reference.py`) re-anchored to the new
+  spec constants and the fixture regenerated — a spec change, not a silent re-record.
+- **Width max 6 → 12 m**, and `kFadeFraction` 0.15 → 0.05 so the default centre puck (0.46 m from
+  the centroid) no longer sits inside the width-collapse zone (was ~1.19 m, now ~0.40 m; the 180°
+  axis-flip guard at the exact centroid is preserved). Width remains inherently subtle on MONO
+  material — it separates the L and R feeds in space; a mono decorrelator is a possible future
+  improvement, deliberately out of scope here.
+
+**Preset migration** (preset-manager v1.0.6 hook, editor-side): user presets stamped < 1.3 have
+rolloff ÷3, width ÷2 and blur ÷3 applied to their stored normalised fractions — each preset keeps
+its audible meaning on the new ranges. Sessions are unaffected (APVTS stores denormalised values).
+Factory .json files regenerate automatically via the WR-04 version sentinel.
+
+**Testing:** unit 45/45, render-harness 50/50 (pow-budget probes updated 16 → 32 through the
+GainStage path, Distant Field blur expectation 0.55 → 0.18), ui_frontend_check 42/42 (stub ranges
+synced), ui_layout_check 28/28.
+
 ## v1.2.0 (2026-08-20)
 
 ### Added — hover-help tooltips ("?" toggle)
