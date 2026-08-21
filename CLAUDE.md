@@ -103,56 +103,60 @@ See `.claude/references/handoff-protocol.md` for the full format specification.
 
 ## Parallel Plugin Development
 
-Multiple plugins are routinely worked on at the same time. These rules keep that work isolated.
+Multiple plugins in flight at once is normal and expected. **This project is trunk-based: all plugin work happens on `main`, in the single checkout at `~/Dev/VST-development`.** Isolation comes from path discipline — each plugin owns `plugins/<Name>/` — not from branches or worktrees.
 
-### One branch per plugin
+The reason is that the workflow tooling resolves plugin state from fixed paths (`plugins/<Name>/.planning/STATUS.md`) and has no reader for branch or worktree. A feature branch makes STATUS.md branch-versioned, so a fresh session on `main` reads a stale file that still looks current and silently redoes or clobbers finished work.
 
-Every plugin gets its own branch, and every branch is cut from `main` — never from another plugin's feature branch. An improve branch cut off a second plugin's feature branch strands that plugin's release behind unrelated work.
+### Commit discipline for concurrent sessions
+
+Two sessions in one checkout share `.git/index` **and** HEAD. Another session's staging can join your commit in the gap between the moment you check and the moment you commit.
+
+Two rules, both mandatory:
+
+1. **Path-scope every commit.** Name the paths explicitly. Never `git add -A`, never `git commit -a`.
+   ```bash
+   git commit -- plugins/<Name> PLUGINS.md
+   ```
+2. **Re-check location and staging immediately before every commit**, not once at session start:
+   ```bash
+   git branch --show-current
+   git status --short
+   ```
+
+A session-start snapshot is not good enough — it can be minutes stale. The SessionStart hook's Git Context is a starting picture, not a commit-time guarantee.
+
+### Rollback without branches
+
+Per-plugin undo does not need a per-plugin branch. Three mechanisms, all path-scoped:
+
+- **Backup snapshots** — `/improve` writes `backups/<Plugin>/vX.Y.Z/` before it changes anything.
+- **Release tags** — named `vX.Y.Z-<PluginName>`, version first with the plugin name as the suffix (for example `v3.1.1-O-Bells`).
+- **Path-scoped restore** — pull one plugin's tree back to a known state without touching anything else:
+  ```bash
+  git restore --source=v3.1.1-O-Bells -- plugins/O-Bells
+  ```
+
+**`git revert` takes no pathspec.** `git revert -n <sha> -- plugins/<Name>` fails with `fatal: bad revision`. `restore` is the path-scoped tool; `revert` is not.
+
+### Branches are for exceptional repo-wide work only
+
+A branch is justified only when a change is repo-wide and risky enough that `main` should not carry it mid-flight — a framework version bump, a cross-plugin removal sweep. **Never for a single plugin's feature or fix.**
+
+When one is genuinely warranted: cut it from `main`, keep it short-lived, and merge and delete it within the same working period.
+
+The SessionStart hook prints the current branch and worktree count at every session start, so a stray branch or a leftover worktree surfaces after every `/clear` instead of silently stranding work. Worktrees are no longer part of the routine workflow — if the hook reports more than one, remove it with `git worktree remove` once its branch is merged.
+
+### PLUGINS.md union merge (exceptional branches only)
+
+The root `.gitattributes` maps `PLUGINS.md` to git's built-in `union` merge driver. Under trunk-based development there are no routine merges, so this only fires when an exceptional branch merges back.
+
+**Union merge trades a conflict for a possible DUPLICATE row.** When two sides touch the same hunk, union keeps both sides' lines rather than flagging them. This fires even when each side edited ONLY its own row — adjacent rows fall in the same diff hunk (proven on the first live merge, 2026-08-13: two single-row branches produced four rows). After any merge that touches PLUGINS.md, run the duplicate check and keep the newest row:
 
 ```bash
-git switch main
-git switch -c improve/o-someplugin-v1.2
+grep "^| O-" PLUGINS.md | awk -F'|' '{print $2}' | sort | uniq -d
 ```
 
-### One worktree per concurrently-developed plugin
-
-Two plugins in flight at once means two worktrees, not one checkout being switched back and forth. A worktree keeps each plugin's build directory, installed bundles, and dirty files separate.
-
-### Worktree naming: `VST-development-<slug>`
-
-Worktree directories are named `VST-development-<slug>` where `<slug>` identifies the plugin or feature (for example `VST-development-octagon` for `feat/o-octagon`). The worktree `VST-contrabass-v1.1` broke this convention — it dropped the `VST-development-` prefix — and was removed.
-
-### Worktrees live OUTSIDE the repo
-
-Create worktrees as **siblings** of the repo inside `~/Dev`, never inside the repo tree. A worktree nested under the repo shows up as an untracked path in `git status`, pollutes every `git add -A`, and can be swept by cleanup tooling.
-
-```
-~/Dev/VST-development/            <- the repo
-~/Dev/VST-development-octagon/    <- sibling worktree, correct
-```
-
-### PLUGINS.md is a shared registry — only edit YOUR plugin's row
-
-`PLUGINS.md` is a single global registry table with one row per plugin, and every plugin branch edits it. The repo root `.gitattributes` maps it to git's built-in `union` merge driver so parallel-branch row edits merge without a conflict.
-
-Two caveats, stated honestly:
-
-- **Union merge trades a conflict for a possible DUPLICATE row.** When two branches touch the same hunk, union keeps both sides' lines rather than flagging them. This fires even when each branch edits ONLY its own row — adjacent rows fall in the same diff hunk (proven on the first live merge, 2026-08-13: two single-row branches produced four rows). After EVERY merge that touches PLUGINS.md, run the duplicate check and keep the newest row: `grep "^| O-" PLUGINS.md | awk -F'|' '{print $2}' | sort | uniq -d` (empty = clean).
-- **The merge attribute is read from the working tree of the branch being merged INTO.** `main` must carry `.gitattributes` for the driver to apply at all; a branch that has it while `main` does not gets a plain conflict.
-
-### Worktree commands
-
-```bash
-# Create a worktree + branch for a new plugin effort (cut from main)
-git worktree add ../VST-development-<slug> -b <branch> main
-
-# See what is currently checked out where
-git worktree list
-
-# Tear down when the branch is merged
-git worktree remove ../VST-development-<slug>
-git branch -d <branch>          # -d refuses if unmerged; never use -D
-```
+Empty output means clean.
 
 ## Project Structure
 - Plugins are in `plugins/[PluginName]/`
