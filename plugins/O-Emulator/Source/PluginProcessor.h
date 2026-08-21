@@ -30,6 +30,8 @@
 #pragma once
 #include <JuceHeader.h>
 
+#include <OuariconPresetManager.h>
+
 #include "dsp/ConsoleEngine.h"
 
 class OEmulatorAudioProcessor : public juce::AudioProcessor
@@ -65,6 +67,11 @@ public:
 
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
+
+    // Preset manager (v1.0.6) — declared AFTER apvts (member init order).
+    // Name has NO dev suffix on purpose: dev and release builds share
+    // ~/Library/O-Emulator/Presets/.
+    OuariconPresetManager presetManager { apvts, "O-Emulator" };
 
 #if OUARICON_RENDER_HARNESS
     // Harness-only instrumentation (O-Tapestop PluginProcessor.h:160-175
