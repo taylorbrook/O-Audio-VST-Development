@@ -38,16 +38,35 @@
       literal ordering (bed before the DC blocker): the bed is zero-mean by
       construction, and engine-level injection is what makes "one RNG stream
       per purpose, consumed unconditionally" tractable with five pipelines.
-    - Dulling: output LP corner × (1.0 -> 0.45) over age, per chunk, gated on
-      the controlling value (OutputStage::setLpCutoffHz).
-    - Drift: bounded random-walk (own RNG stream, advanced unconditionally
-      per chunk) of ±15 cents × age on the ACTIVE pipeline's decimation read
-      rate. The accumulated time offset is clamped to the pipeline's OWN rail
-      (what its upsample-ring priming absorbs — a BUFFER-SAFETY bound; note
-      pattern_clamped_float_ramp_rails_are_rate_dependent: the offset clamp
-      is in host samples by design, the ±15-cent rate rail is dimensionless
-      and exact at every rate). Latency is NOT re-reported on drift wobble
-      (nominal figure stands, wobble << 1 ms).
+    - Dulling (v1.0.1): output LP corner × 2^(−2·age/100) — linear in
+      OCTAVES over age (×1.0 -> ×0.25), per chunk, gated on the controlling
+      value (OutputStage::setLpCutoffHz). The v1.0.0 map (×(1 − 0.55·age/100))
+      was near-inaudible below age 60.
+    - Drift (v1.0.1 redesign): the wobble is generated in the OFFSET domain,
+      not the rate domain. A ~1.2 Hz-decorrelated random walk (own RNG
+      stream, advanced unconditionally per chunk, σ normalized at prepare so
+      depth is rate-invariant) is tanh-bounded into a time-offset TARGET of
+      up to 0.85 × the ACTIVE pipeline's rail × age. A 2.5 Hz first-order
+      servo tracks it; the per-chunk offset delta IS the read-rate deviation
+      (capped at ±15 cents), so the offset is bounded BY CONSTRUCTION — no
+      rail bounce, no clamp discontinuities. Audible result: ~4-12 cent
+      warble at age 100. The v1.0.0 rate-domain walk needed ~±220 host
+      samples of storage for its ±15-cent/0.3 Hz spec against rails of 9-64,
+      so it railed within ~100 ms and clipped the wobble to <1 cent —
+      inaudible (the v1.0.1 root cause). Factor is EXACTLY 1.0 at age 0
+      (target 0, offset 0, delta 0), so drift-free renders keep the
+      bit-nominal path. computeLatencySamples() now carries a +24-host-sample
+      (48 kHz-scaled) drift-headroom term so every pipeline's priming — PS1's
+      shallow one in particular — deepens toward the reported figure and the
+      rails grow with it; alignment stays exact because priming targets the
+      reported latency.
+    - Program envelope (v1.0.1): per-chunk peak of the wet pre-bed output,
+      one-pole follower at the chunk rate (5 ms attack; 150 ms hiss release,
+      400 ms hum release, all rate-compensated), NaN-guarded
+      (pattern_envelope_follower_state_sticky_nan). scale =
+      min(1, max(0, 4·env − 0.004)) multiplies the bed gains — full bed at
+      peaks >= −12 dBFS, proportional below, hard ZERO under −60 dBFS peaks
+      (the gate offset lets the release land on exact silence).
 
     ── Crush integer steps (Task 18) ─────────────────────────────────────────
     Shift floor / NES rate index / GB levels / AA-open set are INTEGER steps.
@@ -222,16 +241,21 @@ class ConsoleEngine
 {
 public:
     /** Plan decision #2, EXACT worst-case formula (constant across modes;
-        drift wobble deliberately NOT reflected here). */
+        drift wobble deliberately NOT reflected here). v1.0.1 adds a constant
+        drift-headroom term (24 host samples at 48 kHz, rate-scaled): the
+        priming targets this reported figure, so the extra headroom deepens
+        every pipeline's upsample priming — growing the drift rails (PS1's
+        above all) while keeping wet/dry alignment exact. */
     static int computeLatencySamples (double hostRate) noexcept
     {
         constexpr int aaGroupDelayBudget = 16;
 
         const int codecWorst = (int) std::ceil (28.0 * hostRate / 22050.0);
         const int gaussHist  = (int) std::ceil (3.0 * hostRate / 22050.0);
+        const int driftHeadroom = (int) std::ceil (24.0 * hostRate / 48000.0);
 
         return aaGroupDelayBudget + FixedChunkFeeder::getLatencySamples()
-             + codecWorst + gaussHist;
+             + codecWorst + gaussHist + driftHeadroom;
     }
 
     void prepare (double hostRate, int maxBlockSize, int reportedLatencySamples);
@@ -302,11 +326,12 @@ private:
 
         /** This pipeline's drift time-offset rail, HOST samples: what its
             upsample-ring priming can actually absorb ((prime − 4) in host
-            units, clamped [2, 64]). Pitch wobble IS time storage — a slow
-            ±15-cent walk needs tens of samples of excursion, so consoles
-            with deep priming (SNES/NES/GB/GEN, 40-65 host samples) wobble
-            slowly at full depth while PS1 (shallow priming to stay on the
-            reported latency) rails sooner and flutters faster. */
+            units, clamped [2, 64]). Pitch wobble IS time storage — the
+            v1.0.1 offset-servo drift keeps its target inside 0.85 × this
+            rail by construction, so deeper priming = deeper wobble. The
+            +24-sample latency headroom (computeLatencySamples) lifts PS1's
+            rail from ~9 to ~33 host samples; the others sit at or near the
+            64 cap. */
         double maxDriftOffsetHost = 8.0;
 
         ConsoleResampler resampler;
@@ -373,13 +398,28 @@ private:
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> sendGainSmoothed;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> ageSmoothed;
 
-    // ── Drift state (Task 17): own RNG stream, advanced unconditionally per
-    //    chunk from this phase's introduction ────────────────────────────────
+    // ── Drift state (Task 17, v1.0.1 offset-servo redesign): own RNG
+    //    stream, advanced unconditionally per chunk from this phase's
+    //    introduction ─────────────────────────────────────────────────────────
     std::uint32_t driftRng = 0x1234ABCDu;
-    double driftWalk = 0.0;      // raw bounded random walk, [−1, 1]
-    double driftSlow = 0.0;      // ~0.3 Hz smoothed walk (the audible wobble)
-    double driftSmoothCoeff = 0.00126;
+    double driftWalk = 0.0;      // AR(1) walk, ~1.2 Hz decorrelation, [−1, 1]
+    double driftSlow = 0.0;      // 2.5 Hz-smoothed walk -> tanh-bounded target
+    double driftWalkCoeff = 0.995;    // AR pole (prepare: exp(−2π·1.2/chunkRate))
+    double driftWalkGain = 0.07;      // AR input gain (prepare: σ ≈ 0.4)
+    double driftSmoothCoeff = 0.0105; // walk -> slow one-pole (2.5 Hz)
+    double driftServoCoeff = 0.0105;  // offset servo one-pole (2.5 Hz)
     double driftOffsetHost = 0.0;
+
+    /** ±15-cent cap on the per-chunk read-rate deviation (fractional). */
+    static constexpr double kMaxDriftFrac = 0.0087;
+
+    // ── Program envelope for the age bed (v1.0.1): chunk-rate one-pole
+    //    followers over the wet pre-bed chunk peak ────────────────────────────
+    float hissEnv = 0.0f;
+    float humEnv = 0.0f;
+    float envAtkCoeff = 0.35f;        // prepare: 5 ms at the chunk rate
+    float envRelHissCoeff = 0.0044f;  // prepare: 150 ms
+    float envRelHumCoeff = 0.0017f;   // prepare: 400 ms
 
     bool reverbEverActive = false;
 
