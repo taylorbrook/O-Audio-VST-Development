@@ -41,12 +41,20 @@
              RMS-normalized), −80 -> −54 dB across the age range, common to
              both channels (mains is common-mode).
 
+    v1.0.1: the bed is PROGRAM-DEPENDENT — the engine hands processChunk two
+    envelope scales (hiss / hum, [0, 1]) that multiply the age-derived gains,
+    so the bed breathes with the wet signal (companding-noise behaviour) and
+    digital silence stays silent. The engine owns the follower; this class
+    stays a pure gain stage over its own generators.
+
     RNG discipline (pattern_rng_stream_interleave_blocksize / L116): one
     xorshift32 stream PER PURPOSE — noiseL and noiseR here, drift owns its
     own stream in ConsoleEngine — each consumed UNCONDITIONALLY every sample
-    from this phase's introduction, so the bed is a pure function of the
-    absolute sample index (block-size invariant, and it cancels EXACTLY in
-    the harness's wet-minus-dry subtractions).
+    from this phase's introduction, so the GENERATORS are a pure function of
+    the absolute sample index (block-size invariant). The rendered bed is
+    envelope-scaled since v1.0.1, so it no longer cancels in wet-minus-dry
+    subtractions — harness probes measure it in a post-burst release window
+    instead of under silence.
 
   ==============================================================================
 */
@@ -94,9 +102,12 @@ public:
     }
 
     /** Adds the bed to one chunk in place. `agePct` is the engine's already
-        chunk-rate-smoothed age value; the RNG streams and hum phase advance
-        UNCONDITIONALLY regardless of it. */
-    void processChunk (float* l, float* r, int n, float agePct) noexcept
+        chunk-rate-smoothed age value; `hissScale` / `humScale` are the
+        engine's program-envelope scales in [0, 1] (v1.0.1 — the bed rides
+        the signal, silence stays silent). The RNG streams and hum phase
+        advance UNCONDITIONALLY regardless of all three. */
+    void processChunk (float* l, float* r, int n, float agePct,
+                       float hissScale, float humScale) noexcept
     {
         // Gain targets, computed per chunk from the smoothed age (the 20 ms
         // smoothing upstream makes the <=5 % gate edge a ramp, not a step).
@@ -104,12 +115,12 @@ public:
         if (agePct > 5.0f)
         {
             const float db = -78.0f + (agePct - 5.0f) * (30.0f / 95.0f);
-            noiseGain = juce::Decibels::decibelsToGain (db) * kNoiseCal;
+            noiseGain = juce::Decibels::decibelsToGain (db) * kNoiseCal * hissScale;
         }
 
         const float humDb = -80.0f + juce::jlimit (0.0f, 100.0f, agePct) * 0.26f;
         const float humGain = (agePct > 5.0f)
-                                  ? juce::Decibels::decibelsToGain (humDb) * kHumCal
+                                  ? juce::Decibels::decibelsToGain (humDb) * kHumCal * humScale
                                   : 0.0f;
 
         for (int i = 0; i < n; ++i)

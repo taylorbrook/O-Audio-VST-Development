@@ -197,8 +197,10 @@ void ConsoleEngine::Pipeline::processChunk (float* inL, float* inR,
         juce::Decibels::decibelsToGain (CrushCurve::driveDbFor (consoleIndex, crushPct)));
     const float drive = driveGain.getNextValue();
 
-    // Age dulling: corner × (1.0 -> 0.45); value-gated re-derive inside.
-    outputStage.setLpCutoffHz (baseLpHz * (1.0f - 0.55f * agePct * 0.01f));
+    // Age dulling (v1.0.1): corner × 2^(−2·age/100) — linear in octaves,
+    // ×1.0 -> ×0.25, audible from mid ages (the old linear map's ×0.89 at
+    // the default age 20 was inaudible). Value-gated re-derive inside.
+    outputStage.setLpCutoffHz (baseLpHz * std::exp2 (-2.0f * agePct * 0.01f));
 
     // Genesis's DAC update rate is continuous (no integer step, no fade).
     if (consoleIndex == 4)
@@ -361,12 +363,23 @@ void ConsoleEngine::prepare (double hostRate, int maxBlockSize, int reportedLate
     ageSmoothed.reset (chunkRate, 0.02);
     ageSmoothed.setCurrentAndTargetValue (juce::jlimit (0.0f, 100.0f, ageTargetPct));
 
-    // Drift: own stream, fixed seed, ~0.3 Hz smoothing at the chunk rate.
+    // Drift (v1.0.1 offset-servo): own stream, fixed seed. The AR(1) walk's
+    // pole and gain are derived from the chunk rate so its ~1.2 Hz
+    // decorrelation and σ ≈ 0.4 depth hold at every host rate.
     driftRng = 0x1234ABCDu;
     driftWalk = 0.0;
     driftSlow = 0.0;
-    driftSmoothCoeff = juce::jmin (1.0, juce::MathConstants<double>::twoPi * 0.3 / chunkRate);
+    driftWalkCoeff = std::exp (-juce::MathConstants<double>::twoPi * 1.2 / chunkRate);
+    driftWalkGain = 0.4 * std::sqrt (1.0 - driftWalkCoeff * driftWalkCoeff) / 0.577;
+    driftSmoothCoeff = 1.0 - std::exp (-juce::MathConstants<double>::twoPi * 2.5 / chunkRate);
+    driftServoCoeff = driftSmoothCoeff;
     driftOffsetHost = 0.0;
+
+    // Program envelope (v1.0.1): rate-compensated attack/release in seconds.
+    hissEnv = humEnv = 0.0f;
+    envAtkCoeff = (float) (1.0 - std::exp (-1.0 / (0.005 * chunkRate)));
+    envRelHissCoeff = (float) (1.0 - std::exp (-1.0 / (0.150 * chunkRate)));
+    envRelHumCoeff = (float) (1.0 - std::exp (-1.0 / (0.400 * chunkRate)));
 
     activePipeline = 0;
     pendingPipeline = 0;
@@ -391,6 +404,7 @@ void ConsoleEngine::reset()
     driftWalk = 0.0;
     driftSlow = 0.0;
     driftOffsetHost = 0.0;
+    hissEnv = humEnv = 0.0f;
     activePipeline = pendingPipeline;
 }
 
@@ -439,34 +453,42 @@ void ConsoleEngine::processChunk (float* inL, float* inR,
     ageSmoothed.setTargetValue (juce::jlimit (0.0f, 100.0f, ageTargetPct));
     const float ageVal = ageSmoothed.getNextValue();
 
-    // ── Drift walk (Task 17): own stream, consumed UNCONDITIONALLY every
-    //    chunk. Rails: the walk is dimensionless in [−1, 1] (exact at every
-    //    rate); the accumulated time offset is clamped in host samples (a
-    //    buffer bound, covered by the priming floor). Factor is EXACTLY 1.0
-    //    at age 0, so drift-free renders take the bit-nominal path. ─────────
+    // ── Drift walk (Task 17, v1.0.1 offset-servo): own stream, consumed
+    //    UNCONDITIONALLY every chunk. The wobble is generated as a BOUNDED
+    //    time-offset target (tanh into 0.85 × the active rail × age) tracked
+    //    by a 2.5 Hz servo; the per-chunk offset delta IS the read-rate
+    //    deviation, capped at ±15 cents. Offset bounded by construction —
+    //    no rail bounce. Factor is EXACTLY 1.0 at age 0 (target 0, offset 0,
+    //    delta 0), so drift-free renders take the bit-nominal path. ─────────
     {
         driftRng ^= driftRng << 13;
         driftRng ^= driftRng >> 17;
         driftRng ^= driftRng << 5;
         const double rnd = (double) driftRng / 2147483648.0 - 1.0;   // [−1, 1)
 
-        driftWalk = juce::jlimit (-1.0, 1.0, driftWalk * 0.999 + rnd * 0.02);
+        driftWalk = juce::jlimit (-1.0, 1.0,
+                                  driftWalk * driftWalkCoeff + rnd * driftWalkGain);
         driftSlow += driftSmoothCoeff * (driftWalk - driftSlow);
     }
 
-    const double cents = 15.0 * driftSlow * ((double) ageVal * 0.01);
-    double driftFactor = cents != 0.0 ? std::exp2 (cents / 1200.0) : 1.0;
+    const double driftAmp = 0.85 * pipelines[activePipeline].maxDriftOffsetHost
+                          * (double) ageVal * 0.01;
+    const double driftTarget = driftAmp * std::tanh (1.25 * driftSlow);
 
-    double offsetDelta = (driftFactor - 1.0) * (double) FixedChunkFeeder::kChunk;
-    if (std::abs (driftOffsetHost + offsetDelta)
-        > pipelines[activePipeline].maxDriftOffsetHost)
+    const double kMaxDelta = kMaxDriftFrac * (double) FixedChunkFeeder::kChunk;
+    double offsetDelta = juce::jlimit (-kMaxDelta, kMaxDelta,
+                                       driftServoCoeff * (driftTarget - driftOffsetHost));
+
+    // Snap the decay tail so an age-0 hold settles on the exact nominal path.
+    if (driftTarget == 0.0 && std::abs (driftOffsetHost + offsetDelta) < 1.0e-3)
     {
-        // At the rail: hold the offset and push the walk back toward centre.
-        driftFactor = 1.0;
+        driftOffsetHost = 0.0;
         offsetDelta = 0.0;
-        driftWalk *= -0.5;
-        driftSlow *= -0.5;
     }
+
+    const double driftFactor = offsetDelta != 0.0
+                                   ? 1.0 + offsetDelta / (double) FixedChunkFeeder::kChunk
+                                   : 1.0;
     driftOffsetHost += offsetDelta;
 
     // ── Render (single pipeline, or two during a crossfade) ─────────────────
@@ -494,10 +516,35 @@ void ConsoleEngine::processChunk (float* inL, float* inR,
                                                 sendGain, reverbEverActive, reverb);
     }
 
-    // ── Age bed (Task 16): ONE bed, engine level, wet path only — hiss/hum
-    //    ride on top of whatever the pipeline(s) produced. RNG streams
+    // ── Age bed (Task 16, v1.0.1 program-dependent): ONE bed, engine level,
+    //    wet path only — hiss/hum ride on top of whatever the pipeline(s)
+    //    produced, scaled by a follower on the pre-bed wet peak so the bed
+    //    breathes with the program and silence stays silent. RNG streams
     //    advance unconditionally inside. ──────────────────────────────────────
-    ageModel.processChunk (outL, outR, FixedChunkFeeder::kChunk, ageVal);
+    {
+        float peak = 0.0f;
+        for (int i = 0; i < FixedChunkFeeder::kChunk; ++i)
+            peak = juce::jmax (peak, std::abs (outL[i]), std::abs (outR[i]));
+
+        // NaN/runaway guard (pattern_envelope_follower_state_sticky_nan):
+        // a NaN peak fails every comparison, so the jmax chain yields the
+        // last finite candidate or the NaN itself — clamp both explicitly.
+        if (! (peak >= 0.0f && peak < 8.0f))
+            peak = (peak > 0.0f) ? 8.0f : 0.0f;   // +inf/big -> cap, NaN/neg -> 0
+
+        hissEnv += (peak > hissEnv ? envAtkCoeff : envRelHissCoeff) * (peak - hissEnv);
+        humEnv  += (peak > humEnv  ? envAtkCoeff : envRelHumCoeff)  * (peak - humEnv);
+
+        // min(1, 4·env − 0.004): full bed at peaks >= ~−12 dBFS, proportional
+        // below, and a hard ZERO below −60 dBFS peaks — the gate offset lets
+        // the release reach exact silence instead of an asymptotic hiss tail
+        // (and GB's DAC-error DC kick at start-up can't crack the bed open).
+        const float hissScale = juce::jlimit (0.0f, 1.0f, 4.0f * hissEnv - 0.004f);
+        const float humScale  = juce::jlimit (0.0f, 1.0f, 4.0f * humEnv - 0.004f);
+
+        ageModel.processChunk (outL, outR, FixedChunkFeeder::kChunk, ageVal,
+                               hissScale, humScale);
+    }
 
     anyChunkProcessed = true;
 }
