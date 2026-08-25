@@ -85,6 +85,9 @@ public:
         modEnv.setSampleRate (sr);
         ampEnv.setParameters (ampParams);
         modEnv.setParameters (modParams);
+        appliedAmpParams = ampParams;
+        appliedModParams = modParams;
+        releasing = false;
 
         indexSmoothed.reset    (sr, 0.02);
         feedbackSmoothed.reset (sr, 0.02);
@@ -121,8 +124,19 @@ public:
         envDepth   = juce::jlimit (0.0f, 1.0f, modEnvDepth);
         velToIndex = juce::jlimit (0.0f, 1.0f, velToIndexAmt);
 
-        ampParams = ap;  ampEnv.setParameters (ampParams);
-        modParams = mp;  modEnv.setParameters (modParams);
+        // Push envelope params only when they actually CHANGED, and never while
+        // the voice is releasing. juce::ADSR::setParameters() recalculates
+        // releaseRate from the SUSTAIN level, clobbering the envelopeVal-based
+        // rate noteOff() computed — and with sustain == 0 the zeroed rate makes
+        // recalculateRates() reset() the envelope mid-tail: instant cut = click
+        // on every note-off. Changes made mid-release apply at the next noteOn.
+        ampParams = ap;
+        modParams = mp;
+        if (! releasing)
+        {
+            if (! sameAdsr (ap, appliedAmpParams)) { ampEnv.setParameters (ap); appliedAmpParams = ap; }
+            if (! sameAdsr (mp, appliedModParams)) { modEnv.setParameters (mp); appliedModParams = mp; }
+        }
     }
 
     //==========================================================================
@@ -142,6 +156,11 @@ public:
         // Reset feedback history ONLY — never reset carrier/mod phase mid-life.
         fbPrev1 = fbPrev2 = 0.0f;
 
+        // Apply any envelope params deferred while the previous tail released.
+        releasing = false;
+        if (! sameAdsr (ampParams, appliedAmpParams)) { ampEnv.setParameters (ampParams); appliedAmpParams = ampParams; }
+        if (! sameAdsr (modParams, appliedModParams)) { modEnv.setParameters (modParams); appliedModParams = modParams; }
+
         ampEnv.noteOn();
         modEnv.noteOn();
     }
@@ -150,12 +169,14 @@ public:
     {
         if (allowTailOff)
         {
+            releasing = true;   // freeze envelope rates until the tail ends
             ampEnv.noteOff();
             modEnv.noteOff();
         }
         else
         {
             clearCurrentNote();
+            releasing = false;
             ampEnv.reset();
             modEnv.reset();
             fbPrev1 = fbPrev2 = 0.0f;
@@ -224,11 +245,18 @@ public:
         if (! ampEnv.isActive())
         {
             clearCurrentNote();
+            releasing = false;
             fbPrev1 = fbPrev2 = 0.0f;
         }
     }
 
 private:
+    static bool sameAdsr (const juce::ADSR::Parameters& a, const juce::ADSR::Parameters& b) noexcept
+    {
+        return a.attack  == b.attack  && a.decay   == b.decay
+            && a.sustain == b.sustain && a.release == b.release;
+    }
+
     void updateCarrierFrequency()
     {
         const double bendSemis = ((double) pitchWheelPos - 8192.0) / 8192.0
@@ -266,6 +294,9 @@ private:
     juce::ADSR ampEnv, modEnv;
     juce::ADSR::Parameters ampParams { 0.01f, 0.3f, 0.8f, 0.3f };
     juce::ADSR::Parameters modParams { 0.01f, 0.3f, 0.0f, 0.3f };
+    juce::ADSR::Parameters appliedAmpParams = ampParams;   // last values pushed to the live envelopes
+    juce::ADSR::Parameters appliedModParams = modParams;
+    bool releasing = false;
 
     juce::SmoothedValue<float> indexSmoothed    { 0.0f };
     juce::SmoothedValue<float> feedbackSmoothed { 0.0f };
