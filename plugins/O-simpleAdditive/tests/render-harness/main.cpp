@@ -434,6 +434,60 @@ static int runCorrectness (double fs)
                juce::String ("peak=") + juce::String (mx, 4));
     }
 
+    // --- no click on note-off (v1.0.7 regression probe) -----------------------
+    // Amp sustain 0 + slow decay, note-off while the tail still rings. The
+    // per-block ADSR param push used to zero the release rate (recalculateRates
+    // derives it from sustain), hard-resetting the envelope one block after
+    // note-off: tail truncated to silence = click (O-simpleFM v1.2.5 pattern).
+    // Assert the release tail is still audible after note-off and the post-
+    // release waveform has no sample-to-sample discontinuity beyond what the
+    // smoothly-enveloped sine itself can produce.
+    {
+        resetDefaults (apvts);
+        setParam (apvts, OSimpleAdditive::ParamIDs::ampDecay,   3.0f);   // slow decay
+        setParam (apvts, OSimpleAdditive::ParamIDs::ampSustain, 0.0f);   // the killer setting
+        setParam (apvts, OSimpleAdditive::ParamIDs::ampRelease, 0.3f);
+
+        const int total = (int) (1.0 * fs);
+        const int offAt = (int) (0.85 * fs);
+        juce::AudioBuffer<float> buf (2, 512);
+        std::vector<float> y;
+        y.reserve ((size_t) total);
+        int pos = 0;
+        bool sentOn = false, sentOff = false;
+        while (pos < total)
+        {
+            buf.clear();
+            juce::MidiBuffer midi;
+            if (! sentOn)
+            {
+                midi.addEvent (juce::MidiMessage::noteOn (1, 69, (juce::uint8) 100), 0);
+                sentOn = true;
+            }
+            if (! sentOff && offAt >= pos && offAt < pos + 512)
+            {
+                midi.addEvent (juce::MidiMessage::noteOff (1, 69), offAt - pos);
+                sentOff = true;
+            }
+            proc.processBlock (buf, midi);
+            const int n = juce::jmin (512, total - pos);
+            for (int i = 0; i < n; ++i) y.push_back (buf.getSample (0, i));
+            pos += 512;
+        }
+
+        const double preRms  = rms (y, (int) (0.70 * fs), (int) (0.14 * fs));
+        const double tailRms = rms (y, (int) (0.90 * fs), (int) (0.08 * fs));
+        double maxJump = 0.0;
+        for (int n = offAt; n < total; ++n)
+            maxJump = juce::jmax (maxJump, (double) std::abs (y[(size_t) n] - y[(size_t) (n - 1)]));
+
+        check ("noteoff-click",
+               preRms > 0.05 && tailRms > 0.2 * preRms && maxJump < 0.15 && allFinite (y),
+               juce::String ("preRms=") + juce::String (preRms, 4)
+                 + " tailRms=" + juce::String (tailRms, 4)
+                 + " maxJump=" + juce::String (maxJump, 4));
+    }
+
     proc.releaseResources();
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);
     return failures;

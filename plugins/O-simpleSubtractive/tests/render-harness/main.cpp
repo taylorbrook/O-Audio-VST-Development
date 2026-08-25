@@ -563,6 +563,31 @@ int main()
                juce::String ("midGlideHz=") + juce::String (pf, 1) + " (between 440 and 880)");
     }
 
+    // --- 15: no click on note-off (v1.2.5 regression probe) --------------------
+    // Amp sustain 0 + slow decay, note-off while the tail still rings. The
+    // per-block ADSR param push used to zero the release rate (recalculateRates
+    // derives it from sustain), hard-resetting the envelope one block after
+    // note-off: tail truncated to silence = click (O-simpleFM v1.2.5 pattern).
+    // Static low cutoff (filterEnvAmount 0) keeps the waveform near-sine; the
+    // tail-vs-pre RMS ratio is the discriminator.
+    {
+        resetDefaults (apvts);
+        setParam (apvts, cutoff, 300.0f);          // near-sine output on A3
+        setParam (apvts, filterEnvAmount, 0.0f);   // static cutoff
+        setParam (apvts, ampDecay, 3.0f);          // slow decay
+        setParam (apvts, ampSustain, 0.0f);        // the killer setting
+        setParam (apvts, ampRelease, 0.3f);
+        auto y = renderHold (proc, 57, 1.0, fs, 0.85);   // A3 (220 Hz), note-off at 0.85 s
+
+        const double preRms  = rms (y, (int) (0.70 * fs), (int) (0.14 * fs));
+        const double tailRms = rms (y, (int) (0.90 * fs), (int) (0.08 * fs));
+
+        check ("noteoff-click",
+               preRms > 0.01 && tailRms > 0.2 * preRms && allFinite (y),
+               juce::String ("preRms=") + juce::String (preRms, 4)
+                 + " tailRms=" + juce::String (tailRms, 4));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);

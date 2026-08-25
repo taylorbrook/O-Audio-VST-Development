@@ -3,6 +3,31 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.5] — 2026-08-25
+
+### Fixed
+- **Clicks on note-off, at any settings** (ported from O-simpleFM v1.2.5; found
+  by a suite-wide sweep of the per-block ADSR push pattern). Root cause: the
+  processor pushed ADSR parameters into the live `juce::ADSR` amp + filter envelopes every
+  block via `setParameters()`, whose `recalculateRates()` recomputes the release
+  slope from the SUSTAIN level — clobbering the envelope-value-based rate that
+  `noteOff()` had just computed. With sustain = 0 the recomputed rate is 0, and
+  `recalculateRates()` treats a zero-rate release as finished: it hard-resets the
+  envelope one block after every note-off, truncating the ringing tail to
+  silence instantly — the click. (JUCE's ADSR docs explicitly forbid changing
+  parameters during playback.)
+  Fix in `SubVoice.h`: envelope params are cached each block but only pushed to
+  the live envelope(s) when their values actually change AND the voice is not in
+  its release phase; changes made mid-release apply at the next note-on. The
+  release therefore always completes at the rate captured at note-off.
+- Render-harness: new `noteoff-click` probe (sustain 0, slow decay, note-off
+  mid-decay) asserting the release tail still rings after note-off.
+
+### Testing
+- Render harness: ALL PASS including the new probe (preRms 0.1555 / tailRms 0.1058).
+- Negative control: probe re-run against v1.2.4 voice code fails as expected
+  (preRms 0.1555 / tailRms 0.0000 — the tail is truncated to exact silence one block after note-off).
+
 ## [1.2.4] — 2026-08-08
 
 First published release (version aligned with the O-simple pedagogical suite).

@@ -87,6 +87,9 @@ public:
         ampEnv.setSampleRate (sr);
         filterEnv.setParameters (filterParams);
         ampEnv.setParameters (ampParams);
+        appliedFilterParams = filterParams;
+        appliedAmpParams    = ampParams;
+        releasing = false;
 
         osc.setSampleRate (sr);
         freqSmoothed.reset (sr, 0.0);   // glide time re-armed per block via setGlideTime
@@ -113,8 +116,21 @@ public:
         filterEnvAmount = juce::jlimit (-1.0f, 1.0f, filterEnvAmountIn);
         keyTrack        = juce::jlimit (0.0f, 1.0f, keyTrackIn);
 
-        filterParams = fp;  filterEnv.setParameters (filterParams);
-        ampParams    = ap;  ampEnv.setParameters (ampParams);
+        // Push envelope params only when they actually CHANGED, and never while
+        // the voice is releasing. juce::ADSR::setParameters() recalculates
+        // releaseRate from the SUSTAIN level, clobbering the envelopeVal-based
+        // rate noteOff() computed — and with sustain == 0 the zeroed rate makes
+        // recalculateRates() reset() the envelope mid-tail: instant cut = click
+        // on every note-off. Changes made mid-release apply at the next noteOn.
+        // (O-simpleFM v1.2.5 pattern; guards BOTH envelopes — a killed filter
+        // env is a cutoff jump, a killed amp env is the audible click.)
+        filterParams = fp;
+        ampParams    = ap;
+        if (! releasing)
+        {
+            if (! sameAdsr (fp, appliedFilterParams)) { filterEnv.setParameters (fp); appliedFilterParams = fp; }
+            if (! sameAdsr (ap, appliedAmpParams))    { ampEnv.setParameters (ap);    appliedAmpParams    = ap; }
+        }
 
         setGlideTime (glideSeconds);
     }
@@ -147,6 +163,10 @@ public:
 
         freqSmoothed.setCurrentAndTargetValue (noteHz (currentNote));
 
+        // Apply any envelope params deferred while the previous tail released.
+        releasing = false;
+        applyDeferredEnvParams();
+
         filterEnv.noteOn();
         ampEnv.noteOn();
         active = true;
@@ -156,12 +176,14 @@ public:
     {
         if (allowTailOff)
         {
+            releasing = true;   // freeze envelope rates until the tail ends
             filterEnv.noteOff();
             ampEnv.noteOff();
         }
         else
         {
             clearCurrentNote();
+            releasing = false;
             filterEnv.reset();
             ampEnv.reset();
             active = false;
@@ -203,6 +225,8 @@ public:
             // does not zero), so an in-sustain retrigger would be inaudible. Reset
             // to 0 first so the attack genuinely re-plucks. (First note of a phrase
             // is already idle at 0 — reset is harmless.)
+            releasing = false;
+            applyDeferredEnvParams();
             filterEnv.reset();
             ampEnv.reset();
             filterEnv.noteOn();
@@ -222,12 +246,14 @@ public:
     {
         if (allowTailOff)
         {
+            releasing = true;   // freeze envelope rates until the tail ends
             filterEnv.noteOff();
             ampEnv.noteOff();
         }
         else
         {
             clearCurrentNote();
+            releasing = false;
             filterEnv.reset();
             ampEnv.reset();
             active = false;
@@ -297,6 +323,7 @@ public:
         {
             clearCurrentNote();
             active = false;
+            releasing = false;
         }
     }
 
@@ -308,6 +335,20 @@ public:
     float  getAmpEnvVal()     const noexcept { return lastEa; }
 
 private:
+    //==========================================================================
+    static bool sameAdsr (const juce::ADSR::Parameters& a, const juce::ADSR::Parameters& b) noexcept
+    {
+        return a.attack  == b.attack  && a.decay   == b.decay
+            && a.sustain == b.sustain && a.release == b.release;
+    }
+
+    // Apply envelope params deferred while a release tail was in flight.
+    void applyDeferredEnvParams() noexcept
+    {
+        if (! sameAdsr (filterParams, appliedFilterParams)) { filterEnv.setParameters (filterParams); appliedFilterParams = filterParams; }
+        if (! sameAdsr (ampParams, appliedAmpParams))       { ampEnv.setParameters (ampParams);       appliedAmpParams    = ampParams; }
+    }
+
     //==========================================================================
     static float noteHz (int note) noexcept
     {
@@ -396,6 +437,9 @@ private:
     juce::ADSR filterEnv, ampEnv;
     juce::ADSR::Parameters filterParams { 0.005f, 0.3f, 0.4f, 0.2f };
     juce::ADSR::Parameters ampParams    { 0.005f, 0.3f, 0.8f, 0.1f };
+    juce::ADSR::Parameters appliedFilterParams = filterParams;   // last values pushed to the live envelopes
+    juce::ADSR::Parameters appliedAmpParams    = ampParams;
+    bool releasing = false;
 
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> freqSmoothed { 440.0f };
     double glideTimeSeconds = 0.0;

@@ -159,6 +159,9 @@ public:
         ampEnv.setParameters (ampParams);
         modEnv.setSampleRate (sr);
         modEnv.setParameters (modParams);
+        appliedAmpParams = ampParams;
+        appliedModParams = modParams;
+        releasing = false;
 
         // Scan pointer smoother (~20 ms) — see ARCHITECTURE.md §"Smoothing / zipper
         // avoidance". Post-sum smoothing keeps the morph zipper-free at control-rate
@@ -219,10 +222,20 @@ public:
 
         bitDepthBits  = bitDepthBitsIn;       // 0 = Off (passthrough), else bit count
 
+        // Push envelope params only when they actually CHANGED, and never while
+        // the voice is releasing. juce::ADSR::setParameters() recalculates
+        // releaseRate from the SUSTAIN level, clobbering the envelopeVal-based
+        // rate noteOff() computed — and with sustain == 0 the zeroed rate makes
+        // recalculateRates() reset() the envelope mid-tail: instant cut = click
+        // on every note-off. Changes made mid-release apply at the next noteOn.
+        // (O-simpleFM v1.2.5 pattern.)
         ampParams = ap;
-        ampEnv.setParameters (ampParams);
         modParams = mp;
-        modEnv.setParameters (modParams);
+        if (! releasing)
+        {
+            if (! sameAdsr (ap, appliedAmpParams)) { ampEnv.setParameters (ap); appliedAmpParams = ap; }
+            if (! sameAdsr (mp, appliedModParams)) { modEnv.setParameters (mp); appliedModParams = mp; }
+        }
     }
 
     //==========================================================================
@@ -253,6 +266,11 @@ public:
         refillTable (currentScan);    // first sample must be correct → fill now
         samplesSinceRefill = 0;       // restart the refill-cadence window at note-on
 
+        // Apply any envelope params deferred while the previous tail released.
+        releasing = false;
+        if (! sameAdsr (ampParams, appliedAmpParams)) { ampEnv.setParameters (ampParams); appliedAmpParams = ampParams; }
+        if (! sameAdsr (modParams, appliedModParams)) { modEnv.setParameters (modParams); appliedModParams = modParams; }
+
         ampEnv.noteOn();
         modEnv.noteOn();
     }
@@ -261,12 +279,14 @@ public:
     {
         if (allowTailOff)
         {
+            releasing = true;   // freeze envelope rates until the tail ends
             ampEnv.noteOff();
             modEnv.noteOff();
         }
         else
         {
             clearCurrentNote();
+            releasing = false;
             ampEnv.reset();
             modEnv.reset();
         }
@@ -395,10 +415,20 @@ public:
         // Voice lifetime keyed on the amp envelope only — a long mod-env release
         // must NOT keep a silent voice alive (ARCHITECTURE.md §Voice lifetime).
         if (! ampEnv.isActive())
+        {
             clearCurrentNote();
+            releasing = false;
+        }
     }
 
 private:
+    //==========================================================================
+    static bool sameAdsr (const juce::ADSR::Parameters& a, const juce::ADSR::Parameters& b) noexcept
+    {
+        return a.attack  == b.attack  && a.decay   == b.decay
+            && a.sustain == b.sustain && a.release == b.release;
+    }
+
     //==========================================================================
     // Per-note Nyquist band-limit: highest alias-free harmonic count. Kmax may
     // legitimately be 0 (f0 at/above Nyquist, e.g. MIDI 127 at very low sample
@@ -602,6 +632,9 @@ private:
     juce::ADSR::Parameters ampParams { 0.005f, 0.3f, 0.8f, 0.1f };
     juce::ADSR modEnv;
     juce::ADSR::Parameters modParams { 0.005f, 0.3f, 0.8f, 0.1f };
+    juce::ADSR::Parameters appliedAmpParams = ampParams;   // last values pushed to the live envelopes
+    juce::ADSR::Parameters appliedModParams = modParams;
+    bool releasing = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AdditiveVoice)
 };

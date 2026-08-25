@@ -701,6 +701,31 @@ int main()
                  + " paramsSurvive="       + (paramOk   ? "y" : "n"));
     }
 
+    // --- no click on note-off (v1.3.1 regression probe) -----------------------
+    // Amp sustain 0 + slow decay, note-off while the tail still rings. The
+    // per-block ADSR param push used to zero the release rate (recalculateRates
+    // derives it from sustain), hard-resetting the envelope one block after
+    // note-off: tail truncated to silence = click (O-simpleFM v1.2.5 pattern).
+    // Forward loop keeps source content sounding at the release point; the
+    // tail-vs-pre RMS ratio is the discriminator (self-calibrating against the
+    // piano's own decay).
+    {
+        resetDefaults (apvts);
+        setParam (apvts, PID::loopMode,   1.0f);   // forward loop → content at note-off
+        setParam (apvts, PID::ampDecay,   3.0f);   // slow decay
+        setParam (apvts, PID::ampSustain, 0.0f);   // the killer setting
+        setParam (apvts, PID::ampRelease, 0.3f);
+        auto y = render (proc, { 48 }, 1.0, fs, 100, 0.85);
+
+        const double preRms  = rms (y, (int) (0.70 * fs), (int) (0.14 * fs));
+        const double tailRms = rms (y, (int) (0.90 * fs), (int) (0.08 * fs));
+
+        check ("noteoff-click",
+               preRms > 0.005 && tailRms > 0.2 * preRms && allFinite (y),
+               String ("preRms=") + String (preRms, 4)
+                 + " tailRms=" + String (tailRms, 4));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);
