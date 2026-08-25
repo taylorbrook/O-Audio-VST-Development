@@ -3,6 +3,31 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.5] — 2026-08-25
+
+### Fixed
+- **Clicks on note-off, at any settings.** Root cause: `pushParamsToVoices()`
+  pushed ADSR parameters into the live `juce::ADSR` envelopes every block via
+  `setParameters()`, whose `recalculateRates()` recomputes the release slope
+  from the SUSTAIN level — clobbering the envelope-value-based rate that
+  `noteOff()` had just computed. With amp sustain = 0 (four factory presets),
+  the recomputed rate is 0, and `recalculateRates()` treats a zero-rate release
+  as finished: it hard-resets the envelope one block after every note-off,
+  truncating the ringing tail to silence instantly — the click. (JUCE's ADSR
+  docs explicitly forbid changing parameters during playback.)
+  Fix in `FMVoice`: envelope params are cached each block but only pushed to
+  the live envelopes when their values actually change AND the voice is not in
+  its release phase; changes made mid-release apply at the next note-on. The
+  release therefore always completes at the rate captured at note-off.
+- Render-harness: new `noteoff-click` probe (sustain 0, slow decay, note-off
+  mid-decay) asserting the release tail rings on after note-off and the
+  post-release waveform has no sample-to-sample discontinuity. Verified to
+  FAIL against the v1.2.4 voice code (negative control) and pass with the fix.
+
+### Testing
+- Render harness: all 8 checks pass (7 existing + new noteoff-click probe).
+- Negative control: probe re-run against v1.2.4 `FMVoice.h` fails as expected.
+
 ## [1.2.4] — 2026-08-08
 
 First public release on the O-Audio-VST-Development repo, built and signed

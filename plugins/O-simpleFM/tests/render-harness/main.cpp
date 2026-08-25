@@ -277,6 +277,33 @@ int main()
                  + " rms=" + juce::String (rms (y, aOff, aLen), 4));
     }
 
+    // --- 8: no click on note-off (v1.2.5 regression probe) --------------------
+    // Amp sustain 0 + slow decay, note-off while the tail still rings. The
+    // per-block ADSR param push used to zero the release rate (recalculateRates
+    // derives it from sustain), hard-resetting the envelope one block after
+    // note-off: tail truncated to silence = click. Assert (a) the release tail
+    // is still audible after note-off, (b) no sample-to-sample discontinuity
+    // beyond what the smoothly-enveloped carrier itself can produce.
+    {
+        resetDefaults (apvts);
+        setParam (apvts, OSimpleFM::ParamIDs::modIndex, 0.0f);     // pure sine carrier
+        setParam (apvts, OSimpleFM::ParamIDs::ampDecay, 3.0f);     // slow decay
+        setParam (apvts, OSimpleFM::ParamIDs::ampSustain, 0.0f);   // the killer setting
+        setParam (apvts, OSimpleFM::ParamIDs::ampRelease, 0.3f);
+        auto y = render (proc, note, 1.0, fs);                     // note-off at 0.85 s
+
+        const int off = (int) (0.85 * fs);
+        const double tailRms = rms (y, (int) (0.90 * fs), (int) (0.08 * fs));
+
+        double maxJump = 0.0;
+        for (int n = off; n < (int) y.size(); ++n)
+            maxJump = juce::jmax (maxJump, (double) std::abs (y[(size_t) n] - y[(size_t) (n - 1)]));
+
+        check ("noteoff-click", tailRms > 0.05 && maxJump < 0.15 && allFinite (y),
+               juce::String ("tailRms=") + juce::String (tailRms, 4)
+                 + " maxJump=" + juce::String (maxJump, 4));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);
