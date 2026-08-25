@@ -47,6 +47,12 @@ morph, spectral-decay tilt, bit-depth quantizer.
   store and transform always refit the real box (measured 23.9% → 49.7%). Scope
   reverted to a fixed, shorter 116 px — the v1.0.5 elastic version stretched to
   198 px and looked empty — and the editor shrank 980 → 930 to hand back the space.
+- **2026-08-25 — v1.0.7** — Note-off click fix (ported from O-simpleFM v1.2.5):
+  per-block `juce::ADSR::setParameters()` clobbered the note-off release rate;
+  with amp sustain 0 it hard-reset the envelope one block after note-off
+  (audible click at any release setting). AdditiveVoice now pushes envelope
+  params only on value change and never mid-release. New render-harness
+  `noteoff-click` gate, negative-control verified against v1.0.6. ALL PASS.
 
 ## Known Limitations
 

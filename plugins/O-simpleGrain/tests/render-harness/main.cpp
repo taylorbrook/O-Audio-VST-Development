@@ -775,6 +775,61 @@ int main()
                  + " adsr=" + juce::String (tailAdsr, 4) + "]");
     }
 
+    // --- no click on note-off (v1.2.1 regression probe) -----------------------
+    // Amp sustain 0 + slow decay, note-off while the cloud still rings. The
+    // per-block ADSR param push used to zero the release rate (recalculateRates
+    // derives it from sustain), hard-resetting the envelope one block after
+    // note-off: tail truncated to silence = click (O-simpleFM v1.2.5 pattern).
+    // The adsr-bypass scenario above never caught this: it runs at sustain 1.0,
+    // where the recomputed rate happens to match. Tail-vs-pre RMS ratio is the
+    // discriminator (self-calibrating against source content level).
+    {
+        resetDefaults (apvts);
+        setParam (apvts, PID::freeze,        1.0f);   // pin the playhead (freeze-sustains recipe:
+        setParam (apvts, PID::density,      80.0f);   //   spray averages over the source, so the
+        setParam (apvts, PID::grainSize,    50.0f);   //   cloud level is well above the RMS gate)
+        setParam (apvts, PID::positionSpray, 20.0f);
+        setParam (apvts, PID::ampDecay,   3.0f);   // slow decay
+        setParam (apvts, PID::ampSustain, 0.0f);   // the killer setting
+        setParam (apvts, PID::ampRelease, 0.3f);
+
+        const int block = 512;
+        const int total = (int) (1.0 * fs);
+        const int offAt = (int) (0.85 * fs);
+        juce::AudioBuffer<float> buf (2, block);
+        std::vector<float> y;
+        y.reserve ((size_t) total);
+        int pos = 0;
+        bool sentOn = false, sentOff = false;
+        while (pos < total)
+        {
+            buf.clear();
+            juce::MidiBuffer midi;
+            if (! sentOn)
+            {
+                midi.addEvent (juce::MidiMessage::noteOn (1, root, (juce::uint8) 100), 0);
+                sentOn = true;
+            }
+            if (! sentOff && offAt >= pos && offAt < pos + block)
+            {
+                midi.addEvent (juce::MidiMessage::noteOff (1, root), offAt - pos);
+                sentOff = true;
+            }
+            proc.processBlock (buf, midi);
+            const int n = juce::jmin (block, total - pos);
+            for (int i = 0; i < n; ++i) y.push_back (buf.getSample (0, i));
+            pos += block;
+        }
+
+        const double preRms  = rms (y, (int) (0.70 * fs), (int) (0.14 * fs));
+        const double tailRms = rms (y, (int) (0.90 * fs), (int) (0.08 * fs));
+
+        check ("noteoff-click",
+               preRms > 0.005 && tailRms > 0.2 * preRms && allFinite (y),
+               juce::String ("preRms=") + juce::String (preRms, 4)
+                 + " tailRms=" + juce::String (tailRms, 4));
+    }
+
     proc.releaseResources();
 
     std::printf ("\n%s — %d failure(s)\n", failures == 0 ? "ALL PASS" : "FAILURES", failures);

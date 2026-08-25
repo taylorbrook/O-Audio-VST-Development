@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline
@@ -17,6 +17,7 @@
 - **2026-07-16 (v1.1.2):** CODE_REVIEW.md deferred-findings resolution (IN-01..IN-09) — see CHANGELOG. Spray-spawn wrap (no more edge-pinned DC thumps), τ-derived rest-ease (rate-independent glide), double read positions, event-driven UI source refresh (`sourceChanged`), cached typed voice pointers (no per-block RTTI), skip-unchanged-rate re-decode, dead member removed, grain cap pushed via initialisation data, gestured preset writes. All 11 gates PASS, auval SUCCEEDED, pluginval strictness-10 SUCCESS, installed (VST3 + AU).
 - **2026-08-08 (v1.1.3):** First published cross-platform release (GitHub Actions; AGPL-3.0 headers) — see CHANGELOG.
 - **2026-08-09 (v1.2.0):** Header/tooltip UX — see CHANGELOG. Title no longer line-breaks (title block `flex-shrink: 0` + nowrap; preset bar pushed right), new "?" button toggles tooltips (persisted, default on), duplicate tooltips fixed (native `title=` fallback replaced with `aria-label`). UI-only; installed (VST3 + AU).
+- **2026-08-25 (v1.2.1):** Note-off click fix (ported from O-simpleFM v1.2.5) — see CHANGELOG. Per-block `juce::ADSR::setParameters()` clobbered the note-off release rate; with sustain 0 it hard-reset the envelope one block after note-off (audible click at any release setting). GrainVoice now pushes envelope params only on value change and never mid-release. New render gate (`noteoff-click`, negative-control verified against v1.2.0). All 12 gates PASS, installed (VST3 + AU).
 
 ## Known Issues
 

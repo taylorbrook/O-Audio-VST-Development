@@ -106,6 +106,8 @@ public:
 
         ampEnv.setSampleRate (sr);              // BEFORE setParameters (RT-safety gate 8)
         ampEnv.setParameters (ampParams);
+        appliedAmpParams = ampParams;
+        releasing = false;
 
         // Clear the pool so a sample-rate change never leaves stale grains running.
         for (auto& g : grains) g.active = false;
@@ -129,7 +131,18 @@ public:
     {
         params = p;
         ampParams = p.amp;
-        ampEnv.setParameters (ampParams);
+        // Push envelope params only when they actually CHANGED, and never while
+        // the voice is releasing. juce::ADSR::setParameters() recalculates
+        // releaseRate from the SUSTAIN level, clobbering the envelopeVal-based
+        // rate noteOff() computed — and with sustain == 0 the zeroed rate makes
+        // recalculateRates() reset() the envelope mid-tail: instant cut = click
+        // on every note-off. Changes made mid-release apply at the next noteOn.
+        // (O-simpleFM v1.2.5 pattern.)
+        if (! releasing && ! sameAdsr (ampParams, appliedAmpParams))
+        {
+            ampEnv.setParameters (ampParams);
+            appliedAmpParams = ampParams;
+        }
     }
 
     // Source snapshot the processor sets once per block (it holds the shared_ptr
@@ -179,6 +192,15 @@ public:
 
         velLevel = juce::jlimit (0.0f, 1.0f, velocity);
         noteHeld = true;
+
+        // Apply any envelope params deferred while the previous tail released.
+        releasing = false;
+        if (! sameAdsr (ampParams, appliedAmpParams))
+        {
+            ampEnv.setParameters (ampParams);
+            appliedAmpParams = ampParams;
+        }
+
         ampEnv.noteOn();          // ticked regardless of adsrEnabled so a mid-note
                                   // toggle lands on a coherent envelope state
     }
@@ -188,6 +210,7 @@ public:
         noteHeld = false;
         if (allowTailOff)
         {
+            releasing = true;   // freeze envelope rates until the tail ends
             ampEnv.noteOff();
             // adsrEnabled == false: no envelope tail — the scheduler stops
             // launching grains (see renderNextBlock) and the in-flight grains
@@ -196,6 +219,7 @@ public:
         else
         {
             clearCurrentNote();
+            releasing = false;
             ampEnv.reset();
             for (auto& g : grains) g.active = false;
             publishActiveCount();           // hard stop -> our grains drop to 0 (UI-05)
@@ -322,10 +346,18 @@ public:
             publishActiveCount();           // release tail finished -> drop to 0
             ampEnv.reset();
             clearCurrentNote();
+            releasing = false;
         }
     }
 
 private:
+    //==========================================================================
+    static bool sameAdsr (const juce::ADSR::Parameters& a, const juce::ADSR::Parameters& b) noexcept
+    {
+        return a.attack  == b.attack  && a.decay   == b.decay
+            && a.sustain == b.sustain && a.release == b.release;
+    }
+
     //==========================================================================
     // Spawn a grain: find an inactive slot, else steal the oldest (max age).
     // Bounded by kMaxGrainsPerVoice -> never allocates, never xruns (PERF-02).
@@ -503,6 +535,8 @@ private:
 
     juce::ADSR ampEnv;
     juce::ADSR::Parameters ampParams { 0.01f, 0.3f, 0.8f, 0.4f };
+    juce::ADSR::Parameters appliedAmpParams = ampParams;   // last values pushed to the live envelope
+    bool releasing = false;
 
     GrainVoiceParams params;
     const WindowLuts* windowLuts = nullptr;

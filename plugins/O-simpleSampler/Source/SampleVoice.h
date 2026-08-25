@@ -125,7 +125,19 @@ public:
     void setParams (const SamplerVoiceParams& p) noexcept
     {
         params = p;
-        ampEnv.setParameters (p.amp);
+        // Push envelope params only when they actually CHANGED, and never while
+        // the voice is releasing. juce::ADSR::setParameters() recalculates
+        // releaseRate from the SUSTAIN level, clobbering the envelopeVal-based
+        // rate noteOff() computed — and with sustain == 0 the zeroed rate makes
+        // recalculateRates() reset() the envelope mid-tail: instant cut = click
+        // on every note-off. Changes made mid-release apply at the next noteOn.
+        // (O-simpleFM v1.2.5 pattern.) Envelope-time knobs still track live
+        // during attack/decay/sustain — only the release tail is frozen.
+        if (! releasing && ! sameAdsr (p.amp, appliedAmpParams))
+        {
+            ampEnv.setParameters (p.amp);
+            appliedAmpParams = p.amp;
+        }
     }
 
     // Source snapshot the processor sets once per block: a raw pointer + length
@@ -152,6 +164,8 @@ public:
         setCurrentPlaybackSampleRate (sr);
         ampEnv.setSampleRate (sr);
         ampEnv.setParameters (params.amp);
+        appliedAmpParams = params.amp;
+        releasing = false;
 
         // Per-voice resonant LP (RESEARCH P5.1). Prepared MONO — processSample(0,·).
         // Cutoff/Q are pushed from the processor's smoothed scalars ONCE per block
@@ -231,6 +245,14 @@ public:
                   : 0.0f;
         aaState   = readSourceLagrange (sourcePtr, sourceLen, (float) readPos);
 
+        // Apply any envelope params deferred while the previous tail released.
+        releasing = false;
+        if (! sameAdsr (params.amp, appliedAmpParams))
+        {
+            ampEnv.setParameters (params.amp);
+            appliedAmpParams = params.amp;
+        }
+
         ampEnv.noteOn();
     }
 
@@ -238,11 +260,13 @@ public:
     {
         if (allowTailOff)
         {
+            releasing = true;                 // freeze envelope rates until the tail ends
             ampEnv.noteOff();                 // release tail (click-free note-off)
         }
         else
         {
             clearCurrentNote();
+            releasing = false;
             ampEnv.reset();                   // hard stop (voice steal)
         }
     }
@@ -262,6 +286,7 @@ public:
         {
             ampEnv.reset();
             clearCurrentNote();
+            releasing = false;
             return;
         }
 
@@ -561,7 +586,10 @@ public:
         // Free the voice once the amp envelope has finished (release tail done, or
         // the one-shot region-end reset above).
         if (! ampEnv.isActive())
+        {
             clearCurrentNote();
+            releasing = false;
+        }
     }
 
     //==========================================================================
@@ -586,6 +614,13 @@ public:
     }
 
 private:
+    //==========================================================================
+    static bool sameAdsr (const juce::ADSR::Parameters& a, const juce::ADSR::Parameters& b) noexcept
+    {
+        return a.attack  == b.attack  && a.decay   == b.decay
+            && a.sustain == b.sustain && a.release == b.release;
+    }
+
     //==========================================================================
     // Random-access fractional read into the source (clamp at bounds — a read off
     // the region/loop boundary saturates to the edge sample, no OOB). Ported
@@ -692,6 +727,8 @@ private:
 
     //==========================================================================
     juce::ADSR         ampEnv;
+    juce::ADSR::Parameters appliedAmpParams;   // last values pushed to the live envelope
+    bool               releasing = false;
     SamplerVoiceParams params;
 
     // Source snapshot (raw pointer set per block; processor holds the shared_ptr).
