@@ -405,8 +405,8 @@ export function createRoomPlan(deps) {
       const tick = meterPeaks[i];
       const g = glyphs[i];
 
-      const level = Math.min(1, Math.max(0, Number(levels?.[i]) || 0));
-      const peak = Math.min(1, Math.max(0, Number(peaks?.[i]) || 0));
+      const level = clamp01(Number(levels?.[i]) || 0);
+      const peak = clamp01(Number(peaks?.[i]) || 0);
 
       if (arc !== null && arc !== undefined) {
         arc.setAttribute("stroke-dasharray",

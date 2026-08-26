@@ -677,8 +677,13 @@ void OOctagonProcessor::captureScene (int slot)
     }
 
     sceneStore.capture (slot, w);
-    sceneStore.writeToState (apvts.state);
+    commitScenes();
+}
 
+//==============================================================================
+void OOctagonProcessor::commitScenes()
+{
+    sceneStore.writeToState (apvts.state);
     ++scenesGeneration;
 }
 
@@ -799,8 +804,7 @@ void OOctagonProcessor::scenesFromVar (const juce::var& payload)
         sceneStore.capture (s, w);
     }
 
-    sceneStore.writeToState (apvts.state);
-    ++scenesGeneration;
+    commitScenes();
 }
 
 //==============================================================================
@@ -914,8 +918,7 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
     // for a missing value, whereas an invented scene would put an unmeasured gain vector one click
     // from the PA.
     sceneStore.readFromState (apvts.state);
-    sceneStore.writeToState (apvts.state);
-    ++scenesGeneration;
+    commitScenes();
 
     // The map is built from the NEGOTIATED layout, so it can only be built once the host has
     // negotiated one. A host that calls setStateInformation() before prepareToPlay() gets the

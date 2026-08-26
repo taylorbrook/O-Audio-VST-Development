@@ -449,7 +449,7 @@ export function createVenueScreen(deps) {
     const names = Array.isArray(payload.presets) ? payload.presets : [];
     const keep = presetSelect.value;
 
-    while (presetSelect.firstChild !== null) presetSelect.removeChild(presetSelect.firstChild);
+    presetSelect.replaceChildren();
 
     for (const name of names) {
       const value = document.createElement("option");

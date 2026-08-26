@@ -178,10 +178,7 @@ const GEOMETRY_GUARD_DEADLINE_MS = STATUS_POLL_MS * 6;
 // srcX / srcY / srcZ / width are DELIBERATELY ABSENT: they move the source, not
 // the field. That is why UI-04/2's assertion is the puck one, and it is exactly
 // right.
-const FIELD_INPUT_IDS = [
-  "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8",
-  "rolloff", "blur", "hullAtten",
-];
+const FIELD_INPUT_IDS = [...WEIGHT_IDS, "rolloff", "blur", "hullAtten"];
 
 const sliders = new Map();   // paramId -> { state, input, value }
 const nativeFns = new Map(); // name    -> callable
@@ -308,7 +305,7 @@ function bindSlider(id) {
     closeGesture();
   });
 
-  sliders.set(id, { state, input, value });
+  sliders.set(id, { state });
   render();
 }
 

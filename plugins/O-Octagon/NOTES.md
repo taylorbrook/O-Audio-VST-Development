@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.3.3 (dev build installed; not released)
+- **Version:** 1.3.4 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -142,7 +142,35 @@
   mistyped. `ui_frontend_check` 42 sections, `ui_layout_check` 31 sections, `auval` PASS. JS only —
   no C++, no parameter, no DSP, no render-golden exposure.
 
+- **2026-08-26 (v1.3.4 — SIMPLIFICATION-AUDIT Phase 3, Batch A):** six LOW-tier candidates applied,
+  one reverted. **LOW-01** `commitScenes()` folds the `writeToState` + `++scenesGeneration` pair —
+  one invariant, three hand-kept copies — leaving the constructor's seed write at
+  `PluginProcessor.cpp:178` alone, since it has no cache to invalidate and bumping there would be a
+  behaviour change (the audit missed that fourth site). **LOW-02** deleted a no-op
+  `text-transform: none`. **LOW-03** `sliders.set(id, { state })` — the stored `input`/`value` nodes
+  were dead payload. **LOW-04** `FIELD_INPUT_IDS` spreads `WEIGHT_IDS`. **LOW-05** `setMeters()` uses
+  its own file's `clamp01`. **LOW-07** three `while (firstChild) removeChild` loops became
+  `replaceChildren()`.
+  **LOW-06 was reverted as a false positive** — the seven "meaningless" alias consts in `venue.js`
+  are what satisfy `ui_frontend_check` §6's textContent *receiver-name* whitelist, which guards
+  `pattern_js_state_updater_overwrites_html_labels`; deleting them failed the gate, and passing it
+  again would mean loosening a deliberately short whitelist for seven lines of cosmetics.
+  Verification: a rendered-DOM + computed-style snapshot over five page states hashes identically
+  before and after (`69227ed4…d0ae47`, 0 console errors), shown deterministic across two baseline
+  runs and negative-controlled to 80 changed style lines; a 126-comparison clamp probe covers the
+  pathological inputs the all-zero stub meters never reach. Gates: `ui_frontend_check` 42,
+  `ui_layout_check` 31, render 51/0, geometry 46/0, `auval` PASS.
+  **Coverage gap found, not caused:** removing `++scenesGeneration` entirely leaves all 51 render
+  probes green — nothing observes `getScenesGeneration()`. See Known Issues.
+
 ## Known Issues
+
+**No test observes `scenesGeneration` (found 2026-08-26, v1.3.4).** Deleting `++scenesGeneration`
+from `commitScenes()` leaves all 51 render-harness probes and all 46 geometry probes green. CK and
+CL round-trip the scene *state* but neither reads `getScenesGeneration()`, so the counter that tells
+the page its cached slots are stale is uncovered. A probe asserting the generation advances across
+`captureScene`, the `SCENES` custom-state callback and `setStateInformation` — and does NOT advance
+across the constructor's seed write — would close it. Predates v1.3.4; the sweep only surfaced it.
 
 **Deliberately deferred at v1.3.2** (from `CODE_REVIEW.md`):
 

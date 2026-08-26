@@ -1,5 +1,77 @@
 # O-Octagon Changelog
 
+## v1.3.4 (2026-08-26)
+
+Phase 3 sweep from `.planning/SIMPLIFICATION-AUDIT.md` — **6 of 7 approved LOW-tier candidates
+applied**, one reverted as a false positive. Batch B (MEDIUM-01…05) was skipped by choice and
+Batch C (MEDIUM-06, MEDIUM-07, LOW-08) deferred; all eight remain in the audit.
+
+### Changed
+
+- **LOW-01** — `commitScenes()`. `sceneStore.writeToState (apvts.state)` followed by
+  `++scenesGeneration` was three hand-kept copies (`captureScene`, `scenesFromVar`,
+  `setStateInformation`). The two lines are one invariant — `scenesGeneration` is the only signal
+  telling the page its cached slots are stale — so a fourth scene-mutating path that wrote without
+  bumping would leave the UI showing scenes the plugin no longer holds. **The constructor's write at
+  `PluginProcessor.cpp:178` is deliberately NOT a call to it:** it seeds the `SCENES` node at birth
+  (N13) so a pre-`prepareToPlay()` save carries a complete tree, there is no cache to invalidate
+  yet, and `scenesGeneration` starts at 1 — bumping there would be a behaviour change, not a dedup.
+  The audit missed that fourth site.
+- **LOW-02** — deleted `.vfield-label { text-transform: none; }`. No ancestor of the label inputs
+  sets a transform, so `none` was already the computed value.
+- **LOW-03** — `sliders.set(id, { state })`. The `input` and `value` nodes stored alongside were
+  dead payload suggesting a wider contract than exists; every consumer in all four files reads only
+  `.state`, and `bindSlider`'s own closures still capture the nodes for rendering.
+- **LOW-04** — `FIELD_INPUT_IDS = [...WEIGHT_IDS, "rolloff", "blur", "hullAtten"]`, replacing a
+  transcription of the eight weight ids `WEIGHT_IDS` already declares 59 lines above.
+- **LOW-05** — `setMeters()` now calls the `clamp01` its own file defines at line 197 instead of
+  re-inlining `Math.min(1, Math.max(0, …))`.
+- **LOW-07** — `replaceChildren()` for the three `while (firstChild) removeChild` loops
+  (`venue.js` preset list, `elevation.js` axis and speaker groups).
+
+### Reverted — LOW-06 was a false positive
+
+The audit proposed deleting seven single-use alias consts in `venue.js` (`const value = pingStateNode;`
+before `value.textContent = …`), rationale *"the aliases add a line per site and no meaning"*, test
+impact *"None — purely mechanical"*. Both are wrong: **those aliases are the mechanism by which
+`venue.js` satisfies `ui_frontend_check.js` section 6**, which guards
+`pattern_js_state_updater_overwrites_html_labels` by whitelisting textContent *receiver identifier
+names* and pairing each with a companion assertion about what it binds to. Removing them moved the
+receivers to `classNode`, `venueNameNode`, `presetCurrentNode`, `pingStateNode` and `ooStateNode` —
+all genuinely dedicated value nodes, none on the list — and section 6 failed.
+
+Making it pass would mean either loosening a deliberately short whitelist or writing five new
+companion assertions, in exchange for seven lines of nit-tier cosmetics. Reverted instead; the item
+stays in the audit **reclassified as a false positive**, not as pending work.
+
+### Verification
+
+- **Rendered-DOM + computed-style snapshot, byte-identical.** `#plan-geometry`, `#mini-geometry`,
+  `#elev-strip`, `#preset-list`, `#readout-metres`, `#readout-envelope`, `#ping-state`, the venue
+  table, and the computed `text-transform` of all eight label inputs, captured from the ui-stub at
+  1100 × 720 across five states (both screens, a venue edit, and a drive of
+  srcX/srcY/srcZ/blur/rolloff). sha256 `69227ed4…d0ae47` before and after, 0 console errors. The
+  harness was first shown **deterministic across two consecutive baseline runs**, so the diff means
+  something.
+- **Negative control on that snapshot.** Re-adding `.vfield-label { text-transform: uppercase; }`
+  and dropping one `replaceChildren()` call changes 80 computed-style lines and grows the
+  `#elev-axis` child list; restoring gives byte-identity again.
+- **LOW-05 clamp equivalence, 126 comparisons.** The stub's peaks reset to 0 with no ping running,
+  so the snapshot exercises `setMeters` only at zero. The clamp is proven separately over `NaN`,
+  `±Infinity`, `-0`, `1e308`, out-of-range, strings, `null`/`undefined`, arrays and objects, on the
+  full `Number(x?.[i]) || 0` expression — plus an assertion that the shipped `clamp01` declaration
+  is character-for-character the expression that was deleted.
+- `tests/ui_frontend_check.js` 42 sections PASS (exit 0) · `tests/ui_layout_check.js` 31 sections
+  PASS · render harness 51 probes / 0 failures · geometry target 46 probes / 0 failures · `auval`
+  PASS · VST3 + AU installed at 1.3.4.
+
+**A coverage gap found while negative-controlling LOW-01, and NOT introduced by it:** deleting
+`++scenesGeneration` from `commitScenes()` outright leaves all 51 render-harness probes green.
+CK and CL round-trip the scene *state* but nothing observes `getScenesGeneration()`, so the
+generation counter has no probe at all. LOW-01 is therefore verified by the call-site diff and the
+compiler — the three sites now call one function holding the same two statements in the same order —
+and not by a test. Worth a probe; filed as follow-up rather than folded into a cosmetic sweep.
+
 ## v1.3.3 (2026-08-26)
 
 Applies **HIGH-01** from `.planning/SIMPLIFICATION-AUDIT.md`. No behaviour change: the rendered DOM
