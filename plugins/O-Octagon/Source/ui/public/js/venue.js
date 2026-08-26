@@ -61,9 +61,17 @@
 // The mini-plan is drawn by roomplan.js's metresToPx() through a view built by
 // its makeView() and fitted by its fitBox(). Section 19 of the static gate is
 // widened by that rather than weakened.
+//
+// v1.3.3 finished the job. Until then this file OWNED a second copy of the
+// points-string construction and of the three classification toggles — the same
+// six lines as drawGeometryLayer(), so the rule was honoured for the projection
+// and quietly broken one layer out. Both now come from roomplan.js as
+// hullPoints() and placeGlyph(), and this file no longer calls metresToPx at
+// all: the mini plan is a second VIEW passed to shared drawing code, which is
+// what Q8 actually asked for.
 // ============================================================================
 
-import { metresToPx, fitBox, makeView } from "./roomplan.js";
+import { fitBox, hullPoints, makeView, placeGlyph } from "./roomplan.js";
 
 // ── Module-level bindings. Nothing here runs at module-evaluation time except
 //    the declarations themselves; app.js calls createVenueScreen() from inside
@@ -267,26 +275,13 @@ export function createVenueScreen(deps) {
 
     const view = makeView(e, w, h);
 
-    miniHull.setAttribute(
-      "points",
-      geometry.hull
-        .map((p) => {
-          const q = metresToPx(p.x, p.y, view);
-          return `${q.x},${q.y}`;
-        })
-        .join(" "),
-    );
+    miniHull.setAttribute("points", hullPoints(geometry.hull, view));
 
     geometry.speakers.forEach((s, i) => {
       const g = miniGlyphs[i];
       if (g === undefined || g === null) return;
 
-      const p = metresToPx(s.x, s.y, view);
-      g.setAttribute("transform", `translate(${p.x} ${p.y})`);
-
-      g.classList.toggle("is-vertex", s.class === "VERTEX");
-      g.classList.toggle("is-onedge", s.class === "ON_EDGE");
-      g.classList.toggle("is-interior", s.class === "INTERIOR");
+      placeGlyph(g, s, view);
     });
   }
 

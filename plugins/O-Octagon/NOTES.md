@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.3.2 (dev build installed; not released)
+- **Version:** 1.3.3 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -118,6 +118,29 @@
   `ui_frontend_check` section 25's "no state in a completion" rule was **narrowed, not dropped**:
   assigning `committed` in a `.then()` is still forbidden; repainting from already-established state
   is allowed only inside the `ok: false` refusal branch.
+
+- **2026-08-26 (v1.3.3 — SIMPLIFICATION-AUDIT HIGH-01):** the mini-plan stopped carrying its own
+  copy of the Room plan's drawing code. `roomplan.js`'s Q8 charter is *a second view, never a second
+  projection*, and section 19 of the static gate enforced the projection half — but only
+  `metresToPx`, `fitBox` and `makeView` were actually shared. The six lines that build the hull's
+  SVG `points` string and the three `classList.toggle` calls carrying `VERTEX`/`ON_EDGE`/`INTERIOR`
+  had been copy-pasted into `venue.js`'s `drawMini()`, so a fourth classification class or any
+  change to the points format had to be made twice. Extracted as `hullPoints(hull, view)` and
+  `placeGlyph(g, s, view)` in `roomplan.js`; both plans call them, and `venue.js` no longer calls
+  `metresToPx` at all — section 19 is **widened**, one fewer call site that could stop routing
+  through the one projection. The helpers had to land in `roomplan.js` and not the other way:
+  section 32 bans the classification vocabulary from the scene module.
+  **The v1.1.0 output badge deliberately stayed in `roomplan.js`** — the mini has no `gout-N` node,
+  and sharing the badge would mean a null-node branch on the mini's behalf.
+  Byte-identity was measured, not asserted: `#plan-geometry` + `#mini-geometry` `outerHTML` dumped
+  from the ui-stub across four venue states hashes to the same sha256 `fd73cf31…649b8b` before and
+  after. Because the stub's fixture only ever produces `VERTEX` and `ON_EDGE`, a second probe
+  compared the new exports against a verbatim copy of the pre-change inline code from
+  `backups/O-Octagon/v1.3.2/` over all three classes plus an unknown one, on fresh *and* pre-dirtied
+  glyphs (the on→off toggle direction the fixture never reaches), with untidy floats — 297
+  comparisons, all identical, negative-controlling to 48 mismatches when one toggle's literal is
+  mistyped. `ui_frontend_check` 42 sections, `ui_layout_check` 31 sections, `auval` PASS. JS only —
+  no C++, no parameter, no DSP, no render-golden exposure.
 
 ## Known Issues
 
