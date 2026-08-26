@@ -167,6 +167,38 @@ OMultiBandCompressorAudioProcessorEditor::OMultiBandCompressorAudioProcessorEdit
                     complete(enabled);
                 })
 
+            // v1.10.0: the hover-help language. PULLED once by the page at
+            // init, never pushed — a push from this constructor or from a timer
+            // tick fires before the page module has evaluated, so the stored
+            // preference would silently never arrive. No revision counter and
+            // no poll: the language is not preset content, and
+            // OuariconPresetManager::loadPreset walks only preset["parameters"]
+            // and never touches a state-tree property, so nothing but this page
+            // can change it.
+            .withNativeFunction("getUiLanguage",
+                [this](const juce::Array<juce::var>&,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    complete(juce::var(OMultiBandCompressorAudioProcessor::languageCode(
+                        processorRef.uiLanguage.load(std::memory_order_acquire))));
+                })
+
+            .withNativeFunction("setUiLanguage",
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion complete)
+                {
+                    // languageIndex() maps anything that is not "fr" to 0, so an
+                    // unexpected argument degrades to English rather than being
+                    // stored unvalidated.
+                    if (! args.isEmpty())
+                        processorRef.uiLanguage.store(
+                            OMultiBandCompressorAudioProcessor::languageIndex(args[0].toString()),
+                            std::memory_order_release);
+
+                    complete(juce::var(OMultiBandCompressorAudioProcessor::languageCode(
+                        processorRef.uiLanguage.load(std::memory_order_acquire))));
+                })
+
             // v1.8.0: Alt/Option-click on a knob resets it to its default. The
             // properties payload the WebSliderRelay pushes to the page carries
             // start/end/skew but no default, so the page has to ask for them.
@@ -521,6 +553,11 @@ OMultiBandCompressorAudioProcessorEditor::getResource(const juce::String& url)
         { "/index.html",                       BinaryData::index_html,              BinaryData::index_htmlSize,              "text/html" },
         { "/css/styles.css",                   BinaryData::styles_css,              BinaryData::styles_cssSize,              "text/css" },
         { "/js/app.js",                        BinaryData::app_js,                  BinaryData::app_jsSize,                  "application/javascript" },
+        // v1.10.0: hover-help copy, English + French. Embedded in the
+        // UIResources target AND served here — a file that is one but not the
+        // other is a 404 that presents as a page with no tooltips and nothing
+        // else. scripts/check-i18n.js assertion 8 checks both ends.
+        { "/js/i18n.js",                       BinaryData::i18n_js,                 BinaryData::i18n_jsSize,                 "application/javascript" },
         { "/js/juce/index.js",                 BinaryData::index_js,                BinaryData::index_jsSize,                "application/javascript" },
         { "/js/juce/check_native_interop.js",  BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize, "application/javascript" },
         { "/modules/preset-manager.js",        BinaryData::presetmanager_js,        BinaryData::presetmanager_jsSize,        "application/javascript" },

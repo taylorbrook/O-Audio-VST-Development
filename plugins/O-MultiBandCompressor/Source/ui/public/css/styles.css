@@ -304,16 +304,29 @@ body {
     flex: 1;
 }
 
-/* v1.4.1: header right cluster — brand mark plus the help toggle */
+/* v1.4.1: header right cluster — brand mark plus the settings gear */
 .header-right {
     display: flex;
     align-items: center;
     gap: 14px;
 }
 
-/* The "?" toggle. Reads as "on" (filled olive, like an engaged band button)
-   when the hover-help layer is active, and as a quiet outline when it is off. */
-.help-toggle {
+/* ===== v1.10.0: SETTINGS POPOVER =====
+   Replaces the v1.4.1 "?" toggle in the header-right slot. The gear keeps that
+   button's geometry and palette so the header silhouette is unchanged; the
+   toggle it replaced now lives inside the popover next to the language
+   selector. Anchors the absolutely-positioned panel below. */
+
+.settings-cluster {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+/* Quiet brown outline at rest, filled olive while the panel is open — the same
+   engaged/idle language the band Solo and Bypass buttons use. */
+.gear-btn {
     width: 20px;
     height: 20px;
     padding: 0;
@@ -323,7 +336,7 @@ body {
     background: transparent;
     color: #5C4033;
     font-family: 'Garamond', 'Times New Roman', serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
@@ -331,18 +344,119 @@ body {
     transition: background 120ms ease-out, color 120ms ease-out, opacity 120ms ease-out;
 }
 
-.help-toggle:hover {
+.gear-btn:hover {
     opacity: 1;
 }
 
-.help-toggle[aria-pressed="true"] {
+.gear-btn[aria-expanded="true"] {
     background: #8BA870;
     border-color: #5C4033;
     color: #3C2F2F;
     opacity: 1;
 }
 
-.help-toggle:focus-visible {
+.gear-btn:focus-visible {
+    outline: 2px solid #556B2F;
+    outline-offset: 2px;
+}
+
+/* Right-aligned under the gear. */
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    z-index: 9999;
+    min-width: 190px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: linear-gradient(135deg, #f5f0e6 0%, #e8dfcd 100%);
+    border: 1px solid #5C4033;
+    border-radius: 3px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.settings-popover[hidden] {
+    display: none;
+}
+
+/* Exactly the tie-break the preset dropdown above already documents, and it bit
+   this panel too: .plugin-header and .spectrum-section both sit at z-index 1
+   and the spectrum comes later in the DOM, so it wins the tie. The header is a
+   stacking context, so no z-index on the popover ITSELF can lift it out — the
+   whole header has to rise. Measured, not assumed: before this rule Playwright
+   reported ".spectrum-section intercepts pointer events" on #tips-toggle, i.e.
+   the toggle was visible and unclickable. */
+.plugin-header:has(.settings-popover:not([hidden])) {
+    z-index: 9999;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.settings-label {
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 11px;
+    color: #5C4033;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.settings-popover select {
+    flex: 0 0 auto;
+    padding: 2px 4px;
+    border: 1px solid #5C4033;
+    border-radius: 2px;
+    background: #f5f0e6;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 12px;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.settings-popover select:focus-visible {
+    outline: 2px solid #556B2F;
+    outline-offset: 1px;
+}
+
+/* Same engaged/idle pair as the gear, in a pill rather than a circle so the
+   On/Off caption fits. */
+.settings-toggle {
+    min-width: 38px;
+    padding: 2px 8px;
+    flex: 0 0 auto;
+    border: 1px solid #5C4033;
+    border-radius: 2px;
+    background: transparent;
+    color: #5C4033;
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: background 120ms ease-out, color 120ms ease-out, opacity 120ms ease-out;
+}
+
+.settings-toggle:hover {
+    opacity: 1;
+}
+
+.settings-toggle[aria-pressed="true"] {
+    background: #8BA870;
+    color: #3C2F2F;
+    opacity: 1;
+}
+
+.settings-toggle:focus-visible {
     outline: 2px solid #556B2F;
     outline-offset: 2px;
 }
@@ -1041,7 +1155,16 @@ body {
     position: fixed;
     left: 0;
     top: 0;
-    z-index: 1000;
+    /* v1.10.0: 1000 -> 10001. The tip layer is a sibling of .plugin-header
+       inside .plugin-container, and both the preset dropdown and the v1.10.0
+       settings popover lift that whole header to 9999 while they are open. At
+       1000 a tip raised over a control INSIDE either panel — the language
+       selector and the hover-help toggle both have one — painted behind the
+       header that was carrying the panel. The tip layer has to outrank every
+       overlay, not just the page content. max-width is deliberately unchanged:
+       French wraps taller inside the same cap rather than running wider, which
+       is what the vertical flip already handles. */
+    z-index: 10001;
     max-width: 230px;
     padding: 7px 10px;
     background: linear-gradient(135deg, #f5f0e6 0%, #e8dfcd 100%);

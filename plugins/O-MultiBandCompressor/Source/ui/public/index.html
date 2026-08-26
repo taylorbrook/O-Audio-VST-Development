@@ -47,12 +47,53 @@
 
             <div class="header-right">
                 <span class="brand-name">Ouaricon Audio</span>
-                <!-- v1.4.1: toggles the hover-help layer. Its own tip is exempt
-                     from the toggle (data-tip-always), so the control that turns
-                     help back on can always explain itself. -->
-                <button type="button" class="help-toggle" id="help-toggle"
-                        aria-pressed="true" aria-label="Toggle hover help"
-                        data-tip-always>?</button>
+
+                <!-- v1.10.0: settings popover. Replaces the v1.4.1 "?" button in
+                     this slot and carries the hover-help toggle that used to be
+                     it, alongside the new language selector — the toggle MOVED
+                     here, it is not duplicated.
+
+                     Both controls carry data-tip-always, so the controls that
+                     reach and restore the help layer can always explain
+                     themselves even while help is off.
+
+                     No copy is authored in this markup. Every data-tip /
+                     data-tip-title on this page is written at runtime by
+                     applyI18n() from js/i18n.js; scripts/check-i18n.js
+                     assertion 3 fails the build if a literal reappears here. -->
+                <div class="settings-cluster">
+                    <button type="button" class="gear-btn" id="gear-btn"
+                            aria-haspopup="dialog" aria-expanded="false"
+                            aria-label="Settings" data-tip-always>&#9881;</button>
+
+                    <div class="settings-popover" id="settings-popover"
+                         role="dialog" aria-label="Settings" hidden>
+                        <label class="settings-row" for="lang-select">
+                            <!-- data-label so a shared state updater that writes
+                                 textContent reads the authored caption back
+                                 instead of erasing it. -->
+                            <span class="settings-label" data-label="Language">Language</span>
+                            <!-- Endonyms. Never localized, never written by a
+                                 state updater: a French speaker looking for
+                                 their language looks for "Français". -->
+                            <select id="lang-select">
+                                <option value="en">English</option>
+                                <option value="fr">Fran&ccedil;ais</option>
+                            </select>
+                        </label>
+
+                        <!-- A div, not a <label for="tips-toggle">: a button is a
+                             labelable element, so a label wrapping it can
+                             re-dispatch the click and toggle twice. The button
+                             names itself with aria-label instead. -->
+                        <div class="settings-row">
+                            <span class="settings-label" data-label="Hover help">Hover help</span>
+                            <button type="button" class="settings-toggle" id="tips-toggle"
+                                    aria-pressed="true" aria-label="Toggle hover help"
+                                    data-tip-always>On</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 

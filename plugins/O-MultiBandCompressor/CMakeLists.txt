@@ -6,7 +6,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # JucePlugin_VersionString: the processor ctor runs initializeFactoryPresets(), whose
 # .factory-version sentinel compares against it, so a harness left on a stale literal
 # would restamp the user's real factory-preset directory with the wrong version.
-set(OMBC_VERSION 1.9.0)
+set(OMBC_VERSION 1.10.0)
 
 # Plugin Configuration
 juce_add_plugin(O-MultiBandCompressor
@@ -32,6 +32,7 @@ juce_add_binary_data(O-MultiBandCompressor_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js

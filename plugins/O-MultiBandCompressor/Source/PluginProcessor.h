@@ -73,6 +73,27 @@ public:
 
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
 
+    //==========================================================================
+    // v1.10.0: UI hover-help language.
+    //
+    // 0 = en, 1 = fr. Held as an int index rather than the string it persists
+    // as because std::atomic<juce::String> does not compile — juce::String is
+    // not trivially copyable — so the audio-safe form is an index behind the
+    // two-function codec below while the PERSISTED form stays a language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their help in. It rides the APVTS state tree as a
+    // non-parameter property, which the JSON preset path never touches.
+    //
+    // Public so the editor's getUiLanguage/setUiLanguage native functions can
+    // reach it, matching how presetManager is exposed.
+    //==========================================================================
+    std::atomic<int> uiLanguage { 0 };
+
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int         languageIndex  (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // Access to gain reduction meters for UI (all 4 bands)
     float getLowBandGainReduction() const { return lowBandGainReduction.load(std::memory_order_relaxed); }
     float getLoMidBandGainReduction() const { return loMidBandGainReduction.load(std::memory_order_relaxed); }
