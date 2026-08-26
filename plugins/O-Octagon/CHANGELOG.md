@@ -1,5 +1,64 @@
 # O-Octagon Changelog
 
+## v1.3.3 (2026-08-26)
+
+Applies **HIGH-01** from `.planning/SIMPLIFICATION-AUDIT.md`. No behaviour change: the rendered DOM
+is byte-identical, proven rather than asserted (below).
+
+### Changed — the mini-plan and the Room plan now share their hull and glyph drawing
+
+`roomplan.js`'s charter since Phase 3.2 has been *a second view, never a second projection* (Q8),
+and section 19 of the static gate enforces the projection half of it. Only the projection half was
+actually true. `metresToPx`, `fitBox` and `makeView` were shared; the six lines that turn a hull
+into an SVG `points` string and the three `classList.toggle` calls that carry
+`VERTEX` / `ON_EDGE` / `INTERIOR` onto a glyph had been copy-pasted into `venue.js`'s `drawMini()`.
+Two copies of one rule is the drift class this plugin's own fixtures have been caught by
+(`pattern_test_fixture_mirrors_drift_silently`) — a fourth classification class, or any change to
+the points format, had to be made twice and would have drifted the first time it was not.
+
+Extracted into `roomplan.js` beside the three functions already shared:
+
+- `hullPoints(hull, view)` — the points string.
+- `placeGlyph(g, s, view)` — the `translate()` transform and the three class toggles.
+
+`drawGeometryLayer()` and `drawMini()` both call them. `venue.js` no longer calls `metresToPx` at
+all, so section 19 is **widened** by this rather than weakened: there is one fewer call site that
+could stop routing through the one projection.
+
+**The v1.1.0 output badge deliberately stays in `roomplan.js`.** `drawGeometryLayer()` also writes
+`gout-N`, and the mini plan has no DOM node for it. Pulling the badge into the shared helper would
+mean a null-node branch on the mini's behalf — one more thing to keep true, not one fewer — so the
+shared part is scoped to hull + transform + toggles and the badge is rendered by the caller that has
+somewhere to put it.
+
+The helper had to land in `roomplan.js` and could not go the other way: section 32 of
+`ui_frontend_check.js` bans the `VERTEX` / `ON_EDGE` / `INTERIOR` vocabulary from the module that
+resolves a scene, and section 19 requires the single-projection module.
+
+### Verification
+
+Byte-identity of the DOM is the whole claim, so it was **measured on the rendered page**, not argued:
+
+- **Rendered-DOM diff.** `#plan-geometry` and `#mini-geometry` `outerHTML` captured from the
+  ui-stub at 1100 × 720 across four states — default venue, speaker 1 moved to x = −4.00, speaker 4
+  driven to the origin, and the Room screen re-laid-out after both edits. Before and after the
+  change the dump is byte-identical: sha256 `fd73cf31…649b8b` both times.
+- **Old-vs-new equivalence probe, 297 comparisons, all identical.** The ui-stub's fixture carries
+  fixed classifications and only ever produces `VERTEX` and `ON_EDGE`, so the rendered diff alone
+  leaves the `INTERIOR` branch unobserved. The probe compares the new exports against a verbatim
+  copy of the pre-change inline code from `backups/O-Octagon/v1.3.2/`, over all three classes plus
+  an unknown one, on fresh *and* pre-dirtied glyphs (the on→off toggle direction a fixed fixture
+  never exercises), and with hulls carrying negatives, `0.1 + 0.2`, `1e-7`, `-0.0` and `1e21` —
+  float formatting is the thing under test, so the values are deliberately not tidy. It compares the
+  full call *sequence*, not just the end state.
+- **Negative control.** Mistyping one toggle's literal (`ON_EDGE` → `ONEDGE`) in the new
+  `placeGlyph` turns those 297 comparisons into 48 mismatches. The probe fails when the thing it
+  claims to check is broken.
+- `tests/ui_frontend_check.js` — ALL SECTIONS PASS, 42 sections (exit 0).
+- `tests/ui_layout_check.js` — ALL SECTIONS PASS, 31 sections.
+
+No C++ changed and no render golden is exposed.
+
 ## v1.3.2 (2026-08-25)
 
 Resolves the five Warning findings from the v1.3.0 code review (`CODE_REVIEW.md` WR-01 … WR-05).

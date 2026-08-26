@@ -154,6 +154,46 @@ export function makeView(envelope, w, h) {
   };
 }
 
+// ── THE HULL POINTS STRING, AND THE GLYPH PLACEMENT, STATED ONCE ───────────
+// Same reasoning as fitBox and makeView directly above, one layer further in.
+// Q8's rule is "a second view, never a second projection", and until v1.3.3
+// only the projection, the fit and the view were actually shared: the
+// points-string construction and the three classification toggles had been
+// copy-pasted into venue.js's drawMini(). Both plans drew the same hull the
+// same way from two copies of the same six lines, so a fourth classification
+// class — or any change to the points format — had to be made twice and would
+// have drifted the first time it was not. Extraction WIDENS section 19 rather
+// than weakening it: every coordinate still goes through the one metresToPx,
+// and now there is one fewer call site that could stop doing so.
+//
+// THE OUTPUT BADGE STAYS BEHIND, DELIBERATELY. drawGeometryLayer() also writes
+// the v1.1.0 output badge into a node the mini plan has no DOM for (gout-N,
+// index.html), so the shared part is scoped to hull + transform + toggles and
+// the badge is rendered by the caller that has somewhere to put it. Pulling it
+// in here would mean a null-node branch on the mini's behalf, which is a second
+// thing to keep true rather than one fewer.
+export function hullPoints(hull, view) {
+  return hull
+    .map((p) => {
+      const q = metresToPx(p.x, p.y, view);
+      return `${q.x},${q.y}`;
+    })
+    .join(" ");
+}
+
+// The glyph classes come straight from ConvexHull2D::classify() in the payload,
+// so neither plan can drift from the behaviour it depicts — both are drawing
+// the same hull the solver solves against. classify() was made a first-class
+// return value at Phase 2.1 (P11) for exactly this.
+export function placeGlyph(g, s, view) {
+  const p = metresToPx(s.x, s.y, view);
+  g.setAttribute("transform", `translate(${p.x} ${p.y})`);
+
+  g.classList.toggle("is-vertex", s.class === "VERTEX");
+  g.classList.toggle("is-onedge", s.class === "ON_EDGE");
+  g.classList.toggle("is-interior", s.class === "INTERIOR");
+}
+
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
 export function createRoomPlan(deps) {
@@ -319,34 +359,20 @@ export function createRoomPlan(deps) {
 
   // The hull polygon carries exactly hullCount points, in the order
   // ConvexHull2D returned them, so polygon.points.numberOfItems is a DOM fact a
-  // test can read (UI-02 criterion 2). The glyph classes come straight from
-  // ConvexHull2D::classify() in the payload — the overlay cannot drift from the
-  // behaviour it depicts, because it is drawing the same hull the solver solves
-  // against. classify() was made a first-class return value at Phase 2.1 (P11)
-  // for exactly this.
+  // test can read (UI-02 criterion 2). Both the points string and the glyph
+  // placement are the shared hullPoints()/placeGlyph() above — the mini plan on
+  // the Venue screen draws through the same two functions, so the two views
+  // cannot disagree about what the hull is or which speakers are on it.
   function drawGeometryLayer() {
     if (view === null || geometry === null) return;
 
-    hullPoly.setAttribute(
-      "points",
-      geometry.hull
-        .map((p) => {
-          const q = metresToPx(p.x, p.y, view);
-          return `${q.x},${q.y}`;
-        })
-        .join(" "),
-    );
+    hullPoly.setAttribute("points", hullPoints(geometry.hull, view));
 
     geometry.speakers.forEach((s, i) => {
       const g = glyphs[i];
       if (g === undefined || g === null) return;
 
-      const p = metresToPx(s.x, s.y, view);
-      g.setAttribute("transform", `translate(${p.x} ${p.y})`);
-
-      g.classList.toggle("is-vertex", s.class === "VERTEX");
-      g.classList.toggle("is-onedge", s.class === "ON_EDGE");
-      g.classList.toggle("is-interior", s.class === "INTERIOR");
+      placeGlyph(g, s, view);
 
       // v1.1.0 — the output badge. Empty when the speaker already reaches its
       // own physical output; "→k" when remapped; "→?" for a label outside the
