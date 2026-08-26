@@ -293,6 +293,21 @@ public:
 
 private:
     //==============================================================================
+    /** Write the four slots back into `apvts.state` AND bump the generation the page polls.
+
+        The two lines are ONE invariant, not two statements: `scenesGeneration` is the only signal
+        that tells the page its cached slots are stale, so a write that forgets the bump leaves the
+        UI showing scenes the plugin no longer holds. It was three hand-kept copies (captureScene,
+        scenesFromVar, setStateInformation) until v1.3.4 — a fourth scene-mutating path would have
+        had to remember both lines.
+
+        THE CONSTRUCTOR'S WRITE IS DELIBERATELY NOT A CALL TO THIS. It seeds the `SCENES` node at
+        birth (N13) so a session saved before prepareToPlay() carries a complete tree; there is no
+        cache to invalidate yet and `scenesGeneration` starts at 1, so bumping there would be a
+        change in behaviour rather than a dedup. */
+    void commitScenes();
+
+    //==============================================================================
     // ─────────────────────────────────────────────────────────────────────────────
     // VENUE STORE — the slot claimed at Stage 1 (PLAN P2), now occupied.
     //

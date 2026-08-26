@@ -11,9 +11,13 @@ candidates:
   total: 16
 phase_routing:
   phase1_improve: [HIGH-01]   # APPLIED in v1.3.3 (2026-08-26)
+  phase3_applied:  [LOW-01, LOW-02, LOW-03, LOW-04, LOW-05, LOW-07]   # v1.3.4 (2026-08-26)
+  phase3_false_positive: [LOW-06]        # gate-coupled; see Phase 3 notes
+  phase3_skipped:  [MEDIUM-01, MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05]
+  phase3_deferred: [MEDIUM-06, MEDIUM-07, LOW-08]
   phase2: []
-  phase3: [MEDIUM-01, MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06, MEDIUM-07, LOW-01, LOW-02, LOW-03, LOW-04, LOW-05, LOW-06, LOW-07, LOW-08]
-status: phase1_applied
+  phase3_original: [MEDIUM-01, MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06, MEDIUM-07, LOW-01, LOW-02, LOW-03, LOW-04, LOW-05, LOW-06, LOW-07, LOW-08]   # superseded by the four keys above
+status: phase3_partial
 ---
 
 # O-Octagon v1.3.0 — Simplification Audit
@@ -32,7 +36,7 @@ them at risk. `Severity` is payoff; `Risk` is the chance of behaviour change.
 |---|---|---|
 | Phase 1 | `/improve O-Octagon` (apply the LOW-risk HIGH item) | HIGH-01 — ✅ **APPLIED in v1.3.3** |
 | Phase 2 | `/simplify-phase2 O-Octagon` | — (none) |
-| Phase 3 | `/simplify-phase3 O-Octagon` | 15 items (MEDIUM-01, MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06, MEDIUM-07, LOW-01, LOW-02, LOW-03, LOW-04, LOW-05, LOW-06, LOW-07, LOW-08) |
+| Phase 3 | `/simplify-phase3 O-Octagon` | ✅ **6 applied in v1.3.4** (LOW-01…05, LOW-07) · ❌ LOW-06 false positive · ⏭ 5 skipped (MEDIUM-01…05) · ⏸ 3 deferred (MEDIUM-06, MEDIUM-07, LOW-08) |
 
 ## The one thing that isn't cosmetic
 
@@ -93,6 +97,67 @@ export function applyClassification(g, cls) {
 **Test impact:** No render-golden exposure. DOM output is byte-identical (same points string, same class toggles). ui_frontend_check §19 asserts no second (v-min)/span form — extraction preserves that. Round-trip the stub page once to confirm both plans still draw.
 
 **Feasibility check:** Confirmed: hull points-string (venue.js:270-278 vs roomplan.js:330-338) and glyph transform + three class toggles (venue.js:280-290 vs roomplan.js:340-349) are verbatim copies. Risk LOW is honest — pure code motion, all coordinates still route through the one metresToPx, no float reassociation. Two caveats for the implementer: (1) roomplan's glyph loop additionally renders the v1.1.0 output badge (outBadges, roomplan.js:351-362) which the mini has no DOM nodes for, so the extraction must scope to hull+transform+toggles and leave badge rendering in roomplan (the candidate's own scoping already says this); (2) the shared helper must live in roomplan.js — ui_frontend_check.js section 32 bans the VERTEX/ON_EDGE/INTERIOR vocabulary in js/scenes.js and section 19 requires the single-projection module; extraction into roomplan.js passes sections 19, 22, 26, and 32, and layout gate sections 3/8 measure rendered DOM so they verify rather than block the change.
+
+## Phase 3 Applied (v1.3.4, 2026-08-26)
+
+Batch A of the tiered approval — the LOW-severity, LOW-risk tier. Six of seven applied.
+
+| ID | Outcome |
+|---|---|
+| LOW-01 | ✅ Applied as `OOctagonProcessor::commitScenes()`. **Scoped to the three paired sites.** The audit listed three; there is a **fourth** `sceneStore.writeToState` at `PluginProcessor.cpp:178` (constructor) with no generation bump, deliberately — it seeds the `SCENES` node at birth (N13), has no cache to invalidate, and `scenesGeneration` starts at 1. Folding it in would have been a behaviour change. |
+| LOW-02 | ✅ Applied. Measured, not argued: computed `text-transform` on all eight `#vf-label-N` inputs is `none` before and after. |
+| LOW-03 | ✅ Applied as the `{ state }` variant. Verified first that all four consumer files read only `.state`. |
+| LOW-04 | ✅ Applied. `WEIGHT_IDS` is declared at `app.js:122`, `FIELD_INPUT_IDS` at `:181` — no TDZ hazard. |
+| LOW-05 | ✅ Applied. `clamp01`'s shipped declaration asserted character-identical to the deleted inline expression. |
+| LOW-06 | ❌ **REVERTED — FALSE POSITIVE.** See below. |
+| LOW-07 | ✅ Applied at all three sites (`venue.js` preset list, `elevation.js` axis + speaker groups). |
+
+### LOW-06 is a false positive, not pending work
+
+The candidate reads *"The aliases add a line per site and no meaning"* / *"Test impact: None —
+purely mechanical."* Both are false. The seven `const value = pingStateNode;` aliases are what makes
+`venue.js` satisfy **`ui_frontend_check.js` section 6**, which guards
+`pattern_js_state_updater_overwrites_html_labels` by whitelisting the *identifier names* that appear
+on the left of a `.textContent =` write, each paired with a companion assertion about its binding.
+Deleting the aliases moved the receivers to `classNode`, `venueNameNode`, `presetCurrentNode`,
+`pingStateNode` and `ooStateNode` and **failed section 6**.
+
+Passing again would mean loosening a deliberately short whitelist, or writing five new companion
+assertions, for seven lines of nit-tier cosmetics. **Do not re-attempt without also deciding what
+section 6's contract should be.** This is the audit's own blind spot: it screened MEDIUM-06 and
+MEDIUM-07 for gate coupling and cleared every LOW item without doing so.
+
+### Verification
+
+Rendered-DOM + computed-style snapshot across five page states, sha256 `69227ed4…d0ae47` before and
+after, 0 console errors — shown deterministic across two baseline runs first, and negative-controlled
+(80 computed-style lines change, `#elev-axis` children accumulate). LOW-05's clamp separately proven
+over 126 pathological inputs, since the stub's meters are all-zero without a ping.
+`ui_frontend_check` 42 · `ui_layout_check` 31 · render 51/0 · geometry 46/0 · `auval` PASS.
+
+**Coverage gap surfaced, not introduced:** removing `++scenesGeneration` from `commitScenes()`
+outright leaves all 51 render probes green — nothing observes `getScenesGeneration()`. LOW-01 is
+verified by the call-site diff and the compiler, not by a test.
+
+## Phase 3 Skipped (still open)
+
+MEDIUM-01…MEDIUM-05 were skipped by choice at the Batch B gate and remain below **verbatim**,
+including **MEDIUM-03**, the live `blur` fallback drift (`0.1f` vs the live `0.03f` default) — the
+only item in the whole audit that corrects behaviour.
+
+> **Note — the audit mislabels its own item.** The preamble section *"The one thing that isn't
+> cosmetic"* calls the `getFieldGrid` drift bug **MEDIUM-04**. It is **MEDIUM-03**; MEDIUM-04 is the
+> CSS banner dedup.
+
+## Phase 3 Deferred
+
+Batch C — every one needs a test gate edited in the same commit, so none is a drive-by.
+
+| ID | What it needs |
+|---|---|
+| MEDIUM-06 | `ui_frontend_check.js:368,387` extract served paths by regexing `url == "…"`; against a table form both report 0 comparisons and pass vacuously. The regex must become a table reader in the same commit. |
+| MEDIUM-07 | §33 statically asserts the guard shape at all three sites and NC5 removes a deadline to prove the latch reproduces. The audit's own verdict: *"only worth doing with the gate maintained alongside; otherwise defer."* |
+| LOW-08 | Tagged `Risk: MEDIUM` despite LOW severity. §21 measures the fitted strip and NC1 oversizes it — confirm the gate reads the rendered rect, not the attributes, then re-run both. |
 
 ## MEDIUM severity
 

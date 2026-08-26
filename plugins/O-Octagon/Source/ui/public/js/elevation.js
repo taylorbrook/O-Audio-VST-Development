@@ -198,7 +198,7 @@ export function createElevation(deps) {
   }
 
   function drawAxis() {
-    while (axisGroup.firstChild !== null) axisGroup.removeChild(axisGroup.firstChild);
+    axisGroup.replaceChildren();
 
     for (let m = 0; m <= axisMaxM; m += AXIS_STEP_M) {
       const p = at(view.minX, m);
@@ -243,7 +243,7 @@ export function createElevation(deps) {
   }
 
   function drawSpeakers() {
-    while (speakerGroup.firstChild !== null) speakerGroup.removeChild(speakerGroup.firstChild);
+    speakerGroup.replaceChildren();
 
     // UI-05 criterion 3. The §OQ4 grading 4.50 -> 5.40 m is 17.3 px on this
     // box, which is why the heights are drawn at all rather than assumed flat:
