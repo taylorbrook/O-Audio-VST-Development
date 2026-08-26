@@ -29,7 +29,7 @@
 // nothing in the C++ toolchain can see it.
 //
 // O-Octagon's stub at Phase 3.3:
-//     17 slider ranges  ·  18 native fns (3 from 3.1, 10 from 3.2, 5 new)
+//     18 slider ranges  ·  18 native fns (3 from 3.1, 10 from 3.2, 5 new)
 //     0 combos  ·  0 toggles  ·  no backend.addEventListener (pull-only design)
 //     no canvas stub — a real browser canvas IS the thing under test
 //
@@ -90,8 +90,8 @@ function listenerList() {
   };
 }
 
-// ── The 17 ranges ──────────────────────────────────────────────────────────
-// Mirrors createParameterLayout(). ALL SEVENTEEN ARE LINEAR — there is not one
+// ── The 18 ranges ──────────────────────────────────────────────────────────
+// Mirrors createParameterLayout(). ALL EIGHTEEN ARE LINEAR — there is not one
 // skewed parameter in this plugin, so unlike the precedent there is no
 // skewForCentre() helper here and nothing for a skew transcription to get wrong.
 //
@@ -109,6 +109,7 @@ const RANGES = {
   srcY:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.5 },
   srcZ:       { start: -2,  end: 8,  skew: 1, interval: 0,     def: 0.0 },
   width:      { start: 0,   end: 12, skew: 1, interval: 0,     def: 0.0 },
+  decorr:     { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.0 },
 
   rolloff:    { start: 3,   end: 12, skew: 1, interval: 0,     def: 4.0 },
   blur:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.03 },
@@ -502,7 +503,7 @@ export function getSliderState(name) {
   return sliderStates.get(name);
 }
 
-// O-Octagon has NO Choice and NO Bool parameters (RESEARCH-3.1 F1) — all 17 are
+// O-Octagon has NO Choice and NO Bool parameters (RESEARCH-3.1 F1) — all 18 are
 // AudioParameterFloat. The relay-type split that bit the precedent three times
 // (grainShape, freeze, sourceMode) is structurally absent, so these two exist
 // only to make a page that reaches for them fail LOUDLY here rather than build a

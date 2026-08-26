@@ -60,13 +60,24 @@ namespace presets
 {
 
 //==============================================================================
-/** The eleven parameters loadPreserving() holds still — the SOURCE and the SCENE.
+/** The twelve parameters loadPreserving() holds still — the SOURCE, the SCENE, and the MATERIAL.
 
-    Not a stylistic list: it is the complement of the six a factory preset writes, and 6 + 11 = 17
+    Not a stylistic list: it is the complement of the six a factory preset writes, and 6 + 12 = 18
     is asserted below against oo::params::kCount so the two halves cannot drift apart.
+
+    ── WHY v1.5.0's `decorr` IS PRESERVED AND NOT AUTHORED (the one judgement call in the list) ──
+
+    Every other entry here is preserved because it describes WHERE the source is or WHICH speakers
+    are live. `decorr` is preserved because it describes THE MATERIAL: it is the answer to "is this
+    stem effectively mono?", which is a fact about the file on the track, not about the room the
+    preset is painting. Wide Hall does not know whether you fed it a mono stem or a decorrelated
+    stereo pair, and a preset that flipped the setting either way would be guessing.
+
+    It also keeps all six factory presets bit-unchanged across the v1.4.0 -> v1.5.0 boundary, which
+    is the same compatibility line the parameter's 0 default draws.
 */
-inline constexpr std::array<const char*, 11> kPreserved
-    = { "srcX", "srcY", "srcZ",
+inline constexpr std::array<const char*, 12> kPreserved
+    = { "srcX", "srcY", "srcZ", "decorr",
         "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8" };
 
 /** The six a factory preset writes — ROOM CHARACTER, and nothing that says where the source is. */

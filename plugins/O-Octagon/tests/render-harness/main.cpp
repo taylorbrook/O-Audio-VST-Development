@@ -26,7 +26,7 @@
     offline. No DAW, no hardware, no MIDI.
 
     ── Phase 4.1 ────────────────────────────────────────────────────────────────────────────────
-      CP N5's fix — a factory preset load leaves THE ELEVEN (srcX/srcY/srcZ + w1..w8) BIT-
+      CP N5's fix — a factory preset load leaves THE TWELVE (srcX/srcY/srcZ/decorr + w1..w8) BIT-
          unchanged. The six-changed clause passes with the bug present; clause 3b IS the probe.
          Hermetic: it deletes and regenerates its own probe-scoped store, because WR-04's
          .factory-version sentinel would otherwise let it read a file from an earlier iteration
@@ -37,7 +37,8 @@
 
     ── Phase 2.3 ────────────────────────────────────────────────────────────────────────────────
       AY DSP-06/1 — width = 0 gives gL == gR BITWISE, with a width = 4 negative control
-      AZ QUAL-04/3 + QUAL-01/1 — the five parameters AS does not sweep (11 + 5 + BC's 1 = 17)
+      AZ QUAL-04/3 + QUAL-01/1 — the five parameters AS does not sweep (11 + 5 + BC's 1 = 17 of
+         18; v1.5.0's decorr is covered by CV/CW/CX instead — see AZ's note on why not here)
       BA DSP-06/4 — a puck swept THROUGH the centroid at width = 6 stays continuous (risk R5)
       BB QUAL-01/2 — the hull crossing: DC, 1 kHz and 8 kHz; entry BIT-EXACT (P27), exit measured
          against the predicted A·|H_20k(f) − 1| (H2)
@@ -446,6 +447,36 @@ juce::String firstDifference (const juce::AudioBuffer<float>& a, const juce::Aud
                      + juce::String (b.getSample (ch, n), 9) + ")";
 
     return "identical";
+}
+
+/** FNV-1a over the RAW FLOAT BYTES of every lane, for the cross-version bit-identity anchor.
+
+    A DIGEST AND NOT A memcmp BECAUSE THE REFERENCE LIVES IN ANOTHER BINARY. bitIdentical() compares
+    two buffers rendered in ONE process, which is the right tool for QUAL-03 and useless for "v1.5.0
+    at decorr = 0 renders what v1.4.0 rendered" — there is no v1.4.0 buffer to hold. A digest
+    captured from the v1.4.0 binary and transcribed into the probe is the only form that claim can
+    take (pattern_reanchor_cross_version_digest_probe: re-anchor deliberately, never re-record
+    silently).
+
+    Raw bytes, not values: a float-by-float accumulate would let a compiler contract or reorder the
+    arithmetic and change the digest without the audio changing.
+*/
+std::uint64_t bufferDigest (const juce::AudioBuffer<float>& b)
+{
+    std::uint64_t h = 1469598103934665603ull;
+
+    for (int ch = 0; ch < b.getNumChannels(); ++ch)
+    {
+        const auto* bytes = reinterpret_cast<const unsigned char*> (b.getReadPointer (ch));
+
+        for (std::size_t i = 0; i < sizeof (float) * static_cast<std::size_t> (b.getNumSamples()); ++i)
+        {
+            h ^= bytes[i];
+            h *= 1099511628211ull;
+        }
+    }
+
+    return h;
 }
 
 /** A weight vector with a single live speaker — w = δ_ij. */
@@ -1263,7 +1294,11 @@ int main()
     }
 
     //==========================================================================
-    // U — A Stage-1-shaped session: 17 parameters and NO VENUE child at all.
+    // U — A Stage-1-shaped session: the parameters and NO VENUE child at all.
+    //
+    // "The parameters" and not a count: the blob is manufactured from a CURRENT tree by stripping
+    // the venue child, so it carries however many the build has (18 since v1.5.0). What makes it
+    // Stage-1-shaped is the missing child, which is the only thing this probe is about.
     //
     // This is not an edge case. Every project saved between Stage 1 and now takes exactly this
     // path, and it must produce the §OQ4 default venue silently, without error.
@@ -2347,8 +2382,23 @@ int main()
     // AZ — QUAL-04 CRITERION 3 (which was PARTIAL at the 2.2 boundary) AND QUAL-01/1.
     //
     // Probe AS's proven DC construction, applied to the five parameters AS does not cover. With
-    // AS's eleven (srcX, srcY, srcZ and the eight weights) and BC's airAmount, ALL 17 ARE COVERED:
-    // 11 + 5 + 1 = 17.
+    // AS's eleven (srcX, srcY, srcZ and the eight weights) and BC's airAmount, SEVENTEEN OF THE
+    // EIGHTEEN ARE COVERED: 11 + 5 + 1 = 17.
+    //
+    // ── AND THE EIGHTEENTH IS DELIBERATELY NOT HERE (v1.5.0) ──────────────────────────────────
+    //
+    // `decorr` CANNOT be swept by this construction, and adding it would be worse than leaving it
+    // out. Every section of the decorrelation network is an all-pass with H(1) = (1-g)/(1-g) = 1
+    // EXACTLY, so a DC input passes through unchanged at every depth — probe CV measures the
+    // residual at 3.0e-7 across a full sweep. A decorr sweep on AS's DC signal would therefore
+    // move NOTHING, report a per-sample delta of zero, and pass its bound by a mile while testing
+    // the parameter not at all (pattern_zipper_sweep_probe_needs_liveness_gate). It would read as
+    // coverage and be decoration.
+    //
+    // The zipper risk it would be pretending to cover is closed structurally and measured
+    // elsewhere: decorrMix and decorrDepth are 5 ms SmoothedValues advanced once per sample
+    // unconditionally, the ring reads are fractional and interpolated, and probe CX sweeps decorr
+    // across block boundaries at five block sizes and requires bit-identity.
     //
     // Two placement requirements, or the sweep is vacuous rather than clean:
     //   - the puck sits OFF-CENTRE, so width is outside the rFade collapse and actually spreads;
@@ -2466,7 +2516,7 @@ int main()
 
         if (ok)
             detail << "all 5 ramped, all 5 controls fire; with AS's 11 and BC's airAmount that is "
-                      "11 + 5 + 1 = 17 of 17";
+                      "11 + 5 + 1 = 17 of 18 (decorr is CV/CW/CX's — see the note above)";
 
         check ("AZ no-zipper-on-remaining", ok, detail);
     }
@@ -5132,13 +5182,14 @@ int main()
     // ══════════════════════════════════════════════════════════════════════════════════════════
 
     //==========================================================================
-    // CP — N5's fix: a factory preset load leaves THE ELEVEN BIT-UNCHANGED.
+    // CP — N5's fix: a factory preset load leaves THE TWELVE BIT-UNCHANGED.
     //
     //      ── WHY THE OBVIOUS PROBE IS VACUOUS ────────────────────────────────────────────────
     //      "Assert the six moved to the preset's values" PASSES WITH THE BUG PRESENT. WR-01 resets
-    //      all seventeen to their defaults before applying anything, so the six arrive correctly
-    //      either way; what the bug does is silently take the OTHER eleven — the source position
-    //      and the eight scene weights — down to their defaults with them. Clause 3's SECOND half
+    //      all eighteen to their defaults before applying anything, so the six arrive correctly
+    //      either way; what the bug does is silently take the OTHER twelve — the source position,
+    //      v1.5.0's decorr, and the eight scene weights — down to their defaults with them.
+    //      Clause 3's SECOND half
     //      is the probe. NC2 (delete the restore) fails that half while the six-changed half still
     //      passes, which is how that is known rather than asserted.
     //
@@ -5174,11 +5225,18 @@ int main()
             presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
             presets.initializeFactoryPresets (oo::presets::factoryDefs (proc.getAPVTS()));
 
-            // The eleven are given values the WR-01 reset would visibly destroy: a source well off
-            // centre and lifted, and a FRONT-like scene rather than the all-1.0 default.
+            // The twelve are given values the WR-01 reset would visibly destroy: a source well
+            // off centre and lifted, decorrelation dialled up, and a FRONT-like scene rather than
+            // the all-1.0 default.
             setParam (proc, "srcX", 0.17f);
             setParam (proc, "srcY", 0.83f);
             setParam (proc, "srcZ", 3.4f);
+            //
+            // v1.5.0. Off its 0.0f default for the reason the weights are off 1.0f: a preserved
+            // parameter sitting at its default is one the WR-01 reset cannot be OBSERVED to move,
+            // and the liveness gate below is what turns that from a comment into a failure. It
+            // fired on this exact parameter the moment decorr joined kPreserved.
+            setParam (proc, "decorr", 0.55f);
             //
             // NOT 1.0f ANYWHERE. 1.0 is the weight default, and a weight sitting at its default is
             // one the WR-01 reset cannot be observed to move — the liveness gate below caught
@@ -5204,7 +5262,7 @@ int main()
             for (std::size_t i = 0; i < oo::presets::kPreserved.size(); ++i)
                 before[i] = readNorm (oo::presets::kPreserved[i]);
 
-            // THE LIVENESS GATE. Every one of the eleven must currently sit AWAY from its default,
+            // THE LIVENESS GATE. Every one of the twelve must currently sit AWAY from its default,
             // or "bit-unchanged after a reset-to-defaults" is a claim about nothing.
             int atDefault = 0;
             for (std::size_t i = 0; i < oo::presets::kPreserved.size(); ++i)
@@ -5245,9 +5303,9 @@ int main()
                 }
             }
 
-            const bool elevenHeld = moved == 0;
+            const bool twelveHeld = moved == 0;
 
-            ok = loaded && armed && sixApplied && elevenHeld;
+            ok = loaded && armed && sixApplied && twelveHeld;
 
             detail << "load " << (loaded ? "ok" : "FAILED")
                    << "; the SIX -> width " << juce::String (readEng ("width"), 2)
@@ -5257,7 +5315,7 @@ int main()
                    << " air " << juce::String (readEng ("airAmount"), 2)
                    << " gain " << juce::String (readEng ("outputGain"), 2)
                    << (sixApplied ? " (applied)" : " — DID NOT MATCH Distant Field")
-                   << "; the ELEVEN " << (elevenHeld ? "BIT-UNCHANGED" : "MOVED")
+                   << "; the TWELVE " << (twelveHeld ? "BIT-UNCHANGED" : "MOVED")
                    << (firstMoved != nullptr ? juce::String (" (first: ") + firstMoved
                                                    + " -> reset to default)"
                                              : juce::String())
@@ -5270,12 +5328,12 @@ int main()
                 detail << "yes (11/11 away from default)";
             else
                 detail << "NO — " << atDefault
-                       << " of 11 SAT AT THEIR DEFAULT, THIS PROBE IS VACUOUS";
+                       << " of 12 SAT AT THEIR DEFAULT, THIS PROBE IS VACUOUS";
 
             presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
         }
 
-        check ("CP preset-load-preserves-the-eleven", ok, detail);
+        check ("CP preset-load-preserves-the-twelve", ok, detail);
     }
 
     //==========================================================================
@@ -5645,6 +5703,380 @@ int main()
                                  ? "8 lanes delayed 1.50..24.25 ms: bit-identical by memcmp over "
                                    "24576 samples x 8 lanes"
                                  : firstDifference (outA, outB))
+                   + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // CU — v1.5.0's BIT-IDENTITY ANCHOR, CAPTURED FROM THE v1.4.0 BINARY.
+    //
+    // v1.5.0 adds an 18th parameter and a stateful all-pass network on the two sub-point feeds.
+    // The feature's whole compatibility claim is that at `decorr` = 0 NOTHING CHANGES — not
+    // "changes below audibility", not "changes only in the last bit". This probe is that claim,
+    // and it is the one assertion in the feature that CANNOT be made by comparing two buffers
+    // rendered in one process: the reference lives in the previous binary.
+    //
+    // ── THE SCENARIO IS CHOSEN TO BE WHERE THE DECORRELATOR WOULD ENGAGE ──────────────────────
+    // A digest taken at width = 0 would be worthless: the decorrelator is gated on wEff and does
+    // not run there, so it would pass with the gate wired backwards. The puck is OFF-CENTRE (so
+    // the rFade collapse does not fire and wEff is the full dialled width), width is 6 m, and air
+    // is up — every condition the decorrelator needs, with only the parameter itself at zero.
+    //
+    // ── RE-ANCHORING ──────────────────────────────────────────────────────────────────────────
+    // If a LATER version deliberately changes this render, the constant is re-derived by running
+    // the previous release's harness and transcribing the number, WITH the changelog entry that
+    // says why. It is never re-recorded from the failing build — that turns the one probe that
+    // watches for silent drift into a probe that ratifies it.
+    {
+        constexpr int total = 4096 * 4;
+
+        // v1.4.0 CAPTURE, 2026-08-26, from commit 0c7154f2 (the v1.4.0 release build), rendered
+        // by this exact scenario before a line of v1.5.0's DSP existed.
+        constexpr std::uint64_t kV140Digest = 0xe25f022c8ce71dc9ull;
+
+        const std::vector<Event> events
+            { { 4096 * 1, "srcX",    0.72f },
+              { 4096 * 2, "blur",    0.22f },
+              { 4096 * 3, "rolloff", 5.0f } };
+
+        OOctagonProcessor proc;
+
+        negotiate (proc, mono, set71);
+        applyRotatedLabels (proc);
+
+        // ARMED AFTER negotiate(), so prepareToPlay()'s own work is not counted.
+        oo::instr::resetCounters();
+
+        // OFF-CENTRE AND WIDE — see the note above. srcY moves too, so the spread axis is not the
+        // degenerate fore-aft fallback either.
+        setParam (proc, "srcX",      0.28f);
+        setParam (proc, "srcY",      0.66f);
+        setParam (proc, "srcZ",      1.40f);
+        setParam (proc, "width",     6.0f);
+        setParam (proc, "airAmount", 0.60f);
+        setParam (proc, "hullAtten", 1.60f);
+        setWeights (proc, { 1.0f, 0.85f, 0.6f, 1.0f, 0.4f, 0.9f, 1.0f, 0.75f });
+
+        juce::AudioBuffer<float> out (8, total);
+        renderInto (proc, out, total, { 4096 }, events);
+
+        const auto digest = bufferDigest (out);
+
+        // THE SECOND HALF OF THE CLAIM, AND IT IS NOT THE SAME HALF. The digest says the audio is
+        // v1.4.0's audio; this says the network never executed. Either alone leaves a hole — a
+        // decorrelator that ran and happened to be transparent would pass the digest, and a
+        // counter that stayed at zero because the render was silent would pass this.
+        const auto decorrRan = oo::instr::get (oo::instr::decorrSamples);
+
+        // NON-VACUITY. A silent render has a digest too, and it would be a stable one.
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        const bool ok = digest == kV140Digest && decorrRan == 0 && live;
+
+        juce::String detail;
+        detail << "width 6 m off-centre, air 0.60, 4 x 4096 samples x 8 lanes: digest 0x"
+               << juce::String::toHexString (static_cast<juce::int64> (digest))
+               << " vs v1.4.0 0x" << juce::String::toHexString (static_cast<juce::int64> (kV140Digest))
+               << "; decorrSamples " << juce::String (decorrRan) << " (expect 0)"
+               << (live ? "" : " — SIGNAL IS SILENT, probe vacuous");
+
+        check ("CU decorr-zero-matches-v1.4.0", ok, detail);
+    }
+
+    //==========================================================================
+    // CV — THE DECORRELATOR ITSELF: ALL-PASS AT EVERY DEPTH, DECORRELATING, CONVERGENT AT ZERO.
+    //
+    // Driven DIRECTLY rather than through a render, because the claims Decorrelator.h makes are
+    // claims about the network and a render can only show their consequences.
+    //
+    // ── THE SWEEP IS THE PROBE, AND THE FIRST DRAFT OF THIS PROBE PROVED IT ───────────────────
+    //
+    // This originally measured depth 1.0 ONLY, and it passed against an implementation that was
+    // 3 to 4.6 dB down at every other depth. The bases are integers, so depth 1.0 is the one
+    // value in the range where a fractional read needs no interpolation — the single point at
+    // which the broken code was correct. The defect was found by measuring the SUMMED level
+    // (-6.94 dB against a coherent sum, where incoherent addition predicts -3.01), not by this
+    // probe, which is exactly the shape of pattern_test_fixture_mirrors_drift_silently: a fixture
+    // that samples the one operating point where the bug is invisible.
+    //
+    // So clause 1 now sweeps NINE depths spanning integer, half-sample and quarter-sample
+    // positions of the shortest base, and asserts the gain at every one. Restore the fractional
+    // read and this fails at eight of them.
+    {
+        constexpr double sr      = 48000.0;
+        constexpr int    measure = 65536;
+
+        /*  ── THE WARM-UP IS 32768 AND THE FIRST DRAFT'S 8192 WAS NOT ENOUGH ───────────────────
+            Filling the rings is not the constraint — the longest chain holds 1252 samples at
+            depth 1. SETTLING is: each section's DC state converges to 1/(1-g) geometrically at
+            g per round trip, so reaching 1e-6 needs ~40 trips of a 449-sample section, and the
+            four sections settle IN SERIES because each one's input is the previous one's output.
+
+            Measured rather than reasoned, because the two are easy to confuse here: at 8192 the
+            settled DC reads 0.93180668 and a depth sweep swings it by 6.8e-2, which looks
+            exactly like a real artefact. At 32768 it reads 0.99999970 and the sweep swings it by
+            3.0e-7, and it does not improve at 524288 — so 32768 is settled, not merely closer.
+            A tolerance loosened to accommodate the first number would have certified a
+            decorrelator that thumps.                                                            */
+        constexpr int warmUp = 32768;
+
+        // Chosen so that base 113 x depth lands on integers (1.000), halves (0.500), quarters
+        // (0.250, 0.750) and assorted thirds/eighths — every interpolation phase a fractional
+        // read would have had to handle.
+        const std::array<float, 9> depths
+            { 1.0f, 0.9f, 0.75f, 0.5f, 0.375f, 0.25f, 0.125f, 0.05f, 0.01f };
+
+        oo::Decorrelator dL, dR;
+
+        const auto runPair = [&] (float depth, std::vector<float>& outL, std::vector<float>& outR)
+        {
+            dL.prepare (sr, oo::decorr::kBasesLeft);
+            dR.prepare (sr, oo::decorr::kBasesRight);
+
+            for (int n = 0; n < warmUp; ++n)
+            {
+                dL.process (noiseAt (n), depth);
+                dR.process (noiseAt (n), depth);
+            }
+
+            outL.resize (measure);
+            outR.resize (measure);
+
+            for (int n = 0; n < measure; ++n)
+            {
+                const float x = noiseAt (warmUp + n);
+                outL[(std::size_t) n] = dL.process (x, depth);
+                outR[(std::size_t) n] = dR.process (x, depth);
+            }
+        };
+
+        // Clause 1 — ALL-PASS AT EVERY DEPTH, and clause 2 — DECORRELATED where the chains have
+        // separated. Both fall out of one pass per depth.
+        bool  allPass       = true;
+        bool  decorrelated  = true;
+        float worstGainDb   = 0.0f;
+        float worstDepth    = 0.0f;
+        float corrAtFull    = 0.0f;
+        float summedDb      = 0.0f;
+
+        std::vector<float> outL, outR;
+
+        for (std::size_t i = 0; i < depths.size(); ++i)
+        {
+            const float depth = depths[i];
+            runPair (depth, outL, outR);
+
+            double eIn = 0.0, eL = 0.0, eR = 0.0, xy = 0.0, eSum = 0.0, eCoh = 0.0;
+
+            for (int n = 0; n < measure; ++n)
+            {
+                const double x = noiseAt (warmUp + n);
+                const double l = outL[(std::size_t) n];
+                const double r = outR[(std::size_t) n];
+
+                eIn += x * x;   eL += l * l;   eR += r * r;   xy += l * r;
+
+                // THE SUM THAT FOUND THE BUG. Where both sub-points feed one speaker the hall
+                // hears l + r, and THAT is where a non-all-pass chain shows up as cancellation
+                // rather than as a quiet feed.
+                eSum += (l + r) * (l + r);
+                eCoh += (2.0 * x) * (2.0 * x);
+            }
+
+            const auto dB = [] (double ratio) { return 10.0 * std::log10 (ratio); };
+
+            const float gainLDb = static_cast<float> (dB (eL / eIn));
+            const float gainRDb = static_cast<float> (dB (eR / eIn));
+
+            if (std::abs (gainLDb) > std::abs (worstGainDb)) { worstGainDb = gainLDb; worstDepth = depth; }
+            if (std::abs (gainRDb) > std::abs (worstGainDb)) { worstGainDb = gainRDb; worstDepth = depth; }
+
+            // 0.1 dB. The measured figure is 0.00 at all nine; the broken fractional read was
+            // 3.22 to 4.63 down, so this discriminates by a factor of thirty.
+            allPass = allPass && std::abs (gainLDb) < 0.1f && std::abs (gainRDb) < 0.1f;
+
+            const float corr = static_cast<float> (xy / std::sqrt (eL * eR));
+
+            // ONLY ABOVE THE CONVERGENCE REGION. At depth 0.01 every section has clamped to the
+            // one-sample floor in BOTH chains, so a high correlation there is the design working
+            // (clause 4), not failing — asserting decorrelation there would contradict clause 4.
+            if (depth >= 0.05f)
+                decorrelated = decorrelated && std::abs (corr) < 0.35f;
+
+            if (i == 0)
+            {
+                corrAtFull = corr;
+                summedDb   = static_cast<float> (dB (eSum / eCoh));
+            }
+        }
+
+        // Clause 3 — DC IS UNTOUCHED, AT EVERY DEPTH. Each section's H(1) = (1-g)/(1-g) = 1
+        // exactly, so a DC input leaves a DC output and sweeping depth cannot produce a thump.
+        // This is also WHY probe AZ's DC-based zipper construction cannot cover `decorr` — see
+        // the note there.
+        float dcWorst = 0.0f;
+        {
+            oo::Decorrelator dc;
+            dc.prepare (sr, oo::decorr::kBasesLeft);
+
+            for (int n = 0; n < warmUp; ++n)
+                dc.process (1.0f, 1.0f);
+
+            for (int n = 0; n < 512; ++n)
+            {
+                const float depth = 1.0f - static_cast<float> (n) / 512.0f;
+                dcWorst = juce::jmax (dcWorst, std::abs (dc.process (1.0f, depth) - 1.0f));
+            }
+        }
+
+        // 1e-5 against a measured 3.0e-7 — two orders of headroom over the noise floor of a
+        // settled chain, and three below the 6.8e-2 an unsettled one produces.
+        const bool dcHeld = dcWorst < 1.0e-5f;
+
+        // Clause 4 — AT DEPTH 0 THE TWO CHAINS ARE ONE CHAIN. Every section clamps to
+        // kMinDelaySamples, so left and right become the same filter and their outputs are
+        // BIT-IDENTICAL. That is what makes the bottom of the control a common phase colour on a
+        // still-correlated pair rather than a comb.
+        std::vector<float> zeroL, zeroR;
+        runPair (0.0f, zeroL, zeroR);
+
+        bool converged = true;
+        for (int n = 0; n < measure && converged; ++n)
+            converged = bitExact (zeroL[(std::size_t) n], zeroR[(std::size_t) n]);
+
+        const bool ok = allPass && decorrelated && dcHeld && converged;
+
+        juce::String detail;
+        detail << "9 depths 1.00..0.01: worst chain gain " << juce::String (worstGainDb, 3)
+               << " dB at depth " << juce::String (worstDepth, 3) << " (expect |dB| < 0.1)"
+               << "; cross-correlation at full depth " << juce::String (corrAtFull, 4)
+               << " (expect |r| < 0.35), summed vs coherent " << juce::String (summedDb, 2)
+               << " dB (incoherent addition predicts -3.01)"
+               << "; DC through a depth sweep deviates " << juce::String (dcWorst, 9)
+               << " (expect < 1e-5); depth 0 collapses both chains onto one: "
+               << (converged ? "bit-identical" : "DIVERGED");
+
+        check ("CV decorrelator-is-allpass-at-every-depth", ok, detail);
+    }
+
+    //==========================================================================
+    // CW — THE wEff GATE: AT WIDTH 0, decorr = 1 IS BIT-IDENTICAL TO decorr = 0.
+    //
+    // THE PROBE THAT CARRIES THE FEATURE'S CORRECTNESS ARGUMENT. At width 0 the two sub-points
+    // coincide and probe AY asserts v_L is bit-for-bit v_R, so §3.4.3's degenerate path is a clean
+    // mono sum. Decorrelating there would make that sum incoherent — 3 dB down and phasey — which
+    // is the exact defect the feature exists to remove, delivered by the feature. A gate written
+    // on p[width] instead of on wEff would ALSO pass this, which is why the second half exists.
+    //
+    // ── AND THE SECOND HALF IS NOT DECORATION ─────────────────────────────────────────────────
+    // A decorrelator wired to nothing passes clause 1 perfectly. Clause 2 re-runs the identical
+    // comparison at width 6 and requires it to FAIL — the same shape as every other non-vacuity
+    // gate in this file, and the only thing separating "correctly gated" from "inert"
+    // (pattern_probe_must_target_the_branch_the_fix_changed).
+    {
+        constexpr int total = 4096 * 3;
+
+        const auto renderAt = [&] (float widthMetres, float decorrAmount,
+                                   juce::AudioBuffer<float>& dest)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+            applyRotatedLabels (proc);
+
+            // OFF-CENTRE, so at width 6 the rFade collapse is not what is holding wEff down.
+            setParam (proc, "srcX",   0.30f);
+            setParam (proc, "srcY",   0.70f);
+            setParam (proc, "width",  widthMetres);
+            setParam (proc, "decorr", decorrAmount);
+
+            dest.setSize (8, total);
+            renderInto (proc, dest, total, { 4096 }, {});
+        };
+
+        juce::AudioBuffer<float> zeroWidthOff, zeroWidthOn, wideOff, wideOn;
+
+        renderAt (0.0f, 0.0f, zeroWidthOff);
+        renderAt (0.0f, 1.0f, zeroWidthOn);
+        renderAt (6.0f, 0.0f, wideOff);
+        renderAt (6.0f, 1.0f, wideOn);
+
+        // Clause 1 — THE GATE HOLDS.
+        const bool gated = bitIdentical (zeroWidthOff, zeroWidthOn);
+
+        // Clause 2 — AND IT IS A GATE, NOT AN OFF SWITCH.
+        const bool audibleWhenWide = ! bitIdentical (wideOff, wideOn);
+
+        const bool live = wideOn.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        const bool ok = gated && audibleWhenWide && live;
+
+        juce::String detail;
+        detail << "width 0: decorr 0 vs 1 is "
+               << (gated ? "BIT-IDENTICAL" : juce::String ("DIFFERENT — ") + firstDifference (zeroWidthOff, zeroWidthOn))
+               << "; width 6 m: decorr 0 vs 1 "
+               << (audibleWhenWide ? "differ (the control is live)"
+                                   : "ARE IDENTICAL — DECORR IS WIRED TO NOTHING, PROBE VACUOUS")
+               << (live ? "" : "; SIGNAL IS SILENT, probe vacuous");
+
+        check ("CW decorr-gated-on-effective-width", ok, detail);
+    }
+
+    //==========================================================================
+    // CX — QUAL-03 STILL HOLDS WITH THE DECORRELATION CHAINS CLOCKING.
+    //
+    // CT's shape, one feature later. The eight rings are the sharper risk for the reason the eight
+    // delay lines were: their read positions are driven by a ramp, so a depth ramp that advanced
+    // per BLOCK rather than per SAMPLE would read a different fractional position at 512 than at
+    // 4096 and the two renders would diverge
+    // (pattern_block_rate_envelope_breaks_blocksize_invariance).
+    //
+    // The events INCLUDE a decorr move, so the ramp is in motion across a block boundary rather
+    // than parked — a smoother that is never smoothing is invariant to the bug under test.
+    {
+        constexpr int total = 4096 * 6;
+
+        const std::vector<Event> events
+            { { 4096 * 1, "decorr", 0.85f }, { 4096 * 2, "srcX",   0.22f },
+              { 4096 * 3, "width",  9.0f  }, { 4096 * 4, "decorr", 0.25f },
+              { 4096 * 5, "blur",   0.30f } };
+
+        OOctagonProcessor a, b;
+
+        for (auto* p : { &a, &b })
+        {
+            negotiate (*p, mono, set71);
+            applyRotatedLabels (*p);
+
+            setParam (*p, "srcX",   0.30f);
+            setParam (*p, "srcY",   0.70f);
+            setParam (*p, "width",  6.0f);
+            setParam (*p, "decorr", 0.60f);
+        }
+
+        juce::AudioBuffer<float> outA (8, total), outB (8, total);
+
+        // ARMED HERE, NOT READ RAW AT THE END. decorrSamples is a running total since the last
+        // reset, and probes CU/CV/CW ran before this one — so an unreset read would report "the
+        // chains clocked" on the strength of ANOTHER probe's render and the liveness gate below
+        // would be measuring nothing. This is the counter equivalent of an unarmed probe.
+        oo::instr::resetCounters();
+
+        renderInto (a, outA, total, { 1, 7, 64, 333, 4096 }, events);
+        renderInto (b, outB, total, { 4096 },                events);
+
+        const bool identical = bitIdentical (outA, outB);
+
+        // NON-VACUITY, IN THE PLACE IT COULD HIDE: a render with the chains disengaged is a render
+        // of v1.4.0, and it would be invariant for reasons that have nothing to do with this probe.
+        const bool ran  = oo::instr::get (oo::instr::decorrSamples) > 0;
+        const bool live = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("CX blocksize-invariance-with-decorr", identical && ran && live,
+               juce::String (identical
+                                 ? "ragged {1,7,64,333,4096} vs 4096, decorr swept 0.60 -> 0.85 -> "
+                                   "0.25 across boundaries: bit-identical by memcmp over 24576 "
+                                   "samples x 8 lanes"
+                                 : firstDifference (outA, outB))
+                   + (ran  ? "" : " — THE CHAINS NEVER CLOCKED, probe vacuous")
                    + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
     }
 

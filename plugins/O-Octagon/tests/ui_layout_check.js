@@ -165,7 +165,7 @@ function resolvePlaywright() {
 //      arriving from the DOM side rather than from JUCE's.
 //
 //   2. PageUp/PageDown, NOT ArrowRight/ArrowLeft. One arrow step is one `step`
-//      attribute — 0.0001 normalised for the nine column controls — which is
+//      attribute — 0.0001 normalised for the ten column controls — which is
 //      BELOW the display resolution of every readout on the page: 0.0001 of
 //      srcZ's 10 m range is 0.001 m, and the readout carries two decimals. A
 //      probe built on arrow keys therefore reports sixteen "frozen" readouts on
@@ -173,7 +173,7 @@ function resolvePlaywright() {
 //      than a vacuous pass, but it is the same defect class: the probe was not
 //      driving the thing it claimed to measure. Chromium steps a range input by
 //      max(step, range/10) on PageUp/PageDown, which is a visible move for all
-//      seventeen.
+//      eighteen.
 async function nudge(page, id) {
     const el = await page.$(`#ctl-${id}`);
     if (el === null) return false;
@@ -251,7 +251,7 @@ async function nudge(page, id) {
         null, { timeout: 10000 }).catch(() => {});
 
     // ── 1 ────────────────────────────────────────────────────────────────────
-    head(1, 'the page is ALIVE — zero console errors, all 17 controls bound');
+    head(1, 'the page is ALIVE — zero console errors, all 18 controls bound');
 
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
@@ -262,7 +262,7 @@ async function nudge(page, id) {
     // times (pattern_test_fixture_mirrors_drift_silently).
     const idBlock = appJs.match(/const PARAM_IDS = \[([\s\S]*?)\];/);
     const paramIds = idBlock ? [...idBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]) : [];
-    check(paramIds.length === 17, `PARAM_IDS parsed from app.js — ${paramIds.length} ids (expect 17)`);
+    check(paramIds.length === 18, `PARAM_IDS parsed from app.js — ${paramIds.length} ids (expect 18)`);
 
     const present = await page.evaluate(
         ids => ids.filter(id => document.getElementById(`ctl-${id}`) !== null).length, paramIds);

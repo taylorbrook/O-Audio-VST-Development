@@ -86,6 +86,15 @@ namespace instr
     /// than a rendered comparison against a "filter absent" build that does not exist.
     inline std::atomic<std::uint64_t> airSamplesFiltered { 0 };
 
+    /// v1.5.0 — samples that actually went THROUGH the decorrelation chains. The same shape as
+    /// airSamplesFiltered and it exists for the same reason, sharpened: the feature's compatibility
+    /// claim is that at `decorr` = 0 the network does not run AT ALL, and "the branch was never
+    /// taken" is a stronger statement than any rendered comparison, because there is no
+    /// "decorrelator absent" build to compare against. Probe CU pairs this zero with the v1.4.0
+    /// digest — the counter says the code did not execute, the digest says the audio is the same
+    /// audio, and neither on its own is the claim.
+    inline std::atomic<std::uint64_t> decorrSamples { 0 };
+
     inline void resetCounters() noexcept
     {
         powCalls.store           (0, std::memory_order_relaxed);
@@ -94,6 +103,7 @@ namespace instr
         sampleAdvances.store     (0, std::memory_order_relaxed);
         airCutoffUpdates.store   (0, std::memory_order_relaxed);
         airSamplesFiltered.store (0, std::memory_order_relaxed);
+        decorrSamples.store      (0, std::memory_order_relaxed);
     }
 
     inline std::uint64_t get (const std::atomic<std::uint64_t>& c) noexcept
@@ -137,6 +147,13 @@ namespace instr
     {
        #if OOCTAGON_INSTRUMENT
         airSamplesFiltered.fetch_add (1, std::memory_order_relaxed);
+       #endif
+    }
+
+    inline void countDecorrSample() noexcept
+    {
+       #if OOCTAGON_INSTRUMENT
+        decorrSamples.fetch_add (1, std::memory_order_relaxed);
        #endif
     }
 }

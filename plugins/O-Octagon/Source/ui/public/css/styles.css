@@ -638,20 +638,38 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 
 /* ── Controls column ─────────────────────────────────────────────────────── */
 
+/* v1.5.0 — gap 12 -> 10 and .group's vertical padding 10/12 -> 8/10.
+
+   WHY THE COLUMN TIGHTENED: the 18th parameter opened a THIRD grid row in
+   #group-position, and this column has NO ABSORBER to take it. .elev-stage is
+   `flex: none` at a fixed --elev-h, and every group above it is content-sized,
+   so the 21 px the new row costs went straight into overflow — measured at
+   scrollHeight 613 against clientHeight 592 by ui_layout_check section 21, at
+   both device pixel ratios.
+
+   THE COST IS SPREAD, NOT PLACED. Taking it out of the elevation strip alone
+   would have been one line and would have put the whole 21 px on the one
+   element in this column with legibility assertions against it (UI-05, and
+   section 21's own fitted-box guard). Two px off each group's top and bottom
+   and two off each column gap reclaims 34 px across six groups and five gaps
+   — enough for the new row with 13 px still in hand — and reads as the column
+   being slightly denser rather than as one panel having been squeezed. */
 .controls-column {
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .group {
   border: 1px solid var(--rule-soft);
   border-radius: 2px;
   background: var(--panel);
-  padding: 10px 14px 12px 14px;
+  /* Vertical padding only — the 14 px sides are untouched, so the column's
+     horizontal rhythm is exactly what it was. See .controls-column above. */
+  padding: 8px 14px 10px 14px;
 }
 
 .group-title {

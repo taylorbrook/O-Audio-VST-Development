@@ -157,6 +157,13 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     //     about when the edit landed.
     for (auto& s : delaySamples) s.reset (sampleRateToUse, 0.005);
 
+    //     ── v1.5.0's two decorrelator ramps, on the SAME 5 ms, in the SAME step ──────────────
+    //     The mix is a bypass crossfade and the depth is a control ramp, but both want the length
+    //     everything else in this class uses: a decorrelator that faded in over a different time
+    //     than the width ramp it belongs to would make one gesture arrive twice.
+    decorrMix.reset   (sampleRateToUse, 0.005);
+    decorrDepth.reset (sampleRateToUse, 0.005);
+
     //     ── and the air filters, in the SAME step (PLAN-2.3 P30) ─────────────────────────────
     //     filter.prepare() is the analogous state teleport, so it belongs beside the seventeen
     //     rather than in a fourth place. See the header for why it is mandatory (H6: the default
@@ -197,6 +204,19 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
         line.prepare (spec);            // numChannels 1 — see the header on why not one x8 instance
     }
 
+    //     ── and the two decorrelation chains, in the same step, for the same reason (v1.5.0) ─
+    //
+    //     prepare() here is a SCALE-AND-CLEAR, not an allocation: the rings are std::array members
+    //     sized at the 192 kHz worst case, so the only rate-dependent thing is how many of those
+    //     samples a section reads. That is what keeps the dispersion in MILLISECONDS across rates
+    //     — see Decorrelator::prepare().
+    decorrL.prepare (sampleRateToUse, decorr::kBasesLeft);
+    decorrR.prepare (sampleRateToUse, decorr::kBasesRight);
+
+    //     Unclocked and un-faded, exactly as the delay lines are. updateControl() below takes the
+    //     false->true edge if the incoming patch already wants decorrelation.
+    decorrEngaged = decorrWasEngaged = false;
+
     //     The lines start unclocked. updateControl() below establishes the real state from the
     //     first solve, so a render that BEGINS with delays already in the venue takes the
     //     false->true edge on its first control block and gets its reset there — the same shape
@@ -227,6 +247,25 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     //     NOT block-size invariant to measure — QUAL-03 would still pass (both renders would slide
     //     identically) and QUAL-01's lead-in would be wrong.
     for (auto& s : delaySamples) s.setCurrentAndTargetValue (s.getTargetValue());
+
+    //     And the decorrelator's two, for the gains' reason rather than the delays': a render that
+    //     BEGINS decorrelated must start at full mix, or its first 5 ms would be a crossfade out
+    //     of a dry signal that was never playing. The depth teleports with it so the chains do not
+    //     sweep across the head of the render either.
+    decorrMix.setCurrentAndTargetValue   (decorrMix.getTargetValue());
+    decorrDepth.setCurrentAndTargetValue (decorrDepth.getTargetValue());
+
+    //     Same re-derivation the delay ramps need one block down, and for the same reason: the
+    //     teleport moved decorrMix under an `decorrEngaged` that updateControl() computed while it
+    //     was still at zero.
+    decorrEngaged    = decorrMix.getCurrentValue() > 0.0f;
+    decorrWasEngaged = decorrEngaged;
+
+    if (decorrEngaged)
+    {
+        decorrL.reset();
+        decorrR.reset();
+    }
 
     //     Teleporting the ramps moved the targets under delayEngaged, which updateControl()
     //     computed one line earlier from a smoother that was still at zero. Re-derive it here so
@@ -397,6 +436,63 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
 
     airWasEnabled = airEnabled;
 
+    // ── v1.5.0 — THE DECORRELATOR'S GATE AND ITS DEPTH ────────────────────────────────────────
+    //
+    // ── WHY THE GATE IS ON wEff AND NOT ONLY ON THE PARAMETER ─────────────────────────────────
+    //
+    // This is the whole correctness argument for the feature, and it is not obvious.
+    //
+    // At wEff == 0 the two sub-points COINCIDE. Probe AY asserts that v_L is then bit-for-bit
+    // v_R, which is what makes §3.4.3's degenerate path — v_i * 0.5*(L+R), with no branch — a
+    // clean mono sum. Decorrelating two feeds that are about to be multiplied by the SAME gain
+    // vector and added does not widen anything: it makes a coherent sum incoherent, which costs
+    // 3 dB and sounds phasey, at the one setting where this plugin currently guarantees the
+    // arithmetic is transparent. That is the defect this feature exists to remove, reproduced by
+    // the feature itself.
+    //
+    // So the decorrelator is wanted only where the sub-points are actually apart. wEff — not
+    // p[width] — because the rFade collapse near the centroid drives the spread to zero WITHOUT
+    // the parameter moving (§3.4.2), and a gate on the parameter would run the chains through the
+    // collapse and back out.
+    //
+    // ── AND THE DEPTH IS SCALED BY IT, WHICH IS THE OTHER HALF ────────────────────────────────
+    //
+    // A gate alone would step from nothing to 22 ms of dispersion the instant wEff left zero.
+    // Scaling depth by the same spread means that at small widths both chains sit near their
+    // one-sample floor, where Decorrelator.h shows they CONVERGE TO THE SAME FILTER — so the pair
+    // is still correlated, the sum is still flat, and the boundary is a fade rather than a switch.
+    const float wEff = subPoints.wEff;
+
+    const float widthRamp = juce::jlimit (0.0f, 1.0f, wEff / decorr::kFullDepthWidthMetres);
+
+    const bool decorrWanted = p[params::decorr] > 0.0f && wEff > 0.0f;
+
+    decorrMix.setTargetValue (decorrWanted ? 1.0f : 0.0f);
+
+    // ONLY WHILE WANTED. Writing the target unconditionally would ramp depth toward zero during
+    // the fade-out and sweep eight delay lines on the way — see the member's comment.
+    if (decorrWanted)
+        decorrDepth.setTargetValue (p[params::decorr] * widthRamp);
+
+    // Clocked while wanted AND for as long as the fade-out still has something to fade. Dropping
+    // the chains the moment the parameter hit zero would cut the crossfade off at its start, which
+    // is the click the crossfade exists to prevent.
+    const bool wasDecorrEngaged = decorrEngaged;
+
+    decorrEngaged = decorrWanted
+                 || decorrMix.getCurrentValue() > 0.0f
+                 || decorrMix.isSmoothing();
+
+    // The engage edge. A memset over eight rings plus two index fills — no allocation, RT-safe,
+    // and the same class of operation as the alignment lines' reset a few lines down.
+    if (decorrEngaged && ! wasDecorrEngaged)
+    {
+        decorrL.reset();
+        decorrR.reset();
+    }
+
+    decorrWasEngaged = decorrEngaged;
+
     // ── §5 step 7 — set the 17 targets ────────────────────────────────────────────────────────
     for (int i = 0; i < kNumSpeakers; ++i)
     {
@@ -559,6 +655,13 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
         // hold the last FILTERED output whenever the filter ran at all.
         float lastL = 0.0f, lastR = 0.0f;
 
+        // The same tracking for the two decorrelation chains, which are recursive and therefore
+        // sticky in the same way: w[n] = x[n] + g*w[n-M] re-derives the state from a value that is
+        // already non-finite, so one poisoned sample silences the chain forever. The LAST output
+        // is sufficient for the air filter's reason — poisoning is sticky by construction — and a
+        // running max would be actively wrong for its reason too (jmax discards NaN silently).
+        float lastDecorrL = 0.0f, lastDecorrR = 0.0f;
+
         for (int n = start; n < last; ++n)
         {
             const float sL = in0 != nullptr ? 0.5f * in0[n] : 0.0f;   // §3.4.3 level convention:
@@ -576,14 +679,49 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
             if (airActiveL) { instr::countAirSampleFiltered(); lastL = fL; }
             if (airActiveR) { instr::countAirSampleFiltered(); lastR = fR; }
 
+            // ── v1.5.0 — THE DECORRELATOR ─────────────────────────────────────────────────────
+            //
+            // ADVANCED UNCONDITIONALLY, OUTSIDE THE BRANCH. The same rule the seventeen and the
+            // eight delay ramps live under (§3.6.4, constraint 6/H10), and it matters here for
+            // the delay ramps' exact reason: decorrEngaged can flip between chunks, and a ramp
+            // frozen while disengaged would resume from a stale currentValue on the chunk that
+            // re-engages it — which QUAL-03 would not catch, because both block sizes would
+            // freeze identically.
+            const float dMix   = decorrMix.getNextValue();
+            const float dDepth = decorrDepth.getNextValue();
+
+            float xL = fL;
+            float xR = fR;
+
+            if (decorrEngaged)
+            {
+                const float wetL = decorrL.process (fL, dDepth);
+                const float wetR = decorrR.process (fR, dDepth);
+
+                // LERP, NOT (1-m)*dry + m*wet. At m == 0 this is `fL + 0.0f * (wetL - fL)`, which
+                // is fL EXACTLY — the v1.4.0 expression reached by arithmetic that cannot round
+                // away from it, so the settled-but-not-yet-disengaged block is already
+                // bit-transparent rather than transparent to within one ulp. The complementary
+                // form would give (1-0)*fL + 0*wetL, whose first product is fL * 1.0f — also
+                // exact, but only while the compiler keeps the multiply, which -ffast-math is
+                // free not to.
+                xL = fL + dMix * (wetL - fL);
+                xR = fR + dMix * (wetR - fR);
+
+                lastDecorrL = wetL;
+                lastDecorrR = wetR;
+
+                instr::countDecorrSample();
+            }
+
             const float g = outGain.getNextValue();
 
             for (int i = 0; i < kNumSpeakers; ++i)
             {
                 const auto k = static_cast<std::size_t> (i);
 
-                const float y = (gL[k].getNextValue() * fL
-                               + gR[k].getNextValue() * fR) * g;
+                const float y = (gL[k].getNextValue() * xL
+                               + gR[k].getNextValue() * xR) * g;
 
                 // v1.4.0. ADVANCED UNCONDITIONALLY, OUTSIDE THE delayEngaged BRANCH — the same
                 // rule the seventeen live under (§3.6.4), and it matters here for the same reason:
@@ -636,6 +774,16 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
         // than as the rule being broken.
         if (! std::isfinite (lastL)) airL.reset();
         if (! std::isfinite (lastR)) airR.reset();
+
+        // v1.5.0, on the same schedule and for the same reason. Both chains are cleared when
+        // EITHER poisons: they are a matched pair whose whole purpose is to differ from each
+        // other, and restarting one against a ring the other has been filling for minutes would
+        // leave the pair correlated in a way no probe would name.
+        if (! std::isfinite (lastDecorrL) || ! std::isfinite (lastDecorrR))
+        {
+            decorrL.reset();
+            decorrR.reset();
+        }
 
         // ── FUNC-04 — THE VERIFY PING, AS A POST-WRITE OVERWRITE (§7.2 / §OQ2 / P60) ──────────────
         //

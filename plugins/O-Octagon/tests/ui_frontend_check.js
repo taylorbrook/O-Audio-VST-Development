@@ -188,7 +188,7 @@ head(2, 'a single init() call, and it is the LAST statement');
     check(!/^\s*createRoomPlan\(/m.test(S.roomJs),
         'roomplan.js has no top-level call of its own — app.js initialises it inside init()');
     check(/roomPlan = createRoomPlan\(/.test(S.appJs) && /try\s*\{[\s\S]{0,400}createRoomPlan\(/.test(S.appJs),
-        'the plan is created INSIDE a try/catch, so a failed plan cannot take the 17 bindings down');
+        'the plan is created INSIDE a try/catch, so a failed plan cannot take the 18 bindings down');
 }
 
 // ───────────────────────────────────────────────── 3. native-fn bridge gap ──
@@ -598,7 +598,7 @@ head(14, 'no getNativeFunction awaited inside pointermove / mousemove / rAF (P42
 }
 
 // ───────────────────────────────────────── 15. the stub mirrors the real ranges ──
-head(15, 'the stub\'s 17 ranges + defaults match createParameterLayout() PARSED FROM SOURCE');
+head(15, 'the stub\'s 18 ranges + defaults match createParameterLayout() PARSED FROM SOURCE');
 {
     // The precedent's own comments record its stub range table drifting FIVE
     // times. This is the fix for that class rather than another instance of it
@@ -619,7 +619,7 @@ head(15, 'the stub\'s 17 ranges + defaults match createParameterLayout() PARSED 
         for (let i = 1; i <= 8; ++i)
             layout.set(`w${i}`, { start: num(wLoop[1]), end: num(wLoop[2]), def: num(wLoop[3]) });
 
-    check(layout.size === 17, `createParameterLayout() parsed — ${layout.size} parameters (expect 17)`);
+    check(layout.size === 18, `createParameterLayout() parsed — ${layout.size} parameters (expect 18)`);
 
     const stubBlock = S.stubJs.match(/const RANGES = \{([\s\S]*?)\n\};/);
     check(stubBlock !== null, 'the stub RANGES table is parseable');
@@ -630,7 +630,7 @@ head(15, 'the stub\'s 17 ranges + defaults match createParameterLayout() PARSED 
             /^\s{2}([A-Za-z0-9_]+):\s*\{\s*start:\s*(-?[\d.]+),\s*end:\s*(-?[\d.]+),\s*skew:\s*(-?[\d.]+),[^}]*def:\s*(-?[\d.]+)/gm))
             stub.set(m[1], { start: num(m[2]), end: num(m[3]), skew: num(m[4]), def: num(m[5]) });
 
-    check(stub.size === 17, `the stub declares ${stub.size} ranges (expect 17)`);
+    check(stub.size === 18, `the stub declares ${stub.size} ranges (expect 18)`);
     check(setsEqual(new Set(stub.keys()), new Set(layout.keys())),
         `stub ids == layout ids${setsEqual(new Set(stub.keys()), new Set(layout.keys())) ? ''
             : ` — stub-only [${diff(new Set(stub.keys()), new Set(layout.keys()))}], cpp-only [${diff(new Set(layout.keys()), new Set(stub.keys()))}]`}`);
@@ -645,9 +645,9 @@ head(15, 'the stub\'s 17 ranges + defaults match createParameterLayout() PARSED 
     }
     check(drift.length === 0, `every range AND default matches${drift.length ? ` — ${drift.join('; ')}` : ''}`);
 
-    // All 17 ranges are linear by design — there is no skewForCentre helper to
+    // All 18 ranges are linear by design — there is no skewForCentre helper to
     // get wrong, and this is what makes that claim executable.
-    check([...stub.values()].every(s => s.skew === 1), 'all 17 stub skews are 1 (every range is linear)');
+    check([...stub.values()].every(s => s.skew === 1), 'all 18 stub skews are 1 (every range is linear)');
 
     // The two neutral-default traps, named so a failure says WHICH.
     for (let i = 1; i <= 8; ++i)
@@ -663,7 +663,7 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
     // The trailing comma is load-bearing: the eight weights are built in a loop
     // as `makeFloat ("w" + juce::String (i), ...)`, so a regex that stops at the
     // closing quote harvests a nineteenth "parameter" called `w` and reports
-    // 18 == 17 as a mismatch on correct code.
+    // 19 == 18 as a mismatch on correct code.
     const layoutIds = new Set([...S.procCpp.matchAll(/makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,/g)].map(m => m[1]));
     for (let i = 1; i <= 8; ++i) layoutIds.add(`w${i}`);
 
@@ -675,8 +675,8 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
     const appBlock = S.appJs.match(/const PARAM_IDS = \[([\s\S]*?)\];/);
     const appIds = new Set(appBlock ? [...appBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]) : []);
 
-    check(layoutIds.size === 17 && paramsIds.size === 17 && domIds.size === 17 && appIds.size === 17,
-        `all four lists are 17 — layout ${layoutIds.size}, params::id ${paramsIds.size}, DOM ${domIds.size}, app ${appIds.size}`);
+    check(layoutIds.size === 18 && paramsIds.size === 18 && domIds.size === 18 && appIds.size === 18,
+        `all four lists are 18 — layout ${layoutIds.size}, params::id ${paramsIds.size}, DOM ${domIds.size}, app ${appIds.size}`);
     check(setsEqual(layoutIds, paramsIds),
         `createParameterLayout == oo::params::id()${setsEqual(layoutIds, paramsIds) ? ''
             : ` — [${diff(layoutIds, paramsIds)}] / [${diff(paramsIds, layoutIds)}]`}`);
@@ -700,7 +700,7 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
     check(!/kSliderIds\s*(\{|=)/.test(S.editorCpp),
         'PluginEditor.cpp carries NO hand-written kSliderIds list');
     check(/for \(int i = 0; i < static_cast<int> \(oo::params::kCount\); \+\+i\)/.test(S.editorCpp),
-        'the relay loop is bounded by oo::params::kCount, not by a literal 17');
+        'the relay loop is bounded by oo::params::kCount, not by a literal 18');
 }
 
 // ──────────────────────────────────────────────────────── 17. the frame size ──
@@ -766,11 +766,13 @@ head(18, 'font-variant-numeric: tabular-nums on every value readout class');
     // span is IN THE SCAN because JS writes into it — which is the rule as stated, and it is
     // exactly why it was authored as a dedicated .vcell-value node instead of the <th>: a
     // header written wholesale would carry .vcol-head and fail the treatment check below.
+    //
+    // 84 -> 85 at v1.5.0: val-decorr, the readout of the 18th parameter.
     const VALUE_IDS = /^(?:val-[A-Za-z0-9_]+|readout-[a-z]+|venue-name|vf-[A-Za-z0-9-]+|vclass-[0-9]+|vvenue-name|vset-name|vping-state|vpreset-current|map-invalid-copy|vcol-delay-unit)$/;
     const valueNodes = [...S.html.matchAll(/<[a-z]+\b[^>]*\bid="([^"]+)"[^>]*>/g)]
         .filter(m => VALUE_IDS.test(m[1]))
         .map(m => m[0]);
-    check(valueNodes.length === 84, `84 value nodes found in index.html — ${valueNodes.length}`);
+    check(valueNodes.length === 85, `85 value nodes found in index.html — ${valueNodes.length}`);
 
     const classOf = tag => (tag.match(/class="([^"]*)"/) || [, ''])[1].split(/\s+/);
     const untreated = valueNodes.filter(n =>
@@ -1193,8 +1195,8 @@ head(27, 'EXACTLY ONE setCustomStateCallbacks, touching only SCENES (FUNC-05, re
     check(! /innerHTML/.test(VENUE_CODE), 'venue.js never assigns innerHTML');
 }
 
-// ──────────────────────────────────── 28. the preset load brackets all 17 (N5) ──
-head(28, 'the loadPreset call site brackets ALL 17 parameters (N5/P59)');
+// ──────────────────────────────────── 28. the preset load brackets all 18 (N5) ──
+head(28, 'the loadPreset call site brackets ALL 18 parameters (N5/P59)');
 {
     // applyPresetJson calls setValueNotifyingHost DIRECTLY on the parameter, not through a
     // ParameterAttachment — so F3's unchanged-write skip does NOT apply (callIfParameterValueChanged
@@ -1207,10 +1209,10 @@ head(28, 'the loadPreset call site brackets ALL 17 parameters (N5/P59)');
     check(/beginChangeGesture\(\)/.test(body), 'it opens a gesture');
     check(/endChangeGesture\(\)/.test(body), 'and closes one');
 
-    // Bounded by oo::params::kCount, never by a literal 17 — the same rule §16 enforces on the
+    // Bounded by oo::params::kCount, never by a literal 18 — the same rule §16 enforces on the
     // relay loop, so adding a parameter cannot leave one unbracketed.
     check(/oo::params::kCount/.test(body),
-        'the bracket loops are bounded by oo::params::kCount, not by a literal 17');
+        'the bracket loops are bounded by oo::params::kCount, not by a literal 18');
     check(/oo::params::id \(i\)/.test(body),
         'and the ids come from oo::params::id(i), not a second transcribed list');
 
@@ -1301,14 +1303,28 @@ head(30, 'the ping overwrites AFTER the write and AFTER the NaN guard; no new re
         'out[] is resolved through snapshot.speakerToBuffer — so the ping tests the MAP');
 
     // ── P23/P30's ONE RESET SITE EVER, still true ──
-    // 12 sites, and every one is accounted for: 4 in prepare() (the 17 smoothers, plus v1.4.0's
-    // eight delay ramps), 2 in updateControl() (DSP-07/7's airAmount edge), 2 in renderChunk()
-    // (P27's air re-seed), 2 in renderChunk() (DSP-07/8's NaN RECOVERY), and v1.4.0's TWO on the
-    // delay lines — one in prepare() beside the teleport, one in updateControl() on the engage
-    // edge. 3.2 added NONE; v1.4.0 adds three, all of them ARMING or RECOVERY sites rather than
-    // initialisation sites, each labelled as such at the call.
+    //
+    // 20 sites, and every one is accounted for. THE POINT OF THE COUNT IS THAT IT IS A LEDGER,
+    // NOT A BUDGET: a reset that is not on this list is an unlabelled second initialisation path,
+    // and P23 says the first 240 samples of every render depend on there being exactly one.
+    //
+    //   prepare(), step 2 — the smoother/filter teleports:  6
+    //     the 17 gain smoothers (3 loops), v1.4.0's eight delay ramps (1),
+    //     and v1.5.0's decorrMix + decorrDepth (2).
+    //   prepare(), step 4 — post-teleport re-derivation:    3
+    //     v1.5.0's two chains (2) and v1.4.0's delay lines (1). ARMING, not initialising:
+    //     the teleport moved the ramps under a gate computed one line earlier.
+    //   updateControl() — edge-triggered ARMING/RECOVERY:   5
+    //     DSP-07/7's airAmount edge (2), v1.5.0's decorr engage edge (2), and
+    //     v1.4.0's alignment-line engage edge (1).
+    //   renderChunk() — P27's air re-seed:                  2
+    //   renderChunk() — DSP-07/8's NaN RECOVERY:            4
+    //     the two air filters (2) and v1.5.0's two chains (2).
+    //
+    // 3.2 added NONE. v1.4.0 added three. v1.5.0 adds eight, all of them ARMING or RECOVERY
+    // sites rather than initialisation sites, each labelled as such at the call.
     const resets = (S.gainCpp.match(/\.reset\s*\(/g) || []).length;
-    check(resets === 12, `GainStage.cpp has exactly 12 reset() sites — ${resets}`);
+    check(resets === 20, `GainStage.cpp has exactly 20 reset() sites — ${resets}`);
 
     // ── v1.4.0 — THE DELAY SITS BEFORE THE PING, WHICH IS THE WHOLE POINT ──
     // The ping bypasses DBAP, the weights, the hull trim, the air filter, the per-speaker trim and

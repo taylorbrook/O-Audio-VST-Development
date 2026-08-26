@@ -86,7 +86,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         // per channel in the geometrically flat default field — barely audible. 12 m puts them near
         // opposite walls of the default room at full width. Presets saved under < 1.3.0 carry the
         // old normalised encoding and are re-mapped (÷2) by the editor's migration hook.
-        makeFloat ("width", "Width",    linearRange (0.0f, 12.0f), 0.0f, "m")));
+        makeFloat ("width", "Width",    linearRange (0.0f, 12.0f), 0.0f, "m"),
+        // v1.5.0. THE 18th PARAMETER, AND IT DEFAULTS TO 0 FOR A COMPATIBILITY REASON, NOT A
+        // TASTE ONE: at 0 GainStage bypasses the decorrelation network entirely, so every session
+        // and every preset written before v1.5.0 renders bit-identically. Probe CU holds that
+        // against the v1.4.0 binary's own digest.
+        //
+        // Unit-less rather than "ms" although it scales a dispersion time: the time it produces
+        // also depends on the effective width (GainStage scales depth by wEff), so a millisecond
+        // label would be a number the control does not actually deliver.
+        //
+        // IN "Position" AND NOT "Space" BECAUSE IT IS PART OF WIDTH. It is gated on wEff and does
+        // nothing without it — a user who widens a mono stem, hears combing, and goes looking for
+        // the cure should find it in the group they are already in.
+        makeFloat ("decorr", "Decorrelate", linearRange (0.0f, 1.0f), 0.0f)));
 
     // ── Solve ───────────────────────────────────────────────────────────────────
     // "dB/2x" rather than "dB/doubling": Logic truncates the unit field hard and the prose form
