@@ -166,7 +166,13 @@ function scanJs(src) {
 
         if (depth === 0 && (c === ';' || c === '}')) {
             const text = code.slice(stmtStart).trim();
-            if (text) topLevel.push(text);
+            // A `}` at depth zero already closed the statement, so the `;` that
+            // terminates `export const X = {...};` opens a fresh segment holding
+            // nothing but that semicolon. An empty statement is not a top-level
+            // statement, and rejecting it would force every plugin to write the
+            // object-literal exports in a shape that dodges this scanner rather
+            // than one chosen on its merits.
+            if (text && text !== ';') topLevel.push(text);
             stmtStart = code.length;
         }
 
@@ -174,7 +180,7 @@ function scanJs(src) {
     }
 
     const tail = code.slice(stmtStart).trim();
-    if (tail) topLevel.push(tail);
+    if (tail && tail !== ';') topLevel.push(tail);
 
     return { code, strings, topLevel };
 }
