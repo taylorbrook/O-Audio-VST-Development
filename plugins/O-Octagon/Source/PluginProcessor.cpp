@@ -892,6 +892,12 @@ void OOctagonProcessor::getStateInformation (juce::MemoryBlock& destData)
         // getBoolAttribute below sidesteps that class of bug entirely.
         xml->setAttribute ("tooltipsEnabled", tooltipsEnabled.load (std::memory_order_acquire));
 
+        // v1.6.0 — the hover-help LANGUAGE rides the same root attribute idiom, and for the same
+        // reason. Persisted as the language CODE, not the index: the index is an implementation
+        // detail of the audio-safe std::atomic<int>, and a session written today has to still
+        // mean "French" if the codec ever gains a third entry.
+        xml->setAttribute ("uiLanguage", languageCode (uiLanguage.load (std::memory_order_acquire)));
+
         copyXmlToBinary (*xml, destData);
     }
 }
@@ -910,6 +916,14 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (xml->hasAttribute ("tooltipsEnabled"))
             tooltipsEnabled.store (xml->getBoolAttribute ("tooltipsEnabled"),
                                    std::memory_order_release);
+
+        // v1.6.0 — same shape for the language. Pre-1.6.0 sessions have no attribute, so the
+        // default (English) stands. languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited or corrupt value degrades to English rather than reaching storage
+        // unvalidated. The editor PULLS this via getUiLanguage at page init, never a push.
+        if (xml->hasAttribute ("uiLanguage"))
+            uiLanguage.store (languageIndex (xml->getStringAttribute ("uiLanguage")),
+                              std::memory_order_release);
     }
 
     // ── ORDERING HAZARD (ARCHITECTURE §4.1). This sequence is not interchangeable ───────────────

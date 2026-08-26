@@ -195,6 +195,15 @@ OctagonEditor::getResource (const juce::String& url)
         return makeBinaryResource (UIBinaryData::app_js, UIBinaryData::app_jsSize,
                                    "application/javascript; charset=utf-8");
 
+    // v1.6.0 — the hover-help copy table, English + French. Embedded in the
+    // UIResources target AND served here: a file that is one but not the other
+    // is a 404 that presents as a page with no tooltips and nothing else.
+    // Sections 9 and 21 close that loop, and scripts/check-i18n.js assertion 8
+    // checks both ends independently.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (UIBinaryData::i18n_js, UIBinaryData::i18n_jsSize,
+                                   "application/javascript; charset=utf-8");
+
     // NOT room-plan.js. juce_add_binary_data STRIPS a hyphen rather than
     // converting it to an underscore, so a hyphenated name would have to be
     // reached as `roomplan_js` anyway; the file is authored hyphen-free so there
@@ -1292,6 +1301,34 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
         [this] (auto&, auto complete)
         {
             complete (juce::var (processorRef.tooltipsEnabled.load (std::memory_order_acquire)));
+        });
+
+    // ── HOVER-HELP LANGUAGE (v1.6.0) — the language pair ──────────────────────────────────────
+    //
+    // Same shape and same discipline as the toggle above: plain withNativeFunction, no relay,
+    // PULLED once by the page at init. No push from this constructor, no timer, no
+    // poll().then(poll) and no revision counter — the language is not preset content, and
+    // OuariconPresetManager::loadPreset walks preset["parameters"] only, so no preset path can
+    // change it behind the page's back.
+    options = options.withNativeFunction ("getUiLanguage",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (OOctagonProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction ("setUiLanguage",
+        [this] (auto& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an unexpected argument
+            // from the page degrades to English rather than being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    OOctagonProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (OOctagonProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
    #if JUCE_WINDOWS

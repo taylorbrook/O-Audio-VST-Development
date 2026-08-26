@@ -231,8 +231,14 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // v1.4.0 adds ONE: applySuggestedDelays, the Delay row's Derive button. The delays
     // themselves ride getVenueGeometry as per-speaker `delayMs` (P55's argument, a third time)
     // and the ms/metres toggle is a pure view state, so neither adds a call.
-    check(registered.size === 23,
-        `PluginEditor.cpp registers exactly 23 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    //
+    // v1.6.0 adds the hover-help LANGUAGE persistence pair, exactly parallel to v1.2.0's:
+    // setUiLanguage (the gear popover's selector) and getUiLanguage (PULLED by the page at init,
+    // for the same reason — a C++ push fires before the module has evaluated and would silently
+    // never arrive). The COPY itself adds no call: it is compiled into js/i18n.js and served as a
+    // resource, not fetched across the bridge.
+    check(registered.size === 25,
+        `PluginEditor.cpp registers exactly 25 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);
@@ -415,13 +421,20 @@ head(9, 'HTML/JS refs == getResource entries == juce_add_binary_data SOURCES');
     const referenced = new Set(['/index.html']);
     for (const m of S.html.matchAll(/(?:href|src)="([^"]+)"/g))
         if (!/^(https?:|data:)/.test(m[1])) referenced.add('/' + m[1].replace(/^\.?\//, ''));
-    for (const m of S.appJs.matchAll(/from "\.\/([^"]+)"/g)) referenced.add('/js/' + m[1]);
+    // BOTH quote styles. Every import in this page was double-quoted until v1.6.0, when
+    // js/i18n.js arrived carrying the repo-wide canonical import line — which
+    // scripts/check-i18n.js assertion 6 requires VERBATIM, single quotes and all, so that 43
+    // hand-copies of the i18n runtime cannot drift apart. A double-quote-only scan would have
+    // reported i18n.js as embedded-but-never-referenced, i.e. a FALSE failure describing a page
+    // that in fact imports it.
+    for (const m of S.appJs.matchAll(/from ["']\.\/([^"']+)["']/g)) referenced.add('/js/' + m[1]);
     for (const m of S.juceJs.matchAll(/^import "\.\/([^"]+)";/gm)) referenced.add('/js/juce/' + m[1]);
 
-    // 7 -> 11 at Phase 3.3: scenes.js, meters.js, field.js, elevation.js. A LITERAL, and it moves
-    // every phase for the same reason §3's does — a count that tracked whatever happened to be in
-    // SOURCES would assert nothing at all.
-    check(embedded.size === 11, `juce_add_binary_data embeds 11 files — ${embedded.size}`);
+    // 7 -> 11 at Phase 3.3: scenes.js, meters.js, field.js, elevation.js. 11 -> 12 at v1.6.0:
+    // js/i18n.js, the hover-help copy table. A LITERAL, and it moves every phase for the same
+    // reason §3's does — a count that tracked whatever happened to be in SOURCES would assert
+    // nothing at all.
+    check(embedded.size === 12, `juce_add_binary_data embeds 12 files — ${embedded.size}`);
     check(setsEqual(served, embedded),
         `served == embedded${setsEqual(served, embedded) ? ''
             : ` — served-only: [${diff(served, embedded)}], embedded-only: [${diff(embedded, served)}]`}`);

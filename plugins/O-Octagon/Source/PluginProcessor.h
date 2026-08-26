@@ -295,6 +295,31 @@ public:
         would never fire (critical_valuetree_xml_roundtrip_loses_type). */
     std::atomic<bool> tooltipsEnabled { false };
 
+    /** v1.6.0 — the hover-help LANGUAGE. 0 = en, 1 = fr.
+
+        Held as an int index rather than the string it persists as, because
+        std::atomic<juce::String> does not compile — juce::String is not
+        trivially copyable — so the audio-safe form is an index behind the
+        two-function codec below while the PERSISTED form stays a language code.
+
+        Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+        automation lane, and a preset must not be able to change which language
+        somebody reads their help in. Like tooltipsEnabled it rides the session
+        as a root XML ATTRIBUTE (idiom 2), which is the idiom this plugin
+        already uses — a ValueTree property's XML round-trip rebuilds every
+        property as a string, so a type predicate on restore never fires
+        (critical_valuetree_xml_roundtrip_loses_type).
+
+        Written by the editor's setUiLanguage native fn on the message thread;
+        PULLED once by the page at init through getUiLanguage. */
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected bridge argument degrades to English
+        rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
    #if OOCTAGON_INSTRUMENT
     /** The 17 smoothers' current values — test targets only (PLAN-2.2 P20). */
     std::array<float, oo::GainStage::kNumSmoothers> currentSmoothedGains() const noexcept

@@ -101,6 +101,15 @@ import { createMeters } from "./meters.js";
 import { createField } from "./field.js";
 import { createElevation } from "./elevation.js";
 
+// v1.6.0 — the hover-help copy table. SINGLE QUOTES and this exact spelling:
+// scripts/check-i18n.js assertion 6 requires the canonical import line verbatim
+// so that 43 hand-copies of the i18n runtime cannot drift apart silently. The
+// module EXPORTS ONLY and never self-executes, which is what lets a hoisted
+// import be the only new top-level form here — section 2 of
+// tests/ui_frontend_check.js requires init() to stay the last statement of this
+// file and forbids any module-level declaration after it.
+import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
+
 // ── Module-level bindings — ALL of them, declared here, used only inside
 //    functions. Nothing below this block runs until init() is called at the
 //    bottom of the file. ────────────────────────────────────────────────────
@@ -560,6 +569,116 @@ async function pollStatus() {
   }
 }
 
+// ── hover-help language (v1.6.0) ───────────────────────────────────────────
+//
+// THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
+// byte-compared (comments stripped, whitespace collapsed) against
+// scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
+// shared UI module and deliberately does not gain one, so 43 hand-copies are
+// only safe because a drifted copy fails a gate. Do not "tidy" it.
+//
+// One PULL at page init, no push, no timer, no poll().then(poll), no revision
+// counter. The language is not preset content: OuariconPresetManager::loadPreset
+// walks preset["parameters"] and never touches a state-tree property or a root
+// XML attribute, so no preset path can change it. The pull is safe here for the
+// reason RESEARCH B2 establishes and this session re-confirmed —
+// `grep -rn setVisible plugins/O-Octagon/Source/` returns NOTHING, and the web
+// view is addAndMakeVisible'd once at PluginEditor.cpp:1406 and never hidden,
+// so the hidden-completion drop cannot fire.
+//
+// Declared here at module level, ABOVE every reader and BELOW nothing that runs
+// — the only statement executed at module-evaluation time is the
+// window.__setLanguage assignment, which touches a hoisted function declaration
+// and cannot enter a TDZ chain. initI18n() itself is called from INSIDE init(),
+// which is section 2's requirement.
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── the settings popover (v1.6.0) ──────────────────────────────────────────
+//
+// The gear that carries the language selector and the hover-help toggle. All
+// state lives in this closure, so nothing here can join a TDZ chain.
+
+function initSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+  // click, so the panel is gone before a drag on a control underneath it
+  // begins — the puck calls preventDefault in its own pointerdown.
+  document.addEventListener("mousedown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
 // ── hover help (v1.2.0) ────────────────────────────────────────────────────
 //
 // Ported from O-Contrabass v1.7.0, which carries the VERIFIED measure-then-pin
@@ -582,7 +701,21 @@ function initHoverHelp() {
   const TOOLTIP_DELAY_MS = 350; // hover dwell before a tip appears
 
   const tipEl = document.getElementById("tooltip");
-  const toggleEl = document.getElementById("help-toggle");
+
+  // v1.6.0 — the toggle MOVED into the settings popover and became a segmented
+  // On/Off pair, the same idiom the Venue screen's ms/m unit toggle uses. TWO
+  // BUTTONS, NOT ONE THAT RELABELS ITSELF: both captions are HTML-authored and
+  // neither is ever rewritten, so this module still makes no textContent write
+  // (pattern_js_state_updater_overwrites_html_labels, section 6 of the static
+  // gate). The button's own tip is now ONE key in js/i18n.js covering both
+  // states rather than a pair of hard-coded sentences swapped on click —
+  // applyI18n() re-renders every tip from the table on a language change, and
+  // would have overwritten a state-dependent string written here, stranding it
+  // in the previous language.
+  const tipsButtons = {
+    on: document.getElementById("btn-tips-on"),
+    off: document.getElementById("btn-tips-off"),
+  };
 
   let tipTimer = null;
   let tipTarget = null;
@@ -668,13 +801,16 @@ function initHoverHelp() {
     tipEl.setAttribute("aria-hidden", "false");
   };
 
-  // Class + aria only — the button's "?" glyph is HTML-authored and must never
-  // be written from here (pattern_js_state_updater_overwrites_html_labels).
+  // Class + aria only — both captions are HTML-authored and must never be
+  // written from here (pattern_js_state_updater_overwrites_html_labels).
   const applyTipsEnabled = (enabled) => {
     tipsEnabled = enabled === true;
-    if (toggleEl !== null) {
-      toggleEl.classList.toggle("is-active", tipsEnabled);
-      toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+    for (const key of ["on", "off"]) {
+      const btn = tipsButtons[key];
+      if (btn === null) continue;
+      const active = (key === "on") === tipsEnabled;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
     }
     if (!tipsEnabled) hideTip();
   };
@@ -712,9 +848,15 @@ function initHoverHelp() {
   }, true);
   document.addEventListener("pointerup", () => { tipSuppressed = false; }, true);
 
-  if (toggleEl !== null) {
-    toggleEl.addEventListener("click", () => {
-      applyTipsEnabled(!tipsEnabled);
+  // Each button sets its OWN state rather than inverting the current one, so a
+  // second click on the already-active half is a no-op instead of a flip.
+  for (const key of ["on", "off"]) {
+    const btn = tipsButtons[key];
+    if (btn === null) continue;
+    btn.addEventListener("click", () => {
+      const wanted = key === "on";
+      if (wanted === tipsEnabled) return;
+      applyTipsEnabled(wanted);
       // Fire-and-forget: the page is already in the new state, and a failed
       // persist must not leave the toggle disagreeing with what it shows.
       nativeFn("setTooltipsEnabled")(tipsEnabled).catch(() => {});
@@ -812,6 +954,34 @@ async function init() {
   } catch (err) {
     console.error("elevation failed to initialise", err);
     elevation = null;
+  }
+
+  // v1.6.0 — the settings popover, which carries the language selector and the
+  // hover-help toggle. Same discipline: its own try/catch, so a throw out of
+  // the panel wiring cannot take the 18 bindings down.
+  try {
+    initSettingsPopover();
+  } catch (err) {
+    console.error("settings popover failed to initialise", err);
+  }
+
+  // v1.6.0 — the hover-help copy, English or French, written onto the page as
+  // data-tip / data-tip-title attributes. Called from HERE and not from module
+  // top level: section 2 requires init() to remain the last statement of this
+  // file with no module-level declaration after it, and the v1.4.0 lesson from
+  // O-MultiBandCompressor is that a table typo in an eager top-level init
+  // throws a TDZ ReferenceError that silently kills unrelated working code.
+  // English is painted synchronously inside initI18n() before the native pull
+  // resolves, so a tip is never blank and never flashes the wrong language.
+  //
+  // BEFORE initHoverHelp(), so the attributes exist before the first hover can
+  // read them. (The order is not load-bearing — the renderer reads the
+  // attributes at show time — but it keeps the DOM consistent from the first
+  // frame.)
+  try {
+    initI18n();
+  } catch (err) {
+    console.error("hover-help copy failed to initialise", err);
   }
 
   // v1.2.0 — hover help, in its own try/catch under the same discipline: a
