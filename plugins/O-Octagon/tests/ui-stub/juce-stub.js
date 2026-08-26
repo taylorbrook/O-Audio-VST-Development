@@ -861,11 +861,23 @@ const NATIVE_FNS = {
   setTooltipsEnabled: (enabled) => { tooltipsEnabled = enabled === true; return tooltipsEnabled; },
 
   getTooltipsEnabled: () => tooltipsEnabled,
+
+  // ── v1.6.0 ──
+  // getUiLanguage resolves the stored code; setUiLanguage echoes its argument
+  // after the same clamp the C++ side applies, so a page that sends anything
+  // but "fr" reads back "en" here exactly as it would through the bridge.
+  setUiLanguage: (code) => { uiLanguage = code === "fr" ? "fr" : "en"; return uiLanguage; },
+
+  getUiLanguage: () => uiLanguage,
 };
 
 // The hover-help ("?" toggle) preference — UI state, not a parameter, mirrored
 // here exactly as the processor's std::atomic<bool> holds it (default OFF).
 let tooltipsEnabled = false;
+
+// v1.6.0 — the hover-help LANGUAGE, mirrored exactly as the processor's
+// std::atomic<int> holds it behind its codec (default 0 = "en").
+let uiLanguage = "en";
 
 // ── The invocation counter (PLAN-3.3 P81) ──────────────────────────────────
 // UI-04 criterion 2's puck half is "a puck drag must not move it", and the

@@ -1,5 +1,105 @@
 # O-Octagon Changelog
 
+## v1.6.0 (2026-08-26)
+
+**Hover help in English or French, and a settings gear to choose between them** — Stage C of the
+repo-wide i18n rollout (quick task `260826-ieq`), and the plugin the rollout deliberately runs
+second, because O-Octagon carries the strictest static gate in the suite: 43 sections, a native-fn
+COUNT assertion, a ui-stub whitelist set-equality, and a module registry DERIVED from the contents
+of `Source/ui/public/js/`. Adding a page module here is not a one-line change — it is designed not
+to be. Everything below landed in one commit, because a partial one fails those gates on purpose.
+
+### Added
+
+- **`js/i18n.js` — all 53 hover-help strings, in English and French, in one place.** Every tooltip
+  the plugin has ever shown lived as a `data-tip` / `data-tip-title` literal in `index.html`. The
+  markup now carries **zero** copy; `applyI18n()` writes both attributes at page init out of a key
+  table, and re-writes them on a language change. The measure-then-pin renderer is untouched — it
+  still reads the same two attributes and does not know a table exists.
+
+  The English was **moved, not rewritten**: every `en` entry is what v1.5.0 shipped, with its HTML
+  entities decoded to the characters they named, because `setAttribute` + `textContent` do not
+  decode entities.
+
+- **A settings popover behind a gear in the header.** It carries a Language selector
+  (English / Français) and the hover-help toggle. The `⚙` takes the exact 24 px circle the v1.2.0
+  `?` button held, so the header silhouette is unchanged.
+
+- **`getUiLanguage` / `setUiLanguage`** — the 24th and 25th native functions, exactly parallel to
+  v1.2.0's tooltip pair. **PULLED once by the page at init, never pushed**: a push from the editor
+  constructor or a poll tick fires before the page module has evaluated, so the preference would
+  silently never arrive. No timer, no `poll().then(poll)`, no revision counter — the language is
+  not preset content, and `OuariconPresetManager::loadPreset` walks `preset["parameters"]` only.
+
+- **`uiLanguage` persists as a root XML attribute**, the idiom `tooltipsEnabled` already uses here.
+  Held as `std::atomic<int>` behind a two-function codec, because `std::atomic<juce::String>` does
+  not compile; persisted as the language CODE, so a session written today still means "French" if
+  the codec ever gains a third entry. Restored through the same clamp, so a hand-edited or corrupt
+  value degrades to English. Pre-1.6.0 sessions have no attribute and open in English.
+
+### Changed
+
+- **The hover-help toggle MOVED into the popover. It is not duplicated.** `#help-toggle` is gone;
+  the control is now a segmented On / Off pair inside the panel — **two buttons, not one that
+  relabels itself**, the same idiom the Venue screen's ms/m unit toggle uses, so both captions stay
+  HTML-authored and this module still makes no `textContent` write at all (section 6).
+
+- **The toggle's own tooltip is now ONE key covering both states**, where v1.2.0 had a single
+  sentence and other plugins in the suite had a pair swapped on click. A state-dependent string
+  written outside the table would be stranded in the previous language the moment the selector
+  fires — and `window.__setLanguage()`, which drives the language from a test harness, raises no
+  `change` event at all, so no listener workaround covers both paths. The caption and `aria-pressed`
+  carry the state instead.
+
+- **`initI18n()` is called from INSIDE `init()`.** Section 2 requires `init();` to remain the
+  literal last statement of `app.js` with no module-level declaration after it, so the hoisted
+  `import` is the only new top-level form. It is wrapped in its own `try/catch` like every other
+  initialiser: a table typo must not take the 18 parameter bindings down, which is exactly what an
+  eager top-level tooltip init did to a sibling plugin (`pattern_module_toplevel_init_tdz`).
+
+- **Three gate literals moved, and all three are supposed to.** Section 3's native-fn count 23 → 25;
+  section 9's embedded-file count 11 → 12; section 9's import scan now accepts single quotes as well
+  as double, because the canonical i18n import line is single-quoted repo-wide and a double-only
+  scan reported `i18n.js` as embedded-but-never-referenced — a false failure describing a page that
+  does import it. `tests/ui-stub/juce-stub.js` learned the two new names in the same commit, which
+  is what section 3's `setsEqual(stubbed, registered)` requires.
+
+### Not changed, deliberately
+
+- **`.tooltip { max-width }` stays at 240 px.** Raising it makes tips wider, which pushes the
+  horizontal clamp toward failure while barely helping the vertical one. French wraps taller inside
+  the existing cap instead, and the flip logic already handles taller tips — measured below.
+
+### Verified
+
+- All **43 sections** of `ui_frontend_check.js` pass (377 assertions), including section 2 with
+  `init();` still last, section 3 at 25 registered functions with the stub whitelist equal to the
+  C++ surface, and sections 9 and 21 with `js/i18n.js` in the derived set, in SOURCES and in a
+  `getResource()` branch.
+- All **31 sections** of `ui_layout_check.js` pass on the rendered page at 1100 × 720 — the gear did
+  not disturb the layout it asserts.
+- `node scripts/check-i18n.js` passes, 45 keys × {en, fr}.
+- **Every anchor hovered and MEASURED in both languages** on both screens: 57 tips per language,
+  all fully inside 1100 × 720 with an 8 px margin, the horizontal clamp engaging 18 times in each.
+  French costs exactly **one** extra vertical flip (12 → 13) and no extra clamp. Nothing exceeds the
+  240 px cap.
+- The popover was proved **clickable, not merely present**: `elementFromPoint` at the centre of the
+  gear, the selector and both toggle halves returns each control itself.
+- Both CI probe targets green — geometry 49/49, render 57/57. `auval` PASS.
+- `UIBinaryData::i18n_jsSize` == `wc -c js/i18n.js` == 30719.
+
+### All 45 French entries are machine-drafted and flagged `reviewed: false`
+
+No native speaker has read them. `node scripts/check-i18n.js` prints the worklist. The terms most
+likely to want judgement are `rake` ("Inclinaison"), `hullAtten` ("Atténuation hors enveloppe"),
+`rolloff` ("Atténuation") and `decorr` ("Décorréler").
+
+### Known, and left alone
+
+- The `preset-list` tooltip still says "the 17 parameters". v1.5.0 made it 18. The copy was moved
+  verbatim by design — this release moves English, it does not rewrite it — so the stale count came
+  with it. It is a one-word fix for whoever next touches that string.
+
 ## v1.5.0 (2026-08-26)
 
 **A mono decorrelator behind the Width control** — the MEDIUM-value/small-effort gap from

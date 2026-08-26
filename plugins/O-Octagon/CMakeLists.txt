@@ -12,7 +12,7 @@ juce_add_plugin(OuariconOctagon
     PLUGIN_CODE              OuOc            # verified unused across all 39 existing plugins
     FORMATS                  VST3 AU Standalone
     PRODUCT_NAME             "O-Octagon${OUARICON_DEV_SUFFIX}"
-    VERSION                  1.5.0           # NOT PLUGIN_VERSION — that keyword is not a JUCE
+    VERSION                  1.6.0           # NOT PLUGIN_VERSION — that keyword is not a JUCE
                                              # keyword, is silently ignored, and ships 1.0.0 anyway
     NEEDS_WEB_BROWSER        TRUE
     NEEDS_WEBVIEW2           TRUE
@@ -82,6 +82,9 @@ juce_add_binary_data(OuariconOctagon_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js      # v1.6.0. The hover-help copy table, English + French.
+                                         # No hyphen in the name: a hyphenated file would have to
+                                         # be reached as a symbol with the hyphen STRIPPED.
         Source/ui/public/js/roomplan.js
         Source/ui/public/js/venue.js     # Phase 3.2. Section 21 of ui_frontend_check.js DERIVES the
                                          # page-module list by READING THAT DIRECTORY and asserts it

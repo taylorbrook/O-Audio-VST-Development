@@ -1276,14 +1276,31 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   white-space: nowrap;
 }
 
-/* ══ Hover help (v1.2.0) ═════════════════════════════════════════════════ */
+/* ══ Settings popover (v1.6.0) ═══════════════════════════════════════════ */
 
-/* The "?" toggle. A flex child of .header between the screen tabs and the
-   banners, in the tabs' own vocabulary: --rule border, --panel hover, and the
-   lit state reuses .screen-tab.is-active's ink-on-level-mid inversion. */
-.help-toggle {
+/* Replaces the v1.2.0 "?" toggle in the header-right slot. The gear keeps that
+   button's exact 24 px circle geometry and palette so the header silhouette is
+   unchanged; the toggle it replaced now lives inside the panel, beside the
+   language selector — one place for the two things that decide what the hover
+   help says and whether it says it.
+
+   .settings-cluster is the positioning anchor for the absolutely-positioned
+   panel below. position: relative with NO z-index, so it does not open a
+   stacking context and the panel's own z-index competes at the root — which is
+   what keeps it above the plan stack (which tops out at 3) and below .tooltip
+   (20), so a tip raised over a control INSIDE the panel still paints on top. */
+.settings-cluster {
+  position: relative;
   flex: 0 0 auto;
   align-self: center;
+  display: flex;
+  align-items: center;
+}
+
+/* The gear. A flex child of .header between the screen tabs and the banners, in
+   the tabs' own vocabulary: --rule border, --panel hover, and the open state
+   reuses .screen-tab.is-active's ink-on-level-mid inversion. */
+.gear-btn {
   width: 24px;
   height: 24px;
   padding: 0;
@@ -1297,12 +1314,84 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   cursor: pointer;
 }
 
-.help-toggle:hover { color: var(--ink); background: var(--panel); }
+.gear-btn:hover { color: var(--ink); background: var(--panel); }
 
-.help-toggle.is-active {
+.gear-btn[aria-expanded="true"] {
   color: var(--ground);
   background: var(--level-mid);
   border-color: var(--level-mid);
+}
+
+/* Right-aligned under the gear, in the venue rail's panel vocabulary. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 15;
+  min-width: 210px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+.settings-popover[hidden] { display: none; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settings-select {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--panel-lift);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+/* The hover-help pair is one segmented control, sized and seamed exactly like
+   the Venue screen's ms/m unit toggle — a DISTINCT class rather than a reuse of
+   .vunit-group, because the delay-unit tip binds to '.vunit-group' through
+   document.querySelector and the header comes first in document order. */
+.settings-unit-group {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.settings-unit {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 24px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.settings-unit:first-child { border-radius: 2px 0 0 2px; }
+
+/* The shared edge is drawn ONCE — without this the two 1 px borders stack into
+   a 2 px seam that reads as a gap between two buttons rather than as one
+   control. */
+.settings-unit:last-child {
+  border-radius: 0 2px 2px 0;
+  border-left: none;
+}
+
+.settings-unit.is-active {
+  color: var(--ink);
+  border-color: var(--level-lo);
+  background: var(--panel-lift);
 }
 
 /* The one shared tooltip surface — ported from O-Contrabass v1.7.0, which
