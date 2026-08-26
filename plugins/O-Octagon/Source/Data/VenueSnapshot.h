@@ -31,7 +31,7 @@ namespace oo
 
 //==============================================================================
 /**
-    Everything the audio thread needs to know about the room, as one flat POD (~250 bytes).
+    Everything the audio thread needs to know about the room, as one flat POD (~280 bytes).
 
     Venue edits and hull rebuilds happen on the message thread. The audio thread must never touch
     the ValueTree, never allocate, and never lock — it reads this (ARCHITECTURE §3.6.6).
@@ -40,6 +40,17 @@ struct VenueSnapshot
 {
     std::array<Vec3,  8> spk {};                ///< speaker positions, metres, 3D
     std::array<float, 8> trimLin {};            ///< per-speaker trim as a linear factor
+
+    /** v1.4.0 — per-speaker alignment delay, in MILLISECONDS, already railed to [0, 50].
+
+        MILLISECONDS AND NOT SAMPLES, deliberately. publishSnapshot() is the single funnel and it
+        does not know the sample rate — prepareToPlay() owns that, and a snapshot published before
+        the first prepareToPlay() (setStateInformation can arrive first) would have nothing to
+        convert with. GainStage already holds `sampleRate` as a member for the air filter's Nyquist
+        clamp, so the conversion happens there, once, at the control boundary. Publishing samples
+        would also make every stored snapshot silently wrong the moment the host changed rate.
+    */
+    std::array<float, 8> delayMs {};
 
     /// speaker n → output buffer index. THE ONLY THING IN THIS PLUGIN THAT INDEXES AN OUTPUT
     /// CHANNEL. Valid to use only when the processor's mappedOutputAvailable() says so.

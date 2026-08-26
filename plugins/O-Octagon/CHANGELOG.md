@@ -1,5 +1,164 @@
 # O-Octagon Changelog
 
+## v1.4.0 (2026-08-26)
+
+**Per-speaker alignment delay** — the HIGH-value/small-effort gap from `.planning/FEATURE-REVIEW.md`.
+The venue model measured positions but the DSP only ever compensated LEVEL; on a deep hall with
+three speaker pairs down the walls, arrival-time skew is audible, and every PA-world tool (L-ISA,
+Soundscape, ordinary system processors) has this. It completes the venue-calibration story: 8 delay
+lines and 8 new venue values.
+
+### Added
+
+- **A per-speaker alignment delay, 0–50 ms, stored in the venue beside the existing trims.** A new
+  `Delay` column in the Venue table, applied post-solve on the eight output lanes. Venue-scoped, so
+  a musical preset physically cannot reach it and no automation lane can touch it — the same
+  guarantee the 42 measured values already had.
+
+- **`Derive` — an auto-derived suggestion from the measured geometry.** Align-to-farthest against
+  the audience-plane centroid:
+
+  ```
+  ref     = (centroid.x, centroid.y, earHeight(centroid.y))
+  d_i     = |spk_i − ref|
+  delay_i = (max(d) − d_i) / 343 m/s × 1000     → the farthest speaker gets 0 ms
+  ```
+
+  The reference seat is DERIVED, not stored, which is what keeps the schema addition purely
+  per-speaker. Derive is a ONE-SHOT FILL, not a mode: it writes the eight stored values once and
+  returns, and the operator then edits any of them freely. Moving a speaker later never silently
+  rewrites a delay someone typed by hand.
+
+  The arithmetic lives in `VenueModel::suggestedDelaysMs()` and is reached through one new native
+  function (`applySuggestedDelays`, 22 → 23), shaped exactly like `applyOutputOrderPreset`. The page
+  performs no speaker arithmetic — D19, and here it matters twice, because a JS copy of this law
+  would be the same class of bug v1.3.5 just fixed.
+
+- **A ms/metres toggle on the Delay column.** Storage is always milliseconds; the toggle converts
+  what is displayed and what is parsed, in metres of PATH DIFFERENCE. The conversion divides by
+  `speedOfSound` off the `getVenueGeometry` payload rather than a `343` written into the page — a JS
+  literal would be a mirrored fixture over `oo::plane::kSpeedOfSoundMps`, free to drift until the
+  column reads metres the Derive button disagrees with. The unit is a VIEW state and is deliberately
+  not written to the `.venue` file: a room does not have a preferred unit, an operator does, and
+  storing it would make two identical rooms compare unequal.
+
+### Changed
+
+- **`.venue` schema 1 → 2**, additive: `@delayMs` on each `SPEAKER`. The loader does not branch on
+  the version and still does not need to — `readFromState()` defaults every absent attribute
+  individually, so a schema-1 file, a session from any earlier build, or a `.venue` carrying no
+  `@schemaVersion` at all yields `delayMs = 0` for all eight. **Those rooms render bit-identically
+  to v1.3.5**, and that is structural rather than approximate: a zero delay is bypassed outright, so
+  the write is the literal v1.3.5 expression with no delay line touched. Probe CP asserts it against
+  a constructed schema-1 file, loaded into a model that already held nonzero delays.
+
+- **The venue is 50 values, not 42** (8 × 6 + 2). Every count that names it moved with it: the
+  session tree, the `.venue` file, `getVenueGeometry`, `setVenue`, the ui-stub, and the four gates.
+
+### Technical
+
+- **Eight separate mono `juce::dsp::DelayLine` instances, not one 8-channel instance.** The same
+  trap `airL`/`airR` already document, in a different class: JUCE keeps `delay`, `delayInt` and
+  `delayFrac` as PER-INSTANCE members and only the buffers per channel, so one 8-channel instance
+  would carry eight histories sharing ONE delay time — silently correct while every speaker agrees
+  and silently wrong the instant two differ, which is the only configuration this feature produces.
+
+- **Read through `popSample (ch, d)` at a smoothed position, not `setDelay()` at the boundary.**
+  Eight `SmoothedValue` ramps on the same 5 ms as the gains, targets set at the 64-sample control
+  boundary off the absolute counter and `getNextValue()` called once per sample unconditionally in
+  BOTH mode arms — so QUAL-03 block-size invariance holds by the same mechanism as the seventeen.
+  Probe CT renders eight lanes delayed 1.50–24.25 ms at block sizes 512 and 4096 and requires a
+  bit-identical memcmp.
+
+- **The ms → samples conversion is done in double and cast once.** The obvious
+  `ms * 0.001f * (float) sampleRate` is wrong by an ulp at exactly the values operators type: 10 ms
+  at 48 kHz comes out 480.0000305, so `delayFrac` is 3.05e-5 instead of 0 and `popSample`
+  interpolates — a lowpass and a sub-sample error on every sample, measured at 1e-5 against a signal
+  whose per-sample slope is 0.33. Probe CS found it by failing a bit-compare that shift 480 otherwise
+  matched to five decimal places. In double, every round millisecond at every standard rate lands on
+  an exact sample count.
+
+- **All eight lines clock together or none do.** A line pushed without being popped walks `writePos`
+  away from `readPos` and its delay grows by a sample per sample, so "push always, pop sometimes" is
+  not available. Clocking none until one delay is wanted is what makes a venue with no delays cost
+  nothing; clocking all eight once any is wanted keeps the other seven warm, so every adjustment
+  after the first glides instead of dropping out. The one cold start is preceded by a `reset()`.
+
+- **The verify ping stays undelayed.** The delay lands before the NaN guard and before the ping's
+  overwrite. The ping already bypasses DBAP, the weights, the hull trim, the air filter, the
+  per-speaker trim and `outputGain` so that a ping from the wrong speaker has exactly ONE possible
+  cause — the map. A delayed ping would add a second.
+
+- **No `setLatencySamples()`.** The existing prohibition stands and now has a second reason: the
+  delay is per-CHANNEL and host PDC is per-plugin, so no single number could be honest. Alignment
+  delay is an acoustic correction, not a processing latency.
+
+- **The 50 ms rail has one definition and three aliases.** `oo::plane::kMaxAlignDelayMs`, aliased by
+  `VenueModel::kMaxSuggestedDelayMs` (the suggestion clamps to it), `GainStage::kMaxAlignDelayMs`
+  (the lines are sized for it) and `OOctagonProcessor::kVenueDelayClampMs` (the funnel rails to it) —
+  the move `VenueModel::kMinSpan` already makes. Three literals policed by `static_assert`s was the
+  first attempt; it worked and emitted `-Wfloat-equal` on every build, because comparing two floats
+  for equality is the smell the warning names even when they are constants. One definition needs no
+  comparison.
+
+- **Delays are sanitised at `publishSnapshot()`, the single funnel**, `sane()` before `jlimit()` as
+  the trim is: NaN survives `jlimit` unchanged (both comparisons are false for NaN) and would reach
+  `setTargetValue` and latch the smoother — RESEARCH-2.2's H2 latch through a third door. The lower
+  rail is not decoration either: a negative delay would index before the write head, which
+  `juce::dsp::DelayLine` does not range-check.
+
+### Testing
+
+- **Unit (49 probes, 0 failures).** New: **CP** schema-1 `.venue` loads with delays at zero and the
+  other 42 values intact, with the file's lack of `@delayMs` asserted first so the probe cannot pass
+  vacuously; **CQ** the align-to-farthest law including its DIRECTION — delay is monotonically
+  decreasing in distance, which `d_i / c` fails on every pair; **CR** the suggestion scales linearly
+  with the room and a collapsed rig yields eight exact zeros rather than eight NaNs.
+- **Render harness (53 probes, 0 failures).** New: **CS** one delayed speaker moves EXACTLY one lane
+  by EXACTLY 480 samples, bit-exactly, with a bit-silent head — and the other seven lanes stay
+  bit-identical, which is what stops the zero-delay half passing with the feature deleted; **CT**
+  block-size invariance with all eight lines clocking.
+- **Frontend static (43 sections).** New §43: the page owns no speed of sound and no 50 ms literal,
+  and the two conversions are one multiply and one divide. §30 gained the delay-before-ping ordering.
+- **Layout, Playwright (31 sections).** §12 confirms all 50 fields are present, editable, populated
+  and fully inside 1100 × 720 — the new column fits without touching the window size.
+
+## v1.3.5 (2026-08-26)
+
+**MEDIUM-03** from `.planning/SIMPLIFICATION-AUDIT.md` — the one item in that audit that corrects
+behaviour rather than shape. Batch B's remaining four (MEDIUM-01, 02, 04, 05) stay skipped; Batch C
+(MEDIUM-06, MEDIUM-07, LOW-08) stays deferred.
+
+### Fixed
+
+- **`getFieldGrid`'s `blur` fallback was the pre-v1.3.0 default.** `PluginEditor.cpp`'s field-backdrop
+  handler read its three solve inputs through a `readParam (id, fallback)` helper whose fallbacks were
+  transcribed literals — `4.0f` / `0.1f` / `1.0f`. `blur`'s live default moved `0.10 → 0.03` in v1.3.0
+  when `kBlurScale` tripled (`0.5 → 1.5`, `DbapSolver.h`) so that `blur = 1` is a true wash; the copy
+  in the editor did not follow it and had been stale for two minor versions.
+
+  **Root cause:** a default stated in two places. `PluginProcessor.cpp:106` owns it in the APVTS
+  layout; the editor kept a second copy with nothing tying them together. This is the repo's own
+  `pattern_test_fixture_mirrors_drift_silently` firing in production code rather than in a fixture.
+
+  **Fix:** `readParam` now takes only an id and derives the fallback from the parameter itself —
+  `getParameter (id)->convertFrom0to1 (getDefaultValue())`, the identical derivation
+  `getParameterDefaults` (line 284) already uses for the dblclick-reset payload. All three literals
+  are gone and the default is stated once, in the layout.
+
+  **Reachability:** the fallback fires only when `getRawParameterValue` returns null (impossible for a
+  valid id) or the atomic is non-finite (host wrote NaN). No reachable path changes value — on the
+  NaN path the field backdrop now falls back to `0.03` instead of `0.10`, which is a correction, and
+  `rolloff` / `hullAtten` were already correct at `4.0` / `1.0` and are unchanged.
+
+### Testing
+
+- Zero-warning gate: `-Wshadow-uncaptured-local` was the live hazard here (the enclosing lambda
+  already renames its loop local to `weightParam` for exactly this reason). The new `param` /
+  `fallback` locals shadow nothing — the enclosing constructor scope declares only `options`.
+- Render goldens untouched: `PluginEditor.cpp` is excluded from the offline harness, and no static
+  gate parses these literals.
+
 ## v1.3.4 (2026-08-26)
 
 Phase 3 sweep from `.planning/SIMPLIFICATION-AUDIT.md` — **6 of 7 approved LOW-tier candidates

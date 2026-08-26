@@ -273,6 +273,7 @@ oo::VenueSnapshot snapshotOf (const oo::VenueModel& v)
     for (int i = 0; i < 8; ++i)
     {
         s.trimLin[(size_t) i] = v.trimLin (i);
+        s.delayMs[(size_t) i] = v.delayMs (i);   // v1.4.0
         s.hullPts[(size_t) i] = h.getHullPoint (i);
     }
 
@@ -2251,7 +2252,7 @@ int main()
     // what puts UI-01 criterion 3(a) in the seconds-to-build target instead of behind a plugin.
     // ══════════════════════════════════════════════════════════════════════════════════════════
 
-    // A venue with all 42 values DISTINCT and none of them the §OQ4 default, so a round trip that
+    // A venue with all 50 values DISTINCT and none of them the §OQ4 default, so a round trip that
     // silently fell back to defaults would fail on every field rather than on none.
     const auto makeMeasuredVenue = []
     {
@@ -2267,6 +2268,12 @@ int main()
                                        2.250f + f * 2.125f,
                                        3.375f + f * 0.125f });
             v.setSpeakerTrimDb (i, -5.5f + f * 1.25f);
+
+            // v1.4.0. DISTINCT, NONZERO, and none of them a value suggestedDelaysMs() would
+            // produce for this geometry — a round trip that silently re-derived instead of
+            // reading the file would fail here rather than agreeing by accident.
+            v.setSpeakerDelayMs (i, 0.375f + f * 1.625f);
+
             v.setSpeakerLabel  (i, labels[static_cast<std::size_t> (i)]);
         }
 
@@ -2275,10 +2282,11 @@ int main()
         return v;
     };
 
-    /** The 42-value bit-compare, as ONE predicate so BN and BO cannot drift apart in what they
-        mean by "identical". 32 coordinates + 8 trims is 40 floats compared through their object
-        representation (no `==`, so no -Wfloat-equal), plus 8 labels and 2 rake heights. */
-    const auto sameFortyTwo = [] (const oo::VenueModel& a, const oo::VenueModel& b, int& firstBad)
+    /** The 50-value bit-compare, as ONE predicate so BN and BO cannot drift apart in what they
+        mean by "identical". 32 coordinates + 8 trims + 8 delays is 48 floats compared through
+        their object representation (no `==`, so no -Wfloat-equal), plus 8 labels and 2 rake
+        heights. It was 42 until v1.4.0 added @delayMs. */
+    const auto sameFifty = [] (const oo::VenueModel& a, const oo::VenueModel& b, int& firstBad)
     {
         firstBad = -1;
 
@@ -2289,6 +2297,7 @@ int main()
 
             if (! (bitExact (pa.x, pb.x) && bitExact (pa.y, pb.y) && bitExact (pa.z, pb.z)
                    && bitExact (a.trimDb (i), b.trimDb (i))
+                   && bitExact (a.delayMs (i), b.delayMs (i))
                    && a.labelAbbreviation (i) == b.labelAbbreviation (i)))
             {
                 firstBad = i;
@@ -2329,14 +2338,14 @@ int main()
         const auto result = oo::venuefile::load (file, loaded, &fileVersion);
 
         int firstBad = -1;
-        const bool identical = sameFortyTwo (source, loaded, firstBad);
+        const bool identical = sameFifty (source, loaded, firstBad);
 
         // The load must not merely agree with the source — it must have MOVED the fresh model off
         // its defaults, or a save that wrote nothing would pass against a source that happened to
         // be default.
         oo::VenueModel untouched;
         int ignored = -1;
-        const bool moved = ! sameFortyTwo (untouched, loaded, ignored);
+        const bool moved = ! sameFifty (untouched, loaded, ignored);
 
         const bool ok = saved && result == oo::venuefile::LoadResult::ok && identical && moved
                         && fileVersion == oo::VenueModel::kSchemaVersion;
@@ -2345,12 +2354,12 @@ int main()
         detail << "save " << (saved ? "ok" : "FAILED")
                << ", load " << static_cast<int> (result)
                << " (0=ok), @schemaVersion " << fileVersion
-               << ", all 42 bit-identical: " << (identical ? "yes" : "NO")
+               << ", all 50 bit-identical: " << (identical ? "yes" : "NO")
                << (firstBad >= 0 ? " (first mismatch speaker " + juce::String (firstBad + 1) + ")" : "")
                << ", differs from defaults: " << (moved ? "yes" : "NO — THE FILE MAY BE EMPTY")
                << ", " << file.getSize() << " bytes";
 
-        check ("BN venue-file-roundtrip-42", ok, detail);
+        check ("BN venue-file-roundtrip-50", ok, detail);
         file.deleteFile();
     }
 
@@ -2384,7 +2393,7 @@ int main()
             const auto result = oo::venuefile::load (file, loaded, &version);
 
             int firstBad = -1;
-            const bool usable = sameFortyTwo (makeMeasuredVenue(), loaded, firstBad);
+            const bool usable = sameFifty (makeMeasuredVenue(), loaded, firstBad);
             const bool surfaced = result == oo::venuefile::LoadResult::forwardVersion
                                   && version == oo::VenueModel::kSchemaVersion + 7;
 
@@ -2412,7 +2421,7 @@ int main()
             const auto result = oo::venuefile::load (file, live, nullptr);
 
             int firstBad = -1;
-            const bool untouched = sameFortyTwo (makeMeasuredVenue(), live, firstBad);
+            const bool untouched = sameFifty (makeMeasuredVenue(), live, firstBad);
             const bool rejected  = result == oo::venuefile::LoadResult::malformedRoot;
 
             ok = ok && rejected && untouched;
@@ -2440,7 +2449,7 @@ int main()
             const auto result = oo::venuefile::load (file, live, nullptr);
 
             int firstBad = -1;
-            const bool untouched = sameFortyTwo (makeMeasuredVenue(), live, firstBad);
+            const bool untouched = sameFifty (makeMeasuredVenue(), live, firstBad);
             const bool rejected  = result == oo::venuefile::LoadResult::malformedRoot;
 
             ok = ok && rejected && untouched;
@@ -2456,7 +2465,7 @@ int main()
             const auto result = oo::venuefile::load (scratchDir.getChildFile ("nothing-here.venue"),
                                                     live, nullptr);
             int firstBad = -1;
-            const bool untouched = sameFortyTwo (makeMeasuredVenue(), live, firstBad);
+            const bool untouched = sameFifty (makeMeasuredVenue(), live, firstBad);
 
             ok = ok && result == oo::venuefile::LoadResult::unreadable && untouched;
             detail << "missing file: " << static_cast<int> (result) << "/"
@@ -2464,6 +2473,245 @@ int main()
         }
 
         check ("BO venue-file-version-and-root", ok, detail);
+    }
+
+    //==========================================================================
+    // CP — v1.4.0: A SCHEMA-1 FILE LOADS WITH DELAYS AT ZERO AND EVERYTHING ELSE INTACT.
+    //
+    //      This is the whole backward-compatibility claim, and it is worth a probe rather than an
+    //      argument because the claim is about an ABSENCE: readFromState() defaults every missing
+    //      attribute individually, so @delayMs simply not being there is what produces 0. Nothing
+    //      branches, which means nothing would fail loudly if the fallback were ever changed to
+    //      the live model's value — a .venue would then load eight delays from whatever room was
+    //      on screen a moment ago, which is precisely the mixture Q6 exists to prevent.
+    //
+    //      A schema-1 file is CONSTRUCTED here rather than kept as a fixture on disk: a checked-in
+    //      binary would be a fixture that mirrors the writer and drifts silently with it
+    //      (pattern_test_fixture_mirrors_drift_silently). Built from the CURRENT writer with the
+    //      v1.4.0 attribute removed, it is by construction exactly what a v1.3.5 build wrote.
+    {
+        bool         ok = true;
+        juce::String detail;
+
+        const auto file = scratchDir.getChildFile ("schema1.venue");
+        file.deleteFile();
+
+        auto tree = makeMeasuredVenue().toValueTree();
+        tree.setProperty (oo::VenueModel::propSchemaVersion, 1, nullptr);
+
+        for (int i = 0; i < tree.getNumChildren(); ++i)
+            tree.getChild (i).removeProperty (oo::VenueModel::propDelayMs, nullptr);
+
+        if (auto xml = tree.createXml())
+            xml->writeTo (file);
+
+        // The written file must genuinely carry no delayMs, or every check below is vacuous
+        // (pattern_gate_passes_because_of_a_different_bug).
+        const auto text = file.loadFileAsString();
+        const bool absent = ! text.contains ("delayMs");
+
+        // Loaded into a model that ALREADY HOLDS nonzero delays, which is the case that
+        // distinguishes "defaulted to 0" from "left at whatever was there".
+        oo::VenueModel loaded = makeMeasuredVenue();
+        int version = -1;
+        const auto result = oo::venuefile::load (file, loaded, &version);
+
+        bool allZero = true;
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+            allZero = allZero && bitExact (loaded.delayMs (i), 0.0f);
+
+        // ...and the OTHER 42 values survived. A load that zeroed everything would satisfy the
+        // check above and be catastrophic.
+        bool restIntact = true;
+        const auto reference = makeMeasuredVenue();
+
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+        {
+            const auto pa = reference.speaker (i);
+            const auto pb = loaded.speaker (i);
+
+            restIntact = restIntact && bitExact (pa.x, pb.x) && bitExact (pa.y, pb.y)
+                         && bitExact (pa.z, pb.z)
+                         && bitExact (reference.trimDb (i), loaded.trimDb (i))
+                         && reference.labelAbbreviation (i) == loaded.labelAbbreviation (i);
+        }
+
+        restIntact = restIntact && bitExact (reference.rakeFront(), loaded.rakeFront())
+                                && bitExact (reference.rakeRear(),  loaded.rakeRear());
+
+        // A schema-1 file is BACKWARD, not forward, so it loads as `ok` and not as forwardVersion.
+        const bool clean = result == oo::venuefile::LoadResult::ok && version == 1;
+
+        ok = absent && clean && allZero && restIntact;
+
+        detail << "@delayMs absent from file: " << (absent ? "yes" : "NO — probe is vacuous")
+               << ", load " << static_cast<int> (result) << "/@" << version
+               << ", delays " << (allZero ? "all 0" : "NOT ZERO")
+               << ", other 42 " << (restIntact ? "intact" : "LOST");
+
+        check ("CP venue-file-schema1-delays-default-zero", ok, detail);
+        file.deleteFile();
+    }
+
+    //==========================================================================
+    // CQ — v1.4.0: THE ALIGN-TO-FARTHEST LAW, INCLUDING THE DIRECTION.
+    //
+    //      Four claims, and the third is the one that matters. `d_i / c` — absolute propagation
+    //      time — is the plausible-looking spelling of this feature and it is wrong in the AUDIBLE
+    //      direction: it delays the FAR speakers most and doubles the skew it was asked to remove.
+    //      A probe that only checked "the values are nonnegative and bounded" would pass on that
+    //      implementation, so claim 3 pins the ORDER: nearest gets the most delay, farthest gets
+    //      none (pattern_probe_must_target_the_branch_the_fix_changed).
+    {
+        bool         ok = true;
+        juce::String detail;
+
+        // A deliberately SKEWED rig: four speakers near the centroid, four far from it, so the
+        // ordering claim has something to discriminate. The default §OQ4 venue is near-symmetric
+        // and would make claims 3 and 4 nearly vacuous.
+        oo::VenueModel v;
+
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+        {
+            const float f = static_cast<float> (i);
+            v.setSpeakerPosition (i, { -6.0f + f * 1.5f, 1.0f + f * 3.0f, 2.0f + f * 0.25f });
+        }
+
+        v.setRake (0.0f, 1.5f);
+
+        const auto d = v.suggestedDelaysMs();
+
+        // 1. Every value is finite, nonnegative and inside the rail the funnel enforces.
+        bool railed = true;
+        for (const auto ms : d)
+            railed = railed && std::isfinite (ms) && ms >= 0.0f
+                     && ms <= oo::VenueModel::kMaxSuggestedDelayMs;
+
+        // 2. THE MINIMUM IS EXACTLY ZERO. Align-to-farthest never asks for delay that is not
+        //    needed, and `(max - max) / c` is 0.0f exactly rather than nearly.
+        float smallest = d[0];
+        for (const auto ms : d) smallest = std::min (smallest, ms);
+        const bool minIsZero = bitExact (smallest, 0.0f);
+
+        // 3. THE DIRECTION. Recompute the distances here — independently of the implementation,
+        //    from the same reference point the header specifies — and assert that delay is
+        //    MONOTONICALLY DECREASING in distance. `d_i / c` fails this on every pair.
+        const auto c3 = v.centroid();
+        const float refZ = v.earHeight (c3.y);
+
+        std::array<float, oo::VenueModel::kNumSpeakers> dist {};
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+        {
+            const auto p = v.speaker (i);
+            const float dx = p.x - c3.x, dy = p.y - c3.y, dz = p.z - refZ;
+            dist[(std::size_t) i] = std::sqrt (dx * dx + dy * dy + dz * dz);
+        }
+
+        bool ordered = true;
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+            for (int j = 0; j < oo::VenueModel::kNumSpeakers; ++j)
+                if (dist[(std::size_t) i] < dist[(std::size_t) j] - 1.0e-4f)
+                    ordered = ordered && d[(std::size_t) i] > d[(std::size_t) j] - 1.0e-4f;
+
+        // 4. THE MAGNITUDE IS THE PATH DIFFERENCE AT 343 m/s, not some other constant. Checked on
+        //    the widest pair, where the arithmetic has the most room to be wrong.
+        float dMin = dist[0], dMax = dist[0];
+        for (const auto x : dist) { dMin = std::min (dMin, x); dMax = std::max (dMax, x); }
+
+        float widest = 0.0f;
+        for (const auto ms : d) widest = std::max (widest, ms);
+
+        const float expected = ((dMax - dMin) / oo::plane::kSpeedOfSoundMps) * 1000.0f;
+        const bool  magnitude = std::abs (widest - expected) < 1.0e-3f;
+
+        ok = railed && minIsZero && ordered && magnitude;
+
+        detail << "railed " << (railed ? "y" : "N") << ", min "
+               << juce::String (smallest, 6) << (minIsZero ? " (exact 0)" : " (NOT ZERO)")
+               << ", order " << (ordered ? "far->near increasing" : "INVERTED")
+               << ", widest " << juce::String (widest, 4) << " ms vs expected "
+               << juce::String (expected, 4) << " ms";
+
+        check ("CQ suggested-delay-align-to-farthest", ok, detail);
+    }
+
+    //==========================================================================
+    // CR — v1.4.0: the suggestion SCALES WITH THE ROOM, and a degenerate rig does not divide by
+    //      anything. Two properties one venue cannot show.
+    {
+        bool         ok = true;
+        juce::String detail;
+
+        // Doubling every coordinate about the origin doubles every distance and therefore every
+        // path difference — so every suggested delay doubles. Asserted as a RATIO rather than as
+        // a table of expected milliseconds, which would be a fixture mirroring the implementation.
+        //
+        // ── THE BASE RIG IS HALF CQ'S, AND THAT SIZE IS LOAD-BEARING ──────────────────────────
+        // CQ's rig produces a widest suggestion of 27.7 ms. Doubled, that is 55 ms — PAST the
+        // 50 ms rail — so the large room's longest delay would clamp and the ratio would come out
+        // at 1.80 rather than 2.00. The probe would then fail against CORRECT code, for a reason
+        // three lines away from where it looks. Halved, both rooms sit inside the rail, and the
+        // assertion below makes that a checked precondition rather than a remembered one.
+        oo::VenueModel small, big;
+
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+        {
+            const float f = static_cast<float> (i);
+            const oo::Vec3 p { -3.0f + f * 0.75f, 0.5f + f * 1.5f, 1.0f + f * 0.125f };
+
+            small.setSpeakerPosition (i, p);
+            big.setSpeakerPosition   (i, { p.x * 2.0f, p.y * 2.0f, p.z * 2.0f });
+        }
+
+        // The rake scales too, or the reference point's HEIGHT would not double with the rest and
+        // the ratio would be off by the z contribution alone.
+        small.setRake (0.25f, 0.75f);
+        big.setRake   (0.50f, 1.50f);
+
+        const auto ds = small.suggestedDelaysMs();
+        const auto db = big.suggestedDelaysMs();
+
+        // THE PRECONDITION, CHECKED. If the large room's longest suggestion ever reaches the rail,
+        // the ratio below is measuring the clamp instead of the law and this probe has quietly
+        // stopped testing anything (pattern_gate_passes_because_of_a_different_bug).
+        float biggest = 0.0f;
+        for (const auto ms : db) biggest = std::max (biggest, ms);
+
+        const bool insideRail = biggest < oo::VenueModel::kMaxSuggestedDelayMs - 1.0f;
+
+        bool scales = insideRail;
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+        {
+            const float a = ds[(std::size_t) i], b = db[(std::size_t) i];
+
+            // 0 -> 0 is the farthest speaker and is correct at both scales.
+            if (a < 1.0e-6f) { scales = scales && b < 1.0e-6f; continue; }
+
+            scales = scales && std::abs (b / a - 2.0f) < 1.0e-3f;
+        }
+
+        // A rig with every speaker at ONE POINT has zero path difference everywhere and a
+        // degenerate audience plane. earHeight()'s zero-span guard is what keeps this from being
+        // a division by zero; the result must be eight exact zeros rather than eight NaNs.
+        oo::VenueModel collapsed;
+        for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+            collapsed.setSpeakerPosition (i, { 3.0f, 4.0f, 5.0f });
+
+        const auto dc = collapsed.suggestedDelaysMs();
+
+        bool degenerateSafe = true;
+        for (const auto ms : dc)
+            degenerateSafe = degenerateSafe && bitExact (ms, 0.0f);
+
+        ok = scales && degenerateSafe;
+
+        detail << "2x room -> 2x delay: " << (scales ? "yes" : "NO")
+               << " (2x widest " << juce::String (biggest, 3) << " ms, rail "
+               << juce::String (oo::VenueModel::kMaxSuggestedDelayMs, 1) << " — "
+               << (insideRail ? "clear" : "CLAMPED, probe vacuous") << ")"
+               << ", collapsed rig: " << (degenerateSafe ? "eight exact zeros" : "NOT ZERO/NaN");
+
+        check ("CR suggested-delay-scales-and-degenerate", ok, detail);
     }
 
     //==========================================================================

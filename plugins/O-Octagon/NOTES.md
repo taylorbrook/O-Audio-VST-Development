@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.3.4 (dev build installed; not released)
+- **Version:** 1.4.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -43,6 +43,19 @@
   rail's `Direct 1–8` / `Roles` one-click label sets. All label edits ride
   `applyVenueEditChecked`; the device-order table lives in `Source/Data/OutputOrder.h`. Bridge
   surface 18 → 20; both UI gates pass (42 + 28 sections); Playwright interaction probe green.
+- **2026-08-26 (v1.4.0):** Per-speaker alignment delay — the HIGH/small gap from
+  `.planning/FEATURE-REVIEW.md`, now closed. 0–50 ms per speaker stored in the venue beside the
+  trims, applied post-solve on the eight output lanes by eight separate mono `juce::dsp::DelayLine`
+  instances (one instance per speaker is mandatory — JUCE keeps the delay time per INSTANCE and only
+  the buffers per channel). Read at a 5 ms-smoothed fractional position through `popSample`, targets
+  set on the 64-sample control grid, so QUAL-03 holds. `Derive` fills all eight from align-to-farthest
+  against the audience-plane centroid; a ms/metres toggle converts by the speed of sound the payload
+  carries. `.venue` schema 1 → 2, additive — pre-v1.4.0 sessions and files load with delays at 0 and
+  render BIT-IDENTICALLY, since a zero delay is bypassed rather than run through a zero-length line.
+  Venue is 50 values, not 42. Bridge surface 22 → 23 (`applySuggestedDelays`). The ms→samples
+  conversion is done in double: the float spelling puts 10 ms at 48 kHz one ulp above 480 samples,
+  which makes `popSample` interpolate and lowpasses every sample (found by probe CS). All four gates
+  green — unit 49/0, render harness 53/0, frontend 43 sections, layout 31 sections; auval PASS.
 - **2026-08-20 (v1.2.0):** Hover-help tooltips — "?" toggle in the header, 49 controls annotated
   across both screens, ported from O-Contrabass v1.7.0 (measure-then-pin placement). Preference
   persists as a root XML attribute in get/setStateInformation and is PULLED by the page at init.
@@ -162,6 +175,20 @@
   `ui_layout_check` 31, render 51/0, geometry 46/0, `auval` PASS.
   **Coverage gap found, not caused:** removing `++scenesGeneration` entirely leaves all 51 render
   probes green — nothing observes `getScenesGeneration()`. See Known Issues.
+- **2026-08-26 (v1.3.5 — SIMPLIFICATION-AUDIT MEDIUM-03):** the audit's only behaviour correction.
+  `getFieldGrid`'s `readParam` helper took a transcribed fallback per call — `4.0f` / `0.1f` /
+  `1.0f` — and `blur`'s had drifted: the live default moved `0.10 → 0.03` in v1.3.0 when
+  `kBlurScale` tripled, and the copy in `PluginEditor.cpp` never followed. `readParam` now takes
+  only an id and derives the fallback from the parameter itself,
+  `getParameter (id)->convertFrom0to1 (getDefaultValue())` — the same derivation
+  `getParameterDefaults` already uses for the dblclick-reset payload — so the default is stated
+  once, in the APVTS layout. All three literals are gone.
+  **Reachability:** the fallback fires only on a null atomic (impossible for a valid id) or a
+  non-finite one (host wrote NaN), so no reachable path changes value; on the NaN path the field
+  backdrop now falls back to 0.03 rather than 0.10. Verified the derivation is bit-exact for all
+  three parameters (linear ranges, no skew): `rolloff` 4.0f and `hullAtten` 1.0f are unchanged
+  to the bit and only `blur` moves. Gates: `ui_frontend_check` 42, `ui_layout_check` 31,
+  geometry 46/0, zero compiler warnings, `auval` registers.
 
 ## Known Issues
 

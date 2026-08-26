@@ -32,6 +32,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "../Data/VenueGeometry.h"
 #include "../Data/VenueSnapshot.h"
 #include "DbapSolver.h"
 #include "HullProcessor.h"
@@ -135,7 +136,24 @@ public:
     static constexpr int kNumSpeakers = 8;
 
     /// gL[8] + gR[8] + outGain. "All 17 smoothers" throughout the plan means exactly these.
+    ///
+    /// v1.4.0 ADDS EIGHT MORE SMOOTHERS AND DELIBERATELY LEAVES THIS AT 17. The delay ramps are a
+    /// SEPARATE FAMILY: they carry samples, not gains, `currentSmoothedValues()` does not report
+    /// them, and probe AT's "all 17 have arrived" assertion means what it always meant. Folding
+    /// them in would have silently rewritten that probe's subject.
     static constexpr std::size_t kNumSmoothers = 2 * kNumSpeakers + 1;
+
+    /// v1.4.0. The eight alignment-delay ramps — counted separately, per the note above.
+    static constexpr std::size_t kNumDelaySmoothers = kNumSpeakers;
+
+    /** The longest alignment delay a line is sized for, in ms.
+
+        AN ALIAS of `oo::plane::kMaxAlignDelayMs`, which is also what `publishSnapshot()` rails to.
+        They cannot disagree because there is only one of them — and if they could, a railed value
+        would overrun the allocated line, where juce::dsp::DelayLine::setDelay jasserts in Debug
+        and silently jlimits in Release into a delay quietly shorter than the table shows.
+    */
+    static constexpr float kMaxAlignDelayMs = plane::kMaxAlignDelayMs;
 
     //==========================================================================
     GainStage() = default;
@@ -223,6 +241,70 @@ private:
     std::array<Smoother, kNumSpeakers> gL {};
     std::array<Smoother, kNumSpeakers> gR {};
     Smoother                           outGain {};
+
+    //==========================================================================
+    // ── v1.4.0 — THE PER-SPEAKER ALIGNMENT DELAY ──────────────────────────────────────────────
+    //
+    // Post-solve, post-trim, post-outputGain, on the eight OUTPUT lanes, REAL mode only. It is the
+    // last thing that happens to a sample before the NaN guard, and it happens BEFORE the verify
+    // ping's overwrite so the ping stays undelayed — the ping bypasses DBAP, the weights, the hull
+    // trim, the air filter, the per-speaker trim and outputGain precisely so that a ping from the
+    // wrong speaker has exactly ONE possible cause, and letting the delay colour it would add a
+    // second.
+    //
+    // ── EIGHT SEPARATE MONO INSTANCES, AND THAT IS MANDATORY RATHER THAN STYLISTIC ────────────
+    //
+    // THE SAME TRAP AS airL/airR, in a different class. juce::dsp::DelayLine keeps `delay`,
+    // `delayInt` and `delayFrac` as PER-INSTANCE members (juce_DelayLine.h:318-319) and only
+    // `bufferData`, `readPos` and `writePos` per channel. One instance prepared with
+    // numChannels = 8 would therefore carry eight independent HISTORIES sharing ONE delay time —
+    // silently correct while every speaker happens to agree, and silently wrong the instant two
+    // differ, which is the only configuration this feature exists to produce.
+    //
+    // ── LINEAR INTERPOLATION, AND popSample() RATHER THAN setDelay() ──────────────────────────
+    //
+    // The delay is read at a SMOOTHED, fractional sample position that ramps over 5 ms on a venue
+    // edit. Calling setDelay() at the control boundary and stepping the read pointer by whole
+    // samples would click on every edit; popSample (ch, d) takes the position per sample and
+    // interpolates, so a delay change glides. Linear is the right order here: the position moves
+    // only during a 5 ms ramp and is stationary the rest of the time, so Lagrange3rd's extra taps
+    // would buy accuracy on a signal that is not moving.
+    using AlignDelayLine = juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>;
+
+    std::array<AlignDelayLine, kNumSpeakers> alignDelay {};
+
+    /// Target is the venue delay in SAMPLES (converted from the snapshot's ms at the control
+    /// boundary, where `sampleRate` is known). Advances once per sample UNCONDITIONALLY, in both
+    /// mode arms, for the same reason the seventeen do — see the SAFE arm's comment.
+    std::array<Smoother, kNumSpeakers> delaySamples {};
+
+    /// Per-speaker: does this lane READ from its line this chunk? False when the speaker's delay is
+    /// 0 and settled, which makes `out[i][n] = y` the literal v1.3.5 expression — the zero-delay
+    /// case is bit-identical by CONSTRUCTION rather than by an interpolation identity that would
+    /// hold only while `value2` stays finite.
+    std::array<bool, kNumSpeakers> delayActive {};
+
+    /** Does ANY speaker want delay this chunk? Gates whether the eight lines are CLOCKED at all.
+        Evaluated at the control boundary; constant for the whole chunk.
+
+        ── WHY A GLOBAL LATCH AND NOT EIGHT INDEPENDENT ONES ─────────────────────────────────────
+        A line that is pushed but not popped desynchronises writePos from readPos and its delay
+        grows by one sample per sample — so "push always, pop sometimes" is not available. The
+        choice is therefore between clocking all eight always and clocking none until one is wanted.
+        Clocking none is what makes a venue with no delays — the default, and EVERY session and
+        .venue written before v1.4.0 — cost exactly nothing and render bit-identically.
+        Clocking ALL EIGHT once any one is wanted is what keeps the other seven's history warm, so
+        the second and every later adjustment glides instead of dropping out.
+
+        The one cold start is the first engage, which is a setup-time action against a room that has
+        never had delays. It is preceded by a reset() so no stale audio can leak out of a line that
+        last ran minutes ago.
+    */
+    bool delayEngaged { false };
+
+    /// The allocated ceiling in samples, for the jlimit that keeps popSample off DelayLine's
+    /// Debug jassert. Set in prepare() from the sample rate, beside the allocation it describes.
+    float maxDelaySamples { 0.0f };
 
     //==========================================================================
     // ── §3.5.2 — the air-absorption filters ───────────────────────────────────────────────────

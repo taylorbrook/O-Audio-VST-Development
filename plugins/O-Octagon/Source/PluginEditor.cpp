@@ -370,10 +370,18 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
 
                 // Phase 3.2 (P55). trimDb rides INSIDE the speaker object rather than in a
                 // parallel trims[8] array, so a consumer cannot index the two out of step. With
-                // the rake below, 8 x 5 + 2 = 42 is now fully representable from THIS ONE CALL —
+                // the rake below, 8 x 6 + 2 = 50 is now fully representable from THIS ONE CALL —
                 // which is what lets the Venue table be a rendering job and setVenue its exact
                 // inverse. Still one call: P38's torn-read argument is untouched.
                 s->setProperty ("trimDb", venue.trimDb (i));
+
+                // v1.4.0. INSIDE the speaker object for the identical reason trimDb is, one line
+                // up: a parallel delays[8] array is a second thing to index, and a consumer that
+                // indexes the two out of step produces a room that is measured and misaligned with
+                // nothing on screen to distinguish it. 8 x 6 + 2 = 50 is now fully representable
+                // from THIS ONE CALL, so the Venue table stays a rendering job and setVenue stays
+                // its exact inverse. Still one call: P38's torn-read argument is untouched.
+                s->setProperty ("delayMs", venue.delayMs (i));
 
                 // v1.1.0. The 1-based PHYSICAL output this speaker's label reaches under the
                 // measured CoreAudio 7.1 device order, or 0 for a label outside the 7.1 set.
@@ -446,6 +454,16 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             obj->setProperty ("scenes",     juce::var (sceneSets));
             obj->setProperty ("centroid",   juce::var (centroid));
             obj->setProperty ("rigScale",   venue.rigScale());
+
+            // v1.4.0 — the Venue table's metres/ms toggle converts with this, rather than holding
+            // its own 343. A JS literal would be a mirrored fixture over oo::plane::kSpeedOfSoundMps
+            // (pattern_test_fixture_mirrors_drift_silently) and free to drift from the constant the
+            // suggestion is actually computed with — so the column would read metres the derive
+            // button disagrees with. Same D19 rule the output-order arithmetic follows.
+            obj->setProperty ("speedOfSound", oo::plane::kSpeedOfSoundMps);
+
+            // The rail the column enforces, also sent rather than transcribed.
+            obj->setProperty ("maxDelayMs",   OOctagonProcessor::kVenueDelayClampMs);
             obj->setProperty ("venueName",  venue.getName());
             obj->setProperty ("speakers",   juce::var (speakers));
             obj->setProperty ("rake",       juce::var (rake));
@@ -563,6 +581,11 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                                                 finiteOr (row, "z", pos.z) });
 
                 edited.setSpeakerTrimDb (i, finiteOr (row, "trimDb", edited.trimDb (i)));
+
+                // v1.4.0. finiteOr falls back to the LIVE value, so a page that predates this
+                // field — or one whose delay column failed to parse — leaves the stored delays
+                // exactly as they were rather than zeroing eight measured values.
+                edited.setSpeakerDelayMs (i, finiteOr (row, "delayMs", edited.delayMs (i)));
 
                 if (auto* rowO = row.getDynamicObject(); rowO != nullptr && rowO->hasProperty ("label"))
                     edited.setSpeakerLabel (i, rowO->getProperty ("label").toString());
@@ -690,6 +713,42 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                 return;
             }
 
+            ochan::MapDiagnosis whyNot {};
+            const bool ok = processorRef.applyVenueEditChecked (edited, &whyNot);
+
+            complete (makeResult (ok, mapFailureName (whyNot.reason), whyNot.speakerIndex));
+        });
+
+    // (4d) applySuggestedDelays — v1.4.0's Derive button, and the LAST of the four label/value
+    // one-click sets that share applyOutputOrderPreset's shape: clone the live venue, overwrite one
+    // family of values, push it through applyVenueEditChecked().
+    //
+    // THE ARITHMETIC LIVES IN C++ (D19), and here that is load-bearing twice over. The law needs
+    // the centroid, the audience plane and eight 3-D distances; a JS re-derivation would be a
+    // mirrored fixture over VenueModel::suggestedDelaysMs() with nothing tying the two together,
+    // and it is exactly the kind of copy v1.3.5's own `blur`-fallback bug was — a default stated in
+    // two places, stale for two minor versions with nothing on screen to show for it.
+    //
+    // A ONE-SHOT FILL, NOT A MODE. It writes the eight stored values once and returns; nothing
+    // recomputes them afterwards. That is the whole of "auto-derive with manual override" — the
+    // operator edits any of the eight freely from that point, and moving a speaker later does not
+    // silently rewrite a delay they typed by hand.
+    options = options.withNativeFunction ("applySuggestedDelays",
+        [this] (auto&, auto complete)
+        {
+            oo::VenueModel edited = processorRef.getVenue();
+
+            // Computed from the LIVE geometry, before this edit — the delays are not an input to
+            // the law, so ordering here cannot feed back on itself.
+            const auto suggested = edited.suggestedDelaysMs();
+
+            for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                edited.setSpeakerDelayMs (i, suggested[static_cast<std::size_t> (i)]);
+
+            // Through the SAME guard, even though a delay edit cannot break the channel map. Not
+            // because this call needs validating, but because section 22's "every venue write goes
+            // through applyVenueEditChecked" is only true if it has no exceptions — and an
+            // exception here is how the next value that CAN break the map arrives unguarded.
             ochan::MapDiagnosis whyNot {};
             const bool ok = processorRef.applyVenueEditChecked (edited, &whyNot);
 
@@ -1161,9 +1220,25 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                 if (auto* weightParam = apvts.getRawParameterValue (oo::params::id (oo::params::w1 + i)))
                     w[static_cast<std::size_t> (i)] = weightParam->load (std::memory_order_relaxed);
 
-            const auto readParam = [&apvts] (const char* id, float fallback)
+            // THE FALLBACK IS DERIVED, NOT TRANSCRIBED (SIMPLIFICATION-AUDIT MEDIUM-03, v1.3.5).
+            // Three literals used to sit at the call sites below — 4.0f / 0.1f / 1.0f — and
+            // blur's had ALREADY drifted: the live default moved 0.10 -> 0.03 in v1.3.0 when
+            // kBlurScale tripled (PluginProcessor.cpp), and the copy here did not follow. Reading
+            // convertFrom0to1 (getDefaultValue()) is exactly what getParameterDefaults does at
+            // line 284, so the default is stated ONCE, in the APVTS layout, and the drift class
+            // leaves with the literals (pattern_test_fixture_mirrors_drift_silently).
+            //
+            // The fallback is unreachable in practice: getRawParameterValue is non-null for every
+            // valid id and the atomic is only non-finite if the host writes NaN. This is therefore
+            // a correction on a dead path, not a behaviour change on a live one.
+            const auto readParam = [&apvts] (const char* id)
             {
+                auto* param       = apvts.getParameter (id);
                 auto* atomicValue = apvts.getRawParameterValue (id);
+
+                const float fallback = param != nullptr
+                                         ? param->convertFrom0to1 (param->getDefaultValue())
+                                         : 0.0f;
 
                 if (atomicValue == nullptr)
                     return fallback;
@@ -1172,9 +1247,9 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                 return std::isfinite (raw) ? raw : fallback;
             };
 
-            const float rolloff   = readParam (oo::params::id (oo::params::rolloff), 4.0f);
-            const float blur      = readParam (oo::params::id (oo::params::blur), 0.1f);
-            const float hullAtten = readParam (oo::params::id (oo::params::hullAtten), 1.0f);
+            const float rolloff   = readParam (oo::params::id (oo::params::rolloff));
+            const float blur      = readParam (oo::params::id (oo::params::blur));
+            const float hullAtten = readParam (oo::params::id (oo::params::hullAtten));
 
             const auto field = fieldSampler.sample (
                 snapshot, w.data(),

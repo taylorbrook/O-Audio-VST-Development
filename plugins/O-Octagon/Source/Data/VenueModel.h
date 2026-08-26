@@ -31,13 +31,14 @@ namespace oo
 {
 
 /**
-    The 42 venue values and every geometric quantity derived from them that does not change per
+    The 50 venue values and every geometric quantity derived from them that does not change per
     audio block.
 
     Message thread only. The audio thread never sees this object — it reads the POD `VenueSnapshot`
     the processor publishes (ARCHITECTURE §3.6.6).
 
-    The 42 values are 8 speakers × 5 (x, y, z, trimDb, label) plus `rakeFront` and `rakeRear`.
+    The 50 values are 8 speakers × 6 (x, y, z, trimDb, delayMs, label) plus `rakeFront` and
+    `rakeRear`. It was 42 until v1.4.0 added the per-speaker alignment delay.
     They live in a ValueTree child of `apvts.state` rather than in the APVTS itself (§4.1 / OQ5):
     a musical preset physically cannot reach them, and they cannot be automated by a stray lane.
 
@@ -49,7 +50,7 @@ class VenueModel
 public:
     //==============================================================================
     static constexpr int   kNumSpeakers   = 8;
-    static constexpr int   kSchemaVersion = 1;
+    static constexpr int   kSchemaVersion = 2;   // 1 -> 2 at v1.4.0: @delayMs on SPEAKER
 
     /** Below this span the audience plane and the bbox denormalisation are both degenerate. Two
         separate guards use it — see earHeight() and normToMetres().
@@ -62,11 +63,20 @@ public:
     //==============================================================================
     // ValueTree schema (§4.1):
     //
-    //   VENUE  @name @savedAt @schemaVersion=1 @rakeFront @rakeRear
-    //   └── SPEAKER × 8  { @index, @x, @y, @z, @trimDb, @label }
+    //   VENUE  @name @savedAt @schemaVersion=2 @rakeFront @rakeRear
+    //   └── SPEAKER × 8  { @index, @x, @y, @z, @trimDb, @delayMs, @label }
     //
     // Attribute names are the on-disk contract for .venue files and for every session saved from
     // here on. They are as load-bearing as the "OOctagon" state root and must not be renamed.
+    //
+    // ── @delayMs IS ADDITIVE, AND THAT IS WHAT MAKES THE BUMP SAFE (v1.4.0) ───────────────────
+    //
+    // readFromState() below defaults EVERY absent attribute individually, so a schemaVersion-1
+    // file — or a session from any earlier build, or a .venue carrying no @schemaVersion at all —
+    // yields delayMs = 0 for all eight. Zero delay is bypassed outright in GainStage rather than
+    // being run through a zero-length line, so those rooms render BIT-IDENTICALLY to v1.3.5.
+    // Nothing about the bump asks the loader to branch, and it still does not branch: the version
+    // is read, reported by VenueFile, and never tested against anything but `>`.
 
     static const juce::Identifier venueTag;
     static const juce::Identifier speakerTag;
@@ -82,13 +92,14 @@ public:
     static const juce::Identifier propY;
     static const juce::Identifier propZ;
     static const juce::Identifier propTrimDb;
+    static const juce::Identifier propDelayMs;
     static const juce::Identifier propLabel;
 
     //==============================================================================
     /** Constructs the §OQ4 default venue with all derived quantities valid. */
     VenueModel();
 
-    /** Restores every one of the 42 values to its §OQ4 default and recomputes. */
+    /** Restores every one of the 50 values to its §OQ4 default and recomputes. */
     void resetToDefaults();
 
     //==============================================================================
@@ -115,6 +126,13 @@ public:
 
     void setSpeakerPosition (int speakerIndex, Vec3 positionMetres);
     void setSpeakerTrimDb   (int speakerIndex, float trimDecibels);
+
+    /** v1.4.0. Alignment delay for one speaker, in milliseconds.
+
+        STORED UNCLAMPED, like every other value here — the 0..50 ms rail is applied at
+        publishSnapshot(), the single funnel, exactly as the trim's ±24 dB rail is. See the note on
+        readFloat() in the .cpp for why this class holds no rails of its own. */
+    void setSpeakerDelayMs  (int speakerIndex, float delayMilliseconds);
     void setSpeakerLabel    (int speakerIndex, const juce::String& abbreviation);
     void setRake            (float front, float rear);
     void setName            (const juce::String& newName);
@@ -128,6 +146,12 @@ public:
     const std::array<Vec3, kNumSpeakers>& speakerPositions() const noexcept { return speakers; }
 
     float        trimDb  (int speakerIndex) const noexcept;
+
+    /** v1.4.0. Alignment delay in milliseconds. Out-of-range indices return 0. */
+    float        delayMs (int speakerIndex) const noexcept;
+
+    /** All eight delays at once — what publishSnapshot() wants, in one read. */
+    const std::array<float, kNumSpeakers>& delaysMs() const noexcept { return delays; }
 
     /** trimDb converted to a linear factor for the snapshot. STORED here, but APPLIED nowhere in
         Phase 2.1 — trim application is FUNC-07 at Phase 2.3. */
@@ -168,6 +192,45 @@ public:
     float rigScale() const noexcept { return rigScaleM; }
 
     //==============================================================================
+    /** v1.4.0 — the ALIGNMENT-DELAY SUGGESTION, as a pure function of the measured geometry.
+
+        Returns what the eight delays WOULD be to time-align every speaker's arrival at one seat.
+        It does not touch `delays`: the caller (the editor's `applySuggestedDelays` native function)
+        fills the stored values with this and the operator then edits any of them freely. That split
+        is the whole of "auto-derive with manual override" — the STORED values are always the truth,
+        and nothing recomputes them behind the operator's back when a speaker later moves.
+
+        ── THE REFERENCE POINT IS DERIVED, NOT STORED ────────────────────────────────────────────
+        `(centroid.x, centroid.y, earHeight(centroid.y))` — the middle of the array, at the ear
+        height the rake gives that depth. Storing an operator-chosen seat was considered and
+        rejected for v1.4.0: it would add two more venue values to a schema bump that is otherwise
+        purely additive per speaker, and the centroid is the right default for the case the feature
+        exists to serve (a deep hall with pairs down the walls, where the skew is front-to-back).
+
+        ── THE LAW, AND WHY IT SUBTRACTS RATHER THAN DIVIDES ─────────────────────────────────────
+
+            d_i     = |spk_i − ref|                       metres
+            delay_i = (max(d) − d_i) / kSpeedOfSoundMps   seconds, ×1000 for ms
+
+        ALIGN-TO-FARTHEST. The most distant speaker gets ZERO and every nearer one waits for it, so
+        the suggestion never asks for delay that is not needed and the minimum is 0 by construction.
+        The inverted spelling — `d_i / c`, absolute propagation time — is the plausible-looking one
+        and it is WRONG in the audible direction: it delays the FAR speakers most and doubles the
+        skew it was asked to remove.
+
+        Clamped to [0, kMaxSuggestedDelayMs] so a mis-measured coordinate 300 m away yields a rail
+        rather than a value the snapshot will silently clamp to something different later.
+    */
+    std::array<float, kNumSpeakers> suggestedDelaysMs() const noexcept;
+
+    /** The rail `suggestedDelaysMs()` clamps to.
+
+        AN ALIAS, not a second definition — see `oo::plane::kMaxAlignDelayMs`, and see `kMinSpan`
+        above for the same move made at Phase 2.2. It is what stops the suggestion proposing a
+        value `publishSnapshot()` would go on to clamp to something else. */
+    static constexpr float kMaxSuggestedDelayMs = plane::kMaxAlignDelayMs;
+
+    //==============================================================================
     /** Audience-plane ear height at a depth `yMetres`.
 
         Linear from `rakeFront` at `bbMinY` to `rakeRear` at `bbMaxY`, extrapolated linearly
@@ -201,6 +264,7 @@ private:
     //==============================================================================
     std::array<Vec3, kNumSpeakers>         speakers {};
     std::array<float, kNumSpeakers>        trims {};
+    std::array<float, kNumSpeakers>        delays {};   ///< v1.4.0, milliseconds
     std::array<juce::String, kNumSpeakers> labels {};
 
     float rakeFrontM { 0.0f };

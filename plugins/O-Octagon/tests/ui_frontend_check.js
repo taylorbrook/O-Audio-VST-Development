@@ -228,8 +228,11 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // v1.2.0 adds the hover-help ("?" toggle) persistence pair: setTooltipsEnabled (the toggle's
     // click) and getTooltipsEnabled (PULLED by the page at init — a C++ push would fire before
     // the module evaluated and silently never arrive).
-    check(registered.size === 22,
-        `PluginEditor.cpp registers exactly 22 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    // v1.4.0 adds ONE: applySuggestedDelays, the Delay row's Derive button. The delays
+    // themselves ride getVenueGeometry as per-speaker `delayMs` (P55's argument, a third time)
+    // and the ms/metres toggle is a pure view state, so neither adds a call.
+    check(registered.size === 23,
+        `PluginEditor.cpp registers exactly 23 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);
@@ -297,7 +300,12 @@ head(6, 'HTML-authored labels are never written via textContent');
     // v1.2.0 adds the hover-help surface's three: tipEl is #tooltip itself — a node no label
     // shares, whose whole content is rebuilt per show — and t / b are createElement'd title and
     // body children that never existed in the authored HTML at all.
-    const VALUE_RECEIVERS = new Set(['value', 'el', 'earOut', 'srcOut', 'tipEl', 't', 'b']);
+    // v1.4.0 adds ONE: delayUnitNode, the Delay column header's unit. The word "Delay" beside
+    // it is AUTHORED AND NEVER WRITTEN — only the unit changes — and the ms/m toggle carries two
+    // authored labels switched by class, so the whole feature costs exactly one receiver. The
+    // binding is proved below, as earOut / srcOut / tipEl are.
+    const VALUE_RECEIVERS = new Set(['value', 'el', 'earOut', 'srcOut', 'tipEl', 't', 'b',
+                                     'delayUnitNode']);
 
     check(receivers.size > 0, `textContent is written through ${receivers.size} receiver(s)`);
     check([...receivers].every(r => VALUE_RECEIVERS.has(r)),
@@ -307,6 +315,23 @@ head(6, 'HTML-authored labels are never written via textContent');
     // shared surface, and t / b are created fresh inside showTip, never queried from the page.
     check(/const tipEl = document\.getElementById\("tooltip"\)/.test(S.appJs),
         'tipEl binds #tooltip — the one shared hover-help surface');
+
+    // ...and the v1.4.0 receiver is a DEDICATED value node, not the header itself.
+    //
+    // READ OFF PAGE_MODULES, NOT OFF VENUE_CODE. That const is declared further down this file and
+    // is in its TEMPORAL DEAD ZONE here — touching it throws ReferenceError at load and takes the
+    // whole gate with it, which is this repo's own pattern_module_toplevel_init_tdz firing inside
+    // the script that checks for it. PAGE_MODULES is already initialised: section 6 opened by
+    // reading it.
+    const venueSrc = (PAGE_MODULES.find(m => m.name.endsWith('venue.js')) || {}).code || '';
+
+    check(/const delayUnitNode = need\("vcol-delay-unit"\)/.test(venueSrc),
+        'delayUnitNode binds #vcol-delay-unit — a span, not the <th>');
+    check(/<th class="vcol-head vcol-num">Delay&#8202;<span class="vcell-value" id="vcol-delay-unit">/.test(S.html),
+        'and that span sits INSIDE an authored <th> whose "Delay" is never rewritten');
+    // The toggle writes no text at all — if it ever starts to, this fires before the whitelist does.
+    check(! /delayUnitButtons\[[a-z]+\]\.textContent/.test(venueSrc),
+        'the ms/m toggle switches by class — it writes no textContent');
     check(/const t = document\.createElement\("div"\)/.test(S.appJs)
           && /const b = document\.createElement\("div"\)/.test(S.appJs),
         't / b are createElement\'d tooltip children, not authored nodes');
@@ -708,7 +733,7 @@ head(17, '1100 x 720 in setSize AND in html/body/.frame');
 // ───────────────────────────────────────────────────────── 18. tabular-nums ──
 head(18, 'font-variant-numeric: tabular-nums on every value readout class');
 {
-    // Not taste. UI-01 column-aligns 42 venue values at 3.2, and a mis-scanned
+    // Not taste. UI-01 column-aligns 50 venue values at 3.2, and a mis-scanned
     // metre is a measurement error that propagates silently into the solve.
     const VALUE_CLASSES = ['.cell-value', '.w-value', '.readout', '.glyph-num', '.caption-note',
                            '.vcell-value', '.vfield', '.map-copy'];
@@ -736,11 +761,16 @@ head(18, 'font-variant-numeric: tabular-nums on every value readout class');
     // at the top of styles.css always said this rule existed for. The 42 inputs
     // and the eight CLASS cells join the scan; so do the four rail/banner value
     // nodes. 20 -> 75.
-    const VALUE_IDS = /^(?:val-[A-Za-z0-9_]+|readout-[a-z]+|venue-name|vf-[A-Za-z0-9-]+|vclass-[0-9]+|vvenue-name|vset-name|vping-state|vpreset-current|map-invalid-copy)$/;
+    //
+    // 75 -> 84 at v1.4.0: the eight vf-N-delay inputs, plus the Delay header's unit span. The
+    // span is IN THE SCAN because JS writes into it — which is the rule as stated, and it is
+    // exactly why it was authored as a dedicated .vcell-value node instead of the <th>: a
+    // header written wholesale would carry .vcol-head and fail the treatment check below.
+    const VALUE_IDS = /^(?:val-[A-Za-z0-9_]+|readout-[a-z]+|venue-name|vf-[A-Za-z0-9-]+|vclass-[0-9]+|vvenue-name|vset-name|vping-state|vpreset-current|map-invalid-copy|vcol-delay-unit)$/;
     const valueNodes = [...S.html.matchAll(/<[a-z]+\b[^>]*\bid="([^"]+)"[^>]*>/g)]
         .filter(m => VALUE_IDS.test(m[1]))
         .map(m => m[0]);
-    check(valueNodes.length === 75, `75 value nodes found in index.html — ${valueNodes.length}`);
+    check(valueNodes.length === 84, `84 value nodes found in index.html — ${valueNodes.length}`);
 
     const classOf = tag => (tag.match(/class="([^"]*)"/) || [, ''])[1].split(/\s+/);
     const untreated = valueNodes.filter(n =>
@@ -865,7 +895,7 @@ head(21, 'the page-module registry is non-empty and EQUALS the embedded set (P51
 const VENUE_CODE = stripComments(S.venueJs);
 
 // ────────────────────────────────────── 22. ONE setVenue, and 42 ids closed ──
-head(22, 'ONE setVenue carrying all 42; no per-field write surface; the ids close FOUR ways (D8/P52)');
+head(22, 'ONE setVenue carrying all 50; no per-field write surface; the ids close FOUR ways (D8/P52)');
 {
     // 42 async round trips whose promises may resolve out of order, against a model that recomputes
     // bbox, centroid, rigScale and the convex hull on every one, is P38's torn read arriving on the
@@ -874,8 +904,10 @@ head(22, 'ONE setVenue carrying all 42; no per-field write surface; the ids clos
     check(calls.length === 1, `exactly ONE setVenue call site in venue.js — ${calls.length}`);
 
     // ── (1) the DOM ──
+    // 42 -> 50 at v1.4.0 (the eight vf-N-delay fields). This literal MOVES EVERY TIME the
+    // venue's value count does, for the same reason the native-function count above does.
     const htmlIds = new Set([...S.html.matchAll(/id="(vf-[A-Za-z0-9-]+)"/g)].map(m => m[1]));
-    check(htmlIds.size === 42, `index.html carries 42 vf-* field ids — ${htmlIds.size}`);
+    check(htmlIds.size === 50, `index.html carries 50 vf-* field ids — ${htmlIds.size}`);
 
     // ── (2) venue.js's table, DERIVED from its own two constants rather than transcribed ──
     const countM = VENUE_CODE.match(/const SPEAKER_COUNT = (\d+);/);
@@ -898,15 +930,30 @@ head(22, 'ONE setVenue carrying all 42; no per-field write surface; the ids clos
     // ── (3) the payload venue.js builds ──
     const payload = blockAt(VENUE_CODE, VENUE_CODE.indexOf('function buildPayload'));
     const rowKeys = new Set([...payload.matchAll(/^\s+([a-zA-Z]+):/gm)].map(m => m[1]));
-    check(setsEqual(rowKeys, new Set(['n', 'label', 'x', 'y', 'z', 'trimDb'])),
-        `each speaker row carries exactly label + x + y + z + trimDb — {${[...rowKeys].sort().join(', ')}}`);
+    check(setsEqual(rowKeys, new Set(['n', 'label', 'x', 'y', 'z', 'trimDb', 'delayMs'])),
+        `each speaker row carries exactly label + x + y + z + trimDb + delayMs — {${[...rowKeys].sort().join(', ')}}`);
     check(/rake:\s*\{\s*front,\s*rear\s*\}/.test(payload),
-        'and the payload carries the two rake heights — 8 x 5 + 2 = 42 in ONE call');
+        'and the payload carries the two rake heights — 8 x 6 + 2 = 50 in ONE call');
+
+    // ── (3b) v1.4.0 — THE WIRE UNIT IS ALWAYS MILLISECONDS ──
+    //
+    // The column can DISPLAY metres, so the one thing that must never happen is a payload
+    // carrying whatever the toggle happened to be showing. buildPayload must run the pending
+    // edit — and ONLY the pending edit — through displayToMs; the committed fallback is already
+    // ms and converting it a second time would scale every untouched delay by 343 on any commit
+    // made while the column was in metres.
+    check(/delayMs:\s*clampDelayMs\(/.test(payload),
+        'the delay on the wire is railed by clampDelayMs before it leaves the page');
+    check(/pendingNumber\(r\.n, "delay"\) === undefined\s*\?\s*base\.delayMs/.test(payload),
+        'and an UNTOUCHED delay falls back to committed ms WITHOUT a second conversion');
+    check(/:\s*displayToMs\(pendingNumber\(r\.n, "delay"\)\)/.test(payload),
+        'while a PENDING delay converts from the displayed unit exactly once');
 
     // ── (4) the VenueModel setters the C++ side reaches for ──
     const setVenueBody = blockAt(S.editorCpp, S.editorCpp.indexOf('withNativeFunction ("setVenue"'));
-    for (const setter of ['setSpeakerPosition', 'setSpeakerTrimDb', 'setSpeakerLabel', 'setRake'])
-        check(setVenueBody.includes(setter), `setVenue reaches VenueModel::${setter}() — 42 covered`);
+    for (const setter of ['setSpeakerPosition', 'setSpeakerTrimDb', 'setSpeakerDelayMs',
+                          'setSpeakerLabel', 'setRake'])
+        check(setVenueBody.includes(setter), `setVenue reaches VenueModel::${setter}() — 50 covered`);
 
     // THE ABSENCE THAT KEEPS applyVenueEdit PUBLIC FROM BEING A HOLE (P52). Probe BL calls it
     // directly and must keep being able to; the editor must reach the venue ONLY through the
@@ -926,7 +973,10 @@ head(23, 'every venue field is type="text" + inputmode="decimal", and the parse 
     const venueSection = S.html.slice(S.html.indexOf('id="screen-venue"'));
     const inputs = [...venueSection.matchAll(/<input\b[^>]*>/g)].map(m => m[0]);
 
-    check(inputs.length === 42, `42 inputs on the Venue screen — ${inputs.length}`);
+    // 42 -> 50 at v1.4.0 (the eight vf-N-delay fields). The delay column is type="text" for
+    // exactly the reason the other four are: on invalid content a number input cannot tell
+    // "typed abc" from "cleared the field".
+    check(inputs.length === 50, `50 inputs on the Venue screen — ${inputs.length}`);
     check(inputs.every(t => /type="text"/.test(t)), 'every one is type="text"');
     check(inputs.every(t => /inputmode="decimal"/.test(t)), 'every one carries inputmode="decimal"');
     check(! /type="number"/.test(S.html), 'type="number" appears NOWHERE in index.html');
@@ -1234,7 +1284,10 @@ head(29, 'chooser completions: hoisted SafePointer, BARE return, and no parallel
 // ────────────────────────── 30. the ping is a POST-WRITE overwrite, no reset ──
 head(30, 'the ping overwrites AFTER the write and AFTER the NaN guard; no new reset() (§7.2/P23/P30)');
 {
-    const iWrite = S.gainCpp.indexOf('out[i][n] = (gL[');
+    // v1.4.0 MOVED THIS ANCHOR. The per-sample write used to BE the matrix expression; the
+    // matrix result is now named `y` first, so the delay can read it before it is stored. The
+    // invariant is unchanged and so is what this measures — solve, then guard, then ping.
+    const iWrite = S.gainCpp.indexOf('const float y = (gL[');
     const iGuard = S.gainCpp.indexOf('if (! std::isfinite (lastL)) airL.reset();');
     const iPing  = S.gainCpp.indexOf('ping->overwrite (out, kNumSpeakers, start, count)');
 
@@ -1248,11 +1301,24 @@ head(30, 'the ping overwrites AFTER the write and AFTER the NaN guard; no new re
         'out[] is resolved through snapshot.speakerToBuffer — so the ping tests the MAP');
 
     // ── P23/P30's ONE RESET SITE EVER, still true ──
-    // 9 sites, and every one is accounted for: 3 in prepare() (the 17 smoothers), 2 in
-    // updateControl() (DSP-07/7's airAmount edge), 2 in renderChunk() (P27's air re-seed) and 2 in
-    // renderChunk() (DSP-07/8's NaN RECOVERY). 3.2 adds NONE.
+    // 12 sites, and every one is accounted for: 4 in prepare() (the 17 smoothers, plus v1.4.0's
+    // eight delay ramps), 2 in updateControl() (DSP-07/7's airAmount edge), 2 in renderChunk()
+    // (P27's air re-seed), 2 in renderChunk() (DSP-07/8's NaN RECOVERY), and v1.4.0's TWO on the
+    // delay lines — one in prepare() beside the teleport, one in updateControl() on the engage
+    // edge. 3.2 added NONE; v1.4.0 adds three, all of them ARMING or RECOVERY sites rather than
+    // initialisation sites, each labelled as such at the call.
     const resets = (S.gainCpp.match(/\.reset\s*\(/g) || []).length;
-    check(resets === 9, `GainStage.cpp still has exactly 9 reset() sites — ${resets} (3.2 adds none)`);
+    check(resets === 12, `GainStage.cpp has exactly 12 reset() sites — ${resets}`);
+
+    // ── v1.4.0 — THE DELAY SITS BEFORE THE PING, WHICH IS THE WHOLE POINT ──
+    // The ping bypasses DBAP, the weights, the hull trim, the air filter, the per-speaker trim and
+    // outputGain so that a ping from the wrong speaker has exactly ONE possible cause. A delayed
+    // ping would add a second. Measured as an ORDERING, because "the delay is applied first" is
+    // the same statement as "the ping overwrites what the delay produced".
+    const iDelay = S.gainCpp.indexOf('alignDelay[k].pushSample (0, y)');
+    check(iDelay > iWrite && iDelay < iGuard,
+        `the delay reads the matrix result and writes before the NaN guard — write ${iWrite}, delay ${iDelay}, guard ${iGuard}`);
+    check(iPing > iDelay, 'and the ping overwrites AFTER it, so the ping is never delayed');
 
     check(! /\.reset\s*\(/.test(S.pingCpp),
         'VerifyPing.cpp calls reset() NOWHERE — the 20 ms raised cosine owns both discontinuities');
@@ -1729,6 +1795,65 @@ head(42, 'the height axis follows the venue and is quantised to a 1 m step (P76 
     }
 }
 
+// ────────────────────── 43. the delay column holds no constant of its own (v1.4.0) ──
+head(43, 'the ms/metres conversion divides by what C++ SENT — the page owns no speed of sound (D19)');
+{
+    const VENUE = PAGE_MODULES.find(m => m.name.endsWith('venue.js'));
+    check(VENUE !== undefined, 'js/venue.js is a derived page module');
+
+    if (VENUE !== undefined) {
+        // ── THE LITERAL THAT MUST NOT BE THERE ────────────────────────────────────────────────
+        //
+        // A `343` written into this module would be a mirrored fixture over
+        // oo::plane::kSpeedOfSoundMps — the same constant VenueModel::suggestedDelaysMs() divides
+        // by. They agree today. They stop agreeing the first time either moves, and the symptom
+        // is a Delay column reading metres the Derive button disagrees with, in a tool whose
+        // whole claim is that the numbers on screen are the room's.
+        //
+        // This is v1.3.5's own `blur`-fallback bug stated as a rule: a default in two places went
+        // stale for two minor versions with nothing on screen to show for it.
+        //
+        // The DELAY_FALLBACK_* pair is exempt BY NAME and only there: it covers the frames before
+        // the first geometry payload lands, when the table has nothing to display anyway.
+        const body = VENUE.code.split('\n')
+            .filter(l => ! /DELAY_FALLBACK_/.test(l))
+            .join('\n');
+
+        check(! /\b343(\.\d+)?\b/.test(body),
+            'venue.js contains no 343 outside the named pre-payload fallbacks');
+
+        // And the rail is not transcribed either — it is OOctagonProcessor::kVenueDelayClampMs.
+        check(! /\bmaxDelayMs\s*=\s*50\b/.test(body),
+            'nor a hard-coded 50 ms rail');
+
+        // What it DOES do: read both off the payload, every refresh.
+        check(/g\.speedOfSound/.test(VENUE.code) && /g\.maxDelayMs/.test(VENUE.code),
+            'it reads speedOfSound and maxDelayMs off the geometry payload');
+
+        // ── AND THE TWO CONVERSIONS ARE ONE PAIR, NOT SCATTERED ───────────────────────────────
+        // Every ms<->metres crossing goes through msToDisplay / displayToMs. A third inline
+        // `* speedOfSound` anywhere is how one of the crossings ends up with the direction wrong
+        // — and a wrong direction is a factor of 343 that still looks like a plausible number.
+        //
+        // COUNTS THE ARITHMETIC, NOT THE IDENTIFIER. The name also appears in the declaration and
+        // in setGeometry's two guards and its assignment, none of which convert anything; a count
+        // of bare occurrences would move every time that plumbing was touched and would assert
+        // nothing about the conversions themselves.
+        const crossings = [...VENUE.code.matchAll(/[*\/]\s*speedOfSound/g)].length;
+        check(crossings === 2,
+            `speedOfSound appears in exactly TWO arithmetic expressions — got ${crossings}`);
+        check(/\* speedOfSound/.test(VENUE.code) && /\/ speedOfSound/.test(VENUE.code),
+            'and they are one multiply and one divide — the pair, not the same direction twice');
+    }
+
+    // The C++ side must actually SEND them, or every check above passes vacuously
+    // (pattern_gate_passes_because_of_a_different_bug).
+    check(/setProperty \("speedOfSound", oo::plane::kSpeedOfSoundMps\)/.test(CODE.editorCpp),
+        'getVenueGeometry sends oo::plane::kSpeedOfSoundMps — so there IS a number to divide by');
+    check(/setProperty \("maxDelayMs",\s+OOctagonProcessor::kVenueDelayClampMs\)/.test(CODE.editorCpp),
+        'and the rail comes from OOctagonProcessor::kVenueDelayClampMs');
+}
+
 // ─────────────────────────────────────────────────────────────────── done ──
-console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 42 sections`);
+console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 43 sections`);
 process.exit(failed);

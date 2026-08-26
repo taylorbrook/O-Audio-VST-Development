@@ -107,6 +107,18 @@ public:
     */
     static constexpr float kVenueTrimClampDb = 24.0f;
 
+    /** v1.4.0 — the bound `publishSnapshot()` clamps every venue alignment delay to, in ms.
+
+        PUBLIC for the same reason `kVenueTrimClampDb` is: the probes and `getVenueGeometry`'s
+        payload both name THIS SYMBOL rather than a transcribed 50.0f
+        (`pattern_test_fixture_mirrors_drift_silently`).
+
+        AN ALIAS of `oo::plane::kMaxAlignDelayMs` — which the derived suggestion clamps to and the
+        eight delay lines are sized for — so the three cannot drift. See that constant for why one
+        definition replaced three literals and the static_asserts that policed them.
+    */
+    static constexpr float kVenueDelayClampMs = oo::plane::kMaxAlignDelayMs;
+
     //==============================================================================
     /** Read-only access to the room, for the editor and the tests. Message thread. */
     const oo::VenueModel&   getVenue() const noexcept  { return venue; }

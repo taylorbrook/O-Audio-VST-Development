@@ -43,6 +43,7 @@ const juce::Identifier VenueModel::propX              { "x" };
 const juce::Identifier VenueModel::propY              { "y" };
 const juce::Identifier VenueModel::propZ              { "z" };
 const juce::Identifier VenueModel::propTrimDb         { "trimDb" };
+const juce::Identifier VenueModel::propDelayMs        { "delayMs" };   // v1.4.0
 const juce::Identifier VenueModel::propLabel          { "label" };
 
 //==============================================================================
@@ -265,6 +266,7 @@ void VenueModel::resetToDefaults()
     {
         speakers[(size_t) i] = defaultSpeakerPosition (i);
         trims[(size_t) i]    = 0.0f;
+        delays[(size_t) i]   = 0.0f;
         labels[(size_t) i]   = defaultSpeakerLabel (i);
     }
 
@@ -339,6 +341,15 @@ void VenueModel::readFromState (const juce::ValueTree& parentState)
                                  readFloat (child, propZ, p.z) };
 
         trims[(size_t) i]  = readFloat  (child, propTrimDb, trims[(size_t) i]);
+
+        // v1.4.0. THE BACKWARD-COMPATIBILITY GUARANTEE IS THIS ONE LINE AND NOTHING ELSE.
+        // resetToDefaults() ran at the top of this function, so `delays[i]` is already 0 — a
+        // schemaVersion-1 file, a pre-v1.4.0 session, or a .venue carrying no @schemaVersion at
+        // all simply does not overwrite it. No version branch, no migration table, no per-param
+        // version gate: the value's default IS its migration, which is the one shape of schema
+        // addition that needs neither (contrast pattern_preset_migration_per_param_version_gate,
+        // where a RANGE moved and the old number meant something different).
+        delays[(size_t) i] = readFloat  (child, propDelayMs, delays[(size_t) i]);
         labels[(size_t) i] = readString (child, propLabel,  labels[(size_t) i]);
     }
 
@@ -364,6 +375,7 @@ juce::ValueTree VenueModel::toValueTree() const
         spk.setProperty (propY,      speakers[(size_t) i].y, nullptr);
         spk.setProperty (propZ,      speakers[(size_t) i].z, nullptr);
         spk.setProperty (propTrimDb, trims[(size_t) i],      nullptr);
+        spk.setProperty (propDelayMs, delays[(size_t) i],    nullptr);
         spk.setProperty (propLabel,  labels[(size_t) i],     nullptr);
 
         venue.appendChild (spk, nullptr);
@@ -406,6 +418,19 @@ void VenueModel::setSpeakerTrimDb (int speakerIndex, float trimDecibels)
     recomputeDerived();
 }
 
+void VenueModel::setSpeakerDelayMs (int speakerIndex, float delayMilliseconds)
+{
+    if (! isValidSpeaker (speakerIndex))
+        return;
+
+    delays[(size_t) speakerIndex] = delayMilliseconds;
+
+    // Uniform with setSpeakerTrimDb for the same reason it gives: delay is not a geometric
+    // quantity and nothing derived depends on it today, but a call that is uniform cannot be the
+    // one that gets forgotten when something does.
+    recomputeDerived();
+}
+
 void VenueModel::setSpeakerLabel (int speakerIndex, const juce::String& abbreviation)
 {
     if (! isValidSpeaker (speakerIndex))
@@ -435,6 +460,11 @@ Vec3 VenueModel::speaker (int speakerIndex) const noexcept
 float VenueModel::trimDb (int speakerIndex) const noexcept
 {
     return isValidSpeaker (speakerIndex) ? trims[(size_t) speakerIndex] : 0.0f;
+}
+
+float VenueModel::delayMs (int speakerIndex) const noexcept
+{
+    return isValidSpeaker (speakerIndex) ? delays[(size_t) speakerIndex] : 0.0f;
 }
 
 float VenueModel::trimLin (int speakerIndex) const noexcept
@@ -526,6 +556,51 @@ float VenueModel::absoluteHeight (float yMetres, float srcZ) const noexcept
     return earHeight (yMetres) + srcZ;
 }
 
+//==============================================================================
+// ── v1.4.0 — the alignment-delay suggestion ───────────────────────────────────────────────────
+//
+// A PURE FUNCTION OF THE MEASURED GEOMETRY. It reads `speakers`, the centroid and the rake, and it
+// writes nothing: `delays` is filled by the caller, which is what keeps the stored values the
+// single truth once the operator starts editing them (see the header).
+
+std::array<float, VenueModel::kNumSpeakers> VenueModel::suggestedDelaysMs() const noexcept
+{
+    std::array<float, kNumSpeakers> out {};
+
+    // The reference seat: the middle of the array, at the ear height the rake gives that depth.
+    // earHeight() is the delegate to oo::plane, so this uses THE SAME audience plane the solve
+    // does rather than a second linear interpolation written out here.
+    const Vec3 ref { centroidM.x, centroidM.y, earHeight (centroidM.y) };
+
+    std::array<float, kNumSpeakers> dist {};
+    float farthest = 0.0f;
+
+    for (int i = 0; i < kNumSpeakers; ++i)
+    {
+        const float d = std::sqrt (len2 (sub (speakers[(size_t) i], ref)));
+
+        // A non-finite coordinate has not been sanitised yet at this point — publishSnapshot() is
+        // the funnel and it runs later — so a NaN would propagate into `farthest` through a
+        // comparison that is FALSE for NaN, silently pinning the maximum to whatever came before
+        // it and handing every other speaker a wrong suggestion. Replaced here rather than trusted,
+        // matching the sane() habit at the funnel.
+        dist[(size_t) i] = std::isfinite (d) ? d : 0.0f;
+        farthest         = std::max (farthest, dist[(size_t) i]);
+    }
+
+    for (int i = 0; i < kNumSpeakers; ++i)
+    {
+        // ALIGN-TO-FARTHEST — the subtraction, not `d_i / c`. See the header for why the inverted
+        // spelling is wrong in the audible direction.
+        const float seconds = (farthest - dist[(size_t) i]) / plane::kSpeedOfSoundMps;
+
+        out[(size_t) i] = juce::jlimit (0.0f, kMaxSuggestedDelayMs, seconds * 1000.0f);
+    }
+
+    return out;
+}
+
+//==============================================================================
 Vec2 VenueModel::normToMetres (float nx, float ny) const noexcept
 {
     return plane::normToMetres (boxMinX, boxMaxX, boxMinY, boxMaxY, nx, ny);

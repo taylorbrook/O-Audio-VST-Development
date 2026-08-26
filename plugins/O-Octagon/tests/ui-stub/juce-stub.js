@@ -139,18 +139,19 @@ const RANGES = {
 //
 // trimDb rides INSIDE the speaker object rather than in a parallel trims[8]
 // array, so a consumer cannot index the two out of step (PLAN-3.2 P55). With
-// the two rake heights below that makes 8 x 5 + 2 = 42 venue values fully
+// the two rake heights below that makes 8 x 6 + 2 = 50 venue values fully
 // representable from ONE getVenueGeometry call, which is what lets the Venue
-// table be a rendering job and setVenue its exact inverse.
+// table be a rendering job and setVenue its exact inverse. (42 until v1.4.0
+// added delayMs, which rides inside the speaker object for the same reason.)
 const BASE_SPEAKERS = [
-  { n: 1, x:  0.50, y:  4.50, z: 4.50, label: "L",   class: "VERTEX",  trimDb: 0.0 },
-  { n: 2, x: 12.50, y:  4.50, z: 4.50, label: "R",   class: "VERTEX",  trimDb: 0.0 },
-  { n: 3, x: 12.50, y:  9.85, z: 4.70, label: "C",   class: "ON_EDGE", trimDb: 0.0 },
-  { n: 4, x: 12.50, y: 16.00, z: 5.10, label: "Lfe", class: "VERTEX",  trimDb: 0.0 },
-  { n: 5, x:  9.80, y: 19.50, z: 5.40, label: "Lss", class: "VERTEX",  trimDb: 0.0 },
-  { n: 6, x:  3.20, y: 19.50, z: 5.40, label: "Rss", class: "VERTEX",  trimDb: 0.0 },
-  { n: 7, x:  0.50, y: 16.00, z: 5.10, label: "Lrs", class: "VERTEX",  trimDb: 0.0 },
-  { n: 8, x:  0.50, y:  9.85, z: 4.70, label: "Rrs", class: "ON_EDGE", trimDb: 0.0 },
+  { n: 1, x:  0.50, y:  4.50, z: 4.50, label: "L",   class: "VERTEX",  trimDb: 0.0, delayMs: 0.0 },
+  { n: 2, x: 12.50, y:  4.50, z: 4.50, label: "R",   class: "VERTEX",  trimDb: 0.0, delayMs: 0.0 },
+  { n: 3, x: 12.50, y:  9.85, z: 4.70, label: "C",   class: "ON_EDGE", trimDb: 0.0, delayMs: 0.0 },
+  { n: 4, x: 12.50, y: 16.00, z: 5.10, label: "Lfe", class: "VERTEX",  trimDb: 0.0, delayMs: 0.0 },
+  { n: 5, x:  9.80, y: 19.50, z: 5.40, label: "Lss", class: "VERTEX",  trimDb: 0.0, delayMs: 0.0 },
+  { n: 6, x:  3.20, y: 19.50, z: 5.40, label: "Rss", class: "VERTEX",  trimDb: 0.0, delayMs: 0.0 },
+  { n: 7, x:  0.50, y: 16.00, z: 5.10, label: "Lrs", class: "VERTEX",  trimDb: 0.0, delayMs: 0.0 },
+  { n: 8, x:  0.50, y:  9.85, z: 4.70, label: "Rrs", class: "ON_EDGE", trimDb: 0.0, delayMs: 0.0 },
 ];
 
 const BASE_RAKE = { front: 0.0, rear: 0.0 };
@@ -234,6 +235,12 @@ function geometryPayload() {
       y: speakers.reduce((a, s) => a + s.y, 0) / speakers.length,
     },
     rigScale: 7.93165,
+    // v1.4.0. oo::plane::kSpeedOfSoundMps and OOctagonProcessor::kVenueDelayClampMs.
+    // Reproduced here because a stub is the fixture that stands in for the
+    // plugin; the SHIPPED page carries no copy of either — both arrive on this
+    // payload and venue.js divides by what it is given (D19).
+    speedOfSound: 343,
+    maxDelayMs: 50,
     venueName: "Default (placeholder — NOT measured)",
     // v1.1.0: `output` rides each speaker — the 1-based physical output its
     // label reaches under DEVICE_ORDER_LABELS, 0 for a label outside the set.
@@ -566,7 +573,7 @@ function setVenue(payload) {
   const why = diagnoseLabels(rows.map((s) => s.label));
   if (why.reason !== "none") return { ok: false, ...why };
 
-  // Applied only after the whole 42-value set has been accepted.
+  // Applied only after the whole 50-value set has been accepted.
   speakers = speakers.map((s, i) => ({
     ...s,
     x: finite(rows[i].x, s.x),
@@ -574,6 +581,10 @@ function setVenue(payload) {
     z: finite(rows[i].z, s.z),
     label: rows[i].label,
     trimDb: finite(rows[i].trimDb, s.trimDb),
+    // v1.4.0. Railed here as publishSnapshot() rails it, so the stub cannot
+    // accept a value the plugin would clamp — which is the only way a UI probe
+    // driven against the stub proves anything about the shipped rail.
+    delayMs: Math.min(Math.max(finite(rows[i].delayMs, s.delayMs), 0), 50),
   }));
 
   const r = payload.rake === null || typeof payload.rake !== "object" ? {} : payload.rake;
@@ -641,6 +652,38 @@ function applyOutputOrderPreset(id) {
   if (why.reason !== "none") return { ok: false, ...why };
 
   speakers = speakers.map((s, i) => ({ ...s, label: labels[i] }));
+  venueGen += 1;
+  return { ok: true, reason: "none", speaker: -1 };
+}
+
+// v1.4.0 — VenueModel::suggestedDelaysMs(), reproduced for the same reason the
+// swap and the repair above are: a stub is the fixture that stands in for the
+// plugin. The SHIPPED page carries no copy — it clicks Derive and renders what
+// getVenueGeometry returns.
+//
+// Align-to-farthest against the audience-plane centroid, exactly as the C++
+// does: ref = (centroidX, centroidY, earHeight(centroidY)), and the FARTHEST
+// speaker gets zero.
+function applySuggestedDelays() {
+  const cx = speakers.reduce((a, s) => a + s.x, 0) / speakers.length;
+  const cy = speakers.reduce((a, s) => a + s.y, 0) / speakers.length;
+
+  const minY = Math.min(...speakers.map((s) => s.y));
+  const maxY = Math.max(...speakers.map((s) => s.y));
+  const span = maxY - minY;
+
+  // oo::plane::earHeight, including its zero-span guard.
+  const cz = span < MIN_SPAN ? rake.front
+    : rake.front + (rake.rear - rake.front) * ((cy - minY) / span);
+
+  const dist = speakers.map((s) => Math.sqrt((s.x - cx) ** 2 + (s.y - cy) ** 2 + (s.z - cz) ** 2));
+  const farthest = Math.max(...dist);
+
+  speakers = speakers.map((s, i) => ({
+    ...s,
+    delayMs: Math.min(Math.max(((farthest - dist[i]) / 343) * 1000, 0), 50),
+  }));
+
   venueGen += 1;
   return { ok: true, reason: "none", speaker: -1 };
 }
@@ -757,6 +800,12 @@ function stopPing() {
 // 18 -> 20 at v1.1.0: assignSpeakerOutput (the Room plan's double-click
 // popover) and applyOutputOrderPreset (the Venue rail's two one-click sets).
 // Per-speaker `output` itself rides getVenueGeometry — no read call was added.
+//
+// 20 -> 22 at v1.2.0: setTooltipsEnabled / getTooltipsEnabled.
+//
+// 22 -> 23 at v1.4.0: applySuggestedDelays (the Delay row's Derive button).
+// The delays themselves ride getVenueGeometry as per-speaker `delayMs`, and the
+// ms/metres toggle is a pure view state — neither adds a call.
 const NATIVE_FNS = {
   getParameterDefaults: () =>
     Object.fromEntries(Object.entries(RANGES).map(([id, r]) => [id, r.def])),
@@ -771,6 +820,9 @@ const NATIVE_FNS = {
   assignSpeakerOutput: (speakerN, outputK) => assignSpeakerOutput(speakerN, outputK),
 
   applyOutputOrderPreset: (id) => applyOutputOrderPreset(id),
+
+  // ── v1.4.0 ──
+  applySuggestedDelays: () => applySuggestedDelays(),
 
   saveVenue: () => saveVenue(),
 

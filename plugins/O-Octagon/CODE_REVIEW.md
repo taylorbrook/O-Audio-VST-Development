@@ -2,6 +2,47 @@
 plugin: O-Octagon
 version_reviewed: 1.3.0
 reviewed: 2026-08-25
+verified: 2026-08-26
+verification: >
+  /improve-verify, v1.3.2 (Rounds 1-2: CR-01 + WR-01..WR-05). All six findings CLOSED with evidence.
+  Survived-to-disk confirmed in the shipped bundle (installed AU/VST3 carry the fixed CSS/JS; zero
+  occurrences of the pre-fix `transform-origin: center` remain in the binary). Version coherent
+  end-to-end: CMakeLists 1.3.2 / AU + VST3 CFBundleShortVersionString 1.3.2 / CHANGELOG / PLUGINS.md.
+  Gates re-run independently: render-harness 51/51, geometry 46/46, ui_layout_check 31/31,
+  ui_frontend_check 42/42, DBAP fixture --check OK (102 cases), auval -v aufx OuOc OuDv SUCCEEDED.
+  GOLDEN NEUTRALITY MEASURED, not assumed: the v1.3.2 harness binary was rebuilt against the v1.3.0
+  Source tree and diffed probe-line by probe-line. 48 of 51 render probes and 45 of 46 geometry
+  probes are BYTE-IDENTICAL across the resolution. The three that move are accounted for: CR and P2
+  are the fix probes (they reproduce NC6 and NC4 exactly), BL moves only its publish-GENERATION
+  counter (3->4 -> 2->3, which IS WR-01; its measured geometry is unchanged, and venueGen is only
+  ever change-detected, never magnitude-compared), and BR is a noise-seeded ping whose RMS scatters
+  -19.78..-20.17 dBFS across repeat runs of one binary, inside its own stated +/-1.5 dB tolerance.
+  No audio-path golden moved. Adversarial pass over the resolution diff: no regressions survived.
+  Deferred to human DAW test: WR-01 under a live host preset switch, WR-02 across a real
+  Retina/non-Retina display move, and a WKWebView eyeball of CR-01/WR-04/WR-05.
+  ── RE-VERIFIED 2026-08-26 THROUGH v1.3.5 (span v1.3.3, v1.3.4, v1.3.5) ──
+  The CR/WR closure above still holds: nothing in the span touches those fixes, and every gate
+  they rest on re-ran green against the v1.3.5 tree. Resolution under test was SIMPLIFICATION-
+  AUDIT MEDIUM-03 (getFieldGrid readParam fallbacks derived, not transcribed) — CLOSED: all
+  three literals gone, fallback now getParameter(id)->convertFrom0to1(getDefaultValue()), the
+  same derivation getParameterDefaults uses. Bit-exactness of that derivation was COMPUTED, not
+  assumed: all three ranges are linearRange (interval 0, skew 1) and the float32 round-trip is
+  bit-identical for rolloff 4.0f and hullAtten 1.0f, so only blur moves (0.10 -> 0.03), which is
+  the correction. Survived-to-disk confirmed across the WHOLE span, not just the top entry:
+  v1.3.3 hullPoints/placeGlyph exported from roomplan.js and imported by venue.js (which no
+  longer calls metresToPx), v1.3.4 LOW-01..05/07 markers all present and the LOW-06 revert
+  intact. Version coherent end-to-end: CMakeLists 1.3.5 / AU + VST3 CFBundleShortVersionString
+  1.3.5 / CHANGELOG / PLUGINS.md / NOTES.md. Gates re-run independently: render 51/0, geometry
+  46/0, ui_layout_check 31, ui_frontend_check 42, DBAP fixture --check OK (102 cases, fixture
+  unmodified), auval -v aufx OuOc OuDv SUCCEEDED. Zero-warning gate re-proved by FORCING a
+  recompile of PluginEditor.cpp rather than trusting an up-to-date object: 0 warnings, 0 errors.
+  Adversarial pass over the v1.3.5 diff: no regressions survived. One observation, refuted as a
+  finding — on the param==nullptr branch the helper now returns 0.0f where it used to return the
+  transcribed literal, but getParameter and getRawParameterValue resolve through the same APVTS
+  adapter map and are null together, all three ids are registered in the layout, and even if it
+  did fire rolloffToAlpha(0) = 0 yields t = 1 for every speaker (a flat field, finite, no NaN).
+  NOT runtime-exercised, and cannot be: PluginEditor.cpp is excluded from the render harness by
+  design, and the fallback branch is unreachable without a host writing NaN.
 depth: deep
 method: >
   Six parallel subsystem reviewers (DSP core, processor/params/state, editor-WebView bridge,

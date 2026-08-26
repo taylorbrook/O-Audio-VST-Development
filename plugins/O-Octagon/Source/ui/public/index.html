@@ -471,6 +471,13 @@
                 <th class="vcol-head vcol-num">Y&#8202;m</th>
                 <th class="vcol-head vcol-num">Z&#8202;m</th>
                 <th class="vcol-head vcol-num">Trim&#8202;dB</th>
+                <!-- v1.4.0. The word "Delay" is AUTHORED AND NEVER REWRITTEN; only the unit
+                     changes, so only the unit is a value node. Writing textContent onto the whole
+                     <th> would erase an authored label — the exact shape of
+                     pattern_js_state_updater_overwrites_html_labels, which section 6 exists to
+                     catch — and widening that whitelist to allow it would be answering the gate
+                     rather than the rule. -->
+                <th class="vcol-head vcol-num">Delay&#8202;<span class="vcell-value" id="vcol-delay-unit">ms</span></th>
                 <th class="vcol-head vcol-class">Class</th>
               </tr>
             </thead>
@@ -482,6 +489,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-y" aria-label="Speaker 1 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-z" aria-label="Speaker 1 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-trim" aria-label="Speaker 1 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-delay" aria-label="Speaker 1 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-1">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-2" data-speaker="2">
@@ -491,6 +499,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-y" aria-label="Speaker 2 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-z" aria-label="Speaker 2 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-trim" aria-label="Speaker 2 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-delay" aria-label="Speaker 2 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-2">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-3" data-speaker="3">
@@ -500,6 +509,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-y" aria-label="Speaker 3 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-z" aria-label="Speaker 3 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-trim" aria-label="Speaker 3 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-delay" aria-label="Speaker 3 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-3">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-4" data-speaker="4">
@@ -509,6 +519,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-y" aria-label="Speaker 4 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-z" aria-label="Speaker 4 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-trim" aria-label="Speaker 4 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-delay" aria-label="Speaker 4 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-4">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-5" data-speaker="5">
@@ -518,6 +529,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-y" aria-label="Speaker 5 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-z" aria-label="Speaker 5 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-trim" aria-label="Speaker 5 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-delay" aria-label="Speaker 5 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-5">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-6" data-speaker="6">
@@ -527,6 +539,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-y" aria-label="Speaker 6 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-z" aria-label="Speaker 6 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-trim" aria-label="Speaker 6 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-delay" aria-label="Speaker 6 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-6">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-7" data-speaker="7">
@@ -536,6 +549,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-y" aria-label="Speaker 7 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-z" aria-label="Speaker 7 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-trim" aria-label="Speaker 7 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-delay" aria-label="Speaker 7 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-7">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-8" data-speaker="8">
@@ -545,6 +559,7 @@
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-y" aria-label="Speaker 8 Y metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-z" aria-label="Speaker 8 Z metres" /></td>
             <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-trim" aria-label="Speaker 8 trim dB" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-delay" aria-label="Speaker 8 alignment delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-8">&#8212;</span></td>
           </tr>
             </tbody>
@@ -558,6 +573,29 @@
             <input type="text" inputmode="decimal" class="vfield" id="vf-rake-front" aria-label="Rake front metres" />
             <span class="cell-label vrake-key">Rear</span>
             <input type="text" inputmode="decimal" class="vfield" id="vf-rake-rear" aria-label="Rake rear metres" />
+          </div>
+
+          <!-- v1.4.0 — the delay column's two venue-scoped controls, under the table for the same
+               reason the rake heights are: neither belongs to a single speaker.
+
+               THE UNIT TOGGLE IS A VIEW STATE, NOT A VENUE VALUE. Storage is always ms; the toggle
+               rewrites the column header and converts what is displayed and what is parsed. It is
+               deliberately NOT written into the .venue file — a room does not have a preferred
+               unit, an operator does, and putting it on disk would make two identical rooms
+               compare unequal. -->
+          <div class="venue-delay" data-tip-title="Alignment delay" data-tip="Per-speaker delay that time-aligns arrivals at one seat. Derive fills all eight from the measured distances; every value stays editable afterwards.">
+            <span class="cell-label">Delay</span>
+            <!-- TWO BUTTONS, NOT ONE THAT RELABELS ITSELF. Both labels are authored and never
+                 rewritten — the active state is a class and aria-pressed — so this control makes
+                 no textContent write at all. It also shows the operator both options instead of
+                 asking them to click to discover the other one. -->
+            <div class="vunit-group" role="group" aria-label="Delay unit"
+                 data-tip-title="Delay unit" data-tip="Show the Delay column in milliseconds or in metres of path difference. Values are stored as milliseconds either way.">
+              <button type="button" class="vbtn vbtn-unit is-active" id="btn-delay-ms" aria-pressed="true">ms</button>
+              <button type="button" class="vbtn vbtn-unit" id="btn-delay-m" aria-pressed="false">m</button>
+            </div>
+            <button type="button" class="vbtn" id="btn-delay-derive"
+                    data-tip-title="Derive delays" data-tip="Fill all eight delays to time-align arrivals at the centre of the array, at the ear height the rake gives that depth. The farthest speaker gets zero. Every value stays editable afterwards.">Derive</button>
           </div>
 
         </div>

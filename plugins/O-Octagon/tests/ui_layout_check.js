@@ -655,18 +655,23 @@ async function nudge(page, id) {
     check(railFacts.docH <= SHIP_H, `Venue screen scrollHeight ${railFacts.docH} <= ${SHIP_H}`);
 
     // ── 12 ───────────────────────────────────────────────────────────────────
-    head(12, 'all 42 venue values are viewable and editable at 1100 x 720 (UI-01/1)');
+    head(12, 'all 50 venue values are viewable and editable at 1100 x 720 (UI-01/1)');
 
     // The id list is DERIVED here the same way PARAM_IDS is parsed in section 1
-    // — 8 x (label + x + y + z + trim) + 2 rake. A literal 42 typed into this
-    // file would stop describing the page the moment a column moved.
+    // — 8 x (label + x + y + z + trim + delay) + 2 rake. A literal 50 typed into
+    // this file would stop describing the page the moment a column moved.
+    //
+    // 42 -> 50 at v1.4.0. The COUNT below still has to move by hand, and that is
+    // the point of having it at all: it is the assertion that the delay column
+    // actually reached the DOM, as opposed to the derivation quietly agreeing
+    // with itself about a page that never got the eighth column.
     const VENUE_IDS = [];
     for (let n = 1; n <= 8; ++n) {
         VENUE_IDS.push(`vf-label-${n}`);
-        for (const k of ['x', 'y', 'z', 'trim']) VENUE_IDS.push(`vf-${n}-${k}`);
+        for (const k of ['x', 'y', 'z', 'trim', 'delay']) VENUE_IDS.push(`vf-${n}-${k}`);
     }
     VENUE_IDS.push('vf-rake-front', 'vf-rake-rear');
-    check(VENUE_IDS.length === 42, `42 venue field ids derived — ${VENUE_IDS.length}`);
+    check(VENUE_IDS.length === 50, `50 venue field ids derived — ${VENUE_IDS.length}`);
 
     const fieldFacts = await page.evaluate(ids => {
         const out = { present: 0, editable: 0, inViewport: 0, populated: 0, numberTyped: 0, missing: [] };
@@ -684,10 +689,10 @@ async function nudge(page, id) {
         return out;
     }, VENUE_IDS);
 
-    check(fieldFacts.present === 42, `all 42 fields present — ${fieldFacts.present}${fieldFacts.missing.length ? ` (missing ${fieldFacts.missing.join(', ')})` : ''}`);
-    check(fieldFacts.editable === 42, `all 42 are editable — ${fieldFacts.editable}`);
-    check(fieldFacts.inViewport === 42, `all 42 are fully inside ${SHIP_W} x ${SHIP_H} — ${fieldFacts.inViewport}`);
-    check(fieldFacts.populated === 42, `all 42 were POPULATED from the payload — ${fieldFacts.populated}`);
+    check(fieldFacts.present === 50, `all 50 fields present — ${fieldFacts.present}${fieldFacts.missing.length ? ` (missing ${fieldFacts.missing.join(', ')})` : ''}`);
+    check(fieldFacts.editable === 50, `all 50 are editable — ${fieldFacts.editable}`);
+    check(fieldFacts.inViewport === 50, `all 50 are fully inside ${SHIP_W} x ${SHIP_H} — ${fieldFacts.inViewport}`);
+    check(fieldFacts.populated === 50, `all 50 were POPULATED from the payload — ${fieldFacts.populated}`);
     check(fieldFacts.numberTyped === 0, `no type="number" among them — ${fieldFacts.numberTyped} (D12)`);
 
     // The mini-plan's proportions follow the RETURNED envelope, exactly as the
@@ -703,7 +708,7 @@ async function nudge(page, id) {
         `mini-plan aspect ${(miniFacts.w / miniFacts.h).toFixed(4)} follows the returned envelope ${miniFacts.aspect.toFixed(4)}`);
 
     // ── 13 ───────────────────────────────────────────────────────────────────
-    head(13, 'invalid input MARKS and REVERTS; a metre commits ONE setVenue of 42 (FUNC-02/1)');
+    head(13, 'invalid input MARKS and REVERTS; a metre commits ONE setVenue of 50 (FUNC-02/1)');
 
     const beforeBad = await venueWriteCount();
     const goodValue = await page.evaluate(() => document.getElementById('vf-3-y').value);
@@ -733,14 +738,14 @@ async function nudge(page, id) {
         const last = w[w.length - 1];
         const speakers = last && Array.isArray(last.speakers) ? last.speakers : [];
         const count = speakers.reduce((acc, s) =>
-            acc + ['label', 'x', 'y', 'z', 'trimDb'].filter(k => s[k] !== undefined).length, 0)
+            acc + ['label', 'x', 'y', 'z', 'trimDb', 'delayMs'].filter(k => s[k] !== undefined).length, 0)
             + (last && last.rake ? ['front', 'rear'].filter(k => last.rake[k] !== undefined).length : 0);
         return { calls: w.length - n, values: count, y3: speakers.length > 2 ? speakers[2].y : null,
                  marked: document.getElementById('vf-3-y').classList.contains('is-invalid') };
     }, afterBad);
 
     check(goodFacts.calls === 1, `a valid metre committed EXACTLY ONE setVenue call — ${goodFacts.calls}`);
-    check(goodFacts.values === 42, `and it carried all 42 values in one payload — ${goodFacts.values}`);
+    check(goodFacts.values === 50, `and it carried all 50 values in one payload — ${goodFacts.values}`);
     check(goodFacts.y3 === 7.25, `the typed value reached the payload — speakers[2].y = ${goodFacts.y3}`);
     check(!goodFacts.marked, 'the invalid mark cleared once the field parsed');
 

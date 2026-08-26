@@ -936,8 +936,14 @@ void forceDuplicateLabel (OOctagonProcessor& proc)
     proc.applyVenueEdit (v);
 }
 
-/** A venue with all 42 values distinct and none of them the §OQ4 default. Mirrors the unit
-    target's makeMeasuredVenue so BN and BW/BY are talking about the same thing. */
+/** A venue with all 50 values distinct and none of them the §OQ4 default. Mirrors the unit
+    target's makeMeasuredVenue so BN and BW/BY are talking about the same thing.
+
+    TWO COPIES OF ONE FIXTURE IS pattern_test_fixture_mirrors_drift_silently BY CONSTRUCTION, and
+    it is tolerated here only because the two targets cannot share a TU (the unit target links
+    without PluginProcessor.cpp, by design — PLAN-2.1 P7/D3). The delay row below was added to BOTH
+    at v1.4.0; if a third value ever joins, it goes in both or the two probes stop agreeing about
+    what "the measured hall" is while both keep passing. */
 oo::VenueModel makeMeasuredVenue()
 {
     oo::VenueModel v;
@@ -948,6 +954,7 @@ oo::VenueModel makeMeasuredVenue()
 
         v.setSpeakerPosition (i, { 1.125f + f * 1.375f, 2.250f + f * 2.125f, 3.375f + f * 0.125f });
         v.setSpeakerTrimDb (i, -5.5f + f * 1.25f);
+        v.setSpeakerDelayMs (i, 0.375f + f * 1.625f);   // v1.4.0 — matches the unit target exactly
     }
 
     v.setRake (0.875f, 2.625f);
@@ -955,8 +962,8 @@ oo::VenueModel makeMeasuredVenue()
     return v;
 }
 
-/** The 42-value bit-compare. Same predicate shape as the unit target's. */
-bool sameFortyTwo (const oo::VenueModel& a, const oo::VenueModel& b, int& firstBad)
+/** The 50-value bit-compare. Same predicate shape as the unit target's. */
+bool sameFifty (const oo::VenueModel& a, const oo::VenueModel& b, int& firstBad)
 {
     firstBad = -1;
 
@@ -967,6 +974,7 @@ bool sameFortyTwo (const oo::VenueModel& a, const oo::VenueModel& b, int& firstB
 
         if (! (bitExact (pa.x, pb.x) && bitExact (pa.y, pb.y) && bitExact (pa.z, pb.z)
                && bitExact (a.trimDb (i), b.trimDb (i))
+               && bitExact (a.delayMs (i), b.delayMs (i))
                && a.labelAbbreviation (i) == b.labelAbbreviation (i)))
         {
             firstBad = i;
@@ -1249,7 +1257,7 @@ int main()
         const bool ok = same && mismatches == 0 && mapValid && nonDefault;
 
         check ("T venue-session-round-trip", ok,
-               juce::String ("42 values, ") + juce::String (mismatches) + " speaker mismatch(es)"
+               juce::String ("50 values, ") + juce::String (mismatches) + " speaker mismatch(es)"
                    + (mapValid ? ", map valid" : ", MAP INVALID")
                    + (nonDefault ? ", venue is non-default" : ", VENUE FELL BACK TO DEFAULTS"));
     }
@@ -3305,7 +3313,7 @@ int main()
     //==========================================================================
     // BG — QUAL-01 UNDER D4's SCOPE: one representative LIVE venue edit during playback.
     //
-    // Venue values are message-thread edits, not automation lanes, so a full-speed sweep of all 42
+    // Venue values are message-thread edits, not automation lanes, so a full-speed sweep of all 50
     // stresses a path no user can drive. What a user CAN do is type a number while audio is
     // running, and everything a venue edit touches lands on the same smoothed targets.
     //
@@ -3904,7 +3912,7 @@ int main()
             const bool applied = proc.applyVenueEditChecked (bad, &whyNot);
 
             int firstBad = -1;
-            const bool untouched = sameFortyTwo (before, proc.getVenue(), firstBad);
+            const bool untouched = sameFifty (before, proc.getVenue(), firstBad);
 
             // mapInvalid stays FALSE because nothing was applied — the guard removed the
             // transient, and the backstop was never reached.
@@ -4302,7 +4310,7 @@ int main()
     }
 
     //==========================================================================
-    // BW — FUNC-05/1: a preset load leaves all 42 venue values BIT-IDENTICAL.
+    // BW — FUNC-05/1: a preset load leaves all 50 venue values BIT-IDENTICAL.
     //
     //      The criterion holds BY CONSTRUCTION — applyPresetJson iterates
     //      processor.getParameters() and resolves via parameters.getParameter(id), so it can never
@@ -4342,7 +4350,7 @@ int main()
             const bool loaded = presets.loadPresetFromFile (file);
 
             int firstBad = -1;
-            const bool venueIntact = sameFortyTwo (venueBefore, proc.getVenue(), firstBad);
+            const bool venueIntact = sameFifty (venueBefore, proc.getVenue(), firstBad);
 
             const auto readParam = [&proc] (const char* id)
             {
@@ -4357,7 +4365,7 @@ int main()
             ok = saved && loaded && venueIntact && paramsRestored;
 
             detail << "save " << (saved ? "ok" : "FAILED") << ", load " << (loaded ? "ok" : "FAILED")
-                   << ", 42 venue values " << (venueIntact ? "BIT-IDENTICAL" : "CHANGED")
+                   << ", 50 venue values " << (venueIntact ? "BIT-IDENTICAL" : "CHANGED")
                    << (firstBad >= 0 ? " (speaker " + juce::String (firstBad + 1) + ")" : "")
                    << ", parameters restored " << (paramsRestored ? "yes" : "NO — the load did nothing")
                    << " (blur " << juce::String (readParam ("blur"), 3) << ")";
@@ -4458,7 +4466,7 @@ int main()
             restored.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
 
             int firstBad = -1;
-            const bool venueOk = sameFortyTwo (source.getVenue(), restored.getVenue(), firstBad);
+            const bool venueOk = sameFifty (source.getVenue(), restored.getVenue(), firstBad);
 
             int paramsBad = 0;
             for (int i = 0; i < static_cast<int> (oo::params::kCount); ++i)
@@ -4473,11 +4481,11 @@ int main()
             // Not the default venue, or "identical" would be trivially true of two fresh
             // processors that never restored anything.
             int ignored = -1;
-            const bool notDefault = ! sameFortyTwo (oo::VenueModel(), restored.getVenue(), ignored);
+            const bool notDefault = ! sameFifty (oo::VenueModel(), restored.getVenue(), ignored);
 
             ok = ok && venueOk && paramsBad == 0 && notDefault && state.getSize() > 0;
 
-            detail << state.getSize() << " bytes; 42 venue values "
+            detail << state.getSize() << " bytes; 50 venue values "
                    << (venueOk ? "identical" : "DIFFER")
                    << (firstBad >= 0 ? " (speaker " + juce::String (firstBad + 1) + ")" : "")
                    << "; 17 parameters " << (paramsBad == 0 ? "identical" : juce::String (paramsBad) + " DIFFER")
@@ -4904,10 +4912,10 @@ int main()
             // live BEFORE the load — the MOVED one — and not the one that was live when the preset
             // was written.
             int firstBad = -1;
-            const bool venueIsTheMovedOne = sameFortyTwo (moved, proc.getVenue(), firstBad);
+            const bool venueIsTheMovedOne = sameFifty (moved, proc.getVenue(), firstBad);
 
             int ignored = -1;
-            const bool venueIsNotTheSaved = ! sameFortyTwo (venueBefore, proc.getVenue(), ignored);
+            const bool venueIsNotTheSaved = ! sameFifty (venueBefore, proc.getVenue(), ignored);
 
             auto* blurParam = proc.getAPVTS().getParameter ("blur");
             const bool paramRestored = blurParam != nullptr
@@ -4921,7 +4929,7 @@ int main()
                  && paramRestored && sceneRestored;
 
             detail << "save " << (saved ? "ok" : "FAILED") << ", load " << (loaded ? "ok" : "FAILED")
-                   << "; 42 venue values " << (venueIsTheMovedOne ? "BIT-IDENTICAL to the live venue" : "CHANGED")
+                   << "; 50 venue values " << (venueIsTheMovedOne ? "BIT-IDENTICAL to the live venue" : "CHANGED")
                    << (firstBad >= 0 ? " (speaker " + juce::String (firstBad + 1) + ")" : "")
                    << ", and demonstrably not the saved one: " << (venueIsNotTheSaved ? "yes" : "NO — VACUOUS")
                    << "; blur restored " << (paramRestored ? "yes" : "NO")
@@ -5424,7 +5432,7 @@ int main()
                 const auto delta = prepared.getVenueGeneration() - before;
 
                 int ignored = -1;
-                const bool arrived = ! sameFortyTwo (oo::VenueModel(), prepared.getVenue(), ignored);
+                const bool arrived = ! sameFifty (oo::VenueModel(), prepared.getVenue(), ignored);
 
                 ok = ok && ready && delta == 1u && arrived;
                 detail << "prepared: " << juce::String (static_cast<int> (delta)) << " publish"
@@ -5443,7 +5451,7 @@ int main()
                 const auto delta = unprepared.getVenueGeneration() - before;
 
                 int ignored = -1;
-                const bool arrived = ! sameFortyTwo (oo::VenueModel(), unprepared.getVenue(), ignored);
+                const bool arrived = ! sameFifty (oo::VenueModel(), unprepared.getVenue(), ignored);
 
                 ok = ok && delta == 1u && arrived;
                 detail << "unprepared: " << juce::String (static_cast<int> (delta)) << " publish"
@@ -5453,6 +5461,191 @@ int main()
         }
 
         check ("CR setstate-publishes-once", ok, detail);
+    }
+
+    //==========================================================================
+
+    std::printf ("\n  ── v1.4.0 (Per-Speaker Alignment Delay) ──────────────────────────\n");
+
+    //==========================================================================
+    // CS — THE DELAY MOVES EXACTLY ONE LANE, BY EXACTLY THE RIGHT NUMBER OF SAMPLES.
+    //
+    // ── WHY BOTH HALVES ARE IN ONE PROBE ──────────────────────────────────────────────────────
+    //
+    // The two claims v1.4.0 makes are "a zero delay changes nothing" and "a nonzero delay shifts
+    // that lane". Written as separate probes, the first PASSES WITH THE FEATURE DELETED — it is a
+    // claim about an absence, and a build with no delay code at all satisfies it perfectly
+    // (pattern_probe_must_target_the_branch_the_fix_changed). Together they cannot both hold on
+    // any implementation but the right one: seven lanes bit-identical proves the zero path is
+    // untouched IN THIS BUILD, and the eighth shifted by a measured 480 samples proves the code
+    // that leaves it untouched is the same code that can move it.
+    //
+    // ── THE DELAY IS APPLIED BEFORE negotiate() ───────────────────────────────────────────────
+    //
+    // applyVenueEdit() writes through to apvts.state, and prepareToPlay() reads the venue back
+    // from there — so a delay set first arrives via prepare()'s TELEPORT rather than via a 5 ms
+    // ramp. That is what makes the shift exact from sample 0 and the comparison a bit-compare
+    // instead of a tolerance. A probe that edited mid-render would be measuring the ramp.
+    //
+    // ── NO ASSUMPTION ABOUT WHICH BUFFER CHANNEL A SPEAKER REACHES ────────────────────────────
+    //
+    // The probe never indexes speakerToBuffer. It delays ONE speaker and then asks which lanes
+    // moved; "exactly one" is a stronger statement than "lane 3 moved" and it is true under any
+    // map, which is what lets this run under the rotated labels the routing probes use.
+    {
+        constexpr int   kSpeaker = 3;
+        constexpr float kDelayMs = 10.0f;
+        constexpr int   total    = 4096 * 3;
+
+        // 10 ms at 48 kHz is 480 samples EXACTLY, and it stays exact through the float conversion
+        // GainStage performs (10.0f * 0.001f * 48000.0f rounds to 480.0f), so delayFrac is 0 and
+        // Linear interpolation returns the stored sample unchanged. Derived here rather than
+        // written as 480 so the constant follows kSampleRate if that ever moves.
+        const int expectedShift = static_cast<int> (kDelayMs * 0.001 * kSampleRate);
+
+        OOctagonProcessor a, b;
+
+        // b's delay goes on BEFORE prepareToPlay — see above.
+        {
+            oo::VenueModel v = b.getVenue();
+            v.setSpeakerDelayMs (kSpeaker, kDelayMs);
+            b.applyVenueEdit (v);
+        }
+
+        const bool negotiated = negotiate (a, mono, set71) && negotiate (b, mono, set71);
+
+        applyRotatedLabels (a);
+        applyRotatedLabels (b);
+
+        // Off the rig's mirror axis, for AI's reason: at the default srcX four speaker pairs
+        // receive identical gains and "exactly one lane moved" would be ambiguous.
+        for (auto* p : { &a, &b })
+        {
+            setParam (*p, "srcX", 0.18f);
+            setParam (*p, "srcY", 0.72f);
+        }
+
+        juce::AudioBuffer<float> outA (8, total), outB (8, total);
+
+        renderInto (a, outA, total, { 512 }, {});
+        renderInto (b, outB, total, { 512 }, {});
+
+        // ── 1. EXACTLY ONE LANE DIFFERS ──
+        int  moved = 0, movedLane = -1;
+
+        for (int ch = 0; ch < 8; ++ch)
+        {
+            bool same = true;
+
+            for (int n = 0; n < total && same; ++n)
+                same = bitExact (outA.getSample (ch, n), outB.getSample (ch, n));
+
+            if (! same) { ++moved; movedLane = ch; }
+        }
+
+        const bool exactlyOne = moved == 1;
+
+        // ── 2. THE MOVED LANE IS THE UNDELAYED ONE, SHIFTED, BIT-EXACTLY ──
+        bool shifted = exactlyOne;
+
+        if (exactlyOne)
+            for (int n = expectedShift; n < total && shifted; ++n)
+                shifted = bitExact (outB.getSample (movedLane, n),
+                                    outA.getSample (movedLane, n - expectedShift));
+
+        // ── 3. AND ITS FIRST expectedShift SAMPLES ARE EXACTLY SILENT ──
+        //
+        // The line is reset() on the engage edge, so what comes out before the signal arrives is
+        // zero rather than whatever the buffer last held. Bit-exact zero, not "small".
+        bool silentHead = exactlyOne;
+
+        if (exactlyOne)
+            for (int n = 0; n < expectedShift && silentHead; ++n)
+                silentHead = bitExact (outB.getSample (movedLane, n), 0.0f);
+
+        // ── 4. NON-VACUITY ──
+        //
+        // If the moved lane were silent in BOTH renders, claims 2 and 3 would hold trivially. And
+        // if expectedShift were 0 the shift comparison would degenerate into claim 1's negation.
+        const bool live = exactlyOne
+                          && outA.getMagnitude (movedLane, 0, total) > 1.0e-4f
+                          && expectedShift > 0;
+
+        const bool ok = negotiated && exactlyOne && shifted && silentHead && live;
+
+        juce::String detail;
+        detail << "delayed speaker " << kSpeaker << " by " << juce::String (kDelayMs, 1)
+               << " ms (" << expectedShift << " samples): " << moved << " lane(s) moved";
+
+        if (exactlyOne)
+            detail << " (lane " << movedLane << "), shift "
+                   << (shifted ? "bit-exact" : "WRONG OR INEXACT")
+                   << ", head " << (silentHead ? "exactly silent" : "NOT ZERO")
+                   << ", source lane peak "
+                   << juce::String (outA.getMagnitude (movedLane, 0, total), 6);
+        else
+            detail << " — expected exactly 1"
+                   << (moved == 0 ? " (THE DELAY DID NOTHING)" : " (IT LEAKED ACROSS LANES)");
+
+        check ("CS delay-shifts-one-lane-exactly", ok, detail);
+    }
+
+    //==========================================================================
+    // CT — QUAL-03 STILL HOLDS WITH THE DELAY LINES CLOCKING.
+    //
+    // AL and AM prove block-size invariance for the seventeen gain smoothers. v1.4.0 adds eight
+    // more smoothers AND eight stateful delay lines, and the delay lines are the sharper risk:
+    // their read position is driven by a ramp, so a ramp that advanced per BLOCK instead of per
+    // SAMPLE would slide the read pointer by a different amount at 512 than at 4096 and the two
+    // renders would diverge (pattern_block_rate_envelope_breaks_blocksize_invariance).
+    //
+    // Deliberately AL's shape, with events at multiples of 4096 and a memcmp, so a reader can see
+    // that the only variable added is the delay.
+    {
+        constexpr int total = 4096 * 6;
+
+        const std::vector<Event> events
+            { { 4096 * 1, "srcX", 0.20f }, { 4096 * 2, "srcY", 0.85f },
+              { 4096 * 3, "w3",   0.10f }, { 4096 * 4, "rolloff", 5.5f },
+              { 4096 * 5, "srcZ", 3.25f } };
+
+        OOctagonProcessor a, b;
+
+        // ALL EIGHT delayed, and all eight DIFFERENTLY — a single shared value would be invariant
+        // to a bug that mixed up which lane read which ramp.
+        for (auto* p : { &a, &b })
+        {
+            oo::VenueModel v = p->getVenue();
+
+            for (int i = 0; i < oo::VenueModel::kNumSpeakers; ++i)
+                v.setSpeakerDelayMs (i, 1.5f + static_cast<float> (i) * 3.25f);
+
+            p->applyVenueEdit (v);
+        }
+
+        negotiate (a, mono, set71);
+        negotiate (b, mono, set71);
+        applyRotatedLabels (a);
+        applyRotatedLabels (b);
+
+        juce::AudioBuffer<float> outA (8, total), outB (8, total);
+
+        renderInto (a, outA, total, { 512 },  events);
+        renderInto (b, outB, total, { 4096 }, events);
+
+        const bool identical = bitIdentical (outA, outB);
+
+        // NON-VACUITY, IN THE ONE PLACE IT COULD HIDE: two silent renders are bit-identical. The
+        // longest delay here is 24.25 ms — about 1164 samples — so a lane checked only over its
+        // first block would look silent for a reason that has nothing to do with a bug.
+        const bool live = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("CT blocksize-invariance-with-delay", identical && live,
+               juce::String (identical
+                                 ? "8 lanes delayed 1.50..24.25 ms: bit-identical by memcmp over "
+                                   "24576 samples x 8 lanes"
+                                 : firstDifference (outA, outB))
+                   + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
     }
 
     scratch32.deleteRecursively();

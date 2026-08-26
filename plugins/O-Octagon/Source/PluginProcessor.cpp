@@ -449,6 +449,21 @@ void OOctagonProcessor::publishSnapshot()
 
         snapshot.trimLin[(size_t) i] = juce::Decibels::decibelsToGain (trimDb);
 
+        // v1.4.0 — THE DELAY RAIL, AT THE SAME SITE AND FOR THE SAME REASON.
+        //
+        // The lower bound is not decoration. GainStage sizes its lines for kVenueDelayClampMs and
+        // pops at the smoothed value; a NEGATIVE delay would index BEFORE the write head, which
+        // juce::dsp::DelayLine does not range-check, and a 1e30 would exceed the allocated line.
+        // Both are reachable from a hand-edited .venue or a session written by a build that railed
+        // differently, so neither is guarded by "the UI would not send it".
+        //
+        // sane() FIRST, exactly as the trim does it: NaN survives jlimit unchanged (both of
+        // jlimit's comparisons are false for NaN, so it returns the NaN), and a NaN delay would
+        // reach setTargetValue and latch the smoother — RESEARCH-2.2's H2 latch reached through a
+        // third door.
+        snapshot.delayMs[(size_t) i] = juce::jlimit (0.0f, kVenueDelayClampMs,
+                                                     sane (venue.delayMs (i), 0.0f));
+
         // The hull is DERIVED from the positions, so it is downstream of the same poison and is
         // guarded at the same site. A collapsed hull is handled by ConvexHull2D's degeneracy paths
         // (probe L); a NaN one is not handled anywhere.

@@ -151,6 +151,12 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     for (auto& s : gR) s.reset (sampleRateToUse, 0.005);
     outGain.reset (sampleRateToUse, 0.005);
 
+    //     ── v1.4.0's eight delay ramps, on the SAME 5 ms, in the SAME step ───────────────────
+    //     Same ramp length as the gains and that is deliberate: a venue edit moves a trim and a
+    //     delay together, and two different ramp lengths would make the pair audibly disagree
+    //     about when the edit landed.
+    for (auto& s : delaySamples) s.reset (sampleRateToUse, 0.005);
+
     //     ── and the air filters, in the SAME step (PLAN-2.3 P30) ─────────────────────────────
     //     filter.prepare() is the analogous state teleport, so it belongs beside the seventeen
     //     rather than in a fourth place. See the header for why it is mandatory (H6: the default
@@ -169,6 +175,35 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     airL.prepare (spec);
     airR.prepare (spec);
 
+    //     ── and the eight alignment lines, in the same step, for the same reason (v1.4.0) ────
+    //
+    //     ORDER IS FIXED: setMaximumDelayInSamples() sets `totalSize` and resizes bufferData
+    //     against the CURRENT channel count (zero on a fresh object); prepare() then resizes it
+    //     against spec.numChannels and resets. Reversing the two leaves an 8-sample line.
+    //
+    //     +2 on top of the ceiling, and it is not superstition: Linear interpolation reads
+    //     index1 AND index1 + 1 (juce_DelayLine.h:220-232), so a read at exactly the maximum
+    //     needs one sample beyond it. JUCE's own setMaximumDelayInSamples adds 2 as well; the
+    //     margin here is over the ROUNDING of ms to samples, which std::ceil already covers, plus
+    //     one for the fractional read.
+    maxDelaySamples = static_cast<float> (std::ceil (kMaxAlignDelayMs * 0.001
+                                                     * sampleRateToUse));
+
+    const int maxDelayInt = static_cast<int> (maxDelaySamples) + 2;
+
+    for (auto& line : alignDelay)
+    {
+        line.setMaximumDelayInSamples (maxDelayInt);
+        line.prepare (spec);            // numChannels 1 — see the header on why not one x8 instance
+    }
+
+    //     The lines start unclocked. updateControl() below establishes the real state from the
+    //     first solve, so a render that BEGINS with delays already in the venue takes the
+    //     false->true edge on its first control block and gets its reset there — the same shape
+    //     the air filter's seed uses, rather than a second initialisation path here.
+    delayEngaged = false;
+    delayActive.fill (false);
+
     // The filters start inactive and unseeded; updateControl() below establishes the real state
     // from the first solve, so a render that begins outside the hull takes the false->true edge and
     // gets its seed exactly as a mid-render crossing would.
@@ -185,6 +220,29 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     for (auto& s : gL) s.setCurrentAndTargetValue (s.getTargetValue());
     for (auto& s : gR) s.setCurrentAndTargetValue (s.getTargetValue());
     outGain.setCurrentAndTargetValue (outGain.getTargetValue());
+
+    //     The delay ramps teleport too, and for a sharper reason than the gains': a render whose
+    //     venue already carries delays must START aligned. Ramping 0 -> d over the first 5 ms
+    //     would slide the read pointer across the head of every bounce, which is both audible and
+    //     NOT block-size invariant to measure — QUAL-03 would still pass (both renders would slide
+    //     identically) and QUAL-01's lead-in would be wrong.
+    for (auto& s : delaySamples) s.setCurrentAndTargetValue (s.getTargetValue());
+
+    //     Teleporting the ramps moved the targets under delayEngaged, which updateControl()
+    //     computed one line earlier from a smoother that was still at zero. Re-derive it here so
+    //     sample 0 of a delayed venue is already clocked rather than taking the edge — and reset
+    //     the lines, because after a teleport there is no history worth keeping anyway.
+    delayEngaged = false;
+
+    for (std::size_t i = 0; i < static_cast<std::size_t> (kNumSpeakers); ++i)
+    {
+        delayActive[i] = delaySamples[i].getCurrentValue() > 0.0f;
+        delayEngaged   = delayEngaged || delayActive[i];
+    }
+
+    if (delayEngaged)
+        for (auto& line : alignDelay)
+            line.reset();
 }
 
 //==============================================================================
@@ -353,6 +411,75 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
 
     outGain.setTargetValue (juce::Decibels::decibelsToGain (p[params::outputGain]));
 
+    // ── §5 step 8 — v1.4.0's eight delay targets, and the two gates ───────────────────────────
+    //
+    // ms -> SAMPLES HAPPENS HERE AND NOWHERE ELSE. The snapshot carries milliseconds because
+    // publishSnapshot() does not know the sample rate (see VenueSnapshot::delayMs); this function
+    // does, as a member set in prepare(). One conversion site means a rate change cannot leave a
+    // stale sample count anywhere — prepareToPlay() re-runs prepare(), which re-runs this.
+    //
+    // The value arrives ALREADY RAILED to [0, kVenueDelayClampMs] by the funnel. The jlimit is not
+    // a second rail on the same quantity: it bounds the CONVERTED count against the line that was
+    // actually allocated, which is a different number derived from a different input (the rate).
+    // Without it a rate the host raised after prepare() — hosts do — would hand popSample a
+    // position past the end of the buffer, where DelayLine jasserts in Debug and silently
+    // jlimits in Release into a delay quietly shorter than the table shows.
+    bool anyDelay = false;
+
+    for (int i = 0; i < kNumSpeakers; ++i)
+    {
+        const auto k = static_cast<std::size_t> (i);
+
+        // ── THE ARITHMETIC IS DOUBLE, AND THE CAST IS THE LAST THING THAT HAPPENS ─────────────
+        //
+        // `ms * 0.001f * (float) sampleRate` is the obvious spelling and it is WRONG BY AN ULP at
+        // the values operators actually type. 10 ms at 48 kHz: 0.001f is 1.0000000474974513e-3,
+        // 10.0f * that rounds UP to 1.00000007078e-2, and × 48000 gives 480.000033975 — which is
+        // nearer to the float ABOVE 480 than to 480 itself, so the result is 480.0000305 and
+        // delayFrac is 3.05e-5 instead of 0.
+        //
+        // That is not a rounding curiosity, it is audible arithmetic: popSample interpolates at
+        // that fraction, so a delay the operator entered as a round number comes out as
+        // (1-f)·x[n-480] + f·x[n-481] — a lowpass and a sub-sample error on EVERY sample, measured
+        // at 1e-5 against a signal whose per-sample slope is 0.33 (probe CS found it by failing a
+        // bit-compare that shift 480 otherwise matched to 5 decimal places).
+        //
+        // Done in double and cast once, 10 ms at 48 kHz is 480.0f EXACTLY, delayFrac is 0, and
+        // Linear interpolation returns the stored sample untouched. Every round millisecond at
+        // every standard rate lands on an exact sample count the same way.
+        const float samples = juce::jlimit (0.0f, maxDelaySamples,
+                                            static_cast<float> (static_cast<double> (snapshot.delayMs[k])
+                                                                * 0.001 * sampleRate));
+
+        delaySamples[k].setTargetValue (samples);
+
+        // ACTIVE WHILE RAMPING DOWN, NOT ONLY WHILE THE TARGET IS NONZERO. A speaker returning
+        // 12 ms -> 0 has a target of 0 the instant the edit lands; gating on the target alone
+        // would drop it out of the delayed path on that same control block and CUT 12 ms of audio
+        // that has been written to the line and not yet read — an audible click on exactly the
+        // edit that was supposed to remove one. isSmoothing() keeps it reading until the ramp
+        // reaches zero, where the two paths meet continuously.
+        delayActive[k] = samples > 0.0f || delaySamples[k].isSmoothing();
+
+        anyDelay = anyDelay || delayActive[k];
+    }
+
+    // ── THE ENGAGE EDGE ───────────────────────────────────────────────────────────────────────
+    //
+    // reset() on the false->true transition, so a line that last ran before the operator zeroed
+    // every delay cannot emit the audio it was still holding. It is a memset over bufferData plus
+    // two index fills — no allocation, RT-safe, and the same class of operation as the air
+    // filter's recovery reset() a few lines up.
+    //
+    // A RECOVERY/ARMING SITE, NOT AN INITIALISATION SITE. P23/P30's "step 2 of prepare() is the
+    // only place any DSP state is initialised, ever" is untouched: this restores the invariant
+    // that rule establishes rather than establishing it a second time.
+    if (anyDelay && ! delayEngaged)
+        for (auto& line : alignDelay)
+            line.reset();
+
+    delayEngaged = anyDelay;
+
     instr::countSolveRun();
 }
 
@@ -452,8 +579,42 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
             const float g = outGain.getNextValue();
 
             for (int i = 0; i < kNumSpeakers; ++i)
-                out[i][n] = (gL[static_cast<std::size_t> (i)].getNextValue() * fL
-                           + gR[static_cast<std::size_t> (i)].getNextValue() * fR) * g;
+            {
+                const auto k = static_cast<std::size_t> (i);
+
+                const float y = (gL[k].getNextValue() * fL
+                               + gR[k].getNextValue() * fR) * g;
+
+                // v1.4.0. ADVANCED UNCONDITIONALLY, OUTSIDE THE delayEngaged BRANCH — the same
+                // rule the seventeen live under (§3.6.4), and it matters here for the same reason:
+                // delayEngaged can flip between chunks, and a ramp that froze while unengaged
+                // would resume from a stale currentValue on the chunk that re-engages it.
+                const float d = delaySamples[k].getNextValue();
+
+                // ── THE ZERO-DELAY VENUE IS THE LITERAL v1.3.5 EXPRESSION ────────────────────
+                //
+                // Not "arithmetically equivalent to" — the same statement, reached without
+                // touching a delay line at all. That is what makes "every session and .venue
+                // written before v1.4.0 renders bit-identically" a structural claim rather than
+                // a claim about Linear interpolation returning value1 when delayFrac is 0 (which
+                // it does, right up until value2 is non-finite and 0.0f * inf is NaN).
+                if (delayEngaged)
+                {
+                    // Push and pop are a MATCHED PAIR, both or neither. popSample advances
+                    // readPos and pushSample advances writePos; clocking one without the other
+                    // walks them apart and the delay grows by a sample per sample. This is why
+                    // the gate is global rather than per-speaker — see the header.
+                    alignDelay[k].pushSample (0, y);
+
+                    const float delayed = alignDelay[k].popSample (0, d);
+
+                    out[i][n] = delayActive[k] ? delayed : y;
+                }
+                else
+                {
+                    out[i][n] = y;
+                }
+            }
 
             instr::countSampleAdvance();
         }
@@ -548,7 +709,16 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
                 const float advancedL = gL[static_cast<std::size_t> (i)].getNextValue();
                 const float advancedR = gR[static_cast<std::size_t> (i)].getNextValue();
 
-                juce::ignoreUnused (advancedL, advancedR);
+                // v1.4.0's eight, advanced here for EXACTLY the reason stated at the top of this
+                // arm. The F3 hazard flips REAL <-> SAFE between blocks with no intervening
+                // prepareToPlay(); a delay ramp frozen through a SAFE stretch would resume from a
+                // stale currentValue and slide the read pointer across the first samples back in
+                // REAL mode. The lines themselves are NOT clocked here — SAFE mode writes the dry
+                // input at unity and there is no speaker N to align — which is the same split the
+                // air filter uses (state untouched, pending seed left pending).
+                const float advancedD = delaySamples[static_cast<std::size_t> (i)].getNextValue();
+
+                juce::ignoreUnused (advancedL, advancedR, advancedD);
             }
 
             for (int ch = 0; ch < numWrite; ++ch)
