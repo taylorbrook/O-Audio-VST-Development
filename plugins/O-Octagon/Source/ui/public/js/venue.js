@@ -312,6 +312,40 @@ export function createVenueScreen(deps) {
           const marked = Number(result.speaker);
           if (Number.isFinite(marked) && marked >= 0 && marked < SPEAKER_COUNT)
             rows[marked].fields.label.classList.add("is-colliding");
+
+          // ── THE SCREEN MUST GO BACK TO WHAT THE PLUGIN ACTUALLY HOLDS ─────
+          //                                             (CODE_REVIEW WR-05)
+          //
+          // `pending` was cleared synchronously below, so from here on
+          // buildPayload() falls back to `committed` for every field — the next
+          // commit will send the OLD value. Until v1.3.2 nothing repainted, so
+          // the rejected text stayed in the input and the operator was reading
+          // room measurements the plugin does not hold, in a live-hall
+          // calibration tool.
+          //
+          // Nothing else heals it. paintFields() has exactly one other caller,
+          // setGeometry(), which app.js runs only when venueGen moves — and a
+          // rejected setVenue never reaches applyVenueEdit(), so it never
+          // publishes and never bumps venueGen. relayout() redraws the mini-plan
+          // only, so a tab switch does not repaint the table either.
+          //
+          // The unbounded case is the one that matters: in SAFE mode (mono or
+          // stereo output, a supported AU configuration) buildSpeakerToBuffer
+          // fails with notEightChannels on EVERY commit, and the venue inputs
+          // are not disabled. There `speaker` is -1, so not even the
+          // is-colliding mark above appears — without this repaint the operator
+          // gets no feedback of any kind, forever.
+          //
+          // Safe to call unconditionally: paintFields() skips any field in
+          // `pending` (typed since this commit) and the focused field by design,
+          // and commit() is only ever reached from a blur handler, so the field
+          // that was just edited is no longer focused.
+          //
+          // Note this is the C++-reject path ONLY. The JS-detected collision
+          // path returns above, before pending.clear(), and keeps its
+          // hold-and-mark semantics intact — reverting there would make an
+          // L <-> R swap unreachable (P53).
+          paintFields();
         }
       })
       .catch((err) => console.error("setVenue failed", err));

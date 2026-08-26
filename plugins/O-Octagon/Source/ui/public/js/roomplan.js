@@ -672,6 +672,52 @@ export function createRoomPlan(deps) {
     resizeCanvas();
     draw();
   };
+
+  // ── WHAT `resize` COULD NOT SEE (CODE_REVIEW WR-02) ──────────────────────
+  //
+  // Until v1.3.2 the comment above was hooked to `resize` and NOTHING ELSE,
+  // which cannot fire for the case the comment describes. The editor is a fixed
+  // 1100 x 720 non-resizable surface (PluginEditor.cpp setSize, the single
+  // sizing call — there is no setResizable and no constrainer anywhere in
+  // Source/), so the CSS viewport never changes size, and a backing-scale change
+  // with an unchanged CSS viewport dispatches no `resize` event in either
+  // engine. Dragging the plugin window from a non-Retina display to a Retina one
+  // therefore left a 1x backing store upscaled 2x — a visibly soft Room plan —
+  // until some other relayout happened to run, and none of them re-read
+  // devicePixelRatio either: resizeCanvas() reads this module-level `dpr`, and
+  // dprWatch was its only post-construction writer.
+  //
+  // matchMedia("(resolution: Xdppx)") is the standard hook, and it is ONE-SHOT
+  // by nature: the query is written against the CURRENT ratio, so once it stops
+  // matching it never fires again. Re-arm on every fire, against the new ratio.
+  //
+  // The `resize` listener stays as a belt-and-braces path — a genuine viewport
+  // change still needs the backing store rebuilt, and that is the case it does
+  // catch.
+  function armDprWatch() {
+    if (typeof window.matchMedia !== "function") return;
+
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+
+    // Detaches BEFORE re-arming, on both surfaces. `{ once: true }` would cover
+    // the modern one, but the deprecated addListener has no equivalent and a
+    // re-arm on every fire would otherwise stack a new listener per DPR change.
+    const onChange = () => {
+      if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", onChange);
+      else if (typeof mq.removeListener === "function") mq.removeListener(onChange);
+      dprWatch();
+      armDprWatch();
+    };
+
+    // addEventListener is the modern surface; addListener is the deprecated one
+    // some WebViews still ship. Neither is assumed.
+    if (typeof mq.addEventListener === "function")
+      mq.addEventListener("change", onChange);
+    else if (typeof mq.addListener === "function")
+      mq.addListener(onChange);
+  }
+
+  armDprWatch();
   window.addEventListener("resize", dprWatch);
 
   return {

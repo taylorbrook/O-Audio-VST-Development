@@ -953,6 +953,125 @@ int main()
     }
 
     //==========================================================================
+    // P2 — PRESENT BUT NOT A NUMBER (CODE_REVIEW WR-03).
+    //
+    // P above covers ABSENT attributes. This covers the other half, which until v1.3.2 had no
+    // guard at all: readFloat() tested presence only, then ran an unchecked var -> double -> float.
+    //
+    // Two things got through, and this is the NORMAL conversion path rather than an exotic one —
+    // getStateInformation() serialises via createXml(), so on restore EVERY property in the tree is
+    // a STRING var and juce::String::getDoubleValue() is always what runs:
+    //
+    //   garbage text  ->  0.0, because getDoubleValue() returns 0.0 with no leading number. So
+    //                     rakeFront="tall" loaded a FLAT audience plane instead of the §OQ4 1.10,
+    //                     which is precisely the "never zeros" the header contract promises.
+    //   "nan" / "inf" ->  a REAL NaN or infinity, because JUCE's parser recognises those literal
+    //                     words (juce_CharacterFunctions.h).
+    //
+    // The audio thread was never at risk — publishSnapshot() sanitises everything it copies — but
+    // the message-thread model feeds the UI and toValueTree() writes the value straight back out,
+    // and juce::String(double) renders a NaN as "nan", which readFloat() then re-read as a NaN.
+    // The corruption loop closed across saves, which is why the last clause below is a ROUND TRIP
+    // rather than a single read.
+    //
+    // The negative half matters as much as the positive: the guard must not start rejecting the
+    // numeric spellings a real .venue file carries. Whitespace and exponent notation are both
+    // written by juce::String(double) or by a hand-editing operator.
+    {
+        const oo::VenueModel reference;                     // §OQ4 defaults
+
+        bool ok = true;
+        juce::String detail;
+
+        auto treeWith = [] (const juce::var& rakeFrontValue,
+                            const juce::var& xValue,
+                            const juce::var& yValue,
+                            const juce::var& trimValue)
+        {
+            juce::ValueTree root { "OOctagon" };
+            juce::ValueTree venue { oo::VenueModel::venueTag };
+            venue.setProperty (oo::VenueModel::propRakeFront, rakeFrontValue, nullptr);
+
+            juce::ValueTree spk { oo::VenueModel::speakerTag };
+            spk.setProperty (oo::VenueModel::propIndex,  1,          nullptr);
+            spk.setProperty (oo::VenueModel::propX,      xValue,     nullptr);
+            spk.setProperty (oo::VenueModel::propY,      yValue,     nullptr);
+            spk.setProperty (oo::VenueModel::propTrimDb, trimValue,  nullptr);
+
+            venue.appendChild (spk, nullptr);
+            root.appendChild (venue, nullptr);
+            return root;
+        };
+
+        // 1. Garbage, "nan", "inf" and trailing garbage ALL fall back per attribute.
+        {
+            oo::VenueModel v;
+            v.readFromState (treeWith ("tall", "nan", "-inf", "-3.5dB"));
+
+            const auto s1  = v.speaker (0);
+            const auto ref = reference.speaker (0);
+
+            const bool rake  = near (v.rakeFront(), reference.rakeFront(), 1.0e-6f);
+            const bool notZero = ! near (v.rakeFront(), 0.0f, 1.0e-6f);
+            const bool x     = bitExact (s1.x, ref.x);
+            const bool y     = bitExact (s1.y, ref.y);
+            const bool trim  = near (v.trimDb (0), reference.trimDb (0), 1.0e-6f);
+
+            const bool good = rake && notZero && x && y && trim && allFinite (v);
+            ok = ok && good;
+            detail << "garbage/nan/inf " << (good ? "-> §OQ4 defaults, all finite; " : "BAD; ");
+        }
+
+        // 2. [negative control] The spellings a REAL file carries must still be READ. If this
+        //    fails the guard has stopped being a validator and started being a data loss.
+        {
+            oo::VenueModel v;
+            v.readFromState (treeWith ("  1.75  ", "1.5e1", "-2.5E-1", "+3"));
+
+            const auto s1 = v.speaker (0);
+
+            const bool rake = near (v.rakeFront(),  1.75f,  1.0e-6f);
+            const bool x    = near (s1.x,          15.0f,   1.0e-6f);
+            const bool y    = near (s1.y,          -0.25f,  1.0e-6f);
+            const bool trim = near (v.trimDb (0), 3.0f, 1.0e-6f);
+
+            const bool good = rake && x && y && trim;
+            ok = ok && good;
+            detail << "[neg-control] whitespace/exponent/sign READ "
+                   << (good ? "ok; " : "BAD — the guard is eating valid values; ");
+        }
+
+        // 3. THE ROUND TRIP. A model that took a NaN once would write "nan" back out and read it
+        //    in again forever. Read the poisoned tree, write the model out, read it back: the
+        //    second read must land on the same finite defaults as the first.
+        {
+            oo::VenueModel first;
+            first.readFromState (treeWith ("tall", "nan", "inf", "nan"));
+
+            juce::ValueTree round { "OOctagon" };
+            first.writeToState (round);
+
+            oo::VenueModel second;
+            second.readFromState (round);
+
+            bool same = near (second.rakeFront(), first.rakeFront(), 1.0e-6f)
+                     && allFinite (second);
+
+            for (int i = 0; i < 8; ++i)
+            {
+                const auto a = second.speaker (i);
+                const auto b = first.speaker (i);
+                same = same && bitExact (a.x, b.x) && bitExact (a.y, b.y) && bitExact (a.z, b.z);
+            }
+
+            ok = ok && same;
+            detail << "save/reload round trip " << (same ? "stable" : "BAD — corruption is sticky");
+        }
+
+        check ("P2 venue-nonnumeric-attrs", ok, detail);
+    }
+
+    //==========================================================================
     //
     //  ═══ PHASE 2.2 — DBAP SOLVE AND GAIN APPLICATION ═══════════════════════════════════════
     //

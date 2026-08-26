@@ -841,6 +841,31 @@ async function init() {
     if (s !== undefined) s.state.valueChangedEvent.addListener(() => { fieldDirty = true; });
   }
 
+  // ── THE FOOTER METRES READOUT RIDES THE SAME ECHO (CODE_REVIEW WR-04) ────
+  //
+  // renderMetres() is a pure function of srcX and srcY (it reads both slider
+  // states and runs normToMetres), so it has to re-run whenever either moves.
+  // Until v1.3.2 its only live-update wiring was roomPlan's onSourceMoved
+  // callback, and roomplan.js calls that from ONE place: the puck's pointermove
+  // handler. Every other way the source moves — dragging ctl-srcX / ctl-srcY,
+  // stepping them from the keyboard, their dblclick reset, or host automation —
+  // moved the puck (renderPuck is on this same echo) and updated val-srcX, while
+  // the footer went on showing a plausible WRONG position in metres until the
+  // next venue change or editor reopen.
+  //
+  // index.html's Source X tooltip says "the metres readout below is live".
+  // Dragging that exact slider was the case where it was not, and UI-02
+  // criterion 5 is the criterion it broke. elevation.js:343 already subscribes
+  // its marker to this echo — the footer was the one module out of step with its
+  // siblings.
+  //
+  // Same idiom as the FIELD_INPUT_IDS loop above: render on the echo, never
+  // write on it.
+  for (const id of ["srcX", "srcY"]) {
+    const s = sliders.get(id);
+    if (s !== undefined) s.state.valueChangedEvent.addListener(renderMetres);
+  }
+
   try {
     paramDefaults = await nativeFn("getParameterDefaults")();
   } catch (err) {
