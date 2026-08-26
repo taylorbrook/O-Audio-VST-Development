@@ -22,7 +22,7 @@
 
     O-Octagon — Plugin Editor (implementation)
 
-    17 WebSliderRelay bindings, THREE native functions, one WebBrowserComponent
+    18 WebSliderRelay bindings, THREE native functions, one WebBrowserComponent
     at a fixed 1100 x 720.
 
     ── MSVC HABITS ARE WRITTEN NOW, NOT FIXED AT PORT TIME ──────────────────
@@ -894,7 +894,7 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     //   * F3's unchanged-write skip DOES NOT APPLY. callIfParameterValueChanged is
     //     a member of the ATTACHMENT (juce_ParameterAttachments.cpp:88-95) and this
     //     path never goes through one, so a load from an untouched default patch
-    //     still emits 17 reset writes of values the parameters already hold.
+    //     still emits 18 reset writes of values the parameters already hold.
     //   * THERE ARE NO BRACKETS. setValueNotifyingHost is setValue +
     //     sendValueChangedMessageToListeners and nothing else. The wrappers turn
     //     that into a bare kAudioUnitEvent_ParameterValueChange (AU_1.mm:1341-1360)
@@ -910,14 +910,14 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     // ── PHASE 4.1 (N5 / P93): A SECOND DEFECT ON THE SAME PATH ───────────────
     //
     // applyPresetJson does not merely apply the keys a preset carries. WR-01
-    // RESETS ALL 17 TO THEIR DEFAULTS FIRST, so a factory preset scoped to the
+    // RESETS ALL 18 TO THEIR DEFAULTS FIRST, so a factory preset scoped to the
     // six room-character parameters does not LEAVE the other eleven alone — it
     // re-centres srcX/srcY, drops srcZ to 0 m and returns all eight weights to
     // 1.0, wiping whatever scene is applied. Mid-cue, in a hall.
     //
     // oo::presets::loadPreserving is the fix, and it lives in a header the
     // RENDER HARNESS can reach so probe CP can assert the eleven BIT-unchanged.
-    // The seventeen brackets below are unchanged and still enclose everything:
+    // The eighteen brackets below are unchanged and still enclose everything:
     // the restore's writes land inside a bracket established at Phase 3.2, so
     // no new bracketing obligation is created here.
     options = options.withNativeFunction ("loadPreset",

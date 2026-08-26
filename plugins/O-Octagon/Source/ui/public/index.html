@@ -263,10 +263,28 @@
                 <input type="range" class="cell-range" id="ctl-srcZ" min="0" max="1" step="0.0001" aria-label="Source Z" />
                 <span class="cell-value" id="val-srcZ">&#8212;</span>
               </div>
-              <div class="cell" data-tip-title="Width" data-tip="Spreads the source into sub-points around its position, up to 12 m apart &#8212; wider reads as a broader image across the rig. Strongest on stereo material: it pulls the L and R feeds to different parts of the room.">
+              <div class="cell" data-tip-title="Width" data-tip="Spreads the source into sub-points around its position, up to 12 m apart &#8212; wider reads as a broader image across the rig. On stereo material it pulls the L and R feeds to different parts of the room; on mono material, reach for Decorrelate below.">
                 <span class="cell-label">Width</span>
                 <input type="range" class="cell-range" id="ctl-width" min="0" max="1" step="0.0001" aria-label="Width" />
                 <span class="cell-value" id="val-width">&#8212;</span>
+              </div>
+              <!-- v1.5.0. DIRECTLY UNDER WIDTH, AND THE PLACEMENT IS THE FEATURE'S
+                   DISCOVERABILITY. It does nothing on its own &#8212; the DSP gates
+                   it on the effective width &#8212; so a user who widens a mono stem,
+                   hears combing rather than width, and goes looking for the cure
+                   finds it in the group they are already in. In "Space" beside Air
+                   it would be correct and unfindable.
+
+                   THE COST IS ONE GRID ROW. .group-body is a two-column grid, so
+                   a fifth cell opens a third row and the elevation strip &#8212; the
+                   column's flex:1 last child &#8212; absorbs it. ui_layout_check
+                   sections 21 and 22 are what say whether that is affordable;
+                   they are not advisory here, they are the reason this comment
+                   names the tradeoff instead of assuming it. -->
+              <div class="cell" data-tip-title="Decorrelate" data-tip="Makes Width audible on mono material. Width alone moves two IDENTICAL copies of the signal apart in the room, and two identical copies comb rather than widen; this gives each copy its own all-pass network so they share a spectrum but not a phase. Off by default, and inert at Width 0 &#8212; where the two feeds land on the same speakers, decorrelating them would only cost you the coherent sum. Expect up to 3 dB less level where the two feeds overlap: that is the combing going away.">
+                <span class="cell-label">Decorrelate</span>
+                <input type="range" class="cell-range" id="ctl-decorr" min="0" max="1" step="0.0001" aria-label="Decorrelate" />
+                <span class="cell-value" id="val-decorr">&#8212;</span>
               </div>
             </div>
           </section>

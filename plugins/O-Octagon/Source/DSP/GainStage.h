@@ -35,6 +35,7 @@
 #include "../Data/VenueGeometry.h"
 #include "../Data/VenueSnapshot.h"
 #include "DbapSolver.h"
+#include "Decorrelator.h"
 #include "HullProcessor.h"
 #include "SourceShaper.h"
 
@@ -58,7 +59,7 @@ namespace params
 {
     enum Index
     {
-        srcX = 0, srcY, srcZ, width,
+        srcX = 0, srcY, srcZ, width, decorr,
         rolloff, blur,
         w1, w2, w3, w4, w5, w6, w7, w8,
         hullAtten, airAmount,
@@ -68,10 +69,10 @@ namespace params
 
     inline constexpr std::size_t kCount = static_cast<std::size_t> (kNumParams);
 
-    static_assert (kCount == 17,
-                   "parameter-spec.md specifies 17 musical parameters and Phase 2.2 adds none. If "
-                   "this fires, the enum and the APVTS layout have diverged and the control-block "
-                   "snapshot is reading the wrong atomics.");
+    static_assert (kCount == 18,
+                   "parameter-spec.md specifies 18 musical parameters — the 17 of Phase 2.2 plus "
+                   "v1.5.0's `decorr`. If this fires, the enum and the APVTS layout have diverged "
+                   "and the control-block snapshot is reading the wrong atomics.");
 
     /** THE SINGLE MAPPING between this enum and the APVTS parameter IDs.
 
@@ -81,7 +82,7 @@ namespace params
     inline const char* id (int index) noexcept
     {
         static constexpr const char* ids[]
-            = { "srcX", "srcY", "srcZ", "width",
+            = { "srcX", "srcY", "srcZ", "width", "decorr",
                 "rolloff", "blur",
                 "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8",
                 "hullAtten", "airAmount",
@@ -305,6 +306,58 @@ private:
     /// The allocated ceiling in samples, for the jlimit that keeps popSample off DelayLine's
     /// Debug jassert. Set in prepare() from the sample rate, beside the allocation it describes.
     float maxDelaySamples { 0.0f };
+
+    //==========================================================================
+    // ── v1.5.0 — THE MONO DECORRELATOR ────────────────────────────────────────────────────────
+    //
+    // Sits BETWEEN the air filter and the gain matrix, on the two SOURCE FEEDS — the same place
+    // §3.5.2 puts the air filter and for the same reason: one network per sub-point is what the
+    // feature means, and per-speaker would be four times the cost computing something nobody
+    // asked for. See Decorrelator.h for the structure and for why it is all-pass.
+    //
+    // ── TWO INSTANCES BECAUSE THEY MUST NOT MATCH ─────────────────────────────────────────────
+    //
+    // The third appearance of the airL/airR trap in this class, and the sharpest: airL and airR
+    // are two instances because they need different CUTOFFS, alignDelay is eight because they need
+    // different DELAY TIMES, and these are two because they need DIFFERENT FILTERS ENTIRELY.
+    // A single instance shared by both feeds would return the same output for the same input,
+    // which is the pre-v1.5.0 behaviour with a ring buffer attached to it.
+    Decorrelator decorrL, decorrR;
+
+    /** The dry -> decorrelated crossfade, 0 or 1, on the same 5 ms as everything else.
+
+        ── WHY A CROSSFADE AND NOT A CONTINUOUS DEPTH TO ZERO ────────────────────────────────────
+        The chains cannot reach identity. Every implementable all-pass section has at least one
+        sample in its feedback path, so the depth -> 0 limit is a short common delay, not a
+        pass-through — which means the "off" state has to be a BYPASS, and a bypass edge has to be
+        faded or it steps. Settled at exactly 0 the expression below is `fL` itself, so v1.4.0's
+        arithmetic is reached literally rather than approximately, which is what probe CU asserts
+        against the v1.4.0 binary's own digest.
+
+        A DRY/WET MIX IS NOT WHAT THIS IS, despite the shape. It is pinned to 0 or 1 and only ever
+        passes through the middle during a 5 ms transition; Decorrelator.h explains why a mix
+        PARKED in the middle would be a comb filter. */
+    Smoother decorrMix {};
+
+    /** The dialled depth, scaled by effective width. Fed to both chains every sample.
+
+        Its target is only written while the decorrelator is WANTED, so switching off holds the
+        depth where it was and lets the mix fade out beneath it. Ramping depth down instead would
+        sweep eight delay lines toward their floor during the fade — a flanger on the way out of a
+        control whose whole purpose is to not sound like one. */
+    Smoother decorrDepth {};
+
+    /** Are the chains CLOCKED this chunk? True while wanted, and stays true through the fade-out
+        so the tail of the crossfade has something to fade. Evaluated at the control boundary and
+        constant for the chunk, exactly like delayEngaged.
+
+        The false->true edge resets both chains, for the reason delayEngaged's does: a network that
+        last ran before the operator zeroed width is holding audio from a different musical moment,
+        and a bypass that lasted minutes has no continuity worth preserving. */
+    bool decorrEngaged { false };
+
+    /// Tracks the engage edge so the reset above is a TRANSITION rather than a state test.
+    bool decorrWasEngaged { false };
 
     //==========================================================================
     // ── §3.5.2 — the air-absorption filters ───────────────────────────────────────────────────

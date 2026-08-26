@@ -18,7 +18,7 @@ most improve it. No code was changed by this review.
 
 ## Verdict
 
-O-Octagon v1.3.0 occupies a genuinely empty market slot: no other shipping VST3/AU plugin renders measured-geometry 3D DBAP in-DAW for irregular concert arrays — SPAT Revolution has DBAP but is a $1,790 external application, SpatGRIS's CUBE mode is free but is a realtime server that cannot bounce offline, and every free ambisonics suite (IEM, SPARTA, Envelop) assumes the regular sweet-spot array that irregular halls break. Its venue-first tooling (sloped audience plane, .venue/preset separation, verify-ping, speaker-output assignment, per-speaker trims) is unmatched anywhere. The three gaps that matter most for its composer/venue niche are: binaural/stereo monitoring fold-down (the away-from-hall workflow is currently inaudible — every competitor has this), a motion engine borrowing O-Orbit's path vocabulary (trajectories are table stakes from ControlGRIS to L-ISA), and per-speaker delay compensation (a small add that completes the venue-calibration story). OSC input, snapshot/cue morphing, and a mono decorrelator behind the width control are the strongest medium-priority follow-ons; higher channel counts for Reaper would widen the niche but multiply the channel-map risk surface deliberately locked down for Logic.
+O-Octagon v1.3.0 occupies a genuinely empty market slot: no other shipping VST3/AU plugin renders measured-geometry 3D DBAP in-DAW for irregular concert arrays — SPAT Revolution has DBAP but is a $1,790 external application, SpatGRIS's CUBE mode is free but is a realtime server that cannot bounce offline, and every free ambisonics suite (IEM, SPARTA, Envelop) assumes the regular sweet-spot array that irregular halls break. Its venue-first tooling (sloped audience plane, .venue/preset separation, verify-ping, speaker-output assignment, per-speaker trims) is unmatched anywhere. The three gaps that matter most for its composer/venue niche are: binaural/stereo monitoring fold-down (the away-from-hall workflow is currently inaudible — every competitor has this), a motion engine borrowing O-Orbit's path vocabulary (trajectories are table stakes from ControlGRIS to L-ISA), and per-speaker delay compensation (a small add that completes the venue-calibration story). OSC input and snapshot/cue morphing are the strongest remaining medium-priority follow-ons (the mono decorrelator, the third of that group, shipped in v1.5.0); higher channel counts for Reaper would widen the niche but multiply the channel-map risk surface deliberately locked down for Logic.
 
 ## What O-Octagon does today
 
@@ -95,13 +95,17 @@ Generative motion for srcX/srcY/srcZ — circular/elliptical orbits, figure-8s, 
 
 **Why it matters:** ControlGRIS's trajectory designer, L-ISA's snapshot trajectories, and even free ReaSurroundPan's parameter-modulation randomness all make motion cheap; hand-drawing Logic automation for a 10-minute rotation is the most tedious task in the current workflow. Biggest creative-capability gap.
 
-### Mono decorrelator behind the width control
+### ~~Mono decorrelator behind the width control~~ — SHIPPED v1.5.0 (2026-08-26)
 
-`priority: medium` · `effort: small`
+`priority: medium` · `effort: small` · **status: closed**
 
 An optional all-pass/velvet-noise decorrelation of the two sub-point feeds so width is audible on mono material. Flagged in the v1.3.0 changelog as a known limitation and deliberate future improvement.
 
 **Why it matters:** Most fixed-media stems are effectively mono; today width 'separates the L and R feeds in space' but two identical feeds a few metres apart mostly comb. A small DSP add that makes an existing headline control deliver on mono sources.
+
+**Shipped as:** `decorr` (0–1, default 0), Position group, directly under Width. Four Schroeder all-pass sections per feed with different mutually-incommensurate delays, read at INTEGER positions; depth scales the delay lengths rather than a dry/wet mix (which would comb) or the feedback (which would slap). All-pass rather than velvet noise so DBAP's Σv²=1 proof survives untouched — measured chain gain 0.00 dB across nine depths, cross-correlation 0.06, summed pair −2.76 dB against a coherent sum (incoherent addition predicts −3.01).
+
+**Two things that were not in the original scoping:** it had to be gated on the *effective* width, not on the parameter; and the delay reads had to be integer — a fractional read with linear interpolation put a lowpass inside the all-pass feedback loop and cost 3–4.6 dB at every depth except 1.0. At `wEff == 0` the two sub-points coincide and decorrelating them makes a coherent mono sum incoherent — the very defect the feature removes, at the one setting where the plugin guarantees transparency. Probe CW carries that; probe CU holds bit-identity at `decorr = 0` against the v1.4.0 binary's own render digest. See CHANGELOG v1.5.0.
 
 ### OSC input for live diffusion control
 
@@ -161,8 +165,8 @@ If the goal is maximum user-visible improvement per unit of work, the order is:
 2. **Binaural / stereo monitoring fold-down** (high value, medium) — unblocks the brief's own stated use case
    (working on a piece away from the hall), which is currently inaudible. Every competitor treats this as
    table stakes.
-3. **Mono decorrelator behind width** (medium value, small) — the v1.3.0 changelog already names this as the
-   known limitation of an existing headline control.
+3. ~~**Mono decorrelator behind width** (medium value, small)~~ — **SHIPPED v1.5.0.** Closed as scoped, with
+   one addition the scoping missed: the gate had to be on effective width, not on the parameter.
 4. **Motion engine** (high value, large) — the biggest creative gap, but a milestone rather than an improvement.
    O-Orbit in this repo already owns the path vocabulary to borrow.
 5. **OSC input** and **snapshot/cue morphing** (both medium) — these turn a fixed-media renderer into a

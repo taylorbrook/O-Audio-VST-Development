@@ -24,10 +24,11 @@
 
     The performance surface. A WebView editor replaces the Stage-1 generic one:
     two screens (Room built, Venue a placeholder until 3.2), the Room plan drawn
-    from the plugin's own geometry, and all 17 musical parameters bound two-way.
+    from the plugin's own geometry, and all 18 musical parameters bound two-way.
 
     ── ONE RELAY LIST ────────────────────────────────────────────────────────
-    All 17 parameters are juce::AudioParameterFloat (RESEARCH-3.1 F1), so there
+    All 18 parameters are juce::AudioParameterFloat (RESEARCH-3.1 F1, and v1.5.0's
+    decorr was made a float to keep it so), so there
     is one relay vector and one attachment vector, and no combo or toggle
     machinery at all. The relay-TYPE split that bit O-ReverseDelay three
     separate times — grainShape, freeze, sourceMode, each a relay that attaches
@@ -180,7 +181,7 @@ private:
     // (juce8-critical-patterns section 3).
     // ═══════════════════════════════════════════════════════════════════
 
-    // 1. RELAYS — 17, one per APVTS parameter, built by looping
+    // 1. RELAYS — 18, one per APVTS parameter, built by looping
     //    oo::params::id(i) rather than from a second transcribed list. That
     //    table beside the enum in GainStage.h is already THE single mapping
     //    between the parameter order and the APVTS ids; a hand-written copy here

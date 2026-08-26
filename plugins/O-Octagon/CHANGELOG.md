@@ -1,5 +1,126 @@
 # O-Octagon Changelog
 
+## v1.5.0 (2026-08-26)
+
+**A mono decorrelator behind the Width control** — the MEDIUM-value/small-effort gap from
+`.planning/FEATURE-REVIEW.md`, and the limitation the v1.3.0 changelog named as a deliberate future
+improvement. Width moved two sub-points apart in space but fed them the SAME SIGNAL: on a mono input
+bus `in1` *is* `in0`, so the two feeds were bit-for-bit identical and two identical copies arriving
+from two directions comb rather than widen. Most fixed-media stems are effectively mono, so this was
+the common case, not the corner one. Width was doing geometry with no signal diversity behind it.
+
+### Added
+
+- **`decorr` — "Decorrelate", 0–1, default 0, in the Position group directly under Width.** The
+  18th musical parameter. Each sub-point feed passes through its own network of four Schroeder
+  all-pass sections with different, mutually incommensurate delays, so the two carry the same
+  spectrum with unrelated phase. Measured cross-correlation at full depth: **0.06** (probe CV).
+
+  **All-pass rather than velvet noise, for a reason specific to this plugin.** DBAP's
+  constant-intensity claim (Σv² = 1, verified against an independent oracle to 1e-7) is a claim
+  about the gain vectors, and it survives only while the stage in front of them leaves each feed's
+  energy alone. An all-pass is unity-magnitude at every bin, exactly; a velvet-noise FIR is
+  unity-power in expectation over its length. Measured chain gain: 0.9992 / 0.9998.
+
+- **Depth scales the network's delay lengths, not a dry/wet mix and not the feedback.** A dry/wet
+  blend of a signal with an all-passed copy of itself is a comb filter — infinitely deep nulls at
+  50% — which is the defect this feature exists to remove. Scaling feedback turns each section from
+  a diffuser into a slap. Delay length is the axis that behaves: dispersion runs 0 → ~22 ms (left)
+  / ~26 ms (right), and at the bottom of the control both chains clamp to the same one-sample floor
+  and **converge to the same filter**, so the effect fades out to a common phase colour rather than
+  to a comb. Probe CV asserts that convergence bit-for-bit.
+
+- **The delay reads are INTEGER, and that was a correction during development, not the first
+  design.** The first implementation read at a fractional position with linear interpolation,
+  copying the v1.4.0 alignment delay one class over. That destroys the all-pass property the entire
+  design rests on: a linear interpolator is a two-tap FIR whose magnitude reaches `|1−2f|` at
+  Nyquist, and inside a feedback loop it attenuates the recirculating signal and moves the pole.
+  Measured chain gain was exactly unity at depth 1.0 — where `base × depth` lands on the integers
+  the bases already are — and **3.2 to 4.6 dB down at every other depth**, with the summed pair
+  reaching −6.94 dB against a coherent sum where incoherent addition predicts −3.01. Not
+  decorrelation: cancellation, plus a lowpassed feed. Integer reads have no interpolator, so every
+  section is exactly all-pass at every depth (measured 0.00 dB at all nine tested). The cost is
+  that a delay steps by a sample as depth sweeps rather than gliding — inaudible here, unlike the
+  alignment delay, because the jump is on the recirculating signal inside an all-pass rather than
+  on an output lane at unity gain, and the delays are 56–521 samples long.
+
+### Behaviour worth knowing about
+
+- **Turning Decorrelate up costs about 3 dB where the two feeds overlap.** Measured −2.76 dB at
+  full depth, −2.78 at half, −2.88 at quarter, against the −3.01 dB incoherent addition predicts.
+  That is decorrelation doing its job, not a bug: where both sub-points feed the same speaker, its
+  contribution goes from a coherent sum (`x`) to an incoherent one (`≈x/√2`). It is deliberately
+  **not** compensated — compensating would boost the case where the feeds *don't* overlap. What you
+  are trading is the combing.
+
+- **It is inert at Width 0, and that is structural.** At `wEff == 0` the two sub-points coincide and
+  their gain vectors are bit-for-bit identical (probe AY), which is what makes §3.4.3's degenerate
+  path a clean mono sum. Decorrelating there would make that sum incoherent — 3 dB down and phasey —
+  at the one setting where the plugin guarantees the arithmetic is transparent. So the gate is on
+  the **effective** width, not on the parameter and not on `width`: the rFade collapse near the rig
+  centroid drives the spread to zero without the parameter moving, and the decorrelator follows it
+  down. Depth is scaled by the same spread, so the boundary is a fade rather than a switch.
+
+### Compatibility
+
+- **Every session and preset written before v1.5.0 renders bit-identically.** At `decorr = 0` the
+  network is bypassed structurally — the inner loop reaches v1.4.0's literal expression, not an
+  arithmetically equivalent one. Held two ways by probe **CU**: a render digest captured from the
+  **v1.4.0 binary before a line of this feature existed** (`0xe25f022c8ce71dc9`), and an
+  instrumentation counter asserting the network executed zero times. The digest is taken at width
+  6 m off-centre with air up — every condition the decorrelator needs, with only the parameter at
+  zero — so a gate wired backwards fails it.
+
+- **No preset or session migration.** `decorr` is additive and joins `oo::presets::kPreserved`
+  (11 → 12), so a factory preset load leaves it where the operator put it. All six factory presets
+  are bit-unchanged. It describes the *material* — is this stem effectively mono? — not the room a
+  preset is painting.
+
+### UI
+
+- Decorrelate sits directly under Width. That placement is the feature's discoverability: it does
+  nothing on its own, so a user who widens a mono stem, hears combing rather than width, and goes
+  looking for the cure finds it in the group they are already in.
+
+- **The controls column tightened by 4 px per group.** The fifth Position cell opens a third grid
+  row, and this column has no absorber — `.elev-stage` is `flex: none` at a fixed height and every
+  group above it is content-sized — so the new row went straight into overflow (measured at
+  scrollHeight 613 against clientHeight 592, both DPRs). Rather than take all 21 px out of the
+  elevation strip, which is the one element here with legibility assertions against it, the cost is
+  spread: 2 px off each group's top and bottom and 2 px off each column gap reclaims 34 px across
+  six groups and five gaps. Horizontal rhythm is untouched.
+
+### Tests
+
+- **CU** — `decorr = 0` reproduces the v1.4.0 render digest exactly, and the network never runs.
+- **CV** — the chains are all-pass **at nine depths** (worst 0.004 dB), decorrelating (r = 0.06),
+  DC-transparent through a full depth sweep (3.0e-7), and convergent at depth 0 (bit-identical).
+
+  **This probe's first draft measured depth 1.0 only and passed against the broken fractional
+  read** — the bases are integers, so depth 1.0 is the single value in the range where that
+  implementation needed no interpolation and was therefore correct. The defect was caught by
+  measuring the *summed* level, not by the probe. The sweep now spans integer, half- and
+  quarter-sample positions and asserts the gain at each; re-introducing the fractional read fails
+  it at eight of the nine (verified by reverting and re-running, not assumed).
+- **CW** — the wEff gate: at width 0, `decorr` 0 vs 1 is bit-identical; at width 6 m the same
+  comparison must *differ*, or the control is wired to nothing.
+- **CX** — QUAL-03 block-size invariance with the chains clocking and `decorr` swept across block
+  boundaries at five block sizes.
+- **CP** renamed and extended — the preserved set is twelve, and its liveness gate fired correctly
+  on `decorr` sitting at its default the moment it joined.
+- **AZ** — coverage accounting is now 17 of 18, with the eighteenth deliberately excluded: every
+  section is an all-pass with `H(1) = 1` exactly, so AZ's DC construction would sweep `decorr` and
+  measure a per-sample delta of zero — a vacuous pass dressed as coverage.
+
+### Files
+
+- `Source/DSP/Decorrelator.h` (new, no JUCE dependency so the narrow unit link line survives)
+- `Source/DSP/GainStage.{h,cpp}`, `Source/DSP/DbapSolver.h` (instrumentation counter)
+- `Source/PluginProcessor.cpp`, `Source/Data/PresetPolicy.h`, `Source/PluginEditor.{h,cpp}`
+- `Source/ui/public/index.html`, `js/app.js`, `css/styles.css`
+- `tests/render-harness/main.cpp`, `tests/unit/main.cpp`, `tests/ui_frontend_check.js`,
+  `tests/ui_layout_check.js`, `tests/ui-stub/juce-stub.js`
+
 ## v1.4.0 (2026-08-26)
 
 **Per-speaker alignment delay** — the HIGH-value/small-effort gap from `.planning/FEATURE-REVIEW.md`.

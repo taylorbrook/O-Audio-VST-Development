@@ -15,7 +15,7 @@ The draft still marks these open. All were resolved at Stage 0 and are **closed*
 
 | Draft item | Resolution | Authority |
 |---|---|---|
-| "18 musical parameters" vs a 17-row table | **17.** The 18 was an arithmetic slip in BRIEF.md; no 18th parameter exists or is invented. `4 + 2 + 8 + 2 + 1 = 17` | ARCHITECTURE §11 |
+| "18 musical parameters" vs a 17-row table | **17 at Stage 1.** The 18 was an arithmetic slip in BRIEF.md; no 18th parameter was invented *then*. `4 + 2 + 8 + 2 + 1 = 17`. **Superseded by v1.5.0's `decorr` — see Amendments.** The count is 18 today, and the coincidence with the draft's slip is exactly that | ARCHITECTURE §11 |
 | **OQ5** — venue in APVTS or a separate tree? | **Separate `ValueTree`**, a `VENUE` child of `apvts.state` (root `OOctagon`). Not automatable, never written by a musical preset | ARCHITECTURE §4.1 |
 | **OQ3 / OQ4** — blur cap, air curve, venue default scale | Resolved at Stage 0; they constrain Stage 2 DSP, not the parameter set. Ranges and defaults below are final regardless | ARCHITECTURE §6.1, §OQ3/OQ4 |
 
@@ -139,3 +139,45 @@ every `.venue` file written in between. **This identifier must never change.**
 | Output | 1 |
 | **Total musical (automatable)** | **17** |
 | Venue values (separate `ValueTree`, ARCHITECTURE §6.2) | 42 |
+
+*(Stage-1 figures. Live totals: 18 musical, 50 venue — see Amendments.)*
+
+---
+
+## Amendments after Stage 1
+
+**This file is a Stage-1 snapshot and the tables above are frozen at that boundary.** Ranges and
+counts have moved since; `oo::params` in `Source/DSP/GainStage.h` and `createParameterLayout()` in
+`Source/PluginProcessor.cpp` are the live source of truth, and `ui_frontend_check.js` §16 closes
+them against the UI four ways. What follows is the ledger of what changed, not a rewrite.
+
+| Version | Change |
+|---|---|
+| v1.3.0 | `width` max 6 → 12 m; `rolloff` max 6 → 12 dB/2x; `blur` default 0.10 → 0.03 (`kBlurScale` tripled). Pre-1.3 presets re-mapped by the editor's migration hook |
+| v1.4.0 | Venue values 42 → 50: a per-speaker alignment delay. **Not** a parameter — venue-scoped, so no automation lane reaches it |
+| v1.5.0 | **18th musical parameter: `decorr`** |
+
+### v1.5.0 — `decorr`
+
+| # | ID | Name | Range | Default | Skew | `withLabel` | Display |
+|---|----|------|-------|---------|------|-------------|---------|
+| 5 | `decorr` | Decorrelate | 0.0 – 1.0 | **0.0** | linear | *(none)* | 2 dp |
+
+Group `position`, inserted directly after `width` — the enum order is the control-block snapshot
+layout, so `rolloff`…`outputGain` shift by one index. Nothing persists an index (`w1 + i` is the
+only index arithmetic in the codebase and `w1..w8` stay contiguous), and every id-keyed path is
+unaffected.
+
+**`AudioParameterFloat`, deliberately, so "there are no Choice or Bool parameters in the musical
+set" above stays true.** A bool would have been the natural spelling for a defeatable feature and
+was rejected: it would have broken the uniform `WebSliderRelay` loop, and the depth axis turns out
+to be genuinely continuous — it scales the decorrelation network's delay lengths, so the control
+sweeps dispersion time rather than switching a mode.
+
+**The 0.0 default is a compatibility guarantee, not a taste.** At 0 the network is bypassed
+structurally, so every session and preset written before v1.5.0 renders bit-identically — held by
+probe CU against the v1.4.0 binary's own render digest.
+
+**Preset scope: preserved, not authored.** `decorr` joins `oo::presets::kPreserved` (11 → 12), so
+a factory preset load leaves it alone. It describes the *material* — is this stem effectively
+mono? — not the room the preset is painting.

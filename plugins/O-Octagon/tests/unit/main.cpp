@@ -888,7 +888,8 @@ int main()
         bool ok = true;
         juce::String detail;
 
-        // Missing: a Stage-1-shaped tree with 17 parameters and nothing else.
+        // Missing: a Stage-1-shaped tree with parameters and nothing else. The count is not the
+        // point and is deliberately not written down — the absent VENUE child is.
         {
             juce::ValueTree stage1 { "OOctagon" };
             stage1.appendChild (juce::ValueTree { "PARAM" }, nullptr);

@@ -20,7 +20,7 @@
 // ============================================================================
 // O-Octagon — WebView UI controller (Stage 3 Phase 3.1)
 //
-// The shell: two screens, the 17 parameter bindings, the readouts, the SAFE
+// The shell: two screens, the 18 parameter bindings, the readouts, the SAFE
 // banner, the 2 Hz status poll and the venue-geometry cache. The Room plan
 // itself lives in js/roomplan.js, which this file initialises from inside
 // init().
@@ -39,7 +39,7 @@
 // hand-rolling postMessage produces panels that go silently dead
 // (critical_juce_webview_namespace_vs_postmessage).
 //
-// ── ALL 17 PARAMETERS ARE AudioParameterFloat ─────────────────────────────
+// ── ALL 18 PARAMETERS ARE AudioParameterFloat ─────────────────────────────
 // One relay family, one binding path, no Choice and no Bool (RESEARCH-3.1 F1).
 // The relay-TYPE split that bit O-ReverseDelay three separate times cannot
 // occur here, and neither this file nor the stub models a combo or a toggle.
@@ -105,12 +105,12 @@ import { createElevation } from "./elevation.js";
 //    functions. Nothing below this block runs until init() is called at the
 //    bottom of the file. ────────────────────────────────────────────────────
 
-// The 17 APVTS ids, in oo::params order. ui_frontend_check.js section 16 closes
+// The 18 APVTS ids, in oo::params order. ui_frontend_check.js section 16 closes
 // this four ways — createParameterLayout == oo::params::id() == kSliderIds in
 // PluginEditor.cpp == the `ctl-<id>` elements in index.html — so an id that
 // lands in three of the four places fails loudly instead of going dead.
 const PARAM_IDS = [
-  "srcX", "srcY", "srcZ", "width",
+  "srcX", "srcY", "srcZ", "width", "decorr",
   "rolloff", "blur",
   "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8",
   "hullAtten", "airAmount",
@@ -128,6 +128,7 @@ const FORMAT = {
   srcY:       { unit: "",      dp: 3 },
   srcZ:       { unit: "m",     dp: 2 },
   width:      { unit: "m",     dp: 2 },
+  decorr:     { unit: "",      dp: 2 },
   rolloff:    { unit: "dB/2x", dp: 2 },
   blur:       { unit: "",      dp: 2 },
   w1:         { unit: "",      dp: 2 },
@@ -177,7 +178,10 @@ const GEOMETRY_GUARD_DEADLINE_MS = STATUS_POLL_MS * 6;
 //
 // srcX / srcY / srcZ / width are DELIBERATELY ABSENT: they move the source, not
 // the field. That is why UI-04/2's assertion is the puck one, and it is exactly
-// right.
+// right. v1.5.0's decorr is absent for a STRONGER reason than those four: it
+// does not touch the solve at all — it is a filter on the two feeds, downstream
+// of every gain the field draws — so a redraw on its account would be a redraw
+// of an identical field.
 const FIELD_INPUT_IDS = [...WEIGHT_IDS, "rolloff", "blur", "hullAtten"];
 
 const sliders = new Map();   // paramId -> { state, input, value }
@@ -734,7 +738,7 @@ async function init() {
   for (const id of PARAM_IDS) bindSlider(id);
 
   // The plan is initialised INSIDE init(), hoisted into its own try/catch, so a
-  // failure to draw the room cannot take the 17 bindings down with it. Above
+  // failure to draw the room cannot take the 18 bindings down with it. Above
   // this line every control is already live.
   try {
     roomPlan = createRoomPlan({
@@ -756,7 +760,7 @@ async function init() {
   }
 
   // Same discipline, one screen along: a Venue failure must not take the Room
-  // screen or the 17 bindings down. Both are hoisted into init() and both are
+  // screen or the 18 bindings down. Both are hoisted into init() and both are
   // wrapped, because D4 removed the browser-iteration safety net for the whole
   // stage — a throw out of either constructor would otherwise first surface
   // inside a plugin.
@@ -769,7 +773,7 @@ async function init() {
 
   // ── Phase 3.3's four modules ────────────────────────────────────────────
   // Each in its OWN try/catch, for the reason 3.1 and 3.2 established and D4
-  // sharpened: a throw out of any one constructor must not take the 17
+  // sharpened: a throw out of any one constructor must not take the 18
   // bindings, the Room plan or the Venue screen down with it. Above this line
   // every control is already live, and each block below leaves its own module
   // null on failure rather than aborting init().

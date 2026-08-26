@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.4.0 (dev build installed; not released)
+- **Version:** 1.5.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -43,6 +43,27 @@
   rail's `Direct 1–8` / `Roles` one-click label sets. All label edits ride
   `applyVenueEditChecked`; the device-order table lives in `Source/Data/OutputOrder.h`. Bridge
   surface 18 → 20; both UI gates pass (42 + 28 sections); Playwright interaction probe green.
+- **2026-08-26 (v1.5.0):** Mono decorrelator behind the Width control — the MEDIUM/small gap from
+  `.planning/FEATURE-REVIEW.md`, and the limitation v1.3.0's changelog named as deliberate future
+  work. Width moved two sub-points apart in space but fed them the SAME SIGNAL (on a mono input bus
+  `in1` *is* `in0`), so two identical copies arrived from two directions and combed rather than
+  widened. New parameter `decorr` (0–1, default 0), the 18th, in the Position group under Width:
+  four Schroeder all-pass sections per feed with different mutually-incommensurate delays.
+  All-pass rather than velvet noise so DBAP's Σv²=1 proof survives untouched (measured chain gain
+  0.00 dB across nine depths, cross-correlation 0.06). Depth scales the delay lengths — a dry/wet
+  mix would comb and scaling feedback would slap — and the reads are INTEGER: a fractional read
+  with linear interpolation puts a lowpass inside the all-pass feedback loop and cost 3–4.6 dB at
+  every depth except 1.0, where the integer bases happen to need no interpolation. Caught by
+  measuring the summed pair (−6.94 dB against a coherent sum vs the −3.01 incoherent addition
+  predicts), NOT by probe CV, whose first draft sampled only depth 1.0 — CV now sweeps nine.
+  **Gated on EFFECTIVE width, which the original scoping missed:**
+  at `wEff == 0` the sub-points coincide and decorrelating them turns a coherent mono sum incoherent,
+  which is the defect the feature removes, at the one setting the plugin guarantees transparent.
+  Bit-identical at `decorr = 0` — held by probe CU against the v1.4.0 binary's own render digest
+  (`0xe25f022c8ce71dc9`) plus a counter asserting the network never ran. Preset scope: preserved
+  (11 → 12), so all six factory presets are bit-unchanged. Controls column tightened 4 px per group
+  to seat the fifth Position cell without squeezing the elevation strip. auval PASS (18 params),
+  pluginval strictness-10 SUCCESS; 57 render probes, 49 unit probes, 43 + 31 JS sections, 0 failures.
 - **2026-08-26 (v1.4.0):** Per-speaker alignment delay — the HIGH/small gap from
   `.planning/FEATURE-REVIEW.md`, now closed. 0–50 ms per speaker stored in the venue beside the
   trims, applied post-solve on the eight output lanes by eight separate mono `juce::dsp::DelayLine`
