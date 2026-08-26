@@ -29,7 +29,12 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+// PluginEditor.h is deliberately NOT included here — the include lives inside
+// the #if JUCE_WEB_BROWSER guard above createEditor() so a console target that
+// compiles this TU with JUCE_WEB_BROWSER=0 and no editor sources (the param-dump
+// tool, the render harnesses) still builds. A top-of-file include breaks the
+// moment the editor references WebView types
+// (pattern_render_harness_breaks_on_webview_editor).
 #include "FactoryPresets.h"
 #include "NoteDivisions.h"
 #include "dsp/ModulationMatrix.h"
@@ -1239,9 +1244,17 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
 // Editor
 // ═══════════════════════════════════════════════════════════════════
 
+#if JUCE_WEB_BROWSER
+ #include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* OPrismAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OPrismAudioProcessorEditor (*this);
+#else
+    return new juce::GenericAudioProcessorEditor (*this);   // console-target build
+#endif
 }
 
 // ═══════════════════════════════════════════════════════════════════

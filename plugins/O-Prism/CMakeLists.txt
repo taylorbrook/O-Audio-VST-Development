@@ -103,3 +103,16 @@ target_compile_definitions(O-Prism
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Prism test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # Runtime parameter inventory. O-Prism's 81 parameter IDs are
+    # string-concatenated (Source/PluginProcessor.cpp:76-87) and appear nowhere
+    # in the source as literals — the runtime walk is the only way to enumerate
+    # them.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+endif()
