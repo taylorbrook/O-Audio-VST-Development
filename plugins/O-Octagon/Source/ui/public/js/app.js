@@ -48,7 +48,7 @@
 //   read, from this file:
 //     getParameterDefaults   once, at init      (dblclick reset)
 //     getVenueGeometry       at init, then when venueGen moves — ONE call
-//                            carrying all 42 venue values plus the envelope,
+//                            carrying all 50 venue values plus the envelope,
 //                            bbox, centroid, hull, NAMED-SCENE MEMBERSHIP and
 //                            the generation
 //     getStatus              polled at 2 Hz     (SAFE + MAP banners, venueGen,

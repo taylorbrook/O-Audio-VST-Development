@@ -12,8 +12,9 @@ candidates:
 phase_routing:
   phase1_improve: [HIGH-01]   # APPLIED in v1.3.3 (2026-08-26)
   phase3_applied:  [LOW-01, LOW-02, LOW-03, LOW-04, LOW-05, LOW-07]   # v1.3.4 (2026-08-26)
+  improve_applied: [MEDIUM-03]   # v1.3.5 (2026-08-26) — applied via /improve, not phase 3
   phase3_false_positive: [LOW-06]        # gate-coupled; see Phase 3 notes
-  phase3_skipped:  [MEDIUM-01, MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05]
+  phase3_skipped:  [MEDIUM-01, MEDIUM-02, MEDIUM-04, MEDIUM-05]
   phase3_deferred: [MEDIUM-06, MEDIUM-07, LOW-08]
   phase2: []
   phase3_original: [MEDIUM-01, MEDIUM-02, MEDIUM-03, MEDIUM-04, MEDIUM-05, MEDIUM-06, MEDIUM-07, LOW-01, LOW-02, LOW-03, LOW-04, LOW-05, LOW-06, LOW-07, LOW-08]   # superseded by the four keys above
@@ -36,13 +37,14 @@ them at risk. `Severity` is payoff; `Risk` is the chance of behaviour change.
 |---|---|---|
 | Phase 1 | `/improve O-Octagon` (apply the LOW-risk HIGH item) | HIGH-01 — ✅ **APPLIED in v1.3.3** |
 | Phase 2 | `/simplify-phase2 O-Octagon` | — (none) |
-| Phase 3 | `/simplify-phase3 O-Octagon` | ✅ **6 applied in v1.3.4** (LOW-01…05, LOW-07) · ❌ LOW-06 false positive · ⏭ 5 skipped (MEDIUM-01…05) · ⏸ 3 deferred (MEDIUM-06, MEDIUM-07, LOW-08) |
+| Phase 3 | `/simplify-phase3 O-Octagon` | ✅ **6 applied in v1.3.4** (LOW-01…05, LOW-07) · ❌ LOW-06 false positive · ⏭ 4 skipped (MEDIUM-01, 02, 04, 05) · ⏸ 3 deferred (MEDIUM-06, MEDIUM-07, LOW-08) |
+| Follow-up | `/improve O-Octagon` | ✅ **MEDIUM-03 applied in v1.3.5** — the audit's only behaviour correction |
 
-## The one thing that isn't cosmetic
+## The one thing that isn't cosmetic — ✅ FIXED in v1.3.5
 
-**MEDIUM-04** is not really a simplification — it is a live drift bug found while auditing. `getFieldGrid`'s
-`readParam` fallback for `blur` still reads `0.1f`, the pre-v1.3.0 default; the live default moved to `0.03f`
-when `kBlurScale` tripled. It sits on an unreachable-in-practice path (fires only if the host writes NaN), so
+**MEDIUM-03** is not really a simplification — it is a live drift bug found while auditing. `getFieldGrid`'s
+`readParam` fallback for `blur` still read `0.1f`, the pre-v1.3.0 default; the live default moved to `0.03f`
+when `kBlurScale` tripled. (This paragraph originally said *MEDIUM-04*; that is the CSS banner dedup.) It sits on an unreachable-in-practice path (fires only if the host writes NaN), so
 it is filed here rather than in the code review, but deriving the fallback from the live parameter removes the
 whole drift class. This is the repo's own `pattern_test_fixture_mirrors_drift_silently` firing in production
 code.
@@ -225,6 +227,9 @@ const auto applyEditedAndComplete = [this] (const oo::VenueModel& edited, auto& 
 **Test impact:** ui_frontend_check.js section 22 asserts this file contains no bare `applyVenueEdit (` call site — `applyVenueEditChecked (` does not match that pattern, and the helper keeps calling the checked form, so the gate stays green. Goldens untouched (editor excluded from harness). Verify with ui_frontend_check.js plus one manual venue-table commit in Standalone.
 
 ### [MEDIUM-03] getFieldGrid readParam fallbacks are transcribed defaults — and blur's has ALREADY drifted (0.1f vs live 0.03f)
+
+> ✅ **APPLIED — O-Octagon v1.3.5 (2026-08-26).** `readParam` now takes only an id and derives the
+> fallback via `getParameter (id)->convertFrom0to1 (getDefaultValue())`. All three literals removed.
 
 **File:** `plugins/O-Octagon/Source/PluginEditor.cpp:1176` · **Type:** verbose-pattern · **Risk:** LOW · **Side:** cpp
 

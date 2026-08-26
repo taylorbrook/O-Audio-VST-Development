@@ -81,7 +81,27 @@ const SPEAKER_COUNT = 8;
 
 // The four NUMERIC per-speaker columns. The label column is deliberately not in
 // this list: it is the one column with different commit semantics.
-const NUMERIC_KEYS = ["x", "y", "z", "trim"];
+const NUMERIC_KEYS = ["x", "y", "z", "trim", "delay"];
+
+// ── v1.4.0 — THE DELAY COLUMN'S UNIT IS A VIEW STATE ──────────────────────
+// Storage is always milliseconds. The toggle changes what the column DISPLAYS
+// and what it PARSES; the payload is unconditionally ms. Deliberately not
+// written into the .venue file — a room does not have a preferred unit.
+//
+// The conversion constant is NOT A LITERAL HERE. It arrives on the
+// getVenueGeometry payload as `speedOfSound`, computed from
+// oo::plane::kSpeedOfSoundMps, which is the same constant
+// VenueModel::suggestedDelaysMs() divides by. A 343 written out in this file
+// would be a mirrored fixture over that one — free to drift until the column
+// reads metres the Derive button disagrees with
+// (pattern_test_fixture_mirrors_drift_silently).
+const DELAY_UNITS = ["ms", "m"];
+
+// The fallbacks below are used ONLY before the first geometry payload arrives,
+// when the table has nothing to display anyway. They are not a second source of
+// truth: setGeometry() overwrites both on every refresh.
+const DELAY_FALLBACK_C  = 343;
+const DELAY_FALLBACK_MAX = 50;
 
 // 100 ms, and ONLY while pinging. app.js's STATUS_POLL_MS is 500, which is
 // LONGER than the 400 ms auto-cycle gap — the existing poll can miss a gap
@@ -133,6 +153,14 @@ export function createVenueScreen(deps) {
   const rakeFront = need("vf-rake-front");
   const rakeRear = need("vf-rake-rear");
 
+  // v1.4.0. `el` is the ONE textContent receiver this feature adds, and it is a dedicated
+  // .vcell-value span holding nothing but the unit — the word "Delay" beside it is authored and
+  // never touched. The two unit buttons carry authored labels and are switched by class, so they
+  // are not receivers at all.
+  const delayUnitNode = need("vcol-delay-unit");
+  const delayUnitButtons = { ms: need("btn-delay-ms"), m: need("btn-delay-m") };
+  const delayDeriveButton = need("btn-delay-derive");
+
   const venueNameNode = need("vvenue-name");
   const miniStage = need("miniplan");
   const miniSvg = need("mini-geometry");
@@ -153,11 +181,36 @@ export function createVenueScreen(deps) {
   const pending = new Map();
   let pingTimer = null;
 
+  // v1.4.0. Session-local, resets to ms when the editor is reopened — see the
+  // note on DELAY_UNITS. `speedOfSound` and `maxDelayMs` are replaced by every
+  // setGeometry() call; the initialisers only cover the first paint.
+  let delayUnit = "ms";
+  let speedOfSound = DELAY_FALLBACK_C;
+  let maxDelayMs = DELAY_FALLBACK_MAX;
+
+  // ── ms <-> metres, in ONE pair of functions ──────────────────────────────
+  // Metres of PATH DIFFERENCE, not absolute distance: the stored delay is how
+  // much further the sound has to travel to reach the reference seat at the
+  // same time as the farthest speaker's does. That is why 0 ms is 0 m and not
+  // "the distance to the nearest speaker".
+  const msToDisplay = (ms) => (delayUnit === "m" ? (ms * 0.001) * speedOfSound : ms);
+  const displayToMs = (v) => (delayUnit === "m" ? (v / speedOfSound) * 1000 : v);
+
+  // 2 dp in metres (about 7 mm of resolution, well under a measurement error),
+  // 2 dp in ms (about 0.7 mm — the finer of the two, so the round trip through
+  // the toggle does not visibly lose the value).
+  const delayText = (ms) => fmt(msToDisplay(ms), 2);
+
   const fieldId = (n, key) => (key === "rakeFront" ? "vf-rake-front"
     : key === "rakeRear" ? "vf-rake-rear"
       : key === "label" ? `vf-label-${n}` : `vf-${n}-${key}`);
 
   // ── Reading the model out of committed + pending ──────────────────────────
+
+  // Rails a millisecond value into [0, maxDelayMs]. The bound comes from C++
+  // (OOctagonProcessor::kVenueDelayClampMs on the geometry payload) rather than
+  // from a literal, so the field and the funnel cannot rail differently.
+  const clampDelayMs = (ms) => (Number.isFinite(ms) ? Math.min(Math.max(ms, 0), maxDelayMs) : 0);
 
   function pendingNumber(n, key) {
     const raw = pending.get(fieldId(n, key));
@@ -169,7 +222,7 @@ export function createVenueScreen(deps) {
     return raw === undefined ? committed.speakers[n - 1].label : String(raw).trim();
   }
 
-  // The 42 values, assembled ONCE, for the ONE setVenue call site below.
+  // The 50 values, assembled ONCE, for the ONE setVenue call site below.
   function buildPayload() {
     const speakers = rows.map((r) => {
       const base = committed.speakers[r.n - 1];
@@ -180,6 +233,15 @@ export function createVenueScreen(deps) {
         y: pendingNumber(r.n, "y") ?? base.y,
         z: pendingNumber(r.n, "z") ?? base.z,
         trimDb: pendingNumber(r.n, "trim") ?? base.trimDb,
+
+        // ALWAYS MILLISECONDS ON THE WIRE. A pending edit is in whatever unit
+        // the toggle is showing, so it converts here; the committed fallback is
+        // already ms and must NOT be converted a second time. Clamped to the
+        // rail C++ reports, so a typed 900 m rails in the field the operator is
+        // looking at rather than silently at publishSnapshot().
+        delayMs: clampDelayMs(pendingNumber(r.n, "delay") === undefined
+          ? base.delayMs
+          : displayToMs(pendingNumber(r.n, "delay"))),
       };
     });
 
@@ -229,6 +291,7 @@ export function createVenueScreen(deps) {
         [r.fields.y, fmt(s.y, 2)],
         [r.fields.z, fmt(s.z, 2)],
         [r.fields.trim, fmt(s.trimDb, 1)],
+        [r.fields.delay, delayText(s.delayMs)],
       ];
 
       for (const [input, text] of painted) {
@@ -249,6 +312,16 @@ export function createVenueScreen(deps) {
 
     const el = venueNameNode;
     el.textContent = String(geometry === null ? "" : geometry.venueName ?? "");
+
+    // v1.4.0. The unit lives in the HEADER, once, rather than repeated in eight cells — and
+    // ONLY the unit is written. Reusing the shared `el` receiver keeps section 6's whitelist
+    // exactly as long as it was.
+    delayUnitNode.textContent = delayUnit;
+
+    for (const u of DELAY_UNITS) {
+      delayUnitButtons[u].classList.toggle("is-active", u === delayUnit);
+      delayUnitButtons[u].setAttribute("aria-pressed", u === delayUnit ? "true" : "false");
+    }
   }
 
   // The mini-plan. Fitted to the SMALLER of its two bounds by the same fitBox()
@@ -415,6 +488,16 @@ export function createVenueScreen(deps) {
   for (const r of rows) {
     bindLabel(r);
     for (const key of NUMERIC_KEYS) {
+      // The DELAY column reverts through delayText() rather than fmt(), because
+      // what Escape must restore is the value IN THE UNIT CURRENTLY SHOWN. A
+      // revert to the raw stored ms while the column is displaying metres would
+      // put a number in the field that is wrong by a factor of 343 and looks
+      // entirely plausible.
+      if (key === "delay") {
+        bindNumeric(r.fields.delay, () => delayText(committed.speakers[r.n - 1].delayMs));
+        continue;
+      }
+
       const dp = key === "trim" ? 1 : 2;
       bindNumeric(r.fields[key], () => fmt(committed.speakers[r.n - 1][key === "trim" ? "trimDb" : key], dp));
     }
@@ -592,6 +675,48 @@ export function createVenueScreen(deps) {
   need("btn-oo-direct").addEventListener("click", () => requestOutputOrder("direct"));
   need("btn-oo-roles").addEventListener("click", () => requestOutputOrder("roles"));
 
+  // ── v1.4.0 — the delay column's two controls ─────────────────────────────
+
+  // THE TOGGLE IS PURELY LOCAL. It calls nothing: the stored values do not
+  // change, only their presentation, so there is nothing for the plugin to
+  // agree to. Any half-typed edit is dropped rather than reinterpreted —
+  // `pending` holds RAW TEXT with no unit attached to it, so carrying "12.5"
+  // across a ms->m flip would silently turn 12.5 ms into 12.5 m.
+  for (const u of DELAY_UNITS) {
+    delayUnitButtons[u].addEventListener("click", () => {
+      if (delayUnit === u) return;
+
+      for (const r of rows) {
+        pending.delete(r.fields.delay.id);
+        r.fields.delay.classList.remove("is-invalid");
+      }
+
+      delayUnit = u;
+      paintFields();
+    });
+  }
+
+  // DERIVE IS A C++ WRITE, not a JS fill followed by a commit. The law needs the
+  // centroid, the audience plane and eight 3-D distances; re-deriving any of
+  // that here would be a mirrored fixture over VenueModel::suggestedDelaysMs()
+  // (D19). The page sends nothing and renders what comes back.
+  //
+  // Pending delay edits are dropped first for the same reason the toggle drops
+  // them: the eight fields are about to be replaced wholesale, and a stale
+  // pending entry would win over the derived value on the next commit.
+  //
+  // The promise is ADVISORY, like every other write on this page (N4). The
+  // authoritative repaint arrives on app.js's venueGen poll.
+  delayDeriveButton.addEventListener("click", () => {
+    for (const r of rows) {
+      pending.delete(r.fields.delay.id);
+      r.fields.delay.classList.remove("is-invalid");
+    }
+
+    nativeFn("applySuggestedDelays")()
+      .catch((err) => console.error("applySuggestedDelays failed", err));
+  });
+
   refreshPresets();
 
   // ── The surface app.js drives ────────────────────────────────────────────
@@ -600,10 +725,23 @@ export function createVenueScreen(deps) {
       if (g === null || typeof g !== "object") return;
 
       geometry = g;
+
+      // v1.4.0. Taken from the payload on EVERY refresh rather than once at
+      // init: both are C++ constants today, but reading them once would make
+      // this page quietly wrong on the first build that makes either depend on
+      // the venue. The guards keep a payload from an older build (or the
+      // ui-stub) from writing NaN into a divisor.
+      if (Number.isFinite(Number(g.speedOfSound)) && Number(g.speedOfSound) > 0)
+        speedOfSound = Number(g.speedOfSound);
+
+      if (Number.isFinite(Number(g.maxDelayMs)) && Number(g.maxDelayMs) > 0)
+        maxDelayMs = Number(g.maxDelayMs);
+
       committed = {
         speakers: g.speakers.map((s) => ({
           x: Number(s.x), y: Number(s.y), z: Number(s.z),
           label: String(s.label), trimDb: Number(s.trimDb ?? 0), class: String(s.class ?? ""),
+          delayMs: Number(s.delayMs ?? 0),
         })),
         rake: {
           front: Number(g.rake === undefined || g.rake === null ? 0 : g.rake.front ?? 0),

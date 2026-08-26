@@ -25,7 +25,7 @@
    TABULAR NUMERALS for every metre value and every level.
 
    `font-variant-numeric: tabular-nums` is a GATE, not taste
-   (ui_frontend_check.js section 18). UI-01 will column-align 42 venue values at
+   (ui_frontend_check.js section 18). UI-01 will column-align 50 venue values at
    3.2, and a mis-scanned metre is a measurement error that propagates silently
    into the solve.
 
@@ -989,7 +989,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 
 /* ── The fields ──────────────────────────────────────────────────────────
    TYPE="TEXT", never type="number" (D12). tabular-nums is a GATE here rather
-   than taste: UI-01 column-aligns 42 values, and a mis-scanned metre is a
+   than taste: UI-01 column-aligns 50 values, and a mis-scanned metre is a
    measurement error that propagates silently into the DBAP solve. */
 .vfield {
   font-family: var(--mono);
@@ -1040,6 +1040,79 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
+}
+
+
+/* ── v1.4.0 — the alignment-delay row ─────────────────────────────────────
+   Sits directly under the rake row and reads as its sibling: same flex rhythm,
+   same 10 px gap, same leading .cell-label. Both rows' labels share a min-width
+   so "Rake" and "Delay" set their controls on ONE vertical line — without it
+   the two rows start 14 px apart and the strip looks accidental. */
+
+.venue-delay {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.venue-rake > .cell-label,
+.venue-delay > .cell-label {
+  flex: 0 0 auto;
+  min-width: 42px;
+}
+
+/* .vbtn is `flex: 1` because the rail's button rows want it to fill. Here the
+   two controls are a compact strip beside a label, not a full-width bar, so the
+   grow is cancelled rather than the base rule being widened for both cases. */
+.venue-delay .vbtn {
+  flex: 0 0 auto;
+  padding: 0 12px;
+}
+
+/* The unit pair is one segmented control: two buttons sharing a middle border,
+   fixed-width so the active state cannot shift Derive sideways on click. */
+.vunit-group {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.venue-delay .vbtn-unit {
+  flex: 0 0 38px;
+  width: 38px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.venue-delay .vbtn-unit:first-child {
+  border-radius: 2px 0 0 2px;
+}
+
+/* The shared edge is drawn ONCE — without this the two 1 px borders stack into
+   a 2 px seam that reads as a gap between two separate buttons rather than as
+   one control. */
+.venue-delay .vbtn-unit:last-child {
+  border-radius: 0 2px 2px 0;
+  border-left: none;
+}
+
+/* Active = the unit the column is currently showing. A border and an ink lift,
+   no fill — the same treatment the other mode states use, so it reads as a mode
+   rather than as an alert. */
+.venue-delay .vbtn-unit.is-active {
+  color: var(--ink);
+  border-color: var(--level-lo);
+  background: var(--panel);
+}
+
+/* The header's unit span is a .vcell-value — which is 11 px --ink, two steps
+   brighter and larger than the 9 px --ink-faint header around it. Scoped back
+   to the header's own treatment; the mono stack and tabular-nums come from the
+   base rule and are deliberately left alone (section 18 checks them there). */
+.vcol-head .vcell-value {
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
 }
 
 /* ── The rail ────────────────────────────────────────────────────────────── */

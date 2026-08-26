@@ -38,13 +38,13 @@
       read:
         getParameterDefaults   once at init          (dblclick reset)
         getVenueGeometry       init, then on venueGen change. ONE call, and at
-                               3.2 it carries all 42 venue values: the eight
+                               3.2 it carries all 50 venue values: the eight
                                trims ride INSIDE their speaker object and the
                                two rake heights are their own
         getStatus              polled at 2 Hz  (SAFE + MAP banners, venueGen)
         getPresetList · getCurrentPreset · getPingState
       write:
-        setVenue               all 42 in ONE call, VALIDATED BEFORE APPLIED
+        setVenue               all 50 in ONE call, VALIDATED BEFORE APPLIED
         saveVenue · loadVenue  FileChooser::launchAsync -> oo::venuefile
         savePreset · loadPreset
         startPing · stopPing

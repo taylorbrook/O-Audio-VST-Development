@@ -46,6 +46,44 @@ namespace plane
     */
     inline constexpr float kMinSpan = 1.0e-6f;
 
+    /** Speed of sound in air, metres per second — 343 m/s, dry air at 20 °C.
+
+        THE SINGLE DEFINITION, and it is here rather than in VenueModel for the reason every other
+        constant in this header is here: two consumers derive from it and they must not be able to
+        disagree. `VenueModel::suggestedDelaysMs()` turns metres of path difference into
+        milliseconds; the Venue table's metres/ms toggle turns the operator's typed metres back into
+        the stored milliseconds. A second literal in venue.js would be a mirrored fixture over this
+        one (pattern_test_fixture_mirrors_drift_silently), which is why the page is handed the
+        number rather than holding its own.
+
+        DELIBERATELY NOT TEMPERATURE-DEPENDENT. c varies about 0.6 m/s per °C, so a 10 °C error is
+        1.7 % — roughly 0.35 ms across a 20 m hall, an order of magnitude below what the operator's
+        own distance measurement contributes. A temperature field would look like precision it
+        cannot deliver.
+    */
+    inline constexpr float kSpeedOfSoundMps = 343.0f;
+
+    /** The alignment-delay rail, in milliseconds — THE SINGLE DEFINITION.
+
+        THREE consumers need this number and they sit in three layers that cannot include each
+        other: `VenueModel::kMaxSuggestedDelayMs` clamps the derived suggestion,
+        `GainStage::kMaxAlignDelayMs` sizes the eight delay lines, and
+        `OOctagonProcessor::kVenueDelayClampMs` rails what reaches the audio thread. All three
+        ALIAS this, exactly as `VenueModel::kMinSpan` aliases kMinSpan above.
+
+        The rejected alternative was three 50.0f literals tied together by static_asserts. It
+        works, and it produced a -Wfloat-equal warning on every build — because comparing two
+        floats for equality IS the smell the warning names, even when the floats are constants.
+        One definition needs no comparison. (A suggestion that proposed a value the funnel would
+        then clamp to something different is the failure all of this exists to prevent: the
+        operator sees a number in the table that the audio thread does not honour.)
+
+        50 ms is ~17 m of path difference at 343 m/s — larger than any single-array skew a hall of
+        the size this plugin addresses can produce, and small enough that a mis-typed coordinate
+        rails visibly instead of introducing a quarter-second of delay nobody asked for.
+    */
+    inline constexpr float kMaxAlignDelayMs = 50.0f;
+
     //==========================================================================
     /** Audience-plane ear height at depth `y`.
 
