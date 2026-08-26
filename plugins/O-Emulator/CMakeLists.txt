@@ -99,4 +99,10 @@ option(OUARICON_BUILD_TESTS "Build O-Emulator test targets" OFF)
 
 if(OUARICON_BUILD_TESTS)
     add_subdirectory(tests/render-harness)
+
+    # Runtime parameter inventory. O-Emulator is the reason this tool exists:
+    # four of its five parameters come from a local percent() factory lambda,
+    # so a regex over the source finds TWO.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(OEmulator ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 endif()
