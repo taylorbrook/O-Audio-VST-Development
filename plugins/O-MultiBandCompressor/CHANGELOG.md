@@ -1,5 +1,68 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.10.0 (2026-08-26)
+
+Hover help now speaks French, and all of its copy moved out of the code into one
+table. First plugin in the suite to be localized — it is the pattern the other
+42 are being cut from.
+
+### Added
+
+- **A language selector, English / Français**, in a new gear popover at the top
+  right. Switching re-renders every tooltip immediately, with no reload. The
+  choice rides the APVTS state tree as a non-parameter property `uiLanguage`, so
+  it is remembered with the session and never appears in a DAW automation lane.
+  Loading a preset cannot change it — `OuariconPresetManager::loadPreset` walks
+  only `preset["parameters"]` and never touches a state-tree property.
+- **`Source/ui/public/js/i18n.js`** — all 32 tooltip keys in both languages, plus
+  the selector-to-key bindings. Copy now lives in exactly one place. The English
+  is byte-for-byte the v1.9.0 wording; this release moved it, it did not rewrite
+  it.
+- **`getUiLanguage` / `setUiLanguage`** native functions. The page PULLS the
+  stored language once at init and never polls: it paints English synchronously
+  first, so a fresh instance is never blank and never flashes the wrong language.
+
+### Changed
+
+- **The hover-help "?" button moved into the gear popover.** It is the same
+  toggle with the same machine-wide preference file behind it — moved, not
+  duplicated — now labelled "Hover help" and reading On / Off.
+- **The toggle's own tooltip is one entry covering both states** instead of two
+  hard-coded English sentences swapped on click. A state-dependent string
+  written outside the table would have been stranded in the previous language
+  the moment the selector re-rendered everything else.
+- **Per-band tooltip titles are composed from the table in both languages.**
+  v1.9.0 built them in JS as `` `${bandName} — ${title}` `` against a hard-coded
+  `BAND_LABELS`. The four band names are now i18n keys of their own and the
+  per-band entries carry a `{band}` placeholder, so French reads
+  "Haut-médium — Seuil", not "High-Mid — Seuil". The joining em-dash stays a
+  literal.
+
+### Fixed
+
+- **The settings popover was unclickable where it overlapped the analyzer.**
+  `.plugin-header` and `.spectrum-section` both sit at `z-index: 1` and the
+  spectrum comes later in the DOM, so it won the tie and swallowed the popover's
+  pointer events — the panel rendered correctly and simply did not respond.
+  Fixed the way the preset dropdown above it already solves the same tie, by
+  lifting the whole header while the panel is open. Found by rendering the page,
+  not by reading it.
+- **`.tooltip` z-index 1000 → 10001.** The tip layer is a sibling of the header,
+  and both the preset dropdown and the new popover lift that header to 9999
+  while open — so a tip raised over the language selector or the hover-help
+  toggle painted *behind* the panel carrying them. `max-width` is deliberately
+  unchanged at 230 px: French wraps taller inside the same cap, which the
+  existing vertical flip already handles.
+
+### Notes
+
+- **All 32 French entries are machine-drafted and flagged `reviewed: false`.**
+  `node scripts/check-i18n.js` prints the per-plugin worklist for a native
+  speaker. The flag is required, not optional — the gate rejects a French entry
+  that does not carry it, and rejects one that is a straight copy of the English.
+- Control labels, value readouts and preset names stay in English. This release
+  localizes hover help only.
+
 ## Version 1.9.0 (2026-08-20)
 
 Bands now engage at sensible thresholds. Two detector-level fixes, both raising

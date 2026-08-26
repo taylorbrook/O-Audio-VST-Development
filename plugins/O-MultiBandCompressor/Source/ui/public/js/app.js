@@ -30,6 +30,11 @@
 
 import * as Juce from './juce/index.js';
 
+// v1.10.0: hover-help copy and its English/French tables. An import is hoisted,
+// so this is safe above initializeUI() below — but nothing in this module may
+// READ the i18n bindings at eager top level; see the block near the tooltips.
+import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
+
 console.log('O-MultiBandCompressor UI initializing...');
 
 // Parameter binding state
@@ -1167,103 +1172,77 @@ if (document.readyState === 'loading') {
 const TOOLTIP_DELAY_MS = 120;
 const TOOLTIP_MARGIN = 8;   // gap between a tip and its control / the viewport edge
 
-// Controls that exist exactly once. Entries are [selector, title, body, wrapper?] —
-// the optional wrapper widens the hover target to a surrounding element, so the
-// label and value readout trigger the tip as well as the control itself.
-const GLOBAL_TOOLTIPS = [
-    ['#input-gain', 'Input Gain',
-     'Level trim applied before the signal is split into bands. Use it to drive the compressors harder or back them off without touching the thresholds. −24 to +24 dB.',
-     '.control-group'],
+// ---------- v1.10.0: i18n ----------
+//
+// The copy itself lives in js/i18n.js; this block is the runtime that writes it
+// onto the DOM as the data-tip / data-tip-title attributes the renderer below
+// already reads. It is byte-compared (comment-stripped, whitespace-normalised)
+// against scripts/i18n-canon.js by scripts/check-i18n.js: this repo has no
+// shared UI module and deliberately does not gain one, so 43 hand-copies of
+// this block are only safe because a drifted copy fails a gate.
+//
+// Declared here, BELOW the initializeUI() call at module top level and ABOVE
+// every reader, and called only from initializeDeferredUI(). v1.4.0 put the
+// tooltip init in the eager top-level path and the resulting TDZ ReferenceError
+// silently killed initializeCrossoverDrag().
 
-    ['#mix', 'Mix',
-     'Blend between the dry input and the compressed output for parallel compression. 0% is fully dry, 100% is fully compressed.',
-     '.control-group'],
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
 
-    ['#auto-makeup', 'Auto Makeup',
-     'Automatically compensates the level lost to gain reduction in each band, so bypassing the compressor does not jump in volume. Stacks with each band’s Makeup knob.',
-     '.control-group'],
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
 
-    ['#ms-mode', 'Mid / Side Mode',
-     'Chooses what the compressors act on. Off processes left and right normally; Mid targets the centre of the image, Side the stereo edges, and Both processes them independently.',
-     '.control-group'],
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
 
-    ['#output-gain', 'Output Gain',
-     'Final level trim, applied after the mix stage. −24 to +24 dB.',
-     '.control-group'],
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
 
-    ['.input-meter', 'Input Meter',
-     'Level entering the plugin, averaged across both channels and measured before the input gain trim.'],
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
 
-    ['.output-meter', 'Output Meter',
-     'Level leaving the plugin, measured after mix and output gain.'],
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
 
-    ['.spectrum-container', 'Spectrum Analyzer',
-     'Real-time input spectrum, 20 Hz to 20 kHz on a logarithmic scale. Drag the vertical lines to move the crossovers.'],
-
-    ['#crossover1', 'Crossover 1',
-     'Split point between the Low and Low-Mid bands. Drag left or right to move it; the two band headers update as you go. 20 Hz to 500 Hz.'],
-
-    ['#crossover2', 'Crossover 2',
-     'Split point between the Low-Mid and High-Mid bands. Drag left or right to move it. 200 Hz to 5 kHz.'],
-
-    ['#crossover3', 'Crossover 3',
-     'Split point between the High-Mid and High bands. Drag left or right to move it. 2 kHz to 16 kHz.']
-];
-
-// Display names and GR-meter element ids, keyed by the band id used throughout app.js.
-const BAND_LABELS = { low: 'Low', lomid: 'Low-Mid', himid: 'High-Mid', high: 'High' };
-const BAND_GR_METERS = { low: 'grLow', lomid: 'grLomid', himid: 'grHimid', high: 'grHigh' };
-
-// Per-band controls. Identical in all four bands, so the wording lives here once.
-// Entries are [controlSuffix, wrapper, title, body].
-const BAND_TOOLTIPS = [
-    ['threshold', '.knob-control', 'Threshold',
-     'The level at which this band starts to compress. Anything above it is pulled down by the Ratio. −60 to 0 dB.'],
-
-    ['ratio', '.knob-control', 'Ratio',
-     'How firmly the band is compressed above the threshold. 1:1 leaves it untouched; 20:1 is effectively limiting.'],
-
-    ['attack', '.knob-control', 'Attack',
-     'How quickly compression engages once the signal crosses the threshold. Fast settings clamp transients, slow settings let them through. 0.1 to 200 ms.'],
-
-    ['release', '.knob-control', 'Release',
-     'How quickly compression lets go once the signal falls back below the threshold. Too fast can pump, too slow can choke the band. 10 to 2000 ms.'],
-
-    ['knee', '.knob-control', 'Knee',
-     'Softens the onset of compression around the threshold. 0 dB is a hard knee that grabs abruptly; 24 dB eases in very gradually.'],
-
-    ['makeup', '.knob-control', 'Makeup',
-     'Manual gain applied to this band after compression, to restore what gain reduction took away. −12 to +24 dB.'],
-
-    ['solo', null, 'Solo',
-     'Hear this band on its own — the other three are muted. Useful for checking where a crossover should sit.'],
-
-    ['bypass', null, 'Bypass',
-     'Pass this band through uncompressed. The crossover filtering still applies, so the band stays in phase with the others.'],
-
-    ['sc-listen', null, 'Sidechain Listen',
-     'Monitor the detector signal driving this band’s compressor, including its sidechain filtering. This is what the compressor "hears", not what it outputs.'],
-
-    // v1.5.0: detector-path controls
-    ['peak-rms', '.knob-control', 'Peak / RMS',
-     'Blends how the band’s level is measured. Peak reacts to individual transients and suits de-essing and plosive control; RMS averages over 10 ms and suits glue and level-riding.'],
-
-    ['sc-hpf', '.knob-control', 'Sidechain High-Pass',
-     'High-passes the detector only — the audio itself is untouched. Keeps low energy from triggering gain reduction, for example so subsonic rumble does not duck a whole band. Fully left is Off.'],
-
-    ['sc-lpf', '.knob-control', 'Sidechain Low-Pass',
-     'Low-passes the detector only — the audio itself is untouched. Narrows what the band responds to, for example keeping cymbals and air from holding a de-esser down. Fully left is Off.']
-];
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
 
 let tooltipEl = null;
 let tooltipTimer = null;
 let tooltipTarget = null;
 let tooltipSuppressed = false;
 
-// v1.4.1: master on/off for the hover-help layer, driven by the "?" button in
-// the header and persisted C++-side in a machine-wide preference file. Starts
-// true so the very first hover behaves like v1.4.0 even if the stored value
-// arrives a moment later (the native call below is a promise).
+// v1.4.1: master on/off for the hover-help layer, persisted C++-side in a
+// machine-wide preference file. v1.10.0 moved its control out of the header and
+// into the settings popover, next to the language selector — one place for the
+// two things that decide what the hover help says and whether it says it.
+// Starts true so the very first hover behaves like v1.4.0 even if the stored
+// value arrives a moment later (the native call below is a promise).
 let tooltipsEnabled = true;
 let helpToggleEl = null;
 let setTooltipsEnabledNative = null;
@@ -1275,11 +1254,13 @@ function initializeTooltips() {
         return;
     }
 
-    GLOBAL_TOOLTIPS.forEach(([selector, title, body, wrapper]) =>
-        applyTooltip(selector, title, body, wrapper));
+    // v1.10.0: no copy is applied here any more. initI18n(), which
+    // initializeDeferredUI() runs immediately before this, writes every
+    // data-tip / data-tip-title from js/i18n.js and re-writes them on every
+    // language change. The renderer below is unchanged and still reads only
+    // those two attributes.
 
-    Object.keys(BAND_LABELS).forEach(applyBandTooltips);
-
+    initializeSettingsPopover();
     initializeHelpToggle();
 
     document.addEventListener('mouseover', handleTooltipOver);
@@ -1298,10 +1279,53 @@ function initializeTooltips() {
     console.log('Tooltips initialized');
 }
 
-// ---------- v1.4.1: the "?" toggle ----------
+// ---------- v1.10.0: the settings popover ----------
+
+let settingsPopoverEl = null;
+let gearBtnEl = null;
+
+function setSettingsPopoverOpen(open) {
+    if (!settingsPopoverEl || !gearBtnEl) return;
+
+    settingsPopoverEl.hidden = !open;
+    gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initializeSettingsPopover() {
+    gearBtnEl = document.getElementById('gear-btn');
+    settingsPopoverEl = document.getElementById('settings-popover');
+
+    if (!gearBtnEl || !settingsPopoverEl) {
+        console.warn('Settings popover not found - language selector unavailable');
+        return;
+    }
+
+    gearBtnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSettingsPopoverOpen(settingsPopoverEl.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+    // click so the popover is gone before a drag on a control underneath it
+    // begins, matching how the preset dropdown behaves.
+    document.addEventListener('mousedown', (e) => {
+        if (settingsPopoverEl.hidden) return;
+        if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+        setSettingsPopoverOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+            setSettingsPopoverOpen(false);
+            gearBtnEl.focus();
+        }
+    });
+}
+
+// ---------- v1.4.1: the hover-help toggle, v1.10.0 inside the popover ----------
 
 function initializeHelpToggle() {
-    helpToggleEl = document.getElementById('help-toggle');
+    helpToggleEl = document.getElementById('tips-toggle');
     if (!helpToggleEl) {
         console.warn('Help toggle not found - tooltips stay permanently on');
         return;
@@ -1340,11 +1364,15 @@ function setTooltipsEnabled(enabled, persist) {
     if (!tooltipsEnabled) hideTooltip();
 
     if (helpToggleEl) {
+        // State only. Through v1.9.0 this also wrote the button's own data-tip
+        // with one of two hard-coded English sentences; that copy now lives in
+        // js/i18n.js under a single `tips-toggle` key covering both states,
+        // because applyI18n() re-renders every tip from the table on a language
+        // change and would have overwritten a state-dependent string written
+        // here — leaving whichever sentence was last set stranded in the old
+        // language. The caption and aria-pressed carry the state instead.
         helpToggleEl.setAttribute('aria-pressed', tooltipsEnabled ? 'true' : 'false');
-        helpToggleEl.setAttribute('data-tip-title', 'Hover Help');
-        helpToggleEl.setAttribute('data-tip', tooltipsEnabled
-            ? 'Hover help is on — every control describes itself and states its range. Click to turn the tips off.'
-            : 'Hover help is off. Click to turn the tips back on.');
+        helpToggleEl.textContent = tooltipsEnabled ? 'On' : 'Off';
     }
 
     if (persist && setTooltipsEnabledNative) {
@@ -1361,35 +1389,9 @@ function setTooltipsEnabled(enabled, persist) {
     }
 }
 
-function applyBandTooltips(bandId) {
-    const bandName = BAND_LABELS[bandId];
-
-    BAND_TOOLTIPS.forEach(([control, wrapper, title, body]) =>
-        applyTooltip(`#${bandId}-${control}`, `${bandName} — ${title}`, body, wrapper));
-
-    applyTooltip(`#${BAND_GR_METERS[bandId]}`, `${bandName} — Gain Reduction`,
-        'How much this band is being compressed right now. The bar fills as gain reduction deepens, up to −24 dB.',
-        '.gr-meter');
-
-    applyTooltip(`#range-${bandId}`, `${bandName} — Frequency Range`,
-        'The span this band processes. It follows the crossover handles in the analyzer above, so drag them to retune it.',
-        '.band-header');
-}
-
-function applyTooltip(selector, title, body, wrapper) {
-    const element = document.querySelector(selector);
-    if (!element) {
-        console.warn(`Tooltip target not found: ${selector}`);
-        return;
-    }
-
-    const target = wrapper ? (element.closest(wrapper) || element) : element;
-    target.setAttribute('data-tip-title', title);
-    target.setAttribute('data-tip', body);
-}
-
-// The "?" button carries data-tip-always: the control that turns help back on
-// has to keep explaining itself while help is off.
+// The gear button and the hover-help toggle inside the popover both carry
+// data-tip-always: the controls that reach and restore the help layer have to
+// keep explaining themselves while help is off.
 function tipAllowed(target) {
     return tooltipsEnabled || target.hasAttribute('data-tip-always');
 }
@@ -1789,6 +1791,16 @@ function confirmDeletePreset(presetName) {
 // The preset bar is started here for the same reason — and separately from tooltips,
 // so a failure in one cannot prevent the other from running.
 function initializeDeferredUI() {
+    // v1.10.0: i18n first, and in its own try/catch. It writes the copy that
+    // initializeTooltips() then renders, and a typo in the translation table
+    // must not be able to take the tooltip layer — or the preset bar — down
+    // with it. That is exactly the failure mode v1.4.0 shipped.
+    try {
+        initI18n();
+    } catch (e) {
+        console.error('i18n initialization failed:', e);
+    }
+
     try {
         initializeTooltips();
     } catch (e) {
