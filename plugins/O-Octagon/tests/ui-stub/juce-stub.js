@@ -538,9 +538,26 @@ const finite = (v, fallback) => (Number.isFinite(Number(v)) ? Number(v) : fallba
 // keeps the audible fold off the PA for the length of a two-field swap.
 const VENUE_WRITES = [];
 
+// ── THE C++ BACKSTOP'S REFUSAL, DRIVABLE (CODE_REVIEW WR-05) ───────────────
+// applyVenueEditChecked() can reject a payload the PAGE considers valid — the
+// page checks the label set against the committed permutation, the plugin checks
+// it against the NEGOTIATED one, and those diverge on a host renegotiation, on a
+// session restore racing the edit, and permanently in SAFE mode, where
+// buildSpeakerToBuffer fails with notEightChannels on every commit. That branch
+// has no natural lever in this stub — its own diagnoseLabels() agrees with the
+// page by construction — so section 31 arms it explicitly. `speaker: -1` is the
+// SAFE-mode shape, and it is the one that used to produce no on-screen feedback
+// at all.
+let venueRejection = null;
+
 function setVenue(payload) {
   VENUE_WRITES.push(payload === null || typeof payload !== "object"
     ? null : JSON.parse(JSON.stringify(payload)));
+
+  // Armed refusal is checked BEFORE any state is applied, exactly as
+  // applyVenueEditChecked() returns false before applyVenueEdit() runs — so
+  // venueGen does not move and no geometry refresh follows.
+  if (venueRejection !== null) return { ...venueRejection };
 
   if (payload === null || typeof payload !== "object")
     return { ok: false, reason: "notEightChannels", speaker: -1 };
@@ -876,6 +893,17 @@ if (typeof window !== "undefined") {
     // Drive the SAFE banner the way a host re-negotiating a track's output
     // format drives it.
     setStatus(patch) { status = { ...status, ...patch }; },
+
+    // Arm / disarm the C++ backstop's refusal (WR-05). Pass null to disarm.
+    // The payload is still RECORDED in `writes` — "the page asked and was told
+    // no" is the case under test, and is a different claim from section 15's
+    // "the page did not ask".
+    rejectVenueWrites(reason, speaker) {
+      venueRejection = reason === null || reason === undefined
+        ? null
+        : { ok: false, reason: String(reason), speaker: Number(speaker ?? -1) };
+      return venueRejection;
+    },
 
     // Drive the mapInvalid banner, WITH its reason and row (PLAN-3.2 P54/D13).
     // The banner is frame-level and beside SAFE, so it is visible on the Room

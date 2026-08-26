@@ -5364,6 +5364,97 @@ int main()
         check ("CQ safe-fold-render-is-finite", ok, detail);
     }
 
+    //==========================================================================
+    // CR — setStateInformation() PUBLISHES EXACTLY ONCE (CODE_REVIEW WR-01).
+    //
+    //      VenueSnapshotPublisher is a 2-slot double buffer: publish() writes `1 - activeSlot`
+    //      with no knowledge of which slot a READER holds, and processBlock() binds the active
+    //      slot BY REFERENCE once and holds it for the whole callback. ONE publish inside that
+    //      window is safe — it writes the other slot. TWO are not: the second computes
+    //      `1 - (the slot the first just activated)` and lands in the slot the audio thread is
+    //      reading. A data race on ~276 bytes of non-atomic floats and ints, reachable whenever a
+    //      host restores a session or switches a preset with the transport rolling.
+    //
+    //      Until v1.3.2 setStateInformation() did exactly that: readVenueFromState() published,
+    //      and rebuildChannelMap() published again microseconds later.
+    //
+    //      THE PROPERTY IS A COUNT, so this probe counts it. getVenueGeneration() advances by one
+    //      per publish, which makes the count observable from outside without instrumenting the
+    //      publisher. An attribute check — grepping for `publish=false` — would pass with the
+    //      argument threaded to a call site that never runs.
+    //
+    //      Both branches are driven, because the suppression is CONDITIONAL and getting that
+    //      condition wrong is the failure mode the fix could plausibly introduce:
+    //
+    //        prepared    -> rebuildChannelMap() runs, so readVenueFromState() must NOT publish.
+    //                       Expect exactly +1.
+    //        unprepared  -> rebuildChannelMap() is skipped (`if (preparedYet)`), so
+    //                       readVenueFromState() MUST publish or the restored geometry never
+    //                       reaches the audio thread. Expect exactly +1 here too — the same
+    //                       number, for the opposite reason, which is why the second clause below
+    //                       also checks the venue actually ARRIVED.
+    {
+        juce::MemoryBlock state;
+
+        {
+            OOctagonProcessor source;
+            if (negotiate (source, monoIn, set8))
+            {
+                source.applyVenueEdit (makeMeasuredVenue());
+                source.getStateInformation (state);
+            }
+        }
+
+        bool         ok = state.getSize() > 0;
+        juce::String detail;
+
+        if (! ok)
+        {
+            detail << "NO STATE CAPTURED — vacuous";
+        }
+        else
+        {
+            // Branch 1 — PREPARED. The reachable racy path.
+            {
+                OOctagonProcessor prepared;
+                const bool ready = negotiate (prepared, monoIn, set8);
+
+                const auto before = prepared.getVenueGeneration();
+                prepared.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
+                const auto delta = prepared.getVenueGeneration() - before;
+
+                int ignored = -1;
+                const bool arrived = ! sameFortyTwo (oo::VenueModel(), prepared.getVenue(), ignored);
+
+                ok = ok && ready && delta == 1u && arrived;
+                detail << "prepared: " << juce::String (static_cast<int> (delta)) << " publish"
+                       << (delta == 1u ? "" : " — RACY") << ", venue "
+                       << (arrived ? "arrived; " : "DID NOT ARRIVE; ");
+            }
+
+            // Branch 2 — UNPREPARED. A host that restores before prepareToPlay(). The rebuild is
+            // skipped here, so an UNCONDITIONAL suppression would publish ZERO times and leave the
+            // audio thread on the default geometry.
+            {
+                OOctagonProcessor unprepared;
+
+                const auto before = unprepared.getVenueGeneration();
+                unprepared.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
+                const auto delta = unprepared.getVenueGeneration() - before;
+
+                int ignored = -1;
+                const bool arrived = ! sameFortyTwo (oo::VenueModel(), unprepared.getVenue(), ignored);
+
+                ok = ok && delta == 1u && arrived;
+                detail << "unprepared: " << juce::String (static_cast<int> (delta)) << " publish"
+                       << (delta == 1u ? "" : " — SUPPRESSED TOO FAR") << ", venue "
+                       << (arrived ? "arrived" : "DID NOT ARRIVE");
+            }
+        }
+
+        check ("CR setstate-publishes-once", ok, detail);
+    }
+
     scratch32.deleteRecursively();
 
     //==========================================================================

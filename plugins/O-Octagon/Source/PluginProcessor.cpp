@@ -237,7 +237,12 @@ void OOctagonProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     //
     // Order is fixed: the venue defines the labels, and the map is built from the labels against
     // the layout the host has just negotiated.
-    readVenueFromState();
+    //
+    // publish=false: rebuildChannelMap() on the next line publishes unconditionally, and two
+    // publishes inside one processBlock read window overwrite the slot it is holding (WR-01).
+    // Audio is suspended here so this pair was never the reachable one — suppressed for symmetry
+    // with setStateInformation(), which is.
+    readVenueFromState (false);
     rebuildChannelMap();
 
     preparedYet = true;
@@ -341,7 +346,7 @@ void OOctagonProcessor::rebuildChannelMap()
     publishSnapshot();
 }
 
-void OOctagonProcessor::readVenueFromState()
+void OOctagonProcessor::readVenueFromState (bool publish)
 {
     // A missing OR partial VENUE node yields the §OQ4 defaults per attribute — never zeros, never
     // an error. Every session saved during Stage 1 takes exactly that path.
@@ -349,7 +354,39 @@ void OOctagonProcessor::readVenueFromState()
 
     hull.build (venue.speakerPositions());
 
-    publishSnapshot();
+    // ── WHY THE PUBLISH IS OPTIONAL (CODE_REVIEW WR-01) ───────────────────────────────────────
+    //
+    // VenueSnapshotPublisher is a 2-slot double buffer: publish() always writes `1 - activeSlot`
+    // and nothing tracks which slot a READER currently holds. processBlock() binds the active slot
+    // BY REFERENCE once per block and holds it for the whole callback. ONE publish inside that
+    // window is safe — it writes the other slot. TWO are not: the second computes
+    // `1 - (the slot the first just activated)` and lands squarely in the slot the audio thread is
+    // reading. A genuine data race on ~276 bytes of non-atomic floats and ints.
+    //
+    // There were exactly two back-to-back publish pairs in the plugin, and both were
+    // readVenueFromState() immediately followed by rebuildChannelMap():
+    //
+    //   prepareToPlay()        — host-guaranteed non-concurrent with processBlock. Harmless, and
+    //                            suppressed anyway so the two sites read the same.
+    //   setStateInformation()  — REACHABLE. A host preset switch or session restore with the
+    //                            transport rolling runs this concurrently with processBlock, and
+    //                            the two publishes are microseconds apart inside a ~10.7 ms block.
+    //
+    // Every other publisher publishes exactly once: the constructor, and applyVenueEdit(), whose
+    // `if (preparedYet) rebuildChannelMap(); else publishSnapshot();` is an either/or by
+    // construction. The UI cannot drive a double publish — venue.js has ONE setVenue call site and
+    // it commits on blur/Enter, not on drag; the Room-plan puck writes APVTS parameters and never
+    // the venue.
+    //
+    // So suppressing the first of the pair closes every reachable path. It does NOT make the
+    // publisher itself safe against a future second caller. The durable fix is a seqlock (writer
+    // bumps an odd/even version around the slot copy; the audio thread copies the trivially-
+    // copyable snapshot into a local and retries on a changed or odd version) or a 3-slot buffer
+    // where the audio thread publishes its claimed index. Both are hardening, deliberately NOT
+    // taken here — they change the audio thread's read path, and no second caller justifies that
+    // risk today. If one is ever added, add the seqlock with it.
+    if (publish)
+        publishSnapshot();
 }
 
 void OOctagonProcessor::publishSnapshot()
@@ -850,7 +887,15 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
     //    A session written during Stage 1 has NO VENUE child; it restores to the §OQ4 defaults
     //    silently, per attribute, and that is the common case for every project saved so far.
     // 3. Only then can the map be rebuilt, because the labels it resolves come from the venue.
-    readVenueFromState();
+    //
+    // THE PUBLISH IS SUPPRESSED ONLY WHEN THE REBUILD BELOW WILL RUN (WR-01). This call can be
+    // concurrent with processBlock — a host preset switch or session restore while the transport
+    // rolls — and the rebuildChannelMap() at the bottom of this function publishes too. Two
+    // publishes inside one held read window race the audio thread. The condition MUST be the same
+    // `preparedYet` that rebuild is gated on: a host that calls setStateInformation() before
+    // prepareToPlay() skips the rebuild, and an unconditional `false` would then leave the
+    // restored geometry unpublished until something else happened to publish it.
+    readVenueFromState (! preparedYet);
 
     // Normalise the tree: a missing or partial VENUE node is written back complete, so the next
     // getStateInformation() is self-describing and a Stage-1 session is upgraded exactly once.

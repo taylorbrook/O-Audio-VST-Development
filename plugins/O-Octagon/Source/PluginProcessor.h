@@ -410,8 +410,16 @@ private:
     void rebuildChannelMap();
 
     /** Reads the VENUE child of apvts.state (defaults if missing or partial), re-derives geometry,
-        rebuilds the hull, and publishes a new snapshot. Message thread only. */
-    void readVenueFromState();
+        rebuilds the hull, and publishes a new snapshot. Message thread only.
+
+        @param publish  Pass FALSE when a rebuildChannelMap() call follows immediately. That call
+                        publishes unconditionally, so leaving this true makes TWO publishes land
+                        microseconds apart on one message-thread call — and the 2-slot publisher's
+                        second write lands in the very slot a live processBlock is still holding
+                        (CODE_REVIEW WR-01). The suppression must itself be conditional wherever
+                        the following rebuildChannelMap() is: see setStateInformation().
+    */
+    void readVenueFromState (bool publish = true);
 
     /** Copies the current venue + hull + map into a snapshot and publishes it. */
     void publishSnapshot();

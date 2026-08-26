@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.3.0 (dev build installed; not released)
+- **Version:** 1.3.2 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -56,8 +56,87 @@
   rescaled to keep authored radii); width max 6 → 12 m with kFadeFraction 0.15 → 0.05. Preset
   migration hook remaps < 1.3 user presets. Oracle fixture re-anchored to the new spec. Probes:
   unit 45, harness 50 (pow budget now 32 through GainStage), UI 42 + 28 — all green.
+- **2026-08-25 (three-level review, propose-only — no code changed):** Six parallel subsystem
+  reviewers plus an adversarial verification pass produced `CODE_REVIEW.md` (1 Critical,
+  5 Warnings, 34 Info; 3 findings refuted, 2 Criticals downgraded),
+  `.planning/SIMPLIFICATION-AUDIT.md` (16 candidates: 1 HIGH / 7 MEDIUM / 8 LOW) and
+  `.planning/FEATURE-REVIEW.md` (capability inventory, competitive landscape, 10 ranked gaps).
+  Headline defect: **CR-01 breaks all eight meters on every platform, macOS included** —
+  `transform-origin: center` without `transform-box` resolves against the viewBox in both Chromium
+  and WebKit, so every arc renders 507 px off its glyph (measured on the real page in both engines).
+  It shipped because `tests/ui_layout_check.js:1245` asserts DOM parentage and attributes but never
+  measures a rendered position — it passes identically with the arcs off-glyph, so any fix must add
+  a real rendered-geometry assertion. Verification also disproved a
+  repo-wide premise: a JUCE WebView does **not** drop native-fn completions when the *editor* is
+  hidden (the gate is the web view's own `isVisible()` flag, and O-Octagon never clears it) —
+  three findings died with it and the repo memory note was corrected.
+
+- **2026-08-25 (v1.3.1):** CR-01 resolved — the eight level meters actually render on their
+  speakers now. `.meter-arc` / `.meter-peak` `transform-origin: center` → `0 0`: with the SVG
+  default `transform-box: view-box`, `center` resolved to the plan viewBox centre (224 280) in each
+  glyph's own translated space, so every arc rotated about a point 507.1 px away and the peak tick
+  orbited 28–696 px off-plan — identically in Chromium 141 and WebKit 26.5, so the shipped macOS
+  build was broken too, not just Windows. `0 0` names the glyph-local origin, is the SVG initial
+  used value, and needs no `transform-box`; `fill-box` was rejected because the tick's own
+  fill-box centre is (0, −15) and it would spin in place. Section 23 of `ui_layout_check.js`
+  rewritten to measure RENDERED geometry (`getScreenCTM` + `getBoundingClientRect`, seven clauses
+  × 8 speakers, radii derived from the tick's own `y1`/`y2` and angles from its live `rotate()`
+  attribute, plus a > 90°-of-sweep non-vacuity clause) — the old clauses read attributes only and
+  returned ALL SECTIONS PASS on the broken build. Negative control run: CSS reverted with the new
+  gate in place fails 5 clauses / exit 5 while the three original clauses stay green. Both UI
+  gates green (42 + 28). UI/CSS only — no parameter, no DSP, no state change.
+
+- **2026-08-25 (v1.3.2 — CODE_REVIEW WR-01…WR-05):** the five Warning findings from the v1.3.0
+  review, resolved. **WR-01** — `setStateInformation()` published the venue snapshot TWICE
+  microseconds apart (`readVenueFromState()` then `rebuildChannelMap()`), and the 2-slot publisher's
+  second write lands in the slot a live `processBlock()` is holding by reference: a data race on
+  ~276 bytes, reachable on any host preset switch or session restore with the transport rolling.
+  Closed with `readVenueFromState (bool publish = true)` and `! preparedYet` at the call site —
+  suppressed only when the rebuild that follows will run. The seqlock the review proposed as the
+  durable fix was **deliberately declined**: its stated trigger ("a dragged rake control committing
+  venue edits at mouse-move rate") describes code that does not exist, `setStateInformation` was the
+  only reachable double-publish path, and a seqlock changes the audio thread's read path for no
+  live caller. The reasoning is recorded at the function so a future second caller adds it.
+  **WR-02** — the DPR watch was hooked to `resize`, which cannot fire on a fixed-size editor when
+  only the backing scale changes; replaced with a re-arming `matchMedia("(resolution: Xdppx)")`.
+  **WR-03** — `readFloat()` tested presence only, so `rakeFront="tall"` loaded 0.0 (against the
+  header's "never zeros") and `x="nan"` loaded a real NaN that `toValueTree()` wrote back out as
+  `"nan"` and re-read forever; now validated as complete numeric text plus `std::isfinite`.
+  **WR-04** — the footer metres readout followed only the puck, so every other way the source moves
+  left it showing a plausible wrong position; subscribed to the `srcX`/`srcY` echo.
+  **WR-05** — a C++-rejected venue commit left the typed text on screen while the model held the
+  old value, unbounded in SAFE mode where no commit can ever succeed; `paintFields()` now runs in
+  the `ok: false` branch.
+  Gates: render harness 51 probes / 0 failures (`CR setstate-publishes-once` added), geometry target
+  46 / 0 (`P2 venue-nonnumeric-attrs` added), `ui_layout_check` 31 sections (29 DPR, 30 metres echo,
+  31 rejected commit added), `ui_frontend_check` 42 sections, `auval` PASS. Six negative controls
+  run by file swap — two of them changed the work: **NC3** showed section 31 passing with the fix
+  reverted (a pending `resetVenue` refresh was repainting for the wrong reason — a quiesce
+  precondition was added), and the WR-04 fix showed section 14's metres clause had been measuring
+  the staleness rather than the edit (the source is now parked off the bbox rail, where a min-rail
+  move can actually reach the readout).
+  `ui_frontend_check` section 25's "no state in a completion" rule was **narrowed, not dropped**:
+  assigning `committed` in a `.then()` is still forbidden; repainting from already-established state
+  is allowed only inside the `ok: false` refusal branch.
 
 ## Known Issues
+
+**Deliberately deferred at v1.3.2** (from `CODE_REVIEW.md`):
+
+- **The venue-snapshot seqlock.** WR-01's reachable path is closed by suppressing the double
+  publish, but `VenueSnapshotPublisher` itself is still a 2-slot buffer that does not know which
+  slot a reader holds. It is safe today because every publisher publishes exactly once per
+  message-thread call — a property of the *callers*, not of the publisher. **Anyone adding a second
+  publish inside one call must add the seqlock (or a 3-slot reader-claimed-index buffer) with it.**
+  The argument is written out at `readVenueFromState()` in `PluginProcessor.cpp`.
+- **No plausibility clamp in `readFloat()`.** WR-03's fix rejects non-numeric and non-finite text,
+  but not an absurd-but-finite coordinate (`x="1e9"`). `readFloat()` is generic and cannot know
+  whether it is reading a metre, a decibel or a rake, so per-field rails stay where they already
+  are — `kVenueTrimClampDb` and the geometry limits in `publishSnapshot()`. The audio path is
+  covered; the UI would draw a very large room.
+- **The 34 Info findings (`IN-01` … `IN-34`) are untouched.** `/improve-review` resolves the
+  Critical and Warning tiers only. Five of them rest on the hidden-editor premise that verification
+  disproved and are annotated as such in the review rather than deleted.
 
 **Registered risks** — see
 `.planning/stages/0-ideation/CONTEXT.md` for the full register:

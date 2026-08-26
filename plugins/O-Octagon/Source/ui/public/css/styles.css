@@ -413,7 +413,14 @@ html, body {
   stroke-width: 2.5;
   stroke-linecap: butt;
   transform: rotate(-90deg);
-  transform-origin: center;
+  /* `0 0`, NOT `center` (CR-01). The default transform-box for an SVG element
+     is view-box, so `center` resolves to the PLAN viewBox centre (224 280)
+     measured in THIS circle's own glyph-translated local space: every arc was
+     rotated about a point 507 px away and landed off its speaker entirely, in
+     Chromium AND WebKit. This circle carries no cx/cy, so its centre IS local
+     (0,0) — naming that point outright is engine-independent and needs no
+     transform-box override. Measured, per glyph, by ui_layout_check §23. */
+  transform-origin: 0 0;
   stroke-dasharray: 0 94.2478;
 }
 
@@ -427,7 +434,14 @@ html, body {
 .meter-peak {
   stroke: var(--level-hi);
   stroke-width: 1.5;
-  transform-origin: center;
+  /* Same trap as .meter-arc (CR-01), and the same cure. js/roomplan.js writes
+     rotate(peak * 360) as an ATTRIBUTE, and the tick must sweep about the
+     glyph centre — local (0,0) — not the viewBox centre, which flung it
+     509-729 px off-plan. `0 0` is also the SVG initial used transform-origin,
+     so this line states out loud what the tick was always assumed to do.
+     NOT fill-box: this line's own fill-box centre is (0,-15), which would
+     spin the tick on its own midpoint instead of sweeping it round the arc. */
+  transform-origin: 0 0;
   opacity: 0;
 }
 

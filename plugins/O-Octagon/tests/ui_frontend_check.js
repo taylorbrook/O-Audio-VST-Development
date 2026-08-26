@@ -978,12 +978,42 @@ head(25, 'authoritative UI state converges on the venueGen poll, never on a comp
     check(/paintFields\(\)/.test(setGeom),
         'the table repaints from setGeometry() — i.e. from the venueGen refresh path');
 
-    // No .then() handler may be the thing that establishes committed state.
+    // No .then() handler may be the thing that ESTABLISHES committed state.
     const thenBodies = [...VENUE_CODE.matchAll(/\.then\(/g)]
         .map(m => blockAt(VENUE_CODE, m.index));
-    const stateful = thenBodies.filter(b => /committed\s*=/.test(b) || /paintFields\(\)/.test(b));
-    check(stateful.length === 0,
-        `no .then() handler establishes venue state — ${thenBodies.length} handler(s) scanned`);
+
+    const establishing = thenBodies.filter(b => /committed\s*=/.test(b));
+    check(establishing.length === 0,
+        `no .then() handler ASSIGNS committed — ${thenBodies.length} handler(s) scanned`);
+
+    // ── WHY THIS RULE WAS SPLIT IN TWO (v1.3.2, CODE_REVIEW WR-05) ───────────
+    //
+    // Until v1.3.2 the single check above also rejected any `paintFields()`
+    // inside a .then(), and the two are not the same thing. `committed = ...`
+    // ESTABLISHES state: if the completion is dropped the page never learns the
+    // truth, which is the whole content of N4/P64. `paintFields()` RE-RENDERS
+    // state the venueGen poll has already established: if that completion is
+    // dropped the page is left exactly where it already was, so it can make the
+    // UI no staler than not calling it at all. Only the first is a convergence
+    // hazard.
+    //
+    // WR-05 needs the second: on a C++ REJECTION nothing publishes, venueGen
+    // never moves, and the poll-driven repaint the rest of this section is about
+    // never runs — so the rejected text sat in the input while the model held
+    // the old value, unbounded in SAFE mode where no commit can ever succeed.
+    // The repaint has to happen on the refusal, because the refusal is the only
+    // event there is.
+    //
+    // The rule is NARROWED, not dropped: a repaint in a completion is allowed
+    // ONLY in the branch that handles a refusal. A .then() that repainted
+    // unconditionally would still be a convergence claim resting on a
+    // completion, and still fails here.
+    const repainting = thenBodies.filter(b => /paintFields\(\)/.test(b));
+    const guardedByRefusal = repainting.filter(b => /ok\s*===\s*false/.test(b));
+
+    check(repainting.length === guardedByRefusal.length,
+        `every .then() that repaints is inside the ok:false REFUSAL branch — `
+        + `${guardedByRefusal.length}/${repainting.length}`);
 
     // And app.js drives it from the poll it already had.
     check(/venueScreen\.setGeometry\(geometry\)/.test(S.appJs),

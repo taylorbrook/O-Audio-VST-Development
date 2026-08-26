@@ -751,6 +751,46 @@ async function nudge(page, id) {
     // plan as a 3.2 gate. Section 7 proved the readout follows a MUTATED STUB;
     // this proves it follows a value the OPERATOR TYPED on the other screen.
     await showRoom();
+
+    // ── THE SOURCE HAS TO BE OFF THE RAIL FOR THE METRES CLAUSE TO MEAN
+    //    ANYTHING (found by the WR-04 fix, v1.3.2) ──────────────────────────
+    //
+    // Until v1.3.2 the metres clause below read `metBefore` from a footer that
+    // WR-04 had left STALE: renderMetres() had exactly one live subscriber (the
+    // puck's pointermove), so the venue edit here was the first thing to
+    // recompute it since the source had last moved. "The readout changed" was
+    // measuring the accumulated staleness, not the edit — a probe reporting on
+    // the bug rather than on the behaviour.
+    //
+    // With the footer subscribed to the srcX / srcY echo the clause failed, and
+    // it was RIGHT to: the source sits at normalised 1.0, where metres.x is the
+    // bbox MAX rail, and the edit below moves speaker 1's x — a MIN rail. The
+    // mapping is metres = min + n*(max - min), so a min-rail move of Δ shifts
+    // the readout by (1 - n)*Δ, which at n = 1 is exactly zero. Nothing was
+    // broken; the stimulus could not reach the readout.
+    //
+    // Park the source in the interior, where the mapping is sensitive to both
+    // rails, and read `metBefore` AFTER that settles — so what the clause
+    // compares is the venue edit alone. Driven through the control's own `input`
+    // event, which is the same path a finger takes.
+    const srcParked = await page.evaluate(() => ({
+        x: document.getElementById('ctl-srcX').value,
+        y: document.getElementById('ctl-srcY').value,
+    }));
+
+    const driveSource = async (id, norm) => {
+        const el = await page.$(`#ctl-${id}`);
+        if (el === null) return;
+        await el.evaluate((e, v) => {
+            e.value = String(v);
+            e.dispatchEvent(new Event('input', { bubbles: true }));
+        }, norm);
+    };
+
+    await driveSource('srcX', 0.5);
+    await driveSource('srcY', 0.5);
+    await page.waitForTimeout(120);
+
     const envBefore = await page.evaluate(() => document.getElementById('readout-envelope').textContent);
     const metBefore = await page.evaluate(() => document.getElementById('readout-metres').textContent);
 
@@ -774,6 +814,13 @@ async function nudge(page, id) {
     await page.evaluate(() => window.__OCTAGON_STUB__.resetVenue());
     await page.waitForFunction(t => document.getElementById('readout-envelope').textContent !== t,
         envAfter, { timeout: SETTLE_MS }).catch(() => {});
+
+    // Put the source back where the sections after this one found it, so this
+    // section's fixture does not become their hidden precondition.
+    await driveSource('srcX', srcParked.x);
+    await driveSource('srcY', srcParked.y);
+    await page.waitForTimeout(120);
+
     await showVenue();
 
     // ── 15 ───────────────────────────────────────────────────────────────────
@@ -1242,7 +1289,7 @@ async function nudge(page, id) {
         `and the §OQ4 grading is visible rather than flat — ${distinctY} distinct y positions`);
 
     // ── 23 ───────────────────────────────────────────────────────────────────
-    head(23, 'eight meter arcs, at their glyph positions, OUTSIDE the glyph stroke (UI-03/1, D23)');
+    head(23, 'eight meter arcs, MEASURED at their glyph positions, OUTSIDE the glyph stroke (UI-03/1, D23)');
 
     const meterGeom = await page.evaluate(() => {
         const out = [];
@@ -1308,6 +1355,158 @@ async function nudge(page, id) {
     check(wrongIndex.length === 0,
         'a ping stepping 1 -> 8 lights the MATCHING arc and the other seven read zero'
         + (wrongIndex.length ? ` — MISMATCHES: ${wrongIndex.join(' ')}` : ''));
+
+    // ── UI-03/1 — RENDERED GEOMETRY. IS THE ARC ACTUALLY *ON* ITS GLYPH? ───
+    //
+    // Until v1.3.1 this section asserted DOM parentage, the `r` attributes and
+    // the `stroke-dasharray` attribute — and passed, green, through a shipped
+    // release in which all eight arcs rendered 507 px from their speakers in
+    // BOTH engines (CODE_REVIEW CR-01). Every attribute it read was correct;
+    // the CSS `transform-origin: center` on an SVG element resolved against the
+    // viewBox and threw the rotation origin half a plan away, which no
+    // attribute can show. A probe that passes whether or not the bug is present
+    // is decoration (pattern_probe_must_target_the_branch_the_fix_changed), so
+    // every clause below reads a RENDERED position: getScreenCTM for where the
+    // rotation origin landed, getBoundingClientRect for where the ink landed.
+    //
+    // NEGATIVE CONTROL, run before this block was accepted: with
+    // `transform-origin: center` put back in styles.css, clauses 2-6 fail 8/8
+    // (arc origin AND ink 507.1 px off, tick radius 28-696 px instead of 15) —
+    // in Chromium 141 and, re-run by hand, in WebKit 26.5. This is the failure
+    // the gate owed the shipped build and did not raise.
+    //
+    // Eight DISTINCT peaks, so the eight ticks sit at eight different angles: a
+    // tick resting at 0 deg is at its authored position, where a wrong origin
+    // cannot displace it, and would satisfy clause 6 no matter what. Clause 7
+    // refuses to let a flat set stand in for a swept one.
+    await page.evaluate(() =>
+        window.__OCTAGON_STUB__.setMeters([0.9, 0.7, 0.55, 0.42, 0.3, 0.2, 0.12, 0.06]));
+    await page.waitForFunction(() => {
+        for (let i = 1; i <= 8; ++i) {
+            const t = document.getElementById(`mpeak-${i}`).getAttribute('transform');
+            if (t === null || !/rotate\(\s*[\d.]/.test(t)) return false;
+        }
+        return true;
+    }, null, { timeout: SETTLE_MS }).catch(() => {});
+
+    // The angle and the position are read in the SAME evaluate, so the tick's
+    // transform attribute and the tick's rendered point cannot skew across a
+    // ballistics frame and manufacture a failure out of timing.
+    const rendered = await page.evaluate(() => {
+        const at = (el, x, y) => {
+            const q = new DOMPoint(x, y).matrixTransform(el.getScreenCTM());
+            return { x: q.x, y: q.y };
+        };
+        const inkCentre = (el) => {
+            const b = el.getBoundingClientRect();
+            return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        };
+        const out = [];
+        for (let n = 1; n <= 8; ++n) {
+            const g    = document.getElementById(`glyph-${n}`);
+            const dot  = g.querySelector('.glyph-dot');
+            const arc  = document.getElementById(`meter-${n}`);
+            const tick = document.getElementById(`mpeak-${n}`);
+
+            // The glyph centre, MEASURED: .glyph-dot carries no cx/cy and no
+            // transform of its own, so its local origin is the speaker itself.
+            const centre  = at(dot, 0, 0);
+            const arcAt   = at(arc, 0, 0);
+
+            // The tick's radius comes from the tick's OWN y1/y2, never from a
+            // literal 15 (pattern_test_fixture_mirrors_drift_silently), and its
+            // angle from the attribute js/roomplan.js actually wrote.
+            const mid    = (Number(tick.getAttribute('y1')) + Number(tick.getAttribute('y2'))) / 2;
+            const deg    = parseFloat(String(tick.getAttribute('transform')).replace(/^\D*/, ''));
+            const rad    = (deg * Math.PI) / 180;
+            const tickAt = at(tick, 0, mid);
+
+            out.push({
+                n,
+                arcBox:     getComputedStyle(arc).transformBox,
+                arcOrigin:  getComputedStyle(arc).transformOrigin,
+                tickBox:    getComputedStyle(tick).transformBox,
+                tickOrigin: getComputedStyle(tick).transformOrigin,
+
+                // Where the arc's rotation origin landed, and where its ink
+                // landed. Both have to be the glyph centre, and they fail
+                // independently — the first is the transform, the second is
+                // the paint.
+                arcOriginOff: Math.hypot(arcAt.x - centre.x, arcAt.y - centre.y),
+                arcInkOff:    Math.hypot(inkCentre(arc).x - inkCentre(dot).x,
+                                         inkCentre(arc).y - inkCentre(dot).y),
+
+                deg,
+                arcR:       Number(arc.getAttribute('r')),
+                wantRadius: Math.abs(mid),
+                tickRadius: Math.hypot(tickAt.x - centre.x, tickAt.y - centre.y),
+
+                // SVG rotate(a) sends (0, mid) to (-mid*sin a, mid*cos a) about
+                // the origin it is given. Predicted from the tick's own angle,
+                // compared against the MEASURED point.
+                tickErr: Math.hypot(tickAt.x - (centre.x - mid * Math.sin(rad)),
+                                    tickAt.y - (centre.y + mid * Math.cos(rad))),
+            });
+        }
+        return out;
+    });
+
+    // The defect this catches is 507 px. Residual error with the fix in place
+    // is under 0.05 px in both engines, so half a pixel is a wide moat.
+    const GEOM_TOL = 0.5;
+    const worst = (k) => Math.max(...rendered.map(m => m[k])).toFixed(3);
+    const bad   = (k) => rendered.filter(m => !near(m[k], 0, GEOM_TOL));
+    const list  = (ms, k) => ms.map(m => `spk${m.n} ${m[k].toFixed(1)}px`).join(', ');
+
+    check(rendered.every(m => m.arcBox === 'view-box' && m.tickBox === 'view-box'),
+        'transform-box is left at the SVG default on arc and tick — '
+        + `got ${rendered[0].arcBox} / ${rendered[0].tickBox}`);
+
+    check(rendered.every(m => m.arcOrigin === '0px 0px' && m.tickOrigin === '0px 0px'),
+        'so transform-origin must name the glyph-local origin outright, and computes to 0px 0px — '
+        + `got ${rendered[0].arcOrigin} / ${rendered[0].tickOrigin} `
+        + '(224px 280px is the viewBox centre, i.e. CR-01 is back)');
+
+    const originBad = bad('arcOriginOff');
+    check(originBad.length === 0,
+        'every arc ROTATES ABOUT its own glyph centre — getScreenCTM(0,0) lands on the dot'
+        + (originBad.length ? ` — OFF BY: ${list(originBad, 'arcOriginOff')}`
+                            : ` (worst ${worst('arcOriginOff')} px of 8)`));
+
+    const inkBad = bad('arcInkOff');
+    check(inkBad.length === 0,
+        'and every arc PAINTS on its own glyph — rendered box centre lands on the dot\'s'
+        + (inkBad.length ? ` — OFF BY: ${list(inkBad, 'arcInkOff')}`
+                         : ` (worst ${worst('arcInkOff')} px of 8)`));
+
+    check(rendered.every(m => near(m.wantRadius, m.arcR, GEOM_TOL)),
+        'the peak tick straddles the arc it marks — tick |y1+y2|/2 = '
+        + `${rendered[0].wantRadius} matches the arc r = ${rendered[0].arcR}`);
+
+    const radiusBad = rendered.filter(m => !near(m.tickRadius, m.wantRadius, GEOM_TOL));
+    check(radiusBad.length === 0,
+        'and every peak tick ORBITS at that radius instead of flying off-plan'
+        + (radiusBad.length
+            ? ` — MEASURED: ${radiusBad.map(m => `spk${m.n} ${m.tickRadius.toFixed(1)}px want ${m.wantRadius}`).join(', ')}`
+            : ` (all eight ${rendered[0].tickRadius.toFixed(2)} px)`));
+
+    const angleBad = bad('tickErr');
+    check(angleBad.length === 0,
+        'landing at the angle its own transform attribute asked for'
+        + (angleBad.length
+            ? ` — OFF BY: ${angleBad.map(m => `spk${m.n} rotate(${m.deg.toFixed(1)}) ${m.tickErr.toFixed(1)}px`).join(', ')}`
+            : ` (worst ${worst('tickErr')} px of 8)`));
+
+    const degs   = rendered.map(m => m.deg);
+    const spread = Math.max(...degs) - Math.min(...degs);
+    const fromRest = Math.max(...degs.map(d => Math.abs(((d + 180) % 360) - 180)));
+    check(spread > 90 && fromRest > 30,
+        `[non-vacuity] the eight ticks were measured across ${spread.toFixed(0)} deg of sweep, the `
+        + `furthest ${fromRest.toFixed(0)} deg from rest — an unrotated tick sits where it was `
+        + 'authored and CANNOT be displaced by a wrong origin, so a flat set would prove nothing');
+
+    // Leave the meters where the next section expects them.
+    await page.evaluate(() => window.__OCTAGON_STUB__.setMeters([0, 0, 0, 0, 0, 0, 0, 0]));
 
     // ── 24 ───────────────────────────────────────────────────────────────────
     head(24, 'the scene preview responds to HOVER *and* KEYBOARD FOCUS (D21/FUNC-06/3)');
@@ -1669,13 +1868,272 @@ async function nudge(page, id) {
         `[non-vacuity] the stimulus REACHED the module — ${guard.calls} getMeters calls in `
         + `${GUARD_WAIT_MS} ms (a latched poll would read exactly 1)`);
 
+    // ── 29 ───────────────────────────────────────────────────────────────────
+    head(29, 'a DPR change with NO resize event rebuilds the plan backing store (WR-02)');
+
+    // WHAT THIS REPLACES. Section 21 measures the elevation strip at DPR 1 and
+    // DPR 2 in two SEPARATE browser contexts — construction-time DPR only. It
+    // therefore cannot see a LIVE transition, which is the case roomplan.js's
+    // own comment describes ("a window dragged between a Retina and a
+    // non-Retina display changes DPR without changing any CSS size"): until
+    // v1.3.2 that comment sat above `window.addEventListener("resize", ...)`,
+    // an event that cannot fire for it. The editor is a fixed 1100 x 720
+    // non-resizable surface, so the CSS viewport never changes, and a
+    // backing-scale change with an unchanged CSS viewport dispatches no resize.
+    //
+    // Playwright cannot change deviceScaleFactor on a live page, so the harness
+    // below substitutes devicePixelRatio and matchMedia BEFORE the page's own
+    // scripts run and fires the media query the way a UA does. That is a
+    // fixture for the ENVIRONMENT, not for the module: roomplan.js is the
+    // shipped file, unmodified, and every assertion reads a rendered
+    // backing-store size.
+    //
+    // The clause that makes it non-vacuous is `resizes === 0`. If a resize
+    // event had fired, the OLD code would pass this section too.
+    const dprPage = await context.newPage();
+
+    await dprPage.addInitScript(() => {
+        let ratio = 1;
+        let resizes = 0;
+        const armed = [];
+
+        Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: () => ratio });
+
+        window.matchMedia = (query) => {
+            const mq = {
+                media: query,
+                matches: true,
+                listeners: [],
+                addEventListener(type, fn) { if (type === 'change') mq.listeners.push(fn); },
+                removeEventListener(type, fn) {
+                    const i = mq.listeners.indexOf(fn);
+                    if (i >= 0) mq.listeners.splice(i, 1);
+                },
+                addListener(fn) { mq.listeners.push(fn); },
+                removeListener(fn) {
+                    const i = mq.listeners.indexOf(fn);
+                    if (i >= 0) mq.listeners.splice(i, 1);
+                },
+            };
+            armed.push(mq);
+            return mq;
+        };
+
+        // Registered before the page's own listeners, so it counts every resize
+        // the page could possibly have seen.
+        window.addEventListener('resize', () => { ++resizes; });
+
+        window.__DPR_HARNESS__ = {
+            resizes: () => resizes,
+            // Queries that still hold a live listener — a one-shot hook that
+            // was never re-armed reads 0 here after the first fire.
+            armedQueries: () => armed.filter(m => m.listeners.length > 0).map(m => m.media),
+            setRatio(next) {
+                ratio = next;
+                // Fire exactly what the UA fires: every armed query whose stated
+                // resolution no longer matches. No resize event.
+                for (const mq of armed.slice()) {
+                    const m = /\(resolution:\s*([0-9.]+)dppx\)/.exec(mq.media);
+                    if (m === null || Number(m[1]) === next) continue;
+                    mq.matches = false;
+                    for (const fn of mq.listeners.slice()) fn.call(mq, { matches: false, media: mq.media });
+                }
+            },
+        };
+    });
+
+    await dprPage.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    await dprPage.waitForFunction(
+        () => document.getElementById('readout-envelope').textContent !== '—',
+        null, { timeout: 10000 }).catch(() => {});
+
+    const readBacking = () => dprPage.evaluate(() => {
+        const c = document.getElementById('plan-backdrop');
+        const r = c.getBoundingClientRect();
+        return { store: c.width, cssW: r.width, armed: window.__DPR_HARNESS__.armedQueries() };
+    });
+
+    const dprBefore = await readBacking();
+
+    check(dprBefore.cssW > 0 && dprBefore.store > 0,
+        `plan backdrop rendered at DPR 1 — ${dprBefore.cssW.toFixed(1)} css px, `
+        + `${dprBefore.store} px backing store`);
+    check(dprBefore.armed.some(q => /resolution:\s*1dppx/.test(q)),
+        `[non-vacuity] the module ARMED a resolution watch at construction — [${dprBefore.armed.join(', ')}]`);
+
+    await dprPage.evaluate(() => window.__DPR_HARNESS__.setRatio(2));
+    await dprPage.waitForFunction(
+        w => document.getElementById('plan-backdrop').width !== w,
+        dprBefore.store, { timeout: SETTLE_MS }).catch(() => {});
+
+    const dprAfter = await readBacking();
+    const dprResizes = await dprPage.evaluate(() => window.__DPR_HARNESS__.resizes());
+
+    // Clause 1 — the backing store followed the ratio. The CSS box is unchanged
+    // (that is the whole premise), so the store must have DOUBLED.
+    check(near(dprAfter.store / Math.max(dprBefore.store, 1), 2, 0.02),
+        `the backing store REBUILT at the new ratio — ${dprBefore.store} -> ${dprAfter.store} px `
+        + `(css width unchanged, ${dprBefore.cssW.toFixed(1)} -> ${dprAfter.cssW.toFixed(1)})`);
+
+    // Clause 2 — and it did NOT arrive through a resize. Without this the old
+    // resize-only code passes the section.
+    check(dprResizes === 0,
+        `and NOT through a resize event — ${dprResizes} resize events dispatched in the whole run`);
+
+    // Clause 3 — the one-shot trap. A `(resolution: Ndppx)` query stops matching
+    // the moment the ratio moves and never fires again, so a hook armed once at
+    // construction is good for exactly one transition. This asserts the re-arm.
+    check(dprAfter.armed.some(q => /resolution:\s*2dppx/.test(q)),
+        `and the watch RE-ARMED against the new ratio — [${dprAfter.armed.join(', ')}]`);
+
+    await dprPage.close();
+
+    // ── 30 ───────────────────────────────────────────────────────────────────
+    head(30, 'the footer METRES readout follows srcX from the CONTROLS COLUMN, not just the puck (WR-04)');
+
+    // Section 14 moves the metres readout by editing the VENUE — that path runs
+    // through refreshGeometry(), which calls renderMetres() itself. It says
+    // nothing about the source moving. Until v1.3.2 renderMetres() had exactly
+    // one live-update subscriber: roomplan's onSourceMoved, called from ONE
+    // place — the puck's pointermove handler. Dragging ctl-srcX, stepping it
+    // from the keyboard, its dblclick reset and host automation all moved the
+    // puck and updated val-srcX while the footer went on showing a plausible
+    // WRONG position, which is worse than a blank one on a live-hall
+    // calibration tool. index.html's own Source X tooltip promises "the metres
+    // readout below is live".
+    //
+    // Driven with a KEY on the slider, never the puck: a pointer gesture on the
+    // puck is the one path that always worked.
+    await showRoom();
+
+    const metresBefore = await page.evaluate(() => document.getElementById('readout-metres').textContent);
+    const valXBefore   = await page.evaluate(() => document.getElementById('val-srcX').textContent);
+
+    const nudged = await nudge(page, 'srcX');
+    await page.waitForFunction(t => document.getElementById('readout-metres').textContent !== t,
+        metresBefore, { timeout: SETTLE_MS }).catch(() => {});
+
+    const metresAfter = await page.evaluate(() => document.getElementById('readout-metres').textContent);
+    const valXAfter   = await page.evaluate(() => document.getElementById('val-srcX').textContent);
+
+    // [non-vacuity] The stimulus has to have reached the ECHO, or both clauses
+    // below are passing on nothing. val-srcX is written by bindSlider's own
+    // render on the same valueChangedEvent the fix subscribes to, so if this
+    // moved, the echo fired.
+    check(nudged && valXAfter !== valXBefore,
+        `[non-vacuity] a key on ctl-srcX reached the parameter echo — val-srcX "${valXBefore}" -> "${valXAfter}"`);
+
+    check(metresBefore !== '—' && metresBefore !== '',
+        `metres readout populated before the nudge — "${metresBefore}"`);
+    check(metresAfter !== metresBefore,
+        `and the footer FOLLOWED a controls-column move — "${metresBefore}" -> "${metresAfter}"`);
+
+    // ── 31 ───────────────────────────────────────────────────────────────────
+    head(31, 'a C++-REJECTED venue commit repaints the table from the MODEL (WR-05)');
+
+    // THE CASE SECTION 15 DOES NOT COVER. Section 15 is the JS-detected
+    // collision: the page refuses to call setVenue at all, and HOLDS the typed
+    // label on purpose (reverting would make an L <-> R swap unreachable, P53).
+    // This is the other branch — the page asked and the PLUGIN said no.
+    // applyVenueEditChecked() returns false before applyVenueEdit() runs, so
+    // nothing publishes, venueGen never moves, and the venueGen-gated
+    // refreshGeometry -> setGeometry -> paintFields chain never runs. Until
+    // v1.3.2 pending.clear() had already dropped the typed value, so the input
+    // went on displaying a number the model does not hold and the NEXT commit
+    // would silently send the old one.
+    //
+    // Armed with the SAFE-mode shape (`speaker: -1`), which is the reachable
+    // unbounded case: on a mono or stereo output — supported AU configurations —
+    // buildSpeakerToBuffer fails with notEightChannels on EVERY commit, the
+    // venue inputs are not disabled, and a -1 row index means not even the
+    // is-colliding mark appears. No commit can ever succeed there, so nothing
+    // ever heals the desync.
+    await showVenue();
+    await page.evaluate(() => window.__OCTAGON_STUB__.resetVenue());
+
+    // ── [precondition] QUIESCE, AND WHY THIS LINE EXISTS ─────────────────────
+    //
+    // resetVenue() above bumps venueGen, and the refresh it triggers arrives on
+    // the 2 Hz status poll — up to a poll period later. If that refresh lands
+    // AFTER the rejected commit below, its own paintFields() repaints the table
+    // for entirely the wrong reason and the section passes whether or not the
+    // fix is present. It did exactly that: NC3 (revert venue.js, re-run) came
+    // back ALL SECTIONS PASS, and this section was decoration until the wait
+    // below was added (pattern_probe_must_target_the_branch_the_fix_changed).
+    // With it, NC3 fails on the display clause.
+    const quiesce = [];
+    for (let i = 0; i < 6; ++i) {
+        await page.waitForTimeout(STATUS_POLL_MS);
+        quiesce.push(await page.evaluate(() =>
+            `${document.getElementById('readout-envelope').textContent}|`
+            + `${document.getElementById('vf-1-x').value}`));
+        if (quiesce.length >= 3 && quiesce.slice(-3).every(v => v === quiesce[quiesce.length - 1])) break;
+    }
+    const settled = quiesce.length >= 3
+        && quiesce.slice(-3).every(v => v === quiesce[quiesce.length - 1]);
+
+    check(settled,
+        `[precondition] the venue refresh QUIESCED before anything was typed — `
+        + `stable at "${quiesce[quiesce.length - 1]}" across 3 consecutive ${STATUS_POLL_MS} ms ticks`);
+
+    const rejCommitted = await page.evaluate(() => document.getElementById('vf-1-x').value);
+    const rejEnvBefore = await page.evaluate(() => document.getElementById('readout-envelope').textContent);
+    const rejWritesBefore = await venueWriteCount();
+
+    await page.evaluate(() => window.__OCTAGON_STUB__.rejectVenueWrites('notEightChannels', -1));
+
+    const REJECTED_TEXT = '-7.25';
+    await typeInto('vf-1-x', REJECTED_TEXT);
+    await blurActive();
+
+    await page.waitForFunction(n => window.__OCTAGON_STUB__.venueWrites.length > n,
+        rejWritesBefore, { timeout: SETTLE_MS }).catch(() => {});
+    await page.waitForFunction(v => document.getElementById('vf-1-x').value === v,
+        rejCommitted, { timeout: SETTLE_MS }).catch(() => {});
+
+    const rej = await page.evaluate(n => {
+        const w = window.__OCTAGON_STUB__.venueWrites;
+        return {
+            calls: w.length - n,
+            sentX: w.length ? String(w[w.length - 1].speakers[0].x) : null,
+            shown: document.getElementById('vf-1-x').value,
+            marked: document.getElementById('vf-label-1').classList.contains('is-colliding'),
+            env: document.getElementById('readout-envelope').textContent,
+        };
+    }, rejWritesBefore);
+
+    // [non-vacuity] The page ASKED — a section where setVenue was never called
+    // would satisfy the display clause trivially, because nothing was ever typed
+    // through to a refusal.
+    check(rej.calls === 1 && Number(rej.sentX) === Number(REJECTED_TEXT),
+        `[non-vacuity] the page committed the typed value exactly once — ${rej.calls} call(s), x = ${rej.sentX}`);
+
+    // And the refusal really did leave the model where it was: no publish, no
+    // venueGen bump, so no geometry refresh could have done the repaint for us.
+    check(rej.env === rejEnvBefore,
+        `the refusal moved NOTHING downstream — envelope readout unchanged, "${rej.env}"`);
+
+    // THE CLAIM.
+    check(rej.shown === rejCommitted,
+        `the field went back to the value the plugin HOLDS — showed "${REJECTED_TEXT}", `
+        + `now "${rej.shown}" (committed "${rejCommitted}")`);
+
+    // Why the repaint is the only feedback in this shape.
+    check(!rej.marked,
+        'and with speaker = -1 there is no is-colliding mark to fall back on — the repaint IS the feedback');
+
+    await page.evaluate(() => {
+        window.__OCTAGON_STUB__.rejectVenueWrites(null);
+        window.__OCTAGON_STUB__.resetVenue();
+    });
+
     // ── done ─────────────────────────────────────────────────────────────────
     await context.close();
     await browser.close();
     server.close();
     fs.rmSync(root, { recursive: true, force: true });
 
-    console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 28 sections`);
+    console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 31 sections`);
     process.exit(failed);
 })().catch(err => {
     console.error('\nui_layout_check crashed:', err);

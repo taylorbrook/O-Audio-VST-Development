@@ -104,19 +104,120 @@ namespace
         return i >= 0 && i < VenueModel::kNumSpeakers;
     }
 
-    /** Reads one float attribute, falling back to `fallback` when the property is absent.
+    /** True iff `text` is a COMPLETE decimal number and nothing else.
+
+        juce::String::getDoubleValue() — which is what a var->double conversion runs on a string
+        var — parses a leading number and silently ignores whatever follows, returning 0.0 when
+        there is no leading number at all. So `"tall"` reads as 0.0 and `"3m"` reads as 3.0, and
+        neither is distinguishable afterwards from a genuine `"0"` or `"3"`. The only place that
+        distinction still exists is the TEXT, so it is made here, before the conversion.
+
+        The grammar accepted is exactly the one getDoubleValue() consumes in full — optional sign,
+        digits with at most one decimal point, optional exponent — with the trailing-garbage and
+        empty cases rejected. Note that `"nan"` and `"inf"` fail here by construction (no leading
+        digit), which is the first of the two guards below; the isfinite() check is the second, and
+        catches an XML attribute that arrives as a real non-finite double rather than as text.
+    */
+    bool isCompleteNumericText (const juce::String& text) noexcept
+    {
+        const juce::String trimmed = text.trim();
+
+        if (trimmed.isEmpty())
+            return false;
+
+        auto p = trimmed.getCharPointer();
+
+        if (*p == '-' || *p == '+')
+            ++p;
+
+        bool anyDigit = false;
+
+        while (p.isDigit()) { ++p; anyDigit = true; }
+
+        if (*p == '.')
+        {
+            ++p;
+            while (p.isDigit()) { ++p; anyDigit = true; }
+        }
+
+        if (! anyDigit)
+            return false;
+
+        if (*p == 'e' || *p == 'E')
+        {
+            ++p;
+
+            if (*p == '-' || *p == '+')
+                ++p;
+
+            if (! p.isDigit())
+                return false;
+
+            while (p.isDigit())
+                ++p;
+        }
+
+        return p.isEmpty();
+    }
+
+    /** Reads one float attribute, falling back to `fallback` when the property is absent, or
+        present but not a finite number.
 
         This is where "partial node yields defaults PER ATTRIBUTE" is actually implemented: the
         fallback is applied one property at a time, so a VENUE node carrying only @rakeRear keeps
         that value and defaults everything else, rather than being discarded wholesale or read as
         zeros.
+
+        ── THE VALIDATION, AND WHY IT IS HERE (CODE_REVIEW WR-03) ────────────────────────────────
+
+        Until v1.3.2 the guard tested PRESENCE only, and the conversion that followed had no
+        numeric-validity and no finiteness check. Two things got through:
+
+          `<VENUE rakeFront="tall">`  loaded rakeFront = 0.0 — a flat audience plane — rather than
+                                     the §OQ4 default of 1.10, because getDoubleValue() returns 0.0
+                                     for non-numeric text.
+          `<SPEAKER x="nan">`        loaded a REAL NaN, because JUCE's parser recognises the
+                                     literal words "nan" and "inf"
+                                     (juce_CharacterFunctions.h returns quiet_NaN()/infinity()).
+
+        This is the normal conversion path, not an exotic one: getStateInformation() serialises via
+        createXml(), so on restore EVERY property in the tree is a string var. Two doors carry
+        user-controlled text in — setStateInformation() -> readVenueFromState(), and
+        VenueFile::load(), whose validation is structural only, on a file format this model
+        explicitly supports hand-editing.
+
+        The AUDIO thread was never at risk: publishSnapshot() sanitises every field it copies. But
+        the message-thread model itself feeds the UI readouts and the Room plan, and toValueTree()
+        writes the value straight back out — juce::String(double) renders a NaN as "nan", which
+        this function then re-reads as a NaN. The corruption loop closed across saves, which is why
+        the guard belongs at ingestion rather than downstream.
+
+        The project had already closed the other three doors with this exact idiom: finiteOr() on
+        the UI write path (PluginEditor.cpp), the isfinite/jlimit pair on scene weights
+        (SceneModel.cpp), and publishSnapshot() on the audio path. This is the fourth.
+
+        NO PLAUSIBILITY CLAMP IS APPLIED HERE, deliberately. readFloat() is generic — it does not
+        know whether it is reading a metre, a decibel or a rake — so a range would have to be
+        passed by every caller or guessed. Finiteness is the property this function can actually
+        assert. Per-field rails stay where they already are: kVenueTrimClampDb and the geometry
+        limits in publishSnapshot().
     */
     float readFloat (const juce::ValueTree& tree, const juce::Identifier& prop, float fallback)
     {
         if (! tree.isValid() || ! tree.hasProperty (prop))
             return fallback;
 
-        return static_cast<float> (static_cast<double> (tree.getProperty (prop)));
+        const juce::var raw = tree.getProperty (prop);
+
+        if (raw.isString() && ! isCompleteNumericText (raw.toString()))
+            return fallback;
+
+        const double value = static_cast<double> (raw);
+
+        if (! std::isfinite (value))
+            return fallback;
+
+        return static_cast<float> (value);
     }
 
     juce::String readString (const juce::ValueTree& tree,
