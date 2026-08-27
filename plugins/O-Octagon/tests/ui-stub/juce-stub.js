@@ -127,6 +127,23 @@ const RANGES = {
   airAmount:  { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.35 },
 
   outputGain: { start: -24, end: 12, skew: 1, interval: 0,     def: 0.0 },
+
+  // ── v1.8.0 — the motion group. The Bool and the two Choices are listed
+  // here too (start 0, end = choices − 1) so ui_frontend_check §15 compares
+  // all 28 against createParameterLayout() with one parser; the states they
+  // back are StubToggleState / StubComboBoxState below, not sliders.
+  // motionRate's skew is JUCE's setSkewForCentre(0.3) on 0.01..4:
+  // log(0.5) / log((0.3 − 0.01) / (4 − 0.01)) = 0.2644.
+  motionOn:     { start: 0,    end: 1,   skew: 1,      interval: 1,     def: 0 },
+  motionPath:   { start: 0,    end: 5,   skew: 1,      interval: 1,     def: 0 },
+  motionSync:   { start: 0,    end: 14,  skew: 1,      interval: 1,     def: 0 },
+  motionRate:   { start: 0.01, end: 4,   skew: 0.2644, interval: 0,     def: 0.1 },
+  motionSize:   { start: 0,    end: 24,  skew: 1,      interval: 0,     def: 6.0 },
+  motionRatio:  { start: 0,    end: 1,   skew: 1,      interval: 0,     def: 1.0 },
+  motionAngle:  { start: 0,    end: 360, skew: 1,      interval: 0,     def: 0 },
+  motionHeight: { start: 0,    end: 8,   skew: 1,      interval: 0,     def: 0 },
+  motionPhase:  { start: 0,    end: 360, skew: 1,      interval: 0,     def: 0 },
+  motionSeed:   { start: 1,    end: 64,  skew: 1,      interval: 1,     def: 1 },
 };
 
 // ── The stub venue ─────────────────────────────────────────────────────────
@@ -382,7 +399,8 @@ let meterPeaks = [0, 0, 0, 0, 0, 0, 0, 0];
 function readMeters() {
     const peaks = meterPeaks.slice();
     meterPeaks = [0, 0, 0, 0, 0, 0, 0, 0];
-    return { peaks };
+    // v1.8.0 — the live offset rides this poll (RESEARCH Q6).
+    return { peaks, ...motionOffset() };
 }
 
 // ── The DBAP field grid (P69 / P73) ────────────────────────────────────────
@@ -512,17 +530,158 @@ export function getSliderState(name) {
   return sliderStates.get(name);
 }
 
-// O-Octagon has NO Choice and NO Bool parameters (RESEARCH-3.1 F1) — all 18 are
-// AudioParameterFloat. The relay-type split that bit the precedent three times
-// (grainShape, freeze, sourceMode) is structurally absent, so these two exist
-// only to make a page that reaches for them fail LOUDLY here rather than build a
-// control the backend never updates.
-export function getComboBoxState(name) {
-  throw new Error(`O-Octagon has no Choice parameters; getComboBoxState("${name}") is a bug`);
+// ── v1.8.0 — THE FIRST BOOL AND THE FIRST TWO CHOICES ─────────────────────
+// Until v1.8.0 all 18 were AudioParameterFloat and these two threw, so a page
+// that reached for them failed LOUDLY here. Now they are real: motionOn is a
+// WebToggleButtonRelay, motionPath / motionSync are WebComboBoxRelays, and any
+// OTHER name still throws — the relay-type split that bit the precedent three
+// times (grainShape, freeze, sourceMode) is exactly a control built against
+// the wrong state kind, and this is where it surfaces headless.
+//
+// BOTH record a gesture PAIR on a write. JUCE's toggle and combo attachments
+// route the write through setValueAsCompleteGesture, which brackets it in C++
+// (unlike the slider's setValueAsPartOfGesture), so the page sends no brackets
+// of its own; the stub mirrors the C++ so ui_layout_check §10's audit reads
+// the same truth in both places.
+//
+// CHOICES IS A TRANSCRIPTION of createParameterLayout()'s two StringArrays and
+// ui_frontend_check §15 parses the C++ and diffs it against this table, so the
+// copy cannot drift silently (pattern_test_fixture_mirrors_drift_silently).
+const CHOICES = {
+  motionPath: ["Orbit", "Figure-8", "Sweep", "Drift", "Pendulum", "Spiral"],
+  motionSync: ["Free", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D",
+               "1/4T", "1/4", "1/4D", "1/2", "1/2D", "1 Bar", "2 Bars", "4 Bars"],
+};
+
+const TOGGLES = ["motionOn"];
+
+class StubToggleState {
+  constructor(name) {
+    this.name = name;
+    this.value = (RANGES[name]?.def ?? 0) >= 0.5;
+    this.properties = { name, parameterIndex: 0 };
+    this.valueChangedEvent = listenerList();
+    this.propertiesChangedEvent = listenerList();
+  }
+
+  getValue() { return this.value; }
+
+  setValue(v) {
+    this.value = v === true;
+    WRITES[this.name] = (WRITES[this.name] || 0) + 1;
+    GESTURES.push({ id: this.name, phase: "start" });
+    GESTURES.push({ id: this.name, phase: "end" });
+    this.valueChangedEvent.callListeners();
+  }
 }
 
+class StubComboBoxState {
+  constructor(name) {
+    const choices = CHOICES[name].slice();
+    this.name = name;
+    this.properties = { name, parameterIndex: 0, choices };
+    this.value = choices.length > 1 ? (RANGES[name]?.def ?? 0) / (choices.length - 1) : 0;
+    this.valueChangedEvent = listenerList();
+    this.propertiesChangedEvent = listenerList();
+  }
+
+  getChoiceIndex() { return Math.round(this.value * (this.properties.choices.length - 1)); }
+
+  setChoiceIndex(i) {
+    const n = this.properties.choices.length;
+    this.value = n > 1 ? Math.min(n - 1, Math.max(0, Number(i))) / (n - 1) : 0;
+    WRITES[this.name] = (WRITES[this.name] || 0) + 1;
+    GESTURES.push({ id: this.name, phase: "start" });
+    GESTURES.push({ id: this.name, phase: "end" });
+    this.valueChangedEvent.callListeners();
+  }
+}
+
+const toggleStates = new Map();
+const comboStates = new Map();
+
 export function getToggleState(name) {
-  throw new Error(`O-Octagon has no Bool parameters; getToggleState("${name}") is a bug`);
+  if (!TOGGLES.includes(name))
+    throw new Error(`O-Octagon has no Bool parameter "${name}"; getToggleState("${name}") is a bug`);
+  if (!toggleStates.has(name)) toggleStates.set(name, new StubToggleState(name));
+  return toggleStates.get(name);
+}
+
+export function getComboBoxState(name) {
+  if (!(name in CHOICES))
+    throw new Error(`O-Octagon has no Choice parameter "${name}"; getComboBoxState("${name}") is a bug`);
+  if (!comboStates.has(name)) comboStates.set(name, new StubComboBoxState(name));
+  return comboStates.get(name);
+}
+
+// ── v1.8.0 — THE TRACE FIXTURE. A TRANSCRIPTION FOR THE STUB ONLY. ─────────
+// This is NOT the page's generator and must never be imported by it: the page
+// draws whatever getMotionTrace returns, and in the plugin that is
+// oo::motion::evaluate() in Source/DSP/MotionPath.h — the same function the
+// audio thread runs. This copy exists so the headless page has a trace to draw
+// and so ui_layout_check §32 can put the live puck ON that trace. It is a
+// fixture, labelled as such, and the drift risk it carries is the stub's, not
+// the plugin's (pattern_test_fixture_mirrors_drift_silently). Drift (path 3)
+// returns no points, exactly as the C++ does.
+const TRACE_POINTS = 128;
+
+function fold(u) { return u < 0.5 ? 2 * u : 2 - 2 * u; }
+
+function fixtureEvaluate(cycles) {
+  const path = getComboBoxState("motionPath").getChoiceIndex();
+  const R = 0.5 * getSliderState("motionSize").getScaledValue();
+  const ratio = getSliderState("motionRatio").getScaledValue();
+  const angle = getSliderState("motionAngle").getScaledValue();
+  const height = getSliderState("motionHeight").getScaledValue();
+  const phase = getSliderState("motionPhase").getScaledValue();
+
+  const frac = cycles - Math.floor(cycles);
+  const t = 2 * Math.PI * frac + (phase * Math.PI) / 180;
+  const uu = frac + phase / 360;
+  const f = fold(uu - Math.floor(uu));
+
+  let x = 0, y = 0, z = height * Math.sin(t);
+  switch (path) {
+    case 0: x = R * Math.cos(t); y = R * ratio * Math.sin(t); break;
+    case 1: x = R * Math.sin(t); y = R * ratio * Math.sin(2 * t); break;
+    case 2: x = R * (2 * f - 1); y = 0; break;
+    case 3: return [0, 0, 0];   // Drift: no closed cycle, no trace
+    case 4: x = R * Math.sin(t); y = 0; break;
+    case 5: x = R * f * Math.cos(t); y = R * ratio * f * Math.sin(t); break;
+    default: break;
+  }
+
+  if (angle !== 0) {
+    const a = (angle * Math.PI) / 180;
+    const rx = x * Math.cos(a) - y * Math.sin(a);
+    const ry = x * Math.sin(a) + y * Math.cos(a);
+    x = rx; y = ry;
+  }
+  return [x, y, z];
+}
+
+function motionTrace() {
+  const path = getComboBoxState("motionPath").getChoiceIndex();
+  if (path === 3) return { cyclic: false, points: [] };
+  const points = [];
+  for (let i = 0; i < TRACE_POINTS; ++i) points.push(fixtureEvaluate(i / TRACE_POINTS));
+  return { cyclic: true, points };
+}
+
+// The live offset the stub reports on getMeters: the fixture path at a slow
+// wall-clock rate (one cycle per 8 s) while motionOn, else zero. Drift walks a
+// small deterministic figure so the tail has something to draw.
+const MOTION_T0 = Date.now();
+
+function motionOffset() {
+  if (!getToggleState("motionOn").getValue()) return { motion: [0, 0, 0], motionOn: false };
+  const cycles = (Date.now() - MOTION_T0) / 8000;
+  const path = getComboBoxState("motionPath").getChoiceIndex();
+  if (path === 3) {
+    const R = 0.5 * getSliderState("motionSize").getScaledValue();
+    return { motion: [R * 0.4 * Math.sin(cycles * 7.3), R * 0.4 * Math.cos(cycles * 5.1), 0], motionOn: true };
+  }
+  return { motion: fixtureEvaluate(cycles), motionOn: true };
 }
 
 // ── The venue write path ───────────────────────────────────────────────────
@@ -868,6 +1027,9 @@ const NATIVE_FNS = {
 
   // ── Phase 3.3 ──
   getMeters: () => readMeters(),
+
+  // ── v1.8.0 — 26 -> 27: the trace, from the stub's labelled fixture ──
+  getMotionTrace: () => motionTrace(),
 
   getScenes: () => ({
     slots: userSlots.map((s, i) => ({ slot: i + 1, occupied: s.occupied, w: s.w.slice() })),

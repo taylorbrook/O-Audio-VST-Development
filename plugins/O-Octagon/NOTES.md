@@ -346,6 +346,37 @@ fact was refused twice), and none affects a recorded result:
   Gates: 61/61 render probes, 15/15 monitor-fold checks, 43/43 `ui_frontend_check`, 31/31
   `ui_layout_check`, `check-i18n` pass, auval PASS, pluginval strictness 10 SUCCESS. **Hall and
   headphone listening still outstanding**, as are the two manual render checks.
+- **2026-08-27 (v1.8.0 — motion engine):** six generative paths (Orbit, Figure-8, Sweep, Drift,
+  Pendulum, Spiral) as a metric OFFSET downstream of `srcX/srcY/srcZ` — the lanes stay the anchor
+  and are never written. New `Source/DSP/MotionPath.h` (the ONE generator: audio thread, trace,
+  unit target), `MotionClock.h` (phase = f(absoluteSampleCounter, HostClock), never integrated),
+  `PerlinNoise.h` (O-Orbit byte-copy). Ten parameters (18 → 28) — the first Bool, the first two
+  Choices, the first skewed range — in `kAuthored` so presets carry motion.
+
+  **The design constraint was reproducibility, held structurally and negative-controlled.** Motion
+  off takes the v1.7.0 `shape()` call and dirty-check verbatim; probe DC pins the render to the
+  v1.7.0 digest `0xb8c5a2d0c7518204` (captured at commit `2e03020e` BEFORE any DSP edit, ragged
+  sizes, srcZ event at a non-grid offset so it is not CU's number). NC1 (drop the `! motionOn`
+  bypass) fails DE + DG; NC2 (an accumulator in `cyclesAt`'s place) fails eight probes.
+
+  Four things a later reader will want to know:
+  1. **No seventh group fits the controls column.** Measured on the stub before any C++: 756 vs 592
+     with 13 px in hand and a flex:none elevation stage. Motion is a second PANEL of Position
+     (tab pair in the title row, nine dense cells = three rows = Position's), so the column is
+     untouched. `ui_layout_check` §32 holds the equal-height premise and puts the live puck ON the
+     trace by rendered geometry.
+  2. **The grid is counter-aligned, not PPQ-aligned.** A bounce from PPQ 37.5 (900000 samples,
+     not a multiple of 64) samples the path 32 samples off a bounce from 0 — a designed 9 mm the
+     ramps absorb. Probe DH uses 38.4 (= 14400 × 64) for that reason; do not "fix" it to 37.5.
+  3. **DE asserts EVERY boundary solved** (`motionSolves == 4 × total/64`), not `> 0`: with the
+     bypass deleted the two events still forced a solve each and `> 0` passed on a frozen offset.
+  4. **The stub's `getMotionTrace` is a labelled transcription** of the six equations for the
+     headless page only; `ui_frontend_check` §41 asserts the page itself has no generator.
+
+  Gates: 73/73 render probes, 57/57 unit probes, 43/43 `ui_frontend_check`, 31/31
+  `ui_layout_check`, `check-i18n` pass, build zero warnings, auval PASS, pluginval strictness 10
+  SUCCESS. **Logic double-bounce byte-compare and the Standalone host-lane check are operator
+  gates, pending.**
 
 **Planning artifacts:**
 - `.planning/BRIEF.md` — creative brief

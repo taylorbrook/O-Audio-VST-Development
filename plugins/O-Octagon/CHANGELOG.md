@@ -1,5 +1,64 @@
 # O-Octagon Changelog
 
+## v1.8.0 (2026-08-27)
+
+**Motion engine — generative trajectories for the source puck.** Closes the last HIGH-priority gap
+in `.planning/FEATURE-REVIEW.md`: hand-drawing Logic automation for a ten-minute rotation was the
+most tedious task in the workflow. Six paths — Orbit, Figure-8, Sweep, Drift, Pendulum, Spiral —
+produce an (x, y, z) offset in **venue metres** added downstream of `srcX/srcY/srcZ`, which stay
+the anchor: the three position lanes are never written, existing automation keeps working and the
+path travels with it.
+
+**The primary constraint was reproducibility, and it is structural.** Phase is a pure function of
+absolute position — the absolute 64-sample control grid in Free mode, the host PPQ extrapolated to
+each grid boundary when synced — and nothing integrates per call. Two bounces of one session are
+identical (Drift included, through a `Seed`), and a session renders the same at 64, 256, 1024 and
+ragged block sizes. Both claims were **negative-controlled**: an accumulator in `cyclesAt`'s place
+fails eight probes; deleting the dirty-check bypass fails DE and DG.
+
+### Added
+
+- **Ten parameters, group `motion`** (`kCount` 18 → 28): `motionOn` (the first Bool), `motionPath`
+  and `motionSync` (the first Choices — a host lane reads "Figure-8", not 0.2), `motionRate`
+  (0.01–4 Hz, the first skewed range, centre 0.3 Hz), `motionSize` (extent, 0–24 m),
+  `motionRatio`, `motionAngle`, `motionHeight` (0–8 m, coupled to the same phase), `motionPhase`,
+  `motionSeed` (1–64, Drift only). `motionOn` defaults **off**.
+- **`Source/DSP/MotionPath.h`** — the single header-only, JUCE-free generator compiled by the audio
+  thread, the editor's trace and the unit target. **`MotionClock.h`** — absolute-position phase
+  derivation with the Free-mode re-base and the stopped/no-PPQ rules. **`PerlinNoise.h`** —
+  byte-copy of O-Orbit's.
+- **`SourceShaper::shapeAt()`** — steps 2–6 from a metres pair; `shape()` delegates to it. The
+  v1.7.0 render digest did not move (probe DC).
+- **Position | Motion tab pair** in the Position group. Measured first: a seventh group of any shape
+  overflowed the fixed 1100 × 720 column (756 against 592, with 13 px in hand), so Motion is a
+  second panel of nine dense cells — three rows, exactly Position's — behind a tab in the title row.
+  Seed replaces Phase while Path is Drift.
+- **Venue map:** the path **trace** (128 points from the same C++ generator via the new native
+  function `getMotionTrace`, 26 → 27), the anchor as a hollow **ghost**, and the **live puck**
+  riding the 30 Hz `getMeters` poll as three floats. Drift draws a 48-point tail instead of a
+  trace. The elevation strip shows the live height.
+- **Two factory presets:** *Slow Orbit* (4 Bars, 8 m, ratio 0.8, 1 m of height) and *Wander*
+  (Drift, 0.05 Hz, 6 m, seed 7). The ten motion ids are **authored** (`kAuthored` 6 → 16) so motion
+  travels in presets; the six original rows write no motion key and load motion-off.
+- **Probes DC, DD, DE, DF, DG, DH, DI, DJ, DK, DL, DM, DN** in the render harness (61 → 73) and
+  **MP1–MP8** in the geometry target (49 → 57); the harness gains `HarnessPlayHead`.
+- EN + FR hover help for the tab pair and the ten controls.
+
+### Compatibility
+
+- **Motion off is bit-identical to v1.7.0.** The v1.7.0 `shape()` call and dirty-check predicate
+  run verbatim on the off branch; probe DC holds the render against the v1.7.0 binary's own digest
+  (`0xb8c5a2d0c7518204`, captured from commit `2e03020e` before any DSP edit), with
+  `instr::motionSolves == 0` as the other half of the claim.
+- **Pre-1.8.0 presets load motion-off** with the 18 restored bit-exact (probe DK). No migration
+  hook — no range moved.
+- **SAFE mode:** motion runs (the map animates) and is inaudible by construction — the mono/stereo
+  fold never reads a position (probe DM).
+- **Accepted:** a tempo change mid-block re-syncs at the next block start. A bounce started at a
+  PPQ that is not a multiple of 64 samples from the session start evaluates the path at instants up
+  to 63 samples shifted from a bounce from zero — the grid is aligned to the absolute sample
+  counter, by design (`GainStage.h`), and the 5 ms ramps absorb it.
+
 ## v1.7.0 (2026-08-26)
 
 **Binaural / stereo monitoring fold-down — the piece is finally audible away from the hall.**

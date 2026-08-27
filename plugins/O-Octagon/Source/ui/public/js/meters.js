@@ -160,7 +160,14 @@ export function createMeters(deps) {
     // does. Both are required and neither is redundant.
     Promise.resolve(deps.nativeFn("getMeters")())
       .then((payload) => {
-        if (payload !== null && typeof payload === "object") applyPeaks(payload.peaks);
+        if (payload !== null && typeof payload === "object") {
+          applyPeaks(payload.peaks);
+
+          // v1.8.0 — the motion offset rides this poll (RESEARCH Q6). Passed
+          // through untouched; this file never asks what a metre is.
+          if (typeof deps.onMotion === "function" && Array.isArray(payload.motion))
+            deps.onMotion(payload.motion, payload.motionOn === true);
+        }
       })
       .catch((err) => {
         console.error("getMeters failed", err);

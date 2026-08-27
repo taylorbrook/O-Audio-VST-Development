@@ -32,8 +32,16 @@ SubPoints shape (const VenueSnapshot& v, float srcXNorm, float srcYNorm,
     // ── Step 1 — puck to metres ───────────────────────────────────────────────────────────────
     // Via oo::plane, NOT a second denormalisation written out here. The zero-span guard is stated
     // once, in one file, and VenueModel delegates to the same function (P14).
-    const Vec2 p = plane::normToMetres (v.bbMinX, v.bbMaxX, v.bbMinY, v.bbMaxY, srcXNorm, srcYNorm);
+    //
+    // v1.8.0: steps 2-6 moved verbatim into shapeAt() so the motion engine can enter with a
+    // metres pair. Same TU, same arithmetic; probe DC certifies the v1.7.0 digest did not move.
+    return shapeAt (v,
+                    plane::normToMetres (v.bbMinX, v.bbMaxX, v.bbMinY, v.bbMaxY, srcXNorm, srcYNorm),
+                    srcZ, widthMetres);
+}
 
+SubPoints shapeAt (const VenueSnapshot& v, const Vec2 p, float srcZ, float widthMetres) noexcept
+{
     // ── Step 2 — bearing from the RIG CENTROID ────────────────────────────────────────────────
     // The centroid, not the bounding-box centre: the centroid is what the array physically "is",
     // and it is what the level field is symmetric about (§3.4.1).

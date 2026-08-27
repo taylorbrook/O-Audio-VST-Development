@@ -108,6 +108,9 @@
 #include "DSP/FieldSampler.h"
 #include "DSP/HullProcessor.h"
 #include "DSP/SourceShaper.h"
+#include "DSP/MotionClock.h"
+#include "DSP/MotionPath.h"
+#include "DSP/PerlinNoise.h"
 
 #include "JuceChannelOrderGolden.h"
 #include "DbapReferenceFixture.h"
@@ -3580,6 +3583,137 @@ int main()
         detail << "(* = fails under the rejected spelling)";
 
         check ("CO rig-policy-complement-form", ok && discriminatorsLive && eightOrMore, detail);
+    }
+
+    //==========================================================================
+    // v1.8.0 — MOTION ENGINE (R1 / R5). The single generator and the absolute-position clock,
+    // tested here in seconds rather than behind a render. Nothing below touches JUCE audio.
+    {
+        using namespace oo::motion;
+        PerlinNoise perlin;
+        perlin.seed (7);
+
+        auto bitSame = [] (oo::Vec3 a, oo::Vec3 b) { return std::memcmp (&a, &b, sizeof (a)) == 0; };
+
+        // MP1 — Figure-8 closes bit-exact at cycles 0 vs 1 (R1).
+        {
+            MotionParams m; m.path = figure8; m.sizeM = 6.0f; m.ratio = 0.7f; m.heightM = 1.0f;
+            const auto a = evaluate (m, 0.0, perlin), b = evaluate (m, 1.0, perlin);
+            check ("MP1 figure8-closes", bitSame (a, b),
+                   juce::String ("cycles 0 -> (") + juce::String (a.x, 6) + ", " + juce::String (a.y, 6)
+                   + "), cycles 1 -> (" + juce::String (b.x, 6) + ", " + juce::String (b.y, 6) + ")");
+        }
+
+        // MP2 — Sweep: max step over 4096 samples of one cycle < 2R/2048 (no saw wrap).
+        {
+            MotionParams m; m.path = sweep; m.sizeM = 8.0f;
+            const float R = 4.0f;
+            float maxStep = 0.0f;
+            auto prev = evaluate (m, 0.0, perlin);
+            for (int i = 1; i <= 4096; ++i)
+            {
+                const auto cur = evaluate (m, i / 4096.0, perlin);
+                maxStep = std::max (maxStep, std::abs (cur.x - prev.x) + std::abs (cur.y - prev.y));
+                prev = cur;
+            }
+            // The limit IS the ideal per-sample speed (4R per cycle / 4096); the fold hits it exactly, a saw
+            // wrap would hit 2R. Equality is the continuous answer, so <= with a 0.1% margin.
+            check ("MP2 sweep-fold-continuous", maxStep <= 2.0f * R / 2048.0f * 1.001f,
+                   "max step " + juce::String (maxStep, 6) + " m (limit " + juce::String (2.0f * R / 2048.0f, 6) + ")");
+        }
+
+        // MP3 — Orbit ratio 1: |p| == R to 1e-6 at 64 phases.
+        {
+            MotionParams m; m.path = orbit; m.sizeM = 6.0f; m.ratio = 1.0f;
+            float worst = 0.0f;
+            for (int i = 0; i < 64; ++i)
+            {
+                const auto v = evaluate (m, i / 64.0, perlin);
+                worst = std::max (worst, std::abs (std::sqrt (v.x * v.x + v.y * v.y) - 3.0f));
+            }
+            check ("MP3 orbit-radius", worst < 1.0e-6f, "worst |p| - R = " + juce::String (worst, 9));
+        }
+
+        // MP4 — Spiral continuous at the half-cycle.
+        {
+            MotionParams m; m.path = spiral; m.sizeM = 6.0f; m.ratio = 0.5f;
+            const auto a = evaluate (m, 0.5 - 1.0 / 8192.0, perlin), b = evaluate (m, 0.5 + 1.0 / 8192.0, perlin);
+            const float step = std::abs (a.x - b.x) + std::abs (a.y - b.y);
+            check ("MP4 spiral-halfcycle-continuous", step < 0.01f, "step across 0.5: " + juce::String (step, 6) + " m");
+        }
+
+        // MP5 — angle 90 maps Sweep x onto y.
+        {
+            MotionParams m0; m0.path = sweep; m0.sizeM = 6.0f;
+            MotionParams m90 = m0; m90.angleDeg = 90.0f;
+            const auto a = evaluate (m0, 0.2, perlin), b = evaluate (m90, 0.2, perlin);
+            const bool ok = std::abs (b.y - a.x) < 1.0e-5f && std::abs (b.x) < 1.0e-5f && std::abs (a.y) < 1.0e-5f;
+            check ("MP5 angle-rotates", ok, "unrotated (" + juce::String (a.x, 4) + "," + juce::String (a.y, 4)
+                   + ") rotated (" + juce::String (b.x, 4) + "," + juce::String (b.y, 4) + ")");
+        }
+
+        // MP6 — Drift: same seed bit-identical, different seed differs.
+        {
+            MotionParams m; m.path = drift; m.sizeM = 6.0f; m.ratio = 1.0f; m.heightM = 2.0f;
+            PerlinNoise p7a, p7b, p8; p7a.seed (7); p7b.seed (7); p8.seed (8);
+            bool same = true, differs = false;
+            for (int i = 0; i < 128; ++i)
+            {
+                const double c = 0.37 * i;
+                same    = same && bitSame (evaluate (m, c, p7a), evaluate (m, c, p7b));
+                differs = differs || ! bitSame (evaluate (m, c, p7a), evaluate (m, c, p8));
+            }
+            check ("MP6 drift-seeded", same && differs,
+                   juce::String ("seed 7 == seed 7: ") + (same ? "yes" : "NO") + "; seed 7 != seed 8: " + (differs ? "yes" : "NO"));
+        }
+
+        // MP7 — cyclesAt at sample N: one call vs N/64 grid steps, Free AND Synced, with a
+        // Free-mode rate change mid-way. The stepped walk is what GainStage does; the single call
+        // is what a hidden accumulator could not reproduce.
+        {
+            constexpr double sr = 48000.0;
+            constexpr std::uint64_t N = 64 * 3000;
+
+            // Free, rate 0.3 -> 1.1 at grid 1500
+            MotionClockState s1, s2;
+            double stepped = 0.0;
+            for (std::uint64_t g = 0; g <= N / 64; ++g)
+                stepped = cyclesAt (g * 64, sr, 0, nullptr, 0, g < 1500 ? 0.3f : 1.1f, s1);
+            cyclesAt (0, sr, 0, nullptr, 0, 0.3f, s2);              // observe the first rate
+            cyclesAt (1500 * 64, sr, 0, nullptr, 0, 1.1f, s2);      // observe the change at ITS boundary
+            const double direct = cyclesAt (N, sr, 0, nullptr, 0, 1.1f, s2);
+            const bool freeOk = std::abs (stepped - direct) < 1.0e-9;
+
+            // Synced 1/4 @ 120 BPM, rolling: one block of N samples vs N/64 blocks of 64.
+            HostClock big; big.bpm = 120.0; big.ppq = 37.5; big.ppqValid = true; big.playing = true;
+            MotionClockState s3, s4;
+            const double one = cyclesAt (N, sr, N, &big, 8, 0.3f, s3);
+            double walked = 0.0;
+            for (std::uint64_t g = 0; g <= N / 64; ++g)
+            {
+                HostClock blk = big; blk.ppq = 37.5 + (double) (g * 64) / sr * 2.0;
+                walked = cyclesAt (g * 64, sr, 0, &blk, 8, 0.3f, s4);
+            }
+            const bool syncOk = std::abs (one - walked) < 1.0e-9;
+
+            check ("MP7 cycles-grid-invariant", freeOk && syncOk,
+                   "free stepped " + juce::String (stepped, 9) + " vs direct " + juce::String (direct, 9)
+                   + "; synced one-block " + juce::String (one, 9) + " vs walked " + juce::String (walked, 9));
+        }
+
+        // MP8 — Synced + stopped holds; Free + stopped keeps moving.
+        {
+            constexpr double sr = 48000.0;
+            HostClock stopped; stopped.bpm = 120.0; stopped.ppq = 12.25; stopped.ppqValid = true; stopped.playing = false;
+            MotionClockState s1, s2;
+            const double a = cyclesAt (64 * 100, sr, 0, &stopped, 8, 0.3f, s1);
+            const double b = cyclesAt (64 * 900, sr, 0, &stopped, 8, 0.3f, s1);
+            const double c = cyclesAt (64 * 100, sr, 0, &stopped, 0, 0.3f, s2);
+            const double d = cyclesAt (64 * 900, sr, 0, &stopped, 0, 0.3f, s2);
+            check ("MP8 synced-stopped-holds", std::abs (a - b) < 1.0e-12 && d > c,
+                   "synced " + juce::String (a, 6) + " -> " + juce::String (b, 6) + " (hold); free "
+                   + juce::String (c, 6) + " -> " + juce::String (d, 6) + " (moves)");
+        }
     }
 
     scratchDir.deleteRecursively();

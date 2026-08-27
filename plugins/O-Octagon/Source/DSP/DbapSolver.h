@@ -101,8 +101,14 @@ namespace instr
     /// buffers happening to match.
     inline std::atomic<std::uint64_t> monitorSamples { 0 };
 
+    /// v1.8.0. updateControl() passes that took the MOTION branch. Probe DC asserts ZERO across a
+    /// motion-off render (with the v1.7.0 digest as the other half of that claim); DE asserts it
+    /// is > 0, which is what keeps a block-size-invariance probe from passing on the off path.
+    inline std::atomic<std::uint64_t> motionSolves { 0 };
+
     inline void resetCounters() noexcept
     {
+        motionSolves.store       (0, std::memory_order_relaxed);
         powCalls.store           (0, std::memory_order_relaxed);
         solveRuns.store          (0, std::memory_order_relaxed);
         hullProjections.store    (0, std::memory_order_relaxed);
@@ -168,6 +174,13 @@ namespace instr
     {
        #if OOCTAGON_INSTRUMENT
         monitorSamples.fetch_add (1, std::memory_order_relaxed);
+       #endif
+    }
+
+    inline void countMotionSolve() noexcept
+    {
+       #if OOCTAGON_INSTRUMENT
+        motionSolves.fetch_add (1, std::memory_order_relaxed);
        #endif
     }
 }

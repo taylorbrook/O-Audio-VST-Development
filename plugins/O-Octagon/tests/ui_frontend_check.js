@@ -54,6 +54,7 @@ const P = {
     css:         path.join(publicDir, 'css', 'styles.css'),
     appJs:       path.join(publicDir, 'js', 'app.js'),
     roomJs:      path.join(publicDir, 'js', 'roomplan.js'),
+    metersJs:    path.join(publicDir, 'js', 'meters.js'),
     juceJs:      path.join(publicDir, 'js', 'juce', 'index.js'),
     editorCpp:   path.join(pluginRoot, 'Source', 'PluginEditor.cpp'),
     editorH:     path.join(pluginRoot, 'Source', 'PluginEditor.h'),
@@ -243,8 +244,11 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // (bypass, SAFE flip, ping start, editor close), so a one-shot reader would go stale in
     // seconds. The asymmetry with v1.2.0's and v1.6.0's set/get PAIRS is the point: those persist
     // and are pulled once at init; this one never persists and is polled.
-    check(registered.size === 26,
-        `PluginEditor.cpp registers exactly 26 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    // v1.8.0 adds exactly ONE: getMotionTrace — one cycle of the path from the SAME generator the
+    // audio thread runs (MotionPath.h), so the map's trace cannot drift from the audible path.
+    // The live puck adds NO call: it rides getMeters as three floats + a flag (RESEARCH Q6).
+    check(registered.size === 27,
+        `PluginEditor.cpp registers exactly 27 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);
@@ -499,7 +503,21 @@ head(11, 'member order relays -> webView -> attachments; PluginEditor.cpp absent
     check(iRelay > 0 && iWeb > iRelay && iAttach > iWeb,
         `declaration order is relays(${iRelay}) -> webView(${iWeb}) -> attachments(${iAttach})`);
 
-    check(/std::make_unique<juce::WebSliderParameterAttachment>\s*\(\s*\*param,\s*\*sliderRelays\[i\],\s*nullptr\)/.test(S.editorCpp),
+    // v1.8.0 — the first NON-FLOAT relays. Same rule, two more vectors each side of the WebView:
+    // a typed relay below webView or a typed attachment above it is the same release-build crash.
+    const iTRelay  = S.editorH.indexOf('toggleRelays;');
+    const iCRelay  = S.editorH.indexOf('comboRelays;');
+    const iTAttach = S.editorH.indexOf('toggleAttachments;');
+    const iCAttach = S.editorH.indexOf('comboAttachments;');
+    check(iTRelay > 0 && iCRelay > 0 && iTRelay < iWeb && iCRelay < iWeb,
+        `toggleRelays(${iTRelay}) and comboRelays(${iCRelay}) are declared BEFORE webView(${iWeb})`);
+    check(iTAttach > iWeb && iCAttach > iWeb,
+        `toggleAttachments(${iTAttach}) and comboAttachments(${iCAttach}) are declared AFTER webView(${iWeb})`);
+    check(/std::make_unique<juce::WebToggleButtonParameterAttachment>\s*\(\s*\*param,\s*\*toggleRelays\[ti\+\+\],\s*nullptr\)/.test(S.editorCpp)
+       && /std::make_unique<juce::WebComboBoxParameterAttachment>\s*\(\s*\*param,\s*\*comboRelays\[ci\+\+\],\s*nullptr\)/.test(S.editorCpp),
+        'the toggle and combo attachments take THREE arguments, third nullptr');
+
+    check(/std::make_unique<juce::WebSliderParameterAttachment>\s*\(\s*\*param,\s*\*sliderRelays\[si\+\+\],\s*nullptr\)/.test(S.editorCpp),
         'the attachment takes THREE arguments, third nullptr');
 
     // 32 render-harness probes die silently if the editor enters that target
@@ -627,7 +645,7 @@ head(14, 'no getNativeFunction awaited inside pointermove / mousemove / rAF (P42
 }
 
 // ───────────────────────────────────────── 15. the stub mirrors the real ranges ──
-head(15, 'the stub\'s 18 ranges + defaults match createParameterLayout() PARSED FROM SOURCE');
+head(15, 'the stub\'s 28 ranges + defaults match createParameterLayout() PARSED FROM SOURCE');
 {
     // The precedent's own comments record its stub range table drifting FIVE
     // times. This is the fix for that class rather than another instance of it
@@ -639,6 +657,44 @@ head(15, 'the stub\'s 18 ranges + defaults match createParameterLayout() PARSED 
     for (const m of S.procCpp.matchAll(direct))
         layout.set(m[1], { start: num(m[2]), end: num(m[3]), def: num(m[4]) });
 
+    // v1.8.0 — the three forms the motion group introduced, each parsed from the C++:
+    //   makeFloat (id, name, juce::NormalisableRange<float> (lo, hi, step), def)   (motionSeed)
+    //   makeFloat (id, name, <identifier>, def) where the identifier is a local NormalisableRange
+    //     declared as `juce::NormalisableRange<float> <identifier> (lo, hi);` (motionRate)
+    //   makeBool (id, name, bool) / makeChoice (id, name, juce::StringArray { ... }, defIdx)
+    const inlineRange = /makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*juce::NormalisableRange<float>\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*(-?[\d.]+f?)/g;
+    for (const m of S.procCpp.matchAll(inlineRange))
+        layout.set(m[1], { start: num(m[2]), end: num(m[3]), def: num(m[5]) });
+
+    const namedRange = /makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?[\d.]+f?)/g;
+    for (const m of S.procCpp.matchAll(namedRange)) {
+        const decl = S.procCpp.match(new RegExp(`juce::NormalisableRange<float>\\s+${m[2]}\\s*\\(\\s*(-?[\\d.]+f?)\\s*,\\s*(-?[\\d.]+f?)\\s*\\)`));
+        if (decl) layout.set(m[1], { start: num(decl[1]), end: num(decl[2]), def: num(m[3]) });
+    }
+
+    for (const m of S.procCpp.matchAll(/makeBool\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*(true|false)\s*\)/g))
+        layout.set(m[1], { start: 0, end: 1, def: m[2] === 'true' ? 1 : 0 });
+
+    const cppChoices = new Map();
+    for (const m of S.procCpp.matchAll(/makeChoice\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*juce::StringArray\s*\{([\s\S]*?)\}\s*,\s*(\d+)\s*\)/g)) {
+        const names = [...m[2].matchAll(/"([^"]*)"/g)].map(x => x[1]);
+        cppChoices.set(m[1], names);
+        layout.set(m[1], { start: 0, end: names.length - 1, def: num(m[3]) });
+    }
+
+    // The stub's CHOICES table is a transcription of those two StringArrays; this is the diff
+    // that keeps the copy honest (pattern_test_fixture_mirrors_drift_silently).
+    const stubChoicesBlock = S.stubJs.match(/const CHOICES = \{([\s\S]*?)\n\};/);
+    check(stubChoicesBlock !== null, 'the stub CHOICES table is parseable');
+    if (stubChoicesBlock)
+        for (const m of stubChoicesBlock[1].matchAll(/^\s{2}([A-Za-z0-9_]+):\s*\[([\s\S]*?)\]/gm)) {
+            const names = [...m[2].matchAll(/"([^"]*)"/g)].map(x => x[1]);
+            const cpp = cppChoices.get(m[1]) || [];
+            check(names.length === cpp.length && names.every((n, i) => n === cpp[i]),
+                `stub CHOICES.${m[1]} == the C++ StringArray — [${names.join(', ')}]`);
+        }
+    check(cppChoices.size === 2, `two Choice parameters parsed from the C++ — ${cppChoices.size}`);
+
     // The eight weights are built in a loop, so they have no literal id in the
     // source. Parsed from the loop body, and expanded here.
     const wLoop = S.procCpp.match(
@@ -648,7 +704,7 @@ head(15, 'the stub\'s 18 ranges + defaults match createParameterLayout() PARSED 
         for (let i = 1; i <= 8; ++i)
             layout.set(`w${i}`, { start: num(wLoop[1]), end: num(wLoop[2]), def: num(wLoop[3]) });
 
-    check(layout.size === 18, `createParameterLayout() parsed — ${layout.size} parameters (expect 18)`);
+    check(layout.size === 28, `createParameterLayout() parsed — ${layout.size} parameters (expect 28)`);
 
     const stubBlock = S.stubJs.match(/const RANGES = \{([\s\S]*?)\n\};/);
     check(stubBlock !== null, 'the stub RANGES table is parseable');
@@ -659,7 +715,7 @@ head(15, 'the stub\'s 18 ranges + defaults match createParameterLayout() PARSED 
             /^\s{2}([A-Za-z0-9_]+):\s*\{\s*start:\s*(-?[\d.]+),\s*end:\s*(-?[\d.]+),\s*skew:\s*(-?[\d.]+),[^}]*def:\s*(-?[\d.]+)/gm))
             stub.set(m[1], { start: num(m[2]), end: num(m[3]), skew: num(m[4]), def: num(m[5]) });
 
-    check(stub.size === 18, `the stub declares ${stub.size} ranges (expect 18)`);
+    check(stub.size === 28, `the stub declares ${stub.size} ranges (expect 28)`);
     check(setsEqual(new Set(stub.keys()), new Set(layout.keys())),
         `stub ids == layout ids${setsEqual(new Set(stub.keys()), new Set(layout.keys())) ? ''
             : ` — stub-only [${diff(new Set(stub.keys()), new Set(layout.keys()))}], cpp-only [${diff(new Set(layout.keys()), new Set(stub.keys()))}]`}`);
@@ -674,9 +730,15 @@ head(15, 'the stub\'s 18 ranges + defaults match createParameterLayout() PARSED 
     }
     check(drift.length === 0, `every range AND default matches${drift.length ? ` — ${drift.join('; ')}` : ''}`);
 
-    // All 18 ranges are linear by design — there is no skewForCentre helper to
-    // get wrong, and this is what makes that claim executable.
-    check([...stub.values()].every(s => s.skew === 1), 'all 18 stub skews are 1 (every range is linear)');
+    // 27 of the 28 ranges are linear by design. v1.8.0's motionRate is THE FIRST NON-LINEAR
+    // RANGE — setSkewForCentre (0.3f) on 0.01..4 — and the stub carries the skew JUCE derives:
+    // log(0.5) / log((0.3 - 0.01) / (4 - 0.01)) = 0.2644. Both halves are asserted so the
+    // exception is named rather than the rule quietly dropped.
+    check([...stub.entries()].filter(([id]) => id !== 'motionRate').every(([, s]) => s.skew === 1),
+        'every stub skew except motionRate is 1 (every other range is linear)');
+    check(/rateRange\.setSkewForCentre \(0\.3f\)/.test(S.procCpp), 'motionRate has setSkewForCentre (0.3f) in the C++');
+    check(Math.abs((stub.get('motionRate')?.skew ?? 0) - 0.2644) < 5e-4,
+        `the stub's motionRate skew is JUCE's derived 0.2644 — ${stub.get('motionRate')?.skew}`);
 
     // The two neutral-default traps, named so a failure says WHICH.
     for (let i = 1; i <= 8; ++i)
@@ -693,7 +755,7 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
     // as `makeFloat ("w" + juce::String (i), ...)`, so a regex that stops at the
     // closing quote harvests a nineteenth "parameter" called `w` and reports
     // 19 == 18 as a mismatch on correct code.
-    const layoutIds = new Set([...S.procCpp.matchAll(/makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,/g)].map(m => m[1]));
+    const layoutIds = new Set([...S.procCpp.matchAll(/make(?:Float|Bool|Choice)\s*\(\s*"([A-Za-z0-9_]+)"\s*,/g)].map(m => m[1]));
     for (let i = 1; i <= 8; ++i) layoutIds.add(`w${i}`);
 
     const idTable = S.gainH.match(/static constexpr const char\* ids\[\][\s\S]*?\{([\s\S]*?)\};/);
@@ -704,8 +766,8 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
     const appBlock = S.appJs.match(/const PARAM_IDS = \[([\s\S]*?)\];/);
     const appIds = new Set(appBlock ? [...appBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]) : []);
 
-    check(layoutIds.size === 18 && paramsIds.size === 18 && domIds.size === 18 && appIds.size === 18,
-        `all four lists are 18 — layout ${layoutIds.size}, params::id ${paramsIds.size}, DOM ${domIds.size}, app ${appIds.size}`);
+    check(layoutIds.size === 28 && paramsIds.size === 28 && domIds.size === 28 && appIds.size === 28,
+        `all four lists are 28 — layout ${layoutIds.size}, params::id ${paramsIds.size}, DOM ${domIds.size}, app ${appIds.size}`);
     check(setsEqual(layoutIds, paramsIds),
         `createParameterLayout == oo::params::id()${setsEqual(layoutIds, paramsIds) ? ''
             : ` — [${diff(layoutIds, paramsIds)}] / [${diff(paramsIds, layoutIds)}]`}`);
@@ -730,6 +792,46 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
         'PluginEditor.cpp carries NO hand-written kSliderIds list');
     check(/for \(int i = 0; i < static_cast<int> \(oo::params::kCount\); \+\+i\)/.test(S.editorCpp),
         'the relay loop is bounded by oo::params::kCount, not by a literal 18');
+
+    // v1.8.0 — THE SPLIT, NAMED. sliderRelays covers exactly kCount - 3 and the three that leave
+    // it are motionOn (toggle) and motionPath / motionSync (combo), stated ONCE as two predicates
+    // in PluginEditor.h that BOTH loops consult. app.js names the same three in CONTROL_KIND.
+    check(/isToggleParam \(int i\) noexcept \{ return i == oo::params::motionOn; \}/.test(S.editorH),
+        'isToggleParam names exactly motionOn');
+    check(/isComboParam\s+\(int i\) noexcept \{ return i == oo::params::motionPath \|\| i == oo::params::motionSync; \}/.test(S.editorH),
+        'isComboParam names exactly motionPath and motionSync');
+    check(/if \(isToggleParam \(i\)\)[\s\S]*?WebToggleButtonRelay[\s\S]*?else if \(isComboParam \(i\)\)[\s\S]*?WebComboBoxRelay[\s\S]*?else[\s\S]*?WebSliderRelay/.test(S.editorCpp),
+        'the relay loop splits on those two predicates, sliders in the else arm (kCount - 3)');
+    const kind = S.appJs.match(/const CONTROL_KIND = \{([^}]*)\}/);
+    const kindIds = kind ? [...kind[1].matchAll(/([A-Za-z0-9_]+)\s*:\s*"(toggle|combo)"/g)].map(m => `${m[1]}:${m[2]}`).sort() : [];
+    check(kindIds.join(',') === 'motionOn:toggle,motionPath:combo,motionSync:combo',
+        `app.js CONTROL_KIND names the same three — [${kindIds.join(', ')}]`);
+}
+
+// ────────────────────────────────────── 41. the trace is NOT generated on the page (v1.8.0) ──
+head(41, 'no path generator in the page — the trace is translated + projected from getMotionTrace only');
+{
+    // The audible path is oo::motion::evaluate() in MotionPath.h. The map draws what getMotionTrace
+    // returns and does nothing else to it; a JS re-implementation would be a second generator free
+    // to drift from the one the audio thread runs (pattern_test_fixture_mirrors_drift_silently).
+    // The stub's copy is a labelled FIXTURE and lives in tests/, never in Source/ui.
+    for (const m of PAGE_MODULES) {
+        check(!/\bevaluate\s*\(/.test(m.code), `${m.name} calls no evaluate()`);
+    }
+    const traceBlock = blockAt(S.roomJs, S.roomJs.indexOf('function renderTrace('));
+    check(traceBlock.length > 0, 'roomplan.js has renderTrace()');
+    check(!/Math\.(sin|cos|atan2|hypot)|Perlin|fbm/.test(traceBlock),
+        'renderTrace() carries no trigonometry and no noise — translation and metresToPx only');
+    check(/trace\.points/.test(traceBlock) && /metresToPx\(anchor\.x \+ Number\(pt\[0\]\), anchor\.y \+ Number\(pt\[1\]\), view\)/.test(traceBlock),
+        '#motion-trace is built from getMotionTrace\'s points plus the anchor, through metresToPx');
+    check(/fetch|getMotionTrace/.test(S.appJs) && /nativeFn\("getMotionTrace"\)/.test(S.appJs),
+        'app.js fetches the trace through the native function');
+    check(/export function metresToPx/.test(S.roomJs) && !/function\s+normToMetres/.test(S.appJs),
+        'the anchor is derived through roomplan.js\'s own normToMetres twin, not a second copy');
+    check(/"motion"/.test(S.editorCpp) && /liveMotionOffset/.test(S.editorCpp) && /payload\.motion/.test(S.metersJs || ''),
+        'the live offset rides getMeters (C++ writes "motion", meters.js forwards payload.motion)');
+    check(/getMotionTrace/.test(S.stubJs) && /TRANSCRIPTION FOR THE STUB ONLY/.test(S.stubJs),
+        'the stub\'s trace is labelled as a fixture');
 }
 
 // ──────────────────────────────────────────────────────── 17. the frame size ──
@@ -801,7 +903,8 @@ head(18, 'font-variant-numeric: tabular-nums on every value readout class');
     const valueNodes = [...S.html.matchAll(/<[a-z]+\b[^>]*\bid="([^"]+)"[^>]*>/g)]
         .filter(m => VALUE_IDS.test(m[1]))
         .map(m => m[0]);
-    check(valueNodes.length === 85, `85 value nodes found in index.html — ${valueNodes.length}`);
+    // v1.8.0: 85 -> 95, the ten motion readouts (val-motionOn .. val-motionSeed).
+    check(valueNodes.length === 95, `95 value nodes found in index.html — ${valueNodes.length}`);
 
     const classOf = tag => (tag.match(/class="([^"]*)"/) || [, ''])[1].split(/\s+/);
     const untreated = valueNodes.filter(n =>

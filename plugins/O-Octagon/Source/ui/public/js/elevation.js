@@ -133,6 +133,10 @@ export function createElevation(deps) {
 
   let geometry = null;
   let view = null;
+
+  // v1.8.0 — the motion engine's z offset (metres), polled from getMeters and
+  // handed in by app.js. Zero while motion is off, so the marker is srcZ's.
+  let motionZ = 0;
   let axisMaxM = AXIS_MIN_M;
   let box = { w: 0, h: 0 };
 
@@ -287,7 +291,7 @@ export function createElevation(deps) {
     const depthM = normToMetres(0, srcY.state.getNormalisedValue(), geometry).y;
 
     const earM = earHeight(depthM, geometry);
-    const srcM = earM + srcZ.state.getScaledValue();
+    const srcM = earM + srcZ.state.getScaledValue() + motionZ;
 
     // ── RULE 3 ─────────────────────────────────────────────────────────────
     // The DOT clamps to the axis; the NUMBERS below do not. srcZ reaches
@@ -344,6 +348,14 @@ export function createElevation(deps) {
   srcZ.state.valueChangedEvent.addListener(() => { if (view !== null) drawMarker(); });
 
   return {
+    /** v1.8.0 — the live height from the polled motion triple. */
+    setMotionZ(z) {
+      const v = Number(z) || 0;
+      if (v === motionZ) return;
+      motionZ = v;
+      if (view !== null) drawMarker();
+    },
+
     setGeometry(g) {
       geometry = g;
       relayout();

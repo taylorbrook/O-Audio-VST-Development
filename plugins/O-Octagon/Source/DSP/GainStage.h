@@ -38,6 +38,9 @@
 #include "Decorrelator.h"
 #include "HullProcessor.h"
 #include "MonitorFold.h"
+#include "MotionClock.h"
+#include "MotionPath.h"
+#include "PerlinNoise.h"
 #include "SourceShaper.h"
 
 namespace oo
@@ -65,14 +68,17 @@ namespace params
         w1, w2, w3, w4, w5, w6, w7, w8,
         hullAtten, airAmount,
         outputGain,
+        // v1.8.0 — the motion group, APPENDED so every pre-existing index is untouched.
+        motionOn, motionPath, motionSync, motionRate, motionSize,
+        motionRatio, motionAngle, motionHeight, motionPhase, motionSeed,
         kNumParams
     };
 
     inline constexpr std::size_t kCount = static_cast<std::size_t> (kNumParams);
 
-    static_assert (kCount == 18,
-                   "parameter-spec.md specifies 18 musical parameters — the 17 of Phase 2.2 plus "
-                   "v1.5.0's `decorr`. If this fires, the enum and the APVTS layout have diverged "
+    static_assert (kCount == 28,
+                   "parameter-spec.md specifies 28 musical parameters — the 17 of Phase 2.2, "
+                   "v1.5.0's `decorr` and v1.8.0's ten `motion*`. If this fires, the enum and the APVTS layout have diverged "
                    "and the control-block snapshot is reading the wrong atomics.");
 
     /** THE SINGLE MAPPING between this enum and the APVTS parameter IDs.
@@ -87,7 +93,9 @@ namespace params
                 "rolloff", "blur",
                 "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8",
                 "hullAtten", "airAmount",
-                "outputGain" };
+                "outputGain",
+                "motionOn", "motionPath", "motionSync", "motionRate", "motionSize",
+                "motionRatio", "motionAngle", "motionHeight", "motionPhase", "motionSeed" };
 
         static_assert (sizeof (ids) / sizeof (ids[0]) == kCount,
                        "the id table and the Index enum have diverged");
@@ -221,9 +229,22 @@ public:
                           than reached for: the isNonRealtime() and SAFE-mode rules that decide it
                           live on the processor, and this class does not ask the processor
                           anything (P24). */
+    /** @param clock  v1.8.0. The host transport as read ONCE per block by the processor (P24),
+                      DEFAULTED so every existing call site compiles unchanged. Null means "no PPQ,
+                      120 BPM" — Free mode never reads it. */
     void process (juce::AudioBuffer<float>& buffer, int numIn, int numOut, bool mapped,
                   const VenueSnapshot& snapshot, const ParamSnapshot& p,
-                  VerifyPing* ping = nullptr, bool monitorOn = false) noexcept;
+                  VerifyPing* ping = nullptr, bool monitorOn = false,
+                  const motion::HostClock* clock = nullptr) noexcept;
+
+    /** v1.8.0 — the offset the last control boundary applied, in anchor-relative metres, for the
+        live puck on the venue map (rides the getMeters poll). Zero when motion is off. */
+    std::array<float, 3> liveMotionOffset() const noexcept
+    {
+        return { liveOffset[0].load (std::memory_order_relaxed),
+                 liveOffset[1].load (std::memory_order_relaxed),
+                 liveOffset[2].load (std::memory_order_relaxed) };
+    }
 
    #if OOCTAGON_INSTRUMENT
     /** The 17 smoothers' CURRENT values — gL[0..7], gR[0..7], outGain.
@@ -236,7 +257,11 @@ public:
 
 private:
     //==========================================================================
-    void updateControl (const VenueSnapshot& snapshot, const ParamSnapshot& p) noexcept;
+    /** @param offset    v1.8.0. The motion offset for THIS boundary, metres. Read only when
+                          motionOn — the off branch is v1.7.0's body verbatim (probe DC).
+        @param motionOn  selects the branch. A BRANCH, not `+ 0.0f`: R3 is structural. */
+    void updateControl (const VenueSnapshot& snapshot, const ParamSnapshot& p,
+                        Vec3 offset, bool motionOn) noexcept;
 
     void renderChunk (juce::AudioBuffer<float>& buffer, int start, int count,
                       int numIn, int numOut, bool mapped,
@@ -430,6 +455,20 @@ private:
     ParamSnapshot lastSolvedParams {};
     std::uint32_t lastSolvedGeneration { 0 };
     bool          haveSolved { false };
+
+    // ── v1.8.0 — the motion engine's state. NONE OF IT IS AN ACCUMULATOR. ───────────────────
+    //
+    // perlin is a seeded table (pure after seed()); motionClock holds a constant of integration
+    // and a held value (MotionClock.h); seededWith is the seed the table was last filled from, so
+    // a seed change re-fills it at the grid boundary and an unchanged one costs nothing. The
+    // offset itself is a function of (absoluteSampleCounter, HostClock) — see process().
+    PerlinNoise               perlin;
+    motion::MotionClockState  motionClock;
+    int                       seededWith { -1 };
+
+    /// Published at every control boundary for the live puck (getMeters). Relaxed: read by the
+    /// message thread as three independent floats; a torn triple is one frame off, not a fault.
+    std::atomic<float> liveOffset[3] { 0.0f, 0.0f, 0.0f };
 };
 
 } // namespace oo

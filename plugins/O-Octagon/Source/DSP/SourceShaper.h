@@ -86,6 +86,18 @@ namespace shaper
     */
     SubPoints shape (const VenueSnapshot& v, float srcXNorm, float srcYNorm,
                      float srcZ, float widthMetres) noexcept;
+
+    /** v1.8.0 — steps 2 through 6 from a puck ALREADY IN METRES (RESEARCH Q2).
+
+        The motion engine's offset is metric and belongs AFTER step 1's denormalisation (D2), so
+        the split sits at exactly that seam: shape() is step 1 followed by this. GainStage takes
+        this entry on the motion branch and the verbatim shape() on the off branch — probe DC holds
+        the off branch against the v1.7.0 binary's digest.
+
+        @param metres  the puck in venue metres (bbox-denormalised srcX/srcY plus the offset)
+    */
+    SubPoints shapeAt (const VenueSnapshot& v, Vec2 metres,
+                       float srcZ, float widthMetres) noexcept;
 }
 
 } // namespace oo

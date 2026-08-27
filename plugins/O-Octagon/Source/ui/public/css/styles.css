@@ -763,6 +763,134 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 
 .cell-range { width: 100%; }
 
+/* ── v1.8.0 — POSITION | MOTION: the tab pair and the dense panel ──────────
+   THE BUDGET, MEASURED (plan Task 8 step 0): this column had 13 px in hand
+   and an elevation stage that is flex:none at 125, so a seventh group could
+   not fit in any shape (a plain five-row group read 756 against 592). Motion
+   therefore shares Position's group as a second panel:
+
+     * the tab pair sits in the TITLE ROW (the Scenes STORE precedent) and is
+       styled at the title's own 11 px so the row grows by the button chrome
+       only — ~7 of the 13 px;
+     * the Motion panel is a THREE-column grid of nine visible cells = three
+       rows = Position's own three rows, so the group's height is the same
+       whichever panel shows and the column below it does not move.
+
+   Dense cell: 44 px label, the control, 50 px value. Content box 552 − 2 × 16
+   column gap = 520 / 3 = 173 per cell; 173 − 44 − 50 − 2 × 8 = 63 px for the
+   range. A select spans control + value (grid-column 2 / 4), its readout node
+   kept for the gates but not shown. */
+.group-tabs {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  margin: 0 0 6px 0;
+}
+
+.group-tab {
+  margin: 0;
+  padding: 0 0 1px 0;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+}
+
+.group-tab:hover { color: var(--ink-dim); }
+
+.group-tab.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--ink-dim);
+  cursor: default;
+}
+
+/* A dot beside the tabs while motion RUNS, so an orbit dialled on the hidden
+   panel is still announced from the Position panel. Class-driven, no text. */
+.group-tab-state {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--rule);
+}
+
+.group-tab-state.is-running { background: var(--level-hi, #e8c87a); }
+
+.group-body--dense {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 16px;
+}
+
+.cell-dense {
+  grid-template-columns: 44px minmax(0, 1fr) 50px;
+  column-gap: 8px;
+}
+
+.cell-check {
+  justify-self: start;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--level-hi, #e8c87a);
+  cursor: pointer;
+}
+
+.cell-select .cell-choice { grid-column: 2 / 4; }
+.cell-select .cell-value  { display: none; }
+
+.cell-choice {
+  box-sizing: border-box;   /* 16 px INCLUDING the border = a range row's measured height */
+  width: 100%;
+  min-width: 0;
+  height: 16px;
+  padding: 0 2px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--panel-lift);
+  border: 1px solid var(--rule-soft);
+  border-radius: 2px;
+}
+
+.group-body[hidden], .cell[hidden] { display: none; }
+
+/* ── v1.8.0 — the trace, the ghost anchor, the live puck, the Drift tail ── */
+.motion-trace {
+  fill: none;
+  stroke: var(--level-hi, #e8c87a);
+  stroke-opacity: 0.32;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.motion-tail {
+  fill: none;
+  stroke: var(--level-hi, #e8c87a);
+  stroke-opacity: 0.45;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/* The anchor goes hollow while motion runs: it is still the thing you drag. */
+.puck.puck--ghost { background: transparent; border-style: dashed; }
+.puck.puck--ghost .puck-core { opacity: 0.35; }
+
+.puck.puck--live {
+  pointer-events: none;
+  cursor: default;
+}
+
+.puck.puck--live[hidden] { display: none; }
+
 /* ── The group title ROW (3.3) ───────────────────────────────────────────
    Two groups now carry a trailing control or readout beside the heading, and
    both do it for the same measured reason: THE TITLE ROW ALREADY EXISTS. P72

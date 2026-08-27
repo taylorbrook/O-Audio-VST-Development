@@ -61,6 +61,26 @@ namespace
                                                             defaultValue,
                                                             attributes);
     }
+
+    // v1.8.0 — THE FIRST NON-FLOAT PARAMETERS. A Bool and two Choices, because `motionPath` in a
+    // host automation lane must read "Figure-8", not 0.2. Choice strings are ASCII: juce::String's
+    // const char* constructor is ASCII-only (critical_juce_string_char_ctor_is_ascii_only).
+    std::unique_ptr<juce::AudioParameterBool> makeBool (const juce::String& id,
+                                                        const juce::String& name,
+                                                        bool defaultValue)
+    {
+        return std::make_unique<juce::AudioParameterBool> (juce::ParameterID { id, 1 },
+                                                           name, defaultValue);
+    }
+
+    std::unique_ptr<juce::AudioParameterChoice> makeChoice (const juce::String& id,
+                                                            const juce::String& name,
+                                                            const juce::StringArray& choices,
+                                                            int defaultIndex)
+    {
+        return std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { id, 1 },
+                                                             name, choices, defaultIndex);
+    }
 }
 
 //==============================================================================
@@ -141,6 +161,34 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "output", "Output", "|",
         makeFloat ("outputGain", "Output", linearRange (-24.0f, 12.0f), 0.0f, "dB")));
+
+    // ── Motion (v1.8.0) ──────────────────────────────────────────────────────────
+    // Ten parameters. motionOn defaults OFF for the same reason decorr defaults 0: at 0 GainStage
+    // takes the v1.7.0 branch verbatim and probe DC holds the render against the v1.7.0 digest.
+    //
+    // motionRate is THE FIRST NON-LINEAR RANGE (parameter-spec.md's "all skews linear" ends here):
+    // 0.01-4 Hz with the centre at 0.3 Hz, because a slow orbit is the musical default and a
+    // linear lane would spend 90% of its travel above 0.4 Hz. Sync choices are Free + O-Orbit's
+    // fourteen divisions in oo::motion::kSyncMultipliers order. Seed steps by 1.
+    juce::NormalisableRange<float> rateRange (0.01f, 4.0f);
+    rateRange.setSkewForCentre (0.3f);
+
+    layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
+        "motion", "Motion", "|",
+        makeBool   ("motionOn",     "Motion On",    false),
+        makeChoice ("motionPath",   "Motion Path",
+                    juce::StringArray { "Orbit", "Figure-8", "Sweep", "Drift", "Pendulum", "Spiral" }, 0),
+        makeChoice ("motionSync",   "Motion Sync",
+                    juce::StringArray { "Free", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D",
+                                        "1/4T", "1/4", "1/4D", "1/2", "1/2D", "1 Bar", "2 Bars",
+                                        "4 Bars" }, 0),
+        makeFloat  ("motionRate",   "Motion Rate",   rateRange,                          0.1f, "Hz"),
+        makeFloat  ("motionSize",   "Motion Size",   linearRange (0.0f, 24.0f),          6.0f, "m"),
+        makeFloat  ("motionRatio",  "Motion Ratio",  linearRange (0.0f, 1.0f),           1.0f),
+        makeFloat  ("motionAngle",  "Motion Angle",  linearRange (0.0f, 360.0f),         0.0f, "deg"),
+        makeFloat  ("motionHeight", "Motion Height", linearRange (0.0f, 8.0f),           0.0f, "m"),
+        makeFloat  ("motionPhase",  "Motion Phase",  linearRange (0.0f, 360.0f),         0.0f, "deg"),
+        makeFloat  ("motionSeed",   "Motion Seed",   juce::NormalisableRange<float> (1.0f, 64.0f, 1.0f), 1.0f)));
 
     return layout;
 }
@@ -705,8 +753,36 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // Published for the banner: armed, but not folding. The operator is told WHY.
     monitorSuppressed.store (armed && ! monitorOn, std::memory_order_release);
 
+    // ══ v1.8.0 — THE HOST CLOCK, READ ONCE PER BLOCK AND HANDED IN (P24) ════════════════════
+    //
+    // Exactly O-Orbit's read (PluginProcessor.cpp:561-574): getPosition() -> bpm, ppq, playing.
+    // ppqValid means the host SUPPLIED a position, which is a different fact from "playing" — a
+    // stopped host with a PPQ holds motion at that PPQ (where playback resumes); one with no PPQ
+    // free-runs (MotionClock.h Q7). Every accessor here is a value read; nothing allocates.
+    //
+    // NO isSafeMode() GATE (RESEARCH Q3): the unmapped renderChunk branch never reads a position,
+    // so motion is inaudible in SAFE mode by construction and the map still animates.
+    oo::motion::HostClock clock;
+
+    if (auto* playHead = getPlayHead())
+    {
+        if (const auto pos = playHead->getPosition())
+        {
+            if (const auto bpm = pos->getBpm())
+                clock.bpm = *bpm;
+
+            if (const auto ppq = pos->getPpqPosition())
+            {
+                clock.ppq      = *ppq;
+                clock.ppqValid = true;
+            }
+
+            clock.playing = pos->getIsPlaying();
+        }
+    }
+
     gainStage.process (buffer, numIn, numOut, mapped, snapshot, snapshotParameters(), &verifyPing,
-                       monitorOn);
+                       monitorOn, &clock);
 
     // ══ UI-03 — THE METERS. THE LAST STATEMENT IN processBlock, AND THAT IS THE POINT ═════════
     //

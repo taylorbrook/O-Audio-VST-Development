@@ -157,6 +157,7 @@ them against the UI four ways. What follows is the ledger of what changed, not a
 | v1.4.0 | Venue values 42 → 50: a per-speaker alignment delay. **Not** a parameter — venue-scoped, so no automation lane reaches it |
 | v1.5.0 | **18th musical parameter: `decorr`** |
 | v1.7.0 | The monitor fold-down adds **NO parameter** — deliberately. See below |
+| v1.8.0 | **Ten motion parameters** (`motion` group), kCount 18 → 28. First Bool, first Choices, first non-linear skew. See below |
 
 ### v1.5.0 — `decorr`
 
@@ -207,3 +208,37 @@ Consequences worth stating once, because each is a question someone will ask:
 - **No migration.** No id, no range, no index; nothing to version-gate.
 - **`params::kCount` is untouched**, so the control-block snapshot layout and its `memcmp` dirty
   check are byte-for-byte what v1.6.0 had.
+
+### v1.8.0 — the `motion` group (28 parameters)
+
+Appended at the END of `oo::params::Index`, so every pre-existing index — and the control-block
+snapshot layout the dirty check memcmps — is untouched. Motion is an internal metric OFFSET added
+downstream of `srcX/srcY/srcZ` (CONTEXT D1); the three position lanes are never written.
+
+| # | ID | Name | Type | Range / choices | Default | Skew | `withLabel` | Display |
+|---|----|------|------|-----------------|---------|------|-------------|---------|
+| 19 | `motionOn` | Motion On | Bool | off / on | **off** | — | — | On/Off |
+| 20 | `motionPath` | Motion Path | Choice | Orbit, Figure-8, Sweep, Drift, Pendulum, Spiral | Orbit | — | — | name |
+| 21 | `motionSync` | Motion Sync | Choice | Free, 1/16T, 1/16, 1/16D, 1/8T, 1/8, 1/8D, 1/4T, 1/4, 1/4D, 1/2, 1/2D, 1 Bar, 2 Bars, 4 Bars | Free | — | — | name |
+| 22 | `motionRate` | Motion Rate | Float | 0.01 – 4.0 | 0.1 | **centre 0.3** | `Hz` | 2 dp |
+| 23 | `motionSize` | Motion Size | Float | 0.0 – 24.0 (extent / diameter) | 6.0 | linear | `m` | 1 dp |
+| 24 | `motionRatio` | Motion Ratio | Float | 0.0 – 1.0 | 1.0 | linear | *(none)* | 2 dp |
+| 25 | `motionAngle` | Motion Angle | Float | 0 – 360 | 0 | linear | `deg` | 0 dp |
+| 26 | `motionHeight` | Motion Height | Float | 0.0 – 8.0 | 0.0 | linear | `m` | 1 dp |
+| 27 | `motionPhase` | Motion Phase | Float | 0 – 360 | 0 | linear | `deg` | 0 dp |
+| 28 | `motionSeed` | Motion Seed | Float, step 1 | 1 – 64 | 1 | linear | *(none)* | 0 dp |
+
+**Three firsts, each deliberate.** `motionOn` is the first Bool and `motionPath`/`motionSync` the
+first Choices — a host lane must read "Figure-8", not 0.2 — so the editor gains a
+`WebToggleButtonRelay` and two `WebComboBoxRelay`s beside the float loop. `motionRate` is the
+first non-linear range: 0.01–4 Hz with the centre at 0.3 Hz, because a slow orbit is the musical
+default and a linear lane would spend most of its travel above 0.4 Hz.
+
+**`motionOn = off` is a compatibility guarantee**, exactly as `decorr = 0` was: GainStage takes the
+v1.7.0 `shape()` call and dirty-check predicate verbatim on the off branch, held by probe DC
+against the v1.7.0 binary's digest (`0xb8c5a2d0c7518204`).
+
+**Preset scope: AUTHORED.** All ten join `oo::presets::kAuthored` (6 → 16) so motion travels in
+presets (R7). The six original factory rows write nothing for them, so WR-01 lands `motionOn = 0`
+on every one of those loads; a pre-1.8.0 preset omits the keys and loads motion-off (probe DK).
+**No migration hook** — no range moved.

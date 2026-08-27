@@ -272,6 +272,11 @@ public:
     */
     std::array<float, ochan::kNumSpeakers> readAndZeroMeters() noexcept;
 
+    /** v1.8.0 — the motion offset the last control boundary applied (anchor-relative metres),
+        for the live puck on the venue map. Rides getMeters, NOT getStatus: a puck at 2 Hz
+        stutters (RESEARCH Q6). Atomics only. */
+    std::array<float, 3> liveMotionOffset() const noexcept { return gainStage.liveMotionOffset(); }
+
     //==============================================================================
     // ── FUNC-06 — weight scenes (Phase 3.3) ─────────────────────────────────────────────────────
 
