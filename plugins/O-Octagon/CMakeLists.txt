@@ -166,11 +166,11 @@ target_compile_definitions(OuariconOctagon
 # That prohibition still stands and is still the reason the file below exists.
 #
 # The residual it left open — a JUCE bump performed without running the test target ships silently
-# — is CLOSED as of Phase 4.1 (PLAN-4.1 P86), and not by overturning P13. Both targets are built
-# and run per-commit by .github/workflows/ci-tests.yml, a SECRETLESS workflow with
+# — was CLOSED as of Phase 4.1 (PLAN-4.1 P86), and not by overturning P13. Both targets are built
+# and run by .github/workflows/ci-tests.yml, a SECRETLESS workflow with
 # `permissions: contents: read`, which is orthogonal to the trigger rule rather than an exception
-# to it. It also catches the stated failure mode where a tag-time gate could not: a JUCE bump is a
-# COMMIT, not a tag.
+# to it. As of 2026-08-27 that workflow is `workflow_dispatch` ONLY (repo policy: no CI build on
+# push — only `/publish` tags build). Dispatch it manually before/after a JUCE bump.
 #
 # That job's gate is the `cmake --build` step, not the run step — tests/unit's Layer-2 golden is
 # compared by static_assert during the compile, so a JUCE that reorders AudioChannelSet fails to

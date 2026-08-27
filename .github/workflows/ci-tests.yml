@@ -1,4 +1,19 @@
-# Per-commit C++ probe gate (PLAN-4.1 P86, P87, P88, P89).
+# C++ probe gate for O-Octagon (PLAN-4.1 P86, P87, P88, P89) — MANUAL ONLY.
+#
+# ---------------------------------------------------------------------------
+# TRIGGER POLICY (2026-08-27): NO BUILD ON PUSH
+# ---------------------------------------------------------------------------
+# Standing rule for this repository: GitHub Actions must NOT build anything on
+# an ordinary push or pull request. The only CI build path is the release tag
+# pushed by the `/publish` slash command (handled by build-and-release.yml).
+# This workflow is therefore `workflow_dispatch` only — run it by hand from the
+# Actions tab (or `gh workflow run ci-tests.yml`) when you want the probes.
+#
+# It previously ran on every push/PR (P89: "a gate that can silently not run").
+# That per-commit gate was retired deliberately in favour of zero unsolicited
+# CI builds; the residual it covered — a JUCE bump shipping without the
+# Layer-2 golden being recompiled — is now caught at release time only, or when
+# this workflow is dispatched manually before a JUCE bump.
 #
 # ---------------------------------------------------------------------------
 # WHY THIS FILE EXISTS SEPARATELY FROM build-and-release.yml
@@ -14,10 +29,6 @@
 #   * it builds and runs test binaries only — no signing, no notarisation, no
 #     packaging, no Release (PLAN-4.1 D4).
 #
-# It also delivers the failure mode the release workflow structurally cannot.
-# The gap being closed is "a JUCE bump ships silently", and a JUCE bump is a
-# COMMIT, not a tag — a tag-time gate catches it only at release.
-#
 # ---------------------------------------------------------------------------
 # THE GATE IS THE BUILD STEP, NOT THE RUN STEP
 # ---------------------------------------------------------------------------
@@ -26,17 +37,12 @@
 # A JUCE bump that reorders AudioChannelSet's enum fails to COMPILE. A job that
 # only executes a cached binary discharges nothing — negative control NC5
 # (PLAN-4.1 P98) demonstrates exactly this. `cmake --build` must run here.
-#
-# ---------------------------------------------------------------------------
-# NO paths: FILTER — DELIBERATE (P89)
-# ---------------------------------------------------------------------------
-# A paths filter is a gate that can silently not run: a green check mark that
-# means "skipped". The job costs 3-4 minutes. Run it on every push and every PR.
 # ---------------------------------------------------------------------------
 
 name: CI Tests
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:
 
 permissions:
   contents: read
