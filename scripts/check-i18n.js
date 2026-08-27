@@ -445,6 +445,55 @@ function checkPlugin(p) {
 
     const unreviewed = keys.filter(k => (I18N[k] && I18N[k].fr || {}).reviewed === false).length;
 
+    // ── 1 / 4 / 5, applied to LABELS as well ─────────────────────────────
+    // Assertions 1, 4 and 5 and the reviewer worklist above read I18N only.
+    // Stage F landed 40 French LABEL strings on O-Tapestop and EVERY ONE was
+    // invisible to all four: unchecked for an en/fr pair, unchecked for a
+    // silent English passthrough, unchecked for the reviewed flag, and absent
+    // from the native-speaker worklist that is the whole point of flagging
+    // machine drafts. Forty unreviewed strings reported as zero is worse than
+    // no worklist, because it reads as done.
+    //
+    // A LABELS entry is {en:{t}, fr:{t, reviewed}} — one string, no body,
+    // because a label is not a tooltip. So this is the same three checks
+    // against a narrower shape, not a copy of the block above.
+    const LABELS_EARLY = mod.LABELS;
+    let labelsUnreviewed = 0;
+    let labelsCount = 0;
+    if (LABELS_EARLY != null) {
+        const lkeys = typeof LABELS_EARLY === 'object' ? Object.keys(LABELS_EARLY) : [];
+        labelsCount = lkeys.length;
+
+        const lMissing = [];
+        for (const k of lkeys) {
+            const e = LABELS_EARLY[k] || {};
+            for (const lang of ['en', 'fr'])
+                if (!e[lang] || typeof e[lang].t !== 'string') lMissing.push(`${k}.${lang}`);
+        }
+        check(lMissing.length === 0,
+            `[1] every LABELS key has en and fr with a string t`
+            + (lMissing.length ? ` — ${lMissing.length} malformed: ${lMissing.slice(0, 6).join(', ')}` : ''));
+
+        const lPass = lkeys.filter((k) => {
+            const e = LABELS_EARLY[k];
+            if (!e || !e.en || !e.fr) return false;
+            if (e.fr.sameAsEn === true) return false;
+            return e.fr.t === e.en.t;
+        });
+        check(lPass.length === 0,
+            `[4] no LABELS fr entry is a straight copy of en without sameAsEn: true`
+            + (lPass.length ? ` — ${lPass.length}: ${lPass.slice(0, 6).join(', ')}` : ''));
+
+        const lUnflagged = lkeys.filter((k) =>
+            typeof ((LABELS_EARLY[k] && LABELS_EARLY[k].fr) || {}).reviewed !== 'boolean');
+        check(lUnflagged.length === 0,
+            `[5] every LABELS fr entry carries an explicit boolean reviewed`
+            + (lUnflagged.length ? ` — missing on ${lUnflagged.length}: ${lUnflagged.slice(0, 6).join(', ')}` : ''));
+
+        labelsUnreviewed = lkeys.filter((k) =>
+            ((LABELS_EARLY[k] && LABELS_EARLY[k].fr) || {}).reviewed === false).length;
+    }
+
     // ── 3. copy has left the markup ──────────────────────────────────────
     if (!fs.existsSync(p.indexHtml)) {
         check(false, '[3] index.html exists');
@@ -581,7 +630,8 @@ function checkPlugin(p) {
         console.log(`  SKIP: [${scope}] [10-13,15] canon v2 assertions — this plugin is on `
             + `${canonVersion || 'no recognised canon'}. They are not failures until --strict-v2 `
             + `(Stage L); a gate that is red for a whole rollout stops being read.`);
-        return { keys: keys.length, unreviewed, canon: canonVersion };
+        return { keys: keys.length + labelsCount, unreviewed: unreviewed + labelsUnreviewed,
+                 tipKeys: keys.length, labelKeys: labelsCount, canon: canonVersion };
     }
 
     const exemptSet = new Set((Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : [])
@@ -697,7 +747,8 @@ function checkPlugin(p) {
             + (dead.length ? ` — ${dead.length} dead: ${dead.slice(0, 6).join(', ')}` : ''));
     }
 
-    return { keys: keys.length, unreviewed, canon: canonVersion };
+    return { keys: keys.length + labelsCount, unreviewed: unreviewed + labelsUnreviewed,
+             tipKeys: keys.length, labelKeys: labelsCount, canon: canonVersion };
 }
 
 // ───────────────────────────────────────────────────────────────── main ──
@@ -725,7 +776,8 @@ if (summary.length === 0) {
     console.log('  (nothing to report — a plugin failed before its table could be read)');
 } else {
     for (const s of summary)
-        console.log(`  ${s.name.padEnd(30)} ${String(s.unreviewed).padStart(4)} / ${s.keys} entries unreviewed`);
+        console.log(`  ${s.name.padEnd(30)} ${String(s.unreviewed).padStart(4)} / ${s.keys} entries unreviewed`
+            + `   (${s.tipKeys} tooltip, ${s.labelKeys} label)`);
     const total = summary.reduce((a, s) => a + s.unreviewed, 0);
     console.log(`  ${'TOTAL'.padEnd(30)} ${String(total).padStart(4)}`);
 }

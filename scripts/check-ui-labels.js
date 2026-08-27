@@ -156,9 +156,16 @@ const PROBE = () => {
     const out = {
         labels: [],
         others: [],
+        // dw/dh are documentElement — the element that actually scrolls, and
+        // the one the committed clamp gates assert. bw/bh are body, reported
+        // alongside because a body wider than documentElement means a child is
+        // overflowing something with overflow:hidden, which is worth SEEING
+        // without being a language failure.
         docScroll: {
-            w: Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0),
-            h: Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0),
+            dw: document.documentElement.scrollWidth,
+            dh: document.documentElement.scrollHeight,
+            bw: document.body ? document.body.scrollWidth : 0,
+            bh: document.body ? document.body.scrollHeight : 0,
         },
         viewport: { w: window.innerWidth, h: window.innerHeight },
         attrKeyed: [...document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]')]
@@ -185,6 +192,21 @@ const PROBE = () => {
             leaf: el.children.length === 0,
             scrollWidth: el.scrollWidth,
             clientWidth: el.clientWidth,
+            // The RENDERED text's own width, and the content box it has to sit
+            // in. Measured with a Range because scrollWidth CANNOT see this:
+            // on a leaf whose overflow is `visible` the browser reports
+            // scrollWidth === clientWidth however far the text spills, so a
+            // check built on it is blind to precisely the elements that have
+            // no clipping to protect them. Stage F found two French CHARACTER
+            // segments on O-Tapestop overrunning their 58 px button by 6 and
+            // 10 px with every other assertion green.
+            textWidth: (() => {
+                if (el.children.length) return null;
+                const rng = document.createRange();
+                rng.selectNodeContents(el);
+                return rng.getBoundingClientRect().width;
+            })(),
+            contentWidth: el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
             parentPad: parent ? (() => {
                 const pcs = getComputedStyle(parent);
                 const pb = parent.getBoundingClientRect();
@@ -403,20 +425,55 @@ const overlaps = (a, b) =>
             check(clipped.length === 0,
                 `[4][${lang}] no leaf label is clipped by its own overflow`
                 + (clipped.length ? ` — ${clipped.length}: ${clipped.slice(0, 4).map((l) => `${l.key} ${l.scrollWidth}>${l.clientWidth}`).join(', ')}` : ''));
+
+            // ── and the half the clip check cannot see ─────────────────────
+            // A leaf with overflow:visible never reports a scrollWidth larger
+            // than its clientWidth, so the check above passes on a label whose
+            // text is spilling out of its button in plain sight. This one
+            // measures the text and asks whether it fits.
+            const spilling = snaps[lang].before.labels.filter((l) =>
+                l.visible && l.leaf && l.textWidth != null
+                && l.textWidth > l.contentWidth + 0.5);
+            check(spilling.length === 0,
+                `[4][${lang}] no leaf label's TEXT is wider than its own content box `
+                + `(the case overflow:visible hides from scrollWidth)`
+                + (spilling.length ? ` — ${spilling.length}: ${spilling.slice(0, 4).map((l) =>
+                    `${l.key} "${l.text.slice(0, 14)}" ${l.textWidth.toFixed(1)}>${l.contentWidth.toFixed(1)}`).join(', ')}` : ''));
         }
 
-        // ── 5. no spill past the offsetParent's padding box ────────────────
-        for (const lang of ['en', 'fr']) {
-            const spilled = snaps[lang].before.labels.filter((l) => {
-                if (!l.visible || !l.parentPad) return false;
-                const p = l.parentPad, b = l.rect;
-                return b.x < p.x - TOL || b.y < p.y - TOL
-                    || b.x + b.w > p.x + p.w + TOL || b.y + b.h > p.y + p.h + TOL;
-            });
-            check(spilled.length === 0,
-                `[5][${lang}] every label stays inside its offsetParent's padding box`
-                + (spilled.length ? ` — ${spilled.length}: ${spilled.slice(0, 4).map((l) => l.key).join(', ')}` : ''));
-        }
+        // ── 5. no label spills its offsetParent MORE in French ─────────────
+        // Measured as a DELTA against English, not as an absolute.
+        //
+        // Stage F, on O-Tapestop: the absolute form of this assertion failed on
+        // three `.group-label` panel legends — IN ENGLISH. They are
+        // `position: absolute; top: -9px` and deliberately straddle the panel
+        // border, the fieldset-legend idiom, which is an authored layout the
+        // developer sees on screen every day. An i18n gate that fails on it is
+        // not reporting a French problem; it is arguing with the design, and it
+        // would do so on most plugins in the suite. A gate that is red for a
+        // whole rollout stops being read.
+        //
+        // The failure this assertion actually exists to catch is a label that
+        // GREW out of its cell in French. That is exactly `spill(fr) >
+        // spill(en)`. The English spill is reported so it is never silent.
+        const spillOf = (l) => {
+            if (!l.visible || !l.parentPad) return 0;
+            const p = l.parentPad, b = l.rect;
+            return Math.max(0, p.x - b.x, p.y - b.y,
+                               (b.x + b.w) - (p.x + p.w), (b.y + b.h) - (p.y + p.h));
+        };
+        const enSpill = new Map(en.labels.map((l) => [l.path, spillOf(l)]));
+        const grew = fr.labels.filter((l) => spillOf(l) > (enSpill.get(l.path) || 0) + TOL);
+        check(grew.length === 0,
+            `[5] no label spills its offsetParent's padding box MORE in French than in English`
+            + (grew.length ? ` — ${grew.length}: ${grew.slice(0, 4).map((l) =>
+                `${l.key} ${(enSpill.get(l.path) || 0).toFixed(1)}px -> ${spillOf(l).toFixed(1)}px`).join(', ')}` : ''));
+
+        const authored = en.labels.filter((l) => spillOf(l) > TOL);
+        if (authored.length)
+            console.log(`   NOTE: [5] ${authored.length} label(s) already overhang their offsetParent in ENGLISH `
+                + `— an authored layout, reported not asserted: `
+                + authored.slice(0, 4).map((l) => `${l.key} ${spillOf(l).toFixed(1)}px`).join(', '));
 
         // ── 6. nothing crosses the shipping frame ──────────────────────────
         for (const lang of ['en', 'fr']) {
@@ -427,10 +484,26 @@ const overlaps = (a, b) =>
             check(out.length === 0,
                 `[6][${lang}] no label rect crosses the ${size.w} x ${size.h} frame`
                 + (out.length ? ` — ${out.length}: ${out.slice(0, 4).map((l) => `${l.key} @${l.rect.x.toFixed(0)},${l.rect.y.toFixed(0)} ${l.rect.w.toFixed(0)}x${l.rect.h.toFixed(0)}`).join(' | ')}` : ''));
-            check(s.docScroll.w <= size.w + 1 && s.docScroll.h <= size.h + 1,
+            // documentElement, NOT max(documentElement, body). body.scrollWidth
+            // counts a child that the real scroll container clips: Stage F found
+            // O-Tapestop's decorative .botanical-overlay running 20 px past the
+            // frame, giving body 880 where documentElement reports 860 — in
+            // BOTH languages, and identically at the pre-retrofit commit. The
+            // committed tests/ui_tooltip_clamp_check.js asserts documentElement
+            // and passes; when this tool disagreed with that gate about the same
+            // plugin's geometry, the tool was wrong.
+            check(s.docScroll.dw <= size.w + 1 && s.docScroll.dh <= size.h + 1,
                 `[6][${lang}] the document's own scroll extent stays inside the frame — `
-                + `${s.docScroll.w} x ${s.docScroll.h} vs ${size.w} x ${size.h}`);
+                + `${s.docScroll.dw} x ${s.docScroll.dh} vs ${size.w} x ${size.h}`);
         }
+
+        check(fr.docScroll.dw <= en.docScroll.dw + TOL && fr.docScroll.dh <= en.docScroll.dh + TOL,
+            `[6] French does not enlarge the document's scroll extent — `
+            + `en ${en.docScroll.dw} x ${en.docScroll.dh}, fr ${fr.docScroll.dw} x ${fr.docScroll.dh}`);
+        if (en.docScroll.bw > en.docScroll.dw + 1 || en.docScroll.bh > en.docScroll.dh + 1)
+            console.log(`   NOTE: [6] body scrolls to ${en.docScroll.bw} x ${en.docScroll.bh} where documentElement `
+                + `reports ${en.docScroll.dw} x ${en.docScroll.dh} — a child overflows a clipped ancestor. `
+                + `Reported, not asserted: it is identical in both languages.`);
 
         // ── 7. THE GEOMETRY DIFF — the primary detector ────────────────────
         // The frame is fixed, so any element that is NOT a label and NOT inside
