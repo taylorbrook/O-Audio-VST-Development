@@ -687,11 +687,19 @@ function scanJsSource(src, taken) {
     // `btn.textContent = btn.dataset.label || "Delete"`. Those conditionals are
     // exactly what contract §6 is about, so they must be REPORTED, not dropped.
     // The whole RHS is read and every literal in it is collected.
-    for (const m of code.matchAll(/([A-Za-z_$][\w$.\[\]'"]*)\s*\.\s*(textContent|innerText|innerHTML)\s*=(?!=)\s*/g)) {
+    // The RECEIVER is not matched, only described. An earlier version required
+    // the receiver to be an identifier path and so missed
+    // `document.getElementById("status").textContent = "Free Run"` entirely —
+    // the parentheses are not in an identifier character class, and that is one
+    // of the two commonest shapes in this repo. A negative control caught it.
+    // `+=` is included: appending prose ships English exactly as assigning it does.
+    for (const m of code.matchAll(/\.\s*(textContent|innerText|innerHTML)\s*(\+?=)(?!=)\s*/g)) {
         const rhsAt = m.index + m[0].length;
         const rhs   = readExpression(code, rhsAt, ';');
         if (!rhs) continue;
-        if (isSetLabelCall(code, m.index)) continue;
+
+        const before = code.slice(Math.max(0, m.index - 48), m.index);
+        const receiver = `${(before.match(/[\w$.\[\]()'"]*$/) || [''])[0].slice(-32)}.${m[1]}`;
 
         const lits = collectLiterals(rhs.text);
         const prose = lits.filter((l) => hasProse(l.value));
@@ -702,7 +710,7 @@ function scanJsSource(src, taken) {
         for (const l of prose)
             emit(l.template && /\$\{/.test(l.value) ? 'js-composed' : 'js-prose',
                  rhsAt + l.start, l.value,
-                 { receiver: `${m[1]}.${m[2]}`, conditional });
+                 { receiver, conditional });
     }
 
     // ── setAttribute on one of the four visible-text attributes ─────────
@@ -726,10 +734,9 @@ function scanJsSource(src, taken) {
     return rows;
 }
 
-// A `setLabel(el, 'key')` call is already localized; the key is not copy.
-function isSetLabelCall(code, at) {
-    return /setLabel\s*\(\s*$/.test(code.slice(Math.max(0, at - 40), at));
-}
+// NOTE: there is deliberately no "skip a setLabel call" filter here. A site
+// converted to setLabel(el, key) writes no textContent at all, so it produces no
+// row in the first place. A filter would be dead code pretending to be a rule.
 
 // Reads an expression from `at` up to the first `stop` character that sits at
 // nesting depth zero, honouring strings, templates and nested template
@@ -828,6 +835,70 @@ function stripLiterals(text) {
         ++i;
     }
     return out;
+}
+
+// ── the two entry points check-i18n.js calls ───────────────────────────────
+//
+// Exposed so the GATE and the WORKLIST count the same things. Two independent
+// scanners disagreeing about what a label is would produce a gate that
+// contradicts the inventory a plugin stage is working from, and the resolution
+// would be a judgement call every time.
+
+function extractJsRows(src) {
+    return scanJsSource(src, new Set());
+}
+
+// Every setLabel(el, key, vars) call in a module, with the facts assertions 13
+// and 15 need: whether the key is a plain string literal, and whether any
+// argument carries inflection logic.
+function readSetLabelCalls(code) {
+    const stripped = stripJsComments(code);
+    const calls = [];
+
+    for (const m of stripped.matchAll(/(?:^|[^.\w$])setLabel\s*\(/g)) {
+        // `function setLabel(el, key, vars)` is the DEFINITION, not a call. Its
+        // parameter list reads as a non-literal key and reported the canon
+        // block itself as a violation of assertion 13 the first time this ran.
+        const nameAt = m.index + m[0].indexOf('setLabel');
+        if (/\b(function|class)\s+$/.test(stripped.slice(Math.max(0, nameAt - 20), nameAt))) continue;
+
+        const argsAt = m.index + m[0].length;
+        const args   = readExpression(stripped, argsAt, ')');
+        if (!args) continue;
+
+        // Split the argument list at top-level commas. A comma inside a nested
+        // call, an object literal or a template interpolation is not a
+        // separator, and treating one as such would read `{a: 1, b: 2}` as two
+        // arguments and report a perfectly ordinary call as malformed.
+        const parts = [];
+        let depth = 0, start = 0, i = 0;
+        while (i < args.text.length) {
+            const c = args.text[i];
+            if (c === '"' || c === "'" || c === '`') {
+                const lit = readLiteralAt(args.text, i);
+                i = lit ? lit.end : i + 1;
+                continue;
+            }
+            if (c === '(' || c === '[' || c === '{') ++depth;
+            else if (c === ')' || c === ']' || c === '}') --depth;
+            else if (c === ',' && depth === 0) { parts.push(args.text.slice(start, i)); start = i + 1; }
+            ++i;
+        }
+        parts.push(args.text.slice(start));
+
+        const keyArg = (parts[1] || '').trim();
+        const keyLit = keyArg && /^['"]/.test(keyArg) ? readLiteralAt(keyArg, 0) : null;
+        const wholeCallBare = stripLiterals(args.text);
+
+        calls.push({
+            line: lineOf(code, argsAt),
+            key: keyLit && keyLit.end === keyArg.length ? keyLit.value : null,
+            args: parts.map((x) => x.trim()),
+            conditional: /\?[^.]|\|\||\?\?/.test(wholeCallBare),
+        });
+    }
+
+    return calls;
 }
 
 // ── reading a plugin's existing i18n.js, if it has one ─────────────────────
@@ -992,4 +1063,7 @@ if (require.main === module) {
     }
 }
 
-module.exports = { scanHtml, stripJsComments, classify, residue, suggestKey, extractPlugin, decodeEntities };
+module.exports = {
+    scanHtml, stripJsComments, classify, residue, suggestKey, extractPlugin,
+    decodeEntities, extractJsRows, readSetLabelCalls, readExpression, collectLiterals,
+};

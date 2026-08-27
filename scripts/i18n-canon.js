@@ -44,7 +44,12 @@
     inside a comment, where backticks and ${...} are inert, and the module
     reads its own source to recover it. Zero escaping, zero duplication.
 
-    Usage:  const { I18N_CANON } = require('./i18n-canon.js');
+    Usage:  const { I18N_CANON, I18N_CANON_V2 } = require('./i18n-canon.js');
+
+    v1 localizes tooltip attributes. v2 adds labels, visible-text attributes
+    and JS-written strings. BOTH are carried during the migration and
+    check-i18n.js assertion 6 accepts either, reporting the split — changing
+    the canon in place would turn the gate red for the whole rollout.
 
   ==============================================================================
 */
@@ -105,29 +110,184 @@ function initI18n() {
 <<<I18N_CANON_END>>> */
 // ───────────────────────────────────────────────────────────── END I18N CANON
 
+// ───────────────────────────────────────────────────────── BEGIN I18N CANON V2
+//
+// Canon v1 above localizes tooltip ATTRIBUTES. v2 adds LABELS, visible-text
+// attributes and JS-written strings, per the CANONICAL CONTRACT V2 section of
+// the plan.
+//
+// BOTH canons are carried, and check-i18n.js assertion 6 accepts either and
+// reports the split as a migration worklist. Changing the canon in place would
+// turn the gate red the moment this file is committed and keep it red for the
+// whole rollout — which is how a team learns to ignore a gate.
+//
+// What v2 adds, and why each piece is shaped the way it is:
+//
+//   trLabel()   — a lookup over LABELS with a fallback to I18N. The fallback is
+//                 what lets a control whose tooltip TITLE already IS its label
+//                 carry ONE key instead of two copies of the same string in two
+//                 tables, drifting apart.
+//
+//   applyLabel()— writes textContent AND dataset.label together. Making every
+//                 label JS-written puts all 43 plugins into
+//                 pattern_js_state_updater_overwrites_html_labels at once; the
+//                 repo's documented fix is that the element OWNS its label and
+//                 an updater reads `el.dataset.label ?? fallback`. Writing both
+//                 in one place makes the invariant checkable at render time:
+//                 dataset.label === textContent for every [data-i18n].
+//
+//   setLabel()  — a JS-written label DECLARES ITS OWN KEY and becomes a
+//                 [data-i18n] element from that moment on, so the language
+//                 sweep owns it. No custom event, no subscription list, no
+//                 second code path that can go stale in the other language.
+//                 A state-dependent string written outside the table is
+//                 stranded in the previous language the instant the selector
+//                 fires — the bug Stage B found on MBC's hover-help toggle.
+//
+//   the attribute sweep — data-i18n-aria / -placeholder / -alt resolve through
+//                 the same pass. Native title= is DELETED rather than
+//                 localized (contract §4): on an element that has a data-tip it
+//                 renders a second, untranslated OS tooltip competing with the
+//                 measure-then-pin renderer.
+//
+// I18N_EXEMPT is deliberately NOT imported here. It is read statically by
+// check-i18n.js; importing a binding the runtime never touches is noise.
+//
+/* <<<I18N_CANON_V2_BEGIN>>>
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+<<<I18N_CANON_V2_END>>> */
+// ─────────────────────────────────────────────────────────── END I18N CANON V2
+
+
 const SELF = fs.readFileSync(__filename, 'utf8');
 
-const BEGIN = '<<<I18N_CANON_' + 'BEGIN>>>';
-const END   = '<<<I18N_CANON_' + 'END>>>';
+// The sentinels are assembled at runtime so that the literals below cannot
+// themselves be found by the search — the file would otherwise locate its own
+// extraction code instead of the canon.
+function extractBetween(beginTag, endTag, label) {
+    const beginAt = SELF.indexOf(beginTag);
+    const endAt   = SELF.indexOf(endTag);
 
-const beginAt = SELF.indexOf(BEGIN);
-const endAt   = SELF.indexOf(END);
+    if (beginAt < 0 || endAt < 0 || endAt < beginAt)
+        throw new Error(`i18n-canon.js: ${label} sentinels missing or out of order — the file has been edited in a way that destroys the canon.`);
 
-if (beginAt < 0 || endAt < 0 || endAt < beginAt) {
-    throw new Error('i18n-canon.js: canon sentinels missing or out of order — the file has been edited in a way that destroys the canon.');
+    const body = SELF.slice(beginAt + beginTag.length, endAt).replace(/^\n/, '');
+
+    if (body.trim().length === 0)
+        throw new Error(`i18n-canon.js: ${label} is empty. An empty canon makes the drift gate pass vacuously for every plugin.`);
+
+    return body;
 }
 
-const I18N_CANON = SELF.slice(beginAt + BEGIN.length, endAt).replace(/^\n/, '');
+const I18N_CANON    = extractBetween('<<<I18N_CANON_' + 'BEGIN>>>', '<<<I18N_CANON_' + 'END>>>', 'canon v1');
+const I18N_CANON_V2 = extractBetween('<<<I18N_CANON_V2_' + 'BEGIN>>>', '<<<I18N_CANON_V2_' + 'END>>>', 'canon v2');
 
-if (I18N_CANON.trim().length === 0) {
-    throw new Error('i18n-canon.js: the canon is empty. An empty canon makes the drift gate pass vacuously for every plugin.');
-}
+// v2 must be a genuine superset in intent, not a copy. A v2 that accidentally
+// equals v1 would make the version split meaningless and every plugin would
+// report whichever the comparison happened to try first.
+if (I18N_CANON.trim() === I18N_CANON_V2.trim())
+    throw new Error('i18n-canon.js: canon v2 is byte-identical to v1. The version split would be meaningless.');
 
 // The import line is asserted separately from the body. On plugins whose gates
 // pin the shape of the module top level — O-Octagon §2 forbids any module-level
 // declaration after `init();` — the hoisted import is the only new top-level
 // form and does not sit adjacent to the rest of the block.
-const I18N_CANON_IMPORT = "import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';";
+const I18N_CANON_IMPORT    = "import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';";
+const I18N_CANON_V2_IMPORT = "import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';";
 
 // The body region the drift gate compares: from the first declaration to the
 // close of initI18n. A plugin is free to place the hoisted import wherever its
@@ -137,7 +297,9 @@ const I18N_CANON_BODY_END_FN = 'initI18n';
 
 module.exports = {
     I18N_CANON,
+    I18N_CANON_V2,
     I18N_CANON_IMPORT,
+    I18N_CANON_V2_IMPORT,
     I18N_CANON_BODY_START,
     I18N_CANON_BODY_END_FN,
 };
