@@ -174,12 +174,37 @@ function resolvePlaywright() {
 //      driving the thing it claimed to measure. Chromium steps a range input by
 //      max(step, range/10) on PageUp/PageDown, which is a visible move for all
 //      eighteen.
+// v1.8.0: a control on a hidden group panel (Position | Motion) is revealed by clicking its
+// panel's tab first; a checkbox is toggled with Space and a <select> stepped with ArrowDown
+// (ArrowUp on its last option). Every other control is still a range and takes PageUp/PageDown.
 async function nudge(page, id) {
     const el = await page.$(`#ctl-${id}`);
     if (el === null) return false;
+    await page.evaluate(id => {
+        const e = document.getElementById(`ctl-${id}`);
+        const panel = e.closest('[data-tab-panel]');
+        if (panel !== null && panel.hidden) document.getElementById(panel.dataset.tabButton).click();
+    }, id);
+    // Seed's cell is hidden unless Path is Drift (it replaces Phase there). Reveal it through the
+    // page's own rule — select Drift — and put Orbit back afterwards.
+    const cellHidden = await el.evaluate(e => e.closest('.cell')?.hidden === true);
+    const priorPath = cellHidden ? await page.$eval('#ctl-motionPath', e => String(e.selectedIndex)) : null;
+    if (cellHidden) await page.selectOption('#ctl-motionPath', { label: 'Drift' });
     await el.focus();
-    const v = await el.evaluate(e => Number(e.value));
-    await page.keyboard.press(v >= 0.999 ? 'PageDown' : 'PageUp');
+    const kind = await el.evaluate(e => e.tagName === 'SELECT' ? 'select' : e.type);
+    if (kind === 'checkbox') {
+        await page.keyboard.press('Space');
+    } else if (kind === 'select') {
+        // selectOption dispatches `change` in every engine; a keyboard step on a native <select>
+        // is popup-driven on macOS and fires nothing headless.
+        const next = await el.evaluate(e => String(e.selectedIndex >= e.options.length - 1 ? e.selectedIndex - 1 : e.selectedIndex + 1));
+        await page.selectOption(`#ctl-${id}`, { value: next });
+    } else {
+        const v = await el.evaluate(e => Number(e.value));
+        await page.keyboard.press(v >= 0.999 ? 'PageDown' : 'PageUp');
+    }
+    // Back to what Path WAS (its own nudge may have just moved it) — not to a fixed choice.
+    if (cellHidden) await page.selectOption('#ctl-motionPath', { value: priorPath });
     return true;
 }
 
@@ -251,7 +276,7 @@ async function nudge(page, id) {
         null, { timeout: 10000 }).catch(() => {});
 
     // ── 1 ────────────────────────────────────────────────────────────────────
-    head(1, 'the page is ALIVE — zero console errors, all 18 controls bound');
+    head(1, 'the page is ALIVE — zero console errors, all 28 controls bound');
 
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
@@ -262,7 +287,7 @@ async function nudge(page, id) {
     // times (pattern_test_fixture_mirrors_drift_silently).
     const idBlock = appJs.match(/const PARAM_IDS = \[([\s\S]*?)\];/);
     const paramIds = idBlock ? [...idBlock[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]) : [];
-    check(paramIds.length === 18, `PARAM_IDS parsed from app.js — ${paramIds.length} ids (expect 18)`);
+    check(paramIds.length === 28, `PARAM_IDS parsed from app.js — ${paramIds.length} ids (expect 28)`);
 
     const present = await page.evaluate(
         ids => ids.filter(id => document.getElementById(`ctl-${id}`) !== null).length, paramIds);
@@ -1294,6 +1319,104 @@ async function nudge(page, id) {
         `and the §OQ4 grading is visible rather than flat — ${distinctY} distinct y positions`);
 
     // ── 23 ───────────────────────────────────────────────────────────────────
+    // ── 32 (v1.8.0) ─────────────────────────────────────────────────────────
+    head(32, 'the Motion panel costs the column NOTHING, and the LIVE PUCK sits ON THE TRACE (D6/R6)');
+    {
+        // (a) THE LAYOUT CLAIM OF PLAN TASK 8 STEP 0, MEASURED: the Motion panel is three rows like
+        // Position's, so the group is the same height whichever panel shows and the column below it
+        // does not move. Section 21 already holds the column; this holds the equal-height premise.
+        const groupH = () => page.evaluate(() => Math.round(document.getElementById('group-position').getBoundingClientRect().height));
+        await page.click('#gtab-position');
+        const hPos = await groupH();
+        await page.click('#gtab-motion');
+        const hMot = await groupH();
+        check(hPos === hMot, `#group-position is the same height on both panels — Position ${hPos}, Motion ${hMot}`);
+        check(await page.evaluate(() => document.querySelector('.controls-column').scrollHeight
+                                     <= document.querySelector('.controls-column').clientHeight),
+            'the controls column still does not overflow with the Motion panel showing');
+        const seedRule = await page.evaluate(() => ({
+            seedHidden: document.getElementById('cell-motionSeed').hidden,
+            phaseHidden: document.getElementById('cell-motionPhase').hidden,
+        }));
+        check(seedRule.seedHidden && !seedRule.phaseHidden, 'Seed is hidden and Phase shown while Path is not Drift');
+
+        // (b) THE PUCK IS ON THE TRACE — GEOMETRY, NOT ATTRIBUTES. Motion on through the page's own
+        // checkbox (the stub's toggle state flips, getMeters starts returning an orbiting offset and
+        // motionOn: true, and getMotionTrace returns the fixture's 128 points). At eight polled ticks
+        // the rendered centre of #puck-live must lie within 1.5 px of the rendered #motion-trace
+        // polyline — measured from getBoundingClientRect and the path's own d attribute, in the same
+        // box (pattern_ui_gate_asserts_attributes_never_rendered_geometry).
+        // Section 10's nudge may already have flipped the checkbox; set it ON explicitly.
+        await page.evaluate(() => { const e = document.getElementById('ctl-motionOn'); if (!e.checked) e.click(); });
+        await page.waitForFunction(() => document.getElementById('motion-trace').getAttribute('d').length > 20
+                                       && !document.getElementById('puck-live').hidden,
+            null, { timeout: SETTLE_MS }).catch(() => {});
+
+        const ghost = await page.evaluate(() => document.getElementById('puck').classList.contains('puck--ghost'));
+        check(ghost, 'the anchor puck is drawn as a GHOST while motion runs');
+
+        const samples = [];
+        for (let i = 0; i < 8; ++i) {
+            await page.waitForTimeout(45);
+            samples.push(await page.evaluate(() => {
+                const box = document.getElementById('plan-layers').getBoundingClientRect();
+                const live = document.getElementById('puck-live').getBoundingClientRect();
+                const cx = live.left + live.width / 2 - box.left;
+                const cy = live.top + live.height / 2 - box.top;
+                const d = document.getElementById('motion-trace').getAttribute('d');
+                const pts = [...d.matchAll(/[ML]\s*(-?[\d.]+)\s+(-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2])]);
+                if (pts.length > 1 && /Z\s*$/.test(d)) pts.push(pts[0]);
+                let best = Infinity;
+                for (let k = 1; k < pts.length; ++k) {
+                    const [ax, ay] = pts[k - 1], [bx, by] = pts[k];
+                    const dx = bx - ax, dy = by - ay;
+                    const len2 = dx * dx + dy * dy;
+                    const t = len2 > 0 ? Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / len2)) : 0;
+                    best = Math.min(best, Math.hypot(cx - (ax + t * dx), cy - (ay + t * dy)));
+                }
+                return { cx: +cx.toFixed(2), cy: +cy.toFixed(2), dist: +best.toFixed(3), n: pts.length };
+            }));
+        }
+        const worst = Math.max(...samples.map(s => s.dist));
+        const moved = new Set(samples.map(s => `${s.cx},${s.cy}`)).size > 1;
+        check(samples[0].n >= 128, `the trace has >= 128 rendered points — ${samples[0].n}`);
+        check(worst <= 1.5, `live puck centre within 1.5 px of the trace at 8 ticks — worst ${worst} px`);
+        check(moved, 'and the live puck MOVED across the ticks (not parked on one vertex)');
+
+        // (c) THE TRACE FOLLOWS THE SHAPE: a Size step re-fetches and the rendered extent grows.
+        const extent = () => page.evaluate(() => {
+            const d = document.getElementById('motion-trace').getAttribute('d');
+            const xs = [...d.matchAll(/[ML]\s*(-?[\d.]+)\s+/g)].map(m => Number(m[1]));
+            return +(Math.max(...xs) - Math.min(...xs)).toFixed(1);
+        });
+        const before = await extent();
+        await nudge(page, 'motionSize');
+        await page.waitForTimeout(120);
+        const after = await extent();
+        check(after > before, `the trace re-renders on a Size change — extent ${before} -> ${after} px`);
+
+        // (d) Drift: no trace, a tail.
+        await page.selectOption('#ctl-motionPath', { label: 'Drift' });
+        await page.waitForTimeout(250);
+        const drift = await page.evaluate(() => ({
+            d: document.getElementById('motion-trace').getAttribute('d'),
+            tail: document.getElementById('motion-tail').getAttribute('points').split(' ').filter(Boolean).length,
+            seedShown: !document.getElementById('cell-motionSeed').hidden,
+            phaseHidden: document.getElementById('cell-motionPhase').hidden,
+        }));
+        check(drift.d === '' && drift.tail >= 3, `Drift draws no trace and a tail — trace "${drift.d}", tail ${drift.tail} points`);
+        check(drift.seedShown && drift.phaseHidden, 'Seed replaces Phase while Path is Drift');
+
+        // Restore: motion off, Orbit, Position panel — later sections measure the resting page.
+        await page.selectOption('#ctl-motionPath', { label: 'Orbit' });
+        await page.evaluate(() => { const e = document.getElementById('ctl-motionOn'); if (e.checked) e.click(); });
+        await page.click('#gtab-position');
+        await page.waitForTimeout(80);
+        check(await page.evaluate(() => document.getElementById('puck-live').hidden
+                                     && !document.getElementById('puck').classList.contains('puck--ghost')),
+            'motion off hides the live puck and restores the solid anchor');
+    }
+
     head(23, 'eight meter arcs, MEASURED at their glyph positions, OUTSIDE the glyph stroke (UI-03/1, D23)');
 
     const meterGeom = await page.evaluate(() => {

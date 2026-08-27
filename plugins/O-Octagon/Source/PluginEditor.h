@@ -189,11 +189,28 @@ private:
     //    static_assert two files away that could not fire.
     std::vector<std::unique_ptr<juce::WebSliderRelay>> sliderRelays;
 
+    //    v1.8.0 — THE FIRST NON-FLOAT RELAYS. motionOn is a Bool and motionPath /
+    //    motionSync are Choices (a host lane must read "Figure-8", not 0.2), so
+    //    they take the typed relays. Built in the same loop, split by
+    //    oo::params::Index; ui_frontend_check §11 / §16 hold this order and
+    //    the split against the page. ABOVE webView, like sliderRelays.
+    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> toggleRelays;
+    std::vector<std::unique_ptr<juce::WebComboBoxRelay>>     comboRelays;
+
     // 2. WEBVIEW
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
     // 3. ATTACHMENTS
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>> sliderAttachments;
+
+    //    v1.8.0 — BELOW webView, like sliderAttachments (destroyed first).
+    std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> toggleAttachments;
+    std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>>     comboAttachments;
+
+    /// v1.8.0 — the relay each parameter index maps to, so the attachment loop
+    /// below mirrors the relay loop exactly rather than re-deriving the split.
+    static bool isToggleParam (int i) noexcept { return i == oo::params::motionOn; }
+    static bool isComboParam  (int i) noexcept { return i == oo::params::motionPath || i == oo::params::motionSync; }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OctagonEditor)
 };

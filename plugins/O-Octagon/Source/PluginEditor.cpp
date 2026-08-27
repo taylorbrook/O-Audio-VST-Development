@@ -56,6 +56,8 @@
 // v1.1.0 — the measured CoreAudio 7.1 device order, for the speaker→output UI. Header-only and
 // keyed on ChannelType; nothing in it touches a buffer index (R1 unchanged).
 #include "Data/OutputOrder.h"
+#include "DSP/MotionPath.h"   // v1.8.0 — the SAME generator the audio thread runs
+#include "DSP/PerlinNoise.h"
 
 #include <array>
 #include <cmath>
@@ -270,8 +272,19 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     // the mirrored fixture that has drifted five times in the precedent, and it
     // would drift silently — a relay for an id that no longer exists attaches to
     // nothing and produces a dead control.
+    //
+    // v1.8.0: the SAME loop, split by index. sliderRelays covers exactly
+    // kCount - 3; the three non-floats take their typed relay. The attachment
+    // loop below mirrors this split through isToggleParam / isComboParam.
     for (int i = 0; i < static_cast<int> (oo::params::kCount); ++i)
-        sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (oo::params::id (i)));
+    {
+        if (isToggleParam (i))
+            toggleRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (oo::params::id (i)));
+        else if (isComboParam (i))
+            comboRelays.push_back (std::make_unique<juce::WebComboBoxRelay> (oo::params::id (i)));
+        else
+            sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (oo::params::id (i)));
+    }
 
     // 2. WEBVIEW options + relay registration --------------------------------
     auto options = juce::WebBrowserComponent::Options{}
@@ -280,6 +293,12 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
         .withResourceProvider ([this] (const auto& url) { return getResource (url); });
 
     for (const auto& relay : sliderRelays)
+        options = options.withOptionsFrom (*relay);
+
+    for (const auto& relay : toggleRelays)
+        options = options.withOptionsFrom (*relay);
+
+    for (const auto& relay : comboRelays)
         options = options.withOptionsFrom (*relay);
 
     // ── NATIVE FUNCTIONS — EXACTLY THREE, AND NO FOURTH ────────────────────
@@ -1100,6 +1119,83 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             auto* obj = new juce::DynamicObject();
             obj->setProperty ("peaks", juce::var (arr));
 
+            // v1.8.0 — THE LIVE PUCK RIDES THIS POLL (RESEARCH Q6). Three floats read
+            // from GainStage's atomics and one bool; at 2 Hz on getStatus the puck would
+            // stutter. Anchor-relative metres; the page adds the anchor and projects.
+            {
+                const auto m = processorRef.liveMotionOffset();
+
+                juce::Array<juce::var> motion;
+                motion.add (m[0]);
+                motion.add (m[1]);
+                motion.add (m[2]);
+
+                obj->setProperty ("motion", juce::var (motion));
+
+                const auto* on = processorRef.getAPVTS().getRawParameterValue ("motionOn");
+                obj->setProperty ("motionOn", on != nullptr && on->load() > 0.5f);
+            }
+
+            complete (juce::var (obj));
+        });
+
+    // (27) getMotionTrace — v1.8.0. ONE CYCLE OF THE PATH, FROM THE SAME GENERATOR THE AUDIO
+    // THREAD RUNS. oo::motion::evaluate() is header-only and JUCE-free (MotionPath.h), so
+    // this call, GainStage::process() and the geometry unit target all compile the identical
+    // function — which is what makes the trace on the map the audible path rather than a JS
+    // re-implementation free to drift (pattern_test_fixture_mirrors_drift_silently). 128
+    // points over cycles = i/128, ANCHOR-RELATIVE METRES; the page adds the anchor and
+    // projects through metresToPx and does no other arithmetic.
+    //
+    // Drift returns { cyclic: false, points: [] }: Perlin drift has no closed cycle and its
+    // future depends on PPQ, so the page draws a trailing tail of polled positions instead.
+    //
+    // Reads the six SHAPE parameters on the message thread; the seed is irrelevant here
+    // (no Drift trace) so a default-seeded table serves. Re-fetched by the page on the echo of
+    // those six only — the anchor and the rate do not change the shape.
+    options = options.withNativeFunction ("getMotionTrace",
+        [this] (auto&, auto complete)
+        {
+            const auto read = [this] (const char* id)
+            {
+                const auto* v = processorRef.getAPVTS().getRawParameterValue (id);
+                return v != nullptr ? v->load() : 0.0f;
+            };
+
+            const oo::motion::MotionParams mp { static_cast<int> (read ("motionPath")),
+                                                read ("motionSize"),  read ("motionRatio"),
+                                                read ("motionAngle"), read ("motionHeight"),
+                                                read ("motionPhase") };
+
+            auto* obj = new juce::DynamicObject();
+
+            juce::Array<juce::var> points;
+
+            // static: a non-static constexpr inside a lambda is MSVC C3493
+            // (critical_msvc_constexpr_lambda_capture); §20 / §31 police it.
+            static constexpr int kPoints = 128;
+
+            if (oo::motion::cyclic (mp.path))
+            {
+                points.ensureStorageAllocated (kPoints);
+
+                PerlinNoise unused;   // never consulted on a cyclic path
+
+                for (int i = 0; i < kPoints; ++i)
+                {
+                    const auto v = oo::motion::evaluate (mp, static_cast<double> (i) / kPoints, unused);
+
+                    juce::Array<juce::var> pt;
+                    pt.add (v.x);
+                    pt.add (v.y);
+                    pt.add (v.z);
+                    points.add (juce::var (pt));
+                }
+            }
+
+            obj->setProperty ("cyclic", oo::motion::cyclic (mp.path));
+            obj->setProperty ("points", juce::var (points));
+
             complete (juce::var (obj));
         });
 
@@ -1471,17 +1567,37 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     webView = std::make_unique<juce::WebBrowserComponent> (options);
 
     // 3. ATTACHMENTS (after the WebView; THREE-arg ctor, nullptr undoManager) --
-    for (size_t i = 0; i < sliderRelays.size(); ++i)
+    //
+    // v1.8.0: walks oo::params::kCount with the SAME split as the relay loop, consuming each
+    // typed relay vector in order. A relay attached to the wrong attachment kind is the
+    // O-ReverseDelay relay-type bug; deriving both loops from one predicate pair is what
+    // makes that structurally impossible here.
     {
-        const juce::String id { oo::params::id (static_cast<int> (i)) };
+        size_t si = 0, ti = 0, ci = 0;
 
-        auto* param = processorRef.getAPVTS().getParameter (id);
-        jassert (param != nullptr);   // ID drift -> silently dead control
+        for (int i = 0; i < static_cast<int> (oo::params::kCount); ++i)
+        {
+            const juce::String id { oo::params::id (i) };
 
-        if (param != nullptr)
-            sliderAttachments.push_back (
-                std::make_unique<juce::WebSliderParameterAttachment> (
-                    *param, *sliderRelays[i], nullptr));
+            auto* param = processorRef.getAPVTS().getParameter (id);
+            jassert (param != nullptr);   // ID drift -> silently dead control
+
+            if (param == nullptr)
+                continue;
+
+            if (isToggleParam (i))
+                toggleAttachments.push_back (
+                    std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                        *param, *toggleRelays[ti++], nullptr));
+            else if (isComboParam (i))
+                comboAttachments.push_back (
+                    std::make_unique<juce::WebComboBoxParameterAttachment> (
+                        *param, *comboRelays[ci++], nullptr));
+            else
+                sliderAttachments.push_back (
+                    std::make_unique<juce::WebSliderParameterAttachment> (
+                        *param, *sliderRelays[si++], nullptr));
+        }
     }
 
     addAndMakeVisible (*webView);

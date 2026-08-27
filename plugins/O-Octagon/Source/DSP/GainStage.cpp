@@ -22,6 +22,8 @@
 #include "ConvexHull2D.h"
 #include "VerifyPing.h"
 
+#include "../Data/VenueGeometry.h"
+
 #include <cmath>
 #include <cstring>
 
@@ -145,6 +147,11 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     // 1 — the grid restarts. The ONLY site that touches this counter (P23).
     absoluteSampleCounter = 0;
 
+    // v1.8.0. Free-mode motion restarts from phase 0 on re-prepare, like every other piece of DSP
+    // state (RESEARCH Q7 / H9). The Perlin table is re-filled at the first motion boundary.
+    motionClock = {};
+    seededWith  = -1;
+
     // 2 — 5 ms linear ramps (§3.6.5). Long enough to kill zipper noise on fast weight and position
     //     automation (QUAL-04), short enough that a fast puck sweep tracks without audible lag.
     for (auto& s : gL) s.reset (sampleRateToUse, 0.005);
@@ -242,7 +249,9 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     // crossfade would resume against coefficients belonging to the old one.
     monitorFold.prepare (sampleRateToUse, snapshot);
 
-    updateControl (snapshot, p);
+    // Motion OFF here regardless of p[motionOn]: prepare() has no host clock and sample 0's
+    // offset is the first grid boundary's job. That boundary fires at absoluteSampleCounter == 0.
+    updateControl (snapshot, p, {}, false);
 
     // 4 — teleport to that solve, so sample 0 is already correct rather than 5 ms into a fade-in
     //     from silence.
@@ -296,9 +305,13 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
 //==============================================================================
 void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut, bool mapped,
                          const VenueSnapshot& snapshot, const ParamSnapshot& p,
-                         VerifyPing* ping, bool monitorOn) noexcept
+                         VerifyPing* ping, bool monitorOn, const motion::HostClock* clock) noexcept
 {
     const int numSamples = buffer.getNumSamples();
+
+    // v1.8.0. The host block's first absolute sample — the PPQ in `clock` is the PPQ HERE, and
+    // each grid boundary inside the block extrapolates from it by (boundary - blockStart) / sr.
+    const std::uint64_t blockStart = absoluteSampleCounter;
 
     // numSamples == 0 leaves the body unexecuted — pluginval issues those blocks. A buffer LARGER
     // than the prepared samplesPerBlock (pluginval at strictness 10 issues those too) is handled by
@@ -312,7 +325,48 @@ void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut
 
         if (phase == 0)
         {
-            updateControl (snapshot, p);
+            // ── v1.8.0 — THE MOTION OFFSET, A PURE FUNCTION OF ABSOLUTE POSITION ─────────────
+            //
+            // Evaluated at the grid boundary and NOWHERE ELSE, from absoluteSampleCounter (Free)
+            // or the block-start PPQ extrapolated to this boundary (Sync). Nothing here is
+            // `+= rate * n / sr`: a 4096-sample block reaches the same boundaries as sixty-four
+            // 64-sample blocks and computes the same offsets (probes DE/DF; negative control NC2).
+            //
+            // GATED, NOT ZEROED. When motion is off none of this runs and updateControl() takes
+            // the v1.7.0 branch verbatim — the digest probe DC is that claim.
+            Vec3       offset {};
+            const bool motionOn = p[params::motionOn] > 0.5f;
+
+            if (motionOn)
+            {
+                // seed() is a bounded 512-entry table fill: no allocation, and it runs only on a
+                // seed CHANGE, at the boundary, never per sample.
+                const int seed = static_cast<int> (p[params::motionSeed]);
+
+                if (seed != seededWith)
+                {
+                    perlin.seed (static_cast<std::uint32_t> (seed));
+                    seededWith = seed;
+                }
+
+                const double cycles = motion::cyclesAt (absoluteSampleCounter, sampleRate,
+                                                        absoluteSampleCounter - blockStart, clock,
+                                                        static_cast<int> (p[params::motionSync]),
+                                                        p[params::motionRate], motionClock);
+
+                const motion::MotionParams mp { static_cast<int> (p[params::motionPath]),
+                                                p[params::motionSize],  p[params::motionRatio],
+                                                p[params::motionAngle], p[params::motionHeight],
+                                                p[params::motionPhase] };
+
+                offset = motion::evaluate (mp, cycles, perlin);
+            }
+
+            liveOffset[0].store (offset.x, std::memory_order_relaxed);
+            liveOffset[1].store (offset.y, std::memory_order_relaxed);
+            liveOffset[2].store (offset.z, std::memory_order_relaxed);
+
+            updateControl (snapshot, p, offset, motionOn);
 
             // ── v1.7.0 — THE MONITOR, DRIVEN FROM THE CONTROL BOUNDARY ───────────────────────
             //
@@ -339,7 +393,8 @@ void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut
 }
 
 //==============================================================================
-void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapshot& p) noexcept
+void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapshot& p,
+                               const Vec3 offset, const bool motionOn) noexcept
 {
     // ── §5 step 1 — the dirty check ───────────────────────────────────────────────────────────
     //
@@ -354,7 +409,14 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     //
     // The generation comes from INSIDE the snapshot (P16). Reading a separately-published counter is
     // the H1 bug: the check would go permanently stale against a venue edit, not transiently wrong.
+    //
+    // v1.8.0: `! motionOn` joins the conjunction. With motion on the offset changes every grid
+    // while the parameter snapshot does not, so the skip MUST be bypassed; with motion off the
+    // predicate is v1.7.0's, and PERF-02's skip-when-unchanged survives for every session that
+    // does not use motion. Negative control NC1 (drop the `! motionOn`) is what proves DE
+    // exercises this line.
     if (haveSolved
+        && ! motionOn
         && snapshot.generation == lastSolvedGeneration
         && std::memcmp (p.data(), lastSolvedParams.data(), sizeof (float) * params::kCount) == 0)
         return;
@@ -366,9 +428,36 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     // ── §5 steps 2 and 3 — puck to two sub-points ─────────────────────────────────────────────
     const float widthMetres = p[params::width];
 
-    const auto subPoints = shaper::shape (snapshot,
-                                          p[params::srcX], p[params::srcY], p[params::srcZ],
-                                          widthMetres);
+    // ── v1.8.0 — THE BRANCH (RESEARCH Q2). ────────────────────────────────────────────────────
+    //
+    // The else arm is the v1.7.0 call, character for character. The motion arm denormalises the
+    // anchor through the SAME plane::normToMetres the shaper uses, adds the metric offset (D2 —
+    // after denormalisation, so 6 m is 6 m in any hall) and enters at the metres seam. The
+    // effective Z is computed ONCE and reaches BOTH consumers below: the shaper (sub-point
+    // heights) and the z-cue solve — missing the second would move the source without moving its
+    // level cue, a defect no digest catches (Risk 6).
+    const float zEff = motionOn ? p[params::srcZ] + offset.z : p[params::srcZ];
+
+    SubPoints subPoints;
+
+    if (motionOn)
+    {
+        const Vec2 anchor = plane::normToMetres (snapshot.bbMinX, snapshot.bbMaxX,
+                                                 snapshot.bbMinY, snapshot.bbMaxY,
+                                                 p[params::srcX], p[params::srcY]);
+
+        subPoints = shaper::shapeAt (snapshot,
+                                     Vec2 { anchor.x + offset.x, anchor.y + offset.y },
+                                     zEff, widthMetres);
+
+        instr::countMotionSolve();
+    }
+    else
+    {
+        subPoints = shaper::shape (snapshot,
+                                   p[params::srcX], p[params::srcY], p[params::srcZ],
+                                   widthMetres);
+    }
 
     // ── §5 steps 4 and 5 — hull, then DBAP, PER SUB-POINT ─────────────────────────────────────
     const float a  = dbap::rolloffToAlpha (p[params::rolloff]);
@@ -390,8 +479,9 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     float zCueL = 1.0f;
     float zCueR = 1.0f;
 
-    const float dHullL = solveSubPoint (snapshot, subPoints.left,  p[params::srcZ], a, rs, w, vL, zCueL);
-    const float dHullR = solveSubPoint (snapshot, subPoints.right, p[params::srcZ], a, rs, w, vR, zCueR);
+    // zEff IS p[params::srcZ] bit-for-bit when motion is off (a float copy, no arithmetic).
+    const float dHullL = solveSubPoint (snapshot, subPoints.left,  zEff, a, rs, w, vL, zCueL);
+    const float dHullR = solveSubPoint (snapshot, subPoints.right, zEff, a, rs, w, vR, zCueR);
 
     // ── §5 step 6 — hull gain trim, z-cue and air cutoff, PER SUB-POINT ───────────────────────
     //

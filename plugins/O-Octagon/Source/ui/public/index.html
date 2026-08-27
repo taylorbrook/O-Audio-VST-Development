@@ -216,6 +216,13 @@
 
               <svg id="plan-geometry" xmlns="http://www.w3.org/2000/svg"
                    preserveAspectRatio="none" aria-hidden="true">
+                <!-- v1.8.0 — THE MOTION TRACE. Points come WHOLE from the C++
+                     generator through getMotionTrace (anchor-relative metres);
+                     roomplan.js adds the anchor's metres and projects through
+                     metresToPx. No path arithmetic lives on this page. First in
+                     document order so the hull and the glyphs paint over it. -->
+                <path id="motion-trace" class="motion-trace" d="" />
+                <polyline id="motion-tail" class="motion-tail" points="" />
                 <polygon id="hull-poly" class="hull" points="" />
                 <g id="speaker-glyphs">
                   <!-- The numerals are HTML-authored; roomplan.js sets only the
@@ -259,6 +266,14 @@
                      own (juce_ParameterAttachments.cpp:324 -> :76). -->
                 <div class="puck" id="puck" tabindex="0" role="slider"
                      aria-label="Source position"><span class="puck-core"></span></div>
+
+                <!-- v1.8.0 — the LIVE puck: where the source audibly is while
+                     motion runs. Placed from the polled `motion` triple on the
+                     getMeters tick; #puck above becomes the hollow GHOST anchor
+                     (class puck--ghost) and keeps every gesture — the anchor is
+                     what you drag, the path travels with it (D1/D6). Not
+                     focusable, not a control. -->
+                <div class="puck puck--live" id="puck-live" aria-hidden="true" hidden><span class="puck-core"></span></div>
 
                 <!-- The 8 in-plan weight controls, sited at their speakers.
                      Labels authored here; roomplan.js positions the cell and
@@ -321,9 +336,40 @@
              so there is exactly one relay list and no type split to get wrong. -->
         <div class="controls-column">
 
+          <!-- ══ POSITION | MOTION — ONE GROUP, TWO PANELS (v1.8.0) ═════════
+               MEASURED, NOT ASSUMED (plan Task 8 step 0). A seventh group of
+               five rows costs 167 + 10 px against a column with 13 px in hand
+               (.controls-column's v1.5.0 note) and an elevation stage that is
+               flex:none at a fixed 125 — ui_layout_check section 21 read the
+               column at 756 against 592, and the plan's dense 4-row fallback
+               (~143 px) could not fit either. NO SEVENTH GROUP FITS THIS COLUMN.
+
+               So Motion shares Position's group as a second PANEL behind a tab
+               pair in the title row (the Scenes STORE precedent: the title row
+               already exists, so the tabs cost ~7 px, not a row). The Motion
+               panel is a 3-column dense grid of NINE visible cells — 3 rows —
+               which is exactly Position's 3 rows, so the group is the same
+               height whichever panel is showing and the column is untouched.
+               The tenth cell, Seed, replaces Phase only while Path is Drift
+               (Perlin drift has no phase; every other path has no seed).
+
+               THE FIRST NON-RANGE CONTROLS ON THE PAGE. `motionOn` is a Bool
+               (a checkbox) and `motionPath` / `motionSync` are Choices
+               (selects) — a host lane must read "Figure-8", not 0.2. Their
+               <option>s are NOT authored here: app.js fills them from the
+               ComboBoxState's own choices, so the C++ StringArray stays the
+               single list (pattern_test_fixture_mirrors_drift_silently).
+
+               #group-elevation stays the column's LAST child (section 22). -->
           <section class="group" id="group-position">
-            <h2 class="group-title">Position</h2>
-            <div class="group-body">
+            <div class="group-head group-tabs" role="tablist" aria-label="Position or Motion">
+              <button type="button" class="group-tab is-active" id="gtab-position" role="tab"
+                      aria-selected="true" aria-controls="panel-position" data-panel="panel-position">Position</button>
+              <button type="button" class="group-tab" id="gtab-motion" role="tab"
+                      aria-selected="false" aria-controls="panel-motion" data-panel="panel-motion">Motion</button>
+              <span class="group-tab-state" id="motion-state" aria-hidden="true"></span>
+            </div>
+            <div class="group-body" id="panel-position" role="tabpanel" data-tab-panel data-tab-button="gtab-position">
               <div class="cell">
                 <span class="cell-label">Source X</span>
                 <input type="range" class="cell-range" id="ctl-srcX" min="0" max="1" step="0.0001" aria-label="Source X" />
@@ -361,6 +407,58 @@
                 <span class="cell-label">Decorrelate</span>
                 <input type="range" class="cell-range" id="ctl-decorr" min="0" max="1" step="0.0001" aria-label="Decorrelate" />
                 <span class="cell-value" id="val-decorr">&#8212;</span>
+              </div>
+            </div>
+            <div class="group-body group-body--dense" id="panel-motion" role="tabpanel" data-tab-panel data-tab-button="gtab-motion" hidden>
+              <div class="cell cell-dense cell-toggle">
+                <span class="cell-label">Run</span>
+                <input type="checkbox" class="cell-check" id="ctl-motionOn" aria-label="Motion On" />
+                <span class="cell-value" id="val-motionOn">&#8212;</span>
+              </div>
+              <div class="cell cell-dense cell-select">
+                <span class="cell-label">Path</span>
+                <select class="cell-choice" id="ctl-motionPath" aria-label="Motion Path"></select>
+                <span class="cell-value" id="val-motionPath">&#8212;</span>
+              </div>
+              <div class="cell cell-dense cell-select">
+                <span class="cell-label">Sync</span>
+                <select class="cell-choice" id="ctl-motionSync" aria-label="Motion Sync"></select>
+                <span class="cell-value" id="val-motionSync">&#8212;</span>
+              </div>
+              <div class="cell cell-dense">
+                <span class="cell-label">Rate</span>
+                <input type="range" class="cell-range" id="ctl-motionRate" min="0" max="1" step="0.0001" aria-label="Motion Rate" />
+                <span class="cell-value" id="val-motionRate">&#8212;</span>
+              </div>
+              <div class="cell cell-dense">
+                <span class="cell-label">Size</span>
+                <input type="range" class="cell-range" id="ctl-motionSize" min="0" max="1" step="0.0001" aria-label="Motion Size" />
+                <span class="cell-value" id="val-motionSize">&#8212;</span>
+              </div>
+              <div class="cell cell-dense">
+                <span class="cell-label">Ratio</span>
+                <input type="range" class="cell-range" id="ctl-motionRatio" min="0" max="1" step="0.0001" aria-label="Motion Ratio" />
+                <span class="cell-value" id="val-motionRatio">&#8212;</span>
+              </div>
+              <div class="cell cell-dense">
+                <span class="cell-label">Angle</span>
+                <input type="range" class="cell-range" id="ctl-motionAngle" min="0" max="1" step="0.0001" aria-label="Motion Angle" />
+                <span class="cell-value" id="val-motionAngle">&#8212;</span>
+              </div>
+              <div class="cell cell-dense">
+                <span class="cell-label">Height</span>
+                <input type="range" class="cell-range" id="ctl-motionHeight" min="0" max="1" step="0.0001" aria-label="Motion Height" />
+                <span class="cell-value" id="val-motionHeight">&#8212;</span>
+              </div>
+              <div class="cell cell-dense" id="cell-motionPhase">
+                <span class="cell-label">Phase</span>
+                <input type="range" class="cell-range" id="ctl-motionPhase" min="0" max="1" step="0.0001" aria-label="Motion Phase" />
+                <span class="cell-value" id="val-motionPhase">&#8212;</span>
+              </div>
+              <div class="cell cell-dense" id="cell-motionSeed" hidden>
+                <span class="cell-label">Seed</span>
+                <input type="range" class="cell-range" id="ctl-motionSeed" min="0" max="1" step="0.0001" aria-label="Motion Seed" />
+                <span class="cell-value" id="val-motionSeed">&#8212;</span>
               </div>
             </div>
           </section>

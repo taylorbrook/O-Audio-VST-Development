@@ -358,6 +358,46 @@ struct Event
     float       value;
 };
 
+/** v1.8.0 — a host transport for the harness. NOT INSTALLED BY DEFAULT: every probe that predates
+    the motion engine renders with proc.getPlayHead() == nullptr, exactly as before (RESEARCH Risk
+    7 — the full suite was re-run with this class present but uninstalled before any motion probe
+    was added). A probe that wants tempo installs it with proc.setPlayHead (&ph) and renderInto()
+    advances ppq per block while `playing`. */
+struct HarnessPlayHead : public juce::AudioPlayHead
+{
+    double bpm      { 120.0 };
+    double ppqStart { 0.0 };
+    bool   playing  { true };
+    bool   valid    { true };    // false: report no position at all (a host with no transport)
+
+    /// Samples rendered while playing. The PPQ is DERIVED from this, never accumulated in
+    /// beats — an accumulated ppq would carry the harness's own rounding into probe DH.
+    std::int64_t samplesElapsed { 0 };
+
+    double ppq() const noexcept
+    {
+        return ppqStart + static_cast<double> (samplesElapsed) / kSampleRate * (bpm / 60.0);
+    }
+
+    void advance (int samples) noexcept
+    {
+        if (playing)
+            samplesElapsed += samples;
+    }
+
+    juce::Optional<PositionInfo> getPosition() const override
+    {
+        if (! valid)
+            return {};
+
+        PositionInfo info;
+        info.setBpm (bpm);
+        info.setPpqPosition (ppq());
+        info.setIsPlaying (playing);
+        return info;
+    }
+};
+
 /** Renders `totalSamples` into `dest`, breaking processBlock calls so that:
       - no call spans an event, and
       - no call exceeds the size the sequence asks for.
@@ -368,7 +408,7 @@ struct Event
 */
 void renderInto (OOctagonProcessor& proc, juce::AudioBuffer<float>& dest,
                  int totalSamples, const std::vector<int>& sizes,
-                 const std::vector<Event>& events)
+                 const std::vector<Event>& events, HarnessPlayHead* ph = nullptr)
 {
     juce::MidiBuffer midi;
 
@@ -407,6 +447,11 @@ void renderInto (OOctagonProcessor& proc, juce::AudioBuffer<float>& dest,
 
         proc.processBlock (block, midi);
 
+        // The transport advances AFTER the block, so the ppq the block saw was its START ppq —
+        // which is what a host reports, and what GainStage extrapolates from.
+        if (ph != nullptr)
+            ph->advance (chunk);
+
         for (int ch = 0; ch < numOut; ++ch)
             dest.copyFrom (ch, n, block, ch, 0, chunk);
 
@@ -418,6 +463,53 @@ void renderInto (OOctagonProcessor& proc, juce::AudioBuffer<float>& dest,
             ++nextEvent;
         }
     }
+}
+
+/** v1.8.0 — renders `numBlocks` blocks of `blockSize` and returns the motion offset GainStage
+    published at each block's first control boundary (liveMotionOffset() read after the block).
+    `onBlock (i)` runs BEFORE block i, so a probe can move a parameter or stop the transport at an
+    exact block. The audio goes to `dest` when non-null. */
+using OffsetSeries = std::vector<std::array<float, 3>>;
+
+template <typename OnBlock>
+OffsetSeries renderOffsets (OOctagonProcessor& proc, int numBlocks, int blockSize,
+                            HarnessPlayHead* ph, juce::AudioBuffer<float>* dest, OnBlock onBlock)
+{
+    juce::MidiBuffer midi;
+    OffsetSeries     out;
+    out.reserve (static_cast<size_t> (numBlocks));
+
+    const int numOut = dest != nullptr ? dest->getNumChannels() : 8;
+
+    for (int i = 0; i < numBlocks; ++i)
+    {
+        onBlock (i);
+
+        juce::AudioBuffer<float> block (numOut, blockSize);
+        block.clear();
+
+        for (int s = 0; s < blockSize; ++s)
+            block.setSample (0, s, noiseAt (i * blockSize + s));
+
+        proc.processBlock (block, midi);
+
+        if (ph != nullptr)
+            ph->advance (blockSize);
+
+        if (dest != nullptr)
+            for (int ch = 0; ch < numOut; ++ch)
+                dest->copyFrom (ch, i * blockSize, block, ch, 0, blockSize);
+
+        out.push_back (proc.liveMotionOffset());
+    }
+
+    return out;
+}
+
+bool sameSeries (const OffsetSeries& a, const OffsetSeries& b)
+{
+    return a.size() == b.size()
+        && std::memcmp (a.data(), b.data(), sizeof (std::array<float, 3>) * a.size()) == 0;
 }
 
 /** memcmp, NOT a tolerance. QUAL-03 says bit-identical and a tolerance would hide the very
@@ -6272,6 +6364,665 @@ int main()
                    + (banded ? "" : " — OUT OF BAND: 0 dB means the fold is wired to nothing, "
                                     "> 25 dB means the FAR EAR IS SILENT")
                    + (mirrored ? "" : " — NOT MIRRORED: the azimuth convention is flipped"));
+    }
+
+    //==========================================================================
+    // DC — v1.8.0's BIT-IDENTITY ANCHOR, CAPTURED FROM THE v1.7.0 BINARY (R3).
+    //
+    // CU's shape, one feature later. v1.8.0 adds ten motion parameters and a metric offset applied
+    // downstream of srcX/srcY/srcZ. The feature's compatibility claim is that at `motionOn` = 0
+    // NOTHING CHANGES: the v1.7.0 shape() call and the v1.7.0 dirty-check predicate run verbatim
+    // on the off branch. This probe is that claim against the previous binary's own digest.
+    //
+    // ── THE SCENARIO IS CHOSEN TO BE WHERE MOTION WOULD ENGAGE ────────────────────────────────
+    // Off-centre puck, srcZ raised (so BOTH Z consumers — shape() and the z-cue solve — carry a
+    // non-trivial height), width 6 m, air up, weights non-uniform, RAGGED block sizes so the grid
+    // is walked from every phase, and events on srcX / blur / rolloff so the dirty check fires
+    // mid-render. Only motionOn itself is at zero.
+    //
+    // ── RE-ANCHORING ──────────────────────────────────────────────────────────────────────────
+    // Same rule as CU: re-derived only by running the PREVIOUS release's harness and transcribing
+    // the number with the changelog entry that says why. Never re-recorded from a failing build.
+    {
+        constexpr int total = 4096 * 4;
+
+        // v1.7.0 CAPTURE, 2026-08-27, from commit 2e03020e (working tree == v1.7.0-O-Octagon for
+        // plugins/O-Octagon/Source, verified by `git diff --stat v1.7.0-O-Octagon -- Source` being
+        // empty), rendered by this exact scenario before a line of v1.8.0's DSP existed.
+        constexpr std::uint64_t kV170Digest = 0xb8c5a2d0c7518204ull;
+
+        // NOT CU's event list. CU's scenario at ragged sizes digests to CU's own constant (QUAL-03
+        // makes the chop invisible), which would make this probe a second copy of one number. The
+        // srcZ step at a NON-grid offset is what gives DC an independent anchor — and it moves
+        // BOTH Z consumers (shape() and the z-cue solve) under motion-off, which is exactly the
+        // pair Task 4 routes an effective Z through.
+        const std::vector<Event> events
+            { { 4096 * 1,        "srcX",    0.72f },
+              { 4096 * 2,        "blur",    0.22f },
+              { 4096 * 2 + 1000, "srcZ",    3.00f },
+              { 4096 * 3,        "rolloff", 5.0f } };
+
+        OOctagonProcessor proc;
+
+        negotiate (proc, mono, set71);
+        applyRotatedLabels (proc);
+
+        // ARMED AFTER negotiate(), so prepareToPlay()'s own work is not counted.
+        oo::instr::resetCounters();
+
+        setParam (proc, "srcX",      0.28f);
+        setParam (proc, "srcY",      0.66f);
+        setParam (proc, "srcZ",      1.40f);
+        setParam (proc, "width",     6.0f);
+        setParam (proc, "airAmount", 0.60f);
+        setParam (proc, "hullAtten", 1.60f);
+        setWeights (proc, { 1.0f, 0.85f, 0.6f, 1.0f, 0.4f, 0.9f, 1.0f, 0.75f });
+
+        juce::AudioBuffer<float> out (8, total);
+        renderInto (proc, out, total, { 1, 7, 64, 333, 4096 }, events);
+
+        const auto digest = bufferDigest (out);
+
+        // THE SECOND HALF OF THE CLAIM. The digest says the audio is v1.7.0's audio; this says
+        // the motion branch of updateControl() never executed.
+        const auto motionRan = oo::instr::get (oo::instr::motionSolves);
+
+        // NON-VACUITY. A silent render has a digest too, and it would be a stable one.
+        const bool live = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        const bool ok = digest == kV170Digest && motionRan == 0 && live;
+
+        juce::String detail;
+        detail << "width 6 m off-centre, srcZ 1.4, air 0.60, ragged sizes, 4 x 4096 samples x 8 "
+                  "lanes: digest 0x"
+               << juce::String::toHexString (static_cast<juce::int64> (digest))
+               << " vs v1.7.0 0x" << juce::String::toHexString (static_cast<juce::int64> (kV170Digest))
+               << "; motionSolves " << juce::String (motionRan) << " (expect 0)"
+               << (live ? "" : " — SIGNAL IS SILENT, probe vacuous");
+
+        check ("DC motion-off-matches-v1.7.0", ok, detail);
+    }
+
+    //==========================================================================
+    // DK — A v1.7.0-SHAPED PRESET (18 keys, no motion) LOADS MOTION-OFF WITH THE 18 UNCHANGED (R7).
+    //
+    // No migration hook exists for v1.8.0 — no range moved — so THIS is the compatibility gate.
+    // WR-01 resets omitted keys to their defaults, and the ten motion defaults are "off"; the
+    // probe writes the file by hand in the module's own JSON shape (parameters object of
+    // NORMALISED values + version string), dials motion fully ON first, and asserts the load
+    // (a) turned it off, (b) left the other nine at default, (c) restored the 18 BIT-EXACT.
+    {
+        OOctagonProcessor proc;
+        bool ok = negotiate (proc, mono, set71);
+        juce::String detail;
+
+        if (ok)
+        {
+            OuariconPresetManager presets (proc.getAPVTS(), "O-Octagon-DK-probe");
+
+            // The 18 pre-1.8.0 ids, each with a NON-DEFAULT normalised value.
+            auto* params = new juce::DynamicObject();
+            std::array<float, 18> want {};
+
+            for (int i = 0; i < 18; ++i)
+            {
+                // DYADIC (k/64) so the JSON text round-trip is exact and "bit-exact" tests the
+                // load, not juce::JSON's decimal printing. None is a default: the defaults are
+                // 0.5 (= 32/64, never hit), 0.2 (srcZ), 0 and 1, 1/9 (rolloff), 0.03, 1/3, 0.35, 2/3.
+                want[(size_t) i] = (float) (3 + 2 * i) / 64.0f;      // 3/64 .. 37/64
+                params->setProperty (oo::params::id (i), want[(size_t) i]);
+            }
+
+            auto* preset = new juce::DynamicObject();
+            preset->setProperty ("parameters", juce::var (params));
+            preset->setProperty ("version", "1.7.0");
+            preset->setProperty ("plugin", "O-Octagon");
+
+            const auto file = scratch32.getChildFile ("dk-v170.json");
+            file.replaceWithText (juce::JSON::toString (juce::var (preset)));
+
+            // Motion fully on and every motion knob away from default, so a load that did nothing
+            // to the group would fail every clause.
+            setParam (proc, "motionOn",     1.0f);
+            setParam (proc, "motionPath",   3.0f);
+            setParam (proc, "motionSync",   8.0f);
+            setParam (proc, "motionRate",   1.5f);
+            setParam (proc, "motionSize",   12.0f);
+            setParam (proc, "motionRatio",  0.4f);
+            setParam (proc, "motionAngle",  45.0f);
+            setParam (proc, "motionHeight", 2.0f);
+            setParam (proc, "motionPhase",  90.0f);
+            setParam (proc, "motionSeed",   9.0f);
+
+            const bool loaded = presets.loadPresetFromFile (file);
+
+            const auto readNorm = [&proc] (const char* id)
+            {
+                auto* p = proc.getAPVTS().getParameter (id);
+                return p != nullptr ? p->getValue() : -1.0f;
+            };
+            const auto defaultNorm = [&proc] (const char* id)
+            {
+                auto* p = proc.getAPVTS().getParameter (id);
+                return p != nullptr ? p->getDefaultValue() : -2.0f;
+            };
+
+            int          mismatched = 0;
+            juce::String firstMismatch;
+            for (int i = 0; i < 18; ++i)
+                if (! bitExact (readNorm (oo::params::id (i)), want[(size_t) i]))
+                {
+                    if (mismatched == 0)
+                        firstMismatch = juce::String (" (first: ") + oo::params::id (i) + " "
+                                      + juce::String (readNorm (oo::params::id (i)), 9) + " vs "
+                                      + juce::String (want[(size_t) i], 9) + ")";
+                    ++mismatched;
+                }
+
+            int motionNotDefault = 0;
+            for (int i = oo::params::motionOn; i < (int) oo::params::kCount; ++i)
+                if (! bitExact (readNorm (oo::params::id (i)), defaultNorm (oo::params::id (i))))
+                    ++motionNotDefault;
+
+            const bool motionOff = readNorm ("motionOn") < 0.5f;
+
+            ok = loaded && mismatched == 0 && motionNotDefault == 0 && motionOff;
+
+            detail << "v1.7.0-shaped 18-key preset: load " << (loaded ? "ok" : "FAILED")
+                   << ", 18 restored bit-exact: " << (18 - mismatched) << "/18" << firstMismatch
+                   << ", motionOn " << (motionOff ? "OFF" : "ON (WRONG)")
+                   << ", motion params at default " << (10 - motionNotDefault) << "/10";
+        }
+        else
+            detail = "negotiate failed";
+
+        check ("DK pre-1.8.0-preset-loads-motion-off", ok, detail);
+    }
+
+    //==========================================================================
+    // DN — EIGHT FACTORY PRESETS; THE TWO NEW ONES CARRY MOTION, THE SIX OLD ONES LAND IT OFF.
+    //
+    // factoryDefs() is what initializeFactoryPresets() writes and getPresetList() lists, so its
+    // names ARE the list. "Wander" loaded through the preserving path must start Drift at seed 7
+    // (Path index 3, Free, 0.05 Hz, 6 m); a v1.7.0 row loaded after it must switch motion OFF
+    // again — WR-01's reset through a row that names no motion key, which is the whole
+    // compatibility argument for putting the ten in kAuthored rather than kPreserved.
+    {
+        OOctagonProcessor proc;
+        bool ok = negotiate (proc, mono, set71);
+        juce::String detail;
+
+        if (ok)
+        {
+            const auto defs = oo::presets::factoryDefs (proc.getAPVTS());
+
+            juce::StringArray names;
+            for (const auto& d : defs)
+                names.add (d.name);
+
+            const bool eight = defs.size() == 8
+                            && names[6] == "Slow Orbit" && names[7] == "Wander"
+                            && names[0] == "Dry Point" && names[5] == "Enveloping";
+
+            OuariconPresetManager presets (proc.getAPVTS(), "O-Octagon-DN-probe");
+            presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
+            presets.initializeFactoryPresets (defs);
+
+            const auto eng = [&proc] (const char* id)
+            {
+                auto* p = proc.getAPVTS().getParameter (id);
+                return p != nullptr ? p->convertFrom0to1 (p->getValue()) : -1.0f;
+            };
+
+            const bool loadedW = oo::presets::loadPreserving (presets, proc.getAPVTS(), "Wander");
+            const bool wander  = eng ("motionOn") > 0.5f && near (eng ("motionPath"), 3.0f, 1e-4f)
+                              && near (eng ("motionSync"), 0.0f, 1e-4f) && near (eng ("motionRate"), 0.05f, 1e-3f)
+                              && near (eng ("motionSize"), 6.0f, 1e-3f) && near (eng ("motionSeed"), 7.0f, 1e-4f);
+
+            const bool loadedS = oo::presets::loadPreserving (presets, proc.getAPVTS(), "Slow Orbit");
+            const bool orbit   = eng ("motionOn") > 0.5f && near (eng ("motionPath"), 0.0f, 1e-4f)
+                              && near (eng ("motionSync"), 14.0f, 1e-4f) && near (eng ("motionSize"), 8.0f, 1e-3f)
+                              && near (eng ("motionRatio"), 0.8f, 1e-3f) && near (eng ("motionHeight"), 1.0f, 1e-3f);
+
+            const bool loadedC = oo::presets::loadPreserving (presets, proc.getAPVTS(), "Chamber");
+            const bool off     = eng ("motionOn") < 0.5f && near (eng ("motionSeed"), 1.0f, 1e-4f);
+
+            presets.getPresetsDirectory().getParentDirectory().deleteRecursively();
+
+            ok = eight && loadedW && wander && loadedS && orbit && loadedC && off;
+
+            detail << (eight ? "8 factory names" : "factory count " + juce::String ((int) defs.size()) + " (expect 8)")
+                   << "; Wander -> " << (loadedW && wander ? "Drift, Free 0.05 Hz, 6 m, seed 7" : "WRONG")
+                   << "; Slow Orbit -> " << (loadedS && orbit ? "Orbit, 4 Bars, 8 m, ratio 0.8, height 1 m" : "WRONG")
+                   << "; Chamber after it -> motion " << (loadedC && off ? "OFF, seed back to 1" : "STILL ON");
+        }
+        else
+            detail = "negotiate failed";
+
+        check ("DN factory-presets-carry-motion", ok, detail);
+    }
+
+    //==========================================================================
+    // ── v1.8.0 MOTION PROBES ──────────────────────────────────────────────────────────────────
+    // Common setup: an off-centre puck with width, air and non-uniform weights so the whole chain
+    // is live under the moving source, then motion parameters per probe.
+    auto motionSetup = [&] (OOctagonProcessor& proc, HarnessPlayHead* ph)
+    {
+        negotiate (proc, mono, set71);
+        applyRotatedLabels (proc);
+        if (ph != nullptr)
+            proc.setPlayHead (ph);
+        setParam (proc, "srcX",      0.35f);
+        setParam (proc, "srcY",      0.62f);
+        setParam (proc, "srcZ",      0.8f);
+        setParam (proc, "width",     4.0f);
+        setParam (proc, "airAmount", 0.5f);
+        setParam (proc, "hullAtten", 1.2f);
+        setWeights (proc, { 1.0f, 0.85f, 0.6f, 1.0f, 0.4f, 0.9f, 1.0f, 0.75f });
+    };
+    auto motionShape = [&] (OOctagonProcessor& proc, int path, float rateHz, int sync)
+    {
+        setParam (proc, "motionOn",     1.0f);
+        setParam (proc, "motionPath",   (float) path);
+        setParam (proc, "motionSync",   (float) sync);
+        setParam (proc, "motionRate",   rateHz);
+        setParam (proc, "motionSize",   6.0f);
+        setParam (proc, "motionRatio",  0.6f);
+        setParam (proc, "motionAngle",  30.0f);
+        setParam (proc, "motionHeight", 1.0f);
+        setParam (proc, "motionPhase",  15.0f);
+        setParam (proc, "motionSeed",   7.0f);
+    };
+    static const char* const kPathNames[] = { "Orbit", "Figure-8", "Sweep", "Drift", "Pendulum", "Spiral" };
+
+    //==========================================================================
+    // DD — THE ANCHOR IS NEVER WRITTEN (R2 / D1). Motion on, Orbit 1 Hz, 4 s at 64-sample blocks:
+    // srcX/srcY/srcZ raw values BIT-unchanged at every one of the 3000 blocks, while the render
+    // is live and the motion branch ran. The companion clause (Risk 6): a srcZ of 2 m with
+    // motion off renders bit-identically to srcZ 0 + Height 2 m held at sin t = 1 (a stopped
+    // synced transport at ppq 1 with 1/4 -> cycles 0.25 -> t = pi/2), which is only true if the
+    // effective Z reached BOTH the shaper and the z-cue solve.
+    {
+        OOctagonProcessor proc;
+        motionSetup (proc, nullptr);
+        motionShape (proc, 0, 1.0f, 0);
+
+        const float x0 = proc.getAPVTS().getRawParameterValue ("srcX")->load();
+        const float y0 = proc.getAPVTS().getRawParameterValue ("srcY")->load();
+        const float z0 = proc.getAPVTS().getRawParameterValue ("srcZ")->load();
+
+        oo::instr::resetCounters();
+
+        juce::AudioBuffer<float> out (8, 64 * 3000);
+        int moved = 0;
+
+        const auto series = renderOffsets (proc, 3000, 64, nullptr, &out, [&] (int)
+        {
+            if (! bitExact (proc.getAPVTS().getRawParameterValue ("srcX")->load(), x0)
+             || ! bitExact (proc.getAPVTS().getRawParameterValue ("srcY")->load(), y0)
+             || ! bitExact (proc.getAPVTS().getRawParameterValue ("srcZ")->load(), z0))
+                ++moved;
+        });
+
+        const bool ran    = oo::instr::get (oo::instr::motionSolves) > 0;
+        const bool live   = out.getMagnitude (0, 0, out.getNumSamples()) > 1.0e-4f;
+        const bool moving = ! sameSeries (OffsetSeries (series.begin(), series.begin() + 100),
+                                          OffsetSeries (series.begin() + 100, series.begin() + 200));
+
+        // Companion: both Z consumers.
+        constexpr int total = 4096 * 2;
+        OOctagonProcessor a, b;
+        HarnessPlayHead   stopped;
+        stopped.ppqStart = 1.0; stopped.playing = false;
+        motionSetup (a, nullptr);
+        motionSetup (b, &stopped);
+        setParam (a, "srcZ", 2.0f);
+        setParam (b, "srcZ", 0.0f);
+        setParam (b, "motionOn", 1.0f);
+        setParam (b, "motionPath", 0.0f);
+        setParam (b, "motionSync", 8.0f);          // 1/4 -> 0.25 cycles/beat
+        setParam (b, "motionSize", 0.0f);
+        setParam (b, "motionHeight", 2.0f);
+        setParam (b, "motionPhase", 0.0f);
+        juce::AudioBuffer<float> outA (8, total), outB (8, total);
+        renderInto (a, outA, total, { 4096 }, {});
+        renderInto (b, outB, total, { 4096 }, {}, &stopped);
+        const bool bothZ = bitIdentical (outA, outB);
+
+        check ("DD anchor-never-written", moved == 0 && ran && live && moving && bothZ,
+               juce::String ("srcX/srcY/srcZ bit-unchanged at ") + juce::String (3000 - moved)
+                   + "/3000 blocks; motionSolves " + juce::String (oo::instr::get (oo::instr::motionSolves))
+                   + (moving ? "; offset moving" : "; OFFSET STATIC")
+                   + (live ? "" : " — SILENT")
+                   + (bothZ ? "; srcZ 2 == srcZ 0 + Height 2 at sin t = 1: bit-identical (both Z consumers)"
+                            : "; srcZ 2 vs Height 2 DIFFER — " + firstDifference (outA, outB)));
+    }
+
+    //==========================================================================
+    // DI — A HOST srcX STEP MOVES THE WHOLE PATH (D1). The offset series is a function of time
+    // only: identical with and without the step, while the two renders differ (the step is live).
+    {
+        constexpr int blocks = 1500;
+        OOctagonProcessor a, b;
+        motionSetup (a, nullptr); motionShape (a, 0, 0.5f, 0);
+        motionSetup (b, nullptr); motionShape (b, 0, 0.5f, 0);
+
+        juce::AudioBuffer<float> outA (8, 64 * blocks), outB (8, 64 * blocks);
+
+        const auto sa = renderOffsets (a, blocks, 64, nullptr, &outA, [] (int) {});
+        const auto sb = renderOffsets (b, blocks, 64, nullptr, &outB, [&] (int i)
+        {
+            if (i == 700)
+                setParam (b, "srcX", 0.78f);
+        });
+
+        const bool same    = sameSeries (sa, sb);
+        const bool differs = ! bitIdentical (outA, outB);
+
+        check ("DI anchor-step-moves-whole-path", same && differs,
+               juce::String ("offset series with vs without a srcX step at block 700: ")
+                   + (same ? "bit-identical (1500 x 3 floats)" : "DIFFER")
+                   + (differs ? "; renders differ (step is live)" : "; RENDERS IDENTICAL — step inert"));
+    }
+
+    //==========================================================================
+    // DE — BLOCK-SIZE INVARIANCE, FREE MODE, EVERY PATH (R5), plus a rate-change event on the
+    // last pass (the re-base is the one place an accumulator could creep back in). {64} vs {256}
+    // vs {1024} vs ragged {1,7,64,333,4096}: memcmp-identical, motionSolves > 0, live.
+    // Negative control NC2 replaces cyclesAt with an accumulator and this probe must fail.
+    {
+        constexpr int total = 4096 * 4;
+        int failedPaths = 0;
+        juce::String detail;
+
+        for (int path = 0; path < 6; ++path)
+        {
+            const std::vector<Event> events
+                { { 4096 * 2 + 100, "motionRate", 1.7f },
+                  { 4096 * 3,       "srcY",       0.4f } };
+
+            std::vector<juce::AudioBuffer<float>> outs;
+            const std::vector<std::vector<int>> sizes { { 64 }, { 256 }, { 1024 }, { 1, 7, 64, 333, 4096 } };
+
+            oo::instr::resetCounters();
+
+            for (const auto& sz : sizes)
+            {
+                OOctagonProcessor proc;
+                motionSetup (proc, nullptr);
+                motionShape (proc, path, 1.0f, 0);
+                outs.emplace_back (8, total);
+                renderInto (proc, outs.back(), total, sz, events);
+            }
+
+            bool identical = true;
+            for (size_t k = 1; k < outs.size(); ++k)
+                identical = identical && bitIdentical (outs[0], outs[k]);
+
+            // EVERY boundary must have solved, not merely some: with the dirty-check bypass
+            // deleted (NC1) the two events still force a solve each, so "> 0" passed on the
+            // strength of a frozen offset. 4 renders x total/64 boundaries, exactly.
+            const auto solves = oo::instr::get (oo::instr::motionSolves);
+            const bool ran    = solves == 4ull * (total / 64);
+            const bool live   = outs[0].getMagnitude (0, 0, total) > 1.0e-4f;
+
+            if (! (identical && ran && live))
+            {
+                ++failedPaths;
+                detail << kPathNames[path] << ": " << (identical ? "" : firstDifference (outs[0], outs[3]))
+                       << (ran ? "" : " motionSolves " + juce::String (solves) + " != " + juce::String (4 * (total / 64)))
+                       << (live ? "" : " SILENT") << "; ";
+            }
+        }
+
+        check ("DE blocksize-invariance-free", failedPaths == 0,
+               failedPaths == 0 ? "6 paths x {64}/{256}/{1024}/ragged, rate 1.0 -> 1.7 Hz mid-render: "
+                                  "all bit-identical, every boundary solved (1024/1024), live"
+                                : detail);
+    }
+
+    //==========================================================================
+    // DF — DE's shape, SYNC 1/4 @ 120 BPM with the transport ROLLING (R5 + R4). Each render gets
+    // its own playhead from ppq 0, so the grid boundaries see extrapolated PPQ from different
+    // block starts — a 4096 block extrapolates 63 boundaries, a 64 block none.
+    {
+        constexpr int total = 4096 * 4;
+        int failedPaths = 0;
+        juce::String detail;
+
+        for (int path = 0; path < 6; ++path)
+        {
+            const std::vector<Event> events { { 4096 * 2 + 100, "motionSize", 9.0f } };
+            std::vector<juce::AudioBuffer<float>> outs;
+            const std::vector<std::vector<int>> sizes { { 64 }, { 256 }, { 1024 }, { 1, 7, 64, 333, 4096 } };
+
+            oo::instr::resetCounters();
+
+            for (const auto& sz : sizes)
+            {
+                OOctagonProcessor proc;
+                HarnessPlayHead   ph;
+                motionSetup (proc, &ph);
+                motionShape (proc, path, 1.0f, 8);
+                outs.emplace_back (8, total);
+                renderInto (proc, outs.back(), total, sz, events, &ph);
+                proc.setPlayHead (nullptr);
+            }
+
+            bool identical = true;
+            for (size_t k = 1; k < outs.size(); ++k)
+                identical = identical && bitIdentical (outs[0], outs[k]);
+
+            const bool ran  = oo::instr::get (oo::instr::motionSolves) > 0;
+            const bool live = outs[0].getMagnitude (0, 0, total) > 1.0e-4f;
+
+            if (! (identical && ran && live))
+            {
+                ++failedPaths;
+                detail << kPathNames[path] << ": " << (identical ? "" : firstDifference (outs[0], outs[3]))
+                       << (ran ? "" : " NEVER RAN") << (live ? "" : " SILENT") << "; ";
+            }
+        }
+
+        check ("DF blocksize-invariance-synced", failedPaths == 0,
+               failedPaths == 0 ? "6 paths, 1/4 @ 120 BPM rolling, {64}/{256}/{1024}/ragged: all "
+                                  "bit-identical, motion ran, live"
+                                : detail);
+    }
+
+    //==========================================================================
+    // DG — TWO BOUNCES OF ONE SESSION ARE IDENTICAL, DRIFT INCLUDED (R4 / D7); seed 8 differs.
+    {
+        constexpr int total = 4096 * 4;
+        juce::AudioBuffer<float> o7a (8, total), o7b (8, total), o8 (8, total);
+
+        auto render = [&] (juce::AudioBuffer<float>& out, float seed)
+        {
+            OOctagonProcessor proc;
+            HarnessPlayHead   ph;
+            motionSetup (proc, &ph);
+            motionShape (proc, 3, 0.5f, 8);
+            setParam (proc, "motionSeed", seed);
+            renderInto (proc, out, total, { 1, 7, 64, 333, 4096 }, {}, &ph);
+            proc.setPlayHead (nullptr);
+        };
+
+        render (o7a, 7.0f);
+        render (o7b, 7.0f);
+        render (o8,  8.0f);
+
+        const bool same    = bitIdentical (o7a, o7b);
+        const bool differs = ! bitIdentical (o7a, o8);
+        const bool live    = o7a.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("DG drift-bounce-deterministic", same && differs && live,
+               juce::String ("Drift seed 7 twice: ") + (same ? "bit-identical" : firstDifference (o7a, o7b))
+                   + "; seed 8: " + (differs ? "differs" : "IDENTICAL — seed inert")
+                   + (live ? "" : " — SILENT"));
+    }
+
+    //==========================================================================
+    // DH — A BOUNCE STARTED MID-TIMELINE LANDS AT THE CORRECT PHASE (R4). Sync 1/4 @ 120 BPM: the
+    // offset series of a render starting at ppq 38.4 equals the tail of a render from ppq 0
+    // (38.4 beats = 921600 samples in). Compared to 1e-6 m rather than bit-exact: the two
+    // derive the boundary PPQ from different block starts, and the claim is the PHASE, not the
+    // rounding (bit-identity of one session is DG's claim).
+    //
+    // 38.4 AND NOT THE PLAN'S 37.5, FOR A REASON WORTH KEEPING: the control grid is aligned to the
+    // ABSOLUTE SAMPLE COUNTER, deliberately not to the playhead (GainStage.h — a locate must not
+    // jump the grid). 37.5 beats is 900000 samples, which 64 does not divide, so a bounce from 0
+    // and a bounce from 37.5 evaluate the path at instants 32 samples apart: a real, designed 9 mm
+    // difference that the 5 ms gain ramps absorb and that no probe should call a phase error.
+    // 921600 = 14400 x 64 puts both renders' boundaries on the same instants.
+    {
+        constexpr int tailBlocks = 128;
+        constexpr int lead       = 921600 / 64;
+        static_assert (lead * 64 == 921600, "the lead must be a whole number of grid blocks");
+
+        OOctagonProcessor a, b;
+        HarnessPlayHead   pa, pb;
+        pb.ppqStart = 38.4;
+        motionSetup (a, &pa); motionShape (a, 1, 1.0f, 8);
+        motionSetup (b, &pb); motionShape (b, 1, 1.0f, 8);
+
+        const auto sa = renderOffsets (a, lead + tailBlocks, 64, &pa, nullptr, [] (int) {});
+        const auto sb = renderOffsets (b, tailBlocks,        64, &pb, nullptr, [] (int) {});
+
+        float worst = 0.0f;
+        for (int i = 0; i < tailBlocks; ++i)
+            for (int k = 0; k < 3; ++k)
+                worst = std::max (worst, std::abs (sa[(size_t) (lead + i)][(size_t) k] - sb[(size_t) i][(size_t) k]));
+
+        const bool moving = ! sameSeries (OffsetSeries (sb.begin(), sb.begin() + 64),
+                                          OffsetSeries (sb.begin() + 64, sb.end()));
+
+        a.setPlayHead (nullptr); b.setPlayHead (nullptr);
+
+        check ("DH mid-timeline-start-phase", worst < 1.0e-6f && moving,
+               "start at ppq 38.4 vs tail of a render from 0: worst offset diff "
+                   + juce::String (worst, 9) + " m over 128 boundaries"
+                   + (moving ? "" : " — OFFSET STATIC, probe vacuous"));
+    }
+
+    //==========================================================================
+    // DJ — SYNCED + STOPPED HOLDS; FREE + STOPPED KEEPS MOVING (RESEARCH Q7).
+    {
+        constexpr int blocks = 400;
+
+        auto run = [&] (int sync)
+        {
+            OOctagonProcessor proc;
+            HarnessPlayHead   ph;
+            motionSetup (proc, &ph);
+            motionShape (proc, 0, 1.0f, sync);
+            const auto s = renderOffsets (proc, blocks, 64, &ph, nullptr, [&] (int i)
+            {
+                if (i == blocks / 2)
+                    ph.playing = false;
+            });
+            proc.setPlayHead (nullptr);
+            return s;
+        };
+
+        const auto synced = run (8);
+        const auto free   = run (0);
+
+        auto constantFrom = [] (const OffsetSeries& s, size_t from)
+        {
+            for (size_t i = from + 1; i < s.size(); ++i)
+                if (std::memcmp (&s[i], &s[from], sizeof (s[i])) != 0)
+                    return false;
+            return true;
+        };
+
+        const bool syncedMovedBefore = ! constantFrom (OffsetSeries (synced.begin(), synced.begin() + blocks / 2), 0);
+        const bool syncedHolds       = constantFrom (synced, blocks / 2 + 1);
+        const bool freeMoves         = ! constantFrom (free, blocks / 2 + 1);
+
+        check ("DJ stopped-transport-behaviour", syncedMovedBefore && syncedHolds && freeMoves,
+               juce::String ("1/4 @ 120: moving while rolling ") + (syncedMovedBefore ? "yes" : "NO")
+                   + ", holds after stop " + (syncedHolds ? "yes" : "NO")
+                   + "; Free: keeps moving after stop " + (freeMoves ? "yes" : "NO"));
+    }
+
+    //==========================================================================
+    // SAFE MODE (RESEARCH Q3) — a stereo negotiation is the SAFE fold, which never reads a
+    // position: motion on renders bit-identically to motion off, WITH the motion branch running
+    // (so the map still animates). Inaudible by construction, not by a gate.
+    {
+        constexpr int total = 4096 * 3;
+        OOctagonProcessor a, b;
+
+        for (auto* p : { &a, &b })
+        {
+            negotiate (*p, mono, juce::AudioChannelSet::stereo());
+            setParam (*p, "srcX", 0.3f);
+            setParam (*p, "width", 4.0f);
+        }
+        motionShape (b, 0, 1.0f, 0);
+
+        juce::AudioBuffer<float> outA (2, total), outB (2, total);
+        renderInto (a, outA, total, { 1, 7, 64, 333, 4096 }, {});
+        oo::instr::resetCounters();
+        renderInto (b, outB, total, { 1, 7, 64, 333, 4096 }, {});
+
+        const bool identical = bitIdentical (outA, outB);
+        const bool ran       = oo::instr::get (oo::instr::motionSolves) > 0;
+        const bool live      = outA.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("DM safe-mode-motion-inaudible", identical && ran && live,
+               juce::String ("stereo (SAFE) fold, motion on vs off: ")
+                   + (identical ? "bit-identical" : firstDifference (outA, outB))
+                   + "; motionSolves " + juce::String (oo::instr::get (oo::instr::motionSolves))
+                   + (ran ? " (branch ran, map animates)" : " — BRANCH NEVER RAN")
+                   + (live ? "" : " — SILENT"));
+    }
+
+    //==========================================================================
+    // DL — CX AND CW RE-RUN WITH MOTION ON. (1) CX's decorr scenario at ragged vs 4096 stays
+    // bit-identical with the source orbiting and the chains clocking; (2) CW's claim: at width 0
+    // decorr is inert (decorrSamples == 0) even though motion moves the puck every grid.
+    {
+        constexpr int total = 4096 * 6;
+        const std::vector<Event> events
+            { { 4096 * 1, "decorr", 0.85f }, { 4096 * 2, "srcX",   0.22f },
+              { 4096 * 3, "width",  9.0f  }, { 4096 * 4, "decorr", 0.25f },
+              { 4096 * 5, "blur",   0.30f } };
+
+        OOctagonProcessor a, b;
+        for (auto* p : { &a, &b })
+        {
+            motionSetup (*p, nullptr);
+            motionShape (*p, 5, 0.8f, 0);
+            setParam (*p, "width",  6.0f);
+            setParam (*p, "decorr", 0.60f);
+        }
+
+        juce::AudioBuffer<float> outA (8, total), outB (8, total);
+        oo::instr::resetCounters();
+        renderInto (a, outA, total, { 1, 7, 64, 333, 4096 }, events);
+        renderInto (b, outB, total, { 4096 },                events);
+
+        const bool identical = bitIdentical (outA, outB);
+        const bool chains    = oo::instr::get (oo::instr::decorrSamples) > 0;
+        const bool ran       = oo::instr::get (oo::instr::motionSolves) > 0;
+
+        OOctagonProcessor c;
+        motionSetup (c, nullptr);
+        motionShape (c, 0, 1.0f, 0);
+        setParam (c, "width",  0.0f);
+        setParam (c, "decorr", 0.8f);
+        juce::AudioBuffer<float> outC (8, 4096 * 2);
+        oo::instr::resetCounters();
+        renderInto (c, outC, 4096 * 2, { 4096 }, {});
+        const bool inert = oo::instr::get (oo::instr::decorrSamples) == 0
+                        && oo::instr::get (oo::instr::motionSolves) > 0;
+
+        check ("DL decorr-with-motion", identical && chains && ran && inert,
+               juce::String ("CX shape + Spiral 0.8 Hz: ") + (identical ? "bit-identical" : firstDifference (outA, outB))
+                   + (chains ? ", chains clocked" : ", CHAINS NEVER CLOCKED")
+                   + (ran ? ", motion ran" : ", MOTION NEVER RAN")
+                   + "; width 0 + motion: decorr " + (inert ? "inert (decorrSamples 0)" : "RAN at wEff 0"));
     }
 
     scratch32.deleteRecursively();

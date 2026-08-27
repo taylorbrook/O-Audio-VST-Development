@@ -1,0 +1,35 @@
+milestone: motion-engine
+created: 2026-08-26T00:00:00Z
+lastActivity: 2026-08-27T19:10:00Z
+completed: 2026-08-27T19:10:00Z
+description: >
+  Motion engine — generative trajectories for srcX/srcY/srcZ: circular and elliptical
+  orbits, figure-8s, line sweeps, random walks, tempo-synced rate/depth/phase — written
+  as parameter modulation inside the plugin rather than hand-drawn host automation.
+  O-Orbit's MotionEngine owns the path vocabulary to borrow.
+phases:
+  discuss:
+    status: complete
+    completedAt: 2026-08-26T00:00:00Z
+  research:
+    status: complete
+    completedAt: 2026-08-27T00:00:00Z
+  plan:
+    status: complete
+    startedAt: 2026-08-27T00:00:00Z
+    completedAt: 2026-08-27T00:00:00Z
+    approved: true
+    domain: mixed
+    executeAgent: general-purpose   # mixed DSP + GUI per RESEARCH.md
+  execute:
+    status: complete
+    startedAt: 2026-08-27T00:00:00Z
+    completedAt: 2026-08-27T00:00:00Z
+  verify:
+    status: complete
+    startedAt: 2026-08-27T19:00:00Z
+    completedAt: 2026-08-27T19:10:00Z
+    verdict: verified
+versionBump: minor
+baseVersion: 1.7.0
+targetVersion: 1.8.0

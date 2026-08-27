@@ -81,8 +81,15 @@ inline constexpr std::array<const char*, 12> kPreserved
         "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8" };
 
 /** The six a factory preset writes — ROOM CHARACTER, and nothing that says where the source is. */
-inline constexpr std::array<const char*, 6> kAuthored
-    = { "width", "rolloff", "blur", "hullAtten", "airAmount", "outputGain" };
+/** ...plus, since v1.8.0, THE TEN MOTION PARAMETERS. Authored, not preserved (PLAN overrides
+    RESEARCH here): R7 says motion state travels in presets. The six original factory rows write
+    nothing for them, so WR-01's reset-to-default lands motionOn = 0 on every one of those loads
+    and they stay audibly identical to v1.7.0 (probe CP). A pre-1.8.0 user preset omits the keys,
+    which resets them the same way — motion off (probe DK). */
+inline constexpr std::array<const char*, 16> kAuthored
+    = { "width", "rolloff", "blur", "hullAtten", "airAmount", "outputGain",
+        "motionOn", "motionPath", "motionSync", "motionRate", "motionSize",
+        "motionRatio", "motionAngle", "motionHeight", "motionPhase", "motionSeed" };
 
 static_assert (kPreserved.size() + kAuthored.size() == params::kCount,
                "The preserved set and the authored set PARTITION the parameters. If this fires, a "
@@ -137,10 +144,20 @@ static_assert (kPreserved.size() + kAuthored.size() == params::kCount,
 inline std::vector<OuariconPresetManager::FactoryPresetDef>
 factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
 {
+    // v1.8.0 — the ten motion fields, DEFAULTED OFF so the six original rows are written exactly
+    // as before: they name no motion value, WR-01's reset lands motionOn = 0 on their load, and
+    // probe CP holds them audibly identical to v1.7.0. The two new rows below DO set motion.
+    struct Motion
+    {
+        float on { 0.0f }, path { 0.0f }, sync { 0.0f }, rate { 0.1f }, size { 6.0f },
+              ratio { 1.0f }, angle { 0.0f }, height { 0.0f }, phase { 0.0f }, seed { 1.0f };
+    };
+
     struct Row
     {
         const char* name;
         float width, rolloff, blur, hullAtten, airAmount, outputGain;
+        Motion motion {};
     };
 
     // v1.3.0 — blur column rescaled ÷3 (rounded to 2 dp): kBlurScale tripled (0.5 → 1.5), and
@@ -156,6 +173,14 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
         { "Wide Hall",         3.0f,   3.5f,  0.12f,    0.7f, 0.55f,  -1.5f },
         { "Distant Field",     4.5f,   3.0f,  0.18f,    0.4f, 0.85f,  -3.0f },
         { "Enveloping",        6.0f,   3.0f,  0.27f,    0.0f, 0.45f,  -2.0f },
+
+        // v1.8.0 — TWO ROWS THAT MOVE. Room character from Wide Hall / Chamber respectively, so
+        // the motion is what distinguishes them.
+        //   Slow Orbit: Orbit (0), synced to 4 Bars (14), 8 m across, ratio 0.8, 1 m of height.
+        //   Wander:     Drift (3), Free (0) at 0.05 Hz, 6 m, seed 7.
+        //                                                            on  path sync rate  size ratio ang  hgt  phase seed
+        { "Slow Orbit",        3.0f,   3.5f,  0.12f,    0.7f, 0.55f,  -1.5f, { 1.0f, 0.0f, 14.0f, 0.1f,  8.0f, 0.8f, 0.0f, 1.0f, 0.0f, 1.0f } },
+        { "Wander",            1.5f,   4.5f,  0.06f,    1.4f, 0.25f,   0.0f, { 1.0f, 3.0f,  0.0f, 0.05f, 6.0f, 1.0f, 0.0f, 0.0f, 0.0f, 7.0f } },
     };
 
     // The single conversion. Reads the LIVE range, so a range change moves the presets with it
@@ -179,6 +204,20 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
         def.parameters["hullAtten"]  = norm ("hullAtten",  r.hullAtten);
         def.parameters["airAmount"]  = norm ("airAmount",  r.airAmount);
         def.parameters["outputGain"] = norm ("outputGain", r.outputGain);
+
+        // v1.8.0 — the ten motion keys, through the SAME live-range conversion. A Bool's range is
+        // 0..1 and a Choice's is 0..N-1 in engineering terms, so norm() handles all three kinds;
+        // motionRate is the first skewed range and this is exactly the case P96 exists for.
+        def.parameters["motionOn"]     = norm ("motionOn",     r.motion.on);
+        def.parameters["motionPath"]   = norm ("motionPath",   r.motion.path);
+        def.parameters["motionSync"]   = norm ("motionSync",   r.motion.sync);
+        def.parameters["motionRate"]   = norm ("motionRate",   r.motion.rate);
+        def.parameters["motionSize"]   = norm ("motionSize",   r.motion.size);
+        def.parameters["motionRatio"]  = norm ("motionRatio",  r.motion.ratio);
+        def.parameters["motionAngle"]  = norm ("motionAngle",  r.motion.angle);
+        def.parameters["motionHeight"] = norm ("motionHeight", r.motion.height);
+        def.parameters["motionPhase"]  = norm ("motionPhase",  r.motion.phase);
+        def.parameters["motionSeed"]   = norm ("motionSeed",   r.motion.seed);
 
         defs.push_back (std::move (def));
     }

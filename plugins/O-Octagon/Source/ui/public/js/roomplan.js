@@ -208,6 +208,12 @@ export function createRoomPlan(deps) {
       || hullPoly === null || puck === null)
     throw new Error("room plan: a required element is missing");
 
+  // v1.8.0 — the trace, the Drift tail and the live puck. Optional on purpose:
+  // a page without them still draws the 3.1 plan.
+  const traceEl = document.getElementById("motion-trace");
+  const tailEl = document.getElementById("motion-tail");
+  const puckLive = document.getElementById("puck-live");
+
   const glyphs = deps.weightIds.map((_, i) => document.getElementById(`glyph-${i + 1}`));
   const wCells = deps.weightIds.map((_, i) => document.getElementById(`wcell-${i + 1}`));
 
@@ -259,6 +265,22 @@ export function createRoomPlan(deps) {
 
   // The relative-delta accumulator, in NORMALISED parameter units.
   const acc = { x: 0, y: 0 };
+
+  // ── v1.8.0 — motion state, all of it HANDED IN ───────────────────────────
+  // `trace` is getMotionTrace's payload verbatim ({ cyclic, points: [[x,y,z]] }
+  // in anchor-relative metres); `live` is the polled offset triple. This file
+  // adds the anchor's metres and calls metresToPx. IT NEVER COMPUTES A PATH —
+  // ui_frontend_check §41 holds that: no sin/cos, no Perlin, no second
+  // generator that could drift from the one the audio thread runs
+  // (pattern_test_fixture_mirrors_drift_silently).
+  let trace = null;
+  let motionOn = false;
+  let live = [0, 0, 0];
+
+  // Drift has no closed cycle to trace, so it gets a TAIL: the last 48 polled
+  // ABSOLUTE positions (anchor + offset, metres) as a fading polyline.
+  const TAIL_LENGTH = 48;
+  const tail = [];
 
   // ── Layout ───────────────────────────────────────────────────────────────
   // The plan box is fitted to the RETURNED envelope's aspect inside a MEASURED
@@ -479,6 +501,59 @@ export function createRoomPlan(deps) {
 
     puck.style.left = `${p.x}px`;
     puck.style.top = `${p.y}px`;
+
+    renderTrace(m);
+    renderLive(m);
+  }
+
+  // The anchor in metres — the puck's own derivation, reused so the trace and
+  // the live puck translate with a drag exactly as the puck does.
+  function anchorMetres() {
+    const nx = dragging ? acc.x : srcX.state.getNormalisedValue();
+    const ny = dragging ? acc.y : srcY.state.getNormalisedValue();
+    return normToMetres(nx, ny, geometry);
+  }
+
+  // ── v1.8.0 — the trace: translate, project, join. No other arithmetic. ────
+  function renderTrace(anchor) {
+    if (traceEl === null || view === null || geometry === null) return;
+
+    const pts = motionOn && trace !== null && Array.isArray(trace.points) ? trace.points : [];
+
+    if (pts.length < 2) {
+      traceEl.setAttribute("d", "");
+      return;
+    }
+
+    const parts = pts.map((pt, i) => {
+      const p = metresToPx(anchor.x + Number(pt[0]), anchor.y + Number(pt[1]), view);
+      return `${i === 0 ? "M" : "L"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    });
+
+    traceEl.setAttribute("d", parts.join(" ") + (trace.cyclic === true ? " Z" : ""));
+  }
+
+  // ── v1.8.0 — the live puck and the Drift tail ────────────────────────────
+  function renderLive(anchor) {
+    if (view === null || geometry === null) return;
+
+    if (puckLive !== null) {
+      if (!motionOn) {
+        puckLive.hidden = true;
+      } else {
+        const p = metresToPx(anchor.x + live[0], anchor.y + live[1], view);
+        puckLive.style.left = `${p.x}px`;
+        puckLive.style.top = `${p.y}px`;
+        puckLive.hidden = false;
+      }
+    }
+
+    if (tailEl !== null) {
+      const showTail = motionOn && trace !== null && trace.cyclic === false;
+      tailEl.setAttribute("points", showTail
+        ? tail.map((m) => { const p = metresToPx(m.x, m.y, view); return `${p.x.toFixed(2)},${p.y.toFixed(2)}`; }).join(" ")
+        : "");
+    }
   }
 
   // ── v1.1.0 — the speaker→output popover ──────────────────────────────────
@@ -752,6 +827,42 @@ export function createRoomPlan(deps) {
       relayout();
     },
     relayout,
+
+    // ── v1.8.0 hooks. Hooks ONLY — this module keeps the view transform. ────
+
+    /** getMotionTrace's payload, verbatim. Drift arrives as { cyclic: false,
+        points: [] } and is drawn as a tail instead. */
+    setTrace(payload) {
+      trace = payload !== null && typeof payload === "object" ? payload : null;
+      tail.length = 0;
+      if (geometry !== null && view !== null) renderPuck();
+    },
+
+    /** The ghost anchor. The puck keeps every gesture — it is still the thing
+        you drag — and goes hollow while the audible source is elsewhere. */
+    setMotionOn(on) {
+      motionOn = on === true;
+      puck.classList.toggle("puck--ghost", motionOn);
+      if (!motionOn) tail.length = 0;
+      if (geometry !== null && view !== null) renderPuck();
+    },
+
+    /** The polled offset triple (anchor-relative metres) from getMeters. */
+    setMotion(offset, on) {
+      if (Array.isArray(offset) && offset.length >= 3)
+        live = [Number(offset[0]) || 0, Number(offset[1]) || 0, Number(offset[2]) || 0];
+
+      if (on !== motionOn) this.setMotionOn(on);
+      if (geometry === null || view === null) return;
+
+      if (motionOn && trace !== null && trace.cyclic === false) {
+        const a = anchorMetres();
+        tail.push({ x: a.x + live[0], y: a.y + live[1] });
+        if (tail.length > TAIL_LENGTH) tail.shift();
+      }
+
+      renderLive(anchorMetres());
+    },
 
     // ── Phase 3.3 hooks. Hooks ONLY — this module keeps the view transform. ──
     setMeters,

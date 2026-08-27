@@ -124,7 +124,21 @@ const PARAM_IDS = [
   "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8",
   "hullAtten", "airAmount",
   "outputGain",
+  "motionOn", "motionPath", "motionSync", "motionRate", "motionSize",
+  "motionRatio", "motionAngle", "motionHeight", "motionPhase", "motionSeed",
 ];
+
+// v1.8.0 — THE THREE NON-FLOAT PARAMETERS, and the only place the page knows
+// which they are. Everything else in PARAM_IDS is a WebSliderRelay; these three
+// are a WebToggleButtonRelay and two WebComboBoxRelays (a host lane must read
+// "Figure-8", not 0.2), reached through Juce.getToggleState / getComboBoxState.
+// The split mirrors PluginEditor.cpp's relay loop and ui_frontend_check §16
+// holds the two against each other.
+const CONTROL_KIND = { motionOn: "toggle", motionPath: "combo", motionSync: "combo" };
+
+// The six SHAPE parameters. A change to any of them re-fetches the trace;
+// the anchor and the rate do not change the trace's shape (RESEARCH Q6).
+const TRACE_SHAPE_IDS = ["motionPath", "motionSize", "motionRatio", "motionAngle", "motionHeight", "motionPhase"];
 
 // The eight weight ids, which roomplan.js sites at their speakers rather than
 // laying out in the controls column.
@@ -151,6 +165,13 @@ const FORMAT = {
   hullAtten:  { unit: "dB/m",  dp: 2 },
   airAmount:  { unit: "",      dp: 2 },
   outputGain: { unit: "dB",    dp: 1 },
+  motionRate:   { unit: "Hz",  dp: 2 },
+  motionSize:   { unit: "m",   dp: 1 },
+  motionRatio:  { unit: "",    dp: 2 },
+  motionAngle:  { unit: "\u00B0", dp: 0 },
+  motionHeight: { unit: "m",   dp: 1 },
+  motionPhase:  { unit: "\u00B0", dp: 0 },
+  motionSeed:   { unit: "",    dp: 0 },
 };
 
 // 2 Hz. A JS interval, deliberately NOT a juce::Timer: keeping the pull on this
@@ -325,6 +346,172 @@ function bindSlider(id) {
 // ── Screens ────────────────────────────────────────────────────────────────
 // The tab labels are HTML-authored and are never rewritten; only aria-selected
 // and the active class move (pattern_js_state_updater_overwrites_html_labels).
+
+// ── v1.8.0 — the toggle and the combo ─────────────────────────────────────
+//
+// JUCE's WebToggleButtonParameterAttachment and WebComboBoxParameterAttachment
+// route a JS write through setValueAsCompleteGesture, which DOES carry its own
+// begin/end brackets (unlike the slider's setValueAsPartOfGesture) — so there
+// is nothing for this side to open or close, and the stub records the pair on
+// the write to keep section 10's bracket audit honest about that.
+//
+// The readout is the same dedicated `value` node the sliders use, so section 6
+// sees no new textContent receiver. The <option>s are built from the state's
+// OWN choices with the Option constructor — the C++ StringArray is the single
+// list and nothing here transcribes it.
+
+function bindToggle(id) {
+  const state = Juce.getToggleState(id);
+  const input = document.getElementById(`ctl-${id}`);
+  const value = document.getElementById(`val-${id}`);
+
+  if (input === null) throw new Error(`missing control element ctl-${id}`);
+
+  const render = () => {
+    const on = state.getValue() === true;
+    if (value !== null) value.textContent = on ? "On" : "Off";
+    input.checked = on;
+  };
+
+  state.valueChangedEvent.addListener(render);
+  state.propertiesChangedEvent.addListener(render);
+
+  input.addEventListener("change", () => {
+    state.setValue(input.checked);
+  });
+
+  sliders.set(id, { state, input, value, kind: "toggle" });
+  render();
+}
+
+function bindCombo(id) {
+  const state = Juce.getComboBoxState(id);
+  const input = document.getElementById(`ctl-${id}`);
+  const value = document.getElementById(`val-${id}`);
+
+  if (input === null) throw new Error(`missing control element ctl-${id}`);
+
+  let builtFrom = -1;
+
+  const rebuildOptions = () => {
+    const choices = Array.isArray(state.properties.choices) ? state.properties.choices : [];
+    if (choices.length === builtFrom) return;
+    builtFrom = choices.length;
+    while (input.options.length > 0) input.remove(0);
+    choices.forEach((name, i) => input.add(new Option(String(name), String(i))));
+  };
+
+  const render = () => {
+    rebuildOptions();
+    const i = state.getChoiceIndex();
+    const name = state.properties.choices?.[i];
+    if (value !== null) value.textContent = name === undefined ? "" : String(name);
+    if (input.options.length > i) input.selectedIndex = i;
+  };
+
+  state.valueChangedEvent.addListener(render);
+  state.propertiesChangedEvent.addListener(render);
+
+  input.addEventListener("change", () => {
+    state.setChoiceIndex(Number(input.value));
+  });
+
+  sliders.set(id, { state, input, value, kind: "combo" });
+  render();
+}
+
+function bindControl(id) {
+  const kind = CONTROL_KIND[id];
+  if (kind === "toggle") bindToggle(id);
+  else if (kind === "combo") bindCombo(id);
+  else bindSlider(id);
+}
+
+// ── v1.8.0 — the Position | Motion tab pair ───────────────────────────────
+// Pure view state. Both captions are authored; the switch is class + aria and
+// the `hidden` attribute on the two panels. Seed shows only while Path is Drift
+// and takes Phase's cell so the panel stays at three rows (index.html).
+function bindGroupTabs() {
+  const tabs = Array.from(document.querySelectorAll(".group-tab[data-panel]"));
+
+  const select = (tab) => {
+    for (const t of tabs) {
+      const active = t === tab;
+      t.classList.toggle("is-active", active);
+      t.setAttribute("aria-selected", active ? "true" : "false");
+      const panel = document.getElementById(t.dataset.panel);
+      if (panel !== null) panel.hidden = !active;
+    }
+  };
+
+  for (const t of tabs) t.addEventListener("click", () => select(t));
+}
+
+function bindSeedVisibility() {
+  const path = sliders.get("motionPath");
+  const seedCell = document.getElementById("cell-motionSeed");
+  const phaseCell = document.getElementById("cell-motionPhase");
+  if (path === undefined || seedCell === null || phaseCell === null) return;
+
+  const render = () => {
+    const isDrift = String(path.state.properties.choices?.[path.state.getChoiceIndex()]) === "Drift";
+    seedCell.hidden = !isDrift;
+    phaseCell.hidden = isDrift;
+  };
+
+  path.state.valueChangedEvent.addListener(render);
+  path.state.propertiesChangedEvent.addListener(render);
+  render();
+}
+
+// ── v1.8.0 — the trace ────────────────────────────────────────────────────
+// Points come WHOLE from the C++ generator (getMotionTrace, anchor-relative
+// metres). This page never computes a path: roomplan.js adds the anchor's
+// metres and projects through metresToPx. Coalesced to one fetch per task
+// turn (a zero timeout, deliberately not an animation-frame callback —
+// section 14 forbids a native call inside one, and a burst of six echoes on
+// a preset load must become one fetch), and a SEQUENCE NUMBER drops an out-of-order
+// completion — there is no in-flight flag to latch, so a dropped completion
+// costs one stale trace, repaired by the next echo.
+let traceSeq = 0;
+let traceQueued = false;
+
+function refreshTrace() {
+  if (traceQueued) return;
+  traceQueued = true;
+
+  window.setTimeout(() => {
+    traceQueued = false;
+    const seq = ++traceSeq;
+
+    Promise.resolve(nativeFn("getMotionTrace")())
+      .then((payload) => {
+        if (seq !== traceSeq) return;
+        if (roomPlan !== null) roomPlan.setTrace(payload);
+      })
+      .catch((err) => console.error("getMotionTrace failed", err));
+  });
+}
+
+function bindMotionView() {
+  for (const id of TRACE_SHAPE_IDS) {
+    const s = sliders.get(id);
+    if (s !== undefined) s.state.valueChangedEvent.addListener(refreshTrace);
+  }
+
+  const on = sliders.get("motionOn");
+  const dot = document.getElementById("motion-state");
+
+  const renderOn = () => {
+    const running = on !== undefined && on.state.getValue() === true;
+    if (roomPlan !== null) roomPlan.setMotionOn(running);
+    if (dot !== null) dot.classList.toggle("is-running", running);
+  };
+
+  if (on !== undefined) on.state.valueChangedEvent.addListener(renderOn);
+  renderOn();
+  refreshTrace();
+}
 
 function bindScreens() {
   const tabs = Array.from(document.querySelectorAll(".screen-tab"));
@@ -937,7 +1124,16 @@ function initHoverHelp() {
 async function init() {
   bindScreens();
 
-  for (const id of PARAM_IDS) bindSlider(id);
+  for (const id of PARAM_IDS) bindControl(id);
+
+  // v1.8.0. View-only wiring, hoisted under the same try/catch discipline as
+  // the plan: a throw here must not take the 28 bindings down.
+  try {
+    bindGroupTabs();
+    bindSeedVisibility();
+  } catch (err) {
+    console.error("motion panel failed to initialise", err);
+  }
 
   // The plan is initialised INSIDE init(), hoisted into its own try/catch, so a
   // failure to draw the room cannot take the 18 bindings down with it. Above
@@ -1058,6 +1254,13 @@ async function init() {
       onLevels: (levels, peaks, hot) => {
         if (roomPlan !== null) roomPlan.setMeters(levels, peaks, hot);
       },
+
+      // v1.8.0 — the live puck rides THIS poll, not getStatus: a puck at 2 Hz
+      // stutters (RESEARCH Q6). Three floats and a flag, straight through.
+      onMotion: (offset, running) => {
+        if (roomPlan !== null) roomPlan.setMotion(offset, running);
+        if (elevation !== null) elevation.setMotionZ(running ? Number(offset?.[2]) || 0 : 0);
+      },
     });
   } catch (err) {
     console.error("meters failed to initialise", err);
@@ -1102,6 +1305,14 @@ async function init() {
   } catch (err) {
     console.error("getParameterDefaults failed", err);
     paramDefaults = null;
+  }
+
+  // v1.8.0. After the plan and the elevation strip exist and before the first
+  // geometry arrives — the trace re-renders on the geometry it is handed.
+  try {
+    bindMotionView();
+  } catch (err) {
+    console.error("motion view failed to initialise", err);
   }
 
   await refreshGeometry();
