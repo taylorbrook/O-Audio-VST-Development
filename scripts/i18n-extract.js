@@ -855,7 +855,19 @@ function readSetLabelCalls(code) {
     const stripped = stripJsComments(code);
     const calls = [];
 
-    for (const m of stripped.matchAll(/(?:^|[^.\w$])setLabel\s*\(/g)) {
+    // BOTH SPELLINGS OF THE SAME CALL. The canon publishes `window.__setLabel =
+    // setLabel` and says, in its own comment, that this is how a SIBLING MODULE
+    // writes a localized label without app.js having to export anything. So
+    // `window.__setLabel(el, 'key')` is not a workaround — it is the only
+    // in-canon spelling available to js/venue.js, and a scan that matched only
+    // the bare name reported every one of those keys as DEAD while treating a
+    // ternary in the same call as invisible to assertion 13.
+    //
+    // Same shape as the dataset.i18nAria gap fixed in a1d80957: the gate
+    // describing a violation of a rule the code is obeying, because the only
+    // legal way to do the thing was outside what the regex could see.
+    for (const m of stripped.matchAll(
+            /(?:^|[^.\w$])setLabel\s*\(|(?:^|[^\w$])(?:window\.)?__setLabel\s*\(/g)) {
         // `function setLabel(el, key, vars)` is the DEFINITION, not a call. Its
         // parameter list reads as a non-literal key and reported the canon
         // block itself as a violation of assertion 13 the first time this ran.

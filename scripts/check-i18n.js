@@ -522,6 +522,41 @@ function checkPlugin(p) {
         ? { label: 'app.js', code: fs.readFileSync(p.appJs, 'utf8'), inline: false }
         : readInlineModule(p.indexHtml);
 
+    // ── THE CONTROLLER IS ONE FILE; THE PAGE IS NOT ──────────────────────
+    //
+    // moduleSrc above is the CANON-DRIFT target and stays one file: the
+    // applyI18n/initI18n block lives in exactly one place, and assertion 6
+    // byte-compares it there.
+    //
+    // Assertions 12, 13 and 15 are a different question. They ask "does any
+    // shipped JS write raw prose, and is every key both live and resolvable" —
+    // and eleven plugins in this repo split their page across sibling modules
+    // that moduleSrc never names. O-Octagon has SEVEN: js/venue.js alone is 796
+    // lines of controller code. Until this fix, two raw English prose writes in
+    // venue.js passed assertion 12 green, and two keys referenced ONLY from
+    // venue.js reported as DEAD — the gate describing a violation of a rule the
+    // code was obeying, and in the same breath passing a rule the code was
+    // breaking.
+    //
+    // DERIVED FROM THE DIRECTORY, never a transcribed list. That is the move
+    // O-Octagon's own ui_frontend_check §21 makes for the same reason: a list
+    // naming [app.js] literally makes every assertion over it PASS BY NOT
+    // LOOKING the moment a second module appears. js/juce/ is excluded — it is
+    // verbatim JUCE, not authored page code.
+    const jsDir = path.join(path.dirname(p.i18nJs));
+    const pageModules = [];
+    if (moduleSrc !== null && moduleSrc.inline) {
+        pageModules.push(moduleSrc);
+    }
+    if (fs.existsSync(jsDir)) {
+        for (const f of fs.readdirSync(jsDir).sort()) {
+            if (!f.endsWith('.js') || f === 'i18n.js') continue;
+            const full = path.join(jsDir, f);
+            if (!fs.statSync(full).isFile()) continue;
+            pageModules.push({ label: 'js/' + f, code: fs.readFileSync(full, 'utf8'), inline: false });
+        }
+    }
+
     let canonVersion = null;
     let appCode = '';
 
@@ -695,8 +730,14 @@ function checkPlugin(p) {
     if (moduleSrc === null) {
         check(false, '[12] a controller module exists to scan');
     } else {
-        const jsRows = EXTRACT.extractJsRows(
-            { label: moduleSrc.label, code: moduleSrc.code });
+        // NON-VACUITY: a directory read that returned nothing would make every
+        // assertion below pass by having nothing to scan — the exact failure
+        // §21 of O-Octagon's gate exists to catch in its own module registry.
+        check(pageModules.length > 0,
+            `[12] there is shipped page JS to scan — ${pageModules.length} module(s): `
+            + pageModules.map((m) => m.label).join(', '));
+
+        const jsRows = pageModules.flatMap((m) => EXTRACT.extractJsRows(m));
 
         // A site converted to setLabel writes no textContent at all, so it
         // produces NO row. What is left is what was never converted.
@@ -712,18 +753,19 @@ function checkPlugin(p) {
                 + composed.slice(0, 4).map((r) => `${r.file}:${r.line}`).join(', '));
 
         // ── 13. no inflection inside a localized string ──────────────────
-        const setLabelCalls = EXTRACT.readSetLabelCalls(moduleSrc.code);
+        const setLabelCalls = pageModules.flatMap(
+            (m) => EXTRACT.readSetLabelCalls(m.code).map((c) => ({ ...c, file: m.label })));
         const withTernary = setLabelCalls.filter((c) => c.conditional);
         const nonLiteralKey = setLabelCalls.filter((c) => c.key === null);
 
         check(withTernary.length === 0,
             `[13] no ternary or conditional plural suffix inside a setLabel argument (contract §6 — `
             + `French pluralizes zero as singular, so copy is authored around the inflection)`
-            + (withTernary.length ? ` — ${withTernary.length} at line(s) ${withTernary.map((c) => c.line).join(', ')}` : ''));
+            + (withTernary.length ? ` — ${withTernary.length} at ${withTernary.map((c) => `${c.file}:${c.line}`).join(', ')}` : ''));
         check(nonLiteralKey.length === 0,
             `[13] every setLabel key is a plain string literal — a computed key cannot be checked, `
             + `and a raw copy string there would ship English`
-            + (nonLiteralKey.length ? ` — ${nonLiteralKey.length} at line(s) ${nonLiteralKey.map((c) => c.line).join(', ')}` : ''));
+            + (nonLiteralKey.length ? ` — ${nonLiteralKey.length} at ${nonLiteralKey.map((c) => `${c.file}:${c.line}`).join(', ')}` : ''));
 
         // ── 15. keys resolve, and nothing is dead ────────────────────────
         const markupKeys = new Set();
@@ -748,9 +790,10 @@ function checkPlugin(p) {
         // adds nothing here and cannot, which is the same rule assertion 13
         // already applies to a computed setLabel key.
         const datasetKeys = new Set();
-        for (const m of EXTRACT.stripJsComments(moduleSrc.code)
-                .matchAll(/\.dataset\.(i18n|i18nAria|i18nPlaceholder|i18nAlt)\s*=\s*(['"])([^'"]+)\2/g))
-            datasetKeys.add(m[3]);
+        for (const pm of pageModules)
+            for (const m of EXTRACT.stripJsComments(pm.code)
+                    .matchAll(/\.dataset\.(i18n|i18nAria|i18nPlaceholder|i18nAlt)\s*=\s*(['"])([^'"]+)\2/g))
+                datasetKeys.add(m[3]);
 
         const referenced = new Set([...markupKeys, ...jsKeys, ...datasetKeys]);
 
