@@ -444,6 +444,65 @@ function renderMapBanner(status) {
     : copy;
 }
 
+// ── Monitor fold-down (v1.7.0) ─────────────────────────────────────────────
+//
+// THE PAGE NEVER DECIDES WHETHER THE MONITOR IS ARMED. It renders
+// getStatus().monitorArmed and nothing else, exactly as the SAFE banner renders
+// safeMode and never re-derives which sets count as SAFE (P43).
+//
+// That is not style here, it is correctness: the processor clears the arm on
+// its own in four situations the page cannot see — a bypass, a SAFE-mode flip,
+// a verify ping starting, and this editor closing — and suppresses the fold in
+// a fifth, an offline render. A page that tracked its own boolean would keep
+// showing MONITOR over a rig that had gone back to playing normally, which is
+// the banner lying in the more dangerous direction.
+let lastMonitorKey = "";
+
+function renderMonitor(status) {
+  const armed = status.monitorArmed === true;
+  const suppressed = status.monitorSuppressed === true;
+  const available = status.monitorAvailable !== false;
+
+  const key = `${armed}|${suppressed}|${available}`;
+  if (key === lastMonitorKey) return;
+  lastMonitorKey = key;
+
+  // The banner is up whenever the arm is up — INCLUDING while suppressed. An
+  // operator mid-bounce needs to be told the bounce is clean, and hiding the
+  // banner exactly when the render is running would remove the reassurance at
+  // the only moment it is wanted.
+  const banner = document.getElementById("monitor-banner");
+  if (banner !== null) banner.hidden = !armed;
+
+  const monitorCopy = document.getElementById("monitor-copy");
+  if (monitorCopy !== null) {
+    monitorCopy.textContent = suppressed
+      ? "Suppressed for offline render — bounce is clean"
+      : "Headphone fold — rig outputs muted";
+  }
+
+  // THE BUTTON'S CAPTION IS AUTHORED AND IS NEVER REWRITTEN — the armed state
+  // is carried by aria-pressed plus the CSS fill, and the words live on the
+  // advisory line below. That is this page's standing idiom (the tips toggle
+  // and the ms/m unit toggle both refuse to relabel themselves), and it is what
+  // keeps a shared state updater from ever erasing an authored label
+  // (pattern_js_state_updater_overwrites_html_labels).
+  const btn = document.getElementById("monitor-toggle");
+  if (btn !== null) {
+    btn.setAttribute("aria-pressed", armed ? "true" : "false");
+    btn.disabled = !available && !armed;
+  }
+
+  const monitorNode = document.getElementById("vmonitor-state");
+  if (monitorNode !== null) {
+    monitorNode.textContent = !available
+      ? "unavailable on this output"
+      : armed
+        ? (suppressed ? "armed — suppressed offline" : "folding to outputs 1–2")
+        : "off";
+  }
+}
+
 // ── Geometry cache ─────────────────────────────────────────────────────────
 //
 // ══ THIS FUNCTION IS REPAIRED AT 3.3, AND THE DEFECT WAS LIVE IN 3.2 ══════
@@ -535,6 +594,7 @@ function applyStatus(status) {
   }
 
   renderMapBanner(status);
+  renderMonitor(status);
   renderSetName(status);
 
   const gen = Number(status.venueGen);

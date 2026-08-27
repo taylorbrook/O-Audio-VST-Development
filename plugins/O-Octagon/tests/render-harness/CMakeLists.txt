@@ -34,6 +34,11 @@ target_sources(O-Octagon-render-test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/SourceShaper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/GainStage.cpp
 
+    # v1.7.0 — the monitor fold-down. GainStage.cpp holds one BY VALUE, so this is a hard link
+    # dependency rather than an optional extra: omitting it fails at LINK time with four undefined
+    # symbols, which is the good failure mode. Probes CY/CZ/DA/DB need it present.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/MonitorFold.cpp
+
     # Phase 3.2 — the ten probes BP-BZ need a live processor.
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/Data/VenueFile.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Source/DSP/VerifyPing.cpp

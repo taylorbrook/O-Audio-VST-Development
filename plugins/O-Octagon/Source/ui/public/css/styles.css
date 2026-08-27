@@ -60,7 +60,7 @@
   --level-mid:   #C29A4A;
   --level-hi:    #E8C87A;
 
-  /* ── Alert. Used once, for SAFE. ── */
+  /* ── Alert. SAFE, MAP, and v1.7.0's MONITOR (which FILLS with it). ── */
   --alert:       #C2793A;
 
   /* ── Type ── */
@@ -258,6 +258,65 @@ html, body {
   letter-spacing: 0.06em;
   color: var(--ink-dim);
   white-space: nowrap;
+}
+
+/* MONITOR — v1.7.0. SAFE and MAP's third sibling, and DELIBERATELY THE LOUDEST
+   OF THE THREE.
+
+   The other two are OUTLINED: a tinted background behind an --alert border. This
+   one is FILLED, so it reads as a state the operator is currently in rather than
+   as a condition being reported to them. That difference is not decoration —
+   SAFE and MAP describe something the host or the venue did, and the worst case
+   is a confusing rehearsal. This describes something the operator switched on,
+   and the worst case is a delivered file with six silent channels. It is the
+   last line of defence for a realtime bounce, so it is allowed to shout.
+
+   All three can be up at once and none substitutes for another. */
+.monitor-banner {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--alert);
+  border-radius: 2px;
+  background: var(--alert);
+}
+
+.monitor-banner[hidden] { display: none; }
+
+.monitor-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  /* Against the filled --alert ground, not the panel. */
+  color: var(--ground);
+}
+
+.monitor-copy {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ground);
+  white-space: nowrap;
+}
+
+/* The rail toggle. Armed borrows the banner's fill so the control and the
+   warning are visibly the same fact, which is what stops an operator reading the
+   banner as someone else's problem. */
+.vbtn.monitor-toggle[aria-pressed="true"] {
+  border-color: var(--alert);
+  background: var(--alert);
+  color: var(--ground);
+}
+
+/* Refused rather than merely inactive — SAFE mode or an invalid map. Distinct
+   from the armed state above and from the resting state, because "you cannot do
+   this here" and "this is off" are different answers to the same click. */
+.vbtn.monitor-toggle[disabled] {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 /* ══ Content ═════════════════════════════════════════════════════════════ */

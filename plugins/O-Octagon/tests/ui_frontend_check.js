@@ -237,8 +237,14 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // for the same reason — a C++ push fires before the module has evaluated and would silently
     // never arrive). The COPY itself adds no call: it is compiled into js/i18n.js and served as a
     // resource, not fetched across the bridge.
-    check(registered.size === 25,
-        `PluginEditor.cpp registers exactly 25 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    // v1.7.0 adds exactly ONE: setMonitorArmed. There is deliberately no getMonitorArmed to
+    // match it — getStatus already carries monitorArmed on the 2 Hz poll the MONITOR banner needs
+    // anyway, and the arm is cleared by the processor in four situations the page cannot see
+    // (bypass, SAFE flip, ping start, editor close), so a one-shot reader would go stale in
+    // seconds. The asymmetry with v1.2.0's and v1.6.0's set/get PAIRS is the point: those persist
+    // and are pulled once at init; this one never persists and is polled.
+    check(registered.size === 26,
+        `PluginEditor.cpp registers exactly 26 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);
@@ -310,8 +316,18 @@ head(6, 'HTML-authored labels are never written via textContent');
     // it is AUTHORED AND NEVER WRITTEN — only the unit changes — and the ms/m toggle carries two
     // authored labels switched by class, so the whole feature costs exactly one receiver. The
     // binding is proved below, as earOut / srcOut / tipEl are.
+    // v1.7.0 adds TWO, and notably NOT a third: monitorCopy is #monitor-copy, the banner's
+    // rewritable half beside the authored MONITOR tag — exactly the .map-copy / .map-tag split
+    // this section already blesses through `el`. monitorNode is #vmonitor-state, a .vcell-value
+    // in the rail beside an authored <h3>, exactly as #vping-state sits beside "Ping".
+    //
+    // THE MONITOR BUTTON'S CAPTION IS NOT HERE BECAUSE IT IS NEVER WRITTEN. An armed toggle that
+    // relabels itself was the obvious implementation and was rejected: the caption is authored,
+    // and the state rides aria-pressed plus a CSS fill instead — the idiom the tips toggle and the
+    // ms/m unit toggle already use. That is a control added without widening this whitelist at
+    // all, which is the outcome this section exists to push towards.
     const VALUE_RECEIVERS = new Set(['value', 'el', 'earOut', 'srcOut', 'tipEl', 't', 'b',
-                                     'delayUnitNode']);
+                                     'delayUnitNode', 'monitorCopy', 'monitorNode']);
 
     check(receivers.size > 0, `textContent is written through ${receivers.size} receiver(s)`);
     check([...receivers].every(r => VALUE_RECEIVERS.has(r)),

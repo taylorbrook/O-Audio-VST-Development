@@ -12,7 +12,7 @@ juce_add_plugin(OuariconOctagon
     PLUGIN_CODE              OuOc            # verified unused across all 39 existing plugins
     FORMATS                  VST3 AU Standalone
     PRODUCT_NAME             "O-Octagon${OUARICON_DEV_SUFFIX}"
-    VERSION                  1.6.0           # NOT PLUGIN_VERSION — that keyword is not a JUCE
+    VERSION                  1.7.0           # NOT PLUGIN_VERSION — that keyword is not a JUCE
                                              # keyword, is silently ignored, and ships 1.0.0 anyway
     NEEDS_WEB_BROWSER        TRUE
     NEEDS_WEBVIEW2           TRUE
@@ -52,6 +52,9 @@ target_sources(OuariconOctagon
                                         # DbapSolver / HullProcessor / ConvexHull2D and nothing
                                         # else, so it joins the unit target too (gate 11).
         Source/DSP/GainStage.cpp        # Phase 2.2
+        Source/DSP/MonitorFold.cpp      # v1.7.0 — the monitor fold-down. Needs juce_dsp (delay
+                                        # lines + TPT filters), so like VerifyPing.cpp it joins
+                                        # the render harness but NEVER the unit target (gate 11).
         Source/DSP/VerifyPing.cpp       # Phase 3.2 — FUNC-04. Needs juce_dsp, so it joins the
                                         # render harness but NEVER the unit target (gate 11).
         # Source/DSP/Vec.h, Source/Data/VenueSnapshot.h and Source/Data/VenueGeometry.h are

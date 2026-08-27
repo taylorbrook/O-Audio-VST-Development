@@ -81,7 +81,13 @@ A venue-scoped delay per speaker (0-50 ms or entered as metres), sitting beside 
 
 ### Binaural / stereo monitoring fold-down
 
-`priority: high` · `effort: medium`
+`priority: high` · `effort: medium` · **SHIPPED v1.7.0 (2026-08-26)**
+
+> Delivered as specified: position-derived pan + Woodworth inter-aural delay + distance gain, plus
+> a head-shadow tilt, written into the `left`/`right` carrier lanes with the other six hard-zeroed,
+> behind a filled MONITOR banner. HRTF convolution was scoped OUT as milestone-sized — see the
+> v1.7.0 CHANGELOG. Five independent guards enforce "must not silently contaminate a render";
+> probe CZ holds the offline case and was negative-controlled.
 
 A monitor mode that folds the 8 solved feeds to headphones (position-derived stereo pan+delay+distance gain at minimum; HRTF convolution as a stretch) written into 2 of the 8 carrier channels with the rest muted, clearly bannered as MONITOR so it can never leak into a bounce. Already listed as deferred in the brief.
 
@@ -162,7 +168,7 @@ If the goal is maximum user-visible improvement per unit of work, the order is:
 1. ~~**Per-speaker delay compensation** (high value, small)~~ — **DONE, v1.4.0.** 8 delay lines plus 8 venue
    values; the venue-calibration story the plugin half-told is now complete. Landed inside a single
    `/improve` cycle, as scoped.
-2. **Binaural / stereo monitoring fold-down** (high value, medium) — unblocks the brief's own stated use case
+2. ~~**Binaural / stereo monitoring fold-down** (high value, medium) — unblocks the brief's own stated use case~~ — **SHIPPED v1.7.0**
    (working on a piece away from the hall), which is currently inaudible. Every competitor treats this as
    table stakes.
 3. ~~**Mono decorrelator behind width** (medium value, small)~~ — **SHIPPED v1.5.0.** Closed as scoped, with

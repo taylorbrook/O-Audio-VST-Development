@@ -170,6 +170,32 @@
         <span class="map-tag">MAP</span>
         <span class="map-copy" id="map-invalid-copy">&#8212;</span>
       </div>
+
+      <!-- MONITOR. v1.7.0, and the LOUDEST of the three on purpose.
+
+           SAFE and MAP report something the host or the venue did TO the
+           operator. This one reports something the operator did deliberately
+           and may have forgotten — and unlike the other two, what it warns
+           about can end up in a delivered file. isNonRealtime() catches an
+           offline bounce and non-persistence catches a reload, but a REALTIME
+           bounce in the same sitting is caught by nothing except a human
+           seeing this. That is why it is filled rather than outlined, and why
+           the editor destructor disarms the monitor: the fold must not be able
+           to outlive its own warning (see OctagonEditor::~OctagonEditor).
+
+           The MONITOR tag is authored here and never rewritten. Only
+           .monitor-copy is written, and it carries WHICH of the two states is
+           live — folding, or suppressed for an offline render. The second is
+           the reassuring half: an operator who bounced with this up is told
+           the bounce is clean rather than left guessing.
+
+           NO data-tip ATTRIBUTES. The copy lives in i18n.js keyed
+           'monitor-banner'; assertion 3 of scripts/check-i18n.js fails the
+           build if any reappears in this file. -->
+      <div class="monitor-banner" id="monitor-banner" role="status" hidden>
+        <span class="monitor-tag">MONITOR</span>
+        <span class="monitor-copy" id="monitor-copy">Headphone fold &#8212; rig outputs muted</span>
+      </div>
     </header>
 
     <!-- ─── Content ─────────────────────────────────────────────────────── -->
@@ -756,6 +782,29 @@
               <button type="button" class="vbtn" id="btn-ping-stop">Stop</button>
             </div>
             <span class="vcell-value" id="vping-state">&#8212;</span>
+          </div>
+
+          <!-- MONITOR. v1.7.0. Placed directly under Ping because the two are
+               MUTUALLY EXCLUSIVE in C++ — arming either drops the other — and
+               adjacency is how that reads as one choice rather than as two
+               controls that mysteriously fight. Both are "listen to the rig"
+               tools; the ping asks where a speaker is, this asks what the piece
+               sounds like.
+
+               ONE BUTTON THAT TOGGLES, not two: unlike the ms/m unit toggle
+               this has a genuine on/off state the processor owns and can clear
+               on its own, so the caption is written by the poll from
+               getStatus().monitorArmed rather than authored twice. That makes
+               it the one control on this page whose label a state updater is
+               SUPPOSED to write — data-label is therefore deliberately absent
+               (contrast pattern_js_state_updater_overwrites_html_labels). -->
+          <div class="rail-group">
+            <h3 class="group-title">Monitor</h3>
+            <div class="rail-buttons">
+              <button type="button" class="vbtn monitor-toggle" id="monitor-toggle"
+                      aria-pressed="false">Headphones</button>
+            </div>
+            <span class="vcell-value" id="vmonitor-state">&#8212;</span>
           </div>
 
         </div>

@@ -154,4 +154,34 @@ bool buildSpeakerToBuffer (const juce::AudioChannelSet& outSet,
 */
 bool verifyEnumBitOrder (const juce::AudioChannelSet& set, juce::String* whyNot = nullptr);
 
+/** v1.7.0 — resolves the MONITOR PAIR: the two out[] slots carrying ChannelType left and right.
+
+    ── WHY left/right AND NOT SPEAKERS 1 AND 2 ───────────────────────────────────────────────────
+    The monitor fold has to arrive at the physical outputs a headphone amp or a monitor controller
+    is plugged into. Under the measured CoreAudio Emagic 7.1 device order (Data/OutputOrder.h) those
+    are outputs 1 and 2, which carry ChannelType left and right. Speakers 1 and 2 carry whatever
+    labels the venue assigns them, which for any re-wired rig is not the headphone pair — and the
+    failure would be SILENT in exactly this plugin's characteristic way: headphones plugged in,
+    nothing audible, no error anywhere.
+
+    ── IT RETURNS SLOTS INTO out[], NOT BUFFER INDICES ───────────────────────────────────────────
+    renderChunk() has already resolved out[i] = getWritePointer (speakerToBuffer[i]), so handing the
+    fold a raw buffer index would make it index an output channel a second, independent way. This
+    inverts speakerToBuffer instead, so there remains exactly ONE expression in this plugin that
+    turns a speaker into an output channel. That is the R1 discipline, unchanged
+    (critical_audiochannelset_is_a_bitset_not_an_order).
+
+    @param outSet           the NEGOTIATED output channel set
+    @param speakerToBuffer  a VALID map — a permutation of 0..7, as isPermutationOf0to7 guarantees
+    @param out              written only on success; { -1, -1 } is the caller's refuse value
+
+    @returns false — leaving `out` UNTOUCHED — when either type is absent from the set, when they
+             resolve to the same channel, or when the map does not reach one of them. The caller
+             must refuse the monitor on false and must never fall back to slots 0 and 1, which is
+             silent misrouting by the same argument buildSpeakerToBuffer() makes about identity.
+*/
+bool resolveMonitorSlots (const juce::AudioChannelSet& outSet,
+                          const std::array<int, kNumSpeakers>& speakerToBuffer,
+                          std::array<int, 2>& out);
+
 } // namespace ochan

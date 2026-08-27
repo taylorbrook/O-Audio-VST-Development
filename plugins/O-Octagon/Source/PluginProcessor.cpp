@@ -497,6 +497,19 @@ void OOctagonProcessor::publishSnapshot()
     snapshot.rakeFront = sane (venue.rakeFront(),     defaults.rakeFront());
     snapshot.rakeRear  = sane (venue.rakeRear(),      defaults.rakeRear());
 
+    // ── v1.7.0 — THE MONITOR PAIR, RESOLVED HERE AND ONLY HERE ────────────────────────────────
+    //
+    // On the MESSAGE THREAD, beside the speaker map it inverts, so the audio thread performs no
+    // channel lookup of its own and there remains exactly one expression in this plugin that turns
+    // a speaker into an output channel.
+    //
+    // Left { -1, -1 } on failure, which GainStage treats as REFUSE. Never a fallback to slots 0
+    // and 1: that would be correct for the shipped container and silently wrong for a re-wired
+    // rig, which is the precise failure mode ChannelMap.h exists to make impossible.
+    if (! ochan::resolveMonitorSlots (getBusesLayout().getMainOutputChannelSet(),
+                                      speakerToBuffer, snapshot.monitorSlot))
+        snapshot.monitorSlot = { -1, -1 };
+
     venuePublisher.publish (snapshot);
 }
 
@@ -559,6 +572,12 @@ bool OOctagonProcessor::startVerifyPing (int speakerOrAuto)
     if (! mappedOutputAvailable (getTotalNumOutputChannels()))
         return false;
 
+    // MUTUALLY EXCLUSIVE WITH THE MONITOR, and setMonitorArmed() carries the reciprocal. Not
+    // tidiness: the ping names a PHYSICAL speaker, and folding it to headphones would answer a
+    // question about wiring with a signal that has left the wiring. Whichever the operator asked
+    // for last wins, which is the least surprising rule available.
+    monitorArmed.store (false, std::memory_order_release);
+
     verifyPing.start (speakerOrAuto);
     return true;
 }
@@ -568,6 +587,38 @@ void OOctagonProcessor::stopVerifyPing()
     verifyPing.stop();
 }
 
+//==============================================================================
+bool OOctagonProcessor::setMonitorArmed (bool shouldArm)
+{
+    // Disarming ALWAYS succeeds and is never gated on a precondition. A monitor that could refuse
+    // to switch off because the rig had meanwhile gone unmapped would be exactly backwards.
+    if (! shouldArm)
+    {
+        monitorArmed.store (false, std::memory_order_release);
+        return true;
+    }
+
+    // SAFE mode is refused, and the reason is not that it would misbehave — it is that it would be
+    // MEANINGLESS. SAFE mode already writes a stereo fold of the dry input; there are no eight
+    // solved speaker feeds to fold FROM, and there is no monitor pair to fold INTO. Same shape as
+    // startVerifyPing()'s precondition, and the audio thread re-checks it with the true buffer
+    // width in hand because F3 can flip the mode between blocks.
+    if (! mappedOutputAvailable (getTotalNumOutputChannels()))
+        return false;
+
+    // An unresolved pair means the negotiated set has no left/right, or the map does not reach
+    // them. Refuse rather than guess — see resolveMonitorSlots().
+    if (venuePublisher.read().monitorSlot[0] < 0)
+        return false;
+
+    // See startVerifyPing() for why these two cannot both be up.
+    verifyPing.abort();
+
+    monitorArmed.store (true, std::memory_order_release);
+    return true;
+}
+
+//==============================================================================
 void OOctagonProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
@@ -576,6 +627,11 @@ void OOctagonProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer,
     // counting, so un-bypassing would resume a ping mid-cycle from a clock the operator cannot see.
     // abort() touches only atomics, which is what makes it safe to call from here.
     verifyPing.abort();
+
+    // v1.7.0. D11's rule extended to the monitor, and the argument transfers exactly: a bypassed
+    // plugin that still folds is confusing to debug on a stage, because the first instinct IS to
+    // bypass. Guard 4 of 4.
+    monitorArmed.store (false, std::memory_order_release);
 
     juce::AudioProcessor::processBlockBypassed (buffer, midiMessages);
 }
@@ -625,7 +681,32 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // The ping is PASSED IN, never reached for: GainStage does not ask the processor anything (P24),
     // and it does not decide when the ping runs. Null in every render-harness call site that does
     // not want one, which is all of them except probes BQ-BU.
-    gainStage.process (buffer, numIn, numOut, mapped, snapshot, snapshotParameters(), &verifyPing);
+    // ══ v1.7.0 — THE PRIMARY CONSTRAINT: THE MONITOR MUST NOT CONTAMINATE A RENDER ═══════════
+    //
+    // GUARD 3 OF 4. isNonRealtime() is set by the wrapper for an offline bounce — Logic's Bounce
+    // and Bounce in Place both take that path. The fold is bypassed STRUCTURALLY there: not
+    // attenuated, not faded out, never ENGAGED at all, so MonitorFold::isRunning() stays false and
+    // GainStage does not clock one sample of it. Probe CZ asserts the offline render is
+    // BIT-IDENTICAL to a never-armed one, with a realtime arm as its negative control.
+    //
+    // THIS IS NOT THE STRONGEST GUARD AND MUST NOT BE READ AS SUFFICIENT. It does not fire for a
+    // REALTIME bounce, where the host is genuinely running in real time and is right to say so.
+    // What covers that case is guard 2 — the arm is neither a parameter nor persisted, so no
+    // session can come back armed (see getStateInformation) — backed by the banner, which is the
+    // only defence left once someone arms and realtime-bounces inside one sitting.
+    //
+    // `mapped` is in the conjunction for the same reason the ping's abort is: F3 can flip the mode
+    // BETWEEN blocks with no intervening prepareToPlay(), and a monitor pair resolved against the
+    // eight-channel map means nothing on a stereo fold.
+    const bool armed = monitorArmed.load (std::memory_order_acquire);
+
+    const bool monitorOn = armed && mapped && ! isNonRealtime();
+
+    // Published for the banner: armed, but not folding. The operator is told WHY.
+    monitorSuppressed.store (armed && ! monitorOn, std::memory_order_release);
+
+    gainStage.process (buffer, numIn, numOut, mapped, snapshot, snapshotParameters(), &verifyPing,
+                       monitorOn);
 
     // ══ UI-03 — THE METERS. THE LAST STATEMENT IN processBlock, AND THAT IS THE POINT ═════════
     //
@@ -897,6 +978,22 @@ void OOctagonProcessor::getStateInformation (juce::MemoryBlock& destData)
         // detail of the audio-safe std::atomic<int>, and a session written today has to still
         // mean "French" if the codec ever gains a third entry.
         xml->setAttribute ("uiLanguage", languageCode (uiLanguage.load (std::memory_order_acquire)));
+
+        // ── v1.7.0 — monitorArmed IS DELIBERATELY ABSENT FROM THIS FUNCTION ───────────────────
+        //
+        // GUARD 2 OF 4, and the only one that covers the case isNonRealtime() cannot: a REALTIME
+        // bounce. The two attributes directly above are the contrast that makes this readable —
+        // tooltipsEnabled and uiLanguage are non-parameter UI booleans that SHOULD ride the
+        // session, and the monitor arm is a non-parameter UI boolean that must NOT.
+        //
+        // If it were persisted here, a session could reopen ARMED. A realtime bounce would then
+        // carry a headphone fold into the delivered file with six of eight channels silent, and
+        // nothing in the render would say so. Not writing it makes that state unreachable across
+        // a reload, which is a structural property rather than a warning anyone has to read.
+        //
+        // IF YOU ARE ADDING PERSISTENCE HERE BECAUSE RE-ARMING EACH SESSION IS ANNOYING, YOU ARE
+        // DELETING THE FEATURE'S PRIMARY SAFETY PROPERTY. It is annoying on purpose. SpatGRIS,
+        // L-ISA and SPAT Revolution all treat monitor mode as transport state for this reason.
 
         copyXmlToBinary (*xml, destData);
     }

@@ -56,6 +56,24 @@ struct VenueSnapshot
     /// CHANNEL. Valid to use only when the processor's mappedOutputAvailable() says so.
     std::array<int, 8>   speakerToBuffer { 0, 1, 2, 3, 4, 5, 6, 7 };
 
+    /** v1.7.0 — the two out[] SLOTS whose buffer channel carries ChannelType left / right.
+
+        SLOTS INTO out[], NOT BUFFER CHANNELS, and the distinction is the whole reason this is a
+        field rather than a lookup. renderChunk()'s out[i] is already
+        buffer.getWritePointer (speakerToBuffer[i]), so the monitor fold writes through the SAME
+        pointers every other write in this plugin goes through and adds no second output-indexing
+        site. Resolved on the message thread by ochan::resolveMonitorSlots().
+
+        NOT SPEAKERS 1 AND 2. The monitor has to reach the physical outputs a headphone amp is
+        plugged into, which under the measured CoreAudio device order (OutputOrder.h) are outputs
+        1-2 = left/right. Speakers 1 and 2 land wherever the venue's labels put them, which for any
+        non-default wiring is somewhere else entirely.
+
+        { -1, -1 } when the pair cannot be resolved. The monitor is then REFUSED, never guessed —
+        an unresolvable pair is the same class of failure as an invalid map and gets the same
+        treatment. */
+    std::array<int, 2>   monitorSlot { -1, -1 };
+
     std::array<Vec2, 8>  hullPts {};
     int                  hullCount { 0 };
 

@@ -209,6 +209,53 @@ public:
     oo::VerifyPing::State verifyPingState() const noexcept { return verifyPing.getState(); }
 
     //==============================================================================
+    // ── v1.7.0 — THE MONITOR FOLD-DOWN ──────────────────────────────────────────────────────────
+    //
+    // The away-from-the-hall listening path: the eight solved feeds folded to a headphone pair.
+    // See Source/DSP/MonitorFold.h for the DSP and for what it deliberately is not.
+    //
+    // ── THE PRIMARY DESIGN CONSTRAINT IS THAT IT CANNOT CONTAMINATE A RENDER ───────────────────
+    //
+    // FOUR INDEPENDENT GUARDS, and it matters that they are independent — each one alone kills the
+    // most likely accident, and no single mistake disables more than one:
+    //
+    //   1. NOT AN APVTS PARAMETER. There is no automation lane, so a lane cannot record an arm and
+    //      replay it into a bounce months later. This is why the arm is an atomic here rather than
+    //      the AudioParameterBool that would have been the natural spelling.
+    //   2. NOT PERSISTED. getStateInformation() deliberately does not write it — see the comment
+    //      there. A reopened session is always disarmed, which is the ONLY guard that covers a
+    //      REALTIME bounce.
+    //   3. isNonRealtime() — processBlock() bypasses the fold structurally during an offline
+    //      render. Probe CZ holds this one.
+    //   4. processBlockBypassed() disarms, as D11 requires of the ping.
+    //
+    // Plus: refused in SAFE mode, refused on an unresolved monitor pair, and mutually exclusive
+    // with the verify ping.
+
+    /** Message thread. Returns whether the arm TOOK — false means refused, and the caller should
+        show that rather than assume success.
+
+        Refused when the rig is not mapped (SAFE mode has no eight-speaker feed to fold, and it is
+        already outputting a stereo fold of its own) and when the monitor pair does not resolve.
+        The same precondition shape as startVerifyPing(), for the same reason. */
+    bool setMonitorArmed (bool shouldArm);
+
+    bool isMonitorArmed() const noexcept
+    {
+        return monitorArmed.load (std::memory_order_acquire);
+    }
+
+    /** True when the arm is up but the fold is being SUPPRESSED anyway — an offline render.
+
+        The banner reads this so an operator who bounced with the monitor up is TOLD the bounce is
+        clean, rather than left to wonder whether eight channels of headphone fold just went into
+        the delivered file. Reassurance is a feature here, not decoration. */
+    bool isMonitorSuppressed() const noexcept
+    {
+        return monitorSuppressed.load (std::memory_order_acquire);
+    }
+
+    //==============================================================================
     // ── UI-03 — the eight meters (Phase 3.3) ────────────────────────────────────────────────────
 
     /** The eight peaks since the last read, LINEAR, and ZEROED BY THE READ. Message thread.
@@ -294,6 +341,18 @@ public:
         whose XML round-trip rebuilds every property as a string so an isBool() guard on restore
         would never fire (critical_valuetree_xml_roundtrip_loses_type). */
     std::atomic<bool> tooltipsEnabled { false };
+
+    /** v1.7.0 — the monitor fold arm. UI/transport state, NOT a parameter and NOT persisted.
+
+        THE CONTRAST WITH tooltipsEnabled DIRECTLY ABOVE IS THE POINT, and it is why these two live
+        side by side. Both are non-parameter UI booleans; tooltipsEnabled is legitimately persisted
+        as a root XML attribute, and this one MUST NOT BE. Persisting it would let a session reopen
+        armed, and a realtime bounce would then carry a headphone fold — six channels silent — into
+        a delivered file with nothing to warn anyone. See getStateInformation(). */
+    std::atomic<bool> monitorArmed { false };
+
+    /// Written by the AUDIO thread each block: armed, but suppressed by an offline render.
+    std::atomic<bool> monitorSuppressed { false };
 
     /** v1.6.0 — the hover-help LANGUAGE. 0 = en, 1 = fr.
 
