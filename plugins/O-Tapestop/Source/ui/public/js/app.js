@@ -64,13 +64,14 @@
 
 import * as Juce from "./juce/index.js";
 import { EnvelopeEditor } from "./envelope_editor.js";
-// v1.5.0 — hover-help copy, English + French. A HOISTED import; i18n.js exports
+// v1.6.0 — hover-help copy AND on-page labels, English + French. A HOISTED
+// import; i18n.js exports
 // only and never self-executes, so it cannot enter a TDZ chain
 // (pattern_module_toplevel_init_tdz).
 //
 // scripts/check-i18n.js assertion 6 requires this line VERBATIM, single quotes
 // included — it is one of the two anchors the repo-wide drift gate matches on.
-import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 // Shared preset band (Stage 4). Constructor + explicit DOM refs ONLY — the
 // module's createPresetBar() innerHTML-wipes the styled band and never
 // creates a delete button.
@@ -555,10 +556,18 @@ async function initEnvelope(juce) {
 
 // Two-click armed delete — the pattern #preset-delete's CSS anticipates
 // (data-armed="1" restyles the button). First call arms the button and shows
-// its data-confirm copy; a second call within the window confirms. Never
+// its confirm copy; a second call within the window confirms. Never
 // window.confirm() — native confirm dialogs inside a JUCE WebView are
-// unreliable. Button copy comes from data-label / data-confirm, never JS
-// literals (pattern_js_state_updater_overwrites_html_labels).
+// unreliable.
+//
+// v1.6.0: the two faces are KEYS, not the data-label / data-confirm attributes
+// they were through v1.5.0. Under canon v2 the element carries its current
+// key, so a language switch mid-arm re-renders the ARMED face in the new
+// language — an attribute pair would have restored the English one. Two
+// separate setLabel() calls behind an if/else, never one call with a ternary
+// in its argument: check-i18n assertion 13 rejects that shape outright,
+// because inflection inside a localized string is the thing contract §6
+// authors around rather than engineers.
 function armedConfirmDelete() {
   const btn = document.getElementById("preset-delete");
   if (!btn) return false;
@@ -566,7 +575,7 @@ function armedConfirmDelete() {
   const disarm = () => {
     if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
     btn.dataset.armed = "0";
-    btn.textContent = btn.dataset.label || "Delete";
+    setLabel(btn, "preset-delete");
   };
 
   if (btn.dataset.armed === "1") {
@@ -575,7 +584,7 @@ function armedConfirmDelete() {
   }
 
   btn.dataset.armed = "1";
-  btn.textContent = btn.dataset.confirm || "Confirm?";
+  setLabel(btn, "ui.confirm");
   deleteArmTimer = setTimeout(disarm, 2500);
   return false;           // first click — armed only
 }
@@ -809,6 +818,28 @@ function initReadback() {
 // shared UI module and deliberately does not gain one, so 43 hand-copies are
 // only safe because a drifted copy fails a gate. Do not "tidy" it.
 //
+// v1.6.0 — CANON V2. v1 localized tooltip ATTRIBUTES only. v2 adds the
+// [data-i18n] label sweep, the aria/placeholder/alt attribute sweep, and
+// setLabel(). Three things follow that matter more than they look:
+//
+//   applyLabel() writes textContent AND dataset.label TOGETHER. Making every
+//   label JS-written would otherwise put this page into
+//   pattern_js_state_updater_overwrites_html_labels wholesale; writing both in
+//   one place instead makes the invariant checkable at render time, and
+//   scripts/check-ui-labels.js asserts dataset.label === textContent after
+//   init, after a language switch AND after a state-update pass.
+//
+//   setLabel() gives a JS-written label its OWN KEY, so the element becomes a
+//   [data-i18n] element and the language sweep owns it from then on. There is
+//   ONE re-render path. A state string written as a raw literal — "Confirm?",
+//   "On" — is stranded in the previous language the instant the selector
+//   fires, and window.__setLanguage(), which the gates drive, fires no change
+//   event at all.
+//
+//   trLabel() falls back to I18N so a control whose tooltip title IS its label
+//   carries one key. See the REUSE RULE in i18n.js: the fallback is used only
+//   where the string is identical in BOTH languages.
+//
 // One PULL at page init, no push, no timer, no poll().then(poll), no revision
 // counter — the same discipline initTooltips() already uses for the v1.4.0
 // preference, and for the same reason. The language is not preset content
@@ -827,6 +858,47 @@ let uiLanguage = 'en';
 let getUiLanguageNative = null;
 let setUiLanguageNative = null;
 
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
 function applyI18n(lang) {
     uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
     for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
@@ -837,6 +909,9 @@ function applyI18n(lang) {
         target.setAttribute('data-tip-title', s.t);
         target.setAttribute('data-tip', s.b);
     }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
     const sel = document.getElementById('lang-select');
     if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
 }
@@ -844,6 +919,10 @@ function applyI18n(lang) {
 // Exposed so a clamp gate can drive the language without teaching the ui-stub a
 // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
 window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
 
 function initI18n() {
     try {
@@ -1044,22 +1123,27 @@ function hideTooltip() {
   tooltipEl.setAttribute("aria-hidden", "true");
 }
 
-// v1.5.0: the toggle moved into the settings popover and now shows On/Off
-// rather than the old static "?" glyph. The caption IS written from here — but
-// the copy comes from data-on / data-off, which are AUTHORED IN THE MARKUP,
-// never from a literal in this file
-// (pattern_js_state_updater_overwrites_html_labels). The dataset read has a
-// fallback so a stripped attribute degrades to a caption rather than to an
-// empty button.
+// v1.5.0: the toggle moved into the settings popover and shows On/Off rather
+// than the old static "?" glyph. v1.6.0: those two faces are KEYS through
+// setLabel(), not the data-on / data-off attributes they were through v1.5.0.
+//
+// The attributes were the right answer while the page was English-only — they
+// kept the copy out of this file, which is what
+// pattern_js_state_updater_overwrites_html_labels asks for. They are the wrong
+// answer once the page has two languages: an attribute holds ONE string, so
+// switching to French mid-session would have restored an English "On". A key
+// re-renders. aria-pressed carries the state for a screen reader, which is why
+// replacing a literal caption with a localized one costs no accessibility.
+//
+// if/else, not a ternary inside the call — check-i18n assertion 13.
 function applyTooltipsEnabled(enabled) {
   tooltipsEnabled = !!enabled;
 
   if (tooltipToggleEl) {
     tooltipToggleEl.classList.toggle("active", tooltipsEnabled);
     tooltipToggleEl.setAttribute("aria-pressed", tooltipsEnabled ? "true" : "false");
-    tooltipToggleEl.textContent = tooltipsEnabled
-      ? (tooltipToggleEl.dataset.on ?? "On")
-      : (tooltipToggleEl.dataset.off ?? "Off");
+    if (tooltipsEnabled) setLabel(tooltipToggleEl, "ui.on");
+    else                 setLabel(tooltipToggleEl, "ui.off");
   }
 
   if (!tooltipsEnabled) hideTooltip();

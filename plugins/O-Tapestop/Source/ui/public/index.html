@@ -61,21 +61,27 @@
     <div class="settings-cluster">
       <button type="button" class="help-toggle gear-btn" id="gear-btn"
               aria-haspopup="dialog" aria-expanded="false" aria-label="Settings"
-              data-tip-always>&#9881;</button>
+              data-i18n-aria="settings" data-tip-always>&#9881;</button>
 
       <div class="settings-popover" id="settings-popover"
-           role="dialog" aria-label="Settings" hidden>
+           role="dialog" aria-label="Settings" data-i18n-aria="settings" hidden>
 
         <label class="settings-row" for="lang-select">
-          <!-- data-label so a shared state updater that writes textContent
-               reads the authored caption back instead of erasing it
-               (pattern_js_state_updater_overwrites_html_labels). -->
-          <span class="settings-label" data-label="Language">Language</span>
+          <!-- data-i18n is the OWNERSHIP marker now: applyLabel() writes
+               textContent AND dataset.label together, so a shared state
+               updater reading `el.dataset.label` gets the caption back in the
+               CURRENT language instead of erasing it, and instead of restoring
+               a stale English one
+               (pattern_js_state_updater_overwrites_html_labels). The authored
+               English stays here as the fallback that renders if applyI18n()
+               never runs. -->
+          <span class="settings-label" data-i18n="lang-select">Language</span>
           <!-- ENDONYMS. Never localized and never written by a state updater:
                a French speaker looking for their language looks for
                "Fran&ccedil;ais". -->
           <select class="settings-select" id="lang-select"
-                  aria-label="Hover help language" data-tip-always>
+                  aria-label="Interface language" data-i18n-aria="aria.langSelect"
+                  data-tip-always>
             <option value="en">English</option>
             <option value="fr">Fran&ccedil;ais</option>
           </select>
@@ -93,10 +99,10 @@
              A <div>, not a <label for="help-toggle">: a button is a labelable
              element, so a label wrapping one re-dispatches the click. -->
         <div class="settings-row">
-          <span class="settings-label" data-label="Hover help">Hover help</span>
+          <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
           <button type="button" class="settings-toggle" id="help-toggle"
                   aria-pressed="false" aria-label="Toggle hover help"
-                  data-on="On" data-off="Off"
+                  data-i18n="ui.off" data-i18n-aria="aria.helpToggle"
                   data-tip-always>Off</button>
         </div>
       </div>
@@ -105,7 +111,7 @@
     <!-- ─── Header ──────────────────────────────────────────────────────── -->
     <header class="header">
       <h1 class="title">O&#8202;&#8211;&#8202;Tape<span class="title-accent">stop</span></h1>
-      <p class="subtitle">Varispeed Transport &#183; A Field Guide</p>
+      <p class="subtitle" data-i18n="label.subtitle">Varispeed Transport &#183; A Field Guide</p>
     </header>
 
     <!-- ─── Preset bar (wired to modules/preset-manager.js in Stage 4) ────
@@ -116,8 +122,10 @@
          data-label / data-confirm, never in JS. -->
     <div class="preset-bar">
       <span class="fleuron">&#10086;</span>
-      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
-      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
+      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset"
+              data-i18n-aria="aria.presetPrev" disabled>&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset"
+              data-i18n-aria="aria.presetNext" disabled>&#9654;</button>
       <!-- v1.3: the name readout doubles as the themed-dropdown trigger.
            #preset-name stays a childless div (PresetManager._updateDisplay
            writes its textContent); the caret is the wrapper's ::after and the
@@ -128,10 +136,10 @@
              aria-haspopup="listbox" aria-expanded="false" aria-live="polite">Default</div>
         <div class="preset-dropdown" id="preset-dropdown" role="listbox" hidden></div>
       </div>
-      <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
-      <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+      <button type="button" class="preset-btn" id="preset-save" data-i18n="preset-save" disabled>Save</button>
+      <button type="button" class="preset-btn" id="preset-load" data-i18n="preset-load" disabled>Load</button>
       <button type="button" class="preset-btn" id="preset-delete"
-              data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+              data-i18n="preset-delete" data-armed="0" disabled>Delete</button>
       <span class="fleuron">&#10086;</span>
     </div>
 
@@ -144,30 +152,31 @@
            bottom — "what the transport is doing" next to the control that
            causes it. -->
       <section class="group group-trigger">
-        <div class="group-label">Trigger</div>
+        <div class="group-label" data-i18n="label.trigger">Trigger</div>
         <div class="group-body">
 
           <button type="button" class="engage-btn" id="engage-btn"
-                  aria-pressed="false" data-label="Engage">Engage</button>
+                  aria-pressed="false" data-i18n="engage-btn">Engage</button>
 
           <div class="pair-cell">
-            <div class="pair-caption">Mode</div>
+            <div class="pair-caption" data-i18n="label.mode">Mode</div>
             <!-- Three-way since v1.1. "Motion" is the UI face of the MODE
                  choice "Continuous" — it matches the Motion Rate/Depth/Chaos
                  knob family it reveals. -->
-            <div class="segments" id="modeSegments" role="group" aria-label="Mode">
-              <button type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true">Stop</button>
-              <button type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false">Scratch</button>
+            <div class="segments" id="modeSegments" role="group" aria-label="Mode" data-i18n-aria="label.mode">
+              <button type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true"  data-i18n="label.modeStop">Stop</button>
+              <button type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false" data-i18n="label.modeScratch">Scratch</button>
               <button type="button" class="segment" id="seg-mode-cont"    data-choice="2" aria-pressed="false"
-                      aria-label="Continuous motion">Motion</button>
+                      aria-label="Continuous motion" data-i18n="label.motion"
+                      data-i18n-aria="aria.modeCont">Motion</button>
             </div>
           </div>
 
           <div class="pair-cell">
-            <div class="pair-caption">Timing</div>
-            <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
-              <button type="button" class="segment" id="seg-sync-sync" data-choice="0" aria-pressed="true">Sync</button>
-              <button type="button" class="segment" id="seg-sync-free" data-choice="1" aria-pressed="false">Free</button>
+            <div class="pair-caption" data-i18n="label.timing">Timing</div>
+            <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode" data-i18n-aria="aria.syncSegments">
+              <button type="button" class="segment" id="seg-sync-sync" data-choice="0" aria-pressed="true"  data-i18n="label.sync">Sync</button>
+              <button type="button" class="segment" id="seg-sync-free" data-choice="1" aria-pressed="false" data-i18n="seg-sync-free">Free</button>
             </div>
           </div>
 
@@ -178,7 +187,7 @@
                the caption and tick labels are HTML-authored and never
                rewritten. -->
           <div class="ratio-cell">
-            <div class="pair-caption">Playback</div>
+            <div class="pair-caption" data-i18n="label.playback">Playback</div>
             <div class="ratio-bar" aria-hidden="true">
               <div class="ratio-fill" id="ratio-fill"></div>
               <div class="ratio-zero"></div>
@@ -201,7 +210,7 @@
            .hidden (instant, zero layout shift — the ORD time-slot pattern at
            panel scale). -->
       <section class="group group-center">
-        <div class="group-label" id="center-label">Transport</div>
+        <div class="group-label" id="center-label" data-i18n="label.transport">Transport</div>
         <div class="group-body center-body">
 
           <!-- Stop pane: spin-down / spin-up columns, each a SYNC/FREE
@@ -209,51 +218,53 @@
                at all times; only visibility moves. -->
           <div class="mode-pane" id="pane-stop">
             <div class="stop-col">
-              <div class="col-caption">Spin Down</div>
+              <div class="col-caption" data-i18n="label.spinDown">Spin Down</div>
               <div class="time-slot">
                 <div class="slot-wrap" id="wrap-STOP_SYNC_DIV">
                   <div class="select-cell">
                     <!-- Options built at runtime from properties.choices — the
                          C++ StringArray is the single source (never hardcode). -->
-                    <select class="division-select" id="combo-STOP_SYNC_DIV" aria-label="Stop Time"></select>
-                    <div class="knob-label">Division</div>
+                    <select class="division-select" id="combo-STOP_SYNC_DIV" aria-label="Stop Time"
+                            data-i18n-aria="aria.stopTime"></select>
+                    <div class="knob-label" data-i18n="label.division">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-STOP_FREE_MS">
                   <div class="knob-cell">
                     <div class="knob" id="knob-STOP_FREE_MS" data-param="STOP_FREE_MS"><div class="knob-stem"></div></div>
-                    <div class="knob-label">Time</div>
+                    <div class="knob-label" data-i18n="label.time">Time</div>
                     <div class="knob-value" id="val-STOP_FREE_MS">&#8212;</div>
                   </div>
                 </div>
               </div>
               <div class="knob-cell">
                 <div class="knob" id="knob-STOP_CURVE" data-param="STOP_CURVE"><div class="knob-stem"></div></div>
-                <div class="knob-label">Curve</div>
+                <div class="knob-label" data-i18n="label.curve">Curve</div>
                 <div class="knob-value" id="val-STOP_CURVE">&#8212;</div>
               </div>
             </div>
 
             <div class="stop-col">
-              <div class="col-caption">Spin Up</div>
+              <div class="col-caption" data-i18n="label.spinUp">Spin Up</div>
               <div class="time-slot">
                 <div class="slot-wrap" id="wrap-START_SYNC_DIV">
                   <div class="select-cell">
-                    <select class="division-select" id="combo-START_SYNC_DIV" aria-label="Start Time"></select>
-                    <div class="knob-label">Division</div>
+                    <select class="division-select" id="combo-START_SYNC_DIV" aria-label="Start Time"
+                            data-i18n-aria="aria.startTime"></select>
+                    <div class="knob-label" data-i18n="label.division">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-START_FREE_MS">
                   <div class="knob-cell">
                     <div class="knob" id="knob-START_FREE_MS" data-param="START_FREE_MS"><div class="knob-stem"></div></div>
-                    <div class="knob-label">Time</div>
+                    <div class="knob-label" data-i18n="label.time">Time</div>
                     <div class="knob-value" id="val-START_FREE_MS">&#8212;</div>
                   </div>
                 </div>
               </div>
               <div class="knob-cell">
                 <div class="knob" id="knob-START_CURVE" data-param="START_CURVE"><div class="knob-stem"></div></div>
-                <div class="knob-label">Curve</div>
+                <div class="knob-label" data-i18n="label.curve">Curve</div>
                 <div class="knob-value" id="val-START_CURVE">&#8212;</div>
               </div>
             </div>
@@ -271,28 +282,37 @@
                    is a replaced element, so left+right would NOT stretch it
                    (o-textureforge-cursor-bug). -->
               <canvas id="envCanvas" width="380" height="224" role="img"
-                      aria-label="Scratch speed envelope"></canvas>
+                      aria-label="Scratch speed envelope"
+                      data-i18n-aria="aria.envCanvas"></canvas>
             </div>
             <div class="env-row">
-              <div class="col-caption env-caption">Pass Length</div>
+              <div class="col-caption env-caption" data-i18n="label.passLength">Pass Length</div>
               <div class="time-slot env-slot">
                 <div class="slot-wrap" id="wrap-ENV_SYNC_DIV">
                   <div class="select-cell">
-                    <select class="division-select" id="combo-ENV_SYNC_DIV" aria-label="Env Length"></select>
-                    <div class="knob-label">Division</div>
+                    <select class="division-select" id="combo-ENV_SYNC_DIV" aria-label="Env Length"
+                            data-i18n-aria="aria.envLength"></select>
+                    <div class="knob-label" data-i18n="label.division">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-ENV_FREE_MS">
                   <div class="knob-cell">
                     <div class="knob" id="knob-ENV_FREE_MS" data-param="ENV_FREE_MS"><div class="knob-stem"></div></div>
-                    <div class="knob-label">Time</div>
+                    <div class="knob-label" data-i18n="label.time">Time</div>
                     <div class="knob-value" id="val-ENV_FREE_MS">&#8212;</div>
                   </div>
                 </div>
               </div>
+              <!-- Two block lines, not two spans around a <br>. applyLabel()
+                   writes textContent, so a single key here would delete the
+                   <br> and fold two separate instructions into one run-on
+                   line — and the second line is the one that says how to
+                   REMOVE a point. Blocks rather than a <br> because each line
+                   wraps to a different number of lines in French, and
+                   .env-hint reserves a fixed box for them. -->
               <div class="env-hint">
-                Drag points &#183; double-click to add<br />
-                alt-click removes &#183; drag a diamond to bend
+                <div data-i18n="label.envHint1">Drag points &#183; double-click to add</div>
+                <div data-i18n="label.envHint2">alt-click removes &#183; drag a diamond to bend</div>
               </div>
             </div>
           </div>
@@ -303,27 +323,28 @@
                pane swap; both rate controls stay relay-bound at all times. -->
           <div class="mode-pane hidden" id="pane-continuous">
             <div class="stop-col">
-              <div class="col-caption">Character</div>
-              <div class="segments" id="characterSegments" role="group" aria-label="Character">
-                <button type="button" class="segment" id="seg-char-wobble" data-choice="0" aria-pressed="true">Wobble</button>
-                <button type="button" class="segment" id="seg-char-random" data-choice="1" aria-pressed="false">Random</button>
-                <button type="button" class="segment" id="seg-char-glitch" data-choice="2" aria-pressed="false">Glitch</button>
+              <div class="col-caption" data-i18n="label.character">Character</div>
+              <div class="segments" id="characterSegments" role="group" aria-label="Character" data-i18n-aria="label.character">
+                <button type="button" class="segment" id="seg-char-wobble" data-choice="0" aria-pressed="true"  data-i18n="seg-char-wobble">Wobble</button>
+                <button type="button" class="segment" id="seg-char-random" data-choice="1" aria-pressed="false" data-i18n="seg-char-random">Random</button>
+                <button type="button" class="segment" id="seg-char-glitch" data-choice="2" aria-pressed="false" data-i18n="seg-char-glitch">Glitch</button>
               </div>
             </div>
 
             <div class="stop-col">
-              <div class="col-caption">Rate</div>
+              <div class="col-caption" data-i18n="label.rate">Rate</div>
               <div class="time-slot">
                 <div class="slot-wrap" id="wrap-CONT_RATE_SYNC_DIV">
                   <div class="select-cell">
-                    <select class="division-select" id="combo-CONT_RATE_SYNC_DIV" aria-label="Motion Rate"></select>
-                    <div class="knob-label">Division</div>
+                    <select class="division-select" id="combo-CONT_RATE_SYNC_DIV" aria-label="Motion Rate"
+                            data-i18n-aria="combo-CONT_RATE_SYNC_DIV"></select>
+                    <div class="knob-label" data-i18n="label.division">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-CONT_RATE_HZ">
                   <div class="knob-cell">
                     <div class="knob" id="knob-CONT_RATE_HZ" data-param="CONT_RATE_HZ"><div class="knob-stem"></div></div>
-                    <div class="knob-label">Rate</div>
+                    <div class="knob-label" data-i18n="label.rate">Rate</div>
                     <div class="knob-value" id="val-CONT_RATE_HZ">&#8212;</div>
                   </div>
                 </div>
@@ -331,10 +352,10 @@
             </div>
 
             <div class="stop-col">
-              <div class="col-caption">Motion</div>
+              <div class="col-caption" data-i18n="label.motion">Motion</div>
               <div class="knob-cell">
                 <div class="knob" id="knob-CONT_DEPTH" data-param="CONT_DEPTH"><div class="knob-stem"></div></div>
-                <div class="knob-label">Depth</div>
+                <div class="knob-label" data-i18n="label.depth">Depth</div>
                 <div class="knob-value" id="val-CONT_DEPTH">&#8212;</div>
               </div>
             </div>
@@ -343,7 +364,7 @@
               <div class="col-caption">&#8203;</div>
               <div class="knob-cell">
                 <div class="knob" id="knob-CONT_CHAOS" data-param="CONT_CHAOS"><div class="knob-stem"></div></div>
-                <div class="knob-label">Chaos</div>
+                <div class="knob-label" data-i18n="knob-CONT_CHAOS">Chaos</div>
                 <div class="knob-value" id="val-CONT_CHAOS">&#8212;</div>
               </div>
             </div>
@@ -354,21 +375,21 @@
 
       <!-- OUTPUT ──────────────────────────────────────────────────────────── -->
       <section class="group group-output">
-        <div class="group-label">Output</div>
+        <div class="group-label" data-i18n="label.output">Output</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-TONE_TRACK" data-param="TONE_TRACK"><div class="knob-stem"></div></div>
-            <div class="knob-label">Tone Track</div>
+            <div class="knob-label" data-i18n="label.toneTrack">Tone Track</div>
             <div class="knob-value" id="val-TONE_TRACK">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-MIX" data-param="MIX"><div class="knob-stem"></div></div>
-            <div class="knob-label">Mix</div>
+            <div class="knob-label" data-i18n="knob-MIX">Mix</div>
             <div class="knob-value" id="val-MIX">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-OUTPUT_GAIN" data-param="OUTPUT_GAIN"><div class="knob-stem"></div></div>
-            <div class="knob-label">Gain</div>
+            <div class="knob-label" data-i18n="label.gain">Gain</div>
             <div class="knob-value" id="val-OUTPUT_GAIN">&#8212;</div>
           </div>
         </div>
@@ -379,7 +400,7 @@
 
     <footer class="footer">
       <span class="fleuron">&#10086;</span>
-      <span class="footer-text">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
+      <span class="footer-text" data-i18n="label.footer">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
       <span class="fleuron">&#10086;</span>
     </footer>
   </div>

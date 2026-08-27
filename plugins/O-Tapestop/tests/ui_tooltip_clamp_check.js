@@ -305,34 +305,40 @@ function serve(root) {
         return { active: t.classList.contains('active'),
                  pressed: t.getAttribute('aria-pressed'),
                  caption: t.textContent.trim(),
-                 authoredOn: t.dataset.on ?? null,
-                 authoredOff: t.dataset.off ?? null };
+                 key: t.dataset.i18n ?? null,
+                 mirror: t.dataset.label ?? null };
     });
     check(initial.active === false && initial.pressed === 'false',
         `the help layer ships OFF — .active=${initial.active}, aria-pressed=${initial.pressed}`);
 
-    // ── v1.5.0: this assertion was REWRITTEN, and it still guards the same
-    //    rule ────────────────────────────────────────────────────────────────
-    // Through v1.4.0 the toggle was a "?" circle whose glyph was static, and
-    // this pinned the literal "?". v1.5.0 moved the control into the settings
-    // popover, where it reads On/Off — so the caption IS written from script
-    // now, and a check for "?" would fail on a deliberate change while saying
-    // nothing about what actually matters.
+    // ── v1.6.0: this assertion was REWRITTEN A SECOND TIME, and it still
+    //    guards the same rule ─────────────────────────────────────────────────
+    // Through v1.4.0 the toggle was a "?" circle and this pinned the literal
+    // "?". v1.5.0 moved it into the settings popover, where it reads On/Off, so
+    // the caption became script-written and the check moved to the data-on /
+    // data-off attributes AUTHORED ON THE ELEMENT.
     //
-    // What actually matters is unchanged: the COPY must come from the markup,
-    // never from a literal in the JS. That is the rule
+    // v1.6.0 retires those attributes. An attribute holds ONE string, so on a
+    // page with two languages the off face would have been restored in English
+    // the moment the user picked Français. The caption now comes from a KEY —
+    // ui.on / ui.off in LABELS — written through setLabel(), which makes the
+    // element a [data-i18n] element that the language sweep owns.
+    //
+    // What actually matters is unchanged across all three rewrites: the COPY
+    // must not come from a literal in the JS. That is the rule
     // pattern_js_state_updater_overwrites_html_labels exists for, and it is how
-    // O-MBC's band glyphs became "Off Off Off". So the caption is now compared
-    // against the data-on / data-off attributes AUTHORED ON THE ELEMENT. If
-    // either is stripped the comparison is against null and this fails — which
-    // is exactly the case where applyTooltipsEnabled would silently fall back
-    // to its own literal.
-    check(initial.authoredOn !== null && initial.authoredOff !== null,
-        `the toggle authors both captions in the markup — `
-        + `data-on="${initial.authoredOn}" data-off="${initial.authoredOff}"`);
-    check(initial.caption === initial.authoredOff,
-        `the toggle's caption comes from the AUTHORED data-off, not from a JS `
-        + `literal — rendered "${initial.caption}", authored "${initial.authoredOff}"`);
+    // O-MBC's band glyphs became "Off Off Off". Under canon v2 the guard is
+    // STRONGER than the attribute pair was, because applyLabel() writes
+    // textContent and dataset.label together: the mirror is what a state
+    // updater reads, so a caption that disagrees with it means someone wrote
+    // the element behind i18n's back.
+    check(initial.key !== null,
+        `the toggle's caption is a KEY, not a JS literal — data-i18n="${initial.key}"`);
+    check(initial.key === 'ui.off',
+        `the shipped-OFF toggle carries the OFF key — data-i18n="${initial.key}"`);
+    check(initial.mirror === initial.caption,
+        `dataset.label mirrors the rendered caption — mirror "${initial.mirror}", `
+        + `rendered "${initial.caption}"`);
 
     const dwell = Number((appJs.match(/TOOLTIP_DELAY_MS\s*=\s*(\d+)/) || [])[1] || 350);
 
@@ -397,15 +403,22 @@ function serve(root) {
             active: t.classList.contains('active'),
             pressed: t.getAttribute('aria-pressed'),
             caption: t.textContent.trim(),
-            authoredOn: t.dataset.on ?? null,
+            key: t.dataset.i18n ?? null,
+            mirror: t.dataset.label ?? null,
             persisted: await juce.getNativeFunction('getTooltipsEnabled')(),
         };
     });
     check(afterClick.active === true && afterClick.pressed === 'true',
         `clicking the toggle lights it — .active=${afterClick.active}, aria-pressed=${afterClick.pressed}`);
-    check(afterClick.caption === afterClick.authoredOn,
-        `the lit caption comes from the AUTHORED data-on — rendered `
-        + `"${afterClick.caption}", authored "${afterClick.authoredOn}"`);
+    // The key SWAPPED with the state. That is the v2 contract's whole point:
+    // the element now carries the ON key, so the next language switch
+    // re-renders the ON face in the new language rather than restoring a
+    // stale one.
+    check(afterClick.key === 'ui.on',
+        `clicking swaps the caption's KEY to the ON entry — data-i18n="${afterClick.key}"`);
+    check(afterClick.mirror === afterClick.caption,
+        `dataset.label still mirrors the rendered caption after the state change — `
+        + `mirror "${afterClick.mirror}", rendered "${afterClick.caption}"`);
     check(afterClick.persisted === true,
         `the preference reached the native bridge — getTooltipsEnabled() = ${afterClick.persisted}`);
 

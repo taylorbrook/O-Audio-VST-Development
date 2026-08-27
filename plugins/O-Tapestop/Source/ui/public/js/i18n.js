@@ -67,17 +67,21 @@ export const I18N = Object.freeze({
     // MOVED here unchanged along with the control itself — not duplicated.
     'settings': {
         en: { t: 'Settings',
-              b: 'Choose the language of this hover help, and turn the hover help on or off. Both choices are remembered with the session.' },
+              b: 'Choose the language of this plugin, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette aide au survol et activer ou désactiver cette aide. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de ce plugiciel et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.',
               reviewed: false },
     },
 
+    // v1.6.0: this entry told the user, in both languages, that the labels on
+    // the page do not change. That is now false — they do. Rewritten to say
+    // what is true, INCLUDING the half that stayed true: readouts are English
+    // in both languages (D-03), so `250 ms` reads the same either way.
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language this hover help is written in. English and French are available; the labels on the page itself do not change.' },
+              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page elle-même ne changent pas.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
               reviewed: false },
     },
 
@@ -345,6 +349,167 @@ export const I18N = Object.freeze({
               reviewed: false },
     },
 });
+
+// ============================================================================
+// LABELS — the on-page text (v1.6.0, canon v2)
+// ============================================================================
+//
+// I18N above is HOVER-HELP copy: a title and a body, rendered into a wrapping
+// 230 px tooltip. LABELS is ON-PAGE copy: one string, rendered into a fixed
+// cell that does not wrap. The two are different problems and this table keeps
+// them apart on purpose.
+//
+// ── THE REUSE RULE ─────────────────────────────────────────────────────────
+// trLabel() falls back to I18N when a key is absent here, so a control whose
+// tooltip TITLE already IS its label can carry ONE key. That fallback is used
+// ONLY where the tooltip title is the identical string in BOTH languages —
+// #preset-save, #engage-btn, the three CHARACTER segments, Mix, Chaos and the
+// gear's aria-label all reuse their I18N key and appear nowhere below.
+//
+// It is deliberately NOT used where only the English matches. #seg-sync-sync's
+// tip title is "Sync" / "Synchronisé"; the label needs "Sync" / "Synchro",
+// because "SYNCHRONISÉ" is 90 px of type in a 66 px segment. Reusing the key
+// there would make every future edit to a tooltip a silent geometry change to
+// a control. A label and a tip are the same string only when they are the same
+// string in both languages.
+//
+// ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
+// Every en below is byte-for-byte what index.html carried through v1.5.0,
+// taken from scripts/i18n-extract.js's inventory rather than transcribed, with
+// HTML entities decoded to the characters they named (&#183; -> ·) because
+// textContent does not decode.
+//
+// ── FRENCH IS SIZED, NOT SHRUNK ────────────────────────────────────────────
+// D-04 forbids an auto-shrink font and a short-variant fallback: there is
+// exactly ONE French string per key here and nothing chooses between variants
+// at runtime. Where French did not fit, the fix was the plugin's own CSS
+// (see CHANGELOG v1.6.0), except where a shorter phrasing was simply the
+// better French — "Suivi tonal" over "Suivi de timbre" for TONE TRACK.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`. No native speaker has read
+// it. `node scripts/check-i18n.js` prints the worklist, LABELS included.
+// ============================================================================
+
+export const LABELS = Object.freeze({
+
+    // ── Settings popover ────────────────────────────────────────────────────
+    // Not 'help-toggle': that tip's title is "Hover Help", this caption is
+    // "Hover help". The reuse rule wants both languages identical, and these
+    // differ in English before French is even considered.
+    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Aide au survol', reviewed: false } },
+
+    // The hover-help toggle's two faces, and the delete button's armed face.
+    // These are the only three strings on this page written from script. They
+    // go through setLabel(), so the element becomes a [data-i18n] element and
+    // the language sweep owns it from that moment — a state string written as
+    // a raw literal is stranded in the previous language the instant the
+    // selector fires.
+    //
+    // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the toggle face is
+    // 44 px, and this is the vocabulary a piece of hardware uses, which is the
+    // register the whole panel is written in.
+    'ui.on':             { en: { t: 'On' },          fr: { t: 'Marche',        reviewed: false } },
+    'ui.off':            { en: { t: 'Off' },         fr: { t: 'Arrêt',         reviewed: false } },
+    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: false } },
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    'label.subtitle':    { en: { t: 'Varispeed Transport · A Field Guide' },
+                           fr: { t: 'Transport à vitesse variable · Guide de terrain', reviewed: false } },
+
+    // ── TRIGGER panel ───────────────────────────────────────────────────────
+    'label.trigger':     { en: { t: 'Trigger' },     fr: { t: 'Déclenchement', reviewed: false } },
+    'label.mode':        { en: { t: 'Mode' },        fr: { t: 'Mode',          reviewed: false, sameAsEn: true } },
+    'label.modeStop':    { en: { t: 'Stop' },        fr: { t: 'Arrêt',         reviewed: false } },
+    'label.modeScratch': { en: { t: 'Scratch' },     fr: { t: 'Scratch',       reviewed: false, sameAsEn: true } },
+    // Shared by the MODE segment, the CHARACTER pane's Motion caption and
+    // #modeSegments' aria-label: one concept, one string, one key.
+    'label.motion':      { en: { t: 'Motion' },      fr: { t: 'Mouvement',     reviewed: false } },
+    'label.timing':      { en: { t: 'Timing' },      fr: { t: 'Cadence',       reviewed: false } },
+    'label.sync':        { en: { t: 'Sync' },        fr: { t: 'Synchro',       reviewed: false } },
+    'label.playback':    { en: { t: 'Playback' },    fr: { t: 'Lecture',       reviewed: false } },
+
+    // ── CENTER panel ────────────────────────────────────────────────────────
+    'label.transport':   { en: { t: 'Transport' },   fr: { t: 'Transport',     reviewed: false, sameAsEn: true } },
+    'label.spinDown':    { en: { t: 'Spin Down' },   fr: { t: 'Ralentissement', reviewed: false } },
+    'label.spinUp':      { en: { t: 'Spin Up' },     fr: { t: 'Redémarrage',   reviewed: false } },
+    'label.division':    { en: { t: 'Division' },    fr: { t: 'Division',      reviewed: false, sameAsEn: true } },
+    'label.time':        { en: { t: 'Time' },        fr: { t: 'Durée',         reviewed: false } },
+    'label.curve':       { en: { t: 'Curve' },       fr: { t: 'Courbe',        reviewed: false } },
+    'label.passLength':  { en: { t: 'Pass Length' }, fr: { t: 'Passage',       reviewed: false } },
+
+    // The envelope hint is TWO text nodes around a <br> in one .env-hint div.
+    // Keyed as two spans rather than one key with a \n: applyLabel writes
+    // textContent, which would delete the <br> and collapse the two lines into
+    // one, and the second line is what tells the user how to REMOVE a point.
+    'label.envHint1':    { en: { t: 'Drag points · double-click to add' },
+                           fr: { t: 'Glisser les points · double-clic pour ajouter', reviewed: false } },
+    'label.envHint2':    { en: { t: 'alt-click removes · drag a diamond to bend' },
+                           fr: { t: 'alt-clic pour retirer · glisser un losange pour infléchir', reviewed: false } },
+
+    'label.character':   { en: { t: 'Character' },   fr: { t: 'Caractère',     reviewed: false } },
+    'label.rate':        { en: { t: 'Rate' },        fr: { t: 'Vitesse',       reviewed: false } },
+    'label.depth':       { en: { t: 'Depth' },       fr: { t: 'Profondeur',    reviewed: false } },
+
+    // ── OUTPUT panel ────────────────────────────────────────────────────────
+    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',        reviewed: false } },
+    // NOT the knob-TONE_TRACK tip title, whose French is "Suivi de timbre" —
+    // 15 characters of 9.5 px uppercase is 97 px in an 88 px knob cell. The
+    // shorter phrasing is also the better French for what the control does.
+    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi tonal',   reviewed: false } },
+    // NOT knob-OUTPUT_GAIN, whose title is "Output Gain": this caption is the
+    // bare word, under an OUTPUT group heading that already says the rest.
+    'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: false, sameAsEn: true } },
+
+    'label.footer':      { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
+                           fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: false } },
+
+    // ── Accessible names ────────────────────────────────────────────────────
+    // An aria-label is user-visible text by any definition that matters — it is
+    // the accessible NAME, and a screen reader in French reading an English
+    // name is the same failure as a French page with an English caption. These
+    // have no rendered box, so none of them is a geometry risk.
+    'aria.langSelect':   { en: { t: 'Interface language' },
+                           fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.helpToggle':   { en: { t: 'Toggle hover help' },
+                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+    'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: false } },
+    'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: false } },
+    'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: false } },
+    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchronisation', reviewed: false } },
+    'aria.stopTime':     { en: { t: 'Stop Time' },        fr: { t: 'Durée d’arrêt',        reviewed: false } },
+    'aria.startTime':    { en: { t: 'Start Time' },       fr: { t: 'Durée de démarrage',   reviewed: false } },
+    'aria.envCanvas':    { en: { t: 'Scratch speed envelope' },
+                           fr: { t: 'Enveloppe de vitesse du scratch', reviewed: false } },
+    'aria.envLength':    { en: { t: 'Env Length' },       fr: { t: 'Durée d’enveloppe',    reviewed: false } },
+});
+
+// ============================================================================
+// I18N_EXEMPT — reasoned exclusions, never silence
+// ============================================================================
+//
+// Every visible string the coverage scan finds must be a [data-i18n] element,
+// a setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let
+// a missed label hide as a deliberate one.
+// ============================================================================
+
+export const I18N_EXEMPT = [
+    // The product name. Split across the <h1>'s own text node and the italic
+    // .title-accent span, so both halves need an entry.
+    //
+    // The markup authors HAIR SPACES around the en dash (&#8202;), but the
+    // scanner collapses every whitespace run to one U+0020 before it
+    // classifies, so this entry carries ORDINARY spaces. Exempting the
+    // as-authored form instead would silently fail to match and report the
+    // product name as an unlocalized label.
+    ['O – Tape', 'half of the product name O–Tapestop — a product name is never translated'],
+    ['stop',                    'the italic half of the product name O–Tapestop, in .title-accent'],
+
+    // #preset-name displays the loaded preset. The name IS the JSON filename
+    // (OuariconPresetManager.h:283-285), so translating it breaks recall:
+    // a session saved against "Cathedral" would not resolve "Cathédrale".
+    // "Default" is the placeholder the manager overwrites on its first pass.
+    ['Default',                 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
+];
 
 // [selector, key] or [selector, key, wrapperSelector]. The selector is the
 // BINDING SITE, and on this page it usually is NOT the element carrying the
