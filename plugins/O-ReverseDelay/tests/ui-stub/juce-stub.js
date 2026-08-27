@@ -279,14 +279,41 @@ const PRESET_FNS = {
   isFactoryPreset: (name) => FACTORY.includes(name),
 };
 
-// Mirrors the THIRTEEN native functions registered in PluginEditor.cpp:
-// getParameterDefaults + getGrainMeter + getWindowCurve (all fetched by app.js)
-// + the ten preset fns (fetched by js/preset-manager.js). Any OTHER name must
-// still reject — rejecting the unknown is the whole point of this stub, and is how
-// a bridge gap surfaces here instead of as a silently dead control in a DAW
-// (pattern_webview_native_fn_bridge_gap). The whitelist grew 1 -> 11 -> 12 -> 13;
-// it did not become permissive.
+// v1.9.0 — the hover-help language, mirrored so the stub round-trips it exactly
+// as the processor does. Held OUTSIDE getNativeFunction so setUiLanguage's write
+// is visible to a later getUiLanguage read: the clamp gate drives the language
+// through window.__setLanguage(), but the render probes assert the WRITE reached
+// the (stubbed) processor, and that is only observable if the value persists.
+//
+// languageIndex()'s C++ clamp is mirrored here too — anything that is not "fr"
+// degrades to "en" — so a stub that accepted a bogus code could not make a
+// broken page look correct.
+let uiLanguage = "en";
+
+// Mirrors the FIFTEEN native functions registered in PluginEditor.cpp:
+// getParameterDefaults + getGrainMeter + getWindowCurve + v1.9.0's
+// getUiLanguage/setUiLanguage (all fetched by app.js) + the ten preset fns
+// (fetched by js/preset-manager.js). Any OTHER name must still reject —
+// rejecting the unknown is the whole point of this stub, and is how a bridge gap
+// surfaces here instead of as a silently dead control in a DAW
+// (pattern_webview_native_fn_bridge_gap). The whitelist grew
+// 1 -> 11 -> 12 -> 13 -> 15; it did not become permissive.
+//
+// NOTE what is NOT here and must never be added: setTooltipsEnabled. D13 scoped
+// this plugin to display-only hover help, and section 14 of ui_frontend_check.js
+// asserts the absence against the real source.
 export function getNativeFunction(name) {
+  if (name === "getUiLanguage") {
+    return () => Promise.resolve(uiLanguage);
+  }
+
+  if (name === "setUiLanguage") {
+    return (code) => {
+      uiLanguage = code === "fr" ? "fr" : "en";
+      return Promise.resolve(uiLanguage);
+    };
+  }
+
   if (name === "getParameterDefaults") {
     return () => Promise.resolve(
       Object.fromEntries(Object.entries(RANGES).map(([id, r]) => [id, r.def]))

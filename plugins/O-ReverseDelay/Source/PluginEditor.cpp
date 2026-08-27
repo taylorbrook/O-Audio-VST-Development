@@ -163,6 +163,14 @@ ReverseDelayEditor::getResource (const juce::String& url)
         return makeBinaryResource (UIBinaryData::app_js, UIBinaryData::app_jsSize,
                                    "application/javascript; charset=utf-8");
 
+    // v1.9.0 — the hover-help copy table, imported by app.js as './i18n.js'.
+    // This branch, the juce_add_binary_data SOURCES entry and the import all
+    // land in one commit: section 9's three-way closure fails on any two of the
+    // three, which is exactly what it is for.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (UIBinaryData::i18n_js, UIBinaryData::i18n_jsSize,
+                                   "application/javascript; charset=utf-8");
+
     // Shared preset-manager module. Embedded from modules/… but SERVED under
     // /js/ so app.js can reach it with a plain relative `import("./preset-manager.js")`.
     // NOTE the symbol: juce_add_binary_data STRIPS the hyphen rather than
@@ -326,6 +334,41 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                 points.add (juce::var (v));
 
             complete (juce::var (points));
+        });
+
+    // ── v1.9.0: the hover-help language pair ────────────────────────────────
+    //
+    // A plain withNativeFunction pair, no relay, PULLED once by the page at init.
+    // No push from this constructor, no timer, no poll().then(poll) and no
+    // revision counter — the language is not preset content, and
+    // OuariconPresetManager::loadPreset walks preset["parameters"] only, so no
+    // preset path can change it behind the page's back
+    // (pattern_webview_one_shot_state_push_stale_on_preset_load does not apply).
+    //
+    // This is the ONLY pair v1.9.0 adds, taking the bridge 13 -> 15. There is
+    // deliberately no setTooltipsEnabled: D13 scoped this plugin's hover help to
+    // display only, and section 14 of tests/ui_frontend_check.js asserts that
+    // absence by name against this file.
+    options = options.withNativeFunction ("getUiLanguage",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (ReverseDelayProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction ("setUiLanguage",
+        [this] (auto& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an unexpected
+            // argument from the page degrades to English rather than being stored
+            // unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    ReverseDelayProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (ReverseDelayProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
     // ── Preset bridge (OuariconPresetManager v1.0.5 contract) ──────────────

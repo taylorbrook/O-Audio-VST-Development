@@ -296,6 +296,130 @@ body {
   text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
+/* ── Settings popover (v1.9.0) ───────────────────────────────────────────── */
+/* The gear that carries the hover-help language selector, and nothing else:
+   D13 scoped this plugin to display-only hover help, so there is no on/off row
+   here and ui_frontend_check.js section 14 asserts that by name.
+
+   ABSOLUTELY positioned inside .header rather than added as a flex child.
+   .header is a plain text-align:center block; making it a flex row to seat a
+   gear would have re-laid out the centred title, and every tooltip clamp
+   measurement in this plugin's history was taken against that layout. An
+   absolute child changes no sibling's box at all — which is what lets
+   ui_tooltip_clamp_check.js's numbers still mean what they meant.
+
+   `position: relative` with NO z-index on .header, so it does not open a
+   stacking context of its own. .frame does (z-index: 2), and .tooltip lives
+   OUTSIDE .frame at z-index 1000 — so a tip raised over the language selector
+   inside this panel still paints above it without any z-index tuning here. */
+.header { position: relative; }
+
+.settings-cluster {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* The gear speaks .preset-nav's vocabulary — the page's existing small round
+   button — at the same 26 px, so the header gains a control without gaining a
+   new visual idiom. */
+.gear-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 2px solid var(--btn-border);
+  border-radius: 50%;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gear-btn:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Open reuses .segment.active's cream-on-green pressed inset, so "the panel is
+   open" reads with the same cue as "this segment is live". */
+.gear-btn[aria-expanded="true"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  transform: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.gear-btn:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* Right-aligned under the gear, on the page's own paper rather than a foreign
+   dark panel — the same surface .preset-name and .division-select use. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 12;
+  min-width: 196px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: linear-gradient(135deg, var(--bg-paper-light) 0%, var(--bg-paper-mid) 100%);
+  border: 2px solid var(--brown-frame);
+  border-radius: 4px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35);
+}
+
+.settings-popover[hidden] { display: none; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.settings-label {
+  font-family: var(--serif);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+}
+
+/* .division-select's recessed cartouche, sized for "Français". */
+.settings-select {
+  flex: 0 0 auto;
+  width: 92px;
+  padding: 5px 6px;
+  font-family: var(--serif);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-align: center;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.18), 2px 2px 5px var(--shadow-light);
+  cursor: pointer;
+}
+
+.settings-select:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
 /* ── Preset bar ──────────────────────────────────────────────────────────── */
 /* 32 px band + 12 px margin = the 44 px the frame grew by, so .groups' flex
    slack is unchanged. Transparent over the paper gradient with the same hairline

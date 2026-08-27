@@ -2447,6 +2447,15 @@ void ReverseDelayProcessor::changeProgramName(int index, const juce::String& new
 // plugin holds no state outside the APVTS.
 void ReverseDelayProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
+    // v1.9.0: the UI language rides the state tree as a non-parameter property.
+    //
+    // Written BEFORE the delegation, not after: getStateAsXml() starts from its
+    // own parameters.copyState(), so a setProperty on the live tree afterwards
+    // would never reach the XML that gets serialised.
+    parameters.state.setProperty ("uiLanguage",
+                                  languageCode (uiLanguage.load (std::memory_order_acquire)),
+                                  nullptr);
+
     if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -2454,7 +2463,24 @@ void ReverseDelayProcessor::getStateInformation(juce::MemoryBlock& destData)
 void ReverseDelayProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
+    {
         presetManager.setStateFromXml(xml.get());
+
+        // Read AFTER the restore: setStateFromXml replaces the whole tree, so
+        // the property only exists on it once that has happened.
+        //
+        // isVoid() is the ONLY correct guard and toString() the only correct
+        // read. NamedValueSet::setFromXmlAttributes rebuilds every property as
+        // a var over the attribute STRING, so isBool()/isInt()/isString() type
+        // predicates are false for every session ever saved
+        // (critical_valuetree_xml_roundtrip_loses_type). A session written
+        // before v1.9.0 has no such attribute at all and simply leaves the
+        // language where it is — English on a fresh instance.
+        const juce::var lang = parameters.state.getProperty ("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
