@@ -3,9 +3,9 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D]
-stages_remaining: [E, F, G]
-stopped_at: "End of Stage D — the recommended partial ship. Stages E, F, G are NOT approved."
+stages_complete: [A, B, C, D, E]
+stages_remaining: [F, G, H, I, J, K, L, M]
+stopped_at: "End of Stage E (T6-T9). Four repo-level tools shipped, NO plugin touched. Stages F, G, H are approved but are separate dispatches; do NOT stop here for long — Stage E leaves canon v2 in the tree with zero plugins on it."
 plugins_shipped:
   - name: O-MultiBandCompressor
     version: 1.10.0
@@ -26,6 +26,16 @@ subsystem: webview-ui / i18n
 tags: [i18n, tooltips, webview, juce, apvts-persistence]
 key-files:
   created:
+    - scripts/serve-ui.js
+    - scripts/boot-all-uis.js
+    - scripts/ui-stub/generic-juce-stub.js
+    - scripts/ui-stub/stub-preamble.js
+    - scripts/ui-stub/README.md
+    - scripts/i18n-extract.js
+    - scripts/i18n-extract-README.md
+    - scripts/check-ui-labels.js
+    - scripts/check-ui-labels-README.md
+    - plugins/O-Prism/tests/ui-stub/generic-overrides.json
     - plugins/O-MultiBandCompressor/Source/ui/public/js/i18n.js
     - plugins/O-Octagon/Source/ui/public/js/i18n.js
     - plugins/O-ReverseDelay/Source/ui/public/js/i18n.js
@@ -74,11 +84,18 @@ key-files:
     - plugins/O-Tapestop/tests/ui_tooltip_clamp_check.js
     - plugins/O-Tapestop/tests/ui-stub/juce-stub.js
     - scripts/check-i18n.js
+    - scripts/i18n-canon.js
     - PLUGINS.md
 actuals:
+  # Stage D dispatch only (three plugins, tooltip-only). Kept as the n=1
+  # calibration sample the plan's SIZING section reasons from.
   tokens: 232000
   tasks: 3
   commits: 5
+actuals_stage_e:
+  tokens: 285000
+  tasks: 4
+  commits: 4
 ---
 
 # Quick Task 260826-ieq — Stage B Summary
