@@ -1,0 +1,6 @@
+{
+  "_why": "O-Prism's getPresetListWithCategories returns a JSON STRING (Source/PluginEditor.cpp:809-821), not the juce::var object O-Bells returns (:233-245). The generic stub defaults to the object because a page that JSON.parses one catches and degrades, while a page that Object.keys a string renders one bogus category per character. This file supplies Prism's real shape so its page boots without a console error. TEST FIXTURE ONLY — never shipped, never embedded.",
+  "natives": {
+    "getPresetListWithCategories": "{\"Factory\":[\"Default\",\"Preset A\",\"Preset B\"]}"
+  }
+}
