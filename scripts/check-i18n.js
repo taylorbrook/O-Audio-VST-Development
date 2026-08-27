@@ -732,7 +732,27 @@ function checkPlugin(p) {
                 if (el.attrs[a] && el.attrs[a].value) markupKeys.add(el.attrs[a].value);
 
         const jsKeys = new Set(setLabelCalls.filter((c) => c.key).map((c) => c.key));
-        const referenced = new Set([...markupKeys, ...jsKeys]);
+
+        // A key declared by ASSIGNING dataset.i18n / .i18nAria / .i18nPlaceholder
+        // / .i18nAlt is a reference too. An element the controller creates at
+        // runtime — a preset-dropdown row, a confirmation strip — cannot carry
+        // the attribute in the markup, and setLabel() is not available for an
+        // ATTRIBUTE key: it writes textContent. Without this scan the only
+        // in-canon way to localize a dynamically created element's accessible
+        // name reports as a dead key, which is the gate describing a violation
+        // of a rule the code is obeying. Third instance of that shape in this
+        // task; see the O-Octagon and O-ReverseDelay notes in the summary.
+        //
+        // Only a plain string literal counts. `el.dataset.i18nAria =
+        // label.dataset.i18n` (canon's labelKnob shape) is a COMPUTED key: it
+        // adds nothing here and cannot, which is the same rule assertion 13
+        // already applies to a computed setLabel key.
+        const datasetKeys = new Set();
+        for (const m of EXTRACT.stripJsComments(moduleSrc.code)
+                .matchAll(/\.dataset\.(i18n|i18nAria|i18nPlaceholder|i18nAlt)\s*=\s*(['"])([^'"]+)\2/g))
+            datasetKeys.add(m[3]);
+
+        const referenced = new Set([...markupKeys, ...jsKeys, ...datasetKeys]);
 
         const dangling = [...referenced].filter((k) => !known.has(k));
         check(dangling.length === 0,
