@@ -155,3 +155,88 @@ language selector alone. Its bridge goes 11 → 13, which D13 did not speak to.
 - `modules/registry.yaml` — module system, deliberately not extended by this task.
 
 </canonical_refs>
+
+---
+
+## SCOPE EXPANSION — 2026-08-26, after Stage D
+
+**The task is no longer tooltips. It is all user-visible text inside each plugin's
+WebView UI.** Stages A-D shipped tooltip-only localization on 5 plugins; those 5 now
+need a second pass for their non-tooltip text. Stages E/F/G were scoped to tooltips
+and must be re-planned.
+
+### Measured scope of the expansion
+
+- **~2,885 static visible text nodes** across the 43 index.html files. Heaviest:
+  O-Prism 319, O-Lyrica 227, O-MicrotonalSampler 144, O-Octagon 128,
+  O-MultiBandCompressor 123, O-Formant 111, O-Polystutter 105, O-Bitrot 102.
+  Lightest: O-Bass 14, O-AnalogSaturation 15, O-Texture 16.
+- **92 JS-written string literals** (`textContent = '...'`) across the app.js files —
+  these are NOT in the HTML and a markup-only sweep would miss every one.
+- **169 `toFixed(n)` readout sites** — see the numbers decision below.
+
+### Boundary — WebView only
+
+Everything rendered inside the plugin's own UI is in scope.
+
+**OUT of scope: C++ parameter display names** (`"Source X"`, `"Position"`, … in
+`createParameterLayout()`). They surface in the host's automation lane and parameter
+list, not the WebView. They are part of the plugin's published contract, some hosts
+cache them, and a saved automation lane referencing a renamed parameter is a real
+compatibility risk across 43 shipping plugins. They stay English.
+
+Also out: DAW-facing metadata, the marketing site, CHANGELOG/docs.
+
+### Factory preset names — STAY ENGLISH
+
+`OuariconPresetManager::isFactoryPreset` resolves a preset as
+`getFactoryPresetsDirectory().getChildFile(sanitizePresetName(presetName) + ".json")`
+(`modules/persistence/preset-manager/cpp/OuariconPresetManager.h:283-285`).
+**The preset name IS the filename.** Translating it breaks recall outright — a session
+saved against "Cathedral" would not resolve "Cathédrale". This is the same class as the
+known preset-name-with-"/" failure.
+
+No indirection layer is being added. A French user sees English preset names in an
+otherwise French UI, which is how most commercial audio software ships.
+
+### Numbers and units — ENGLISH FORMATTING RETAINED
+
+Readouts stay `1.5 kHz`, not `1,5 kHz`, in both languages. Rationale: it is
+universally understood in audio software, and localizing the separator would require
+every editable readout's PARSER to accept both — O-Prism's value-entry knob family is
+one of the two in the repo, and a silent value-entry break is a worse failure than a
+period where a comma belongs. None of the 169 `toFixed()` sites are touched.
+
+Unit SYMBOLS (Hz, dB, ms, %, s) are language-neutral and stay as-is.
+
+### Fixed-width overflow — GATED AND FIXED PER PLUGIN
+
+**This is the new risk class and the reason the expansion is not just "more strings".**
+Tooltips were safe because they WRAP — that is why French cost extra vertical flips but
+never a single extra clamp across all three clamp-gated frames. **A knob label in a grid
+cell does not wrap.** French runs 15-20% longer, so a label that currently fits exactly
+will clip, ellipsize, or push its neighbours out of alignment.
+
+Approach: **extend the both-language sweep already committed in O-ReverseDelay,
+O-Bitrot and O-Tapestop** to measure every localized label's rendered box against its
+container in both languages, and fix each overflow properly per plugin. No auto-shrink
+(inconsistent type sizes cut against how carefully these UIs are set) and no
+short-variant fallback (authoring two French strings and choosing by eye).
+
+That committed sweep is the leverage here — the gate shape already exists in three
+plugins and generalises.
+
+### Consequences the re-plan must carry
+
+1. **The 5 shipped plugins need a retrofit pass** for non-tooltip text. They are
+   currently half-localized: French tooltips over English labels.
+2. **A markup-only sweep is insufficient** — 92 JS-written strings live in app.js.
+3. **`scripts/check-i18n.js` must grow** a label-coverage assertion, or a plugin can
+   pass at 100% tooltip coverage while every label is still hard-coded English.
+4. **Existing gates assert exact label text.** O-Octagon's §6 has a
+   reviewed-when-it-grows whitelist of `textContent` receivers precisely because a
+   shared JS updater writing `textContent` erases HTML-authored labels
+   (`pattern_js_state_updater_overwrites_html_labels`). Every label becoming
+   JS-written puts every plugin into that failure mode at once.
+5. **O-Prism is now the single largest item in the project** — 319 text nodes AND 173
+   runtime parameters. It should not be batched with anything else.
