@@ -33,7 +33,7 @@
     <!-- ─── Header ──────────────────────────────────────────────────────── -->
     <header class="header">
       <h1 class="title">O&#8202;&#8211;&#8202;Reverse<span class="title-accent">Delay</span></h1>
-      <p class="subtitle">Granular Reverse Delay &#183; A Field Guide</p>
+      <p class="subtitle" data-i18n="label.subtitle">Granular Reverse Delay &#183; A Field Guide</p>
 
       <!-- ─── Settings (v1.9.0) ──────────────────────────────────────────
            NO COPY IS AUTHORED IN THIS MARKUP. Every data-tip / data-tip-title
@@ -58,10 +58,10 @@
                 id="gear-btn"
                 aria-haspopup="dialog"
                 aria-expanded="false"
-                aria-label="Settings">&#9881;</button>
+                data-i18n-aria="settings" aria-label="Settings">&#9881;</button>
 
         <div class="settings-popover" id="settings-popover"
-             role="dialog" aria-label="Settings" hidden>
+             role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
 
           <label class="settings-row" for="lang-select">
             <!-- data-label so a shared state updater that writes textContent
@@ -69,12 +69,12 @@
                  (pattern_js_state_updater_overwrites_html_labels). Nothing
                  writes it today; this is what keeps that true if something
                  ever does. -->
-            <span class="settings-label" data-label="Language">Language</span>
+            <span class="settings-label" data-i18n="lang-select" data-label="Language">Language</span>
             <!-- ENDONYMS. Never localized and never written by a state
                  updater: a French speaker looking for their language looks
                  for "Fran&ccedil;ais". -->
             <select class="settings-select" id="lang-select"
-                    aria-label="Hover help language">
+                    data-i18n-aria="aria.langSelect" aria-label="Hover help language">
               <option value="en">English</option>
               <option value="fr">Fran&ccedil;ais</option>
             </select>
@@ -100,13 +100,13 @@
          of the preset list. -->
     <div class="preset-bar">
       <span class="fleuron">&#10086;</span>
-      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset">&#9664;</button>
-      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset">&#9654;</button>
+      <button type="button" class="preset-nav" id="preset-prev" data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
       <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
-      <button type="button" class="preset-btn" id="preset-save" data-label="Save">Save</button>
-      <button type="button" class="preset-btn" id="preset-load" data-label="Load">Load</button>
+      <button type="button" class="preset-btn" id="preset-save" data-i18n="label.save" data-label="Save">Save</button>
+      <button type="button" class="preset-btn" id="preset-load" data-i18n="label.load" data-label="Load">Load</button>
       <button type="button" class="preset-btn" id="preset-delete"
-              data-label="Delete" data-confirm="Confirm?" data-armed="0">Delete</button>
+              data-i18n="label.delete" data-label="Delete" data-armed="0">Delete</button>
       <span class="fleuron">&#10086;</span>
     </div>
 
@@ -141,15 +141,15 @@
 
       <!-- TIME ─────────────────────────────────────────────────────────── -->
       <section class="group group-time">
-        <div class="group-label">Time</div>
+        <div class="group-label" data-i18n="label.time">Time</div>
         <div class="group-body">
 
           <!-- syncMode: two-segment pair. FREE / SYNC text is authored HERE and
                is NEVER rewritten by JS — refresh() toggles classes + aria-pressed
                only (pattern_js_state_updater_overwrites_html_labels). -->
-          <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
-            <button type="button" class="segment" id="seg-free" data-choice="0" aria-pressed="false">Free</button>
-            <button type="button" class="segment" id="seg-sync" data-choice="1" aria-pressed="true">Sync</button>
+          <div class="segments" id="syncSegments" role="group" data-i18n-aria="syncSegments" aria-label="Sync Mode">
+            <button type="button" class="segment" id="seg-free" data-choice="0" aria-pressed="false" data-i18n="label.free">Free</button>
+            <button type="button" class="segment" id="seg-sync" data-choice="1" aria-pressed="true" data-i18n="label.sync">Sync</button>
           </div>
 
           <!-- Fixed-dimension slot: both wraps are absolutely positioned to the
@@ -158,7 +158,7 @@
             <div class="slot-wrap hidden" id="wrap-delayTime">
               <div class="knob-cell">
                 <div class="knob" id="knob-delayTime" data-param="delayTime"><div class="knob-stem"></div></div>
-                <div class="knob-label">Delay</div>
+                <div class="knob-label" data-i18n="knob-delayTime">Delay</div>
                 <div class="knob-value" id="val-delayTime">&#8212;</div>
               </div>
             </div>
@@ -167,8 +167,8 @@
               <div class="select-cell">
                 <!-- Options are built at runtime from properties.choices — the C++
                      StringArray is the single source of truth (never hardcode). -->
-                <select class="division-select" id="combo-noteDivision" aria-label="Note Division"></select>
-                <div class="knob-label">Division</div>
+                <select class="division-select" id="combo-noteDivision" data-i18n-aria="aria.noteDivision" aria-label="Note Division"></select>
+                <div class="knob-label" data-i18n="combo-noteDivision">Division</div>
               </div>
             </div>
           </div>
@@ -178,16 +178,16 @@
 
       <!-- GRAIN ────────────────────────────────────────────────────────── -->
       <section class="group group-grain">
-        <div class="group-label">Grain</div>
+        <div class="group-label" data-i18n="label.grain">Grain</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-grainSize" data-param="grainSize"><div class="knob-stem"></div></div>
-            <div class="knob-label">Size</div>
+            <div class="knob-label" data-i18n="label.size">Size</div>
             <div class="knob-value" id="val-grainSize">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-density" data-param="density"><div class="knob-stem"></div></div>
-            <div class="knob-label">Density</div>
+            <div class="knob-label" data-i18n="knob-density">Density</div>
             <div class="knob-value" id="val-density">&#8212;</div>
           </div>
         </div>
@@ -195,21 +195,21 @@
 
       <!-- FEEDBACK ─────────────────────────────────────────────────────── -->
       <section class="group group-feedback">
-        <div class="group-label">Feedback</div>
+        <div class="group-label" data-i18n="knob-feedback">Feedback</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-feedback" data-param="feedback"><div class="knob-stem"></div></div>
-            <div class="knob-label">Amount</div>
+            <div class="knob-label" data-i18n="label.amount">Amount</div>
             <div class="knob-value" id="val-feedback">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-lowCut" data-param="lowCut"><div class="knob-stem"></div></div>
-            <div class="knob-label">Low Cut</div>
+            <div class="knob-label" data-i18n="knob-lowCut">Low Cut</div>
             <div class="knob-value" id="val-lowCut">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-highCut" data-param="highCut"><div class="knob-stem"></div></div>
-            <div class="knob-label">High Cut</div>
+            <div class="knob-label" data-i18n="knob-highCut">High Cut</div>
             <div class="knob-value" id="val-highCut">&#8212;</div>
           </div>
         </div>
@@ -217,16 +217,16 @@
 
       <!-- OUTPUT ───────────────────────────────────────────────────────── -->
       <section class="group group-output">
-        <div class="group-label">Output</div>
+        <div class="group-label" data-i18n="label.output">Output</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-width" data-param="width"><div class="knob-stem"></div></div>
-            <div class="knob-label">Width</div>
+            <div class="knob-label" data-i18n="knob-width">Width</div>
             <div class="knob-value" id="val-width">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
-            <div class="knob-label">Mix</div>
+            <div class="knob-label" data-i18n="knob-mix">Mix</div>
             <div class="knob-value" id="val-mix">&#8212;</div>
           </div>
         </div>
@@ -241,26 +241,26 @@
            one defaults to 0, which is the exact no-op: a v1.0 session or
            preset opened here sounds identical until one of these is moved. -->
       <section class="group group-random">
-        <div class="group-label">Random</div>
+        <div class="group-label" data-i18n="label.random">Random</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-jitter" data-param="jitter"><div class="knob-stem"></div></div>
-            <div class="knob-label">Jitter</div>
+            <div class="knob-label" data-i18n="knob-jitter">Jitter</div>
             <div class="knob-value" id="val-jitter">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-delayScatter" data-param="delayScatter"><div class="knob-stem"></div></div>
-            <div class="knob-label">Scatter</div>
+            <div class="knob-label" data-i18n="knob-delayScatter">Scatter</div>
             <div class="knob-value" id="val-delayScatter">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-sizeRandom" data-param="sizeRandom"><div class="knob-stem"></div></div>
-            <div class="knob-label">Size Rnd</div>
+            <div class="knob-label" data-i18n="label.sizeRnd">Size Rnd</div>
             <div class="knob-value" id="val-sizeRandom">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-gainRandom" data-param="gainRandom"><div class="knob-stem"></div></div>
-            <div class="knob-label">Gain Rnd</div>
+            <div class="knob-label" data-i18n="label.gainRnd">Gain Rnd</div>
             <div class="knob-value" id="val-gainRandom">&#8212;</div>
           </div>
         </div>
@@ -279,17 +279,17 @@
            Tilt to its CENTRE, which is the one control on this page whose
            no-op is not zero. -->
       <section class="group group-window">
-        <div class="group-label">Window</div>
+        <div class="group-label" data-i18n="label.window">Window</div>
         <div class="group-body">
           <div class="select-cell">
             <!-- Options built at runtime from properties.choices — the C++
                  StringArray is the single source of truth (never hardcode). -->
-            <select class="division-select shape-select" id="combo-grainShape" aria-label="Grain Shape"></select>
-            <div class="knob-label">Shape</div>
+            <select class="division-select shape-select" id="combo-grainShape" data-i18n-aria="aria.grainShape" aria-label="Grain Shape"></select>
+            <div class="knob-label" data-i18n="combo-grainShape">Shape</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-grainTilt" data-param="grainTilt"><div class="knob-stem"></div></div>
-            <div class="knob-label">Tilt</div>
+            <div class="knob-label" data-i18n="label.tilt">Tilt</div>
             <div class="knob-value" id="val-grainTilt">&#8212;</div>
           </div>
 
@@ -301,7 +301,7 @@
                one saying so. -->
           <div class="knob-cell" id="cell-tukeyTaper">
             <div class="knob" id="knob-tukeyTaper" data-param="tukeyTaper"><div class="knob-stem"></div></div>
-            <div class="knob-label">Taper</div>
+            <div class="knob-label" data-i18n="label.taper">Taper</div>
             <div class="knob-value" id="val-tukeyTaper">&#8212;</div>
           </div>
 
@@ -325,7 +325,7 @@
                  would scale a blurry 300x150 default rather than resize it
                  (o-textureforge-cursor-bug). -->
             <canvas id="envelopeCanvas" width="144" height="58" role="img"
-                    aria-label="Grain amplitude envelope"></canvas>
+                    data-i18n-aria="aria.envCanvas" aria-label="Grain amplitude envelope"></canvas>
           </div>
         </div>
       </section>
@@ -350,11 +350,11 @@
            Default 8 is v1.2.0's hard-coded ceiling, so a v1.0-v1.2 session
            opened here reads exactly as it did. -->
       <section class="group group-count">
-        <div class="group-label">Count</div>
+        <div class="group-label" data-i18n="label.count">Count</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-grainCount" data-param="grainCount"><div class="knob-stem"></div></div>
-            <div class="knob-label">Count</div>
+            <div class="knob-label" data-i18n="label.count">Count</div>
             <div class="knob-value" id="val-grainCount">&#8212;</div>
           </div>
 
@@ -365,11 +365,11 @@
                off: this updates ~15x/s and would flood a screen reader. -->
           <div class="meter-cell" id="grainMeter">
             <div class="meter-row">
-              <span class="meter-label">Active</span>
+              <span class="meter-label" data-i18n="label.active">Active</span>
               <span class="meter-value" id="meter-active" aria-live="off">&#8212;</span>
             </div>
             <div class="meter-row">
-              <span class="meter-label">Overlap</span>
+              <span class="meter-label" data-i18n="label.overlap">Overlap</span>
               <span class="meter-value" id="meter-overlap" aria-live="off">&#8212;</span>
             </div>
           </div>
@@ -401,23 +401,23 @@
            A v1.0-v1.5 session or preset opened here therefore sounds exactly as
            it did. -->
       <section class="group group-motion">
-        <div class="group-label">Motion</div>
+        <div class="group-label" data-i18n="label.motion">Motion</div>
         <div class="group-body">
 
-          <div class="segments" id="freezeSegments" role="group" aria-label="Freeze">
-            <button type="button" class="segment" id="seg-freeze-off" data-choice="0" aria-pressed="true">Off</button>
-            <button type="button" class="segment" id="seg-freeze-on" data-choice="1" aria-pressed="false">Freeze</button>
+          <div class="segments" id="freezeSegments" role="group" data-i18n-aria="freezeSegments" aria-label="Freeze">
+            <button type="button" class="segment" id="seg-freeze-off" data-choice="0" aria-pressed="true" data-i18n="label.off">Off</button>
+            <button type="button" class="segment" id="seg-freeze-on" data-choice="1" aria-pressed="false" data-i18n="freezeSegments">Freeze</button>
           </div>
 
           <div class="knob-cell">
             <div class="knob" id="knob-direction" data-param="direction"><div class="knob-stem"></div></div>
-            <div class="knob-label">Direction</div>
+            <div class="knob-label" data-i18n="knob-direction">Direction</div>
             <div class="knob-value" id="val-direction">&#8212;</div>
           </div>
 
           <div class="knob-cell">
             <div class="knob" id="knob-regenMakeup" data-param="regenMakeup"><div class="knob-stem"></div></div>
-            <div class="knob-label">Regen</div>
+            <div class="knob-label" data-i18n="knob-regenMakeup">Regen</div>
             <div class="knob-value" id="val-regenMakeup">&#8212;</div>
           </div>
 
@@ -444,12 +444,12 @@
            key in a v1.0-v1.6 session or preset resolves to index 0, so index 0
            has to be the shipped behaviour. -->
       <section class="group group-source">
-        <div class="group-label">Source</div>
+        <div class="group-label" data-i18n="sourceSegments">Source</div>
         <div class="group-body">
 
-          <div class="segments" id="sourceSegments" role="group" aria-label="Source Mode">
-            <button type="button" class="segment" id="seg-source-mono" data-choice="0" aria-pressed="true">Mono</button>
-            <button type="button" class="segment" id="seg-source-stereo" data-choice="1" aria-pressed="false">Stereo</button>
+          <div class="segments" id="sourceSegments" role="group" data-i18n-aria="aria.sourceMode" aria-label="Source Mode">
+            <button type="button" class="segment" id="seg-source-mono" data-choice="0" aria-pressed="true" data-i18n="label.mono">Mono</button>
+            <button type="button" class="segment" id="seg-source-stereo" data-choice="1" aria-pressed="false" data-i18n="label.stereo">Stereo</button>
           </div>
 
         </div>
@@ -463,11 +463,11 @@
            Applied to the OUTPUT only and never to the feedback tap, so it
            changes WHEN the tail is heard and not how long it lasts. -->
       <section class="group group-duck">
-        <div class="group-label">Duck</div>
+        <div class="group-label" data-i18n="label.duck">Duck</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-duck" data-param="duck"><div class="knob-stem"></div></div>
-            <div class="knob-label">Duck</div>
+            <div class="knob-label" data-i18n="label.duck">Duck</div>
             <div class="knob-value" id="val-duck">&#8212;</div>
           </div>
         </div>
@@ -485,16 +485,16 @@
            carries .knob-cell-inert then, exactly as Taper's does when the window
            is not Tukey — dimmed and aria-disabled, but never unbound. -->
       <section class="group group-drift">
-        <div class="group-label">Drift</div>
+        <div class="group-label" data-i18n="label.drift">Drift</div>
         <div class="group-body">
           <div class="knob-cell" id="cell-driftRate">
             <div class="knob" id="knob-driftRate" data-param="driftRate"><div class="knob-stem"></div></div>
-            <div class="knob-label">Rate</div>
+            <div class="knob-label" data-i18n="label.rate">Rate</div>
             <div class="knob-value" id="val-driftRate">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-driftDepth" data-param="driftDepth"><div class="knob-stem"></div></div>
-            <div class="knob-label">Depth</div>
+            <div class="knob-label" data-i18n="label.depth">Depth</div>
             <div class="knob-value" id="val-driftDepth">&#8212;</div>
           </div>
         </div>
@@ -517,16 +517,16 @@
            and vice versa, so unlike Drift's Rate cell there is no .knob-cell-inert
            state here. -->
       <section class="group group-colour">
-        <div class="group-label">Colour</div>
+        <div class="group-label" data-i18n="label.colour">Colour</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-diffusion" data-param="diffusion"><div class="knob-stem"></div></div>
-            <div class="knob-label">Diffusion</div>
+            <div class="knob-label" data-i18n="knob-diffusion">Diffusion</div>
             <div class="knob-value" id="val-diffusion">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-drive" data-param="drive"><div class="knob-stem"></div></div>
-            <div class="knob-label">Drive</div>
+            <div class="knob-label" data-i18n="knob-drive">Drive</div>
             <div class="knob-value" id="val-drive">&#8212;</div>
           </div>
         </div>
@@ -538,7 +538,7 @@
 
     <footer class="footer">
       <span class="fleuron">&#10086;</span>
-      <span class="footer-text">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
+      <span class="footer-text" data-i18n="label.footer">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
       <span class="fleuron">&#10086;</span>
     </footer>
   </div>

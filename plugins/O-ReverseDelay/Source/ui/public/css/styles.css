@@ -465,6 +465,36 @@ body {
   font-size: 10px;
 }
 
+/* ══ v1.10.0 — French label geometry ══════════════════════════════════════
+   Each rule pins a container that was SHRINK-TO-FIT and therefore resized when
+   its caption changed language. `node scripts/check-ui-labels.js --plugin
+   O-ReverseDelay` reported 7 non-label elements moved at the shipping 940 x 768
+   before them and zero after. D-04 forbids an auto-shrink font and a
+   short-variant fallback, so a fixed box is the move available. Widths are
+   MEASURED against the French string. */
+
+/* SAVE 56.8 -> ENREG. 69.8, LOAD 59.8 -> OUVRIR 72.3, DELETE 71.8 -> SUPPR.
+   67.1. The band is centred, so the three growing together slid both fleurons
+   and all three nav controls 10.4 px. */
+#preset-save, #preset-load, #preset-delete {
+  width: 74px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* SYNCHRO is 54.8 px of type inside a 58 px segment's 54 px content box — a
+   clip, not a near miss. Widening to 66 leaves the pair 132 px inside the
+   group's pinned 190, so nothing else moves and the English pair simply sits a
+   little wider. */
+#syncSegments .segment { width: 66px; }
+
+/* The footer caption runs 403.5 -> 542.7, and the footer is
+   `justify-content: center`, so both fleurons moved 69.6 px apart. */
+.footer-text {
+  width: 560px;
+  text-align: center;
+}
+
 .preset-nav:hover,
 .preset-btn:hover {
   background: rgba(139, 168, 112, 0.45);

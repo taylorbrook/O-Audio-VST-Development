@@ -631,14 +631,33 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'all 6 preset-bar element IDs are present in index.html'
         + (missingIds.length ? ' — MISSING: ' + missingIds.join(', ') : ''));
 
-    // Button copy is content and lives in HTML. A shared JS updater writing
-    // textContent is what left O-MultiBandCompressor's band buttons reading
-    // "Off Off Off" in every DAW since launch.
-    check(/id="preset-delete"[\s\S]{0,200}?data-label="Delete"/.test(html)
-       && /id="preset-delete"[\s\S]{0,200}?data-confirm="/.test(html),
-        '#preset-delete carries data-label and data-confirm (copy authored in HTML)');
-    check(/btn\.dataset\.(confirm|label)/.test(appJs),
-        'the delete button restores its label from data-attrs, never a JS literal');
+    // Button copy is content and must never be a literal in app.js. A shared JS
+    // updater writing textContent is what left O-MultiBandCompressor's band
+    // buttons reading "Off Off Off" in every DAW since launch.
+    //
+    // v1.10.0: this assertion was REWRITTEN, and it still guards that same rule.
+    // Through v1.9.0 the two faces were data-label / data-confirm attributes
+    // authored on the button, and this checked for them. Those attributes are
+    // gone by design: an attribute holds ONE string, so on a two-language page a
+    // switch while the button was armed would have restored the ENGLISH armed
+    // face. The faces are KEYS now, resolved through setLabel(), which makes the
+    // button a [data-i18n] element the language sweep owns.
+    //
+    // The evidence moved with them. A key is checkable in three ways the
+    // attribute never was: it must be a plain string LITERAL (a computed key
+    // could hide a raw caption), it must RESOLVE in LABELS or I18N, and the
+    // element must declare a starting key in the markup so the pre-applyI18n
+    // fallback is the right word. All three are asserted below.
+    check(/id="preset-delete"[\s\S]{0,200}?data-i18n="label\.delete"/.test(html),
+        '#preset-delete declares its unarmed key in the markup (data-i18n="label.delete")');
+
+    const deleteSetLabels = [...appJs.matchAll(/setLabel\(\s*btn\s*,\s*(['"])([\w.]+)\1\s*\)/g)]
+        .map((m) => m[2]);
+    check(deleteSetLabels.includes('label.delete') && deleteSetLabels.includes('ui.confirm'),
+        'the delete button swaps its face through setLabel() with PLAIN STRING keys, never a JS '
+        + `literal caption — found [${deleteSetLabels.join(', ')}], expected label.delete and ui.confirm`);
+    check(!/btn\.textContent\s*=/.test(appJs),
+        'nothing writes the delete button\'s textContent directly — applyLabel() owns it');
 
     // window.confirm is a silent no-op or a throw in some JUCE WebView backends;
     // the module falls back to it unless onConfirmDelete is supplied.
@@ -727,16 +746,16 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     const i18nPath = path.join(publicDir, 'js', 'i18n.js');
     check(fs.existsSync(i18nPath), 'js/i18n.js exists (the hover-help copy table)');
 
-    let I18N = null, TIP_BINDINGS = null;
+    let I18N = null, TIP_BINDINGS = null, LABELS = null;
     if (fs.existsSync(i18nPath)) {
         try {
             const src = fs.readFileSync(i18nPath, 'utf8')
                 .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
             const sandbox = { console: { warn() {}, error() {}, log() {} } };
             vm.createContext(sandbox);
-            vm.runInContext(`${src}\n;globalThis.__x = { I18N, TIP_BINDINGS };`,
+            vm.runInContext(`${src}\n;globalThis.__x = { I18N, TIP_BINDINGS, LABELS };`,
                             sandbox, { timeout: 5000 });
-            ({ I18N, TIP_BINDINGS } = sandbox.__x);
+            ({ I18N, TIP_BINDINGS, LABELS } = sandbox.__x);
         } catch (e) {
             check(false, `js/i18n.js evaluates — ${e.message}`);
         }
@@ -781,6 +800,44 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         check(dangling.length === 0,
             `every TIP_BINDINGS selector resolves to an id in index.html`
             + (dangling.length ? ' — DANGLING: ' + dangling.join(', ') : ''));
+    }
+
+    // ── v1.10.0: the SAME shape, extended to LABELS ────────────────────────
+    // The anchor-coverage assertion above earns its extension: in v1.9.0 it
+    // immediately found that the COLOUR panel had shipped without adding
+    // knob-diffusion and knob-drive to the inventory. Labels can drift the same
+    // way and more easily, because there are more of them and because a key can
+    // be reused from I18N rather than declared in LABELS.
+    //
+    // Every data-i18n / data-i18n-aria value in the markup must RESOLVE — in
+    // LABELS first, falling back to I18N exactly as trLabel() does — and must
+    // carry a title in BOTH languages. A key that resolves in English only
+    // ships an English caption on a French page and nothing else would say so.
+    if (I18N) {
+        const markupKeys = [...html.matchAll(/data-i18n(?:-aria|-placeholder|-alt)?="([^"]+)"/g)]
+            .map((m) => m[1]);
+        check(markupKeys.length > 0, 'index.html carries data-i18n keys at all');
+
+        const resolve = (k) => (LABELS && LABELS[k]) || I18N[k];
+        const badLabel = [];
+        for (const key of new Set(markupKeys)) {
+            const e = resolve(key);
+            if (!e)                              badLabel.push(`${key} (no such key)`);
+            else if (!e.en || !e.en.t)           badLabel.push(`${key} (en incomplete)`);
+            else if (!e.fr || !e.fr.t)           badLabel.push(`${key} (fr MISSING)`);
+        }
+        check(badLabel.length === 0,
+            `every data-i18n key in index.html resolves in LABELS or I18N and carries en AND fr`
+            + (badLabel.length ? ' — BAD: ' + badLabel.join('; ') : ''));
+
+        // D13 in its label form. This plugin has NO hover-help toggle and never
+        // will, so it has no ui.on / ui.off pair — the popover carries the
+        // language selector alone. A key named for one appearing here would mean
+        // the toggle had been reintroduced through the label table.
+        const toggleKeys = [...new Set(markupKeys)].filter((k) => /^ui\.(on|off)$/.test(k));
+        check(toggleKeys.length === 0,
+            'no ui.on / ui.off label key exists — D13: this plugin has no hover-help toggle'
+            + (toggleKeys.length ? ' — FOUND: ' + toggleKeys.join(', ') : ''));
     }
 
     check(/id="tooltip"/.test(html), 'the #tooltip host element exists');
