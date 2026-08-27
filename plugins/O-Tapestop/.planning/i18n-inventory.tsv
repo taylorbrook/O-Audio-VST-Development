@@ -1,0 +1,75 @@
+# plugin	O-Tapestop
+# uiRoot	Source/ui/public
+# generated	2026-08-27T18:34:08.025Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	73	span.settings-label		LABEL	no	lang-select (reuses an existing entry)	Language	prose survives the readout filter
+html-text	index.html	79	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	80	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	96	span.settings-label		LABEL	no	settings-popover.hover-help	Hover help	prose survives the readout filter
+html-text	index.html	100	#help-toggle		LABEL	no	help-toggle	Off	prose survives the readout filter
+html-text	index.html	107	h1.title		UNSURE	no	title.o-tape	O – Tape	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	107	span.title-accent		LABEL	no	title-accent.stop	stop	prose survives the readout filter
+html-text	index.html	108	p.subtitle		LABEL	no	subtitle.varispeed-transport-a-field	Varispeed Transport · A Field Guide	prose survives the readout filter
+html-text	index.html	128	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	131	#preset-save		LABEL	no	preset-save (reuses an existing entry)	Save	prose survives the readout filter
+html-text	index.html	132	#preset-load		LABEL	no	preset-load (reuses an existing entry)	Load	prose survives the readout filter
+html-text	index.html	134	#preset-delete		LABEL	no	preset-delete (reuses an existing entry)	Delete	prose survives the readout filter
+html-text	index.html	147	div.group-label		LABEL	no	group-label.trigger	Trigger	prose survives the readout filter
+html-text	index.html	151	#engage-btn		LABEL	no	engage-btn (reuses an existing entry)	Engage	prose survives the readout filter
+html-text	index.html	154	div.pair-caption		LABEL	no	pair-caption.mode	Mode	prose survives the readout filter
+html-text	index.html	159	#seg-mode-stop		LABEL	no	seg-mode-stop	Stop	prose survives the readout filter
+html-text	index.html	160	#seg-mode-scratch		LABEL	no	seg-mode-scratch	Scratch	prose survives the readout filter
+html-text	index.html	162	#seg-mode-cont		LABEL	no	seg-mode-cont	Motion	prose survives the readout filter
+html-text	index.html	167	div.pair-caption		LABEL	no	pair-caption.timing	Timing	prose survives the readout filter
+html-text	index.html	169	#seg-sync-sync		LABEL	no	seg-sync-sync (reuses an existing entry)	Sync	prose survives the readout filter
+html-text	index.html	170	#seg-sync-free		LABEL	no	seg-sync-free (reuses an existing entry)	Free	prose survives the readout filter
+html-text	index.html	181	div.pair-caption		LABEL	no	pair-caption.playback	Playback	prose survives the readout filter
+html-text	index.html	204	#center-label		LABEL	no	center-label	Transport	prose survives the readout filter
+html-text	index.html	212	div.col-caption		LABEL	no	pane-stop.spin-down	Spin Down	prose survives the readout filter
+html-text	index.html	219	div.knob-label		LABEL	no	wrap-stop-sync-div.division	Division	prose survives the readout filter
+html-text	index.html	225	div.knob-label		LABEL	no	wrap-stop-free-ms.time	Time	prose survives the readout filter
+html-text	index.html	232	div.knob-label		LABEL	no	pane-stop.curve	Curve	prose survives the readout filter
+html-text	index.html	238	div.col-caption		LABEL	no	pane-stop.spin-up	Spin Up	prose survives the readout filter
+html-text	index.html	243	div.knob-label		LABEL	no	wrap-start-sync-div.division	Division	prose survives the readout filter
+html-text	index.html	249	div.knob-label		LABEL	no	wrap-start-free-ms.time	Time	prose survives the readout filter
+html-text	index.html	256	div.knob-label		LABEL	no	pane-stop.curve-2	Curve	prose survives the readout filter
+html-text	index.html	277	div.col-caption.env-caption		LABEL	no	combo-ENV_SYNC_DIV (reuses an existing entry)	Pass Length	prose survives the readout filter
+html-text	index.html	282	div.knob-label		LABEL	no	wrap-env-sync-div.division	Division	prose survives the readout filter
+html-text	index.html	288	div.knob-label		LABEL	no	wrap-env-free-ms.time	Time	prose survives the readout filter
+html-text	index.html	293	div.env-hint		UNSURE	no	pane-scratch.drag-points-double-click	Drag points · double-click to add	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	294	div.env-hint		UNSURE	no	pane-scratch.alt-click-removes-drag	alt-click removes · drag a diamond to bend	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	306	div.col-caption		LABEL	no	pane-continuous.character	Character	prose survives the readout filter
+html-text	index.html	308	#seg-char-wobble		LABEL	no	seg-char-wobble (reuses an existing entry)	Wobble	prose survives the readout filter
+html-text	index.html	309	#seg-char-random		LABEL	no	seg-char-random (reuses an existing entry)	Random	prose survives the readout filter
+html-text	index.html	310	#seg-char-glitch		LABEL	no	seg-char-glitch (reuses an existing entry)	Glitch	prose survives the readout filter
+html-text	index.html	315	div.col-caption		LABEL	no	pane-continuous.rate	Rate	prose survives the readout filter
+html-text	index.html	320	div.knob-label		LABEL	no	wrap-cont-rate-sync.division	Division	prose survives the readout filter
+html-text	index.html	326	div.knob-label		LABEL	no	wrap-cont-rate-hz.rate	Rate	prose survives the readout filter
+html-text	index.html	334	div.col-caption		LABEL	no	pane-continuous.motion	Motion	prose survives the readout filter
+html-text	index.html	337	div.knob-label		LABEL	no	pane-continuous.depth	Depth	prose survives the readout filter
+html-text	index.html	346	div.knob-label		LABEL	no	knob-CONT_CHAOS (reuses an existing entry)	Chaos	prose survives the readout filter
+html-text	index.html	357	div.group-label		LABEL	no	group-label.output	Output	prose survives the readout filter
+html-text	index.html	361	div.knob-label		LABEL	no	knob-TONE_TRACK (reuses an existing entry)	Tone Track	prose survives the readout filter
+html-text	index.html	366	div.knob-label		LABEL	no	knob-MIX (reuses an existing entry)	Mix	prose survives the readout filter
+html-text	index.html	371	div.knob-label		LABEL	no	knob-label.gain	Gain	prose survives the readout filter
+html-text	index.html	382	span.footer-text		LABEL	no	footer-text.drag-vertically-wheel-or	Drag vertically · wheel or arrows to trim · double-click to reset	prose survives the readout filter
+html-attr	index.html	63	#gear-btn	aria-label	LABEL	no	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	67	#settings-popover	aria-label	LABEL	no	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	78	#lang-select	aria-label	LABEL	no	lang-select	Hover help language	prose survives the readout filter
+html-attr	index.html	98	#help-toggle	aria-label	LABEL	no	help-toggle-2	Toggle hover help	prose survives the readout filter
+html-attr	index.html	119	#preset-prev	aria-label	LABEL	no	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	120	#preset-next	aria-label	LABEL	no	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	158	#modeSegments	aria-label	LABEL	no	modeSegments	Mode	prose survives the readout filter
+html-attr	index.html	162	#seg-mode-cont	aria-label	LABEL	no	seg-mode-cont-2	Continuous motion	prose survives the readout filter
+html-attr	index.html	168	#syncSegments	aria-label	LABEL	no	syncSegments	Sync Mode	prose survives the readout filter
+html-attr	index.html	218	#combo-STOP_SYNC_DIV	aria-label	LABEL	no	combo-STOP_SYNC_DIV	Stop Time	prose survives the readout filter
+html-attr	index.html	242	#combo-START_SYNC_DIV	aria-label	LABEL	no	combo-START_SYNC_DIV	Start Time	prose survives the readout filter
+html-attr	index.html	274	#envCanvas	aria-label	LABEL	no	envCanvas	Scratch speed envelope	prose survives the readout filter
+html-attr	index.html	281	#combo-ENV_SYNC_DIV	aria-label	LABEL	no	combo-ENV_SYNC_DIV	Env Length	prose survives the readout filter
+html-attr	index.html	307	#characterSegments	aria-label	LABEL	no	characterSegments	Character	prose survives the readout filter
+html-attr	index.html	319	#combo-CONT_RATE_SYNC_DIV	aria-label	LABEL	no	combo-CONT_RATE_SYNC_DIV	Motion Rate	prose survives the readout filter
+js-prose	js/app.js	569	btn.textContent		LABEL	no	ui.delete	Delete	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	578	btn.textContent		LABEL	no	ui.confirm	Confirm?	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	1061	tooltipToggleEl.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	1062	tooltipToggleEl.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument

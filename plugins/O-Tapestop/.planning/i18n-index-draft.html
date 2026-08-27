@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Tapestop, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<!--
+  Stage 3 layout (PLAN Locked Decisions — never resize after Phase 3.1):
+    frame 860 x 580 == PluginEditor.cpp setSize(860, 580)
+    header ~73 | preset band 44 (markup shipped DISABLED, wired Stage 4) |
+    one panel row: TRIGGER 180 | mode-switched CENTER 430 | OUTPUT 180,
+    10 px gaps | footer.
+
+  All segment/button copy is HTML-authored (data-label); JS toggles classes and
+  aria only (pattern_js_state_updater_overwrites_html_labels). Readout elements
+  are born with an em-dash placeholder and are JS-owned from birth.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-Tapestop</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay — one specimen per plugin (spiral shell: the reel). -->
+  <img src="img/shell.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Settings (v1.5.0) ───────────────────────────────────────────────
+         NO COPY IS AUTHORED IN THIS MARKUP. Every data-tip / data-tip-title on
+         this page is written at runtime by applyI18n() out of js/i18n.js, and
+         scripts/check-i18n.js assertion 3 fails if a literal reappears here.
+
+         ABSOLUTE against .frame, in the v1.4.0 "?" button's EXACT slot and at
+         its exact 22 px circle geometry — deliberately outside the header's
+         centred flow, because the 860 x 580 layout is a PLAN Locked Decision
+         and a control in the header's flow would shift the title. The cluster
+         wraps the button rather than replacing it, so the absolute box is
+         unchanged and the panel has something to anchor to.
+
+         The v1.4.0 toggle MOVED inside the panel; it is not duplicated.
+
+         data-tip-always on the gear and on both controls inside: this plugin's
+         help layer ships OFF, so without it the three controls that reach and
+         restore the layer would be the three unable to explain themselves. -->
+    <div class="settings-cluster">
+      <button type="button" class="help-toggle gear-btn" id="gear-btn"
+              aria-haspopup="dialog" aria-expanded="false" aria-label="Settings"
+              data-tip-always>&#9881;</button>
+
+      <div class="settings-popover" id="settings-popover"
+           role="dialog" aria-label="Settings" hidden>
+
+        <label class="settings-row" for="lang-select">
+          <!-- data-label so a shared state updater that writes textContent
+               reads the authored caption back instead of erasing it
+               (pattern_js_state_updater_overwrites_html_labels). -->
+          <span data-i18n="lang-select" class="settings-label" data-label="Language">Language</span>
+          <!-- ENDONYMS. Never localized and never written by a state updater:
+               a French speaker looking for their language looks for
+               "Fran&ccedil;ais". -->
+          <select class="settings-select" id="lang-select"
+                  aria-label="Hover help language" data-tip-always>
+            <option value="en">English</option>
+            <option value="fr">Fran&ccedil;ais</option>
+          </select>
+        </label>
+
+        <!-- The v1.4.0 toggle, moved. Its caption is written from script now,
+             but the copy comes from data-on / data-off AUTHORED HERE, never
+             from a literal in app.js
+             (pattern_js_state_updater_overwrites_html_labels). Its own tip is
+             ONE key covering both states, per the settled contract: a
+             state-swapped pair would be stranded in the previous language the
+             moment the selector fires, and window.__setLanguage() — which the
+             clamp gate drives — fires no change event at all.
+
+             A <div>, not a <label for="help-toggle">: a button is a labelable
+             element, so a label wrapping one re-dispatches the click. -->
+        <div class="settings-row">
+          <span data-i18n="settings-popover.hover-help" class="settings-label" data-label="Hover help">Hover help</span>
+          <button data-i18n="help-toggle" type="button" class="settings-toggle" id="help-toggle"
+                  aria-pressed="false" aria-label="Toggle hover help"
+                  data-on="On" data-off="Off"
+                  data-tip-always>Off</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <header class="header">
+      <h1 class="title">O&#8202;&#8211;&#8202;Tape<span data-i18n="title-accent.stop" class="title-accent">stop</span></h1>
+      <p data-i18n="subtitle.varispeed-transport-a-field" class="subtitle">Varispeed Transport &#183; A Field Guide</p>
+    </header>
+
+    <!-- ─── Preset bar (wired to modules/preset-manager.js in Stage 4) ────
+         Element IDs are exactly the ones preset-manager.js binds
+         (preset-prev/next/name/save/load/delete). Controls ship `disabled`;
+         app.js un-disables them once the manager's initialize() resolves, so
+         a dead bridge leaves them honestly disabled. Button copy lives in
+         data-label / data-confirm, never in JS. -->
+    <div class="preset-bar">
+      <span class="fleuron">&#10086;</span>
+      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
+      <!-- v1.3: the name readout doubles as the themed-dropdown trigger.
+           #preset-name stays a childless div (PresetManager._updateDisplay
+           writes its textContent); the caret is the wrapper's ::after and the
+           panel is a sibling, so neither is ever wiped. app.js builds the
+           panel's groups from PRESET_THEMES + getPresetList() on each open. -->
+      <div class="preset-select" id="preset-select">
+        <div class="preset-name" id="preset-name" role="button" tabindex="-1"
+             aria-haspopup="listbox" aria-expanded="false" aria-live="polite">Default</div>
+        <div class="preset-dropdown" id="preset-dropdown" role="listbox" hidden></div>
+      </div>
+      <button data-i18n="preset-save" type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
+      <button data-i18n="preset-load" type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+      <button data-i18n="preset-delete" type="button" class="preset-btn" id="preset-delete"
+              data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+      <span class="fleuron">&#10086;</span>
+    </div>
+
+    <main class="groups">
+      <div class="group-row">
+
+      <!-- TRIGGER ──────────────────────────────────────────────────────────
+           ENGAGE (large latching toggle, UI-02) over the MODE and SYNC
+           segment pairs, with the live playback-ratio indicator at the
+           bottom — "what the transport is doing" next to the control that
+           causes it. -->
+      <section class="group group-trigger">
+        <div data-i18n="group-label.trigger" class="group-label">Trigger</div>
+        <div class="group-body">
+
+          <button data-i18n="engage-btn" type="button" class="engage-btn" id="engage-btn"
+                  aria-pressed="false" data-label="Engage">Engage</button>
+
+          <div class="pair-cell">
+            <div data-i18n="pair-caption.mode" class="pair-caption">Mode</div>
+            <!-- Three-way since v1.1. "Motion" is the UI face of the MODE
+                 choice "Continuous" — it matches the Motion Rate/Depth/Chaos
+                 knob family it reveals. -->
+            <div class="segments" id="modeSegments" role="group" aria-label="Mode">
+              <button data-i18n="seg-mode-stop" type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true">Stop</button>
+              <button data-i18n="seg-mode-scratch" type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false">Scratch</button>
+              <button data-i18n="seg-mode-cont" type="button" class="segment" id="seg-mode-cont"    data-choice="2" aria-pressed="false"
+                      aria-label="Continuous motion">Motion</button>
+            </div>
+          </div>
+
+          <div class="pair-cell">
+            <div data-i18n="pair-caption.timing" class="pair-caption">Timing</div>
+            <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
+              <button data-i18n="seg-sync-sync" type="button" class="segment" id="seg-sync-sync" data-choice="0" aria-pressed="true">Sync</button>
+              <button data-i18n="seg-sync-free" type="button" class="segment" id="seg-sync-free" data-choice="1" aria-pressed="false">Free</button>
+            </div>
+          </div>
+
+          <!-- Playback ratio: bipolar bar, zero mark at 40 % (negative half
+               compresses −2..0 into 40 %, positive spreads 0..+2 over 60 % —
+               Stop mode lives in [0, 1.25]). Reverse fill styled distinctly.
+               The readout span is JS-owned from birth (placeholder em-dash);
+               the caption and tick labels are HTML-authored and never
+               rewritten. -->
+          <div class="ratio-cell">
+            <div data-i18n="pair-caption.playback" class="pair-caption">Playback</div>
+            <div class="ratio-bar" aria-hidden="true">
+              <div class="ratio-fill" id="ratio-fill"></div>
+              <div class="ratio-zero"></div>
+              <div class="ratio-one"></div>
+            </div>
+            <div class="ratio-ticks" aria-hidden="true">
+              <span class="tick-n1">&#8722;1&#215;</span>
+              <span class="tick-0">0</span>
+              <span class="tick-1">1&#215;</span>
+              <span class="tick-2">2&#215;</span>
+            </div>
+            <div class="ratio-readout" id="ratio-readout">&#8212;</div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- CENTER — mode-switched ───────────────────────────────────────────
+           Two absolutely-positioned panes in one fixed box; MODE toggles
+           .hidden (instant, zero layout shift — the ORD time-slot pattern at
+           panel scale). -->
+      <section class="group group-center">
+        <div data-i18n="center-label" class="group-label" id="center-label">Transport</div>
+        <div class="group-body center-body">
+
+          <!-- Stop pane: spin-down / spin-up columns, each a SYNC/FREE
+               time-slot over its curve knob. Both slot wraps stay relay-bound
+               at all times; only visibility moves. -->
+          <div class="mode-pane" id="pane-stop">
+            <div class="stop-col">
+              <div data-i18n="pane-stop.spin-down" class="col-caption">Spin Down</div>
+              <div class="time-slot">
+                <div class="slot-wrap" id="wrap-STOP_SYNC_DIV">
+                  <div class="select-cell">
+                    <!-- Options built at runtime from properties.choices — the
+                         C++ StringArray is the single source (never hardcode). -->
+                    <select class="division-select" id="combo-STOP_SYNC_DIV" aria-label="Stop Time"></select>
+                    <div data-i18n="wrap-stop-sync-div.division" class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-STOP_FREE_MS">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-STOP_FREE_MS" data-param="STOP_FREE_MS"><div class="knob-stem"></div></div>
+                    <div data-i18n="wrap-stop-free-ms.time" class="knob-label">Time</div>
+                    <div class="knob-value" id="val-STOP_FREE_MS">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-STOP_CURVE" data-param="STOP_CURVE"><div class="knob-stem"></div></div>
+                <div data-i18n="pane-stop.curve" class="knob-label">Curve</div>
+                <div class="knob-value" id="val-STOP_CURVE">&#8212;</div>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div data-i18n="pane-stop.spin-up" class="col-caption">Spin Up</div>
+              <div class="time-slot">
+                <div class="slot-wrap" id="wrap-START_SYNC_DIV">
+                  <div class="select-cell">
+                    <select class="division-select" id="combo-START_SYNC_DIV" aria-label="Start Time"></select>
+                    <div data-i18n="wrap-start-sync-div.division" class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-START_FREE_MS">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-START_FREE_MS" data-param="START_FREE_MS"><div class="knob-stem"></div></div>
+                    <div data-i18n="wrap-start-free-ms.time" class="knob-label">Time</div>
+                    <div class="knob-value" id="val-START_FREE_MS">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-START_CURVE" data-param="START_CURVE"><div class="knob-stem"></div></div>
+                <div data-i18n="pane-stop.curve-2" class="knob-label">Curve</div>
+                <div class="knob-value" id="val-START_CURVE">&#8212;</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scratch pane: the drawable speed-vs-time envelope (UI-01) over
+               the pass-length time-slot. The env slot's visibility is the AND
+               of MODE (this pane's .hidden) and SYNC_MODE (the slot wraps'
+               .hidden) — two independent nested class toggles, never one
+               computed flag. -->
+          <div class="mode-pane hidden" id="pane-scratch">
+            <div class="env-plate">
+              <!-- width/height attributes are the backing store; JS rewrites
+                   them for devicePixelRatio. CSS sizes the element — a canvas
+                   is a replaced element, so left+right would NOT stretch it
+                   (o-textureforge-cursor-bug). -->
+              <canvas id="envCanvas" width="380" height="224" role="img"
+                      aria-label="Scratch speed envelope"></canvas>
+            </div>
+            <div class="env-row">
+              <div data-i18n="combo-ENV_SYNC_DIV" class="col-caption env-caption">Pass Length</div>
+              <div class="time-slot env-slot">
+                <div class="slot-wrap" id="wrap-ENV_SYNC_DIV">
+                  <div class="select-cell">
+                    <select class="division-select" id="combo-ENV_SYNC_DIV" aria-label="Env Length"></select>
+                    <div data-i18n="wrap-env-sync-div.division" class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-ENV_FREE_MS">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-ENV_FREE_MS" data-param="ENV_FREE_MS"><div class="knob-stem"></div></div>
+                    <div data-i18n="wrap-env-free-ms.time" class="knob-label">Time</div>
+                    <div class="knob-value" id="val-ENV_FREE_MS">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+              <div class="env-hint">
+                Drag points &#183; double-click to add<br />
+                alt-click removes &#183; drag a diamond to bend
+              </div>
+            </div>
+          </div>
+
+          <!-- Continuous pane (v1.1): CHARACTER segment stack | RATE time-slot
+               (Sync division / free Hz, gated by the global SYNC_MODE like
+               every other slot) | DEPTH and CHAOS knobs. Same instant .hidden
+               pane swap; both rate controls stay relay-bound at all times. -->
+          <div class="mode-pane hidden" id="pane-continuous">
+            <div class="stop-col">
+              <div data-i18n="pane-continuous.character" class="col-caption">Character</div>
+              <div class="segments" id="characterSegments" role="group" aria-label="Character">
+                <button data-i18n="seg-char-wobble" type="button" class="segment" id="seg-char-wobble" data-choice="0" aria-pressed="true">Wobble</button>
+                <button data-i18n="seg-char-random" type="button" class="segment" id="seg-char-random" data-choice="1" aria-pressed="false">Random</button>
+                <button data-i18n="seg-char-glitch" type="button" class="segment" id="seg-char-glitch" data-choice="2" aria-pressed="false">Glitch</button>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div data-i18n="pane-continuous.rate" class="col-caption">Rate</div>
+              <div class="time-slot">
+                <div class="slot-wrap" id="wrap-CONT_RATE_SYNC_DIV">
+                  <div class="select-cell">
+                    <select class="division-select" id="combo-CONT_RATE_SYNC_DIV" aria-label="Motion Rate"></select>
+                    <div data-i18n="wrap-cont-rate-sync.division" class="knob-label">Division</div>
+                  </div>
+                </div>
+                <div class="slot-wrap hidden" id="wrap-CONT_RATE_HZ">
+                  <div class="knob-cell">
+                    <div class="knob" id="knob-CONT_RATE_HZ" data-param="CONT_RATE_HZ"><div class="knob-stem"></div></div>
+                    <div data-i18n="wrap-cont-rate-hz.rate" class="knob-label">Rate</div>
+                    <div class="knob-value" id="val-CONT_RATE_HZ">&#8212;</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div data-i18n="pane-continuous.motion" class="col-caption">Motion</div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-CONT_DEPTH" data-param="CONT_DEPTH"><div class="knob-stem"></div></div>
+                <div data-i18n="pane-continuous.depth" class="knob-label">Depth</div>
+                <div class="knob-value" id="val-CONT_DEPTH">&#8212;</div>
+              </div>
+            </div>
+
+            <div class="stop-col">
+              <div class="col-caption">&#8203;</div>
+              <div class="knob-cell">
+                <div class="knob" id="knob-CONT_CHAOS" data-param="CONT_CHAOS"><div class="knob-stem"></div></div>
+                <div data-i18n="knob-CONT_CHAOS" class="knob-label">Chaos</div>
+                <div class="knob-value" id="val-CONT_CHAOS">&#8212;</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- OUTPUT ──────────────────────────────────────────────────────────── -->
+      <section class="group group-output">
+        <div data-i18n="group-label.output" class="group-label">Output</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-TONE_TRACK" data-param="TONE_TRACK"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-TONE_TRACK" class="knob-label">Tone Track</div>
+            <div class="knob-value" id="val-TONE_TRACK">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-MIX" data-param="MIX"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-MIX" class="knob-label">Mix</div>
+            <div class="knob-value" id="val-MIX">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-OUTPUT_GAIN" data-param="OUTPUT_GAIN"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.gain" class="knob-label">Gain</div>
+            <div class="knob-value" id="val-OUTPUT_GAIN">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      </div><!-- /.group-row -->
+    </main>
+
+    <footer class="footer">
+      <span class="fleuron">&#10086;</span>
+      <span data-i18n="footer-text.drag-vertically-wheel-or" class="footer-text">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
+      <span class="fleuron">&#10086;</span>
+    </footer>
+  </div>
+
+  <!-- Hover-help surface (v1.4.0). One shared node, position:fixed, outside
+       .frame so it escapes the frame's inset shadow. JS-owned from birth:
+       app.js rebuilds its .tooltip-title / .tooltip-body children per show
+       via textContent, so the copy stays inert. -->
+  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
