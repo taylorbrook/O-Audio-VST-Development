@@ -1,5 +1,97 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.11.0 (2026-08-27)
+
+The PAGE speaks French now, not only the hover help. Every control caption,
+section heading, button face and accessible name is localized; value readouts
+and preset names stay English on purpose. Second plugin on canon v2, after
+O-Tapestop v1.6.0.
+
+### Added
+
+- **38 label keys** in a new `LABELS` table in `js/i18n.js`, plus a reasoned
+  `I18N_EXEMPT` list. One key per concept: the four bands share `label.thresh`,
+  `label.ratio` and the rest rather than carrying four copies that could drift.
+- **`data-i18n` on 77 elements and `data-i18n-aria` on 6.** The element owns its
+  caption; the authored English stays in the markup as the fallback that renders
+  if `applyI18n()` never runs.
+- **`tests/i18n-states.json`** so the label gate opens the settings popover and
+  measures the two captions and the toggle inside it.
+
+### Changed
+
+- **Canon v1 → canon v2** in `js/app.js`, verbatim from `scripts/i18n-canon.js`:
+  `trLabel`, `applyLabel`, `setLabel`, and the `[data-i18n]` / attribute sweeps
+  inside `applyI18n`. The call site did not move — it still runs from
+  `initializeDeferredUI()` inside its own try/catch.
+- **`updateToggleUI`'s discriminator moved to `data-state-caption="onoff"`.**
+  Through v1.10.0 it asked whether the element had a `data-label` attribute;
+  `applyLabel()` now WRITES `dataset.label` on every keyed element, so that
+  attribute no longer separates a self-naming toggle (SOLO, BYPASS, SC LISTEN)
+  from a state-showing one (Auto-MU, Hover help). Reading `dataset.label` back
+  is still the documented fix for
+  `pattern_js_state_updater_overwrites_html_labels` — and under canon v2 the
+  mirror is in the CURRENT language rather than whichever one was authored.
+- **The hover-help toggle's On/Off face and Auto-MU's are keys, not literals.**
+  A literal holds one string, so switching to French mid-session restored an
+  English "On". Two `setLabel()` calls behind an `if`/`else`, never a ternary in
+  the argument.
+- **`labelKnob` copies the caption's KEY, not its rendered text.** A borrowed
+  string is stranded in whichever language was active when bindings ran; the
+  knob now carries `data-i18n-aria` and re-renders inside the same sweep.
+- **The preset dropdown's script-built strings go through `setLabel`** — the
+  empty row, the delete confirmation and its two buttons. The confirmation
+  prompt became its own `<span>`: `applyLabel()` writes `textContent`, so a key
+  on the strip itself would have deleted the button row underneath it the first
+  time the language changed while the prompt was open.
+- **The per-item delete button carries a keyed static accessible name plus
+  `aria-describedby`** pointing at that row's preset name, replacing a composed
+  ``` `Delete preset ${name}` ``` literal. Canon v2's attribute sweep resolves a
+  key without vars by design, and a literal written here would have been
+  stranded in the previous language.
+- **The `lang-select` tooltip no longer says control labels stay in English.**
+  Rewritten in both languages; the half that stayed true — value readouts are
+  English either way (D-03) — is stated explicitly.
+
+### Fixed — layout, from the measured English↔French geometry diff
+
+`node scripts/check-ui-labels.js --plugin O-MultiBandCompressor` reported **222
+non-label elements moved** at the shipping 900 × 640 before any fix. D-04 forbids
+an auto-shrink font and a short-variant fallback, so every fix below pins a
+container or spends slack it already had.
+
+| Moved | By | Cause | Fix |
+|---|---|---|---|
+| the whole page below the header | dy +27.0 | ENREGISTRER 90.1 px vs SAVE 40.6 px grew the preset bar past the header's 30.2 px of air and wrapped the 367.8 px title to two lines | `#savePreset` / `#loadPreset` pinned to 56 px; French set to the compact `Enreg.` / `Ouvrir` |
+| the preset bar, brand name and gear | dx ±44.4 | same | same |
+| `.preset-name-display` | — | needed to free the 22 px the pinned buttons cost | `min-width` 150 → 128; `max-width` untouched, so a long name still grows to 190 and ellipsizes |
+| every band's knob grid and the knobs and readouts in it | dw +14.9, dx −7.4 | `.band-controls` is `align-items: center`, so `.knob-grid` was SHRINK-TO-FIT and its `1fr` tracks sized to the widest French caption | `.knob-grid { width: 100% }` |
+| every band's button row | dw +1.2 | same shrink-to-fit shape | `.button-row { width: 100% }` |
+| all five footer knobs, readouts, the select and the Auto-MU toggle | dx up to −11.8 | `justify-content: space-around` over five shrink-to-fit groups; ENTRÉE, AUTO-COMP and the widened select re-dealt the row | `.control-group { width: 100px }` |
+| the M/S select | dw +19 | a `<select>` sizes to its widest OPTION and "Both" became "Les deux" | `.mode-select` `min-width: 70px` → `width: 96px` |
+
+**One of these corrects an English bug nothing was measuring.** Each band's knob
+grid rendered 126.4 px inside a 188.5 px band, so the three knobs were never on
+the band's own thirds. French did not cause it; French exposed it.
+
+`.tooltip { max-width }` is untouched at 230 px.
+
+### Known, and left alone
+
+- The four `<option>` elements of the M/S select are keyed but can never be
+  measured by the label gate: a native `<select>` popup is UA-rendered and the
+  options have no box in the document. The select itself is pinned at 96 px,
+  which is the geometry that actually matters for them.
+- The two sidechain-filter readouts read `Off` at 0 Hz in both languages, and
+  they are the one string in `I18N_EXEMPT` worth arguing with. They are EDITABLE
+  — `attachValueEntry()` opens a field over them and `parseFreq()` maps a typed
+  "off" back to 0 — and D-03 forbids touching an editable readout's parser.
+- Preset category headings in the dropdown come from C++ and stay English, as
+  the preset names themselves do (D-02).
+- All 70 French entries (32 tooltip, 38 label) are machine drafts flagged
+  `reviewed: false`. `Enreg.` / `Ouvrir` were picked by MEASURED WIDTH rather
+  than by meaning and should be the first two a native speaker challenges.
+
 ## Version 1.10.0 (2026-08-26)
 
 Hover help now speaks French, and all of its copy moved out of the code into one

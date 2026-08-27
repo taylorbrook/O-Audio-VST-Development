@@ -132,6 +132,19 @@ body {
     transition: background 0.15s ease;
 }
 
+/* v1.11.0: pinned so the preset bar is the SAME WIDTH in both languages.
+   Without this, SAVE 40.6 -> ENREG. 53.9 and LOAD 44.1 -> OUVRIR 56.4 shift the
+   preset bar, the brand name and the gear by 44 px and wrap the title, which
+   check-ui-labels assertion 7 reports as 222 non-label elements moved. The
+   width is sized for the FRENCH string; English simply centres in it.
+   D-04 forbids an auto-shrink font and a short-variant fallback, so a fixed box
+   is the move. */
+#savePreset,
+#loadPreset {
+    width: 56px;
+    padding: 0;
+}
+
 .preset-btn:hover {
     background: rgba(255,255,255,0.7);
 }
@@ -141,7 +154,12 @@ body {
 }
 
 .preset-name-display {
-    min-width: 150px;
+    /* v1.11.0: 150 -> 128. The header carries only 30.2 px of distributed air
+       and French needs ~27 of it for the two pinned preset buttons below, so
+       this is where that space comes from. The MIN only sets how wide the box
+       is when the name is short; max-width still lets a long name grow to 190
+       and ellipsize exactly as before. */
+    min-width: 128px;
     max-width: 190px;
     height: 20px;
     padding: 0 8px;
@@ -292,6 +310,14 @@ body {
     color: #3C2F2F;
     background: rgb(249, 232, 179);
     border-bottom: 1px solid rgba(92, 64, 51, 0.4);
+}
+
+/* v1.11.0: the prompt is its own element rather than a text node on .preset-confirm.
+   applyLabel() writes textContent, so a data-i18n key on the strip itself would
+   delete the button row the first time the language changed while the prompt was
+   open. A block span occupies exactly the line the text node did. */
+.preset-confirm-text {
+    display: block;
 }
 
 .preset-confirm-buttons {
@@ -693,7 +719,16 @@ body {
 }
 
 /* Band Controls Grid */
+/* v1.11.0: width:100%. .band-controls is `align-items: center`, so this grid
+   was SHRINK-TO-FIT and its 1fr tracks sized to the widest knob caption. The
+   French captions are ~5 px wider each, which grew the grid 14.9 px and dragged
+   every knob and readout inside it sideways. Pinned to the band, the three
+   tracks are (188.5 - 8) / 3 = 60.2 px in both languages and nothing moves.
+   Also corrects an English oddity nothing was measuring: the grid rendered
+   126.4 px inside a 188.5 px band, so the knobs were never on the band's own
+   thirds. */
 .knob-grid {
+    width: 100%;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
@@ -880,7 +915,11 @@ body {
 }
 
 /* Button Row */
+/* v1.11.0: width:100% for the same reason as .knob-grid — a shrink-to-fit row
+   under `align-items: center` moves when its buttons change width. The buttons
+   themselves are [data-i18n] labels and may move inside it; the row may not. */
 .button-row {
+    width: 100%;
     display: flex;
     justify-content: center;
     gap: 5px;
@@ -934,7 +973,13 @@ body {
     z-index: 1;
 }
 
+/* v1.11.0: a fixed 100 px column. The footer is `justify-content: space-around`
+   over five shrink-to-fit groups, so ENTRÉE (48.3 vs 36.7), AUTO-COMP (73.4 vs
+   57.1) and the widened M/S select re-dealt the whole row and moved every knob
+   and readout in it. 100 px clears the widest French caption (AUTO-COMP, 73.4)
+   and the widest control (the M/S select, 96). */
 .control-group {
+    width: 100px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -995,8 +1040,11 @@ body {
 }
 
 /* Mode Select */
+/* v1.11.0: a fixed width, not a min-width. A <select> sizes to its widest
+   OPTION, so localizing the choices ("Both" -> "Les deux") grew it 71 -> 90 and
+   pushed its own control group. 96 holds the widest French choice. */
 .mode-select {
-    min-width: 70px;
+    width: 96px;
     padding: 6px 12px;
     background: rgba(255,255,255,0.4);
     border: 2px solid #8B7355;

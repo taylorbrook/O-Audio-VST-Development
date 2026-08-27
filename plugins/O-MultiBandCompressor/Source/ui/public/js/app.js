@@ -33,7 +33,7 @@ import * as Juce from './juce/index.js';
 // v1.10.0: hover-help copy and its English/French tables. An import is hoisted,
 // so this is safe above initializeUI() below — but nothing in this module may
 // READ the i18n bindings at eager top level; see the block near the tooltips.
-import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 console.log('O-MultiBandCompressor UI initializing...');
 
@@ -122,6 +122,127 @@ function scaledToNorm(scaled, props) {
     if (!(end > start)) return 0;
     const t = Math.min(1, Math.max(0, (scaled - start) / (end - start)));
     return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// ---------- v1.10.0: i18n ----------
+//
+// The copy itself lives in js/i18n.js; this block is the runtime that writes it
+// onto the DOM — the data-tip / data-tip-title attributes the tooltip renderer
+// reads, and under canon v2 the [data-i18n] captions and keyed attributes too.
+// It is byte-compared (comment-stripped, whitespace-normalised) against
+// scripts/i18n-canon.js by scripts/check-i18n.js: this repo has no shared UI
+// module and deliberately does not gain one, so 43 hand-copies of this block
+// are only safe because a drifted copy fails a gate.
+//
+// ── v1.11.0: this block MOVED, from below the initializeUI() call to above it.
+//
+// Canon v1 was only ever REACHED from initializeDeferredUI(), so its `let`
+// bindings could sit anywhere below. Canon v2 is reached from binding time as
+// well: updateToggleUI() calls setLabel() and labelKnob() records a key, and
+// initializeUI() runs at module top level. With the block still below that
+// call, `uiLanguage` was in its temporal dead zone and every one of those
+// reads threw a ReferenceError that bindToggle()/bindKnob()'s own try/catch
+// swallowed — three global knobs and the Auto-MU toggle silently unbound, with
+// the page otherwise looking correct. That is v1.4.0's failure in miniature
+// (pattern_module_toplevel_init_tdz), and boot-all-uis.js is what caught it.
+//
+// Nothing here can throw at module evaluation: three `let` initialisers with
+// literal values, function declarations, and one assignment to window. The
+// TABLES it reads are hoisted imports. applyI18n() is still called only from
+// initI18n(), and initI18n() still only from initializeDeferredUI().
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
 }
 
 // Initialize immediately (JUCE module handles backend connection internally)
@@ -290,6 +411,20 @@ function labelKnob(element) {
     if (element.hasAttribute('aria-label')) return;
     const cell = element.closest('.knob-control') || element.closest('.control-group');
     const label = cell ? cell.querySelector('.knob-label, .control-label') : null;
+    // v1.11.0: take the caption's KEY as well as a snapshot of its text.
+    // The snapshot is the fallback that stands if applyI18n() never runs; the
+    // key is what makes the accessible name re-render with every other
+    // attribute on a language change, instead of being stranded in whichever
+    // language was active when bindings ran.
+    //
+    // The key is only RECORDED here, never resolved here. labelKnob() is
+    // reached from initializeUI() at module top level, where `uiLanguage` and
+    // the rest of the i18n block are still in the temporal dead zone —
+    // resolving it from this call site threw a ReferenceError that the binder's
+    // own try/catch swallowed, silently killing all three global knob bindings
+    // (pattern_module_toplevel_init_tdz; the v1.4.0 failure, in miniature).
+    // initI18n()'s applyI18n('en') sweeps [data-i18n-aria] moments later.
+    if (label && label.dataset.i18n) element.dataset.i18nAria = label.dataset.i18n;
     const text = label && label.textContent ? label.textContent.trim() : '';
     if (text) element.setAttribute('aria-label', text);
     element.setAttribute('aria-valuemin', '0');
@@ -631,15 +766,34 @@ function bindToggle(elementId, parameterId) {
 // shows its state through the .active fill alone. Before this, every band button
 // was relabelled "On"/"Off" on bind, so a band's three buttons all read the same
 // word and nothing on screen said which was solo, bypass or sidechain listen.
-// The global Auto-MU toggle has no data-label — it sits beside its own caption,
-// so On/Off is the informative thing to show there and it is left as it was.
-// aria-pressed carries the state for screen readers now that colour alone does.
+// The global Auto-MU toggle sits beside its own caption, so On/Off is the
+// informative thing to show there. aria-pressed carries the state for screen
+// readers now that colour alone does.
+//
+// v1.11.0, canon v2. The discriminator MOVED. Through v1.10.0 it was "does this
+// element have a data-label attribute" — but applyLabel() now WRITES
+// dataset.label on every [data-i18n] element, so that attribute no longer
+// distinguishes a self-naming toggle from a state-showing one. The state-showing
+// toggle names itself in the markup instead, with data-state-caption="onoff".
+//
+// Reading dataset.label back is the documented fix for
+// pattern_js_state_updater_overwrites_html_labels, and under canon v2 the mirror
+// is always in the CURRENT language rather than whichever one was authored.
+//
+// Two separate setLabel() calls behind an if/else, never one call with a ternary
+// in its argument: check-i18n assertion 13 rejects that shape outright.
 function updateToggleUI(element, value) {
     element.classList.toggle('active', Boolean(value));
     element.setAttribute('aria-pressed', value ? 'true' : 'false');
 
+    if (element.dataset.stateCaption === 'onoff') {
+        if (value) setLabel(element, 'ui.on');
+        else       setLabel(element, 'ui.off');
+        return;
+    }
+
     const label = element.dataset.label;
-    element.textContent = label ? label : (value ? 'On' : 'Off');
+    if (label) element.textContent = label;
 }
 
 function bindComboBox(elementId, parameterId) {
@@ -1172,66 +1326,6 @@ if (document.readyState === 'loading') {
 const TOOLTIP_DELAY_MS = 120;
 const TOOLTIP_MARGIN = 8;   // gap between a tip and its control / the viewport edge
 
-// ---------- v1.10.0: i18n ----------
-//
-// The copy itself lives in js/i18n.js; this block is the runtime that writes it
-// onto the DOM as the data-tip / data-tip-title attributes the renderer below
-// already reads. It is byte-compared (comment-stripped, whitespace-normalised)
-// against scripts/i18n-canon.js by scripts/check-i18n.js: this repo has no
-// shared UI module and deliberately does not gain one, so 43 hand-copies of
-// this block are only safe because a drifted copy fails a gate.
-//
-// Declared here, BELOW the initializeUI() call at module top level and ABOVE
-// every reader, and called only from initializeDeferredUI(). v1.4.0 put the
-// tooltip init in the eager top-level path and the resulting TDZ ReferenceError
-// silently killed initializeCrossoverDrag().
-
-let uiLanguage = 'en';
-let getUiLanguageNative = null;
-let setUiLanguageNative = null;
-
-function applyI18n(lang) {
-    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
-    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
-        const el = document.querySelector(selector);
-        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
-        const target = wrapper ? (el.closest(wrapper) || el) : el;
-        const s = tr(key, uiLanguage, vars);
-        target.setAttribute('data-tip-title', s.t);
-        target.setAttribute('data-tip', s.b);
-    }
-    const sel = document.getElementById('lang-select');
-    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
-}
-
-// Exposed so a clamp gate can drive the language without teaching the ui-stub a
-// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
-window.__setLanguage = applyI18n;
-
-function initI18n() {
-    try {
-        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
-        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
-    } catch (e) {
-        console.warn('Language preference not available, session-only:', e);
-    }
-
-    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
-    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
-
-    if (getUiLanguageNative) {
-        getUiLanguageNative()
-            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
-            .catch((e) => console.warn('Could not read language preference:', e));
-    }
-
-    const sel = document.getElementById('lang-select');
-    if (sel) sel.addEventListener('change', (e) => {
-        applyI18n(e.target.value);
-        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
-    });
-}
-
 let tooltipEl = null;
 let tooltipTimer = null;
 let tooltipTarget = null;
@@ -1371,8 +1465,13 @@ function setTooltipsEnabled(enabled, persist) {
         // change and would have overwritten a state-dependent string written
         // here — leaving whichever sentence was last set stranded in the old
         // language. The caption and aria-pressed carry the state instead.
+        // v1.11.0: the two faces are KEYS through setLabel(), not literals.
+        // A literal holds one string, so switching to French mid-session would
+        // have restored an English "On"; a key re-renders with the sweep.
+        // if/else, not a ternary inside the call — check-i18n assertion 13.
         helpToggleEl.setAttribute('aria-pressed', tooltipsEnabled ? 'true' : 'false');
-        helpToggleEl.textContent = tooltipsEnabled ? 'On' : 'Off';
+        if (tooltipsEnabled) setLabel(helpToggleEl, 'ui.on');
+        else                 setLabel(helpToggleEl, 'ui.off');
     }
 
     if (persist && setTooltipsEnabledNative) {
@@ -1669,12 +1768,15 @@ function hidePresetDropdown() {
 function renderPresetDropdown() {
     presetDropdownEl.innerHTML = '';
 
+    // Per-render, per-item ids for the name spans the delete buttons describe.
+    let itemIndex = 0;
+
     const current = presetMgr ? presetMgr.getCurrentPreset() : '';
 
     if (presetGroups.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'preset-dropdown-item empty';
-        empty.textContent = 'No presets';
+        setLabel(empty, 'ui.noPresets');
         presetDropdownEl.appendChild(empty);
         return;
     }
@@ -1706,6 +1808,11 @@ function renderPresetDropdown() {
 
             const label = document.createElement('span');
             label.textContent = name;
+            // The name is what aria-describedby on the delete button points at,
+            // so the button's static accessible name is still announced with
+            // the preset it acts on. Ids are per-render and per-index, which is
+            // enough: the dropdown is rebuilt whole on every open.
+            label.id = `preset-item-name-${itemIndex++}`;
             item.appendChild(label);
 
             // Factory presets are read-only, so they get no delete affordance. The
@@ -1716,7 +1823,15 @@ function renderPresetDropdown() {
                 del.type = 'button';
                 del.className = 'preset-delete';
                 del.textContent = '×';
-                del.setAttribute('aria-label', `Delete preset ${name}`);
+                // v1.11.0: a KEYED static name plus aria-describedby, not a
+                // composed literal. Canon v2's attribute sweep resolves a key
+                // without vars by design, and a composed literal written here
+                // would be stranded in the previous language on a switch.
+                // applyI18nAttributes() is called directly because this element
+                // is created AFTER applyI18n() has already swept the page.
+                del.dataset.i18nAria = 'aria.presetDelete';
+                del.setAttribute('aria-describedby', label.id);
+                applyI18nAttributes(del);
                 // deletePreset() removes the file immediately — only promptDelete() runs
                 // the confirmation, and that one is hard-wired to the *current* preset.
                 // Confirm here so deleting any listed preset asks first.
@@ -1754,7 +1869,19 @@ function confirmDeletePreset(presetName) {
 
         const strip = document.createElement('div');
         strip.className = 'preset-confirm';
-        strip.textContent = `Delete "${presetName}"?`;
+
+        // The prompt is its OWN element. applyLabel() writes textContent, so a
+        // key on the strip itself would delete the button row appended below it
+        // the first time the language changed while the prompt was open —
+        // contract §1: an element with element children is never keyed.
+        //
+        // The preset name is substituted as a var, never translated: the name
+        // IS the JSON filename (D-02), and trLabel() uses a var value that is
+        // not itself a key literally.
+        const prompt = document.createElement('span');
+        prompt.className = 'preset-confirm-text';
+        setLabel(prompt, 'ui.deleteConfirm', { name: presetName });
+        strip.appendChild(prompt);
 
         const buttons = document.createElement('div');
         buttons.className = 'preset-confirm-buttons';
@@ -1767,13 +1894,13 @@ function confirmDeletePreset(presetName) {
         const yes = document.createElement('button');
         yes.type = 'button';
         yes.className = 'preset-btn preset-btn-text';
-        yes.textContent = 'Delete';
+        setLabel(yes, 'ui.delete');
         yes.addEventListener('click', (e) => { e.stopPropagation(); finish(true); });
 
         const no = document.createElement('button');
         no.type = 'button';
         no.className = 'preset-btn preset-btn-text';
-        no.textContent = 'Cancel';
+        setLabel(no, 'ui.cancel');
         no.addEventListener('click', (e) => { e.stopPropagation(); finish(false); });
 
         buttons.append(yes, no);
