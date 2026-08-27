@@ -2,6 +2,95 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.6.0] — 2026-08-27 — the page itself speaks French, not only its hover help
+
+v1.5.0 shipped French tooltips over English labels, and its own `lang-select`
+tip told the user, in both languages, that "the labels on the page itself do
+not change". This release makes that sentence false and rewrites it.
+
+O-Tapestop is the pattern-bearer for this work: 860 × 580 is the tightest
+shipped frame with a bridge stub, so French overflow bites here instead of
+hiding. The idiom landed here is what the other 42 plugins inherit.
+
+### The label contract (canon v2)
+
+- **A label is owned by its element**, via `data-i18n="key"`. The authored
+  English stays in the markup as the fallback that renders if `applyI18n()`
+  never runs.
+- **`applyLabel()` writes `textContent` AND `dataset.label` together.** Making
+  every label script-written would otherwise put the whole page into
+  `pattern_js_state_updater_overwrites_html_labels`; writing both in one place
+  makes the invariant checkable at render time, and `check-ui-labels.js`
+  asserts `dataset.label === textContent` after init, after a language switch
+  and after a state-update pass.
+- **A script-written label declares its own key** through `setLabel()`, so it
+  becomes a `[data-i18n]` element and the language sweep owns it. One
+  re-render path, no event, no subscription list.
+- **`aria-label` is keyed** through `data-i18n-aria`; 15 of them here.
+- **Reuse of a tooltip key for a label only where the string is identical in
+  BOTH languages.** `#preset-save`, `#engage-btn`, the three CHARACTER
+  segments, MIX and CHAOS reuse theirs. `#seg-sync-sync` does not: its tip
+  title is "Synchronisé", 90 px of type in a 66 px segment, where the label
+  needs "Synchro". Coupling them would make a copy edit a silent geometry
+  change to a control.
+
+### Two state-swapped captions moved from attributes to keys
+
+The hover-help toggle's On/Off face and the delete button's armed
+"Confirm?" face came from `data-on` / `data-off` / `data-confirm` in the
+markup — the right answer while the page was English-only. An attribute holds
+ONE string, so switching to French mid-session would have restored an English
+"On". Both now go through `setLabel()` with two literal keys behind an
+`if`/`else`, never a ternary inside the call (contract §6).
+
+`tests/ui_tooltip_clamp_check.js` asserted that attribute pair and has been
+rewritten a second time to assert the v2 form instead — the key swaps with the
+state, and `dataset.label` mirrors the rendered caption. That is a stronger
+guarantee than the attributes were, not a weaker one.
+
+### Layout fixes the geometry diff forced
+
+`scripts/check-ui-labels.js` measured every label in both languages at
+860 × 580 and named 26–30 non-label elements that moved. D-04 forbids an
+auto-shrink font and a short French variant, so every fix here is a container
+given a fixed size out of slack it already had:
+
+| What moved | Why | Fix |
+|---|---|---|
+| Both fleurons, both nav arrows and the 300 px preset readout, ±46.9 px | SAVE/LOAD/DELETE 188 px against ENREGISTRER/CHARGER/SUPPRIMER 282 px in a `justify-content:center` band | `#preset-save` 108 px, `#preset-load` 84 px, `#preset-delete` 96 px |
+| Spin-Down column +17.1 px, dragging its combo and curve knob | RALENTISSEMENT 105.1 px against SPIN DOWN 66.1 px setting the column's width | `#pane-stop .stop-col { width: 108px }` |
+| The ENV_FREE_MS knob, 31 px | the env row's three shrink-to-fit tracks over-ran the pane, so flex took the difference out of the TIME-SLOT — 79.2 px in English rather than its designed 88, and 70.7 in French | fixed tracks: caption 84, slot 88, hint 202, gap 12 = 398 |
+| The CHARACTER column, and the motion pane behind it | CARACTÈRE vs CHARACTER | `#pane-continuous .stop-col:first-child { width: 72px }` |
+| Both footer fleurons, ~70 px | the caption runs 403.5 px in English and 542.7 px in French | `.footer-text { width: 560px }` |
+
+**The env-row fix corrects an English bug too.** The time slot has been
+rendering 79.2 px against its designed 88 for as long as that row has existed;
+nothing was measuring it until now.
+
+### One overflow no gate could see
+
+PLEURAGE (60.2 px) and ALÉATOIRE (63.8 px) ran out over the face of their
+58 px CHARACTER segments. `.segment` sets no `overflow`, and a leaf whose
+overflow is `visible` reports `scrollWidth === clientWidth` however far its
+text spills — so every assertion was green while the text sat outside the
+button. The segments are 72 px now, and `check-ui-labels.js` gained a check
+that measures the rendered text with a Range instead of trusting
+`scrollWidth`.
+
+### Also
+
+- The `settings` and `lang-select` tooltips now describe what the language
+  selector actually does. Value readouts stay English in both languages
+  (D-03) and that half of the old sentence is kept, because it is still true.
+- `tests/i18n-states.json` drives six extra states — both slot swaps in all
+  three panes, and the settings popover open — taking measured label coverage
+  from 26/46 to **46/46**.
+- Factory preset names are untouched (D-02: the name IS the JSON filename),
+  as are all `toFixed()` readouts and every editable-readout parser (D-03),
+  and no C++ parameter display name changed (D-01).
+- All French is machine-drafted and flagged `reviewed: false`. 39 label
+  strings join the 35 tooltip strings on the native-speaker worklist.
+
 ## [1.5.0] — 2026-08-26 — English/French hover help; the clamp gate now sweeps both languages
 
 **No parameter, preset, state, DSP or layout change.** Every knob, every range,

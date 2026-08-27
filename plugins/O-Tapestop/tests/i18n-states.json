@@ -1,0 +1,8 @@
+[
+  { "name": "scratch pane, SYNC slot (env division)",  "click": "#seg-mode-scratch" },
+  { "name": "motion pane, SYNC slot (rate division)",  "click": "#seg-mode-cont" },
+  { "name": "motion pane, FREE slot (rate in Hz)",     "click": "#seg-sync-free" },
+  { "name": "stop pane, FREE slots (both times in ms)","click": "#seg-mode-stop" },
+  { "name": "scratch pane, FREE slot (pass in ms)",    "click": "#seg-mode-scratch" },
+  { "name": "settings popover OPEN",                   "click": "#gear-btn" }
+]

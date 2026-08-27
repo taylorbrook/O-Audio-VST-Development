@@ -194,9 +194,26 @@ body {
 }
 
 .preset-btn {
-  padding: 5px 12px;
+  padding: 5px 4px;
   font-size: 10px;
 }
+
+/* v1.6.0 — FIXED widths, one per button, sized to the longer of the two
+   languages (border-box; * sets box-sizing globally at the top of this file).
+   .preset-bar is justify-content:center, so shrink-to-fit buttons made the
+   whole band breathe when the language changed: SAVE/LOAD/DELETE 188 px
+   against ENREGISTRER/CHARGER/SUPPRIMER 282 px pushed both fleurons, both
+   nav arrows and the 300 px name readout 46.9 px sideways. The band has 100 px
+   of slack at 860, so the fix is to spend it rather than to shrink the type —
+   D-04 forbids an auto-shrink font and a short French variant, and rightly:
+   "Enregistrer" is simply what the button says in French.
+
+   These three numbers are pinned to the FRENCH strings above them. If that
+   copy changes, scripts/check-ui-labels.js assertion 7 is what fails; do not
+   read them as arbitrary. */
+#preset-save   { width: 108px; }   /* ENREGISTRER 106.8 */
+#preset-load   { width:  84px; }   /* CHARGER      82.8 */
+#preset-delete { width:  96px; }   /* SUPPRIMER    92.6 / CONFIRMER ? */
 
 .preset-nav:not(:disabled):hover,
 .preset-btn:not(:disabled):hover {
@@ -620,12 +637,35 @@ body {
 /* Stop pane: two columns (Spin Down | Spin Up). */
 #pane-stop { gap: 56px; }
 
+/* v1.6.0 — the columns are FIXED, not shrink-to-fit. Their content is 88 px
+   (a time-slot over a knob-cell) but the .col-caption is nowrap and was
+   setting the column width whenever it ran wider: RALENTISSEMENT is 105.1 px
+   against SPIN DOWN's 66.1, which grew column one by 17.1 px and slid the
+   division combo and the curve knob under it. 2 x 108 + 56 = 272 in a 398 px
+   pane, so the caption gets its room out of slack the pane already had. */
+#pane-stop .stop-col { width: 108px; }
+
 /* Continuous pane (v1.1): character stack | rate slot | depth | chaos.
    Gap budget MEASURED against the rendered row, not the column sum: the
    CHARACTER caption widens its column to ~71px (past the 58px segments),
    so 71 + 3×88 + 3·gap must fit the 398px content box. gap 34 overflowed
    ~20px past BOTH panel borders; 16 leaves ~7px clearance per side. */
 #pane-continuous { gap: 16px; }
+
+/* v1.6.0 — pin the CHARACTER column at the width its English caption already
+   had. The budget above is measured with that column at ~71 px, so widening it
+   to 88 to match the other three would eat the clearance the comment records.
+   72 covers CHARACTER (71.4) and CARACTÈRE (70.3) and changes the English
+   layout by 0.6 px. The other three columns are already 88 px of knob-cell and
+   their French captions — VITESSE 48.4, MOUVEMENT 75.8 — stay inside it. */
+#pane-continuous .stop-col:first-child { width: 72px; }
+
+/* v1.6.0 — the CHARACTER segments are 72 px, not the house 58. PLEURAGE runs
+   60.2 px and ALÉATOIRE 63.8 against a 54 px content box, so both spilled
+   their button face. .segment sets no overflow, so this did NOT clip and did
+   NOT register on scrollWidth — the text simply ran out over the border. 72
+   matches the column pinned above and leaves 4 px on the wider of the two. */
+#characterSegments .segment { width: 72px; }
 
 .stop-col {
   display: flex;
@@ -715,16 +755,41 @@ body {
   cursor: crosshair;
 }
 
+/* v1.6.0 — every track is FIXED, and the three add up to the 398 px pane
+   exactly: 84 + 88 + 202 + 2 x 12 gap.
+   Before this the row was three shrink-to-fit items over-running the pane, so
+   flex-shrink was silently taking the difference out of the TIME-SLOT — which
+   is why the slot rendered 79.2 px in English rather than its designed 88. In
+   French the caption shrank (PASSAGE 52 against PASS LENGTH 78.7) while the
+   hint grew (243.3 against 208.1), and the slot lost another 8.5 px, dragging
+   the ENV_FREE_MS knob 31 px sideways when the language changed. Fixed tracks
+   fix the English bug and the French one with the same three numbers. */
 .env-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
 }
 
-.env-caption { align-self: center; }
+.env-caption {
+  align-self: center;
+  flex: 0 0 84px;
+  text-align: center;
+}
 
+.env-slot { flex: 0 0 88px; }
+
+/* A FIXED BOX, not a fixed line count. The two instruction lines wrap
+   differently in the two languages and that is fine — what may not differ is
+   the box they wrap inside, because .env-hint is the parent of two localized
+   lines and therefore a non-label element the geometry diff measures. Height
+   holds four lines at this line-height; the content centres in it. */
 .env-hint {
+  flex: 0 0 202px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   font-size: 8.5px;
   line-height: 1.5;
   letter-spacing: 0.6px;
@@ -839,7 +904,13 @@ body {
   color: var(--fleuron-color);
 }
 
+/* v1.6.0 — fixed width, centred. .footer is justify-content:center around two
+   fleurons, so a caption that runs 403.5 px in English and 542.7 px in French
+   moved both fleurons by 70 px on a language change. 560 px holds the longer
+   string with room, inside 810 px of frame. */
 .footer-text {
+  width: 560px;
+  text-align: center;
   font-size: 9px;
   letter-spacing: 1.1px;
   text-transform: uppercase;
