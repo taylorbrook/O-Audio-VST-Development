@@ -354,11 +354,36 @@ const overlaps = (a, b) =>
     for (const state of states) {
         console.log(`-- state: ${state.name}`);
 
-        if (state.click) {
-            const el = await page.$(state.click);
-            if (!el) { check(false, `[state ${state.name}] selector ${state.click} exists`); continue; }
-            await el.click({ force: true });
+        // THREE ACTIONS, NOT ONE. `click` alone cannot reach two shapes that
+        // are ordinary in this repo, and a label the gate cannot reveal is a
+        // label it certifies by never looking at it:
+        //
+        //   dblclick — the house idiom for a popover (O-Octagon's
+        //              speaker -> output assignment, v1.1.0). A single click on
+        //              the same glyph does something else entirely.
+        //   eval     — a state the PLUGIN owns, reached through the plugin's
+        //              OWN committed ui-stub hook. O-Octagon's three frame
+        //              banners are rendered from getStatus() and cannot be
+        //              clicked into existence; its stub already exposes
+        //              window.__OCTAGON_STUB__.setStatus for exactly this.
+        //
+        // eval runs the plugin's own hook, in the plugin's own stub, from the
+        // plugin's own tests/ file. It is not a back door into the page: a
+        // states file that drove the DOM directly would be measuring a state
+        // the plugin cannot actually produce, and that is worth failing on
+        // review rather than forbidding here.
+        if (state.click || state.dblclick) {
+            const sel = state.click || state.dblclick;
+            const el = await page.$(sel);
+            if (!el) { check(false, `[state ${state.name}] selector ${sel} exists`); continue; }
+            if (state.dblclick) await el.dblclick({ force: true });
+            else                await el.click({ force: true });
             await page.waitForTimeout(250);
+        }
+        if (state.eval) {
+            try { await page.evaluate((src) => { (0, eval)(src); }, state.eval); }
+            catch (e) { check(false, `[state ${state.name}] eval ran — ${e.message}`); continue; }
+            await page.waitForTimeout(350);
         }
 
         // TWO SWEEPS, NOT ONE INTERLEAVED SWEEP. Every `before` snapshot is
