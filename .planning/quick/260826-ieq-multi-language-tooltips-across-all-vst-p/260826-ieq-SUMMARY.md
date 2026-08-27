@@ -3,22 +3,23 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F]
-stages_remaining: [G, H, I, J, K, L, M]
-stopped_at: "End of Stage F (T10). O-Tapestop v1.6.0 is the first FULLY localized plugin and the label pattern-bearer. Stages G and H are approved but are separate dispatches. Checkpoint 4 is OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five."
+stages_complete: [A, B, C, D, E, F, H]
+stages_remaining: [G, I, J, K, L, M]      # G is DEFERRED, not skipped — see the Stage H section
+stopped_at: "End of Stage H (T12). FOUR of the five shipped plugins are now fully localized on canon v2 — O-Tapestop, O-MultiBandCompressor, O-Bitrot, O-ReverseDelay. Stage G (O-Octagon) is DEFERRED, not skipped: another session was mid-flight on a v1.8.0 motion feature across 27 of its files including index.html, app.js, i18n.js, styles.css and all three test files, and a path-scoped commit would have swept their work in. Checkpoints 4 AND 5 are OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five, and no human has seen the French UI."
 plugins_shipped:
   - name: O-MultiBandCompressor
-    version: 1.10.0
-    commit: b98aa9ec
+    version: 1.11.0
+    commit: cc2ea600      # v1.11.0, Stage H — labels. v1.10.0 was b98aa9ec, tooltips only.
   - name: O-Octagon
     version: 1.6.0
-    commit: 8dcb1317
+    commit: 8dcb1317      # TOOLTIPS ONLY — still canon v1. Stage G deferred; another
+                          # session has since shipped its v1.8.0 motion engine (2ba236a1).
   - name: O-ReverseDelay
-    version: 1.9.0
-    commit: 951dd584
+    version: 1.10.0
+    commit: 55228ffb      # v1.10.0, Stage H — labels. v1.9.0 was 951dd584, tooltips only.
   - name: O-Bitrot
-    version: 1.14.0
-    commit: 1f3a9faa
+    version: 1.15.0
+    commit: ff162184      # v1.15.0, Stage H — labels. v1.14.0 was 1f3a9faa, tooltips only.
   - name: O-Tapestop
     version: 1.6.0
     commit: 8b146dd3      # v1.6.0, Stage F — labels. v1.5.0 was 547f9738, tooltips only.
@@ -96,6 +97,10 @@ actuals_stage_e:
   tokens: 285000
   tasks: 4
   commits: 4
+actuals_stage_h:
+  tokens: 470000
+  tasks: 1              # T12, three plugins
+  commits: 5            # 3 plugin commits + 2 scripts/ commits
 ---
 
 # Quick Task 260826-ieq — Stage B Summary
@@ -1274,3 +1279,362 @@ print its substitution count and assert it is non-zero.
   gate assumption candidate. The `dataset.label === textContent` mirror is
   the assertion that should replace it — and the clamp-gate rewrite in this
   commit is a worked example of doing that without weakening the rule.
+
+
+---
+---
+
+# Stage H — T12: MBC, O-Bitrot, O-ReverseDelay
+
+**Commits, in order:** `a1d80957` (scripts), `cc2ea600` (O-MultiBandCompressor
+v1.11.0), `e56abded` (scripts), `ff162184` (O-Bitrot v1.15.0), `55228ffb`
+(O-ReverseDelay v1.10.0). Five path-scoped commits: three plugins, one each, and
+two `scripts/` commits kept separate because a plugin cannot pass gates that are
+themselves wrong.
+
+**FOUR of the five shipped plugins are now fully localized on canon v2.**
+`check-i18n` reports the split as **v2 4, v1 1** — the one is O-Octagon.
+
+## Stage G is DEFERRED, not skipped
+
+O-Octagon was untouched this dispatch, deliberately and on instruction. Another
+session was mid-flight inside `plugins/O-Octagon/` on a v1.8.0 motion feature —
+27 modified files and 4 new ones, including `index.html`, `app.js`, `i18n.js`,
+`styles.css` and all three test files. `git commit -- plugins/O-Octagon` commits
+the whole path, so a Stage G commit would have swept that work into this task's
+history. That session has since landed it as `2ba236a1` (O-Octagon v1.8.0).
+
+**The consequence to carry:** O-Octagon is the only shipped plugin still
+half-localized — French tooltips over English labels — and its `lang-select`
+entry still tells the user, in both languages, that the labels do not change.
+Stage G should now be re-run against v1.8.0 rather than against the v1.6.0 the
+plan describes: its `i18n.js`, its `app.js` and all three of its gates have moved
+underneath the plan's numbers, and `i18n-extract.js` must be re-run before any
+per-plugin count in the plan is trusted.
+
+Also carried, and NOT done here: the plan assigns O-MultiBandCompressor a stale
+`preset-list` tooltip reading "17 parameters". **That string is O-Octagon's**
+(`js/i18n.js:452`), not MBC's — MBC has no `preset-list` tooltip at all. It is
+still stale and still belongs to Stage G.
+
+## THE LABEL GEOMETRY VERDICT, across four frames
+
+Checkpoint 5 asks for this measured rather than argued. All four frames, before
+any fix:
+
+| Plugin | frame | labels | non-label elements MOVED, before fixes | after |
+|---|---|---|---|---|
+| O-Tapestop (Stage F) | 860 × 580 | 46 | 26–30 | **0** |
+| O-MultiBandCompressor | 900 × 640 | 77 | **222** | **0** |
+| O-Bitrot | 900 × 740 | 71 | **78** | **0** |
+| O-ReverseDelay | 940 × 768 | 50 | **7** | **0** |
+
+**No plugin needed a layout change rather than a CSS tweak.** Every fix on all
+three either pinned a container that was already shrink-to-fit, or spent slack
+the container already had. D-04 was never in danger of forcing the design
+conversation the plan reserved for it. That is the answer to the question
+Checkpoint 5 exists to ask, and it is the strongest argument for continuing into
+Stages I–L rather than stopping.
+
+**The number that matters is not 222 — it is the SHAPE.** Every one of those 222
+traces to five root causes, and the same five recur on all four plugins:
+
+1. **A flex container with `align-items: center` makes every child shrink-to-fit.**
+   MBC's `.knob-grid` and `.button-row`, O-Bitrot's `.ctl`, `.mix-text` and
+   `.p-head .caption`, O-ReverseDelay's preset band. This is the single largest
+   source, and it is a house pattern rather than an accident — it will recur on
+   every plugin in Stages I–L.
+2. **A `justify-content: space-around` / `space-between` / `center` row re-deals
+   itself when any child changes width**, moving every sibling. MBC's footer,
+   both plugins' preset bands, O-ReverseDelay's footer fleurons.
+3. **A `<select>` sizes itself to its widest OPTION**, so localizing the choices
+   widens the control. MBC's M/S mode went 71 → 90 px.
+4. **A caption growing past its cell can push the whole page**, not just its
+   row: MBC's French SAVE/LOAD wrapped a 367.8 px title to two lines and moved
+   everything below it down 27 px.
+5. **A container sized by a keyed child** — O-Bitrot's `.hdr-right` (the plate
+   line) and its Splices group (the marginal note).
+
+Label WIDTHS, French vs English, at the worst on each plugin:
+
+| Plugin | worst growth | what it was |
+|---|---|---|
+| O-MultiBandCompressor | +49.5 px (+122%) | SAVE 40.6 → ENREGISTRER 90.1 |
+| O-Bitrot | +45.6 px (+52%) | Tab. VII — Rot 87.5 → — Corruption 133.1 |
+| O-ReverseDelay | +139.2 px (+34%) | the footer caption 403.5 → 542.7 |
+
+Nine French captions were SIZED rather than the layout changed, and each is
+recorded at its entry in the plugin's own `LABELS` table with the measurement
+that forced it: `Enreg.` / `Ouvrir` / `Suppr.` on all three preset bars, `Clics`
+(O-Bitrot Pop), `Ampleur` (O-Bitrot Depth), `Pente` and `Biseau`
+(O-ReverseDelay's WINDOW group, whose cells are 66 px where every other knob cell
+on the page is 72), `Ampleur` again (O-ReverseDelay Drift Depth) and `Compens.`
+(MBC Makeup).
+
+**Coverage holes, stated rather than implied.** Across the three plugins, nine
+`[data-i18n]` elements were never visible in any driven state and were therefore
+never measured — and **all nine are `<option>` elements inside native
+`<select>`s**. A `<select>` popup is UA-rendered; its options have no box in the
+document. This is permanent, not a missing state, and the geometry that actually
+matters for them is the select's own width, which is pinned on MBC and unchanged
+on O-Bitrot. Everything else reaches 100%: O-ReverseDelay measures **50 of 50**,
+MBC 73 of 77, O-Bitrot 66 of 71.
+
+## Two English bugs that French exposed
+
+Neither was caused by this work; neither was being measured by anything.
+
+1. **MBC's knob grids were never on their band's thirds.** Each band's
+   `.knob-grid` rendered 126.4 px inside a 188.5 px band, because
+   `.band-controls` is `align-items: center` and the grid was shrink-to-fit.
+   Pinning it to 100% fixes French and corrects the English spacing.
+2. **O-Bitrot's Comfort column already rendered 53.8 px against its neighbours'
+   50**, because its own English caption was wider than its knob.
+
+This is the third instance of the Stage F pattern ("French did not cause it;
+French exposed it") and it is now a reliable enough by-product to expect.
+
+## THREE gate defects, found by running the tooling on plugins O-Tapestop could not reach
+
+All three would have followed the tooling into 39 more plugins.
+
+1. **`check-i18n` assertion 15 could not see a key declared by ASSIGNING
+   `dataset.i18nAria`.** An element the controller creates at runtime — a
+   preset-dropdown row — cannot carry the attribute in the markup, and
+   `setLabel()` is not available for an ATTRIBUTE key because it writes
+   `textContent`. So the only in-canon way to localize a dynamically created
+   element's accessible name reported as a **dead key**. The reference scan now
+   reads plain string literals from those assignments; a computed key still adds
+   nothing, exactly as assertion 13 already rules for a computed `setLabel` key.
+   Fixed in `a1d80957`.
+
+2. **`check-ui-labels` measured the two languages at DIFFERENT PARAMETER
+   VALUES.** It interleaved its language probes with the state pass, so the
+   English snapshot was taken before any state pass and the French one after —
+   and every rotated `.knob-stem` in the plugin read as "moved between English
+   and French". **53 phantom rows on MBC.** Both `before` snapshots are now taken
+   before any state pass runs. It stayed invisible through Stage F because
+   O-Tapestop's own committed ui-stub exposes no `window.__stubStates` and its
+   state pass was `events-only`; the GENERIC stub does drive parameters, so
+   **every plugin without a hand-written stub would have hit this** — that is 38
+   of 43. Fixed in `a1d80957`.
+
+3. **`check-ui-labels`'s text-spill check failed on correct ENGLISH markup for
+   any inline label.** `clientWidth` is DEFINED as 0 for a non-replaced inline
+   element — an inline box has no content box, it is a run of line boxes — so
+   comparing a `Range` width against it reports every inline label as spilling.
+   O-Bitrot's nine panel captions are `<span>`s and fired all nine. The check now
+   skips inline boxes and PRINTS which ones it skipped; assertions 5, 6 and 7
+   still measure their rects. Fixed in `e56abded`.
+
+That is five wrong-shaped gate assumptions in this task now, and **three of the
+five reported a violation of a rule the code was obeying.** The Stage D lesson
+holds: check the gate's shape before believing a failure.
+
+## The plan's expectations, and what was actually there
+
+The brief warned to run `i18n-extract.js` and believe it over any expectation.
+That was right on all three.
+
+| Plugin | plan expected | extractor found |
+|---|---|---|
+| O-MultiBandCompressor | "the `setLabel` proof" — JS prose | **7 js-prose + 3 composed**, including a composed `aria-label` |
+| O-Bitrot | inline-module canon v2 | that, **plus 6 js-prose** in three `data-*`-authored caption pairs |
+| O-ReverseDelay | "no `setLabel`" implied | **zero js-prose literals**, but `data-label` / `data-confirm` on the delete button — the same house idiom, invisible to a literal scan |
+
+**The `data-*`-authored two-state caption idiom appeared on ALL THREE**, exactly
+as Stage F predicted, and a source scan for string literals finds none of them.
+Grep for `data-on=` / `data-off=` / `data-confirm=` / `data-label=` directly on
+every remaining plugin.
+
+## A sixth trap, new in this stage: canon v2 is reached at BINDING time
+
+Both MBC and O-Bitrot needed their whole i18n block MOVED above the eager
+`initializeUI()` / top-level binding code, and neither plan step anticipated it.
+
+Canon v1 was only ever reached from `initializeDeferredUI()`, so its `let`
+bindings could sit anywhere below. **Canon v2 is reached from binding time**:
+`updateToggleUI()` calls `setLabel()`, `labelKnob()` records a key, and a panel
+button's `render()` runs immediately. With the block still below, `uiLanguage`
+was in its temporal dead zone and every one of those reads threw a
+`ReferenceError` that the binder's own try/catch **swallowed** — three global
+knobs and the Auto-MU toggle silently unbound on MBC, with the page otherwise
+looking correct. That is `pattern_module_toplevel_init_tdz` and the v1.4.0
+failure in miniature.
+
+**`boot-all-uis.js` caught it. `check-ui-labels` did not**, because the error is
+caught and logged rather than uncaught, and the label gate only asserts on
+uncaught page errors. Keep `boot-all-uis` in every plugin's verification list for
+Stages I–L; it is the only gate that sees a swallowed binding failure.
+
+On O-Bitrot the same bug would have been worse: that module has no `init()` to
+isolate a failure, so the throw takes the entire UI down.
+
+## Verification — every gate, per plugin, individually
+
+| Plugin | Gate | Result |
+|---|---|---|
+| O-MultiBandCompressor | `check-i18n.js --plugin` | **exit 0**, canon **v2** |
+| O-MultiBandCompressor | `check-ui-labels.js --plugin` | **exit 0** — zero geometry shifts, 73/77 labels measured over 2 states |
+| O-MultiBandCompressor | `render-harness` (`-preset-test`) | **exit 0** — 47 presets active, 0 failures, order-independent over all 50 |
+| O-MultiBandCompressor | `build-and-install.sh` | clean; VST3 + AU, AU cache cleared, dual-variant sweep ran |
+| O-MultiBandCompressor | `auval -v aufx OMbc OuDv` | **AU VALIDATION SUCCEEDED** |
+| O-MultiBandCompressor | binary embedding | `i18n_jsSize` 36742 == `wc -c` |
+| O-Bitrot | `check-i18n.js --plugin` | **exit 0**, canon **v2** (inline module) |
+| O-Bitrot | `check-ui-labels.js --plugin` | **exit 0** — zero geometry shifts, 66/71 over 2 states |
+| O-Bitrot | `ui_tooltip_clamp_check.js` | **exit 0 — not 77.** 55 anchors; French +3 flips, +1 clamp, 14.8 px taller |
+| O-Bitrot | `ui_preset_menu_check.js` | **exit 0** |
+| O-Bitrot | `render-harness` | **exit 0** — 109/109 probes |
+| O-Bitrot | `build-and-install.sh` | clean |
+| O-Bitrot | `auval -v aufx OBrt OuDv` | **AU VALIDATION SUCCEEDED** |
+| O-Bitrot | binary embedding | `i18n_jsSize` 46151 == `wc -c` |
+| O-ReverseDelay | `check-i18n.js --plugin` | **exit 0**, canon **v2** |
+| O-ReverseDelay | `check-ui-labels.js --plugin` | **exit 0** — zero geometry shifts, **50/50** over 4 states |
+| O-ReverseDelay | `ui_frontend_check.js` | **exit 0** — 164 assertions, including the three D13 checks |
+| O-ReverseDelay | `ui_tooltip_clamp_check.js` | **exit 0 — not 77.** 31 anchors; French +0 flips, +0 clamps |
+| O-ReverseDelay | `render-harness` | **exit 0** — ALL PROBES PASSED |
+| O-ReverseDelay | `build-and-install.sh` | clean |
+| O-ReverseDelay | `auval -v aufx ORvD OuDv` | **AU VALIDATION SUCCEEDED** |
+| O-ReverseDelay | binary embedding | `i18n_jsSize` 37686 == `wc -c` |
+| repo | `check-i18n.js` | **exit 0** — 5 localized plugins; canon split **v2 4, v1 1** |
+| repo | `check-i18n.js --strict-v2` | exits **1**, naming O-Octagon. Correct: Stage G is deferred. |
+| repo | `boot-all-uis.js` | **41 / 43, unchanged.** The two failures are O-Bowed and O-Reed, pre-existing and unrelated |
+| repo | `check-ui-labels.js --plugin O-Tapestop` | **exit 0**, 46/46 — the two tool fixes did not disturb Stage F |
+
+**No gate exited 77.** Every clamp gate really rendered.
+
+### The clamp counts, and why one moved
+
+| Plugin | anchors | clamped en → fr | flipped en → fr | vs Stage D |
+|---|---|---|---|---|
+| O-Bitrot | 55 | 15 → 16 | 10 → 13 | clamp 14 → 15, **anchors and flips unchanged** |
+| O-ReverseDelay | 31 | 8 → 8 | 2 → 2 | **unchanged** |
+
+O-Bitrot's clamp count moved by one **in English as well as French**, so it is a
+consequence of the deliberate English layout changes moving the anchors, not an
+unreported French one — the label gate asserts `en == fr`, never
+`en == previous-en`. Same shape as Stage F's O-Tapestop 12 → 13.
+
+### Negative controls — 37 run, 36 fired
+
+Every mutation printed its substitution count and asserted it non-zero before the
+gate ran, per Stage F's methodological note; each was applied to a byte-exact
+backup and restored FROM THAT BACKUP, with the sha256 verified after every round.
+**Never `git checkout --`**, which would have wiped the uncommitted work
+alongside the mutation. One mutation was a silent no-op and the harness refused
+to run it — which is exactly what that guard is for.
+
+| Mutation | Assertion that fired |
+|---|---|
+| drop the `dataset.i18nAria` assignment (MBC) | `[15]` dead key |
+| typo the assigned key (MBC) | `[15]` dangling AND `[15]` dead |
+| no-op `__setLanguage` (×3 plugins) | `[2]` vacuity, `0/77`, `0/71`, `0/50` |
+| clobber `textContent` after `applyLabel` (×3) | `[3]` in both languages, all elements named |
+| revert `.control-group { width }` (MBC) | `[7]` geometry diff, 11 moved |
+| revert `.knob-grid { width: 100% }` (MBC) | `[7]` geometry diff, 76 moved |
+| revert `.ctl:has(> .knob)` (O-Bitrot) | `[7]` geometry diff, 15 moved |
+| revert the `.p-head` caption/gap pin (O-Bitrot) | `[7]` geometry diff, 6 moved |
+| revert `.footer-text { width }` (O-ReverseDelay) | `[7]` geometry diff, 2 moved |
+| revert the `#syncSegments` widening (O-ReverseDelay) | `[4][fr]` text-spill, `Synchro 54.8>54.0` |
+| restore BOTH over-long WINDOW captions (O-ReverseDelay) | `[8]` new overlap, `label.tilt x label.taper` |
+| an over-long French label (×2) | `[7]` geometry diff, 185 and 23 moved |
+| remove one `data-i18n` (×3) | `[10]`, and `[15]` dead key where the key became orphaned |
+| reinstate a native `title=` (×3) | `[11]` |
+| a ternary inside a `setLabel` argument (×3) | `[13]`, both halves |
+| a raw prose literal to `textContent` (×3) | `[12]`, with file:line |
+| drift one canon line (×3, incl. the INLINE module) | `[6]` matches NEITHER canon |
+| a LABELS French entry copied from English (MBC) | `[4]` LABELS |
+| strip a LABELS `reviewed` flag (MBC) | `[5]` LABELS |
+| empty an `I18N_EXEMPT` reason (×2) | `[14]` |
+| break the toggle ownership mirror (O-Bitrot clamp gate) | the rewritten assertion, both halves |
+| write the delete caption as a JS literal (O-ReverseDelay FE) | the rewritten assertion, both halves |
+| delete the `fr` half of a LABEL key (O-ReverseDelay FE) | the extended assertion, `fr MISSING` |
+| reintroduce a `ui.on` key (O-ReverseDelay FE) | **the new D13 label assertion** |
+
+**THE ONE THAT DID NOT FIRE, and what it means.** Reverting `label.taper` alone
+to the over-long "Adoucissement" (91.9 px in a 66 px cell) produced **no failure
+from any assertion**. It only fires when BOTH window captions are over-long, as
+an OVERLAP. The reason is structural and generalises:
+
+- `.knob-label` is a shrink-to-fit flex item, so **its box is always exactly its
+  text** and assertion 4's text-spill check can never fire on it;
+- its `offsetParent` is the frame rather than the cell, so assertion 5's spill
+  check cannot fire either;
+- it is a `[data-i18n]` element, so assertion 7 excludes it by design.
+
+**A single over-long caption in a shrink-to-fit cell is invisible to this gate.**
+It is caught only when it collides with a neighbour. That is a real coverage hole
+in `check-ui-labels`, it was found by a control rather than reasoned about, and
+it is left OPEN rather than patched, because the fix is a design question — the
+gate would need each label's intended CELL, which only the plugin knows.
+
+## English fidelity, checked mechanically
+
+This task MOVES English, it does not rewrite it. Every `en` entry came from
+`i18n-extract.js`'s inventory rather than being transcribed. **Two deliberate
+normalisations, both recorded at the entry:**
+
+1. MBC's three band buttons authored `SOLO` as their text node and
+   `data-label="Solo"` as the caption a state update writes back, so the page has
+   rendered "Solo" since bindings first ran. The keys carry the `data-label`
+   casing and the text nodes were normalised to match; `text-transform:
+   uppercase` makes the two identical on screen.
+2. O-Bitrot's French plate line was authored at 260.6 px and shortened to
+   `Catalogue des supports défaillants · Pl. XLVII` (221.4) to fit the pinned
+   block. English untouched.
+
+## NOT VERIFIED — read this before Stage G or Stage I
+
+1. **THE C++ PERSISTENCE ROUND-TRIP HAS STILL NEVER BEEN RUN.** Checkpoint 4's
+   part (b) has been outstanding since Stage B and is outstanding on all five
+   plugins. Nothing in Stage H touched C++ and nothing in Stage H tested it. Every
+   claim that a language choice survives a session is REASONED from source. This
+   remains the highest-value manual check on the list.
+2. **No human has seen the French UI, on any plugin.** All geometry is headless
+   Chromium. Whether `ENREG.` beside `OUVRIR` reads acceptably in MBC's header, or
+   `— CORRUPTION` in O-Bitrot's catalogue hand, is Checkpoint 4 part (a) and
+   Checkpoint 5, both unanswered.
+3. **Nothing was tested in a DAW.** All three build, install and `auval`; none
+   has been opened in Logic or Ableton.
+4. **The Standalone `.app` is stale on all three.** `build-and-install.sh` builds
+   VST3 + AU only.
+5. **A single over-long caption in a shrink-to-fit cell is not gated** — see the
+   negative-control section above. O-ReverseDelay's WINDOW group is the known
+   case; the same shape exists wherever a `.knob-label` sits in a centred flex
+   column, which is most of this suite.
+6. **`check-ui-labels`'s state pass is `stub slider states` on MBC and O-Bitrot
+   but `events-only` on O-ReverseDelay and O-Tapestop**, because their committed
+   ui-stubs expose no `window.__stubStates`. Assertion 3's "after a state pass" is
+   therefore weaker on those two than on the two that use the generic stub.
+7. **All 389 French entries across the five plugins are machine drafts**, every
+   one `reviewed: false`. No native speaker has read any of them. Nine were picked
+   with WIDTH as a constraint and are named in the geometry section above; those
+   are the ones to challenge first.
+8. **Windows / WebView2 remains a named deferral, blocked on hardware.** Every
+   width in every fix table was measured in Chromium on macOS. A French label
+   that fits at 900 px here may clip under WebView2's font metrics. Unchanged by
+   this stage; not retired by it.
+9. **O-Octagon is still half-localized and still tells the user its labels do not
+   change.** Stage G, deferred.
+10. **The generated inventory artifacts** (`plugins/*/.planning/i18n-*`) are left
+    UNCOMMITTED on all three. They are regenerable from `i18n-extract.js` and are
+    not part of the shipped plugin.
+
+## Carried into Stage G / Stage I
+
+- **Re-run `i18n-extract.js` before trusting any per-plugin count in the plan.**
+  It was wrong about all three plugins in this stage, always in the direction that
+  adds work.
+- **Grep for `data-on=` / `data-off=` / `data-confirm=` / `data-label=`
+  directly.** The `data-*`-authored two-state caption is this repo's house style,
+  it appeared on all three plugins here, and no literal scan of the JS sees it.
+- **Expect to MOVE the i18n block above the eager binding code.** Canon v2 is
+  reached at binding time; canon v1 was not.
+- **Run `boot-all-uis.js` on every plugin.** It is the only gate that sees a
+  binding failure swallowed by a try/catch, and it caught the TDZ regression on
+  MBC that every other gate passed.
+- **`align-items: center` is the tell.** Any flex container with it makes its
+  children shrink-to-fit, and every child that holds a caption will move. Look for
+  it first; it accounted for most of the 307 moved elements across the three.
+- Stage F's note still holds: assertion 7 goes quiet once a layout is pinned, so
+  its silence is not a result on its own.
