@@ -351,21 +351,38 @@ const overlaps = (a, b) =>
             await page.waitForTimeout(250);
         }
 
+        // TWO SWEEPS, NOT ONE INTERLEAVED SWEEP. Every `before` snapshot is
+        // taken before ANY state pass has run, and only then does the state
+        // pass run for each language.
+        //
+        // Interleaving them — probe en, drive state, probe fr — silently
+        // measures the two languages at DIFFERENT PARAMETER VALUES, because the
+        // state pass moves every slider, toggle and combo and does not put them
+        // back. Assertion 7 then reports every knob stem in the plugin as
+        // "moved between English and French" when what actually moved was the
+        // parameter behind it. On O-MultiBandCompressor that was 53 phantom
+        // rows, all of them rotated .knob-stem boxes.
+        //
+        // It stayed invisible through Stage F because it only bites where the
+        // stub really drives parameters: O-Tapestop's own committed ui-stub
+        // exposes no window.__stubStates, so its state pass was events-only and
+        // moved nothing. The GENERIC stub does drive them, so every plugin
+        // without a hand-written stub would have hit this.
         const snaps = {};
         for (const lang of ['en', 'fr']) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
             await page.waitForTimeout(180);
+            snaps[lang] = { before: await page.evaluate(PROBE) };
+            for (const l of snaps[lang].before.labels) if (l.visible) seenVisible.add(l.path);
+        }
 
-            const beforeState = await page.evaluate(PROBE);
-
-            // ── 3. dataset.label === textContent, AFTER A STATE PASS ───────
+        // ── 3. dataset.label === textContent, AFTER A STATE PASS ───────────
+        for (const lang of ['en', 'fr']) {
+            await page.evaluate((l) => window.__setLanguage(l), lang);
+            await page.waitForTimeout(180);
             stateMechanism = await page.evaluate(STATE_PASS);
             await page.waitForTimeout(180);
-            const afterState = await page.evaluate(PROBE);
-
-            snaps[lang] = { before: beforeState, after: afterState };
-
-            for (const l of beforeState.labels) if (l.visible) seenVisible.add(l.path);
+            snaps[lang].after = await page.evaluate(PROBE);
         }
 
         const en = snaps.en.before, fr = snaps.fr.before;
