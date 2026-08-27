@@ -108,12 +108,12 @@ duplicate entry.
 |---|---|
 | HTML text nodes | 2,398 |
 | Visible-text attributes | 296 |
-| JS prose | 171 |
-| JS composed (prose outside an interpolation) | 73 |
-| **`LABEL` total** | **2,519** |
+| JS prose | 181 |
+| JS composed (prose outside an interpolation) | 100 |
+| **`LABEL` total** | **2,530** |
 | `UNSURE` | 163 |
 | `DELETE` | 4 |
-| `READOUT` (exempt, D-03) | 215 |
+| `READOUT` (exempt, D-03) | 234 |
 
 Reconciliation against the numbers the plan carried:
 
@@ -133,10 +133,17 @@ Reconciliation against the numbers the plan carried:
   single glyph.
 - **`aria-label=`: 172, exactly as planned.** No discrepancy.
 - **`placeholder=`: 5, not 7.** Two of the seven live inside `<script>`.
-- **JS strings: 244 rows vs the planned 53 + 27 = 80.** The extractor reports
+- **JS strings: 281 rows vs the planned 53 + 27 = 80.** The extractor reports
   more, for three reasons, all deliberate: it scans every `.js` under the UI
   root rather than only the controller; it reads whole right-hand sides, so a
   ternary contributes both of its literals; and each literal is its own row.
   The planned figure counted *distinct prose strings*; this counts *sites*.
   Neither is wrong — but the site count is the one a localization pass has to
   work through.
+
+  The receiver of a `textContent` write is **described, not matched**. An
+  earlier version required it to be an identifier path and so missed
+  `document.getElementById("x").textContent = "Free Run"` entirely — the
+  parentheses are not in an identifier character class, and that is one of the
+  two commonest shapes here. A `check-i18n` negative control caught it; the
+  totals above are from after that fix, and are 37 rows higher than before it.

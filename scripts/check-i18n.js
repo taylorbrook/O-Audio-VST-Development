@@ -26,7 +26,10 @@
     matching this repo's existing no-shared-UI-module convention. This script is
     the only mitigation available under that rule: it makes the cost DETECTABLE.
 
-    Nine assertions per localized plugin:
+    Fifteen assertions per localized plugin. 1-9 apply to every plugin; 10-13
+    and 15 describe canon v2 and are reported SKIPPED on a plugin still on v1,
+    because a gate that goes red the moment it is written and stays red for a
+    whole rollout teaches the team to ignore gates:
 
       1  en and fr key sets in I18N are identical, and every entry has t + b.
       2  every key referenced by TIP_BINDINGS exists in I18N.
@@ -44,11 +47,37 @@
          embedded, is a 404 that presents as a missing panel and nothing else.)
       9  i18n.js references no innerHTML and no string literal contains `<` —
          machine-drafted French must not open a markup path.
+     10  LABEL COVERAGE (v2). Every HTML text node the extractor classifies
+         LABEL sits inside a [data-i18n] element, or matches an I18N_EXEMPT
+         entry. WITHOUT THIS a plugin passes at 100% tooltip coverage while
+         every label is still hard-coded English — the assertion the whole
+         expansion is unverifiable without.
+     11  ATTRIBUTE COVERAGE (v2). Every aria-label / placeholder / alt carrying
+         prose is keyed or exempt, and ZERO native title= attributes remain
+         (contract §4 — a native title on an element that has a data-tip renders
+         a second, untranslated OS tooltip).
+     12  JS-STRING COVERAGE (v2). No prose string is written to textContent /
+         innerText in the controller unless it is exempt; a converted site goes
+         through setLabel and therefore produces no row at all. Composed
+         templates are flagged individually — they need {token} entries.
+     13  NO INFLECTION LOGIC inside a localized string (v2). A ternary or a
+         conditional plural suffix inside a setLabel argument fails, and a
+         setLabel key that is not a plain string literal fails (contract §6).
+     14  Every I18N_EXEMPT entry carries a non-empty reason. A bare skip list
+         hides a missed label as a deliberate one.
+     15  KEYS RESOLVE (v2). Every data-i18n value in the markup and every
+         setLabel key exists in LABELS or I18N, and every LABELS key is
+         referenced by at least one element or setLabel call — a dead key is a
+         translation nobody sees, drifting silently.
 
     Usage:
         node scripts/check-i18n.js
         node scripts/check-i18n.js --plugin O-MultiBandCompressor
         node scripts/check-i18n.js --root /tmp/fixture      (negative controls)
+        node scripts/check-i18n.js --strict-v2             (fail anything on v1)
+
+    --strict-v2 is NOT the default until Stage L, when the last plugin migrates
+    and canon v1 can be deleted.
 
     Exit code = number of failed assertions (0 = all pass), matching the
     existing per-plugin gates.
@@ -64,6 +93,12 @@ const vm   = require('vm');
 
 const CANON = require(path.join(__dirname, 'i18n-canon.js'));
 
+// Assertions 10-12 must count exactly what i18n-extract.js counts. Two
+// independent scanners disagreeing about what a label IS would produce a gate
+// that contradicts the worklist a plugin stage is working from — and the
+// resolution would be a judgement call every time.
+const EXTRACT = require(path.join(__dirname, 'i18n-extract.js'));
+
 // ─────────────────────────────────────────────────────────────────── args ──
 const argv = process.argv.slice(2);
 const argValue = (flag) => {
@@ -72,6 +107,7 @@ const argValue = (flag) => {
 };
 
 const onlyPlugin = argValue('--plugin');
+const strictV2   = argv.includes('--strict-v2');
 const repoRoot   = argValue('--root') || path.resolve(__dirname, '..');
 const pluginsDir = path.join(repoRoot, 'plugins');
 
@@ -211,15 +247,25 @@ function extractI18nRegion(code) {
     return null;
 }
 
-const CANON_REGION = (() => {
-    const region = extractI18nRegion(scanJs(CANON.I18N_CANON).code);
+const canonRegion = (src, label) => {
+    const region = extractI18nRegion(scanJs(src).code);
     if (!region) {
-        console.error('check-i18n: could not extract the canon region from scripts/i18n-canon.js. '
+        console.error(`check-i18n: could not extract the ${label} region from scripts/i18n-canon.js. `
                     + 'The drift gate cannot run — refusing to pass vacuously.');
         process.exit(1);
     }
     return normalise(region);
-})();
+};
+
+const CANON_REGION    = canonRegion(CANON.I18N_CANON,    'canon v1');
+const CANON_REGION_V2 = canonRegion(CANON.I18N_CANON_V2, 'canon v2');
+
+if (CANON_REGION === CANON_REGION_V2) {
+    console.error('check-i18n: the v1 and v2 canon regions normalise to the same text. '
+                + 'The version split would be meaningless and every plugin would report '
+                + 'whichever comparison happened to run first.');
+    process.exit(1);
+}
 
 // ──────────────────────────────────────────────────── loading i18n.js ──
 // i18n.js is an ES module living outside any package.json, so node cannot
@@ -232,8 +278,14 @@ function loadI18nModule(src) {
                                     '$1$2$3 ');
     const sandbox = { console: { warn() {}, error() {}, log() {} } };
     vm.createContext(sandbox);
+    // LABELS and I18N_EXEMPT are v2 additions and are absent on a v1 plugin, so
+    // they are read through typeof rather than named directly — a ReferenceError
+    // here would report "i18n.js does not evaluate" on a file that is perfectly
+    // correct for the canon it is on.
     vm.runInContext(
-        `${transformed}\n;globalThis.__i18nExports = { LANGUAGES, I18N, TIP_BINDINGS, tr };`,
+        `${transformed}\n;globalThis.__i18nExports = { LANGUAGES, I18N, TIP_BINDINGS, tr,`
+        + ` LABELS: typeof LABELS === 'undefined' ? null : LABELS,`
+        + ` I18N_EXEMPT: typeof I18N_EXEMPT === 'undefined' ? null : I18N_EXEMPT };`,
         sandbox,
         { timeout: 5000 });
     return sandbox.__i18nExports;
@@ -421,31 +473,70 @@ function checkPlugin(p) {
         ? { label: 'app.js', code: fs.readFileSync(p.appJs, 'utf8'), inline: false }
         : readInlineModule(p.indexHtml);
 
+    let canonVersion = null;
+    let appCode = '';
+
     if (moduleSrc === null) {
         check(false, '[6] a controller module exists — js/app.js, or an inline '
             + '<script type="module"> in index.html');
     } else {
         const appScan = scanJs(moduleSrc.code);
+        appCode = appScan.code;
+
+        const region = extractI18nRegion(appScan.code);
+        const normalised = region === null ? null : normalise(region);
+
+        // EITHER canon passes, and which one is reported. Changing the canon in
+        // place would turn this gate red the moment canon v2 was committed and
+        // keep it red for the whole rollout — see i18n-canon.js and the plan's
+        // CANONICAL CONTRACT V2 §8.
+        if (normalised === CANON_REGION)         canonVersion = 'v1';
+        else if (normalised === CANON_REGION_V2) canonVersion = 'v2';
 
         // './i18n.js' as written, or the same line re-rooted for an inline
         // module. Nothing else passes — a hand-rolled import shape would.
-        const IMPORT_INLINE = CANON.I18N_CANON_IMPORT.replace("'./i18n.js'", "'./js/i18n.js'");
-        const importOk = appScan.code.includes(CANON.I18N_CANON_IMPORT)
-                      || (moduleSrc.inline && appScan.code.includes(IMPORT_INLINE));
+        // The import line differs between canons (v2 adds LABELS), so the one
+        // demanded is the one belonging to the canon the BODY matched. A plugin
+        // whose body matches neither is checked against both, so the failure
+        // names the import line rather than reporting a bare mismatch.
+        const importLines = canonVersion === 'v2' ? [CANON.I18N_CANON_V2_IMPORT]
+                          : canonVersion === 'v1' ? [CANON.I18N_CANON_IMPORT]
+                          : [CANON.I18N_CANON_IMPORT, CANON.I18N_CANON_V2_IMPORT];
+
+        const importOk = importLines.some((line) =>
+            appScan.code.includes(line)
+            || (moduleSrc.inline && appScan.code.includes(line.replace("'./i18n.js'", "'./js/i18n.js'"))));
+
         check(importOk,
             `[6] ${moduleSrc.label} carries the canonical i18n.js import line verbatim`
-            + (moduleSrc.inline ? " (or its './js/i18n.js' inline-module form)" : ''));
+            + (moduleSrc.inline ? " (or its './js/i18n.js' inline-module form)" : '')
+            + (canonVersion ? ` — canon ${canonVersion}` : ''));
 
-        const region = extractI18nRegion(appScan.code);
         if (region === null) {
             check(false, `[6] ${moduleSrc.label} contains an extractable applyI18n/initI18n region`);
         } else {
-            check(normalise(region) === CANON_REGION,
-                '[6] the applyI18n/initI18n region matches scripts/i18n-canon.js');
+            check(canonVersion !== null,
+                '[6] the applyI18n/initI18n region matches scripts/i18n-canon.js '
+                + `(canon v1 OR v2) — ${canonVersion ? `on ${canonVersion}` : 'matches NEITHER'}`);
         }
 
         check(/initI18n\s*\(\s*\)\s*;/.test(appScan.code.replace(/function\s+initI18n\s*\(\s*\)/, '')),
             '[6] initI18n() is actually CALLED — a block nobody calls localizes nothing');
+
+        if (strictV2)
+            check(canonVersion === 'v2',
+                `[6] --strict-v2: the plugin is on canon v2 — it is on ${canonVersion || 'NEITHER canon'}`);
+    }
+
+    // ── 3b. data-i18n is a KEY, not copy ─────────────────────────────────
+    // Assertion 3 requires the markup to be empty of tooltip-copy literals. It
+    // must never start rejecting data-i18n, which names a key. Neither spelling
+    // collides today, but the next attribute added could, so the non-collision
+    // is asserted rather than assumed.
+    for (const attr of ['data-tip=', 'data-tip-title=', 'data-tooltip=']) {
+        check(!'data-i18n= data-i18n-aria= data-i18n-placeholder= data-i18n-alt= data-i18n-vars='
+                .includes(attr),
+            `[3] the assertion-3 literal ${attr} does not match any data-i18n attribute name`);
     }
 
     // ── 8. embedded AND served ───────────────────────────────────────────
@@ -470,7 +561,143 @@ function checkPlugin(p) {
             '[8] PluginEditor.cpp serves js/i18n.js from a getResource() branch');
     }
 
-    return { keys: keys.length, unreviewed };
+    // ════════════════════════ assertions 10-15 ═══════════════════════════
+    const LABELS      = mod.LABELS;
+    const I18N_EXEMPT = mod.I18N_EXEMPT;
+
+    // ── 14. exemptions carry reasons. Runs on ANY canon: a v1 plugin that has
+    //    started a skip list must not be allowed to grow a reasonless one.
+    if (I18N_EXEMPT != null) {
+        const bad = (Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : []).filter(
+            (e) => !Array.isArray(e) || typeof e[0] !== 'string' || typeof e[1] !== 'string' || e[1].trim() === '');
+        check(Array.isArray(I18N_EXEMPT),
+            `[14] I18N_EXEMPT is an array of [string, reason] pairs`);
+        check(bad.length === 0,
+            `[14] every I18N_EXEMPT entry carries a non-empty reason`
+            + (bad.length ? ` — ${bad.length} without one: ${bad.slice(0, 4).map((e) => JSON.stringify(Array.isArray(e) ? e[0] : e)).join(', ')}` : ''));
+    }
+
+    if (canonVersion !== 'v2') {
+        console.log(`  SKIP: [${scope}] [10-13,15] canon v2 assertions — this plugin is on `
+            + `${canonVersion || 'no recognised canon'}. They are not failures until --strict-v2 `
+            + `(Stage L); a gate that is red for a whole rollout stops being read.`);
+        return { keys: keys.length, unreviewed, canon: canonVersion };
+    }
+
+    const exemptSet = new Set((Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : [])
+        .filter((e) => Array.isArray(e) && typeof e[0] === 'string').map((e) => e[0]));
+    const known = new Set([...Object.keys(I18N || {}),
+                           ...Object.keys(LABELS && typeof LABELS === 'object' ? LABELS : {})]);
+
+    const htmlSrc = fs.existsSync(p.indexHtml) ? fs.readFileSync(p.indexHtml, 'utf8') : '';
+    const { elements, texts } = EXTRACT.scanHtml(htmlSrc);
+
+    const keyedAncestor = (el) => {
+        let a = el;
+        while (a) { if (a.attrs['data-i18n']) return true; a = a.parent; }
+        return false;
+    };
+
+    // ── 10. label coverage ───────────────────────────────────────────────
+    // WITHOUT THIS a plugin passes at 100% tooltip coverage with every label
+    // still hard-coded English.
+    const uncovered = [];
+    for (const t of texts) {
+        const el = t.parent;
+        if (!el || el.tag === 'script' || el.tag === 'style' || el.tag === 'title') continue;
+        if (EXTRACT.classify(t.text).cls !== 'LABEL') continue;
+        if (exemptSet.has(t.text)) continue;
+        if (keyedAncestor(el)) continue;
+        uncovered.push(`${t.text.slice(0, 34)} @${el.id ? '#' + el.id : el.tag}`);
+    }
+    check(uncovered.length === 0,
+        `[10] every LABEL text node sits inside a [data-i18n] element, or is I18N_EXEMPT`
+        + (uncovered.length ? ` — ${uncovered.length} uncovered: ${uncovered.slice(0, 5).join(' | ')}` : ''));
+
+    // ── 11. attribute coverage, and ZERO native title= ───────────────────
+    const DATASET_FOR = { 'aria-label': 'data-i18n-aria', placeholder: 'data-i18n-placeholder', alt: 'data-i18n-alt' };
+    const unkeyedAttrs = [];
+    const nativeTitles = [];
+
+    for (const el of elements) {
+        if (el.attrs.title) nativeTitles.push(`${el.id ? '#' + el.id : el.tag}[title="${el.attrs.title.value.slice(0, 24)}"]`);
+
+        for (const [attr, dataAttr] of Object.entries(DATASET_FOR)) {
+            const rec = el.attrs[attr];
+            if (!rec) continue;
+            const text = EXTRACT.decodeEntities(rec.value).trim();
+            if (EXTRACT.classify(text).cls !== 'LABEL') continue;
+            if (exemptSet.has(text)) continue;
+            if (el.attrs[dataAttr]) continue;
+            unkeyedAttrs.push(`${el.id ? '#' + el.id : el.tag}@${attr}="${text.slice(0, 24)}"`);
+        }
+    }
+
+    check(unkeyedAttrs.length === 0,
+        `[11] every aria-label / placeholder / alt carrying prose is keyed or exempt`
+        + (unkeyedAttrs.length ? ` — ${unkeyedAttrs.length} unkeyed: ${unkeyedAttrs.slice(0, 5).join(' | ')}` : ''));
+    check(nativeTitles.length === 0,
+        `[11] zero native title= attributes remain (contract §4 — a native title renders a `
+        + `second, untranslated OS tooltip competing with the measure-then-pin renderer)`
+        + (nativeTitles.length ? ` — ${nativeTitles.length}: ${nativeTitles.slice(0, 5).join(' | ')}` : ''));
+
+    // ── 12 / 13 / 15. the controller module ──────────────────────────────
+    if (moduleSrc === null) {
+        check(false, '[12] a controller module exists to scan');
+    } else {
+        const jsRows = EXTRACT.extractJsRows(
+            { label: moduleSrc.label, code: moduleSrc.code });
+
+        // A site converted to setLabel writes no textContent at all, so it
+        // produces NO row. What is left is what was never converted.
+        const rawProse = jsRows.filter((r) => r.cls === 'LABEL' && !exemptSet.has(r.text));
+        const composed = rawProse.filter((r) => r.source === 'js-composed');
+
+        check(rawProse.length === 0,
+            `[12] no prose string is written to textContent / innerText outside setLabel`
+            + (rawProse.length ? ` — ${rawProse.length}: ${rawProse.slice(0, 5).map((r) => `${r.file}:${r.line} ${JSON.stringify(r.text.slice(0, 24))}`).join(' | ')}` : ''));
+        if (composed.length)
+            console.log(`  NOTE: [${scope}] [12] ${composed.length} of those are COMPOSED templates — `
+                + `they need {token} entries, not flat ones: `
+                + composed.slice(0, 4).map((r) => `${r.file}:${r.line}`).join(', '));
+
+        // ── 13. no inflection inside a localized string ──────────────────
+        const setLabelCalls = EXTRACT.readSetLabelCalls(moduleSrc.code);
+        const withTernary = setLabelCalls.filter((c) => c.conditional);
+        const nonLiteralKey = setLabelCalls.filter((c) => c.key === null);
+
+        check(withTernary.length === 0,
+            `[13] no ternary or conditional plural suffix inside a setLabel argument (contract §6 — `
+            + `French pluralizes zero as singular, so copy is authored around the inflection)`
+            + (withTernary.length ? ` — ${withTernary.length} at line(s) ${withTernary.map((c) => c.line).join(', ')}` : ''));
+        check(nonLiteralKey.length === 0,
+            `[13] every setLabel key is a plain string literal — a computed key cannot be checked, `
+            + `and a raw copy string there would ship English`
+            + (nonLiteralKey.length ? ` — ${nonLiteralKey.length} at line(s) ${nonLiteralKey.map((c) => c.line).join(', ')}` : ''));
+
+        // ── 15. keys resolve, and nothing is dead ────────────────────────
+        const markupKeys = new Set();
+        for (const el of elements)
+            for (const a of ['data-i18n', 'data-i18n-aria', 'data-i18n-placeholder', 'data-i18n-alt'])
+                if (el.attrs[a] && el.attrs[a].value) markupKeys.add(el.attrs[a].value);
+
+        const jsKeys = new Set(setLabelCalls.filter((c) => c.key).map((c) => c.key));
+        const referenced = new Set([...markupKeys, ...jsKeys]);
+
+        const dangling = [...referenced].filter((k) => !known.has(k));
+        check(dangling.length === 0,
+            `[15] every data-i18n / setLabel key exists in LABELS or I18N`
+            + (dangling.length ? ` — ${dangling.length} dangling: ${dangling.slice(0, 6).join(', ')}` : ''));
+
+        const labelKeys = Object.keys(LABELS && typeof LABELS === 'object' ? LABELS : {});
+        const dead = labelKeys.filter((k) => !referenced.has(k));
+        check(dead.length === 0,
+            `[15] every LABELS key is referenced by an element or a setLabel call — a dead key is a `
+            + `translation nobody sees, drifting silently`
+            + (dead.length ? ` — ${dead.length} dead: ${dead.slice(0, 6).join(', ')}` : ''));
+    }
+
+    return { keys: keys.length, unreviewed, canon: canonVersion };
 }
 
 // ───────────────────────────────────────────────────────────────── main ──
@@ -501,6 +728,17 @@ if (summary.length === 0) {
         console.log(`  ${s.name.padEnd(30)} ${String(s.unreviewed).padStart(4)} / ${s.keys} entries unreviewed`);
     const total = summary.reduce((a, s) => a + s.unreviewed, 0);
     console.log(`  ${'TOTAL'.padEnd(30)} ${String(total).padStart(4)}`);
+}
+
+console.log('\n-- canon version split (the migration worklist)');
+{
+    const byCanon = { v1: [], v2: [], none: [] };
+    for (const s of summary) (byCanon[s.canon || 'none']).push(s.name);
+    for (const v of ['v2', 'v1', 'none'])
+        console.log(`  canon ${v.padEnd(5)} ${String(byCanon[v].length).padStart(3)}`
+            + (byCanon[v].length ? `  ${byCanon[v].join(', ')}` : ''));
+    if (byCanon.v1.length && !strictV2)
+        console.log('  --strict-v2 would fail the canon-v1 plugins. It is not the default until Stage L.');
 }
 
 console.log(`\n${failed === 0 ? 'ALL CHECKS PASS' : `${failed} FAILED`} — ${plugins.length} localized plugin(s)`);
