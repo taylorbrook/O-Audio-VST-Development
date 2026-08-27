@@ -242,6 +242,30 @@ function loadI18nModule(src) {
 // ──────────────────────────────────────────────────────── HTML comments ──
 const stripHtmlComments = src => src.replace(/<!--[\s\S]*?-->/g, '');
 
+// ────────────────────────────────────────────────── inline module source ──
+// A plugin whose controller is an inline <script type="module"> rather than a
+// js/app.js file. O-Bitrot is the first; nothing about that layout is wrong, so
+// the drift gate reads the module from wherever it actually lives.
+//
+// Deliberately matches only type="module": a classic <script> cannot carry an
+// `import`, so scanning one would look for a canon block that could not be
+// there and report a confusing failure. Returns the LARGEST module block, which
+// on a page with several is the controller rather than a shim.
+function readInlineModule(indexHtml) {
+    if (!fs.existsSync(indexHtml)) return null;
+
+    const html = fs.readFileSync(indexHtml, 'utf8');
+    const blocks = [...html.matchAll(/<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/g)]
+        .map(m => m[1])
+        .filter(code => code.trim().length > 0);
+
+    if (blocks.length === 0) return null;
+
+    blocks.sort((a, b) => b.length - a.length);
+    return { label: 'the inline <script type="module"> in index.html',
+             code: blocks[0], inline: true };
+}
+
 // ───────────────────────────────────────────────────────────── discovery ──
 const UI_ROOTS = [
     ['Source', 'ui', 'public'],
@@ -381,17 +405,40 @@ function checkPlugin(p) {
     }
 
     // ── 6. drift gate ────────────────────────────────────────────────────
-    if (!fs.existsSync(p.appJs)) {
-        check(false, '[6] app.js exists');
-    } else {
-        const appScan = scanJs(fs.readFileSync(p.appJs, 'utf8'));
+    //
+    // The controller does NOT always live in js/app.js. O-Bitrot's is one
+    // inline <script type="module"> in index.html, which is a legitimate layout
+    // this gate has to describe rather than fail: reporting "[6] app.js exists"
+    // FALSE on a plugin that is entirely correct is the same wrong-shaped
+    // assertion as O-Octagon's double-quote-only import scan.
+    //
+    // The import SPECIFIER differs with the module's depth, and only the
+    // specifier does. From js/app.js the table is './i18n.js'; from an inline
+    // module at the UI root it is './js/i18n.js'. Both are accepted; the
+    // applyI18n/initI18n BODY that this gate byte-compares is identical either
+    // way, and that body is the part 43 hand-copies can actually drift in.
+    const moduleSrc = fs.existsSync(p.appJs)
+        ? { label: 'app.js', code: fs.readFileSync(p.appJs, 'utf8'), inline: false }
+        : readInlineModule(p.indexHtml);
 
-        check(appScan.code.includes(CANON.I18N_CANON_IMPORT),
-            '[6] app.js carries the canonical i18n.js import line verbatim');
+    if (moduleSrc === null) {
+        check(false, '[6] a controller module exists — js/app.js, or an inline '
+            + '<script type="module"> in index.html');
+    } else {
+        const appScan = scanJs(moduleSrc.code);
+
+        // './i18n.js' as written, or the same line re-rooted for an inline
+        // module. Nothing else passes — a hand-rolled import shape would.
+        const IMPORT_INLINE = CANON.I18N_CANON_IMPORT.replace("'./i18n.js'", "'./js/i18n.js'");
+        const importOk = appScan.code.includes(CANON.I18N_CANON_IMPORT)
+                      || (moduleSrc.inline && appScan.code.includes(IMPORT_INLINE));
+        check(importOk,
+            `[6] ${moduleSrc.label} carries the canonical i18n.js import line verbatim`
+            + (moduleSrc.inline ? " (or its './js/i18n.js' inline-module form)" : ''));
 
         const region = extractI18nRegion(appScan.code);
         if (region === null) {
-            check(false, '[6] app.js contains an extractable applyI18n/initI18n region');
+            check(false, `[6] ${moduleSrc.label} contains an extractable applyI18n/initI18n region`);
         } else {
             check(normalise(region) === CANON_REGION,
                 '[6] the applyI18n/initI18n region matches scripts/i18n-canon.js');

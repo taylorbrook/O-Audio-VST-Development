@@ -357,24 +357,40 @@ const PRESET_FNS = {
   isFactoryPreset: (name) => FACTORY.includes(name),
 };
 
+// v1.14.0 — the hover-help language, mirrored so the stub round-trips it
+// exactly as the processor does. languageIndex()'s C++ clamp is mirrored too —
+// anything that is not "fr" degrades to "en" — so a stub that accepted a bogus
+// code could not make a broken page look correct.
+let stubUiLanguage = "en";
+
 const CORE_FNS = {
   setTooltipsEnabled: (enabled) => {
     stubTooltipsEnabled = !!enabled;
     return stubTooltipsEnabled;
   },
   getTooltipsEnabled: () => stubTooltipsEnabled,
+
+  setUiLanguage: (code) => {
+    stubUiLanguage = code === "fr" ? "fr" : "en";
+    return stubUiLanguage;
+  },
+  getUiLanguage: () => stubUiLanguage,
 };
 
-// Mirrors the TWELVE native functions registered in PluginEditor.cpp:
-// setTooltipsEnabled + getTooltipsEnabled (v1.12.0) + the ten preset fns
-// (fetched by modules/preset-manager.js). O-Bitrot has no
-// getParameterDefaults — its dblclick-reset reads data-default from the
-// markup instead.
+// Mirrors the FOURTEEN native functions registered in PluginEditor.cpp:
+// setTooltipsEnabled + getTooltipsEnabled (v1.12.0) + v1.14.0's
+// getUiLanguage/setUiLanguage + the ten preset fns (fetched by
+// modules/preset-manager.js). O-Bitrot has no getParameterDefaults — its
+// dblclick-reset reads data-default from the markup instead.
+//
+// (PluginEditor.cpp registers 15: getPresetListGrouped is O-Bitrot's own and is
+// consumed by the preset MENU in index.html, not by the shared module, and it
+// is handled in PRESET_FNS below.)
 //
 // Any OTHER name must still REJECT — rejecting the unknown is the whole point
 // of this stub, and is how a bridge gap surfaces here instead of as a silently
 // dead control in a DAW (pattern_webview_native_fn_bridge_gap). The whitelist
-// grew 10 -> 12; it did not become permissive.
+// grew 10 -> 12 -> 14; it did not become permissive.
 export function getNativeFunction(name) {
   if (Object.prototype.hasOwnProperty.call(CORE_FNS, name)) {
     return (...args) => Promise.resolve(CORE_FNS[name](...args));

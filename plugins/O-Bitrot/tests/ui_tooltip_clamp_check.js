@@ -64,6 +64,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
+const vm   = require('vm');   // v1.14.0 — the anchor count is derived from js/i18n.js
 
 const pluginRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(pluginRoot, 'Source', 'ui', 'public');
@@ -77,7 +78,17 @@ const SHIP_H = 740;
 
 // Inline-script / inline-CSS constants — mirrored, and cross-checked below.
 const TOOLTIP_MARGIN = 8;
-const NATURAL_MAX_W = 230;   // .tooltip max-width
+
+// .tooltip's max-width. v1.14.0 PARSES this out of the page's own CSS rather
+// than hard-coding it, because the cap differs per plugin — 230 here and in
+// O-ReverseDelay and O-Tapestop, 240 in O-Octagon, 220 in O-Polystutter — and a
+// file that mirrors one plugin's number would mis-assert the moment it is
+// pointed at another. It is the cap French has to wrap INSIDE, so it is
+// load-bearing for every assertion below.
+//
+// The literal survives as the drift guard, not as the source of truth: the
+// parsed value drives the measurements, and the assertion below fails if the
+// two disagree (pattern_test_fixture_mirrors_drift_silently).
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -134,8 +145,21 @@ function serve(root) {
 
     check(new RegExp(`TOOLTIP_MARGIN\\s*=\\s*${TOOLTIP_MARGIN}\\b`).test(html),
         `TOOLTIP_MARGIN in index.html is ${TOOLTIP_MARGIN} (this file mirrors it)`);
-    check(new RegExp(`max-width:\\s*${NATURAL_MAX_W}px`).test(html),
-        `.tooltip max-width is ${NATURAL_MAX_W}px (this file mirrors it)`);
+    // Parsed from the .tooltip RULE specifically, not from the first max-width
+    // on the page — .settings-popover and .preset-menu carry widths of their
+    // own and a loose scan would silently measure against one of those.
+    const DOCUMENTED_MAX_W = 230;
+    const tipRule = html.match(/\.tooltip\s*\{[\s\S]*?\}/);
+    const capMatch = tipRule && tipRule[0].match(/max-width:\s*(\d+(?:\.\d+)?)px/);
+    const NATURAL_MAX_W = capMatch ? parseFloat(capMatch[1]) : NaN;
+
+    check(Number.isFinite(NATURAL_MAX_W),
+        `.tooltip max-width parsed from index.html — got ${capMatch ? capMatch[1] + 'px' : 'NOTHING'}`);
+    check(NATURAL_MAX_W === DOCUMENTED_MAX_W,
+        `.tooltip max-width is the documented ${DOCUMENTED_MAX_W}px — parsed ${NATURAL_MAX_W}px. `
+        + `If the cap moved deliberately, move DOCUMENTED_MAX_W with it and re-read the `
+        + `French sweep below: French wraps INSIDE this cap, so changing it changes every `
+        + `tip height and therefore every vertical-flip decision`);
     check(new RegExp(`setSize\\s*\\(\\s*${SHIP_W}\\s*,\\s*${SHIP_H}\\s*\\)`).test(editorCpp),
         `editor setSize is ${SHIP_W} x ${SHIP_H} — the viewport measured below`);
 
@@ -148,11 +172,31 @@ function serve(root) {
     check(/tooltipsEnabled[\s\S]{0,400}?isVoid\s*\(\s*\)/.test(processorCpp),
         'setStateInformation guards the preference on !isVoid(), not isBool()/isInt()');
 
-    // The expected anchor count is PARSED from the page, never typed. A literal
-    // here fails for the wrong reason every time a control gains a tip, and the
-    // hand edit that follows is how a fixture starts describing the release
-    // before it (pattern_test_fixture_mirrors_drift_silently).
-    const expectedAnchors = (html.match(/\sdata-tip=/g) || []).length;
+    // The expected anchor count is DERIVED, never typed. A literal here fails
+    // for the wrong reason every time a control gains a tip, and the hand edit
+    // that follows is how a fixture starts describing the release before it
+    // (pattern_test_fixture_mirrors_drift_silently).
+    //
+    // v1.14.0 moved the source of truth. It used to count `data-tip=` literals
+    // in index.html; the copy has since left the markup, so that count is now
+    // zero and the assertion would pass vacuously against nothing. TIP_BINDINGS
+    // in js/i18n.js is the list the page actually binds, so it is the only
+    // honest source — and if a binding is added there and the element is not on
+    // the page, the coverage assertion below now fails for the RIGHT reason.
+    //
+    // i18n.js is an ES module outside any package.json, so node can neither
+    // require() nor import() it synchronously. Evaluated in a vm sandbox with
+    // the export keywords stripped, exactly as scripts/check-i18n.js does it.
+    const i18nSrc = fs.readFileSync(path.join(publicDir, 'js', 'i18n.js'), 'utf8')
+        .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
+    const i18nBox = { console: { warn() {}, error() {}, log() {} } };
+    vm.createContext(i18nBox);
+    vm.runInContext(`${i18nSrc}\n;globalThis.__x = { I18N, TIP_BINDINGS };`,
+                    i18nBox, { timeout: 5000 });
+    const expectedAnchors = i18nBox.__x.TIP_BINDINGS.length;
+
+    check(expectedAnchors > 0,
+        `TIP_BINDINGS parsed from js/i18n.js — expecting ${expectedAnchors} anchors`);
 
     const resolvePlaywright = () => {
         const { execSync } = require('child_process');
@@ -243,22 +287,42 @@ function serve(root) {
 
     // ── The help layer must ship OFF ────────────────────────────────────────
     // The processor defaults tooltipsEnabled to false and the page PULLS it, so
-    // a fresh instance shows an unlit "?" and a silent layer. Asserting the
+    // a fresh instance shows an unlit toggle and a silent layer. Asserting the
     // shipped state before turning it on is what keeps a default flip from
     // going unnoticed.
     const initial = await page.evaluate(() => {
         const t = document.getElementById('help-toggle');
         return { active: t.classList.contains('active'),
                  pressed: t.getAttribute('aria-pressed'),
-                 glyph: t.textContent.trim() };
+                 caption: t.textContent.trim(),
+                 authoredOn: t.dataset.on ?? null,
+                 authoredOff: t.dataset.off ?? null };
     });
     check(initial.active === false && initial.pressed === 'false',
         `the help layer ships OFF — .active=${initial.active}, aria-pressed=${initial.pressed}`);
-    // The "?" is HTML-authored; applyTipsEnabled touches class and aria only.
-    // A shared updater writing textContent is how O-MBC's band glyphs became
-    // "Off Off Off" (pattern_js_state_updater_overwrites_html_labels).
-    check(initial.glyph === '?',
-        `the toggle's HTML-authored glyph survived the bind — got "${initial.glyph}"`);
+
+    // ── v1.14.0: this assertion was REWRITTEN, and it still guards the same
+    //    rule ────────────────────────────────────────────────────────────────
+    // Through v1.13.0 the toggle was a "?" circle in the header whose glyph was
+    // static, and this pinned the literal "?". v1.14.0 moved the control into
+    // the settings popover, where it reads On/Off — so the caption IS written
+    // from script now, and a check for "?" would fail on a deliberate change
+    // while saying nothing about what actually matters.
+    //
+    // What actually matters is unchanged: the COPY must come from the markup,
+    // never from a literal in the JS. That is the rule
+    // pattern_js_state_updater_overwrites_html_labels exists for, and it is how
+    // O-MBC's band glyphs became "Off Off Off". So the caption is now compared
+    // against the data-on / data-off attributes AUTHORED ON THE ELEMENT. If
+    // either attribute is stripped the comparison is against null and this
+    // fails — which is exactly the case where applyTipsEnabled would silently
+    // fall back to its own literal.
+    check(initial.authoredOn !== null && initial.authoredOff !== null,
+        `the toggle authors both captions in the markup — `
+        + `data-on="${initial.authoredOn}" data-off="${initial.authoredOff}"`);
+    check(initial.caption === initial.authoredOff,
+        `the toggle's caption comes from the AUTHORED data-off, not from a JS `
+        + `literal — rendered "${initial.caption}", authored "${initial.authoredOff}"`);
 
     const dwell = Number((html.match(/TOOLTIP_DELAY_MS\s*=\s*(\d+)/) || [])[1] || 350);
 
@@ -285,9 +349,14 @@ function serve(root) {
     // The toggle carries data-tip-always so the one control that can turn help
     // back on is never the one control unable to explain itself. Everything
     // else must stay silent, or the toggle is decoration.
-    await hoverProbe(anchors.find(a => a.label === 'Hover help').i);
+    // v1.14.0: probed on the GEAR rather than the toggle. The toggle moved
+    // inside the settings panel, which ships hidden, so it cannot raise a tip
+    // until the panel is opened — and the control that has to keep explaining
+    // itself while help is off is now the one that REACHES the panel. Both
+    // carry data-tip-always; this is the one a user can reach first.
+    await hoverProbe(anchors.find(a => a.label === 'Settings').i);
     check(await tipVisible(),
-        'with help OFF, the toggle\'s own tip still shows (data-tip-always)');
+        'with help OFF, the gear\'s own tip still shows (data-tip-always)');
     await unhover();
 
     await hoverProbe(anchors.find(a => a.label === 'Mix').i);
@@ -296,6 +365,15 @@ function serve(root) {
     await unhover();
 
     // ── Turn it on, and confirm it persisted through the bridge ─────────────
+    // Two clicks now, not one: the gear opens the panel, then the toggle inside
+    // it. Driven as real clicks rather than by calling the handler, because a
+    // panel that renders but is pointer-dead behind a z-index tie is a bug this
+    // suite has already shipped once and no static check can see.
+    await page.click('#gear-btn');
+    await page.waitForTimeout(60);
+    check(await page.$eval('#settings-popover', el => !el.hidden).catch(() => false),
+        'the gear opens the settings popover');
+
     await page.click('#help-toggle');
     const afterClick = await page.evaluate(async () => {
         const juce = await import('./js/juce/index.js');
@@ -303,20 +381,96 @@ function serve(root) {
         return {
             active: t.classList.contains('active'),
             pressed: t.getAttribute('aria-pressed'),
+            caption: t.textContent.trim(),
+            authoredOn: t.dataset.on ?? null,
             persisted: await juce.getNativeFunction('getTooltipsEnabled')(),
         };
     });
     check(afterClick.active === true && afterClick.pressed === 'true',
-        `clicking "?" lights it — .active=${afterClick.active}, aria-pressed=${afterClick.pressed}`);
+        `clicking the toggle lights it — .active=${afterClick.active}, aria-pressed=${afterClick.pressed}`);
+    check(afterClick.caption === afterClick.authoredOn,
+        `the lit caption comes from the AUTHORED data-on — rendered `
+        + `"${afterClick.caption}", authored "${afterClick.authoredOn}"`);
     check(afterClick.persisted === true,
         `the preference reached the native bridge — getTooltipsEnabled() = ${afterClick.persisted}`);
 
-    // ── Sweep every anchor at the shipping viewport ─────────────────────────
-    let clampedCount = 0;
-    let worstRight = -1e9, worstRightLabel = '-';
-    const measured = new Set();
+    // Close it again, so the sweep below starts from the page as it ships.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(60);
 
-    const sweep = async (stateLabel) => {
+    // ══════════════════════════════════════════════════════════════════════
+    // v1.14.0 — THE SWEEP IS PARAMETERISED BY LANGUAGE
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // Not duplicated: one process, one page load, all three passes run once per
+    // language. Duplicating the file would have produced two copies free to
+    // drift, which is the failure this repo has already paid for twice.
+    //
+    // WHY IT HAS TO BE RE-RUN AT ALL. Assertion 3 is the language-sensitive one.
+    // French runs longer than English, and .tooltip's max-width is a hard cap —
+    // so a longer string does not get wider, it WRAPS TO MORE LINES. `height`
+    // grows, `top = anchor.top - height - MARGIN` moves further up, and the
+    // above/below flip has to catch what no longer fits above. Assertion 2 is
+    // capped by max-width and cannot move. 900 x 740 is a SMALLER frame than the
+    // 1100 x 720 where French was first measured, which is where the risk sits.
+    //
+    // The language is driven through window.__setLanguage — applyI18n, exposed
+    // by the canonical block for exactly this. It rewrites every anchor's two
+    // attributes synchronously and fires NO `change` event, so no native
+    // round-trip has to complete first.
+    //
+    // Every failure is LABELLED with its language. Without that a French-only
+    // failure reads as a mysterious regression in a file that never mentions
+    // French.
+    //
+    // NOTE the anchor LABELS stay English throughout. They are captured once, at
+    // load, before any language switch — a label that localized with the copy
+    // would make the two runs' failures impossible to line up against each
+    // other, and would break the probe lookups below that address a control by
+    // its English name.
+    const LANGS = ['en', 'fr'];
+    const tipTextByLang = new Map();
+    const stats = new Map();
+
+    for (const lang of LANGS) {
+      const applied = await page.evaluate((l) => {
+          if (typeof window.__setLanguage !== 'function') return '__MISSING__';
+          window.__setLanguage(l);
+          const sel = document.getElementById('lang-select');
+          return sel ? sel.value : l;
+      }, lang);
+
+      check(applied === lang,
+          `[${lang}] window.__setLanguage('${lang}') applied and synced the selector`
+          + (applied === '__MISSING__' ? ' — window.__setLanguage IS NOT DEFINED' : ` — got "${applied}"`));
+
+      const texts = await page.evaluate(() => Object.fromEntries(
+          [...document.querySelectorAll('[data-tip]')].map(e => [
+              e.getAttribute('data-tip-probe'),
+              { t: e.getAttribute('data-tip-title') || '', b: e.getAttribute('data-tip') || '' },
+          ])));
+      tipTextByLang.set(lang, texts);
+
+      const blank = Object.entries(texts).filter(([, v]) => !v.t || !v.b).map(([k]) => k);
+      check(blank.length === 0,
+          `[${lang}] every anchor carries a non-empty title AND body`
+          + (blank.length ? ' — BLANK probes: ' + blank.join(', ') : ''));
+
+      // An unsubstituted {token} is a tr() vars bug that renders as literal
+      // braces in the shipped tip.
+      const unsub = Object.entries(texts)
+          .filter(([, v]) => /\{\w+\}/.test(v.t) || /\{\w+\}/.test(v.b)).map(([k]) => k);
+      check(unsub.length === 0,
+          `[${lang}] no unsubstituted {token} placeholder survives into a tip`
+          + (unsub.length ? ' — UNSUBSTITUTED probes: ' + unsub.join(', ') : ''));
+
+      let clampedCount = 0;
+      let flippedCount = 0;
+      let worstRight = -1e9, worstRightLabel = '-';
+      let widest = 0, tallest = 0;
+      const measured = new Set();
+
+      const sweep = async (stateLabel) => {
         for (const a of anchors) {
             if (measured.has(a.i)) continue;
 
@@ -339,7 +493,7 @@ function serve(root) {
             await hoverProbe(a.i);
 
             if (!(await tipVisible())) {
-                check(false, `${a.label} [${stateLabel}]: tip became visible within ${dwell} ms dwell`);
+                check(false, `[${lang}] ${a.label} [${stateLabel}]: tip became visible within ${dwell} ms dwell`);
                 continue;
             }
 
@@ -349,6 +503,7 @@ function serve(root) {
                 const arrow = parseFloat(getComputedStyle(t).getPropertyValue('--arrow-x')) || 0;
                 return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
                          w: r.width, h: r.height, arrow,
+                         placement: t.getAttribute('data-placement') || '?',
                          text: (t.textContent || '').trim().length };
             });
 
@@ -361,76 +516,156 @@ function serve(root) {
             const insideX = m.left >= TOOLTIP_MARGIN - 0.5
                          && m.right <= SHIP_W - TOOLTIP_MARGIN + 0.5;
 
-            // 3. The above/below flip really keeps it on screen.
+            // 3. The above/below flip really keeps it on screen. THE
+            //    LANGUAGE-SENSITIVE ONE.
             const insideY = m.top >= -0.5 && m.bottom <= SHIP_H + 0.5;
 
             // 4. The arrow still points within the (possibly clamped) tip.
             const arrowOk = m.arrow >= 0 && m.arrow <= m.w;
 
+            // 5. The cap is a CAP. A tip wider than max-width means the CSS is
+            //    not doing the wrapping this language sweep depends on.
+            const withinCap = m.w <= NATURAL_MAX_W + 24 + 0.5;   // + padding/border
+
             if (m.right > worstRight) { worstRight = m.right; worstRightLabel = a.label; }
+            if (m.w > widest)  widest  = m.w;
+            if (m.h > tallest) tallest = m.h;
             if (m.left <= TOOLTIP_MARGIN + 0.5 || m.right >= SHIP_W - TOOLTIP_MARGIN - 0.5)
                 ++clampedCount;
+            if (m.placement === 'below') ++flippedCount;
 
-            check(notShrunk && insideX && insideY && arrowOk,
-                `${a.label}: w=${m.w.toFixed(1)} x=[${m.left.toFixed(1)}, ${m.right.toFixed(1)}] `
-                + `y=[${m.top.toFixed(1)}, ${m.bottom.toFixed(1)}] arrow=${m.arrow.toFixed(1)}`
+            check(notShrunk && insideX && insideY && arrowOk && withinCap,
+                `[${lang}] ${a.label}: w=${m.w.toFixed(1)} h=${m.h.toFixed(1)} `
+                + `x=[${m.left.toFixed(1)}, ${m.right.toFixed(1)}] `
+                + `y=[${m.top.toFixed(1)}, ${m.bottom.toFixed(1)}] ${m.placement} `
+                + `arrow=${m.arrow.toFixed(1)}`
                 + (notShrunk ? '' : ' — SHRINK-WRAPPED')
                 + (insideX ? '' : ' — OVERFLOWS HORIZONTALLY')
                 + (insideY ? '' : ' — OVERFLOWS VERTICALLY')
-                + (arrowOk ? '' : ' — ARROW OUTSIDE TIP'));
+                + (arrowOk ? '' : ' — ARROW OUTSIDE TIP')
+                + (withinCap ? '' : ' — WIDER THAN max-width'));
 
             await unhover();
         }
-    };
+      };
 
-    // PASS 1 — the page exactly as it loads. Packet, Codec, Crush and Rot ship
-    // OFF, so this pass is the one that proves v1.12.0's narrowed
-    // `.panel.off .p-body` rule really does let a disabled family's controls
-    // raise a tip. If that rule regresses to blanket pointer-events:none, 18
-    // anchors fall through to pass 2 and the tally below still reaches 53 — so
-    // the count is recorded here and asserted separately.
-    await sweep('shipped state');
-    const measuredWhileOff = measured.size;
+      // PASS 1 — the page exactly as it loads, with the settings panel CLOSED.
+      // Packet, Codec, Crush and Rot ship OFF, so this pass is the one that
+      // proves v1.12.0's narrowed `.panel.off .p-body` rule really does let a
+      // disabled family's controls raise a tip. If that rule regresses to
+      // blanket pointer-events:none, 18 anchors fall through to pass 2 and the
+      // tally still reaches the full count — so the count is recorded here and
+      // asserted separately.
+      await sweep('shipped state');
+      const measuredWhileOff = measured.size;
 
-    // PASS 2 — every family enabled, and the clock slot swapped to Free.
-    // CLOCK_SYNC_DIV and CLOCK_FREE_RATE share one slot and only one is ever
-    // mounted, so neither pass alone reaches both.
-    for (const p of ['TAPE', 'CD', 'VINYL', 'PACKET', 'CODEC', 'CRUSH', 'ROT']) {
-        const on = await page.$eval(`.en[data-param="${p}_ENABLE"]`,
-            el => el.classList.contains('on'));
-        if (!on) await page.click(`.en[data-param="${p}_ENABLE"]`);
+      // PASS 2 — every family enabled, and the clock slot swapped to Free.
+      // CLOCK_SYNC_DIV and CLOCK_FREE_RATE share one slot and only one is ever
+      // mounted, so neither pass alone reaches both.
+      for (const fam of ['TAPE', 'CD', 'VINYL', 'PACKET', 'CODEC', 'CRUSH', 'ROT']) {
+          const on = await page.$eval(`.en[data-param="${fam}_ENABLE"]`,
+              el => el.classList.contains('on'));
+          if (!on) await page.click(`.en[data-param="${fam}_ENABLE"]`);
+      }
+      await page.click('#clockModeSeg button[data-value="1"]');   // Free
+      await page.waitForTimeout(80);
+      await sweep('all families on / clock Free');
+
+      // PASS 3 — back to Sync, for the division select in the other slot.
+      await page.click('#clockModeSeg button[data-value="0"]');
+      await page.waitForTimeout(80);
+      await sweep('all families on / clock Sync');
+
+      // PASS 4 (v1.14.0) — the settings popover OPEN. #lang-select and the
+      // moved #help-toggle are anchors like any other, but they live in a panel
+      // that ships hidden, so without this they are never hoverable and the
+      // coverage assertion reports them forever.
+      //
+      // Excluding them instead would have been wrong twice over: they are real
+      // tips a user can really raise, and they sit in the top-right corner of a
+      // 900 px frame, which is precisely where the horizontal clamp and the
+      // vertical flip both bite hardest. The panel is absolutely positioned and
+      // changes no sibling's box, so opening it moves nothing already measured.
+      // Swept LAST so the closed-state geometry above is measured against the
+      // page as it loads.
+      await page.click('#gear-btn');
+      await page.waitForTimeout(60);
+      const popoverOpen = await page.$eval('#settings-popover', el => !el.hidden).catch(() => false);
+      check(popoverOpen,
+          `[${lang}] the settings popover OPENS on a click — a panel that renders `
+          + `but does not open would leave its controls unmeasurable, and a panel `
+          + `that is merely present has already shipped pointer-dead in this suite`);
+      await sweep('settings popover open');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(60);
+
+      const missed = anchors.filter(a => !measured.has(a.i)).map(a => a.label);
+      check(measured.size === anchors.length,
+          `[${lang}] every tip anchor was measured — ${measured.size}/${anchors.length}`
+          + (missed.length ? ' — NEVER HOVERABLE: ' + missed.join(', ') : ''));
+
+      // The disabled-family anchors must be reachable in the SHIPPED state, not
+      // only after the user switches each family on. 18 of the anchors sit in
+      // the four families that ship OFF; pass 1 has to have taken essentially
+      // all of them. The tolerance is 4, not 2: the clock swap-slot pair, plus
+      // v1.14.0's two controls inside the closed settings panel.
+      check(measuredWhileOff >= anchors.length - 4,
+          `[${lang}] disabled families still raise tips in the shipped state — `
+          + `${measuredWhileOff}/${anchors.length} measured before any family was `
+          + `switched on (only the clock swap-slot pair and the two controls `
+          + `inside the closed settings panel may be deferred)`);
+
+      // The gate has to actually FIRE, or it proved nothing. A run where no tip
+      // ever reaches an edge is passing vacuously and the clamp is untested —
+      // precisely the state a default-viewport run is in. Required PER
+      // LANGUAGE: a French pass in which the clamp never engaged would say
+      // nothing about French.
+      check(clampedCount > 0,
+          `[${lang}] the edge clamp actually engaged for ${clampedCount} control(s) — `
+          + `a run where it never fires proves nothing about the clamp`);
+
+      stats.set(lang, { clamped: clampedCount, flipped: flippedCount,
+                        widest, tallest, worstRight, worstRightLabel,
+                        measured: measured.size });
     }
-    await page.click('#clockModeSeg button[data-value="1"]');   // Free
-    await page.waitForTimeout(80);
-    await sweep('all families on / clock Free');
 
-    // PASS 3 — back to Sync, for the division select in the other slot.
-    await page.click('#clockModeSeg button[data-value="0"]');
-    await page.waitForTimeout(80);
-    await sweep('all families on / clock Sync');
+    // French must actually BE French. Without this the sweep could run twice
+    // over identical English text and report a confident, meaningless pass —
+    // the same class of vacuity the clamp counter guards against.
+    {
+        const en = tipTextByLang.get('en') || {};
+        const fr = tipTextByLang.get('fr') || {};
+        const byProbe = new Map(anchors.map(a => [String(a.i), a.label]));
+        const same = Object.keys(en).filter(k => fr[k]
+            && en[k].t === fr[k].t && en[k].b === fr[k].b);
+        check(same.length === 0,
+            `every anchor's copy actually CHANGED between en and fr — `
+            + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
+            + (same.length ? ' — UNCHANGED: ' + same.map(k => byProbe.get(k) || k).join(', ') : ''));
+    }
 
-    const missed = anchors.filter(a => !measured.has(a.i)).map(a => a.label);
-    check(measured.size === anchors.length,
-        `every tip anchor was measured — ${measured.size}/${anchors.length}`
-        + (missed.length ? ' — NEVER HOVERABLE: ' + missed.join(', ') : ''));
+    // ── The Stage D deliverable, printed rather than only asserted ───────────
+    console.log('\n   ── en vs fr geometry, measured at ' + SHIP_W + ' x ' + SHIP_H + ' ──');
+    for (const lang of LANGS) {
+        const st = stats.get(lang);
+        if (!st) continue;
+        console.log(`   ${lang}: ${st.measured} anchors  clamped ${st.clamped}  `
+            + `flipped-below ${st.flipped}  widest ${st.widest.toFixed(1)}  `
+            + `tallest ${st.tallest.toFixed(1)}  right-most ${st.worstRightLabel} @ `
+            + `${st.worstRight.toFixed(1)} of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
+    }
+    {
+        const e = stats.get('en'), f = stats.get('fr');
+        if (e && f)
+            console.log(`   French costs ${f.flipped - e.flipped >= 0 ? '+' : ''}`
+                + `${f.flipped - e.flipped} vertical flip(s) and `
+                + `${f.clamped - e.clamped >= 0 ? '+' : ''}${f.clamped - e.clamped} clamp(s), `
+                + `and is ${(f.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+    }
 
-    // The disabled-family anchors must be reachable in the SHIPPED state, not
-    // only after the user switches each family on. 18 of the 53 sit in the four
-    // families that ship OFF; pass 1 has to have taken essentially all of them.
-    check(measuredWhileOff >= anchors.length - 2,
-        `disabled families still raise tips in the shipped state — `
-        + `${measuredWhileOff}/${anchors.length} measured before any family was `
-        + `switched on (only the swap-slot pair may be deferred)`);
-
-    // The gate has to actually FIRE, or it proved nothing. A run where no tip
-    // ever reaches an edge is passing vacuously and the clamp is untested —
-    // precisely the state a default-viewport run is in.
-    check(clampedCount > 0,
-        `the edge clamp actually engaged for ${clampedCount} control(s) — `
-        + `a run where it never fires proves nothing about the clamp`);
-
-    console.log(`\n   right-most tip: ${worstRightLabel} ends at ${worstRight.toFixed(1)} `
-        + `of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
+    // Leave the page in English for the stress and layout stages below, so
+    // their numbers stay comparable with every earlier release's.
+    await page.evaluate(() => window.__setLanguage('en'));
 
     // ── Shrink-to-fit stress: the branch the measure-then-pin fix changed ────
     // The sweep above does NOT necessarily discriminate, and saying so is the
@@ -447,7 +682,12 @@ function serve(root) {
     // So this stage manufactures the condition — short copy on the right-most
     // control, then long copy back — and asserts the tip returns to its natural
     // width (pattern_probe_must_target_the_branch_the_fix_changed).
-    const stressProbe = anchors.find(a => a.label === 'Hover help').i;
+    // v1.14.0: the probe moved from 'Hover help' to 'Settings'. The stress needs
+    // the RIGHT-MOST control on the page, and the "?" that used to be it is now
+    // inside the settings panel — which ships hidden, so its rect would measure
+    // 0x0 and the trap below would never be set up. The gear took over its
+    // header slot and is the right-most control now.
+    const stressProbe = anchors.find(a => a.label === 'Settings').i;
     const stress = await page.evaluate(async (i) => {
         const el = document.querySelector(`[data-tip-probe="${i}"]`);
         const tip = document.getElementById('tooltip');
@@ -492,18 +732,24 @@ function serve(root) {
     await unhover();
 
     // ── The layout must not have moved ──────────────────────────────────────
-    // The "?" is a FOURTH flex child of .hdr rather than an absolute overlay,
-    // which is only safe because .hdr is justify-content:space-between with
-    // slack rather than a centred title. Measured rather than reasoned about:
-    // the 900 x 740 frame is fixed by setSize and a header that overflows or
-    // scrolls is exactly the kind of change no build gate can see.
+    // The settings cluster is a FOURTH flex child of .hdr rather than an
+    // absolute overlay, which is only safe because .hdr is
+    // justify-content:space-between with slack rather than a centred title.
+    // Measured rather than reasoned about: the 900 x 740 frame is fixed by
+    // setSize and a header that overflows or scrolls is exactly the kind of
+    // change no build gate can see.
+    //
+    // v1.14.0 swapped the "?" for the gear IN THE SAME SLOT, at the same 22 px
+    // circle geometry, so these numbers should be unchanged — which is the
+    // claim being tested. #gear-btn is measured rather than #help-toggle: the
+    // toggle moved inside the panel and its rect is 0x0 while that is closed.
     const layout = await page.evaluate(() => {
         const plugin = document.querySelector('.plugin').getBoundingClientRect();
         const hdr = document.querySelector('.hdr').getBoundingClientRect();
         const mark = document.querySelector('.wordmark').getBoundingClientRect();
         const band = document.querySelector('.preset-band').getBoundingClientRect();
         const right = document.querySelector('.hdr-right').getBoundingClientRect();
-        const btn = document.getElementById('help-toggle').getBoundingClientRect();
+        const btn = document.getElementById('gear-btn').getBoundingClientRect();
         return {
             pluginW: +plugin.width.toFixed(2), pluginH: +plugin.height.toFixed(2),
             markRight: +mark.right.toFixed(2),
@@ -530,13 +776,13 @@ function serve(root) {
         && layout.rightRight <= layout.btnLeft,
         `the header's four children do not overlap — wordmark|${layout.markRight} `
         + `band|${layout.bandLeft}..${layout.bandRight} `
-        + `brand|${layout.rightLeft}..${layout.rightRight} "?"|${layout.btnLeft}`);
+        + `brand|${layout.rightLeft}..${layout.rightRight} gear|${layout.btnLeft}`);
 
     check(layout.btnRight <= layout.hdrRight + 0.5,
-        `the "?" is inside the header's content box — its right edge is `
+        `the gear is inside the header's content box — its right edge is `
         + `${layout.btnRight}, the header ends at ${layout.hdrRight}`);
 
-    console.log(`   "?" right edge at ${layout.btnRight} of ${SHIP_W} `
+    console.log(`   gear right edge at ${layout.btnRight} of ${SHIP_W} `
         + `— the right-most control, which is why the clamp matters here`);
 
     await browser.close();

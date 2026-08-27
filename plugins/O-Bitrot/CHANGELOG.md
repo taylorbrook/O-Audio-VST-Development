@@ -2,6 +2,101 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.14.0] — 2026-08-26 — English/French hover help; the clamp gate now sweeps both languages
+
+**No parameter, preset, state, DSP or layout change.** Every knob, every range,
+every default and all 28 factory presets are bitwise what v1.13.0 shipped. What
+changed is where the hover-help copy LIVES, and the addition of a language it
+can be read in.
+
+### Hover-help copy moved out of the markup
+
+All 53 tooltips left `index.html` and now live in a new `js/i18n.js` as a key
+table, `{ key: { en: {t, b}, fr: {t, b, reviewed} } }`. **The English was moved,
+not rewritten** — every `en` entry was extracted mechanically rather than
+re-typed, and a comparison against the original markup confirms all 53 are
+byte-identical, with HTML entities decoded (`&amp;` → `&`) because
+`setAttribute` + `textContent` do not decode them.
+
+The renderer is UNCHANGED. `showTip()` still reads `data-tip-title` / `data-tip`
+off the anchor; those attributes are simply written at runtime by `applyI18n()`.
+
+**Keys are the parameter ID, not the element id.** 41 of the 53 anchors on this
+page carry no id at all — they are `.ctl` and `.g-group` wrappers around a
+`[data-param]` knob — so binding by id was never available here. The canonical
+`[selector, key, wrapper]` triple addresses them exactly: the selector finds the
+knob and `closest(wrapper)` walks back up to the cell the tip belongs on.
+
+### A settings popover, and the hover-help toggle moved into it
+
+The gear replaces the v1.12.0 `?` in the same header slot, at the same 22 px
+circle geometry and palette, so the header silhouette is unchanged — asserted by
+measurement, not assumed. The panel carries two rows: Language (English /
+Français) and Hover help. **The toggle MOVED; it is not duplicated.**
+
+It now reads On/Off rather than showing a static `?`, so its caption is written
+from script for the first time. The copy it shows is authored in `data-on` /
+`data-off` **in the markup**, never as a literal in the JS — the rule that
+`pattern_js_state_updater_overwrites_html_labels` exists for, and the gate now
+compares the rendered caption against those attributes rather than against a
+pinned glyph.
+
+The language persists with the session as a non-parameter property on the APVTS
+state tree, beside `tooltipsEnabled`, guarded on restore by `isVoid()` and read
+with `toString()` — the same trap, handled the same way
+(`critical_valuetree_xml_roundtrip_loses_type`). Bridge 13 → 15.
+
+### All French is machine-drafted and UNREVIEWED
+
+All 55 entries carry `reviewed: false`. No native speaker has read them.
+`node scripts/check-i18n.js` prints the worklist. The terms most likely to want
+a native speaker's judgement: `ROT_ENABLE` ("Corruption"), `CRUSH_ENABLE`
+("Écrasement"), `VINYL_WARP` ("Voile"), `PACKET_BURST` ("Groupement") and
+`seedRo` ("Germe").
+
+### The clamp gate is parameterised by language, not duplicated
+
+All three existing sweep passes now run once for `en` and once for `fr`, in one
+process against one page load, driven through `window.__setLanguage()`.
+Assertion 3 (vertical) is the language-sensitive one: French wraps to more lines
+inside the **unchanged** 230 px cap, so tips get TALLER and the above/below flip
+has to catch what no longer fits above.
+
+`max-width` is now PARSED from the page's own CSS rather than hard-coded,
+because the cap differs per plugin; the literal survives as the drift guard. The
+anchor count is now derived from `TIP_BINDINGS` rather than by counting
+`data-tip=` literals in the markup — that count is zero now, so the old
+assertion would have passed vacuously against nothing. A fourth sweep pass opens
+the settings popover so `#lang-select` and the moved toggle are measured rather
+than skipped; both sit in the top-right corner, where the clamp and the flip bite
+hardest. Two vacuity guards, both per-language: the clamp must engage at least
+once, and every anchor's copy must actually differ between `en` and `fr`.
+
+### French geometry, MEASURED at the shipping 900 × 740
+
+| | anchors | clamped | flipped below | widest | tallest |
+|---|---|---|---|---|---|
+| `en` | 55 | 14 | 10 | 230.0 px | 119.1 px |
+| `fr` | 55 | 14 | **13** | 230.0 px | 133.9 px |
+
+**French costs three extra vertical flips here and zero extra clamps.** This is
+the first frame in the suite where French changes flip behaviour at all —
+O-Octagon at 1100 × 720 cost one, O-ReverseDelay at 940 × 768 cost none — and
+every one of the three was caught by the existing flip logic, so all 55 anchors
+in both languages sit fully inside the viewport with an 8 px margin.
+`.tooltip { max-width }` was NOT touched.
+
+### Not verified
+
+* **Nothing has been checked in a real DAW.** Everything above is headless
+  Chromium against the repo's own ui-stub, `auval`, and the offline C++ harness.
+* **The C++ persistence path was never executed.** Nothing wrote `"fr"` into a
+  session and read it back. It is a stronger inference here than on most — the
+  property sits beside `tooltipsEnabled`, which has shipped and worked since
+  v1.12.0 and has its own round-trip probe — but it is still an inference.
+* **The native bridge was exercised only against the ui-stub.**
+* **No cross-platform check.** Windows/WebView2 has not been exercised.
+
 ## [1.13.0] — 2026-08-19
 
 The preset readout is now a **click-to-open menu**, and the menu restores the

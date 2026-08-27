@@ -1758,6 +1758,12 @@ void OBitrotAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     state.setProperty("tooltipsEnabled",
                       tooltipsEnabled.load(std::memory_order_acquire), nullptr);
 
+    // v1.14.0: the hover-help LANGUAGE rides the same tree, beside the toggle
+    // it belongs with. Written as a STRING ("en"/"fr") rather than the atomic's
+    // int index, so a hand-inspected session file says what it means.
+    state.setProperty("uiLanguage",
+                      languageCode(uiLanguage.load(std::memory_order_acquire)), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -1791,6 +1797,18 @@ void OBitrotAudioProcessor::setStateInformation(const void* data, int sizeInByte
 
         if (! tips.isVoid())
             tooltipsEnabled.store((bool) tips, std::memory_order_release);
+
+        // v1.14.0: same treatment, same trap. isVoid() is the ONLY correct
+        // guard and toString() the only correct read — the XML round-trip
+        // rebuilds every property as a var over the attribute STRING
+        // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.14.0 session
+        // has no such property at all and the default (English) stands.
+        // languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited value degrades to English rather than to a bad index.
+        const juce::var lang = apvts.state.getProperty("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
     }
 }
 

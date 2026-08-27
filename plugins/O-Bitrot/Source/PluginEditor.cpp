@@ -165,12 +165,42 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
                                    std::memory_order_acquire)));
         });
 
+    // ── v1.14.0: the hover-help LANGUAGE pair ──────────────────────────────
+    //
+    // Same shape and same discipline as the toggle pair above: plain
+    // withNativeFunction, no relay, PULLED once by the page at init. No push
+    // from this constructor, no timer, no poll().then(poll) and no revision
+    // counter — the language is not preset content, and
+    // OuariconPresetManager::loadPreset walks preset["parameters"] only, so no
+    // preset path can change it behind the page's back.
+    options = options.withNativeFunction("getUiLanguage",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(OBitrotAudioProcessor::languageCode(
+                                   audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction("setUiLanguage",
+        [this](auto& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                audioProcessor.uiLanguage.store(
+                    OBitrotAudioProcessor::languageIndex(args[0].toString()),
+                    std::memory_order_release);
+
+            complete(juce::var(OBitrotAudioProcessor::languageCode(
+                                   audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+        });
+
     // ── PRESET NATIVE FUNCTIONS — 11 (Stage 4, +1 in v1.13.0) ──────────────
     // Ten are exactly the names modules/preset-manager.js requests; the
     // eleventh, getPresetListGrouped, is O-Bitrot's own and is consumed by the
     // preset MENU in index.html, not by the module. With the two hover-help
-    // fns above the total registered surface is 13 and the grep-diff parity
-    // gate runs at 13↔13. The synchronous nine capture `this`
+    // fns above and v1.14.0's language pair the total registered surface is 15
+    // and the grep-diff parity gate runs at 15↔15. The synchronous nine capture `this`
     // (completion never outlives the call). The two DIALOG fns defer their
     // completion into a FileChooser callback: shared_ptr chooser captured
     // into its own callback, SafePointer HOISTED to a local (MSVC rejects
@@ -555,6 +585,20 @@ OBitrotAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
             juce::String("text/html")};
+    }
+
+    // v1.14.0 — the hover-help copy table, imported by the inline module in
+    // index.html as './js/i18n.js'. This branch, the juce_add_binary_data
+    // SOURCES entry and the import all land in one commit: any two of the three
+    // leaves the page 404ing at runtime with nothing failing at build time.
+    // charset=utf-8 on this one, unlike its neighbours: the French copy is full
+    // of accented characters and typographic apostrophes, which mojibake on
+    // some hosts without it.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("application/javascript; charset=utf-8")};
     }
 
     if (url == "/js/juce/index.js")
