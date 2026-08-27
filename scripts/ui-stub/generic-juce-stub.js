@@ -223,6 +223,17 @@ const sliderStates = new Map();
 const toggleStates = new Map();
 const comboStates  = new Map();
 
+// Exposed so a gate can run a real STATE-UPDATE PASS: driving
+// setNormalisedValue fires the page's own valueChangedEvent listeners, which is
+// what makes `dataset.label === textContent` a meaningful assertion rather than
+// a restatement of what applyLabel just wrote. Without a way to reach the
+// states, a gate can only prove the invariant holds at the moment nothing has
+// happened — and the failure it guards
+// (pattern_js_state_updater_overwrites_html_labels) happens precisely when
+// something has.
+if (typeof window !== 'undefined')
+  window.__stubStates = { sliders: sliderStates, toggles: toggleStates, combos: comboStates };
+
 export function getSliderState(name) {
   if (!sliderStates.has(name)) sliderStates.set(name, new StubSliderState(name));
   return sliderStates.get(name);
