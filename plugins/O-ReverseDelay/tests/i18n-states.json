@@ -1,0 +1,5 @@
+[
+  { "name": "TIME group, FREE slot (delay in ms)", "click": "#seg-free" },
+  { "name": "TIME group, SYNC slot (note division)", "click": "#seg-sync" },
+  { "name": "settings popover OPEN", "click": "#gear-btn" }
+]

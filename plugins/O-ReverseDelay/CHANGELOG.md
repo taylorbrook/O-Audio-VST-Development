@@ -4,6 +4,106 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.10.0] — 2026-08-27 — the PAGE speaks French, not only the hover help
+
+**No parameter, preset, state or DSP change.** Every knob, every range, every
+default and every factory preset is bitwise what v1.9.0 shipped. The layout DID
+change — see the measured table below — and every one of those changes applies
+identically in both languages.
+
+Fourth plugin on canon v2, after O-Tapestop v1.6.0, O-MultiBandCompressor
+v1.11.0 and O-Bitrot v1.15.0. **D13 stands and was extended, not weakened:** the
+settings popover still carries the language selector alone, there is still no
+hover-help toggle and no `setTooltipsEnabled` anywhere.
+
+### Added
+
+- **35 label keys** in a new `LABELS` table in `js/i18n.js`, plus a reasoned
+  `I18N_EXEMPT` for the two halves of the product name and the loaded preset
+  name.
+- **`data-i18n` on 50 elements and `data-i18n-aria` on 11.** The element owns its
+  caption; the authored English stays in the markup as the fallback that renders
+  if `applyI18n()` never runs.
+- **`tests/i18n-states.json`** driving the FREE↔SYNC time-slot swap and the
+  settings popover, which is what takes the label gate from 44 of 50 elements
+  measured to **50 of 50**.
+
+### Changed
+
+- **Canon v1 → canon v2** in `js/app.js`, verbatim from `scripts/i18n-canon.js`.
+  The block did not have to move: every binding on this page runs inside `init()`
+  at the foot of the module, so nothing reaches the i18n bindings at
+  module-evaluation time.
+- **SIXTEEN label keys are REUSED from the tooltip table**, more than any other
+  plugin in the suite, because this page's tooltip titles were authored as the
+  captions they sit under — `knob-delayTime` (Delay / Délai), `knob-density`,
+  `knob-lowCut`, `knob-highCut`, `knob-width`, `knob-mix`, `knob-jitter`,
+  `knob-delayScatter`, `combo-grainShape`, `knob-direction`, `knob-regenMakeup`,
+  `knob-diffusion`, `knob-drive`, `knob-feedback`, `sourceSegments` and
+  `freezeSegments`. The reuse rule requires the string to be identical in BOTH
+  languages, and it is in each of these.
+- **The delete button's two faces became keys.** `data-label` / `data-confirm`
+  were the right answer while the page was English-only — the copy stayed out of
+  the JS, which is what `pattern_js_state_updater_overwrites_html_labels` asks
+  for — and the wrong answer with two languages, because an attribute holds ONE
+  string and a switch while the button was armed would have restored the ENGLISH
+  armed face.
+- **Two false sentences fixed, in both languages.** `lang-select`'s tip said "the
+  labels on the page itself do not change"; the selector's own `aria-label` said
+  "Hover help language" while the control now sets the language of the page.
+- **`tests/ui_frontend_check.js`, two rewrites and one extension.** The delete
+  button's copy assertion moved from "carries data-label and data-confirm" to
+  three stronger checks: the markup declares the unarmed KEY, both faces are
+  swapped through `setLabel()` with PLAIN STRING literals, and nothing writes
+  that button's `textContent` directly. Separately, the v1.9.0 anchor-coverage
+  assertion — the one that immediately found the COLOUR panel had shipped
+  without `knob-diffusion` and `knob-drive` — was extended to LABELS: every
+  `data-i18n` / `data-i18n-aria` key in the markup must resolve in `LABELS` or
+  `I18N` (the same fallback `trLabel()` uses) and carry a title in BOTH
+  languages. **A third assertion states D13 in its label form:** no `ui.on` /
+  `ui.off` key may exist, so the toggle cannot be reintroduced through the label
+  table. All three confirmed by negative control.
+
+### Fixed — layout, from the measured English↔French geometry diff
+
+`node scripts/check-ui-labels.js --plugin O-ReverseDelay` reported **7 non-label
+elements moved** at the shipping 940 × 768 before any fix, and **zero** after.
+D-04 forbids an auto-shrink font and a short-variant fallback.
+
+| Moved | By | Cause | Fix |
+|---|---|---|---|
+| both preset-bar fleurons, both nav arrows and the name readout | dx ±10.4 | SAVE 56.8 → ENREG. 69.8, LOAD 59.8 → OUVRIR 72.3, DELETE 71.8 → SUPPR. 67.1, in a centred band | the three buttons pinned to 74 px |
+| both footer fleurons | dx ±69.6 | the footer caption runs 403.5 → 542.7 in a `justify-content: center` row | `.footer-text { width: 560px }` |
+| — (a clip, not a shift) | — | SYNCHRO is 54.8 px inside a 58 px segment's 54 px content box | `#syncSegments .segment { width: 66px }` — 132 px inside the group's pinned 190 |
+
+**Three French captions were sized rather than the layout changed**, because the
+three specimen rows share ONE pinned 190 \| 190 \| 276 \| 190 width contract that a
+prior plan locked and French may not move:
+
+- `Tilt` → **Pente** and `Taper` → **Biseau**, not the tooltip titles
+  "Inclinaison" (71.1 px) and "Adoucissement" (91.9 px), because the WINDOW
+  group's cells are 66 px where every other knob cell on the page is 72.
+- `Depth` → **Ampleur**, not "Profondeur" (72.4 px in a 72 px cell — 0.4 px over,
+  which is a clip rather than a near miss).
+
+### Known, and left alone
+
+- **The gate found the WINDOW captions as an OVERLAP, not as a clip**, and only
+  when BOTH were over-long. `.knob-label` is a shrink-to-fit flex item, so its
+  box is always exactly its text and the text-spill check can never fire on it;
+  `offsetParent` is the frame rather than the cell, so the spill check cannot
+  either. A SINGLE over-long caption in a two-cell row is therefore not caught
+  by any assertion here — confirmed by negative control, which is why it is
+  written down rather than assumed away.
+- Twelve `.group-label` legends are `position: absolute` and deliberately
+  overhang their panel by 9 px, and the decorative bird overlay runs 28 px past
+  the frame. Both are identical in both languages; the gate reports them and
+  does not assert on them.
+- All 66 French entries (31 tooltip, 35 label) are machine drafts flagged
+  `reviewed: false`. `Enreg.` / `Ouvrir` / `Suppr.`, `Pente`, `Biseau`,
+  `Ampleur`, `Recouvr.` and `Ducking` were picked with width as a constraint and
+  should be the first a native speaker challenges.
+
 ## [1.9.0] — 2026-08-26 — English/French hover help; the clamp gate now sweeps both languages
 
 **No parameter, preset, state, DSP or layout change.** Every knob, every range,

@@ -73,7 +73,7 @@ import * as Juce from "./juce/index.js";
 //
 // scripts/check-i18n.js assertion 6 requires this line VERBATIM, single quotes
 // included — it is one of the two anchors the repo-wide drift gate matches on.
-import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // ── Parameter inventory (must match createParameterLayout() exactly) ────────
 const KNOB_IDS = [
@@ -877,12 +877,20 @@ function initGrainMeter(juce) {
 // Two-click inline confirm. preset-manager.js otherwise falls back to the
 // browser's built-in confirm dialog, which is a silent no-op or a throw in some
 // JUCE WebView backends — that would make the delete leg of the bar untestable.
-// Copy comes from the button's own data-label / data-confirm attributes, never
-// invented here (pattern_js_state_updater_overwrites_html_labels).
+// v1.10.0: the two faces are KEYS through setLabel(), not the data-label /
+// data-confirm attributes they were through v1.9.0. Those attributes were the
+// right answer while the page was English-only — they kept the copy out of this
+// file, which is what pattern_js_state_updater_overwrites_html_labels asks for.
+// They are the wrong answer once the page has two languages: an attribute holds
+// ONE string, so a language switch while the button was armed would have
+// restored the ENGLISH armed face. A key re-renders with the sweep.
+//
+// Two separate setLabel() calls in two functions, never one call with a ternary
+// in its argument: check-i18n assertion 13 rejects that shape outright.
 function disarmDelete(btn) {
   clearTimeout(deleteArmTimer);
   btn.dataset.armed = "0";
-  btn.textContent = btn.dataset.label;
+  setLabel(btn, "label.delete");
 }
 
 function confirmDeleteInline(_name, _message) {
@@ -892,7 +900,7 @@ function confirmDeleteInline(_name, _message) {
   if (btn.dataset.armed === "1") { disarmDelete(btn); return true; }
 
   btn.dataset.armed = "1";
-  btn.textContent = btn.dataset.confirm;
+  setLabel(btn, "ui.confirm");
   clearTimeout(deleteArmTimer);
   deleteArmTimer = setTimeout(() => disarmDelete(btn), DELETE_ARM_MS);
   return false;
@@ -952,6 +960,47 @@ let uiLanguage = 'en';
 let getUiLanguageNative = null;
 let setUiLanguageNative = null;
 
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
 function applyI18n(lang) {
     uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
     for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
@@ -962,6 +1011,9 @@ function applyI18n(lang) {
         target.setAttribute('data-tip-title', s.t);
         target.setAttribute('data-tip', s.b);
     }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
     const sel = document.getElementById('lang-select');
     if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
 }
@@ -969,6 +1021,10 @@ function applyI18n(lang) {
 // Exposed so a clamp gate can drive the language without teaching the ui-stub a
 // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
 window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
 
 function initI18n() {
     try {

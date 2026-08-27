@@ -82,11 +82,17 @@ export const I18N = Object.freeze({
               b: 'Choisir la langue de cette aide au survol. Le choix est conservé avec la session.',
               reviewed: false },
     },
+    // v1.10.0: through v1.9.0 this entry told the user, in both languages, that
+    // the labels on the page do not change. That is now false — they do.
+    // Rewritten to say what is true, INCLUDING the half that stayed true: value
+    // readouts are English in both languages (D-03), so a knob still reads
+    // `250 ms`, and preset names are English because the name IS the filename
+    // (D-02).
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language this hover help is written in. English and French are available; the labels on the page itself do not change.' },
+              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page elle-même ne changent pas.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
 
@@ -319,6 +325,167 @@ export const I18N = Object.freeze({
 // Every anchor on this page already carries an id — tests/ui_frontend_check.js
 // section 14 and tests/ui_tooltip_clamp_check.js both enumerate BY id — so all
 // of these are plain '#id' forms and none needs a wrapper.
+// ============================================================================
+// LABELS — the on-page text (v1.10.0, canon v2)
+// ============================================================================
+//
+// I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
+// 230 px tooltip. LABELS is ON-PAGE copy: one string dropped into a fixed cell
+// that does not wrap. They are different problems and this table keeps them
+// apart on purpose.
+//
+// ── THE REUSE RULE ─────────────────────────────────────────────────────────
+// trLabel() falls back to I18N when a key is absent here, so a control whose
+// tooltip TITLE already IS its caption carries ONE key. This page reuses more
+// than any other in the suite — SIXTEEN keys — because its tooltip titles were
+// authored as the captions they sit under: knob-delayTime (Delay / Délai),
+// combo-noteDivision, knob-density, knob-lowCut, knob-highCut, knob-width,
+// knob-mix, knob-jitter, knob-delayScatter, combo-grainShape, knob-grainTilt,
+// knob-tukeyTaper, knob-direction, knob-regenMakeup, knob-diffusion,
+// knob-drive, plus freezeSegments, sourceSegments, syncSegments, knob-feedback
+// and settings for the group labels and accessible names that match exactly.
+// None of those appears below.
+//
+// It is deliberately NOT used where only the English matches, and this page has
+// six such cases: knob-grainSize's title is "Grain Size" under a caption
+// reading "Size"; knob-sizeRandom is "Size Random" under "Size Rnd";
+// knob-gainRandom, knob-grainCount, knob-driftRate and knob-driftDepth are the
+// same shape. Reusing there would make the next tooltip copy edit a silent
+// change to a control.
+//
+// knob-duck is the case worth naming: its title is "Atténuation dynamique",
+// which is the right phrase for a sentence and 20 characters too many for a
+// 9.5 px knob caption in a 190 px column.
+//
+// ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
+// Every en below is what index.html carried through v1.9.0, taken from
+// scripts/i18n-extract.js's inventory rather than transcribed, with HTML
+// entities decoded to the characters they named (&#183; -> ·) because
+// textContent does not decode.
+//
+// ── FRENCH IS SIZED, NOT SHRUNK ────────────────────────────────────────────
+// D-04 forbids an auto-shrink font and a short-variant fallback: exactly ONE
+// French string per key, and nothing chooses between variants at runtime.
+// 940 x 768 is the roomiest frame of the five, and the three specimen rows share
+// ONE pinned width contract (190 | 190 | 276 | 190) which French cannot move —
+// see CHANGELOG v1.10.0 for what did have to move.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`. No native speaker has read
+// it. `node scripts/check-i18n.js` prints the worklist, LABELS included.
+// ============================================================================
+
+export const LABELS = Object.freeze({
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    'label.subtitle':  { en: { t: 'Granular Reverse Delay · A Field Guide' },
+                         fr: { t: 'Délai inversé granulaire · Guide de terrain', reviewed: false } },
+
+    // ── Preset bar ──────────────────────────────────────────────────────────
+    'label.save':      { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: false } },
+    'label.load':      { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: false } },
+    'label.delete':    { en: { t: 'Delete' }, fr: { t: 'Suppr.',  reviewed: false } },
+    // The armed face of the delete button. It goes through setLabel(), so the
+    // element becomes a [data-i18n] element and the language sweep owns it —
+    // through v1.9.0 it was a data-confirm ATTRIBUTE, which was the right
+    // answer while the page was English-only and the wrong one the moment it
+    // had two languages: an attribute holds ONE string, so a language switch
+    // mid-arm would have restored the ENGLISH armed face.
+    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: false } },
+
+    // ── Group headings and captions ─────────────────────────────────────────
+    'label.time':      { en: { t: 'Time' },     fr: { t: 'Temps',     reviewed: false } },
+    'label.free':      { en: { t: 'Free' },     fr: { t: 'Libre',     reviewed: false } },
+    'label.sync':      { en: { t: 'Sync' },     fr: { t: 'Synchro',   reviewed: false } },
+    'label.grain':     { en: { t: 'Grain' },    fr: { t: 'Grain',     reviewed: false, sameAsEn: true } },
+    'label.size':      { en: { t: 'Size' },     fr: { t: 'Taille',    reviewed: false } },
+    'label.amount':    { en: { t: 'Amount' },   fr: { t: 'Quantité',  reviewed: false } },
+    'label.output':    { en: { t: 'Output' },   fr: { t: 'Sortie',    reviewed: false } },
+    'label.random':    { en: { t: 'Random' },   fr: { t: 'Aléa',      reviewed: false } },
+    'label.sizeRnd':   { en: { t: 'Size Rnd' }, fr: { t: 'Aléa taille', reviewed: false } },
+    'label.gainRnd':   { en: { t: 'Gain Rnd' }, fr: { t: 'Aléa gain', reviewed: false } },
+    'label.window':    { en: { t: 'Window' },   fr: { t: 'Fenêtre',   reviewed: false } },
+    // These two do NOT reuse knob-grainTilt / knob-tukeyTaper, and the reason is
+    // measured: the WINDOW group's cells are 66 px (every other knob cell on the
+    // page is 72), and "Inclinaison" is 71.1 px and "Adoucissement" 91.9. The
+    // label gate caught them as an OVERLAP between the two captions, assertion 8
+    // — the clip check never saw it, because .knob-label is a shrink-to-fit flex
+    // item whose box is always exactly its text. The group's 190 px column is
+    // part of the pinned 190|190|276|190 width contract the three specimen rows
+    // share, so the cells cannot grow; the words do the work instead. Both are
+    // ordinary French for what the control does to a window's shape.
+    'label.tilt':      { en: { t: 'Tilt' },     fr: { t: 'Pente',     reviewed: false } },
+    'label.taper':     { en: { t: 'Taper' },    fr: { t: 'Biseau',    reviewed: false } },
+    'label.count':     { en: { t: 'Count' },    fr: { t: 'Nombre',    reviewed: false } },
+    'label.motion':    { en: { t: 'Motion' },   fr: { t: 'Mouvement', reviewed: false } },
+    'label.off':       { en: { t: 'Off' },      fr: { t: 'Arrêt',     reviewed: false } },
+    'label.mono':      { en: { t: 'Mono' },     fr: { t: 'Mono',      reviewed: false, sameAsEn: true } },
+    'label.stereo':    { en: { t: 'Stereo' },   fr: { t: 'Stéréo',    reviewed: false } },
+    // The loanword, and the one entry here chosen against a translation that
+    // exists. knob-duck's tip says "Atténuation dynamique" and explains what the
+    // control does; the caption is the word this technique is called by in a
+    // French control room.
+    'label.duck':      { en: { t: 'Duck' },     fr: { t: 'Ducking',   reviewed: false } },
+    'label.drift':     { en: { t: 'Drift' },    fr: { t: 'Dérive',    reviewed: false } },
+    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Vitesse',   reviewed: false } },
+    // "Profondeur" is 72.4 px in a 72 px cell — 0.4 px over, which is a clip
+    // rather than a near miss. "Ampleur" is the same idea for the amount of a
+    // modulation and is what the tip's fuller phrase can afford to spell out.
+    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Ampleur',   reviewed: false } },
+    'label.colour':    { en: { t: 'Colour' },   fr: { t: 'Couleur',   reviewed: false } },
+
+    // ── The grain meter's two captions ──────────────────────────────────────
+    // Their VALUE spans are readouts and are never keyed: updateGrainMeter()
+    // writes `${active}` and `${overlap.toFixed(1)}×` into siblings, which is
+    // exactly the split contract §5 asks for and which this page already had.
+    'label.active':    { en: { t: 'Active' },   fr: { t: 'Actifs',    reviewed: false } },
+    'label.overlap':   { en: { t: 'Overlap' },  fr: { t: 'Recouvr.',  reviewed: false } },
+
+    'label.footer':    { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
+                         fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: false } },
+
+    // ── Accessible names ────────────────────────────────────────────────────
+    // An aria-label is user-visible text by any definition that matters — it is
+    // the accessible NAME, and a screen reader in French reading an English
+    // name is the same failure as a French page with an English caption. None
+    // has a rendered box, so none is a geometry risk.
+    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false } },
+    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: false } },
+    // v1.10.0: this was ALSO false copy. It read "Hover help language" while
+    // the control now sets the language of the whole page.
+    'aria.langSelect':   { en: { t: 'Interface language' },
+                           fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.noteDivision': { en: { t: 'Note Division' }, fr: { t: 'Division de note', reviewed: false } },
+    'aria.grainShape':   { en: { t: 'Grain Shape' },  fr: { t: 'Forme de grain', reviewed: false } },
+    'aria.envCanvas':    { en: { t: 'Grain amplitude envelope' },
+                           fr: { t: 'Enveloppe d’amplitude de grain', reviewed: false } },
+    'aria.sourceMode':   { en: { t: 'Source Mode' },  fr: { t: 'Mode de source', reviewed: false } },
+});
+
+// ============================================================================
+// I18N_EXEMPT — reasoned exclusions, never silence
+// ============================================================================
+//
+// Every visible string the coverage scan finds must be a [data-i18n] element, a
+// setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let a
+// missed label hide as a deliberate one.
+// ============================================================================
+
+export const I18N_EXEMPT = [
+    // The product name, split across the <h1>'s own text node and the italic
+    // .title-accent span, so both halves need an entry. The markup authors HAIR
+    // SPACES around the en dash (&#8202;), but the scanner collapses every
+    // whitespace run to one U+0020 before it classifies, so this entry carries
+    // ORDINARY spaces — exempting the as-authored form instead would silently
+    // fail to match and report the product name as an unlocalized label.
+    ['O – Reverse', 'half of the product name O–ReverseDelay — a product name is never translated'],
+    ['Delay',       'the italic half of the product name O–ReverseDelay, in .title-accent'],
+
+    // #preset-name displays the loaded preset. The name IS the JSON filename
+    // (OuariconPresetManager.h:283-285), so translating it breaks recall.
+    // "Default" is the placeholder the manager overwrites on its first pass.
+    ['Default', 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
+];
+
 export const TIP_BINDINGS = [
     ['#gear-btn',            'settings'],
     ['#lang-select',         'lang-select'],
