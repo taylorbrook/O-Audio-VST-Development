@@ -295,34 +295,37 @@ function serve(root) {
         return { active: t.classList.contains('active'),
                  pressed: t.getAttribute('aria-pressed'),
                  caption: t.textContent.trim(),
-                 authoredOn: t.dataset.on ?? null,
-                 authoredOff: t.dataset.off ?? null };
+                 key: t.dataset.i18n ?? null,
+                 mirror: t.dataset.label ?? null };
     });
     check(initial.active === false && initial.pressed === 'false',
         `the help layer ships OFF — .active=${initial.active}, aria-pressed=${initial.pressed}`);
 
-    // ── v1.14.0: this assertion was REWRITTEN, and it still guards the same
-    //    rule ────────────────────────────────────────────────────────────────
-    // Through v1.13.0 the toggle was a "?" circle in the header whose glyph was
-    // static, and this pinned the literal "?". v1.14.0 moved the control into
-    // the settings popover, where it reads On/Off — so the caption IS written
-    // from script now, and a check for "?" would fail on a deliberate change
-    // while saying nothing about what actually matters.
+    // ── v1.15.0: this assertion was REWRITTEN A SECOND TIME, and it still
+    //    guards the same rule ─────────────────────────────────────────────────
+    // Through v1.13.0 the toggle was a "?" circle and this pinned the literal
+    // "?". v1.14.0 moved it into the settings popover where it reads On/Off, so
+    // the caption became script-written and the check moved to comparing it
+    // against the data-on / data-off attributes AUTHORED ON THE ELEMENT.
     //
-    // What actually matters is unchanged: the COPY must come from the markup,
-    // never from a literal in the JS. That is the rule
-    // pattern_js_state_updater_overwrites_html_labels exists for, and it is how
-    // O-MBC's band glyphs became "Off Off Off". So the caption is now compared
-    // against the data-on / data-off attributes AUTHORED ON THE ELEMENT. If
-    // either attribute is stripped the comparison is against null and this
-    // fails — which is exactly the case where applyTipsEnabled would silently
-    // fall back to its own literal.
-    check(initial.authoredOn !== null && initial.authoredOff !== null,
-        `the toggle authors both captions in the markup — `
-        + `data-on="${initial.authoredOn}" data-off="${initial.authoredOff}"`);
-    check(initial.caption === initial.authoredOff,
-        `the toggle's caption comes from the AUTHORED data-off, not from a JS `
-        + `literal — rendered "${initial.caption}", authored "${initial.authoredOff}"`);
+    // v1.15.0 removes those attributes, deliberately. An attribute holds ONE
+    // string; on a two-language page the off face would have been restored in
+    // ENGLISH the instant the user picked Français. The faces are keys now, and
+    // setLabel() makes the element a [data-i18n] element the language sweep
+    // owns.
+    //
+    // The rule being guarded has not moved: the caption must never be a literal
+    // in the JS. Its evidence has. applyLabel() writes textContent and
+    // dataset.label TOGETHER, so `dataset.label === textContent` is the
+    // ownership mirror — the systemic form of
+    // pattern_js_state_updater_overwrites_html_labels, and the same assertion
+    // scripts/check-ui-labels.js makes repo-wide. If the caption were written
+    // as a literal anywhere, the mirror and the text would disagree.
+    check(initial.key === 'ui.off',
+        `the unlit toggle declares its own key — data-i18n="${initial.key}", expected "ui.off"`);
+    check(initial.mirror !== null && initial.caption === initial.mirror,
+        `the caption IS the ownership mirror, not a JS literal — rendered `
+        + `"${initial.caption}", dataset.label "${initial.mirror}"`);
 
     const dwell = Number((html.match(/TOOLTIP_DELAY_MS\s*=\s*(\d+)/) || [])[1] || 350);
 
@@ -382,15 +385,18 @@ function serve(root) {
             active: t.classList.contains('active'),
             pressed: t.getAttribute('aria-pressed'),
             caption: t.textContent.trim(),
-            authoredOn: t.dataset.on ?? null,
+            key: t.dataset.i18n ?? null,
+            mirror: t.dataset.label ?? null,
             persisted: await juce.getNativeFunction('getTooltipsEnabled')(),
         };
     });
     check(afterClick.active === true && afterClick.pressed === 'true',
         `clicking the toggle lights it — .active=${afterClick.active}, aria-pressed=${afterClick.pressed}`);
-    check(afterClick.caption === afterClick.authoredOn,
-        `the lit caption comes from the AUTHORED data-on — rendered `
-        + `"${afterClick.caption}", authored "${afterClick.authoredOn}"`);
+    check(afterClick.key === 'ui.on',
+        `the lit toggle swapped to the other KEY — data-i18n="${afterClick.key}", expected "ui.on"`);
+    check(afterClick.mirror !== null && afterClick.caption === afterClick.mirror,
+        `the lit caption IS the ownership mirror, not a JS literal — rendered `
+        + `"${afterClick.caption}", dataset.label "${afterClick.mirror}"`);
     check(afterClick.persisted === true,
         `the preference reached the native bridge — getTooltipsEnabled() = ${afterClick.persisted}`);
 

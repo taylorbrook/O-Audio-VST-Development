@@ -857,6 +857,72 @@
   }
   .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-frame); }
   .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-frame); }
+
+    /* ══ v1.15.0 — French label geometry ═══════════════════════════════════
+       Every rule here pins a container that was SHRINK-TO-FIT and therefore
+       resized when its caption changed language. `node
+       scripts/check-ui-labels.js --plugin O-Bitrot` reported 78 non-label
+       elements moved at 900 x 740 before them and zero after. D-04 forbids an
+       auto-shrink font and a short-variant fallback, so a fixed box is the
+       move available. Widths are MEASURED against the French string, never
+       guessed; the CHANGELOG carries the table. */
+
+    /* The three text buttons in the preset band. SAVE 43 -> ENREG. 53.7,
+       LOAD 45.3 -> OUVRIR 55, DELETE 54.6 -> SUPPR. 51.6, which grew the band
+       17.4 px and slid the whole band, both nav arrows and the name readout
+       23 px left. */
+    #preset-save, #preset-load, #preset-delete { width: 55px; padding: 2px 0 3px; }
+
+    /* The imprint block. .plate is keyed and French runs longer, and
+       .hdr-right was sized by it, so .brand moved with it. 224 holds the
+       French line; text-align:right already flushes both lines to the same
+       edge, so English is unchanged apart from the box behind it. */
+    .hdr-right { width: 224px; }
+
+    /* Every panel head. The caption now takes the slack the .gap spacer used
+       to take, so its box is the same in both languages and the enable button
+       stays put. The button itself is a [data-i18n] label whose OWN width may
+       move — pinned at 62 px anyway, because it is what sets where the caption
+       ends: ON 36.3 -> MARCHE 60.6. */
+    .p-head .caption { flex: 1 1 auto; min-width: 0; }
+    .p-head .gap { flex: 0 0 0; }
+    .p-head .en { width: 62px; padding-left: 0; padding-right: 0; }
+
+    /* A knob column. .ctl is `flex-direction: column; align-items: center`, so
+       it was sized by whichever of the knob and the caption was wider — and
+       WOW 28.4 -> PLEURAGE 59.2 made the caption wider than the 50 px knob,
+       dragging the two columns beside it. 64 px clears the widest French
+       caption on the page. Columns holding a segmented control or a <select>
+       are already sized by that control and are left alone.
+       This also corrects an English inconsistency nothing was measuring:
+       Comfort's column already rendered 53.8 px against its neighbours' 50. */
+    .ctl:has(> .knob) { width: 64px; }
+
+    /* The Rot plate's four caption+readout stacks and the global Mix stack.
+       Same shrink-to-fit shape: GARBLE 45.2 -> BROUILLAGE 72.7. */
+    .mix-text { width: 76px; }
+
+    /* The clock mode pair and the hard-edges button, both sized by their own
+       captions: SYNC/FREE -> SYNCHRO/LIBRE (+21) and HARD EDGES -> FRONTS
+       FRANCS (+14.6). flex:1 on the two segment buttons keeps them even
+       halves of the fixed box in either language. */
+    #clockModeSeg { width: 112px; }
+    #clockModeSeg button { flex: 1; }
+    #edgeBtn { width: 118px; }
+
+    /* The Rot plate's head carries a caption AND a marginal note before the
+       spacer, so with the caption taking the slack it shrank by exactly what
+       the note grew. The caption gets a fixed 150 px (TAB. VII — CORRUPTION is
+       133.1) and the note takes the slack instead — it is a [data-i18n] label,
+       so its own width is allowed to move. */
+    .rot-plate .p-head .caption { flex: 0 0 150px; }
+    .rot-plate .p-head .annot { flex: 1 1 auto; min-width: 0; }
+
+    /* The Splices group in the global strip is sized by its marginal note, not
+       by the button above it: 109.3 -> 128.3. 132 holds the French and leaves
+       the note centred under a 118 px button exactly as the English one is. */
+    .global .g-body > .g-group > .annot { width: 132px; text-align: center; }
+
 </style>
 </head>
 <body>
@@ -882,25 +948,25 @@
              The arrows are unchanged: stepping and browsing are different
              gestures and both stay one click. -->
         <div class="preset-band">
-          <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
-          <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
+          <button type="button" class="preset-nav" id="preset-prev" data-i18n-aria="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+          <button type="button" class="preset-nav" id="preset-next" data-i18n-aria="preset-next" aria-label="Next preset" disabled>&#9654;</button>
           <div class="preset-select-wrap">
             <button type="button" class="preset-select" id="preset-select"
-                    aria-haspopup="listbox" aria-expanded="false" aria-label="Browse presets"
+                    aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="aria.presetBrowse" aria-label="Browse presets"
                     disabled>
               <span class="preset-name" id="preset-name" aria-live="polite">Default</span>
               <span class="preset-caret" aria-hidden="true">&#9662;</span>
             </button>
-            <div class="preset-menu" id="preset-menu" role="listbox" aria-label="Presets"></div>
+            <div class="preset-menu" id="preset-menu" role="listbox" data-i18n-aria="aria.presets" aria-label="Presets"></div>
           </div>
-          <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
-          <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
+          <button type="button" class="preset-btn" id="preset-save" data-i18n="label.save" data-label="Save" disabled>Save</button>
+          <button type="button" class="preset-btn" id="preset-load" data-i18n="label.load" data-label="Load" disabled>Load</button>
           <button type="button" class="preset-btn" id="preset-delete"
-                  data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
+                  data-i18n="label.delete" data-label="Delete" data-armed="0" disabled>Delete</button>
         </div>
         <div class="hdr-right">
           <div class="brand">Ouaricon Audio</div>
-          <div class="plate">A Catalogue of Failing Media · Plate XLVII</div>
+          <div class="plate" data-i18n="label.plate">A Catalogue of Failing Media · Plate XLVII</div>
         </div>
         <!-- ─── Settings (v1.14.0) ─────────────────────────────────────────
              NO COPY IS AUTHORED IN THIS MARKUP. Every data-tip / data-tip-title
@@ -922,22 +988,23 @@
                   id="gear-btn"
                   aria-haspopup="dialog"
                   aria-expanded="false"
+                  data-i18n-aria="settings"
                   aria-label="Settings"
                   data-tip-always>&#9881;</button>
 
           <div class="settings-popover" id="settings-popover"
-               role="dialog" aria-label="Settings" hidden>
+               role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
 
             <label class="settings-row" for="lang-select">
               <!-- data-label so a shared state updater that writes textContent
                    reads the authored caption back instead of erasing it
                    (pattern_js_state_updater_overwrites_html_labels). -->
-              <span class="settings-label" data-label="Language">Language</span>
+              <span class="settings-label" data-i18n="lang-select" data-label="Language">Language</span>
               <!-- ENDONYMS. Never localized and never written by a state
                    updater: a French speaker looking for their language looks
                    for "Fran&ccedil;ais". -->
               <select class="settings-select" id="lang-select"
-                      aria-label="Hover help language" data-tip-always>
+                      data-i18n-aria="aria.langSelect" aria-label="Hover help language" data-tip-always>
                 <option value="en">English</option>
                 <option value="fr">Fran&ccedil;ais</option>
               </select>
@@ -957,11 +1024,11 @@
                  labelable element, so a label wrapping one re-dispatches the
                  click and toggles twice. -->
             <div class="settings-row">
-              <span class="settings-label" data-label="Hover help">Hover help</span>
+              <span class="settings-label" data-i18n="help-toggle" data-label="Hover help">Hover help</span>
               <button type="button" class="settings-toggle" id="help-toggle"
-                      aria-pressed="false" aria-label="Toggle hover help"
-                      data-on="On" data-off="Off"
-                      data-tip-always>Off</button>
+                      aria-pressed="false" data-i18n-aria="aria.helpToggle"
+                      aria-label="Toggle hover help"
+                      data-i18n="ui.off" data-tip-always>Off</button>
             </div>
           </div>
         </div>
@@ -974,41 +1041,41 @@
         <div class="panel on" id="panel-tape">
           <div class="p-head">
             <span class="led" id="led-tape"></span>
-            <span class="caption"><em>Tab. I</em> — Tape</span>
+            <span class="caption"><em>Tab. I</em> <span data-i18n="label.capTape">— Tape</span></span>
             <span class="gap"></span>
-            <button class="en on" data-param="TAPE_ENABLE" data-panel="panel-tape">On</button>
+            <button class="en on" data-param="TAPE_ENABLE" data-panel="panel-tape" data-i18n="ui.on">On</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
-                <div class="ctl-label">Prob</div>
+                <div class="ctl-label" data-i18n="label.prob">Prob</div>
                 <div class="knob k50" data-param="TAPE_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Stop</div>
+                <div class="ctl-label" data-i18n="label.stop">Stop</div>
                 <div class="knob k50" data-param="TAPE_STOP_PROB" data-default="10" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Drop</div>
+                <div class="ctl-label" data-i18n="label.drop">Drop</div>
                 <div class="knob k50" data-param="TAPE_DROP" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
-                <div class="ctl-label">Wow</div>
+                <div class="ctl-label" data-i18n="label.wow">Wow</div>
                 <div class="knob k50" data-param="TAPE_WOW" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Hiss</div>
+                <div class="ctl-label" data-i18n="label.hiss">Hiss</div>
                 <div class="knob k50" data-param="TAPE_HISS" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Ramp</div>
+                <div class="ctl-label" data-i18n="label.ramp">Ramp</div>
                 <div class="knob k50" data-param="TAPE_RAMP" data-default="150" data-unit="ms" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
@@ -1020,23 +1087,23 @@
         <div class="panel on" id="panel-cd">
           <div class="p-head">
             <span class="led" id="led-cd"></span>
-            <span class="caption"><em>Tab. II</em> — CD Skip</span>
+            <span class="caption"><em>Tab. II</em> <span data-i18n="label.capCd">— CD Skip</span></span>
             <span class="gap"></span>
-            <button class="en on" data-param="CD_ENABLE" data-panel="panel-cd">On</button>
+            <button class="en on" data-param="CD_ENABLE" data-panel="panel-cd" data-i18n="ui.on">On</button>
           </div>
           <div class="p-body">
             <div class="ctl">
-              <div class="ctl-label">Prob</div>
+              <div class="ctl-label" data-i18n="label.prob">Prob</div>
               <div class="knob k58" data-param="CD_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
               <div class="ro"></div>
             </div>
             <div class="ctl">
-              <div class="ctl-label">Severity</div>
+              <div class="ctl-label" data-i18n="label.severity">Severity</div>
               <div class="knob k58" data-param="CD_SEVERITY" data-default="0.5" data-unit="" data-dec="2"><div class="stem"></div></div>
               <div class="ro"></div>
             </div>
             <div class="ctl">
-              <div class="ctl-label">Segment</div>
+              <div class="ctl-label" data-i18n="label.segment">Segment</div>
               <div class="knob k58" data-param="CD_SEGMENT" data-default="100" data-unit="ms" data-dec="0"><div class="stem"></div></div>
               <div class="ro"></div>
             </div>
@@ -1047,28 +1114,28 @@
         <div class="panel on" id="panel-vinyl">
           <div class="p-head">
             <span class="led" id="led-vinyl"></span>
-            <span class="caption"><em>Tab. III</em> — Vinyl</span>
+            <span class="caption"><em>Tab. III</em> <span data-i18n="label.capVinyl">— Vinyl</span></span>
             <span class="gap"></span>
-            <button class="en on" data-param="VINYL_ENABLE" data-panel="panel-vinyl">On</button>
+            <button class="en on" data-param="VINYL_ENABLE" data-panel="panel-vinyl" data-i18n="ui.on">On</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
-                <div class="ctl-label">Prob</div>
+                <div class="ctl-label" data-i18n="label.prob">Prob</div>
                 <div class="knob k50" data-param="VINYL_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Speed</div>
+                <div class="ctl-label" data-i18n="label.speed">Speed</div>
                 <div class="seg seg3" data-param="VINYL_RPM">
                   <button data-value="0">33⅓</button>
                   <button data-value="1">45</button>
                   <button data-value="2">78</button>
                 </div>
-                <div class="annot">rev. quantum</div>
+                <div class="annot" data-i18n="label.annotRevQuantum">rev. quantum</div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Pop</div>
+                <div class="ctl-label" data-i18n="label.pop">Pop</div>
                 <div class="knob k50" data-param="VINYL_POP" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
@@ -1079,14 +1146,14 @@
                  knobs gives three gaps of (W-100)/3, so 56% of the 254px body
                  (142px) gives 14px, matching the 14px gaps measured in the row
                  above. 66% read as 23px and looked loose next to it. -->
-            <div style="display: flex; justify-content: space-evenly; width: 56%;">
+            <div style="display: flex; justify-content: space-evenly; width: 67%;">
               <div class="ctl">
-                <div class="ctl-label">Wear</div>
+                <div class="ctl-label" data-i18n="label.wear">Wear</div>
                 <div class="knob k50" data-param="VINYL_WEAR" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Warp</div>
+                <div class="ctl-label" data-i18n="label.warp">Warp</div>
                 <div class="knob k50" data-param="VINYL_WARP" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
@@ -1098,36 +1165,36 @@
         <div class="panel off" id="panel-packet">
           <div class="p-head">
             <span class="led" id="led-packet"></span>
-            <span class="caption"><em>Tab. IV</em> — Packet</span>
+            <span class="caption"><em>Tab. IV</em> <span data-i18n="label.capPacket">— Packet</span></span>
             <span class="gap"></span>
-            <button class="en" data-param="PACKET_ENABLE" data-panel="panel-packet">Off</button>
+            <button class="en" data-param="PACKET_ENABLE" data-panel="panel-packet" data-i18n="ui.off">Off</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 74%;">
               <div class="ctl">
-                <div class="ctl-label">Loss</div>
+                <div class="ctl-label" data-i18n="label.loss">Loss</div>
                 <div class="knob k50" data-param="PACKET_LOSS" data-default="20" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Burst</div>
+                <div class="ctl-label" data-i18n="label.burst">Burst</div>
                 <div class="knob k50" data-param="PACKET_BURST" data-default="30" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
-                <div class="ctl-label">Conceal</div>
+                <div class="ctl-label" data-i18n="label.conceal">Conceal</div>
                 <select class="field" data-param="PACKET_CONCEAL">
-                  <option value="0">Silence</option>
-                  <option value="1">Repeat</option>
-                  <option value="2">Decay</option>
-                  <option value="3">Substitute</option>
+                  <option value="0" data-i18n="label.silence">Silence</option>
+                  <option value="1" data-i18n="label.repeat">Repeat</option>
+                  <option value="2" data-i18n="label.decay">Decay</option>
+                  <option value="3" data-i18n="label.substitute">Substitute</option>
                 </select>
-                <div class="annot">20 ms packets</div>
+                <div class="annot" data-i18n="label.annotPackets">20 ms packets</div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Comfort</div>
+                <div class="ctl-label" data-i18n="label.comfort">Comfort</div>
                 <div class="knob k50" data-param="PACKET_COMFORT" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
@@ -1139,14 +1206,14 @@
         <div class="panel off" id="panel-codec">
           <div class="p-head">
             <span class="led" id="led-codec"></span>
-            <span class="caption"><em>Tab. V</em> — Codec</span>
+            <span class="caption"><em>Tab. V</em> <span data-i18n="label.capCodec">— Codec</span></span>
             <span class="gap"></span>
-            <button class="en" data-param="CODEC_ENABLE" data-panel="panel-codec">Off</button>
+            <button class="en" data-param="CODEC_ENABLE" data-panel="panel-codec" data-i18n="ui.off">Off</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
-                <div class="ctl-label">Line</div>
+                <div class="ctl-label" data-i18n="label.line">Line</div>
                 <div class="seg" data-param="CODEC_MODE">
                   <button data-value="0">μ-law</button>
                   <button data-value="1">GSM</button>
@@ -1154,27 +1221,27 @@
                 <div class="annot">300–3400 Hz</div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Blend</div>
+                <div class="ctl-label" data-i18n="label.blend">Blend</div>
                 <div class="knob k50" data-param="CODEC_MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">AGC</div>
+                <div class="ctl-label" data-i18n="label.agc">AGC</div>
                 <div class="knob k50" data-param="CODEC_AGC" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 74%;">
               <div class="ctl">
-                <div class="ctl-label">Mains</div>
+                <div class="ctl-label" data-i18n="label.mains">Mains</div>
                 <div class="seg" data-param="CODEC_MAINS">
                   <button data-value="0">50 Hz</button>
                   <button data-value="1">60 Hz</button>
                 </div>
-                <div class="annot">hum + harmonics</div>
+                <div class="annot" data-i18n="label.annotHum">hum + harmonics</div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Noise</div>
+                <div class="ctl-label" data-i18n="label.noise">Noise</div>
                 <div class="knob k50" data-param="CODEC_NOISE" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
@@ -1186,36 +1253,36 @@
         <div class="panel off" id="panel-crush">
           <div class="p-head">
             <span class="led" id="led-crush"></span>
-            <span class="caption"><em>Tab. VI</em> — Crush</span>
+            <span class="caption"><em>Tab. VI</em> <span data-i18n="label.capCrush">— Crush</span></span>
             <span class="gap"></span>
-            <button class="en" data-param="CRUSH_ENABLE" data-panel="panel-crush">Off</button>
+            <button class="en" data-param="CRUSH_ENABLE" data-panel="panel-crush" data-i18n="ui.off">Off</button>
           </div>
           <div class="p-body" style="flex-direction: column; justify-content: space-evenly; gap: 0;">
             <div style="display: flex; justify-content: space-evenly; width: 100%;">
               <div class="ctl">
-                <div class="ctl-label">Bits</div>
+                <div class="ctl-label" data-i18n="label.bits">Bits</div>
                 <div class="knob k50" data-param="CRUSH_BITS" data-default="16" data-unit="bit" data-dec="1"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Rate</div>
+                <div class="ctl-label" data-i18n="label.rate">Rate</div>
                 <div class="knob k50" data-param="CRUSH_RATE" data-default="20000" data-unit="Hz" data-dec="0" data-fmt="hzk"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Jitter</div>
+                <div class="ctl-label" data-i18n="label.jitter">Jitter</div>
                 <div class="knob k50" data-param="CRUSH_JITTER" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
             </div>
             <div style="display: flex; justify-content: space-evenly; width: 74%;">
               <div class="ctl">
-                <div class="ctl-label">Env</div>
+                <div class="ctl-label" data-i18n="label.env">Env</div>
                 <div class="knob k50 bipolar" data-param="CRUSH_ENV_AMT" data-default="0" data-unit="%" data-dec="0" data-signed="1"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
               <div class="ctl">
-                <div class="ctl-label">Dither</div>
+                <div class="ctl-label" data-i18n="label.dither">Dither</div>
                 <div class="knob k50" data-param="CRUSH_DITHER" data-default="0" data-unit="LSB" data-dec="2"><div class="stem"></div></div>
                 <div class="ro"></div>
               </div>
@@ -1231,16 +1298,16 @@
       <div class="panel rot-plate off" id="panel-rot">
         <div class="p-head">
           <span class="led" id="led-rot"></span>
-          <span class="caption"><em>Tab. VII</em> — Rot</span>
-          <span class="annot">bit flips · sticky decode · wrong-decode stretches</span>
+          <span class="caption"><em>Tab. VII</em> <span data-i18n="label.capRot">— Rot</span></span>
+          <span class="annot" data-i18n="label.annotRot">bit flips · sticky decode · wrong-decode stretches</span>
           <span class="gap"></span>
-          <button class="en" data-param="ROT_ENABLE" data-panel="panel-rot">Off</button>
+          <button class="en" data-param="ROT_ENABLE" data-panel="panel-rot" data-i18n="ui.off">Off</button>
         </div>
         <div class="p-body">
 
           <div class="g-group mix-group">
             <div class="mix-text">
-              <div class="ctl-label">Prob</div>
+              <div class="ctl-label" data-i18n="label.prob">Prob</div>
               <div class="ro"></div>
             </div>
             <div class="knob k50" data-param="ROT_PROB" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
@@ -1248,7 +1315,7 @@
 
           <div class="g-group mix-group">
             <div class="mix-text">
-              <div class="ctl-label">Depth</div>
+              <div class="ctl-label" data-i18n="label.depth">Depth</div>
               <div class="ro"></div>
             </div>
             <div class="knob k50" data-param="ROT_DEPTH" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
@@ -1258,7 +1325,7 @@
 
           <div class="g-group mix-group">
             <div class="mix-text">
-              <div class="ctl-label">Sticky</div>
+              <div class="ctl-label" data-i18n="label.sticky">Sticky</div>
               <div class="ro"></div>
             </div>
             <div class="knob k50" data-param="ROT_STICK" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
@@ -1266,7 +1333,7 @@
 
           <div class="g-group mix-group">
             <div class="mix-text">
-              <div class="ctl-label">Garble</div>
+              <div class="ctl-label" data-i18n="label.garble">Garble</div>
               <div class="ro"></div>
             </div>
             <div class="knob k50" data-param="ROT_GARBLE" data-default="25" data-unit="%" data-dec="0"><div class="stem"></div></div>
@@ -1278,17 +1345,17 @@
       <!-- ================= global strip ================= -->
       <div class="global">
         <div class="p-head" style="flex: 0 0 18px;">
-          <span class="caption" style="font-size: 11px;"><em>Tab. VIII</em> — Global · Clock &amp; Provenance</span>
+          <span class="caption" style="font-size: 11px;"><em>Tab. VIII</em> <span data-i18n="label.capGlobal">— Global · Clock &amp; Provenance</span></span>
         </div>
         <div class="g-body">
 
           <!-- clock: mode toggle drives the swap slot -->
           <div class="g-group">
-            <div class="g-label">Clock</div>
+            <div class="g-label" data-i18n="clockModeSeg">Clock</div>
             <div class="clock-row">
               <div class="seg" data-param="CLOCK_MODE" id="clockModeSeg">
-                <button data-value="0">Sync</button>
-                <button data-value="1">Free</button>
+                <button data-value="0" data-i18n="label.sync">Sync</button>
+                <button data-value="1" data-i18n="label.free">Free</button>
               </div>
               <div class="swap-slot">
                 <div class="swap-view active" id="viewSync">
@@ -1299,7 +1366,7 @@
                     <option value="3">1/4T</option>
                     <option value="4">1/4</option>
                     <option value="5">1/2</option>
-                    <option value="6">1 bar</option>
+                    <option value="6" data-i18n="label.oneBar">1 bar</option>
                   </select>
                 </div>
                 <div class="swap-view" id="viewFree">
@@ -1314,7 +1381,7 @@
 
           <!-- seed ledger + die -->
           <div class="g-group">
-            <div class="g-label">Seed</div>
+            <div class="g-label" data-i18n="seedRo">Seed</div>
             <div class="seed-row">
               <div class="seed-ro" id="seedRo">0000</div>
               <button class="die" id="diceBtn">⚄</button>
@@ -1325,9 +1392,9 @@
 
           <!-- hard edges -->
           <div class="g-group">
-            <div class="g-label">Splices</div>
-            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn">Hard Edges<span class="flr">❦</span></button>
-            <div class="annot">crossfades bypassed when lit</div>
+            <div class="g-label" data-i18n="label.splices">Splices</div>
+            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn"><span data-i18n="label.hardEdges">Hard Edges</span><span class="flr">❦</span></button>
+            <div class="annot" data-i18n="label.annotSplices">crossfades bypassed when lit</div>
           </div>
 
           <div class="vr"></div>
@@ -1335,7 +1402,7 @@
           <!-- mix -->
           <div class="g-group mix-group">
             <div class="mix-text">
-              <div class="ctl-label">Mix</div>
+              <div class="ctl-label" data-i18n="MIX">Mix</div>
               <div class="ro"></div>
             </div>
             <div class="knob k56" data-param="MIX" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
@@ -1368,7 +1435,7 @@
   // index.html at the UI ROOT, one level up, so the same file is './js/i18n.js'
   // from here. The gate accepts the depth-adjusted form; the applyI18n/initI18n
   // BODY it byte-compares is identical either way.
-  import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './js/i18n.js';
+  import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
   // Native application feel
   document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
@@ -1443,6 +1510,136 @@
   };
   document.querySelectorAll(".knob[data-param]").forEach(setupKnob);
 
+
+  // ================= hover-help language (v1.14.0) ============================
+  //
+  // THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
+  // byte-compared (comments stripped, whitespace collapsed) against
+  // scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
+  // shared UI module and deliberately does not gain one, so 43 hand-copies are
+  // only safe because a drifted copy fails a gate. Do not "tidy" it.
+  //
+  // One PULL at page init, no push, no timer, no poll().then(poll), no revision
+  // counter — the same discipline the v1.12.0 tooltipsEnabled pull already uses
+  // here, and for the same reason: a push from the editor constructor or the
+  // 30 Hz tick fires before this module has evaluated (the O-FreqPulse WR-01
+  // bug). The language is not preset content either: loadPreset walks
+  // preset["parameters"] and never touches a state-tree property.
+  //
+  // `grep -rn setVisible plugins/O-Bitrot/Source/` returns NOTHING, so the web
+  // view is never hidden and the hidden-completion drop cannot fire
+  // (critical_webview_completion_gated_on_isvisible).
+
+  // ── v1.15.0: this block MOVED, to ABOVE the first binding that reaches it.
+  //
+  // Canon v1 only ever ran from the initI18n() call further down, so its `let`
+  // bindings could sit anywhere below. Canon v2 is reached from BINDING time
+  // as well: the seven panel buttons, the delete button and the hover-help
+  // toggle all call setLabel(). This module has no init() function — every one
+  // of those blocks runs at module top level — so with the canon still below
+  // them `uiLanguage` was in its temporal dead zone and each call threw a
+  // ReferenceError (pattern_module_toplevel_init_tdz). On this module, with no
+  // init() to isolate a failure, that throw takes the ENTIRE UI down.
+  //
+  // Nothing here can throw at module evaluation: three `let` initialisers with
+  // literal values, function declarations, and two assignments to window. The
+  // TABLES it reads are hoisted imports. applyI18n() is still called only from
+  // initI18n(), and initI18n() only from the guarded call further down.
+
+  let uiLanguage = 'en';
+  let getUiLanguageNative = null;
+  let setUiLanguageNative = null;
+
+  // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+  // its label carries one key, not two copies of the same string.
+  function trLabel(key, lang, vars) {
+      const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+      if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+      const s = entry[lang] || entry.en;
+      const resolve = (v) => {
+          const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+          return nested ? String((nested[lang] || nested.en).t) : String(v);
+      };
+      return vars
+          ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+          : String(s.t);
+  }
+
+  function applyLabel(el) {
+      const key = el.dataset.i18n;
+      if (!key) return;
+      let vars = null;
+      try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+      catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+      const s = trLabel(key, uiLanguage, vars);
+      el.dataset.label = s;
+      el.textContent   = s;
+  }
+
+  function applyI18nAttributes(el) {
+      const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+      for (const [prop, attr] of pairs) {
+          const key = el.dataset[prop];
+          if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+      }
+  }
+
+  function setLabel(el, key, vars) {
+      if (!el) return;
+      el.dataset.i18n = key;
+      if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+      applyLabel(el);
+  }
+
+  function applyI18n(lang) {
+      uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+      for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+          const el = document.querySelector(selector);
+          if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+          const target = wrapper ? (el.closest(wrapper) || el) : el;
+          const s = tr(key, uiLanguage, vars);
+          target.setAttribute('data-tip-title', s.t);
+          target.setAttribute('data-tip', s.b);
+      }
+      for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+      for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+          applyI18nAttributes(el);
+      const sel = document.getElementById('lang-select');
+      if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+  }
+
+  // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+  // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+  window.__setLanguage = applyI18n;
+  // Exposed for the same reason, and so a sibling module can write a localized
+  // label without app.js having to export anything — O-Bitrot's controller is an
+  // inline <script type="module">, where an export declaration has nowhere to go.
+  window.__setLabel = setLabel;
+
+  function initI18n() {
+      try {
+          getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+          setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+      } catch (e) {
+          console.warn('Language preference not available, session-only:', e);
+      }
+
+      // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+      try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+      if (getUiLanguageNative) {
+          getUiLanguageNative()
+              .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+              .catch((e) => console.warn('Could not read language preference:', e));
+      }
+
+      const sel = document.getElementById('lang-select');
+      if (sel) sel.addEventListener('change', (e) => {
+          applyI18n(e.target.value);
+          if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+      });
+  }
+
   // ================= panel enable toggles (7) + steady LEDs =================
   // Codec/Crush have no event bit — their spore-print LED is lit steadily
   // whenever the family is enabled.
@@ -1459,7 +1656,13 @@
       panel.classList.toggle("on", on);
       panel.classList.toggle("off", !on);
       btn.classList.toggle("on", on);
-      btn.textContent = on ? "On" : "Off";
+      // v1.15.0: KEYS through setLabel(), not literals. A literal holds one
+      // string, so switching to French mid-session restored an English "On";
+      // a key makes the button a [data-i18n] element that the language sweep
+      // re-renders. Two calls behind an if/else, never a ternary in the
+      // argument — check-i18n assertion 13.
+      if (on) setLabel(btn, "ui.on");
+      else    setLabel(btn, "ui.off");
       if (steadyLed) steadyLed.classList.toggle("lit", on);
     };
     state.valueChangedEvent.addListener(render);
@@ -1580,11 +1783,17 @@
   {
     let deleteArmTimer = null;
 
-    // Two-click armed delete — first call arms the button and shows its
-    // data-confirm copy; a second call within 2.5 s confirms. Never
-    // window.confirm() — native confirm dialogs inside a JUCE WebView are
-    // unreliable. Button copy comes from data-label / data-confirm, never
-    // JS literals (pattern_js_state_updater_overwrites_html_labels).
+    // Two-click armed delete — first call arms the button and shows its armed
+    // face; a second call within 2.5 s confirms. Never window.confirm() —
+    // native confirm dialogs inside a JUCE WebView are unreliable.
+    //
+    // v1.15.0: the two faces are KEYS, not the data-label / data-confirm
+    // attributes they were through v1.14.0. Those attributes were the right
+    // answer while the page was English-only — they kept the copy out of this
+    // file, which is what pattern_js_state_updater_overwrites_html_labels asks
+    // for. They are the wrong answer once the page has two languages: an
+    // attribute holds ONE string, so a language switch mid-arm would have
+    // restored the ENGLISH armed face. A key re-renders.
     const armedConfirmDelete = () => {
       const btn = document.getElementById("preset-delete");
       if (!btn) return false;
@@ -1592,7 +1801,7 @@
       const disarm = () => {
         if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
         btn.dataset.armed = "0";
-        btn.textContent = btn.dataset.label || "Delete";
+        setLabel(btn, "label.delete");
       };
 
       if (btn.dataset.armed === "1") {
@@ -1601,7 +1810,7 @@
       }
 
       btn.dataset.armed = "1";
-      btn.textContent = btn.dataset.confirm || "Confirm?";
+      setLabel(btn, "ui.confirm");
       deleteArmTimer = setTimeout(disarm, 2500);
       return false;           // first click — armed only
     };
@@ -1789,72 +1998,6 @@
       });
     }
   }
-
-  // ================= hover-help language (v1.14.0) ============================
-  //
-  // THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
-  // byte-compared (comments stripped, whitespace collapsed) against
-  // scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
-  // shared UI module and deliberately does not gain one, so 43 hand-copies are
-  // only safe because a drifted copy fails a gate. Do not "tidy" it.
-  //
-  // One PULL at page init, no push, no timer, no poll().then(poll), no revision
-  // counter — the same discipline the v1.12.0 tooltipsEnabled pull already uses
-  // here, and for the same reason: a push from the editor constructor or the
-  // 30 Hz tick fires before this module has evaluated (the O-FreqPulse WR-01
-  // bug). The language is not preset content either: loadPreset walks
-  // preset["parameters"] and never touches a state-tree property.
-  //
-  // `grep -rn setVisible plugins/O-Bitrot/Source/` returns NOTHING, so the web
-  // view is never hidden and the hidden-completion drop cannot fire
-  // (critical_webview_completion_gated_on_isvisible).
-
-  let uiLanguage = 'en';
-  let getUiLanguageNative = null;
-  let setUiLanguageNative = null;
-
-  function applyI18n(lang) {
-      uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
-      for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
-          const el = document.querySelector(selector);
-          if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
-          const target = wrapper ? (el.closest(wrapper) || el) : el;
-          const s = tr(key, uiLanguage, vars);
-          target.setAttribute('data-tip-title', s.t);
-          target.setAttribute('data-tip', s.b);
-      }
-      const sel = document.getElementById('lang-select');
-      if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
-  }
-
-  // Exposed so a clamp gate can drive the language without teaching the ui-stub a
-  // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
-  window.__setLanguage = applyI18n;
-
-  function initI18n() {
-      try {
-          getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
-          setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
-      } catch (e) {
-          console.warn('Language preference not available, session-only:', e);
-      }
-
-      // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
-      try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
-
-      if (getUiLanguageNative) {
-          getUiLanguageNative()
-              .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
-              .catch((e) => console.warn('Could not read language preference:', e));
-      }
-
-      const sel = document.getElementById('lang-select');
-      if (sel) sel.addEventListener('change', (e) => {
-          applyI18n(e.target.value);
-          if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
-      });
-  }
-
   // The gear that carries the language selector and the moved hover-help
   // toggle. All state lives in this closure, so nothing here can join a TDZ
   // chain.
@@ -2019,20 +2162,20 @@
     };
 
     // v1.14.0: the toggle moved into the settings popover and now shows On/Off
-    // rather than the old static "?" glyph. The caption IS written from here —
-    // but the copy comes from data-on / data-off, which are AUTHORED IN THE
-    // MARKUP, never from a literal in this file
-    // (pattern_js_state_updater_overwrites_html_labels). The dataset read has a
-    // fallback so a stripped attribute degrades to a caption rather than to an
-    // empty button.
+    // rather than the old static "?" glyph. v1.15.0: those two faces are KEYS
+    // through setLabel(), not the data-on / data-off attributes they were
+    // through v1.14.0 — same reasoning as the delete button above. aria-pressed
+    // carries the state for a screen reader, which is why replacing a literal
+    // caption with a localized one costs no accessibility.
+    //
+    // if/else, not a ternary inside the call — check-i18n assertion 13.
     const applyTipsEnabled = (enabled) => {
       tipsEnabled = !!enabled;
       if (toggleEl) {
         toggleEl.classList.toggle("active", tipsEnabled);
         toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
-        toggleEl.textContent = tipsEnabled
-          ? (toggleEl.dataset.on ?? "On")
-          : (toggleEl.dataset.off ?? "Off");
+        if (tipsEnabled) setLabel(toggleEl, "ui.on");
+        else             setLabel(toggleEl, "ui.off");
       }
       if (!tipsEnabled) hideTip();
     };

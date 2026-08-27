@@ -68,11 +68,17 @@ export const I18N = Object.freeze({
               reviewed: false },
     },
 
+    // v1.15.0: through v1.14.0 this entry told the user, in both languages,
+    // that the labels on the page do not change. That is now false — they do.
+    // Rewritten to say what is true, INCLUDING the half that stayed true:
+    // value readouts are English in both languages (D-03), so a knob still
+    // reads `20.0 kHz` either way, and preset names are English because the
+    // name IS the filename (D-02).
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language this hover help is written in. English and French are available; the labels on the page itself do not change.' },
+              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page elle-même ne changent pas.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
 
@@ -506,6 +512,214 @@ export const I18N = Object.freeze({
 // key: most controls here are an idless wrapper around a [data-param] knob, so
 // the tip binds through the knob and `closest(wrapper)` walks back up to the
 // cell the tip belongs on. That is exactly what the wrapper slot is for.
+// ============================================================================
+// LABELS — the on-page text (v1.15.0, canon v2)
+// ============================================================================
+//
+// I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
+// 230 px tooltip. LABELS is ON-PAGE copy: one string dropped into a fixed cell
+// that does not wrap. They are different problems and this table keeps them
+// apart on purpose.
+//
+// ── THE REUSE RULE ─────────────────────────────────────────────────────────
+// trLabel() falls back to I18N when a key is absent here, so a control whose
+// tooltip TITLE already IS its caption carries ONE key. That fallback is used
+// ONLY where the string is identical in BOTH languages: `lang-select`
+// (Language / Langue), `help-toggle` (Hover help / Aide au survol), `settings`
+// for the gear and the popover's accessible name, `preset-prev` / `preset-next`
+// for the two nav buttons' accessible names, `clockModeSeg` (Clock / Horloge),
+// `seedRo` (Seed / Germe) and `MIX` (Mix / Dosage). None of those appears below.
+//
+// It is deliberately NOT used where only the English matches. #edgeBtn's tip
+// title is "Hard edges"; its caption is "Hard Edges", and a shared key would
+// make the next copy edit to either one a silent change to the other. The
+// panel captions carry their em-dash ("— Tape"), so they are not the family
+// names in I18N even where the words coincide.
+//
+// The knob captions are the hardest case in this plugin and NONE of them
+// reuses its tip title. This page is a 3 x 2 grid of 254 px panels at 900 x 740
+// and a `.ctl` column is ~76 px, so "Probabilité" (the TAPE_PROB tip title)
+// does not go where "Prob" goes. The tips wrap under a 230 px cap; the captions
+// have nothing to wrap into.
+//
+// ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
+// Every en below is what index.html carried through v1.14.0, taken from
+// scripts/i18n-extract.js's inventory rather than transcribed, with HTML
+// entities decoded to the characters they named (&amp; -> &) because
+// textContent does not decode.
+//
+// ── FRENCH IS SIZED, NOT SHRUNK ────────────────────────────────────────────
+// D-04 forbids an auto-shrink font and a short-variant fallback: exactly ONE
+// French string per key, and nothing chooses between variants at runtime.
+// Where French did not fit, the fix was this plugin's own CSS — see CHANGELOG
+// v1.15.0 for the measured table.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`. No native speaker has read
+// it. `node scripts/check-i18n.js` prints the worklist, LABELS included.
+// ============================================================================
+
+export const LABELS = Object.freeze({
+
+    // ── Preset band ─────────────────────────────────────────────────────────
+    // NOT `preset-save` / `preset-load` / `preset-delete`: those tip titles are
+    // "Enregistrer" (76 px), "Charger" and "Supprimer", and this band's three
+    // buttons sit in a header row that already carries a wordmark, a preset
+    // readout and a two-line imprint. Measured, not guessed — see the CHANGELOG.
+    'label.save':      { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: false } },
+    'label.load':      { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: false } },
+    'label.delete':    { en: { t: 'Delete' }, fr: { t: 'Suppr.',  reviewed: false } },
+    // The armed face of the delete button, and the two faces of every on/off
+    // toggle on the page. These are the only strings here written from script.
+    // They go through setLabel(), so the element becomes a [data-i18n] element
+    // and the language sweep owns it from that moment on — through v1.14.0 they
+    // were data-on / data-off / data-confirm ATTRIBUTES, which was the right
+    // answer while the page was English-only and the wrong one the moment it
+    // had two languages: an attribute holds ONE string, so switching to French
+    // mid-session restored an English "On".
+    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: false } },
+    // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the seven panel
+    // buttons are 34 px, and this is the vocabulary a piece of hardware uses,
+    // which is the register this whole catalogue is written in.
+    'ui.on':           { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },
+    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: false } },
+
+    // ── Header imprint ──────────────────────────────────────────────────────
+    'label.plate':     { en: { t: 'A Catalogue of Failing Media · Plate XLVII' },
+                         fr: { t: 'Catalogue des supports défaillants · Pl. XLVII', reviewed: false } },
+
+    // ── Panel captions ──────────────────────────────────────────────────────
+    // The em-dash belongs to the caption, not to the plate number beside it.
+    'label.capTape':   { en: { t: '— Tape' },    fr: { t: '— Bande',       reviewed: false } },
+    'label.capCd':     { en: { t: '— CD Skip' }, fr: { t: '— Saut de CD',  reviewed: false } },
+    'label.capVinyl':  { en: { t: '— Vinyl' },   fr: { t: '— Vinyle',      reviewed: false } },
+    'label.capPacket': { en: { t: '— Packet' },  fr: { t: '— Paquets',     reviewed: false } },
+    'label.capCodec':  { en: { t: '— Codec' },   fr: { t: '— Codec',       reviewed: false, sameAsEn: true } },
+    'label.capCrush':  { en: { t: '— Crush' },   fr: { t: '— Écrasement',  reviewed: false } },
+    'label.capRot':    { en: { t: '— Rot' },     fr: { t: '— Corruption',  reviewed: false } },
+    'label.capGlobal': { en: { t: '— Global · Clock & Provenance' },
+                         fr: { t: '— Global · Horloge et provenance', reviewed: false } },
+
+    // ── Knob and control captions ───────────────────────────────────────────
+    // "Prob" is already the abbreviation of "Probability" in English; "Prob."
+    // is the same abbreviation in French and is what fits the same cell.
+    'label.prob':      { en: { t: 'Prob' },     fr: { t: 'Prob.',      reviewed: false } },
+    'label.stop':      { en: { t: 'Stop' },     fr: { t: 'Arrêt',      reviewed: false } },
+    'label.drop':      { en: { t: 'Drop' },     fr: { t: 'Pertes',     reviewed: false } },
+    'label.wow':       { en: { t: 'Wow' },      fr: { t: 'Pleurage',   reviewed: false } },
+    'label.hiss':      { en: { t: 'Hiss' },     fr: { t: 'Souffle',    reviewed: false } },
+    'label.ramp':      { en: { t: 'Ramp' },     fr: { t: 'Rampe',      reviewed: false } },
+    'label.severity':  { en: { t: 'Severity' }, fr: { t: 'Gravité',    reviewed: false } },
+    'label.segment':   { en: { t: 'Segment' },  fr: { t: 'Segment',    reviewed: false, sameAsEn: true } },
+    'label.speed':     { en: { t: 'Speed' },    fr: { t: 'Vitesse',    reviewed: false } },
+    // The VINYL_POP tip says "Craquements", which is the right word and 11
+    // characters too many for a 76 px column. "Clics" is what the same defect
+    // is called in the shorter register a caption is written in.
+    'label.pop':       { en: { t: 'Pop' },      fr: { t: 'Clics',      reviewed: false } },
+    'label.wear':      { en: { t: 'Wear' },     fr: { t: 'Usure',      reviewed: false } },
+    'label.warp':      { en: { t: 'Warp' },     fr: { t: 'Voile',      reviewed: false } },
+    'label.loss':      { en: { t: 'Loss' },     fr: { t: 'Pertes',     reviewed: false } },
+    'label.burst':     { en: { t: 'Burst' },    fr: { t: 'Rafales',    reviewed: false } },
+    'label.conceal':   { en: { t: 'Conceal' },  fr: { t: 'Masquage',   reviewed: false } },
+    'label.comfort':   { en: { t: 'Comfort' },  fr: { t: 'Confort',    reviewed: false } },
+    'label.line':      { en: { t: 'Line' },     fr: { t: 'Ligne',      reviewed: false } },
+    'label.blend':     { en: { t: 'Blend' },    fr: { t: 'Dosage',     reviewed: false } },
+    'label.agc':       { en: { t: 'AGC' },      fr: { t: 'AGC',        reviewed: false, sameAsEn: true } },
+    'label.mains':     { en: { t: 'Mains' },    fr: { t: 'Secteur',    reviewed: false } },
+    'label.noise':     { en: { t: 'Noise' },    fr: { t: 'Bruit',      reviewed: false } },
+    'label.bits':      { en: { t: 'Bits' },     fr: { t: 'Bits',       reviewed: false, sameAsEn: true } },
+    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Fréq.',      reviewed: false } },
+    'label.jitter':    { en: { t: 'Jitter' },   fr: { t: 'Gigue',      reviewed: false } },
+    'label.env':       { en: { t: 'Env' },      fr: { t: 'Env.',       reviewed: false } },
+    // The loanword. French audio work says "dithering"; the tip spells it out,
+    // the caption keeps the four-letter form the English caption uses.
+    'label.dither':    { en: { t: 'Dither' },   fr: { t: 'Dither',     reviewed: false, sameAsEn: true } },
+    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Ampleur',    reviewed: false } },
+    'label.sticky':    { en: { t: 'Sticky' },   fr: { t: 'Blocages',   reviewed: false } },
+    'label.garble':    { en: { t: 'Garble' },   fr: { t: 'Brouillage', reviewed: false } },
+
+    // ── Choices inside two <select>s and two segmented controls ─────────────
+    'label.silence':   { en: { t: 'Silence' },    fr: { t: 'Silence',    reviewed: false, sameAsEn: true } },
+    'label.repeat':    { en: { t: 'Repeat' },     fr: { t: 'Répéter',    reviewed: false } },
+    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Fondu',      reviewed: false } },
+    'label.substitute':{ en: { t: 'Substitute' }, fr: { t: 'Substituer', reviewed: false } },
+    'label.sync':      { en: { t: 'Sync' },       fr: { t: 'Synchro',    reviewed: false } },
+    'label.free':      { en: { t: 'Free' },       fr: { t: 'Libre',      reviewed: false } },
+    'label.oneBar':    { en: { t: '1 bar' },      fr: { t: '1 mes.',     reviewed: false } },
+
+    // ── Global strip ────────────────────────────────────────────────────────
+    'label.splices':   { en: { t: 'Splices' },    fr: { t: 'Raccords',    reviewed: false } },
+    'label.hardEdges': { en: { t: 'Hard Edges' }, fr: { t: 'Fronts francs', reviewed: false } },
+
+    // ── Annotations ─────────────────────────────────────────────────────────
+    // Set in the small italic hand this catalogue uses for a marginal note.
+    'label.annotRevQuantum': { en: { t: 'rev. quantum' },
+                               fr: { t: 'quantum de tour', reviewed: false } },
+    'label.annotPackets':    { en: { t: '20 ms packets' },
+                               fr: { t: 'paquets de 20 ms', reviewed: false } },
+    'label.annotHum':        { en: { t: 'hum + harmonics' },
+                               fr: { t: 'ronflement + harmoniques', reviewed: false } },
+    'label.annotSplices':    { en: { t: 'crossfades bypassed when lit' },
+                               fr: { t: 'fondus contournés lorsque allumé', reviewed: false } },
+    'label.annotRot':        { en: { t: 'bit flips · sticky decode · wrong-decode stretches' },
+                               fr: { t: 'inversions de bits · décodage bloqué · plages mal décodées', reviewed: false } },
+
+    // ── Accessible names ────────────────────────────────────────────────────
+    // An aria-label is user-visible text by any definition that matters — it is
+    // the accessible NAME, and a screen reader in French reading an English
+    // name is the same failure as a French page with an English caption. None
+    // has a rendered box, so none is a geometry risk.
+    'aria.presetBrowse': { en: { t: 'Browse presets' },
+                           fr: { t: 'Parcourir les préréglages', reviewed: false } },
+    'aria.presets':      { en: { t: 'Presets' }, fr: { t: 'Préréglages', reviewed: false } },
+    // v1.15.0: this one was ALSO false copy. It read "Hover help language"
+    // while the control now sets the language of the whole page.
+    'aria.langSelect':   { en: { t: 'Interface language' },
+                           fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.helpToggle':   { en: { t: 'Toggle hover help' },
+                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+});
+
+// ============================================================================
+// I18N_EXEMPT — reasoned exclusions, never silence
+// ============================================================================
+//
+// Every visible string the coverage scan finds must be a [data-i18n] element, a
+// setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let a
+// missed label hide as a deliberate one.
+// ============================================================================
+
+export const I18N_EXEMPT = [
+    ['O-BITROT',       'the product name — a product name is never translated'],
+    ['Ouaricon Audio', 'the company name'],
+
+    // #preset-name displays the loaded preset. The name IS the JSON filename
+    // (OuariconPresetManager.h:283-285), so translating it breaks recall: a
+    // session saved against "Cassette Eject" would not resolve its French.
+    // "Default" is the placeholder the manager overwrites on its first pass.
+    ['Default', 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
+
+    // The plate numbering of the catalogue conceit. "Tab." abbreviates Table in
+    // English and Tableau in French to the same three characters, and a Roman
+    // numeral is a Roman numeral, so every one of these renders identically in
+    // both languages. Listed individually rather than as a pattern: an
+    // exemption that matched "Tab. *" would silently swallow a future caption
+    // that happened to start the same way.
+    ['Tab. I',    'plate numbering — "Tab." + a Roman numeral reads identically in French'],
+    ['Tab. II',   'plate numbering — identical in French'],
+    ['Tab. III',  'plate numbering — identical in French'],
+    ['Tab. IV',   'plate numbering — identical in French'],
+    ['Tab. V',    'plate numbering — identical in French'],
+    ['Tab. VI',   'plate numbering — identical in French'],
+    ['Tab. VII',  'plate numbering — identical in French'],
+    ['Tab. VIII', 'plate numbering — identical in French'],
+
+    // The two line-coding standards named on the Codec plate. A codec's name is
+    // a proper noun: ITU-T G.711 μ-law and ETSI GSM 06.10 are called that in
+    // every language, and the tooltip for CODEC_MODE explains what they are.
+    ['μ-law', 'the name of a line-coding standard (ITU-T G.711) — a standard is not translated'],
+    ['GSM',   'the name of a line-coding standard (ETSI GSM 06.10) — a standard is not translated'],
+];
+
 export const TIP_BINDINGS = [
     ['#gear-btn',                        'settings'],
     ['#lang-select',                     'lang-select'],

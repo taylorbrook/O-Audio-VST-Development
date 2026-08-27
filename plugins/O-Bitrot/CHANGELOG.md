@@ -2,6 +2,106 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.15.0] — 2026-08-27 — the PAGE speaks French, not only the hover help
+
+**No parameter, preset, state or DSP change.** Every knob, every range, every
+default and all 28 factory presets are bitwise what v1.14.0 shipped. The layout
+DID change — see the measured table below — and every one of those changes
+applies identically in both languages.
+
+Third plugin on canon v2, after O-Tapestop v1.6.0 and O-MultiBandCompressor
+v1.11.0, and the first with an inline `<script type="module">` controller rather
+than a `js/app.js`.
+
+### Added
+
+- **65 label keys** in a new `LABELS` table in `js/i18n.js`, plus a reasoned
+  `I18N_EXEMPT` covering the product name, the company name, the loaded preset
+  name, the eight `Tab. N` plate numbers and the two line-coding standards
+  (μ-law, GSM).
+- **`data-i18n` on 71 elements and `data-i18n-aria` on 8.** The element owns its
+  caption; the authored English stays in the markup as the fallback that renders
+  if `applyI18n()` never runs.
+- **`tests/i18n-states.json`** so the label gate opens the settings popover and
+  measures the two captions and the toggle inside it.
+
+### Changed
+
+- **Canon v1 → canon v2**, verbatim from `scripts/i18n-canon.js`, keeping the
+  depth-adjusted `'./js/i18n.js'` import this inline module needs.
+- **The i18n block MOVED, to above the first binding that reaches it.** Canon v1
+  only ever ran from the guarded `initI18n()` call near the foot of the module;
+  canon v2 is reached from BINDING time too — the seven panel buttons, the
+  delete button and the hover-help toggle all call `setLabel()`, and every one
+  of those blocks runs at module top level. Left where it was, `uiLanguage` sat
+  in its temporal dead zone and each call threw a ReferenceError
+  (`pattern_module_toplevel_init_tdz`). This module has no `init()` to isolate a
+  failure, so that throw takes the whole UI down.
+- **The three `data-*`-authored captions became keys.** `data-on` / `data-off`
+  on the hover-help toggle and `data-label` / `data-confirm` on the delete
+  button were the right answer while the page was English-only — they kept the
+  copy out of the JS, which is what
+  `pattern_js_state_updater_overwrites_html_labels` asks for. They are the wrong
+  answer with two languages: an attribute holds ONE string, so switching to
+  Français mid-session restored an English "On" or an English armed face.
+- **The seven panel enable buttons** likewise: two `setLabel()` calls behind an
+  `if`/`else`, never a ternary in the argument.
+- **Two false sentences fixed, in both languages.** `lang-select`'s tip said
+  "the labels on the page itself do not change"; the language selector's
+  `aria-label` said "Hover help language" while the control now sets the
+  language of the whole page.
+- **`tests/ui_tooltip_clamp_check.js`: the toggle-caption assertion was
+  rewritten a second time.** v1.13.0 pinned the literal "?"; v1.14.0 compared
+  the rendered caption against the authored `data-on` / `data-off`. Those
+  attributes are gone by design, so the assertion now checks the element's own
+  KEY and the `dataset.label === textContent` ownership mirror — the systemic
+  form of the same rule, and the same assertion `check-ui-labels` makes
+  repo-wide. Confirmed by negative control: reinstating a JS literal caption
+  fires both halves.
+
+### Fixed — layout, from the measured English↔French geometry diff
+
+`node scripts/check-ui-labels.js --plugin O-Bitrot` reported **78 non-label
+elements moved** at the shipping 900 × 740 before any fix, and **zero** after.
+D-04 forbids an auto-shrink font and a short-variant fallback, so every fix pins
+a container that was shrink-to-fit.
+
+| Moved | By | Cause | Fix |
+|---|---|---|---|
+| the preset band, both nav arrows and the name readout | dx −23.0, dw +17.4 | SAVE 43 → ENREG. 53.7, LOAD 45.3 → OUVRIR 55, DELETE 54.6 → SUPPR. 51.6 | the three text buttons pinned to 55 px |
+| the imprint block and the brand line above it | dx −28.8, dw +51.8 | `.hdr-right` was sized by the keyed plate line | `.hdr-right { width: 224px }`, and the French line shortened to `Catalogue des supports défaillants · Pl. XLVII` (221.4 px) so it fits |
+| all seven panel captions and their spacers | dw up to +45.6 | the caption was content-sized and the `.gap` spacer absorbed the difference | `.p-head .caption { flex: 1 1 auto }`, `.gap { flex: 0 0 0 }`, and `.p-head .en { width: 62px }` (ON 36.3 → MARCHE 60.6) |
+| three knob columns in the Tape panel and the knobs and readouts in them | dw +9.2 | `.ctl` is `align-items: center` and so shrink-to-fit; WOW 28.4 → PLEURAGE 59.2 made the caption wider than its 50 px knob | `.ctl:has(> .knob) { width: 64px }`, and the Vinyl panel's second row re-tuned 56% → 67% to keep its designed 14 px gaps |
+| the Rot plate's four caption+readout stacks and the global Mix stack | dw up to +27.5 | same shrink-to-fit shape; GARBLE 45.2 → BROUILLAGE 72.7 | `.mix-text { width: 76px }` |
+| the clock group, the seed group and both separators beside them | dx up to −6.9, dw +21 | the Sync/Free pair is sized by its own captions | `#clockModeSeg { width: 112px }` with `flex: 1` on its two buttons |
+| the Splices group | dw +19 | HARD EDGES → FRONTS FRANCS (+14.6) and its marginal note 109.3 → 128.3 | `#edgeBtn { width: 118px }` and the note pinned to 132 px, centred |
+| the Rot plate's caption | dw −39.2 | its marginal note grew and the flexible caption gave up the room | the caption fixed at 150 px, the note takes the slack instead |
+
+**One of these corrects an English inconsistency nothing was measuring:** the
+Comfort column already rendered 53.8 px against its neighbours' 50, because its
+own English caption was wider than its knob.
+
+`.tooltip { max-width }` is untouched at 230 px.
+
+### Known, and left alone
+
+- **Five `<option>` elements are keyed but can never be measured by the label
+  gate.** A native `<select>` popup is UA-rendered and its options have no box
+  in the document. The selects themselves are unchanged in width.
+- The nine panel-caption spans are non-replaced INLINE boxes, so the label
+  gate's text-spill check skips them and says so — `clientWidth` is 0 by
+  definition for an inline box. Their rects are still measured by assertions 5,
+  6 and 7.
+- **The clamp count moved 14 → 15 per language** (Stage D's figure). That is a
+  consequence of the deliberate English layout changes above moving the anchors,
+  not an unreported French one: the count is identical in both languages apart
+  from the +1 French already recorded. Anchors stay 55, and French still costs
+  +3 vertical flips and is 14.8 px taller at its tallest.
+- All 120 French entries (55 tooltip, 65 label) are machine drafts flagged
+  `reviewed: false`. `Enreg.` / `Ouvrir` / `Suppr.`, `Clics` for Pop and
+  `Ampleur` for Depth were picked with width as a constraint and should be the
+  first a native speaker challenges.
+
 ## [1.14.0] — 2026-08-26 — English/French hover help; the clamp gate now sweeps both languages
 
 **No parameter, preset, state, DSP or layout change.** Every knob, every range,
