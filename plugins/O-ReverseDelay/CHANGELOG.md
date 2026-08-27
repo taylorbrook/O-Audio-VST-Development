@@ -4,6 +4,122 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.9.0] — 2026-08-26 — English/French hover help; the clamp gate now sweeps both languages
+
+**No parameter, preset, state, DSP or layout change.** Every knob, every range,
+every default and every factory preset is bitwise what v1.8.1 shipped. What
+changed is where the hover-help copy LIVES, and the addition of a language it
+can be read in.
+
+### Hover-help copy moved out of the markup
+
+All 29 tooltips left `index.html` and now live in a new `js/i18n.js` as a key
+table, `{ key: { en: {t, b}, fr: {t, b, reviewed} } }`. **The English was moved,
+not rewritten** — every `en` entry is byte-for-byte the string the markup
+carried, verified by extracting both and comparing.
+
+The renderer is UNCHANGED. `showTooltip()` still reads `data-tip-title` /
+`data-tip` off the anchor; those two attributes are simply written at runtime by
+`applyI18n()` instead of being authored in the HTML. There is no
+`data-tip-key` attribute and the renderer never sees a key.
+
+### A settings popover carrying a language selector
+
+A gear button in the header opens a panel with one row: English / Français. The
+choice re-renders every tip immediately, with no reload, and persists with the
+session as a non-parameter property on the APVTS state tree — so a preset load
+cannot change it, and a DAW automation lane never sees it.
+
+**ONE ROW, and there must not be a second.** D13 scoped this plugin's hover help
+to display-only: no on/off toggle, no persisted enabled flag, no
+`setTooltipsEnabled`. Nine other plugins in the suite have that toggle;
+O-ReverseDelay deliberately does not. The bridge goes 13 → 15 — the language
+pair and nothing else.
+
+The gear is absolutely positioned inside `.header` rather than added as a flex
+child. `.header` is a plain `text-align: center` block, and making it a flex row
+to seat a button would have re-laid out the centred title that every tooltip
+clamp measurement in this plugin's history was taken against.
+
+### All French is machine-drafted and UNREVIEWED
+
+All 31 entries carry `reviewed: false`. No native speaker has read them.
+`node scripts/check-i18n.js` prints the worklist. The terms most likely to want
+a native speaker's judgement: `knob-duck` ("Atténuation dynamique"),
+`knob-regenMakeup` ("Regain"), `knob-tukeyTaper` ("Adoucissement") and
+`knob-delayScatter` ("Dispersion").
+
+### Three gates rewritten, each with a negative control
+
+`ui_tooltip_clamp_check.js` — **parameterised by language, not duplicated.** The
+whole anchor sweep runs once for `en` and once for `fr`, in one process against
+one page load, driven through `window.__setLanguage()`. Assertion 3 (vertical)
+is the language-sensitive one: French wraps to more lines inside the unchanged
+230 px cap, so tips get TALLER and the flip-to-below has to catch what no longer
+fits above. `max-width` is now PARSED from this plugin's own CSS rather than
+hard-coded, because the cap differs per plugin; the literal survives as the drift
+guard. A third sweep pass opens the settings popover so `#lang-select` — a real
+anchor in the top-right corner, where the clamp and the flip both bite hardest —
+is measured rather than skipped. Two vacuity guards, both per-language: the
+clamp must engage at least once, and every anchor's copy must actually differ
+between `en` and `fr`.
+
+`ui_frontend_check.js` section 14 — the anchor-coverage assertion **failed by
+construction** once the copy left the markup, so it was rewritten into a stronger
+form: every anchor is bound in `TIP_BINDINGS`, resolves to a key that exists, and
+carries BOTH an `en` and an `fr` entry. The old form could only say "some string
+is present"; this one fails on a missing translation, which the old one was
+structurally incapable of noticing. It immediately found that the inventory had
+drifted — v1.8.0's COLOUR panel shipped without adding `knob-diffusion` and
+`knob-drive` to it, the second such drift in this file. Backfilled.
+
+`ui_frontend_check.js` section 14, D13 — **tightened, not weakened.** The
+assertion was a bare substring search for `setTooltipsEnabled` anywhere in
+`app.js` or `PluginEditor.cpp`, which cannot tell REGISTERING the function from
+writing a comment saying the function is deliberately absent. v1.9.0's comments
+explaining the absence contain the literal name, so the old form failed on source
+that honours D13 exactly. It now matches the two forms that would be a real
+violation — a C++ `withNativeFunction` registration and a JS `getNativeFunction`
+fetch — plus a new assertion that the processor holds no `tooltipsEnabled` state
+at all. Confirmed by negative control: injecting a real registration fires it;
+the comments do not.
+
+### French geometry, MEASURED at the shipping 940 × 768
+
+Every anchor hovered and measured in both languages:
+
+| | anchors | clamped | flipped below | widest | tallest |
+|---|---|---|---|---|---|
+| `en` | 31 | 8 | 2 | 230.0 px | 133.9 px |
+| `fr` | 31 | 8 | 2 | 230.0 px | 148.8 px |
+
+**French costs zero extra flips and zero extra clamps on this frame.** It is
+14.8 px taller at its tallest, and every tip in both languages sits fully inside
+the viewport with an 8 px margin. `.tooltip { max-width }` was NOT touched.
+
+### Version sentinels
+
+The bump re-triggers both, and both are inert. `initializeFactoryPresets`
+re-seeds on `.factory-version` with an untouched preset table, so the eight
+factory presets are rewritten to identical contents. `migrateUserPresets`
+re-stamps `.user-migration-version`; its rescale gates are `< 1.0.1` (delayTime)
+and `< 1.5.0` (grainSize), and a preset written by v1.5.0–v1.8.1 packs above
+both, so nothing is rescaled.
+
+### Not verified
+
+* **Nothing has been checked in a real DAW.** Everything above is headless
+  Chromium against the repo's own ui-stub, `auval`, and the offline C++ harness.
+* **The C++ persistence path was never executed.** Nothing wrote `"fr"` into a
+  session and read it back. The claim "close the DAW, reopen, still French" is
+  reasoned from `getStateAsXml()` taking its own `copyState()` and
+  `setStateFromXml()` doing `replaceState`, not measured.
+* **The native bridge was exercised only against the ui-stub.** The real
+  `Juce.getNativeFunction('getUiLanguage')` round trip through WKWebView has not
+  run.
+* **No cross-platform check.** Windows/WebView2 has not been exercised.
+* **The Standalone `.app` is stale** — `build-and-install.sh` builds VST3 + AU.
+
 ## [1.8.1] — 2026-08-10 — AGPL-3.0 notice headers; first published release
 
 Patch release. **No parameter, preset, state, DSP or layout change** — every

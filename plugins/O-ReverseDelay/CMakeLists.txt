@@ -13,7 +13,7 @@ juce_add_plugin(OuariconReverseDelay
     # preset .factory-version sentinel, which is what makes preset table edits
     # actually reach disk instead of being a silent no-op — v1.1.0 adds the four
     # randomisation keys to all eight presets, so this bump is load-bearing.
-    VERSION 1.8.1
+    VERSION 1.9.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -73,6 +73,12 @@ juce_add_binary_data(OuariconReverseDelay_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        # v1.9.0 — hover-help copy, English + French. NO HYPHEN in the filename:
+        # juce_add_binary_data STRIPS hyphens rather than converting them to
+        # underscores (critical_binary_data_strips_hyphens), so one combined
+        # file for both languages sidesteps the question a second i18n-fr.js
+        # would have raised. Symbol: UIBinaryData::i18n_js.
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/birds.png

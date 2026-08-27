@@ -37,10 +37,15 @@
 // SliderState or a ComboBoxState. getSliderState("freeze") does not fail loudly
 // — it builds a state the backend never updates.
 //
-// Native-function surface is 13 and must match PluginEditor.cpp exactly:
-// getParameterDefaults, getGrainMeter and getWindowCurve are fetched HERE; the
-// other ten are fetched by js/preset-manager.js, which this file loads
-// dynamically. Any grep-diff of the bridge has to read both files.
+// Native-function surface is 15 and must match PluginEditor.cpp exactly:
+// getParameterDefaults, getGrainMeter, getWindowCurve and — since v1.9.0 —
+// getUiLanguage/setUiLanguage are fetched HERE; the other ten are fetched by
+// js/preset-manager.js, which this file loads dynamically. Any grep-diff of the
+// bridge has to read both files.
+//
+// NOTE what is NOT in that 15: there is no setTooltipsEnabled. D13 scoped this
+// plugin's hover help to display only, and section 14 of ui_frontend_check.js
+// asserts the absence by name. v1.9.0 added the language pair and nothing else.
 //
 // The envelope display deliberately does NOT compute the window in JS. The curve
 // is fetched from C++ so there is exactly one definition of the window; a JS copy
@@ -60,6 +65,15 @@
 // ============================================================================
 
 import * as Juce from "./juce/index.js";
+// v1.9.0 — hover-help copy, English + French. A HOISTED import, which is the
+// only new top-level form this file gains: section 2 of ui_frontend_check.js
+// forbids any module-level declaration after the init() call at the bottom, so
+// initI18n() is invoked from INSIDE init() rather than from a foot-of-file
+// block. i18n.js exports only and never self-executes.
+//
+// scripts/check-i18n.js assertion 6 requires this line VERBATIM, single quotes
+// included — it is one of the two anchors the repo-wide drift gate matches on.
+import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
 
 // ── Parameter inventory (must match createParameterLayout() exactly) ────────
 const KNOB_IDS = [
@@ -910,7 +924,128 @@ async function initPresetBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Hover-help language (v1.9.0)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
+// byte-compared (comments stripped, whitespace collapsed) against
+// scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
+// shared UI module and deliberately does not gain one, so 43 hand-copies are
+// only safe because a drifted copy fails a gate. Do not "tidy" it.
+//
+// One PULL at page init, no push, no timer, no poll().then(poll), no revision
+// counter. The language is not preset content: OuariconPresetManager::loadPreset
+// walks preset["parameters"] and never touches a state-tree property, so no
+// preset path can change it. The pull is safe here for the reason RESEARCH B2
+// establishes and this session re-confirmed — `grep -rn setVisible
+// plugins/O-ReverseDelay/Source/` returns NOTHING, so the web view is never
+// hidden and the hidden-completion drop cannot fire
+// (critical_webview_completion_gated_on_isvisible).
+//
+// Declared here at module level, ABOVE every reader. The only statement
+// executed at module-evaluation time is the window.__setLanguage assignment,
+// which touches a hoisted function declaration and cannot enter a TDZ chain
+// (pattern_module_toplevel_init_tdz). initI18n() itself is called from INSIDE
+// init(), which is section 2's requirement.
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── The settings popover (v1.9.0) ──────────────────────────────────────────
+//
+// The gear that carries the language selector. ONE ROW — D13 scoped this plugin
+// to display-only hover help, so there is deliberately no on/off toggle and no
+// setTooltipsEnabled native function, which section 14 of ui_frontend_check.js
+// asserts by name.
+//
+// All state lives in this closure, so nothing here can join a TDZ chain.
+
+function initSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+  // click, so the panel is gone before a drag on a knob underneath it begins —
+  // the knobs call preventDefault in their own pointerdown handlers.
+  document.addEventListener("mousedown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Tooltips (Stage 4) — lifted from O-MultiBandCompressor v1.4.1
+//
+// v1.9.0: the renderer is UNCHANGED. It still reads data-tip-title / data-tip
+// off the anchor; those two attributes are simply written by applyI18n() above
+// rather than authored in index.html. There is no data-tip-key attribute and
+// this function never sees a key.
 // ═══════════════════════════════════════════════════════════════════════════
 
 function handleTooltipOver(e) {
@@ -1051,6 +1186,20 @@ function init() {
   }
 
   loadParameterDefaults(Juce);   // async; nothing else depends on it
+
+  // v1.9.0. BEFORE initTooltips(): applyI18n() is what puts data-tip on the
+  // anchors in the first place, and the renderer's delegated listener resolves
+  // e.target.closest("[data-tip]") at hover time — but a first hover landing in
+  // the window between the two would find no anchor at all. Ordering here is
+  // load-bearing in the ordinary way, not the TDZ way.
+  //
+  // Each inside its own try/catch: a translation-table typo must not take the
+  // 20 bound knobs down with it, which is exactly what the MBC v1.4.0 TDZ throw
+  // did to unrelated working controls while build, auval and every static check
+  // still passed.
+  try { initSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }           catch (e) { console.error("i18n init failed:", e); }
+
   initTooltips();
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
   // AFTER bindKnob/bindSelectCombo above: it subscribes to sliderState[...] and

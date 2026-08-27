@@ -91,6 +91,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');   // v1.9.0 — section 14 evaluates js/i18n.js
 const { spawnSync } = require('child_process');
 
 const pluginRoot = path.resolve(__dirname, '..');
@@ -186,9 +187,17 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(dead.length === 0,
         'no dead C++ registrations (registered but never called from JS)'
         + (dead.length ? ' — DEAD: ' + dead.join(', ') : ''));
-    check(called.size === 13 && registered.size === 13,
-        `bridge surface is exactly 13 fns (getParameterDefaults + getGrainMeter`
-        + ` + getWindowCurve + 10 preset) — got JS=${called.size} C++=${registered.size}`);
+    // The count is a moving literal and it is SUPPOSED to move: a census
+    // assertion is only worth anything because a bridge change fails it loudly
+    // instead of drifting. Running justification, one line per bump:
+    //   11 -> 12  v1.3.0  getGrainMeter
+    //   12 -> 13  v1.4.0  getWindowCurve
+    //   13 -> 15  v1.9.0  getUiLanguage + setUiLanguage (the hover-help language
+    //                     pair). NOT a tooltip on/off pair — see section 14.
+    check(called.size === 15 && registered.size === 15,
+        `bridge surface is exactly 15 fns (getParameterDefaults + getGrainMeter`
+        + ` + getWindowCurve + getUiLanguage + setUiLanguage + 10 preset)`
+        + ` — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');
     // v1.3.0 (B2): the meter is the one native fn whose failure is INVISIBLE in a
@@ -686,15 +695,93 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         // v1.7.0 row 3. The segment pair is an anchor in its own right, as
         // syncSegments and freezeSegments are — a tooltip inventory that only
         // listed knobs would leave every mode control undocumented.
-        'sourceSegments', 'knob-duck', 'knob-driftRate', 'knob-driftDepth'];
+        'sourceSegments', 'knob-duck', 'knob-driftRate', 'knob-driftDepth',
+        // v1.7.2 COLOUR. Missing from this inventory when the panel shipped —
+        // the list is hand-maintained, so it drifts exactly the way a fixture
+        // that mirrors the page drifts
+        // (pattern_test_fixture_mirrors_drift_silently). This is the SECOND
+        // time; the first was v1.6.0's MOTION panel, backfilled above. Found
+        // here because v1.9.0 cross-checks the inventory against TIP_BINDINGS,
+        // which is derived from the page rather than typed.
+        'knob-diffusion', 'knob-drive'];
 
-    const missingTips = TIP_ANCHORS.filter(id => {
-        const m = html.match(new RegExp(`id="${id}"[\\s\\S]{0,400}?>`));
-        return !m || !/data-tip=/.test(m[0]) || !/data-tip-title=/.test(m[0]);
-    });
-    check(missingTips.length === 0,
-        `all ${TIP_ANCHORS.length} controls carry data-tip + data-tip-title`
-        + (missingTips.length ? ' — MISSING: ' + missingTips.join(', ') : ''));
+    // ── v1.9.0: this assertion was REWRITTEN, and made stronger ─────────────
+    //
+    // Through v1.7.3 it read the two attributes straight out of index.html. That
+    // fails by construction now: the copy has moved into js/i18n.js and
+    // applyI18n() writes the attributes at runtime, so there is nothing left in
+    // the markup to match and scripts/check-i18n.js assertion 3 fails the plugin
+    // if a literal ever reappears there.
+    //
+    // The replacement is not a weakening. The old form could only ever say "some
+    // string is present"; this one says every anchor is BOUND in TIP_BINDINGS,
+    // resolves to a key that exists, and carries BOTH an en and an fr entry — so
+    // a missing translation now fails here, which the old assertion was
+    // structurally incapable of noticing.
+    //
+    // i18n.js is an ES module outside any package.json, so node can neither
+    // require() nor import() it synchronously. Evaluated in a vm sandbox with the
+    // export keywords stripped, exactly as scripts/check-i18n.js does it —
+    // check-i18n assertion 7 independently proves the file holds nothing but
+    // export declarations, so there is nothing else to evaluate.
+    const i18nPath = path.join(publicDir, 'js', 'i18n.js');
+    check(fs.existsSync(i18nPath), 'js/i18n.js exists (the hover-help copy table)');
+
+    let I18N = null, TIP_BINDINGS = null;
+    if (fs.existsSync(i18nPath)) {
+        try {
+            const src = fs.readFileSync(i18nPath, 'utf8')
+                .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
+            const sandbox = { console: { warn() {}, error() {}, log() {} } };
+            vm.createContext(sandbox);
+            vm.runInContext(`${src}\n;globalThis.__x = { I18N, TIP_BINDINGS };`,
+                            sandbox, { timeout: 5000 });
+            ({ I18N, TIP_BINDINGS } = sandbox.__x);
+        } catch (e) {
+            check(false, `js/i18n.js evaluates — ${e.message}`);
+        }
+    }
+
+    if (I18N && TIP_BINDINGS) {
+        // Anchor -> the key it is bound to, derived from TIP_BINDINGS rather
+        // than assumed to be id-equals-key. Only '#id' selectors are inverted
+        // here; this page has no wrapper-bound tip and the coverage check below
+        // would report one as uncovered rather than silently passing it.
+        const boundKey = new Map();
+        for (const [selector, key] of TIP_BINDINGS) {
+            const m = /^#([A-Za-z0-9_-]+)$/.exec(selector);
+            if (m) boundKey.set(m[1], key);
+        }
+
+        const unbound = TIP_ANCHORS.filter(id => !boundKey.has(id));
+        check(unbound.length === 0,
+            `all ${TIP_ANCHORS.length} controls are bound in TIP_BINDINGS`
+            + (unbound.length ? ' — UNBOUND: ' + unbound.join(', ') : ''));
+
+        // Every key referenced must exist and be translated BOTH ways. A French
+        // entry that was never written is the failure this catches.
+        const badKey = [];
+        for (const id of TIP_ANCHORS) {
+            const key = boundKey.get(id);
+            if (key === undefined) continue;          // already reported above
+            const e = I18N[key];
+            if (!e)                                    badKey.push(`${id} -> ${key} (no such key)`);
+            else if (!e.en || !e.en.t || !e.en.b)      badKey.push(`${id} -> ${key} (en incomplete)`);
+            else if (!e.fr || !e.fr.t || !e.fr.b)      badKey.push(`${id} -> ${key} (fr MISSING)`);
+        }
+        check(badKey.length === 0,
+            `every anchor's key has a complete en AND fr entry in js/i18n.js`
+            + (badKey.length ? ' — BAD: ' + badKey.join('; ') : ''));
+
+        // The binding is useless if the element it names is not on the page.
+        // applyI18n() only console.warns on a miss, so without this the tip
+        // would simply never appear and nothing would say so.
+        const dangling = [...boundKey.keys()]
+            .filter(id => !new RegExp(`id="${id}"`).test(html));
+        check(dangling.length === 0,
+            `every TIP_BINDINGS selector resolves to an id in index.html`
+            + (dangling.length ? ' — DANGLING: ' + dangling.join(', ') : ''));
+    }
 
     check(/id="tooltip"/.test(html), 'the #tooltip host element exists');
     check(/\.tooltip\s*\{[\s\S]*?position:\s*fixed/.test(css),
@@ -755,10 +842,40 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(/const onUp = \([\s\S]{0,400}?st\.sliderDragEnded\(\)/.test(appJs),
         'the shared onUp handler is what calls sliderDragEnded()');
 
-    // D13 scoped this to hover help only: no toggle, no persisted state, and so
-    // no 12th native function.
-    check(!/setTooltipsEnabled/.test(appJs) && !/setTooltipsEnabled/.test(editorCpp),
-        'no tooltip-enable native fn (D13: tooltips only, the bridge stays at 11)');
+    // ── D13: hover help is DISPLAY-ONLY on this plugin ──────────────────────
+    //
+    // No on/off toggle, no persisted enabled flag, and therefore no
+    // setTooltipsEnabled native function. This is a locked user decision and it
+    // is NOT relaxed here — nine other plugins in the suite have that toggle;
+    // O-ReverseDelay deliberately does not, and its settings popover carries the
+    // language selector alone.
+    //
+    // v1.9.0 TIGHTENED the test rather than weakening it. Through v1.7.3 it was
+    // a bare substring search for the name anywhere in either file, which
+    // conflates two different things: REGISTERING the function, and writing a
+    // comment that says the function is deliberately absent. v1.9.0's comments
+    // explaining the absence contain the literal name, so the old form failed on
+    // source that honours D13 exactly — a gate reporting a violation of a rule
+    // the code is obeying.
+    //
+    // So it now matches the two forms that would constitute a real violation:
+    // a C++ withNativeFunction registration, and a JS getNativeFunction fetch.
+    // Either would put the function on the bridge; a comment cannot. The section
+    // 3 census is the second line of defence — a registration would also move
+    // the count off 15 and fail there.
+    const cppRegisters = /withNativeFunction\s*\(\s*(?:juce::Identifier\()?\s*["']setTooltipsEnabled["']/.test(editorCpp);
+    const jsFetches    = /getNativeFunction\s*\(\s*["']setTooltipsEnabled["']/.test(appJs);
+    check(!cppRegisters && !jsFetches,
+        'no tooltip-enable native fn is registered or fetched (D13: display-only hover help)'
+        + (cppRegisters ? ' — REGISTERED in PluginEditor.cpp' : '')
+        + (jsFetches ? ' — FETCHED in app.js' : ''));
+
+    // The other half of D13: no persisted enabled flag on the processor either.
+    // A toggle could in principle be wired without a native function, through the
+    // state tree alone, and this is what would catch that.
+    const processorH = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.h'), 'utf8');
+    check(!/tooltipsEnabled/.test(processorH),
+        'the processor holds no tooltipsEnabled state (D13: nothing to persist)');
 }
 
 // ------------------------- 15. v1.1.0: four-way knob/parameter closure

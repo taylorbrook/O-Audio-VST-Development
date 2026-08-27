@@ -55,7 +55,34 @@
     Both are assertion 3, and it is the reason this file is re-run for a resize
     that only removed empty space.
 
-    What is asserted, for EVERY control carrying a tooltip:
+    ── v1.9.0: THE SWEEP IS PARAMETERISED BY LANGUAGE ──────────────────────
+
+    The whole anchor sweep now runs once for `en` and once for `fr`, in ONE
+    process against ONE page load, driven through window.__setLanguage(). It is
+    NOT a duplicated file: two copies of a 500-line gate would be free to drift
+    from each other, and this repo has paid for that twice already.
+
+    Assertion 3 is the one that is language-sensitive. French copy runs longer
+    than English, and .tooltip's max-width is a hard cap — so a longer string
+    does not get wider, it WRAPS TO MORE LINES. The tip's height grows,
+    `top = anchor.top - height - MARGIN` moves further up, and the flip-to-below
+    has to catch whatever no longer fits above. Assertion 2 is capped by
+    max-width and cannot move. That is why this file is re-run for a change that
+    added no control and moved no box: it changed how tall the tips are.
+
+    Every failure is LABELLED with its language, because a French-only failure in
+    an unlabelled run reads as a mysterious regression.
+
+    Two vacuity guards, both required PER LANGUAGE: the clamp must engage at
+    least once, and every anchor's copy must actually differ between en and fr.
+    Without the second, a run in which __setLanguage silently did nothing would
+    measure English twice and report a confident, meaningless pass.
+
+    The settings popover added in v1.9.0 gets a third sweep pass of its own —
+    #lang-select is a real anchor inside a panel that ships hidden, and it sits
+    in the top-right corner where both the clamp and the flip bite hardest.
+
+    What is asserted, for EVERY control carrying a tooltip, IN EACH LANGUAGE:
       1. The tip is at its natural width, not shrink-wrapped — a fixed-position
          box with `left` set and `width:auto` collapses to the space remaining
          to its right, turning a 230 px tip into a ~70 px ribbon
@@ -65,6 +92,8 @@
       3. top >= 0 and bottom <= innerHeight — the flip actually keeps it on
          screen at the new height.
       4. The arrow still points inside the tip after clamping.
+      5. The tip is no wider than .tooltip's own max-width (parsed from that
+         plugin's CSS, never assumed) — the cap French has to wrap inside.
 
     The dwell delay is AWAITED rather than slept past by a fixed guess: the tip
     only renders after TOOLTIP_DELAY_MS, and polling for the .visible class is
@@ -107,7 +136,19 @@ const SHIP_H = 768;
 // app.js constants — mirrored here, and cross-checked against the source below
 // so this file cannot drift from the page it is measuring.
 const TOOLTIP_MARGIN = 8;
-const NATURAL_MAX_W  = 230;   // .tooltip max-width
+
+// .tooltip's max-width. v1.9.0 PARSES this out of the plugin's own CSS rather
+// than hard-coding it, because the cap differs per plugin — 230 here and in
+// O-Bitrot and O-Tapestop, 240 in O-Octagon, 220 in O-Polystutter — and a file
+// that mirrors one plugin's number would mis-assert the moment it is pointed at
+// another. It is the cap French wraps INSIDE, so it is load-bearing for every
+// assertion below.
+//
+// The literal survives as the drift guard, not as the source of truth: the
+// parsed value drives the measurements, and the assertion below fails if the two
+// disagree, so a silent change to the shipped cap is still loud
+// (pattern_test_fixture_mirrors_drift_silently).
+const DOCUMENTED_MAX_W = 230;
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -164,8 +205,20 @@ function serve(root) {
 
     check(new RegExp(`TOOLTIP_MARGIN\\s*=\\s*${TOOLTIP_MARGIN}\\b`).test(appJs),
         `TOOLTIP_MARGIN in app.js is ${TOOLTIP_MARGIN} (this file mirrors it)`);
-    check(new RegExp(`max-width:\\s*${NATURAL_MAX_W}px`).test(css),
-        `.tooltip max-width is ${NATURAL_MAX_W}px (this file mirrors it)`);
+    // Parsed from the .tooltip RULE specifically, not from the first max-width in
+    // the file — .settings-popover and .preset-name carry widths of their own and
+    // a loose scan would silently measure against one of those.
+    const tipRule = css.match(/\.tooltip\s*\{[\s\S]*?\}/);
+    const capMatch = tipRule && tipRule[0].match(/max-width:\s*(\d+(?:\.\d+)?)px/);
+    const NATURAL_MAX_W = capMatch ? parseFloat(capMatch[1]) : NaN;
+
+    check(Number.isFinite(NATURAL_MAX_W),
+        `.tooltip max-width parsed from styles.css — got ${capMatch ? capMatch[1] + 'px' : 'NOTHING'}`);
+    check(NATURAL_MAX_W === DOCUMENTED_MAX_W,
+        `.tooltip max-width is the documented ${DOCUMENTED_MAX_W}px — parsed ${NATURAL_MAX_W}px. `
+        + `If the cap moved deliberately, move DOCUMENTED_MAX_W with it and re-read the `
+        + `French sweep below: French wraps INSIDE this cap, so changing it changes every `
+        + `tip height and therefore every vertical-flip decision`);
     check(new RegExp(`setSize\\s*\\(\\s*${SHIP_W}\\s*,\\s*${SHIP_H}\\s*\\)`).test(editorCpp),
         `editor setSize is ${SHIP_W} x ${SHIP_H} — the viewport measured below`);
 
@@ -276,106 +329,251 @@ function serve(root) {
 
     const dwell = Number((appJs.match(/TOOLTIP_DELAY_MS\s*=\s*(\d+)/) || [])[1] || 350);
 
-    let clampedCount = 0;
-    let worstRight = -1e9, worstRightId = '-';
+    // ══════════════════════════════════════════════════════════════════════
+    // v1.9.0 — THE SWEEP IS PARAMETERISED BY LANGUAGE
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // Not duplicated: one process, one page load, the whole anchor sweep run
+    // once per language. Duplicating the file would have produced two copies
+    // free to drift, which is the failure this repo has already paid for twice.
+    //
+    // WHY IT HAS TO BE RE-RUN AT ALL. Assertion 3 is the language-sensitive one.
+    // French runs longer than English, and .tooltip's max-width is a hard cap —
+    // so a longer string does not get wider, it WRAPS TO MORE LINES. `height`
+    // grows, `top = anchor.top - height - MARGIN` moves further up, and the
+    // flip-to-below in app.js has to catch what no longer fits above. Assertion
+    // 2 is capped by max-width and cannot move; assertion 3 can, and this frame
+    // is 940 x 768 rather than the 1100 x 720 where French was first measured.
+    //
+    // The language is driven through window.__setLanguage — applyI18n, exposed
+    // by the canonical block for exactly this. It rewrites every anchor's two
+    // attributes synchronously and fires NO `change` event, so the ui-stub needs
+    // no promise contract and no native round-trip has to complete first.
+    //
+    // Every failure is LABELLED with its language. Without that a French-only
+    // failure reads as a mysterious regression in a file that never mentions
+    // French.
+    const LANGS = ['en', 'fr'];
 
-    // UI-02 hides one of the two TIME controls at any moment: the delayTime knob
-    // in Sync, the division select in Free. Measuring only the default mode
-    // would leave one control's tooltip unverified forever, so both modes are
-    // swept and coverage is asserted at the end.
-    const measured = new Set();
+    // lang -> the two tip attributes of every anchor, so "French actually
+    // rendered" is asserted rather than assumed. A run where __setLanguage
+    // silently did nothing would otherwise measure English twice and report a
+    // reassuring, worthless pass.
+    const tipTextByLang = new Map();
 
-    const sweep = async (modeLabel) => {
-      for (const id of anchors) {
-        if (measured.has(id)) continue;
+    // lang -> { clamped, flipped, widest, tallest, worstRight, worstRightId }
+    const stats = new Map();
 
-        const shown = await page.$eval(`#${id}`, el => {
-            const r = el.getBoundingClientRect();
-            return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
-        }).catch(() => false);
+    for (const lang of LANGS) {
+      const applied = await page.evaluate((l) => {
+          if (typeof window.__setLanguage !== 'function') return '__MISSING__';
+          window.__setLanguage(l);
+          const sel = document.getElementById('lang-select');
+          return sel ? sel.value : l;
+      }, lang);
 
-        if (!shown) continue;   // hidden by the mode swap — the other pass takes it
-        measured.add(id);
+      check(applied === lang,
+          `[${lang}] window.__setLanguage('${lang}') applied and synced the selector`
+          + (applied === '__MISSING__' ? ' — window.__setLanguage IS NOT DEFINED' : ` — got "${applied}"`));
 
-        await page.hover(`#${id}`);
+      const texts = await page.evaluate(() => Object.fromEntries(
+          [...document.querySelectorAll('[data-tip]')].map(e => [e.id, {
+              t: e.getAttribute('data-tip-title') || '',
+              b: e.getAttribute('data-tip') || '',
+          }])));
+      tipTextByLang.set(lang, texts);
 
-        // AWAIT the dwell rather than sleeping a fixed guess past it: measuring
-        // before .visible lands reads a zero-size rect and passes vacuously.
-        let visible = true;
-        try {
-            await page.waitForFunction(
-                () => document.getElementById('tooltip').classList.contains('visible'),
-                null, { timeout: dwell + 1500 });
-        } catch { visible = false; }
+      const blank = Object.entries(texts).filter(([, v]) => !v.t || !v.b).map(([k]) => k);
+      check(blank.length === 0,
+          `[${lang}] every anchor carries a non-empty title AND body`
+          + (blank.length ? ' — BLANK: ' + blank.join(', ') : ''));
 
-        if (!visible) {
-            check(false, `#${id} [${modeLabel}]: tooltip became visible within ${dwell} ms dwell`);
-            continue;
+      // An unsubstituted {token} is a tr() vars bug that renders as literal
+      // braces in the shipped tip. O-ReverseDelay has no parameterised entry
+      // today; this is what would notice if one were added wrongly.
+      const unsub = Object.entries(texts)
+          .filter(([, v]) => /\{\w+\}/.test(v.t) || /\{\w+\}/.test(v.b)).map(([k]) => k);
+      check(unsub.length === 0,
+          `[${lang}] no unsubstituted {token} placeholder survives into a tip`
+          + (unsub.length ? ' — UNSUBSTITUTED: ' + unsub.join(', ') : ''));
+
+      let clampedCount = 0;
+      let flippedCount = 0;
+      let worstRight = -1e9, worstRightId = '-';
+      let widest = 0, tallest = 0;
+
+      // UI-02 hides one of the two TIME controls at any moment: the delayTime
+      // knob in Sync, the division select in Free. Measuring only the default
+      // mode would leave one control's tooltip unverified forever, so both modes
+      // are swept and coverage is asserted at the end — PER LANGUAGE.
+      const measured = new Set();
+
+      const sweep = async (modeLabel) => {
+        for (const id of anchors) {
+          if (measured.has(id)) continue;
+
+          const shown = await page.$eval(`#${id}`, el => {
+              const r = el.getBoundingClientRect();
+              return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+          }).catch(() => false);
+
+          if (!shown) continue;   // hidden by the mode swap — the other pass takes it
+          measured.add(id);
+
+          await page.hover(`#${id}`);
+
+          // AWAIT the dwell rather than sleeping a fixed guess past it: measuring
+          // before .visible lands reads a zero-size rect and passes vacuously.
+          let visible = true;
+          try {
+              await page.waitForFunction(
+                  () => document.getElementById('tooltip').classList.contains('visible'),
+                  null, { timeout: dwell + 1500 });
+          } catch { visible = false; }
+
+          if (!visible) {
+              check(false, `[${lang}] #${id} [${modeLabel}]: tooltip became visible within ${dwell} ms dwell`);
+              continue;
+          }
+
+          const m = await page.evaluate(() => {
+              const t = document.getElementById('tooltip');
+              const r = t.getBoundingClientRect();
+              const arrow = parseFloat(getComputedStyle(t).getPropertyValue('--arrow-x')) || 0;
+              return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+                       w: r.width, h: r.height, arrow,
+                       placement: t.getAttribute('data-placement') || '?',
+                       text: (t.textContent || '').trim().length };
+          });
+
+          // 1. Not shrink-wrapped. A collapsed tip is ~70 px against a 230 px
+          //    natural width; anything under half is the failure signature.
+          const notShrunk = m.w > NATURAL_MAX_W * 0.5 || m.text < 40;
+
+          // 2. BOTH edges inside the viewport — width alone is not enough.
+          const insideX = m.left >= TOOLTIP_MARGIN - 0.5
+                       && m.right <= SHIP_W - TOOLTIP_MARGIN + 0.5;
+
+          // 3. The vertical flip keeps it on screen. THE LANGUAGE-SENSITIVE ONE.
+          const insideY = m.top >= -0.5 && m.bottom <= SHIP_H + 0.5;
+
+          // 4. The arrow still points within the (possibly clamped) tip.
+          const arrowOk = m.arrow >= 0 && m.arrow <= m.w;
+
+          // 5. The cap is a CAP. A tip wider than max-width means the CSS is not
+          //    doing the wrapping this whole language sweep depends on.
+          const withinCap = m.w <= NATURAL_MAX_W + 24 + 0.5;   // + horizontal padding/border
+
+          if (m.right > worstRight) { worstRight = m.right; worstRightId = id; }
+          if (m.w > widest)  widest  = m.w;
+          if (m.h > tallest) tallest = m.h;
+          if (m.left <= TOOLTIP_MARGIN + 0.5 || m.right >= SHIP_W - TOOLTIP_MARGIN - 0.5)
+              ++clampedCount;
+          if (m.placement === 'below') ++flippedCount;
+
+          check(notShrunk && insideX && insideY && arrowOk && withinCap,
+              `[${lang}] #${id}: w=${m.w.toFixed(1)} h=${m.h.toFixed(1)} `
+              + `x=[${m.left.toFixed(1)}, ${m.right.toFixed(1)}] `
+              + `y=[${m.top.toFixed(1)}, ${m.bottom.toFixed(1)}] `
+              + `${m.placement} arrow=${m.arrow.toFixed(1)}`
+              + (notShrunk ? '' : ' — SHRINK-WRAPPED')
+              + (insideX ? '' : ' — OVERFLOWS HORIZONTALLY')
+              + (insideY ? '' : ' — OVERFLOWS VERTICALLY')
+              + (arrowOk ? '' : ' — ARROW OUTSIDE TIP')
+              + (withinCap ? '' : ' — WIDER THAN max-width'));
+
+          await page.mouse.move(2, 2);
+          await page.waitForFunction(
+              () => !document.getElementById('tooltip').classList.contains('visible'),
+              null, { timeout: 2000 }).catch(() => {});
         }
+      };
 
-        const m = await page.evaluate(() => {
-            const t = document.getElementById('tooltip');
-            const r = t.getBoundingClientRect();
-            const arrow = parseFloat(getComputedStyle(t).getPropertyValue('--arrow-x')) || 0;
-            return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
-                     w: r.width, h: r.height, arrow,
-                     text: (t.textContent || '').trim().length };
-        });
+      await sweep('sync');                     // default mode: division select shown
+      await page.click('#seg-free');           // UI-02 swap: delayTime knob shown
+      await page.waitForTimeout(50);
+      await sweep('free');
+      await page.click('#seg-sync');           // leave the page as it loaded
+      await page.waitForTimeout(50);
 
-        // 1. Not shrink-wrapped. A collapsed tip is ~70 px against a 230 px
-        //    natural width; anything under half is the failure signature.
-        const notShrunk = m.w > NATURAL_MAX_W * 0.5 || m.text < 40;
+      // v1.9.0 — a THIRD pass with the settings popover open. #lang-select is an
+      // anchor like any other, but it is inside a panel that ships hidden, so
+      // without this it is never visible, never measured, and the coverage
+      // assertion reports it forever.
+      //
+      // Excluding it instead would have been the wrong fix twice over: it is a
+      // real tip a user can really raise, and it sits in the top-right corner of
+      // a 940 px frame, which is precisely where the horizontal clamp and the
+      // vertical flip both bite hardest. The panel is absolutely positioned and
+      // changes no sibling's box, so opening it moves nothing already measured.
+      // Swept LAST so the closed-state geometry above is measured against the
+      // page exactly as it loads.
+      await page.click('#gear-btn');
+      await page.waitForTimeout(50);
+      const popoverOpen = await page.$eval('#settings-popover', el => !el.hidden).catch(() => false);
+      check(popoverOpen,
+          `[${lang}] the settings popover OPENS on a click — a panel that renders `
+          + `but does not open would leave its controls unmeasurable, and a panel `
+          + `that is merely present has already shipped pointer-dead in this suite`);
+      await sweep('settings');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(50);
 
-        // 2. BOTH edges inside the viewport — width alone is not enough.
-        const insideX = m.left >= TOOLTIP_MARGIN - 0.5
-                     && m.right <= SHIP_W - TOOLTIP_MARGIN + 0.5;
+      check(measured.size === anchors.length,
+          `[${lang}] every tooltip anchor was measured across both TIME modes `
+          + `and the open settings popover — `
+          + `${measured.size}/${anchors.length}`
+          + (measured.size === anchors.length ? ''
+             : ' — NEVER VISIBLE: ' + anchors.filter(a => !measured.has(a)).join(', ')));
 
-        // 3. The vertical flip keeps it on screen at the NEW height.
-        const insideY = m.top >= -0.5 && m.bottom <= SHIP_H + 0.5;
+      // The gate has to actually FIRE, or it proved nothing. If no control ever
+      // reaches an edge, this test is passing vacuously and the clamp is untested
+      // — which is precisely the state the v1.0.1 verification was in. Required
+      // PER LANGUAGE: a French pass in which the clamp never engaged would say
+      // nothing about French.
+      check(clampedCount > 0,
+          `[${lang}] the edge clamp actually engaged for ${clampedCount} control(s) — `
+          + `a run where it never fires proves nothing about the clamp`);
 
-        // 4. The arrow still points within the (possibly clamped) tip.
-        const arrowOk = m.arrow >= 0 && m.arrow <= m.w;
+      stats.set(lang, { clamped: clampedCount, flipped: flippedCount,
+                        widest, tallest, worstRight, worstRightId,
+                        measured: measured.size });
+    }
 
-        if (m.right > worstRight) { worstRight = m.right; worstRightId = id; }
-        if (m.left <= TOOLTIP_MARGIN + 0.5 || m.right >= SHIP_W - TOOLTIP_MARGIN - 0.5)
-            ++clampedCount;
+    // French must actually BE French. Without this the sweep could run twice
+    // over identical English text and report a confident, meaningless pass —
+    // the same class of vacuity assertion 2's clamp counter guards against.
+    {
+        const en = tipTextByLang.get('en') || {};
+        const fr = tipTextByLang.get('fr') || {};
+        const same = Object.keys(en).filter(id => fr[id]
+            && en[id].t === fr[id].t && en[id].b === fr[id].b);
+        check(same.length === 0,
+            `every anchor's copy actually CHANGED between en and fr — `
+            + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
+            + (same.length ? ' — UNCHANGED: ' + same.join(', ') : ''));
+    }
 
-        check(notShrunk && insideX && insideY && arrowOk,
-            `#${id}: w=${m.w.toFixed(1)} x=[${m.left.toFixed(1)}, ${m.right.toFixed(1)}] `
-            + `y=[${m.top.toFixed(1)}, ${m.bottom.toFixed(1)}] arrow=${m.arrow.toFixed(1)}`
-            + (notShrunk ? '' : ' — SHRINK-WRAPPED')
-            + (insideX ? '' : ' — OVERFLOWS HORIZONTALLY')
-            + (insideY ? '' : ' — OVERFLOWS VERTICALLY')
-            + (arrowOk ? '' : ' — ARROW OUTSIDE TIP'));
-
-        await page.mouse.move(2, 2);
-        await page.waitForFunction(
-            () => !document.getElementById('tooltip').classList.contains('visible'),
-            null, { timeout: 2000 }).catch(() => {});
-      }
-    };
-
-    await sweep('sync');                     // default mode: division select shown
-    await page.click('#seg-free');           // UI-02 swap: delayTime knob shown
-    await page.waitForTimeout(50);
-    await sweep('free');
-    await page.click('#seg-sync');           // leave the page as it loaded
-
-    check(measured.size === anchors.length,
-        `every tooltip anchor was measured across both TIME modes — `
-        + `${measured.size}/${anchors.length}`
-        + (measured.size === anchors.length ? ''
-           : ' — NEVER VISIBLE: ' + anchors.filter(a => !measured.has(a)).join(', ')));
-
-    // The gate has to actually FIRE, or it proved nothing. If no control ever
-    // reaches an edge, this test is passing vacuously and the clamp is untested
-    // — which is precisely the state the v1.0.1 verification was in.
-    check(clampedCount > 0,
-        `the edge clamp actually engaged for ${clampedCount} control(s) — `
-        + `a run where it never fires proves nothing about the clamp`);
-
-    console.log(`\n   right-most tip: #${worstRightId} ends at ${worstRight.toFixed(1)} `
-        + `of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
+    // ── The Stage D deliverable, printed rather than only asserted ───────────
+    // What French costs this frame, measured: extra vertical flips, extra
+    // horizontal clamps, and the tallest tip in each language.
+    console.log('\n   ── en vs fr geometry, measured at ' + SHIP_W + ' x ' + SHIP_H + ' ──');
+    for (const lang of LANGS) {
+        const st = stats.get(lang);
+        if (!st) continue;
+        console.log(`   ${lang}: ${st.measured} anchors  clamped ${st.clamped}  `
+            + `flipped-below ${st.flipped}  widest ${st.widest.toFixed(1)}  `
+            + `tallest ${st.tallest.toFixed(1)}  right-most #${st.worstRightId} @ `
+            + `${st.worstRight.toFixed(1)} of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
+    }
+    {
+        const e = stats.get('en'), f = stats.get('fr');
+        if (e && f)
+            console.log(`   French costs ${f.flipped - e.flipped >= 0 ? '+' : ''}`
+                + `${f.flipped - e.flipped} vertical flip(s) and `
+                + `${f.clamped - e.clamped >= 0 ? '+' : ''}${f.clamped - e.clamped} clamp(s), `
+                + `and is ${(f.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+    }
 
     // ── v1.7.3 (IN-03): the WINDOW panel's height budget, MEASURED ───────────
     // styles.css carried this budget written down twice, 120 lines apart, and
