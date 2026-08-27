@@ -292,11 +292,17 @@ export const I18N = Object.freeze({
               b: 'Préférences d’interface — la langue de cette aide au survol, et son affichage ou non.',
               reviewed: false },
     },
+    // v1.11.0: through v1.10.0 this entry told the user, in both languages,
+    // that control labels stay in English. That is now false — the labels are
+    // localized too. Rewritten to say what is true, INCLUDING the half that
+    // stayed true: value readouts are English in both languages (D-03), so a
+    // knob still reads `1.5 kHz` and the inline value entry still parses what
+    // it displays.
     'lang-select': {
         en: { t: 'Language',
-              b: 'Language of the hover help. The choice is remembered with the session and is not carried by presets. Control labels and value readouts stay in English.' },
+              b: 'Language of this hover help and of the labels on the page. The choice is remembered with the session and is not carried by presets. Value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'Langue de l’aide au survol. Le choix est conservé avec la session et n’est pas transporté par les préréglages. Les libellés des commandes et les afficheurs restent en anglais.',
+              b: 'Langue de cette aide au survol et des libellés de la page. Le choix est conservé avec la session et n’est pas transporté par les préréglages. Les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
     // One key covering both states rather than a pair swapped on click: the
@@ -311,6 +317,202 @@ export const I18N = Object.freeze({
               reviewed: false },
     },
 });
+
+// ============================================================================
+// LABELS — the on-page text (v1.11.0, canon v2)
+// ============================================================================
+//
+// I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
+// 230 px tooltip. LABELS is ON-PAGE copy: one string dropped into a grid cell
+// that does not wrap. They are different problems and this table keeps them
+// apart on purpose.
+//
+// ── THE REUSE RULE ─────────────────────────────────────────────────────────
+// trLabel() falls back to I18N when a key is absent here, so a control whose
+// tooltip TITLE already IS its caption carries ONE key. That fallback is used
+// ONLY where the string is identical in BOTH languages: the four band titles
+// (band.low … band.high), the Language caption (lang-select), the gear and the
+// popover's accessible name (settings), and the footer Mix caption (mix). None
+// of those appears below.
+//
+// It is deliberately NOT used where only the English matches. The Release knob
+// caption is "Relâche" here while its tip title is "{band} — Rétablissement":
+// a 14-character word at 8 px uppercase is ~77 px inside a ~62 px grid track,
+// and the tip has a 230 px cap to wrap into that the knob cell does not.
+// Reusing the key there would make every future edit to a tooltip a silent
+// geometry change to a control.
+//
+// ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
+// Every en below is what index.html carried through v1.10.0, taken from
+// scripts/i18n-extract.js's inventory rather than transcribed.
+//
+// One deliberate normalisation, recorded because it is the only place the
+// markup disagreed with itself: the three band buttons authored `SOLO` as
+// their text node and `data-label="Solo"` as the caption a state update writes
+// back, so the page rendered "Solo" from the moment bindToggle ran. The keys
+// below carry the data-label casing, which is what actually rendered, and the
+// text nodes were normalised to match. `.band-button { text-transform:
+// uppercase }` makes the two visually identical either way.
+//
+// ── FRENCH IS SIZED, NOT SHRUNK ────────────────────────────────────────────
+// D-04 forbids an auto-shrink font and a short-variant fallback: there is
+// exactly ONE French string per key and nothing chooses between variants at
+// runtime. Four bands share a 900 px frame, so a band's knob grid is ~62 px
+// per track and its button row ~61 px per button — the tightest type on this
+// page. Where French did not fit, the fix was this plugin's own CSS
+// (see CHANGELOG v1.11.0); where a shorter phrasing was simply the better
+// French for a caption, it is noted at the entry.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`. No native speaker has read
+// it. `node scripts/check-i18n.js` prints the worklist, LABELS included.
+// ============================================================================
+
+export const LABELS = Object.freeze({
+
+    // ── Preset bar ──────────────────────────────────────────────────────────
+    // MEASURED, not chosen by ear. The header is a three-group flex row inside
+    // 844 px of content width, and 367.8 px of it is the product name. English
+    // SAVE + LOAD occupy 84.7 px and leave 30.2 px of distributed air; French
+    // ENREGISTRER alone is 90.1 px, which wraps the title to two lines and
+    // pushes the entire page down 27 px. "Enreg." is 53.9 px and "Ouvrir"
+    // 56.4 px — the standard compact French forms, and the pair that fits the
+    // slack this header actually has once the buttons are pinned to a
+    // language-independent width (see CHANGELOG v1.11.0).
+    //
+    // A native reviewer should challenge these two before any other entry in
+    // this table: they are the only ones where width, not meaning, picked the
+    // word.
+    'label.save':      { en: { t: 'Save' },  fr: { t: 'Enreg.',  reviewed: false } },
+    'label.load':      { en: { t: 'Load' },  fr: { t: 'Ouvrir',  reviewed: false } },
+
+    // ── Settings popover ────────────────────────────────────────────────────
+    // Not the `tips-toggle` key: that tip's title is "Hover Help" and this
+    // caption is "Hover help". The reuse rule wants both languages identical,
+    // and these differ in English before French is even considered.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
+
+    // The hover-help toggle's two faces and the Auto-MU toggle's two faces.
+    // They go through setLabel(), so the element becomes a [data-i18n] element
+    // and the language sweep owns it from that moment on — a state string
+    // written as a raw literal is stranded in the previous language the instant
+    // the selector fires, which is the bug Stage B found on this very toggle.
+    //
+    // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the toggle face is
+    // 44 px, and this is the vocabulary a piece of hardware uses, which is the
+    // register the whole panel is written in.
+    'ui.on':           { en: { t: 'On' },    fr: { t: 'Marche', reviewed: false } },
+    'ui.off':          { en: { t: 'Off' },   fr: { t: 'Arrêt',  reviewed: false } },
+
+    // ── Preset dropdown, built from script ──────────────────────────────────
+    'ui.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: false } },
+    // The preset NAME is substituted, never translated (D-02 — the name is the
+    // JSON filename). tr()/trLabel() resolve a var value that is not itself a
+    // key literally, which is exactly what is wanted here.
+    'ui.deleteConfirm': { en: { t: 'Delete "{name}"?' },
+                          fr: { t: 'Supprimer « {name} » ?', reviewed: false } },
+    'ui.delete':       { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: false } },
+    'ui.cancel':       { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: false } },
+
+    // ── Meters ──────────────────────────────────────────────────────────────
+    // Absolutely positioned and translate(-50%) centred, so neither has a
+    // rendered box that can push anything.
+    'label.in':        { en: { t: 'IN' },   fr: { t: 'ENT', reviewed: false } },
+    'label.out':       { en: { t: 'OUT' },  fr: { t: 'SOR', reviewed: false } },
+
+    // ── Band controls, one key each, shared by all four bands ───────────────
+    'label.gr':        { en: { t: 'GR' },     fr: { t: 'RG',      reviewed: false } },
+    'label.thresh':    { en: { t: 'Thresh' }, fr: { t: 'Seuil',   reviewed: false } },
+    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Taux',    reviewed: false } },
+    'label.attack':    { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: false } },
+    // See the reuse-rule note above: the tip says "Rétablissement", the caption
+    // cannot afford it.
+    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâche', reviewed: false } },
+    'label.knee':      { en: { t: 'Knee' },   fr: { t: 'Coude',   reviewed: false } },
+    // The tip title is "Compensation"; at 8 px uppercase that is ~66 px in a
+    // ~62 px track, so the caption is the abbreviated form.
+    'label.makeup':    { en: { t: 'Makeup' }, fr: { t: 'Compens.', reviewed: false } },
+    'label.detector':  { en: { t: 'Detector / Sidechain' },
+                         fr: { t: 'Détecteur / Sidechain', reviewed: false } },
+    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crê/RMS', reviewed: false } },
+    // "Sidechain" is the term this plugin's own French tooltips use, so the
+    // SC prefix survives; PH / PB are passe-haut / passe-bas.
+    'label.scHpf':     { en: { t: 'SC HPF' }, fr: { t: 'SC PH',   reviewed: false } },
+    'label.scLpf':     { en: { t: 'SC LPF' }, fr: { t: 'SC PB',   reviewed: false } },
+
+    'label.solo':      { en: { t: 'Solo' },      fr: { t: 'Solo', reviewed: false, sameAsEn: true } },
+    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Dériv.', reviewed: false } },
+    'label.scListen':  { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: false } },
+
+    // ── Global controls ─────────────────────────────────────────────────────
+    'label.input':     { en: { t: 'Input' },   fr: { t: 'Entrée',    reviewed: false } },
+    'label.autoMu':    { en: { t: 'Auto-MU' }, fr: { t: 'Auto-Comp', reviewed: false } },
+    'label.msMode':    { en: { t: 'M/S Mode' },fr: { t: 'Mode M/S',  reviewed: false } },
+    'label.output':    { en: { t: 'Output' },  fr: { t: 'Sortie',    reviewed: false } },
+
+    // The M/S mode choices. NOT `ui.off`: this one names a routing mode that is
+    // not engaged, not a switch that is turned off, and French separates the
+    // two where English does not. Mid and Side are the names of the encoding,
+    // used untranslated in French audio work.
+    'label.msOff':     { en: { t: 'Off' },  fr: { t: 'Aucun',    reviewed: false } },
+    'label.msMid':     { en: { t: 'Mid' },  fr: { t: 'Mid',      reviewed: false, sameAsEn: true } },
+    'label.msSide':    { en: { t: 'Side' }, fr: { t: 'Side',     reviewed: false, sameAsEn: true } },
+    'label.msBoth':    { en: { t: 'Both' }, fr: { t: 'Les deux', reviewed: false } },
+
+    // ── Accessible names ────────────────────────────────────────────────────
+    // An aria-label is user-visible text by any definition that matters — it is
+    // the accessible NAME, and a screen reader in French reading an English
+    // name is the same failure as a French page with an English caption. None
+    // has a rendered box, so none is a geometry risk.
+    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false } },
+    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: false } },
+    'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: false } },
+    'aria.helpToggle':   { en: { t: 'Toggle hover help' },
+                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+    // Static, not composed. Canon v2's attribute sweep resolves a key WITHOUT
+    // vars by design, and the dropdown row this button sits in already carries
+    // the preset name as its own accessible content, so the row is announced
+    // before the button either way. The button additionally points at that name
+    // through aria-describedby, so nothing about the composed form is lost.
+    'aria.presetDelete': { en: { t: 'Delete preset' },   fr: { t: 'Supprimer le préréglage', reviewed: false } },
+});
+
+// ============================================================================
+// I18N_EXEMPT — reasoned exclusions, never silence
+// ============================================================================
+//
+// Every visible string the coverage scan finds must be a [data-i18n] element, a
+// setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let a
+// missed label hide as a deliberate one.
+// ============================================================================
+
+export const I18N_EXEMPT = [
+    ['O-MultiBandCompressor', 'the product name — a product name is never translated'],
+    ['Ouaricon Audio',        'the company name'],
+
+    // #presetName displays the loaded preset. The name IS the JSON filename
+    // (OuariconPresetManager.h:283-285), so translating it breaks recall:
+    // a session saved against "Cathedral" would not resolve "Cathédrale".
+    // "Default" is the placeholder the manager overwrites on its first pass.
+    ['Default', 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
+
+    // THE ONE EXEMPTION WORTH ARGUING WITH. The two sidechain filter readouts
+    // (#<band>-sc-hpf-value / #<band>-sc-lpf-value, eight spans) read "Off" at
+    // the bottom of their range and a frequency everywhere else — they are
+    // VALUE READOUTS, and they are EDITABLE: attachValueEntry() opens an inline
+    // field over them and parseFreq() maps a typed "off" back to 0 Hz. D-03
+    // forbids touching an editable readout's parser, so a French "Désactivé"
+    // on screen would be a value the field that displays it cannot read back.
+    // They must stay English, and they cannot carry data-i18n either: the
+    // language sweep writes textContent, so a knob showing "2.0 kHz" would
+    // revert to "Off" on the next language change.
+    //
+    // The exemption matches by TEXT, so it also covers the Auto-MU toggle face
+    // and the M/S Mode "Off" option. BOTH ARE KEYED ANYWAY — ui.off and
+    // label.msOff — so nothing is left English by this entry; it only means the
+    // gate would not have caught it if they were not. That is the residual risk
+    // and it is stated rather than hidden.
+    ['Off', 'the two sidechain-filter value readouts read "Off" at 0 Hz and are EDITABLE — parseFreq() maps a typed "off" back to 0, and D-03 forbids touching an editable readout parser'],
+];
 
 // [selector, key] or [selector, key, wrapperSelector] or
 // [selector, key, wrapperSelector, vars].
