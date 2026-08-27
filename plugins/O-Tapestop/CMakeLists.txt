@@ -10,7 +10,7 @@ juce_add_plugin(OuariconTapestop
     PRODUCT_NAME "O-Tapestop${OUARICON_DEV_SUFFIX}"
     # JUCE reads VERSION (never PLUGIN_VERSION — that keyword is silently
     # ignored and the bundle ships as 1.0.0).
-    VERSION 1.4.0
+    VERSION 1.5.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -74,6 +74,13 @@ juce_add_binary_data(OuariconTapestop_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        # v1.5.0 — hover-help copy, English + French. NO HYPHEN, for the same
+        # reason envelope_editor.js uses an underscore: juce_add_binary_data
+        # STRIPS hyphens rather than converting them
+        # (critical_binary_data_strips_hyphens). One combined file for both
+        # languages sidesteps the question a second i18n-fr.js would have
+        # raised. Symbol: UIBinaryData::i18n_js.
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/envelope_editor.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js

@@ -32,6 +32,8 @@
 //   requestEnvelope       (page init: current envelope JSON)
 //   setTooltipsEnabled    (v1.4.0: the "?" toggle's state → processor)
 //   getTooltipsEnabled    (v1.4.0: page init PULLS the saved preference)
+//   getUiLanguage         (v1.5.0: page init PULLS the saved hover-help language)
+//   setUiLanguage         (v1.5.0: the selector's choice → processor)
 // plus the 10 preset fns requested by modules/preset-manager.js (Stage 4):
 //   savePreset, savePresetWithDialog, loadPreset, loadPresetFromFile,
 //   getPresetList, getCurrentPreset, selectNextPreset, selectPreviousPreset,
@@ -62,6 +64,13 @@
 
 import * as Juce from "./juce/index.js";
 import { EnvelopeEditor } from "./envelope_editor.js";
+// v1.5.0 — hover-help copy, English + French. A HOISTED import; i18n.js exports
+// only and never self-executes, so it cannot enter a TDZ chain
+// (pattern_module_toplevel_init_tdz).
+//
+// scripts/check-i18n.js assertion 6 requires this line VERBATIM, single quotes
+// included — it is one of the two anchors the repo-wide drift gate matches on.
+import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
 // Shared preset band (Stage 4). Constructor + explicit DOM refs ONLY — the
 // module's createPresetBar() innerHTML-wipes the styled band and never
 // creates a delete button.
@@ -791,6 +800,118 @@ function initReadback() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Hover-help language (v1.5.0)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
+// byte-compared (comments stripped, whitespace collapsed) against
+// scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
+// shared UI module and deliberately does not gain one, so 43 hand-copies are
+// only safe because a drifted copy fails a gate. Do not "tidy" it.
+//
+// One PULL at page init, no push, no timer, no poll().then(poll), no revision
+// counter — the same discipline initTooltips() already uses for the v1.4.0
+// preference, and for the same reason. The language is not preset content
+// either: OuariconPresetManager::loadPreset walks preset["parameters"] and
+// never touches a state-tree property.
+//
+// `grep -rn setVisible plugins/O-Tapestop/Source/` returns NOTHING, so the web
+// view is never hidden and the hidden-completion drop cannot fire
+// (critical_webview_completion_gated_on_isvisible).
+//
+// Declared at module level, ABOVE every reader. The only statement executed at
+// module-evaluation time is the window.__setLanguage assignment, which touches
+// a hoisted function declaration and cannot enter a TDZ chain.
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── The settings popover (v1.5.0) ──────────────────────────────────────────
+//
+// The gear that carries the language selector and the moved hover-help toggle.
+// All state lives in this closure, so nothing here can join a TDZ chain.
+
+function initSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+  // click, so the panel is gone before a drag on a knob or on the envelope
+  // editor underneath it begins — both call preventDefault in their own
+  // pointerdown handlers.
+  document.addEventListener("mousedown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Hover help (v1.4.0)
 //
 // Ported from O-ReverseDelay v1.1.0 — the version carrying the VERIFIED
@@ -923,14 +1044,22 @@ function hideTooltip() {
   tooltipEl.setAttribute("aria-hidden", "true");
 }
 
-// Class + aria only — the button's "?" glyph is HTML-authored and must never
-// be written from here (pattern_js_state_updater_overwrites_html_labels).
+// v1.5.0: the toggle moved into the settings popover and now shows On/Off
+// rather than the old static "?" glyph. The caption IS written from here — but
+// the copy comes from data-on / data-off, which are AUTHORED IN THE MARKUP,
+// never from a literal in this file
+// (pattern_js_state_updater_overwrites_html_labels). The dataset read has a
+// fallback so a stripped attribute degrades to a caption rather than to an
+// empty button.
 function applyTooltipsEnabled(enabled) {
   tooltipsEnabled = !!enabled;
 
   if (tooltipToggleEl) {
     tooltipToggleEl.classList.toggle("active", tooltipsEnabled);
     tooltipToggleEl.setAttribute("aria-pressed", tooltipsEnabled ? "true" : "false");
+    tooltipToggleEl.textContent = tooltipsEnabled
+      ? (tooltipToggleEl.dataset.on ?? "On")
+      : (tooltipToggleEl.dataset.off ?? "Off");
   }
 
   if (!tooltipsEnabled) hideTooltip();
@@ -992,6 +1121,18 @@ function init() {
   initEnvelope(Juce);            // async; self-contained failure
   initReadback();
   initPresets();                 // preset band (Stage 4); async init inside
+
+  // v1.5.0. BEFORE initTooltips(): applyI18n() is what puts data-tip on the
+  // anchors in the first place, and the renderer's delegated listener resolves
+  // e.target.closest("[data-tip]") at hover time — a first hover landing in the
+  // window between the two would find no anchor at all. Ordering here is
+  // load-bearing in the ordinary way, not the TDZ way.
+  //
+  // Each inside its own try/catch: a translation-table typo must not take the
+  // drawn envelope editor down with it.
+  try { initSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }           catch (e) { console.error("i18n init failed:", e); }
+
   initTooltips();                // hover help (v1.4.0); async PULL inside
 }
 

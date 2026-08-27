@@ -2,6 +2,105 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.5.0] — 2026-08-26 — English/French hover help; the clamp gate now sweeps both languages
+
+**No parameter, preset, state, DSP or layout change.** Every knob, every range,
+every default, every factory preset and the 860 × 580 frame are exactly what
+v1.4.0 shipped. What changed is where the hover-help copy LIVES, and the
+addition of a language it can be read in.
+
+### Hover-help copy moved out of the markup
+
+All 33 tooltips left `index.html` and now live in a new `js/i18n.js` as a key
+table, `{ key: { en: {t, b}, fr: {t, b, reviewed} } }`. **The English was moved,
+not rewritten** — every `en` entry was extracted mechanically rather than
+re-typed, and a comparison against the original markup confirms all 33 are
+byte-identical, with HTML entities decoded because `setAttribute` +
+`textContent` do not decode them.
+
+The renderer is UNCHANGED. `showTooltip()` still reads `data-tip-title` /
+`data-tip` off the anchor; those attributes are simply written at runtime by
+`applyI18n()`.
+
+**Keys are the anchor's own id, or its first id'd descendant.** 17 of the 33
+anchors are `.knob-cell`, `.select-cell`, `.ratio-cell` and `.env-plate`
+wrappers with no id, so the canonical `[selector, key, wrapper]` triple
+addresses them. The id'd child rather than the wrapper's class, because the
+sync/free swap slots put a `.select-cell` and a `.knob-cell` back to back under
+the SAME tip title — "Spin-Down Time" appears twice, once as a note division and
+once in milliseconds — so a class-based key would have collided.
+
+### A settings popover, and the hover-help toggle moved into it
+
+The gear takes over the absolute box the v1.4.0 `?` held — same `top`/`right`,
+same 22 px circle, same palette — so the 860 × 580 layout, a PLAN Locked
+Decision, is untouched: no sibling's box moves and the centred title does not
+shift. Asserted by measurement, not assumed.
+
+The panel carries two rows: Language (English / Français) and Hover help. **The
+toggle MOVED; it is not duplicated.** It reads On/Off now rather than showing a
+static `?`, so its caption is written from script for the first time — the copy
+comes from `data-on` / `data-off` **authored in the markup**, never from a
+literal in `app.js`.
+
+The language persists with the session as a non-parameter property on the APVTS
+state tree beside `tooltipsEnabled`, guarded on restore by `isVoid()` and read
+with `toString()` — the same trap, handled the same way
+(`critical_valuetree_xml_roundtrip_loses_type`). Bridge 13 → 15.
+
+### All French is machine-drafted and UNREVIEWED
+
+All 35 entries carry `reviewed: false`. No native speaker has read them.
+`node scripts/check-i18n.js` prints the worklist. The terms most likely to want
+a native speaker's judgement: `knob-TONE_TRACK` ("Suivi de timbre"),
+`seg-char-wobble` ("Pleurage"), `engage-btn` ("Enclencher") and
+`knob-CONT_DEPTH` ("Profondeur du mouvement").
+
+### The clamp gate is parameterised by language, not duplicated
+
+All six MODE × SYNC passes now run once for `en` and once for `fr`, in one
+process against one page load, driven through `window.__setLanguage()`.
+Assertion 3 (vertical) is the language-sensitive one: French wraps to more lines
+inside the **unchanged** 230 px cap, so tips get TALLER and the above/below flip
+has to catch what no longer fits above.
+
+`max-width` is now PARSED from the plugin's own CSS rather than hard-coded,
+because the cap differs per plugin; the literal survives as the drift guard. The
+anchor count is derived from `TIP_BINDINGS` rather than by counting `data-tip=`
+literals in the markup — that count is zero now, so the old assertion would have
+passed vacuously against nothing. A seventh pass opens the settings popover so
+`#lang-select` and the moved toggle are measured rather than skipped. Two
+vacuity guards, both per-language: the clamp must engage at least once, and
+every anchor's copy must actually differ between `en` and `fr`.
+
+The `?`-glyph assertion was rewritten, not dropped: it compared the rendered
+caption against a pinned literal, which cannot survive a deliberate change of
+caption. It now compares the rendered caption against the `data-on` / `data-off`
+attributes authored on the element — the rule it was always protecting.
+
+### French geometry, MEASURED at the shipping 860 × 580
+
+| | anchors | clamped | flipped below | widest | tallest |
+|---|---|---|---|---|---|
+| `en` | 35 | 12 | 4 | 230.0 px | 104.2 px |
+| `fr` | 35 | 12 | 4 | 230.0 px | 119.1 px |
+
+**French costs zero extra flips and zero extra clamps on the smallest frame in
+the suite.** It is 14.8 px taller at its tallest, and every tip in both
+languages sits fully inside the viewport with an 8 px margin.
+`.tooltip { max-width }` was NOT touched.
+
+### Not verified
+
+* **Nothing has been checked in a real DAW.** Everything above is headless
+  Chromium against the repo's own ui-stub, `auval`, and the offline C++ harness.
+* **The C++ persistence path was never executed.** Nothing wrote `"fr"` into a
+  session and read it back. The property sits beside `tooltipsEnabled`, which
+  has shipped and worked since v1.4.0, but the language itself was not
+  round-tripped.
+* **The native bridge was exercised only against the ui-stub.**
+* **No cross-platform check.** Windows/WebView2 has not been exercised.
+
 ## [1.4.0] — 2026-08-18
 
 ### Added

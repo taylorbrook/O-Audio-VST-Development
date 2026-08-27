@@ -941,6 +941,12 @@ void TapestopProcessor::getStateInformation(juce::MemoryBlock& destData)
     state.setProperty("tooltipsEnabled",
                       tooltipsEnabled.load(std::memory_order_acquire), nullptr);
 
+    // v1.5.0: the hover-help LANGUAGE rides the same tree, beside the toggle it
+    // belongs with. Written as a STRING ("en"/"fr") rather than the atomic's int
+    // index, so a hand-inspected session file says what it means.
+    state.setProperty("uiLanguage",
+                      languageCode(uiLanguage.load(std::memory_order_acquire)), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -985,6 +991,17 @@ void TapestopProcessor::setStateInformation(const void* data, int sizeInBytes)
 
             if (! tips.isVoid())
                 tooltipsEnabled.store((bool) tips, std::memory_order_release);
+
+            // v1.5.0: same treatment, same trap. isVoid() is the ONLY correct
+            // guard and toString() the only correct read, for exactly the
+            // reason spelled out above. A pre-1.5.0 session has no such
+            // property and the default (English) stands. languageIndex()
+            // clamps anything that is not "fr" to 0, so a hand-edited value
+            // degrades to English rather than to a bad index.
+            const juce::var lang = parameters.state.getProperty("uiLanguage");
+
+            if (! lang.isVoid())
+                uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
 
             // Stage 3: tell an open editor the envelope changed under it —
             // the editor timer compares this counter and pushes the sanitized

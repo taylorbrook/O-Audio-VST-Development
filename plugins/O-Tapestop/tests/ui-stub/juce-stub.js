@@ -217,6 +217,13 @@ let envelopeJson =
 let stubTooltipsEnabled =
   (typeof window !== "undefined" && window.__stubTooltipsEnabled) || false;
 
+// v1.5.0 — the hover-help language. Held OUTSIDE getNativeFunction so a
+// setUiLanguage write is visible to a later getUiLanguage read: the clamp gate
+// drives the language through window.__setLanguage, but the render probes
+// assert the WRITE reached the (stubbed) processor, and that is only observable
+// if the value persists.
+let stubUiLanguage = "en";
+
 // ── Preset backend stub (Stage 4) ───────────────────────────────────────────
 // The 28 names seeded by initializeFactoryPresets(), in the case-insensitive
 // sorted order getPresetList() returns.
@@ -298,11 +305,22 @@ const CORE_FNS = {
     return stubTooltipsEnabled;
   },
   getTooltipsEnabled: () => stubTooltipsEnabled,
+
+  // v1.5.0 — the hover-help language, mirrored so the stub round-trips it
+  // exactly as the processor does. languageIndex()'s C++ clamp is mirrored too
+  // — anything that is not "fr" degrades to "en" — so a stub that accepted a
+  // bogus code could not make a broken page look correct.
+  setUiLanguage: (code) => {
+    stubUiLanguage = code === "fr" ? "fr" : "en";
+    return stubUiLanguage;
+  },
+  getUiLanguage: () => stubUiLanguage,
 };
 
 // Mirrors the FIFTEEN native functions registered in PluginEditor.cpp:
 // getParameterDefaults + commitEnvelope + requestEnvelope (Stage 3) +
-// setTooltipsEnabled + getTooltipsEnabled (v1.4.0) + the ten preset fns
+// setTooltipsEnabled + getTooltipsEnabled (v1.4.0) + v1.5.0's
+// getUiLanguage/setUiLanguage + the ten preset fns
 // (fetched by modules/preset-manager.js). Any OTHER name must still REJECT —
 // rejecting the unknown is the whole point of this stub, and is how a bridge
 // gap surfaces here instead of as a silently dead control in a DAW

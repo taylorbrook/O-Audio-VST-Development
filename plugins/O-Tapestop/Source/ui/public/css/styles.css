@@ -858,6 +858,128 @@ body {
    surfaced pattern_fixed_tooltip_shrink_to_fit_edge in O-MultiBandCompressor
    v1.4.1. Its own tip is therefore the strictest test of the clamp below, and
    tests/ui_tooltip_clamp_check.js asserts it explicitly. */
+/* ── Settings cluster (v1.5.0) ─────────────────────────────────────────────
+   The cluster takes over the absolute box the v1.4.0 "?" button held — same
+   top/right, same z-index — and the gear sits inside it at the same 22 px
+   circle. So the 860 x 580 layout, a PLAN Locked Decision, is untouched: no
+   sibling's box moves and the centred title does not shift.
+
+   position:relative with NO z-index of its own beyond the 3 it inherited, so
+   the panel below anchors to it. .tooltip sits at a higher layer still, which
+   is what keeps a tip raised over a control INSIDE the panel painting on top. */
+.settings-cluster {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+}
+
+/* The gear carries .help-toggle as well, so it inherits every rule below —
+   geometry, palette, hover lift, focus ring. Only the glyph metrics differ,
+   because ⚙ sits lower in its em box than ?. */
+.gear-btn {
+  position: static;
+  font-size: 12px;
+}
+
+.gear-btn[aria-expanded="true"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  transform: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* Right-aligned under the gear, on the page's own paper rather than a foreign
+   dark panel — the same surface .preset-name and .division-select use. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 4;
+  min-width: 190px;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  text-align: left;
+  background: linear-gradient(135deg, var(--bg-paper-light) 0%, var(--bg-paper-mid) 100%);
+  border: 2px solid var(--brown-frame);
+  border-radius: 4px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.35);
+}
+
+.settings-popover[hidden] { display: none; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-label {
+  font-family: var(--serif);
+  font-size: 9px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--brown-border);
+}
+
+/* .division-select's recessed cartouche, sized for "Français". */
+.settings-select {
+  flex: 0 0 auto;
+  width: 90px;
+  height: 21px;
+  padding: 0 4px;
+  font-family: var(--serif);
+  font-size: 10px;
+  text-align: center;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.settings-select:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* The moved hover-help toggle. Rectangular here rather than the old circle:
+   inside the panel it is a labelled row, so it reads as a setting rather than
+   as a second gear. Active state is the page's ONE active vocabulary, shared
+   with .segment and .engage-btn. */
+.settings-toggle {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 21px;
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 1.5px solid var(--btn-border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.settings-toggle.active {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+}
+
+.settings-toggle:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
 .help-toggle {
   position: absolute;
   top: 14px;
