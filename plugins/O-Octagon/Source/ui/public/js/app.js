@@ -108,7 +108,7 @@ import { createElevation } from "./elevation.js";
 // import be the only new top-level form here — section 2 of
 // tests/ui_frontend_check.js requires init() to stay the last statement of this
 // file and forbids any module-level declaration after it.
-import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // ── Module-level bindings — ALL of them, declared here, used only inside
 //    functions. Nothing below this block runs until init() is called at the
@@ -369,7 +369,17 @@ function bindToggle(id) {
 
   const render = () => {
     const on = state.getValue() === true;
-    if (value !== null) value.textContent = on ? "On" : "Off";
+    // TWO CALLS BEHIND AN if/else, NEVER ONE WITH A TERNARY IN ITS ARGUMENT.
+    // check-i18n assertion 13 rejects the ternary shape, because a conditional
+    // inside a localized string is where a plural or a gender inflection gets
+    // engineered instead of authored around (contract §6). setLabel() makes the
+    // node a [data-i18n] element, so the language sweep re-renders this face on
+    // a switch — as a bare literal it would have been stranded in English the
+    // instant the selector fired while the toggle was on.
+    if (value !== null) {
+      if (on) setLabel(value, "label.on");
+      else    setLabel(value, "label.off");
+    }
     input.checked = on;
   };
 
@@ -603,10 +613,21 @@ function renderSetName(status) {
 // The reason is built in C++ from the MapFailure enum, on the message thread —
 // buildSpeakerToBuffer already separated three failure modes and threw the
 // distinction away in a bool. In a hall, WHICH ROW is the actionable half.
-const MAP_REASON_COPY = {
-  notEightChannels: "output set is not 8 channels",
-  labelNotInSet: "label not in the negotiated set",
-  duplicateLabel: "duplicate label",
+// C++ SENDS A REASON CODE, NEVER PROSE, and that is what makes this banner
+// localizable at all: the page maps the code to a KEY, and i18n.js owns the
+// sentence in both languages. Through v1.8.0 this table held the English
+// sentences directly, which would have left an invalid map explaining itself
+// in English on a French page.
+//
+// SIX KEYS FOR THREE REASONS, not three keys with a sometimes-absent {n}. The
+// row number is part of the sentence when there is one — "the row to fix" is
+// the actionable half in a hall (PLAN-3.2 P54) — and a key that is sometimes
+// parameterised needs a ternary at its call site, which assertion 13 rejects
+// for the reason contract §6 gives.
+const MAP_REASON_KEY = {
+  notEightChannels: "map.notEightChannels",
+  labelNotInSet: "map.labelNotInSet",
+  duplicateLabel: "map.duplicateLabel",
 };
 
 function renderMapBanner(status) {
@@ -625,10 +646,33 @@ function renderMapBanner(status) {
   const el = document.getElementById("map-invalid-copy");
   if (el === null) return;
 
-  const copy = MAP_REASON_COPY[reason] ?? reason;
-  el.textContent = Number.isFinite(speaker) && speaker >= 0
-    ? `${copy} — speaker ${speaker + 1}`
-    : copy;
+  // EVERY setLabel KEY IS A PLAIN STRING LITERAL. A computed key — the obvious
+  // `setLabel(el, MAP_REASON_KEY[reason])` — cannot be checked by assertion 15
+  // for danglingness, which is the same rule assertion 13 already applies. The
+  // if/else ladder is the cost of a checkable key, and it is three branches.
+  const hasRow = Number.isFinite(speaker) && speaker >= 0;
+  const vars = { n: String(speaker + 1) };
+
+  if (reason === "notEightChannels") {
+    if (hasRow) setLabel(el, "map.notEightChannels.spk", vars);
+    else        setLabel(el, "map.notEightChannels");
+  } else if (reason === "labelNotInSet") {
+    if (hasRow) setLabel(el, "map.labelNotInSet.spk", vars);
+    else        setLabel(el, "map.labelNotInSet");
+  } else if (reason === "duplicateLabel") {
+    if (hasRow) setLabel(el, "map.duplicateLabel.spk", vars);
+    else        setLabel(el, "map.duplicateLabel");
+  } else {
+    // A reason code this build does not know. Printing the CODE is right: it
+    // is a diagnostic, not prose, and inventing a sentence for it would be
+    // inventing a claim about a state the page cannot describe. It is not a
+    // [data-i18n] element, so delete any stale mirror rather than leave one
+    // disagreeing with the text — the invariant §6 and check-ui-labels
+    // assertion 3 both assert is dataset.label === textContent.
+    delete el.dataset.i18n;
+    delete el.dataset.label;
+    el.textContent = reason;
+  }
 }
 
 // ── Monitor fold-down (v1.7.0) ─────────────────────────────────────────────
@@ -663,9 +707,8 @@ function renderMonitor(status) {
 
   const monitorCopy = document.getElementById("monitor-copy");
   if (monitorCopy !== null) {
-    monitorCopy.textContent = suppressed
-      ? "Suppressed for offline render — bounce is clean"
-      : "Headphone fold — rig outputs muted";
+    if (suppressed) setLabel(monitorCopy, "monitor.suppressed");
+    else            setLabel(monitorCopy, "monitor.folding");
   }
 
   // THE BUTTON'S CAPTION IS AUTHORED AND IS NEVER REWRITTEN — the armed state
@@ -682,11 +725,10 @@ function renderMonitor(status) {
 
   const monitorNode = document.getElementById("vmonitor-state");
   if (monitorNode !== null) {
-    monitorNode.textContent = !available
-      ? "unavailable on this output"
-      : armed
-        ? (suppressed ? "armed — suppressed offline" : "folding to outputs 1–2")
-        : "off";
+    if (!available)     setLabel(monitorNode, "monitor.unavailable");
+    else if (!armed)    setLabel(monitorNode, "monitor.off");
+    else if (suppressed) setLabel(monitorNode, "monitor.armed");
+    else                 setLabel(monitorNode, "monitor.folding.rail");
   }
 }
 
@@ -843,6 +885,47 @@ let uiLanguage = 'en';
 let getUiLanguageNative = null;
 let setUiLanguageNative = null;
 
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
 function applyI18n(lang) {
     uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
     for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
@@ -853,6 +936,9 @@ function applyI18n(lang) {
         target.setAttribute('data-tip-title', s.t);
         target.setAttribute('data-tip', s.b);
     }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
     const sel = document.getElementById('lang-select');
     if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
 }
@@ -860,6 +946,10 @@ function applyI18n(lang) {
 // Exposed so a clamp gate can drive the language without teaching the ui-stub a
 // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
 window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
 
 function initI18n() {
     try {
@@ -1259,7 +1349,7 @@ async function init() {
       // stutters (RESEARCH Q6). Three floats and a flag, straight through.
       onMotion: (offset, running) => {
         if (roomPlan !== null) roomPlan.setMotion(offset, running);
-        if (elevation !== null) elevation.setMotionZ(running ? Number(offset?.[2]) || 0 : 0);
+        if (elevation !== null) elevation.setMotion(offset, running);
       },
     });
   } catch (err) {

@@ -191,6 +191,19 @@ html, body {
   border-radius: 2px;
   padding: 5px 14px;
   cursor: pointer;
+
+  /* v1.9.0 — PINNED, because .screens is margin-left:auto and therefore
+     right-anchored: a narrower caption pair does not just narrow the nav, it
+     slides the whole block 15.7 px right. Measured at the shipping 1100 x 720:
+     ROOM 74.2 / VENUE 80.4 against SALLE 74.5 / LIEU 64.5.
+
+     84 px is the English VENUE box (80.4) plus headroom, applied to both tabs.
+     It changes ENGLISH too — ROOM goes 74.2 -> 84 — and that is the trade D-04
+     asks for: French is SIZED, never shrunk, and the only box both languages
+     can share is the widest one. The pair also reads better equal. */
+  min-width: 84px;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .screen-tab:hover { color: var(--ink); border-color: var(--rule); background: var(--panel); }
@@ -200,6 +213,19 @@ html, body {
   background: var(--level-mid);
   border-color: var(--level-mid);
 }
+
+/* ── v1.9.0: THE THREE BANNERS ARE PINNED ────────────────────────────────
+   All three sit in the header flex as align-self:center shrink-to-fit boxes,
+   so a copy line that grows does not just widen the banner — it slides
+   nav.screens and .settings-cluster left by the same amount. Measured French
+   widths at the shipping frame: SAFE 177.3, MAP 387.9, MONITOR 394.5 (the
+   suppressed face, after its French was shortened in i18n.js).
+
+   A width here costs nothing when the banner is down: all three are [hidden],
+   which is display:none, so no space is reserved. */
+.safe-banner    { width: 184px; box-sizing: border-box; }
+.map-banner     { width: 396px; box-sizing: border-box; }
+.monitor-banner { width: 400px; box-sizing: border-box; }
 
 .safe-banner {
   align-self: center;
@@ -543,6 +569,12 @@ html, body {
   z-index: 3;
 }
 
+/* v1.9.0 — SPEAKER 60.6 -> H.-PARLEUR 71.5 pushed #outpop-num 10.9 px right
+   inside a popover that is itself positioned from the glyph. Pinned on the
+   FIRST caption key only; "→ output" 68.2 -> "→ sortie" 57.3 shrinks and is
+   the last child, so nothing follows it to move. */
+.out-pop-title > .caption-key:first-child { min-width: 74px; display: inline-block; }
+
 .out-pop-title {
   margin: 0 0 6px;
   display: flex;
@@ -827,7 +859,13 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 }
 
 .cell-dense {
-  grid-template-columns: 44px minmax(0, 1fr) 50px;
+  /* v1.9.0 — the caption track 44px -> 52px. Measured in the Motion tab at the
+     shipping frame: MARCHE 45.4, SYNCHRO 49.7, VITESSE 45.1 all overran a 44 px
+     track. D-04 says French is SIZED, so the track grows and the 1fr control
+     column gives up the 8 px — it is the only track here with slack, and the
+     three controls it holds are a checkbox, two selects and a range, none of
+     which has a minimum this reaches. */
+  grid-template-columns: 52px minmax(0, 1fr) 50px;
   column-gap: 8px;
 }
 
@@ -928,7 +966,15 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  padding: 6px 5px;
+
+  /* v1.9.0 — 5px -> 3px. .scene-row is a 10-column 1fr grid inside a fixed
+     554 px panel, so the CELL cannot grow: (554 - 9*8) / 10 = 48.2 px, and at
+     5px padding + 1px border the content box is 36.2. GAUCHE and DROITE
+     measure 38.5. Narrowing the gap instead reaches only 38.0 and is still
+     short, so the slack has to come from the padding — which is the one place
+     this row actually has any. The outer box is unchanged in both languages,
+     so nothing moves; only the text has room. */
+  padding: 6px 3px;
   color: var(--ink-dim);
   background: var(--panel-lift);
   border: 1px solid var(--rule);
@@ -1074,9 +1120,22 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 
 .elev-readouts .cell-value { min-width: 54px; }
 
+/* v1.9.0 — the CAPTIONS need the same treatment the VALUES already had.
+   .elev-readouts is inline-flex and therefore shrink-to-fit, which is the
+   house pattern that moves things under French: Ear 21.0 -> Oreille 43.3
+   widened the strip 188.8 -> 211.1 and, because it is right-anchored in a
+   fixed 554 px group head, dragged it 22.4 px left. Source is 55.0 in both
+   languages and is already wider than this floor, so only Ear changes:
+   English 21.0 -> 46.0. Deliberate, and it aligns the two pairs. */
+.elev-readouts .cell-label { min-width: 46px; }
+
 /* The field legend. Its numbers are the dB span the plugin RETURNED, so they
    are tabular like every other measurement on the page. */
-.caption-field { margin-left: 12px; }
+/* v1.9.0 — pinned for the same reason as everything else in this block:
+   .plan-caption is `display: flex; align-items: center`, so every child is
+   shrink-to-fit and a caption that grows slides its value node. FIELD 40.1 ->
+   CHAMP 48.2 moved #field-legend 8.1 px right. 50 px covers both. */
+.caption-field { margin-left: 12px; min-width: 50px; }
 
 /* Every value readout on the page is mono + tabular. Section 18 of the static
    gate asserts this rule set exists for .cell-value, .w-value and .readout. */
@@ -1155,6 +1214,16 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   width: 100%;
   border-collapse: collapse;
 }
+
+/* v1.9.0 — the Delay column head's caption is now a keyed <span> beside the
+   #vcol-delay-unit value span, and DELAY 30.7 -> RETARD 36.8 slid the unit
+   6.1 px. Pinned on the caption span, which is the element that grows. */
+.vcol-head > [data-i18n] { min-width: 38px; display: inline-block; }
+
+/* And the Venue screen's own head caption: VENUE 37.8 -> LIEU 27.2 SHRINKS,
+   which slid #vvenue-name 10.6 px LEFT. A label that gets shorter moves its
+   neighbour just as surely as one that grows. */
+.venue-head > .cell-label { min-width: 40px; display: inline-block; }
 
 .vcol-head {
   font-family: var(--mono);
@@ -1263,7 +1332,12 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 .venue-rake > .cell-label,
 .venue-delay > .cell-label {
   flex: 0 0 auto;
-  min-width: 42px;
+  /* v1.9.0 — 42 -> 70 px. RAKE 42.0 -> INCLINAISON 69.4 pushed both rake
+     fields 27.4 px right. The floor was ALREADY here for exactly this reason —
+     the comment above says the two rows share it so their controls sit on one
+     vertical line — so this is the existing mechanism given the number French
+     needs, not a new pin. RETARD (42.0) is unchanged by it. */
+  min-width: 70px;
 }
 
 /* .vbtn is `flex: 1` because the rail's button rows want it to fill. Here the
@@ -1454,6 +1528,18 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
   color: var(--ink-faint);
 }
 
+/* v1.9.0 — ENVELOPE 71.5 -> ENVELOPPE 79.6 moved #readout-envelope 8.1 px
+   right. Pinned on the ONE key that grows rather than on .readout-label, so
+   SOURCE — identical in both languages at 55.0 — keeps its authored box. */
+#readout-label-envelope { min-width: 82px; display: inline-block; }
+
+/* And the STORE button, which is a keyed label and therefore EXCLUDED from the
+   geometry diff by design (assertion 7 skips [data-i18n] elements). Stage H
+   recorded that a single shrink-to-fit caption is invisible to this gate; this
+   is that case, found by measuring rather than by the gate: STORE 44.1 ->
+   MÉM. 37.7 would have slid the button 6.4 px with nothing reporting it. */
+#btn-scene-store { min-width: 46px; box-sizing: border-box; }
+
 .readout {
   font-family: var(--mono);
   font-size: 11px;
@@ -1510,6 +1596,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 }
 
 /* Right-aligned under the gear, in the venue rail's panel vocabulary. */
+/* v1.9.0 — the popover is right-anchored and shrink-to-fit, so "Aide au
+   survol" (193.2) against "Hover help" (184.0) slid the whole panel 9.2 px
+   left. 224 px covers both rows in both languages. */
+.settings-popover { width: 224px; box-sizing: border-box; }
+
 .settings-popover {
   position: absolute;
   top: calc(100% + 8px);
@@ -1558,8 +1649,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 }
 
 .settings-unit {
-  flex: 0 0 36px;
-  width: 36px;
+  /* v1.9.0 — 36 -> 44 px. MARCHE measures 39.7 against a 34 px content box.
+     Both faces move together so the toggle stays symmetrical, and the popover
+     is absolutely positioned, so widening it moves nothing else on the page. */
+  flex: 0 0 44px;
+  width: 44px;
   height: 24px;
   padding: 0;
   border-radius: 0;

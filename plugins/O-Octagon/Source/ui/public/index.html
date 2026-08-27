@@ -68,13 +68,13 @@
     <!-- ─── Header ──────────────────────────────────────────────────────── -->
     <header class="header">
       <h1 class="title">O&#8202;&#8211;&#8202;Octa<span class="title-accent">gon</span></h1>
-      <p class="subtitle">Eight&#8202;&#183;&#8202;Channel DBAP</p>
+      <p class="subtitle" data-i18n="label.subtitle">Eight&#8202;&#183;&#8202;Channel DBAP</p>
 
-      <nav class="screens" role="tablist" aria-label="Screen">
+      <nav class="screens" role="tablist" aria-label="Screen" data-i18n-aria="aria.screens">
         <button type="button" class="screen-tab is-active" id="tab-room"
-                data-screen="room" role="tab" aria-selected="true">Room</button>
+                data-screen="room" role="tab" aria-selected="true" data-i18n="tab-room">Room</button>
         <button type="button" class="screen-tab" id="tab-venue"
-                data-screen="venue" role="tab" aria-selected="false">Venue</button>
+                data-screen="venue" role="tab" aria-selected="false" data-i18n="tab-venue">Venue</button>
       </nav>
 
       <!-- v1.6.0 — the settings popover. It takes the header slot the v1.2.0
@@ -96,11 +96,11 @@
                 id="gear-btn"
                 aria-haspopup="dialog"
                 aria-expanded="false"
-                aria-label="Settings"
+                aria-label="Settings" data-i18n-aria="settings"
                 data-tip-always>&#9881;</button>
 
         <div class="settings-popover" id="settings-popover"
-             role="dialog" aria-label="Settings" hidden>
+             role="dialog" aria-label="Settings" data-i18n-aria="settings" hidden>
 
           <label class="settings-row" for="lang-select">
             <!-- data-label so a shared state updater that writes textContent
@@ -108,12 +108,12 @@
                  (pattern_js_state_updater_overwrites_html_labels). Nothing
                  writes it today; section 6 of the static gate is what keeps
                  that true. -->
-            <span class="cell-label" data-label="Language">Language</span>
+            <span class="cell-label" data-i18n="lang-select" data-label="Language">Language</span>
             <!-- ENDONYMS. Never localized and never written by a state
                  updater: a French speaker looking for their language looks
                  for "Français". -->
             <select class="settings-select" id="lang-select"
-                    aria-label="Hover help language" data-tip-always>
+                    aria-label="Hover help language" data-i18n-aria="aria.lang-select" data-tip-always>
               <option value="en">English</option>
               <option value="fr">Fran&ccedil;ais</option>
             </select>
@@ -129,17 +129,17 @@
                element, so a label wrapping one can re-dispatch the click and
                toggle twice. -->
           <div class="settings-row">
-            <span class="cell-label" data-label="Hover help">Hover help</span>
+            <span class="cell-label" data-i18n="tips-toggle" data-label="Hover help">Hover help</span>
             <!-- A DISTINCT class, not the Venue screen's .vunit-group: the
                  delay-unit tip binds to '.vunit-group' through
                  document.querySelector, which returns the FIRST match in
                  document order — and the header comes first. -->
             <div class="settings-unit-group" id="tips-toggle" role="group"
-                 aria-label="Hover help" data-tip-always>
+                 aria-label="Hover help" data-i18n-aria="tips-toggle" data-tip-always>
               <button type="button" class="vbtn settings-unit" id="btn-tips-on"
-                      aria-pressed="false">On</button>
+                      aria-pressed="false" data-i18n="label.on">On</button>
               <button type="button" class="vbtn settings-unit is-active" id="btn-tips-off"
-                      aria-pressed="true">Off</button>
+                      aria-pressed="true" data-i18n="label.off">Off</button>
             </div>
           </div>
         </div>
@@ -150,8 +150,8 @@
            isBusesLayoutSupported() in C++ (PLAN-3.1 P43). The label text is
            authored here and is never rewritten; JS toggles [hidden]. -->
       <div class="safe-banner" id="safe-banner" role="status" hidden>
-        <span class="safe-tag">SAFE</span>
-        <span class="safe-copy">Stereo fold &#8212; not the 8&#8202;&#183;&#8202;channel rig</span>
+        <span class="safe-tag" data-i18n="label.safe-tag">SAFE</span>
+        <span class="safe-copy" data-i18n="label.safe-copy">Stereo fold &#8212; not the 8&#8202;&#183;&#8202;channel rig</span>
       </div>
 
       <!-- MAP INVALID. FRAME-LEVEL, beside SAFE, and therefore visible on the
@@ -167,7 +167,7 @@
            written, and it carries the REASON and the ROW — in a hall, which row
            is the actionable half (PLAN-3.2 P54). -->
       <div class="map-banner" id="map-banner" role="status" hidden>
-        <span class="map-tag">MAP</span>
+        <span class="map-tag" data-i18n="label.map-tag">MAP</span>
         <span class="map-copy" id="map-invalid-copy">&#8212;</span>
       </div>
 
@@ -193,8 +193,8 @@
            'monitor-banner'; assertion 3 of scripts/check-i18n.js fails the
            build if any reappears in this file. -->
       <div class="monitor-banner" id="monitor-banner" role="status" hidden>
-        <span class="monitor-tag">MONITOR</span>
-        <span class="monitor-copy" id="monitor-copy">Headphone fold &#8212; rig outputs muted</span>
+        <span class="monitor-tag" data-i18n="label.monitor-tag">MONITOR</span>
+        <span class="monitor-copy" id="monitor-copy" data-i18n="monitor.folding">Headphone fold &#8212; rig outputs muted</span>
       </div>
     </header>
 
@@ -265,7 +265,7 @@
                      setValueAsPartOfGesture, which carries NO brackets of its
                      own (juce_ParameterAttachments.cpp:324 -> :76). -->
                 <div class="puck" id="puck" tabindex="0" role="slider"
-                     aria-label="Source position"><span class="puck-core"></span></div>
+                     aria-label="Source position" data-i18n-aria="aria.puck"><span class="puck-core"></span></div>
 
                 <!-- v1.8.0 — the LIVE puck: where the source audibly is while
                      motion runs. Placed from the polled `motion` triple on the
@@ -278,14 +278,14 @@
                 <!-- The 8 in-plan weight controls, sited at their speakers.
                      Labels authored here; roomplan.js positions the cell and
                      writes only .w-value. -->
-                <div class="w-cell" id="wcell-1" data-speaker="1"><span class="w-label">1</span><input type="range" class="w-range" id="ctl-w1" min="0" max="1" step="0.001" aria-label="Weight 1" /><span class="w-value" id="val-w1">&#8212;</span></div>
-                <div class="w-cell" id="wcell-2" data-speaker="2"><span class="w-label">2</span><input type="range" class="w-range" id="ctl-w2" min="0" max="1" step="0.001" aria-label="Weight 2" /><span class="w-value" id="val-w2">&#8212;</span></div>
-                <div class="w-cell" id="wcell-3" data-speaker="3"><span class="w-label">3</span><input type="range" class="w-range" id="ctl-w3" min="0" max="1" step="0.001" aria-label="Weight 3" /><span class="w-value" id="val-w3">&#8212;</span></div>
-                <div class="w-cell" id="wcell-4" data-speaker="4"><span class="w-label">4</span><input type="range" class="w-range" id="ctl-w4" min="0" max="1" step="0.001" aria-label="Weight 4" /><span class="w-value" id="val-w4">&#8212;</span></div>
-                <div class="w-cell" id="wcell-5" data-speaker="5"><span class="w-label">5</span><input type="range" class="w-range" id="ctl-w5" min="0" max="1" step="0.001" aria-label="Weight 5" /><span class="w-value" id="val-w5">&#8212;</span></div>
-                <div class="w-cell" id="wcell-6" data-speaker="6"><span class="w-label">6</span><input type="range" class="w-range" id="ctl-w6" min="0" max="1" step="0.001" aria-label="Weight 6" /><span class="w-value" id="val-w6">&#8212;</span></div>
-                <div class="w-cell" id="wcell-7" data-speaker="7"><span class="w-label">7</span><input type="range" class="w-range" id="ctl-w7" min="0" max="1" step="0.001" aria-label="Weight 7" /><span class="w-value" id="val-w7">&#8212;</span></div>
-                <div class="w-cell" id="wcell-8" data-speaker="8"><span class="w-label">8</span><input type="range" class="w-range" id="ctl-w8" min="0" max="1" step="0.001" aria-label="Weight 8" /><span class="w-value" id="val-w8">&#8212;</span></div>
+                <div class="w-cell" id="wcell-1" data-speaker="1"><span class="w-label">1</span><input type="range" class="w-range" id="ctl-w1" min="0" max="1" step="0.001" aria-label="Weight 1" data-i18n-aria="aria.w1" /><span class="w-value" id="val-w1">&#8212;</span></div>
+                <div class="w-cell" id="wcell-2" data-speaker="2"><span class="w-label">2</span><input type="range" class="w-range" id="ctl-w2" min="0" max="1" step="0.001" aria-label="Weight 2" data-i18n-aria="aria.w2" /><span class="w-value" id="val-w2">&#8212;</span></div>
+                <div class="w-cell" id="wcell-3" data-speaker="3"><span class="w-label">3</span><input type="range" class="w-range" id="ctl-w3" min="0" max="1" step="0.001" aria-label="Weight 3" data-i18n-aria="aria.w3" /><span class="w-value" id="val-w3">&#8212;</span></div>
+                <div class="w-cell" id="wcell-4" data-speaker="4"><span class="w-label">4</span><input type="range" class="w-range" id="ctl-w4" min="0" max="1" step="0.001" aria-label="Weight 4" data-i18n-aria="aria.w4" /><span class="w-value" id="val-w4">&#8212;</span></div>
+                <div class="w-cell" id="wcell-5" data-speaker="5"><span class="w-label">5</span><input type="range" class="w-range" id="ctl-w5" min="0" max="1" step="0.001" aria-label="Weight 5" data-i18n-aria="aria.w5" /><span class="w-value" id="val-w5">&#8212;</span></div>
+                <div class="w-cell" id="wcell-6" data-speaker="6"><span class="w-label">6</span><input type="range" class="w-range" id="ctl-w6" min="0" max="1" step="0.001" aria-label="Weight 6" data-i18n-aria="aria.w6" /><span class="w-value" id="val-w6">&#8212;</span></div>
+                <div class="w-cell" id="wcell-7" data-speaker="7"><span class="w-label">7</span><input type="range" class="w-range" id="ctl-w7" min="0" max="1" step="0.001" aria-label="Weight 7" data-i18n-aria="aria.w7" /><span class="w-value" id="val-w7">&#8212;</span></div>
+                <div class="w-cell" id="wcell-8" data-speaker="8"><span class="w-label">8</span><input type="range" class="w-range" id="ctl-w8" min="0" max="1" step="0.001" aria-label="Weight 8" data-i18n-aria="aria.w8" /><span class="w-value" id="val-w8">&#8212;</span></div>
 
                 <!-- v1.1.0 — the speaker→output popover. Opened by DOUBLE-CLICK
                      on a speaker glyph; roomplan.js positions it through the
@@ -294,9 +294,9 @@
                      Choosing k sends two integers to assignSpeakerOutput — the
                      swap and the device-order table live in C++ (D19). -->
                 <div class="out-pop" id="out-pop" hidden>
-                  <p class="out-pop-title"><span class="caption-key">Speaker</span>
+                  <p class="out-pop-title"><span class="caption-key" data-i18n="label.speaker">Speaker</span>
                     <span class="out-pop-num" id="outpop-num">&#8212;</span>
-                    <span class="caption-key">&#8594; output</span></p>
+                    <span class="caption-key" data-i18n="label.to-output">&#8594; output</span></p>
                   <div class="out-pop-grid">
                     <button type="button" class="vbtn out-btn" id="out-btn-1" data-output="1">1</button>
                     <button type="button" class="vbtn out-btn" id="out-btn-2" data-output="2">2</button>
@@ -307,7 +307,7 @@
                     <button type="button" class="vbtn out-btn" id="out-btn-7" data-output="7">7</button>
                     <button type="button" class="vbtn out-btn" id="out-btn-8" data-output="8">8</button>
                   </div>
-                  <p class="out-pop-note">CoreAudio order &#183; confirm with ping</p>
+                  <p class="out-pop-note" data-i18n="label.out-pop-note">CoreAudio order &#183; confirm with ping</p>
                 </div>
 
               </div>
@@ -323,9 +323,9 @@
                carry no information WHILE LOOKING AS THOUGH IT DID. The span
                comes from the plugin, in the getFieldGrid payload. -->
           <p class="plan-caption">
-            <span class="caption-key">Plan</span>
+            <span class="caption-key" data-i18n="label.plan">Plan</span>
             <span class="caption-note" id="venue-name">&#8212;</span>
-            <span class="caption-key caption-field">Field</span>
+            <span class="caption-key caption-field" data-i18n="label.field">Field</span>
             <span class="caption-note" id="field-legend">&#8212;</span>
           </p>
         </div>
@@ -362,32 +362,32 @@
 
                #group-elevation stays the column's LAST child (section 22). -->
           <section class="group" id="group-position">
-            <div class="group-head group-tabs" role="tablist" aria-label="Position or Motion">
+            <div class="group-head group-tabs" role="tablist" aria-label="Position or Motion" data-i18n-aria="aria.gtabs">
               <button type="button" class="group-tab is-active" id="gtab-position" role="tab"
-                      aria-selected="true" aria-controls="panel-position" data-panel="panel-position">Position</button>
+                      aria-selected="true" aria-controls="panel-position" data-panel="panel-position" data-i18n="gtab-position">Position</button>
               <button type="button" class="group-tab" id="gtab-motion" role="tab"
-                      aria-selected="false" aria-controls="panel-motion" data-panel="panel-motion">Motion</button>
+                      aria-selected="false" aria-controls="panel-motion" data-panel="panel-motion" data-i18n="gtab-motion">Motion</button>
               <span class="group-tab-state" id="motion-state" aria-hidden="true"></span>
             </div>
             <div class="group-body" id="panel-position" role="tabpanel" data-tab-panel data-tab-button="gtab-position">
               <div class="cell">
-                <span class="cell-label">Source X</span>
-                <input type="range" class="cell-range" id="ctl-srcX" min="0" max="1" step="0.0001" aria-label="Source X" />
+                <span class="cell-label" data-i18n="srcX">Source X</span>
+                <input type="range" class="cell-range" id="ctl-srcX" min="0" max="1" step="0.0001" aria-label="Source X" data-i18n-aria="srcX" />
                 <span class="cell-value" id="val-srcX">&#8212;</span>
               </div>
               <div class="cell">
-                <span class="cell-label">Source Y</span>
-                <input type="range" class="cell-range" id="ctl-srcY" min="0" max="1" step="0.0001" aria-label="Source Y" />
+                <span class="cell-label" data-i18n="srcY">Source Y</span>
+                <input type="range" class="cell-range" id="ctl-srcY" min="0" max="1" step="0.0001" aria-label="Source Y" data-i18n-aria="srcY" />
                 <span class="cell-value" id="val-srcY">&#8212;</span>
               </div>
               <div class="cell">
-                <span class="cell-label">Source Z</span>
-                <input type="range" class="cell-range" id="ctl-srcZ" min="0" max="1" step="0.0001" aria-label="Source Z" />
+                <span class="cell-label" data-i18n="srcZ">Source Z</span>
+                <input type="range" class="cell-range" id="ctl-srcZ" min="0" max="1" step="0.0001" aria-label="Source Z" data-i18n-aria="srcZ" />
                 <span class="cell-value" id="val-srcZ">&#8212;</span>
               </div>
               <div class="cell">
-                <span class="cell-label">Width</span>
-                <input type="range" class="cell-range" id="ctl-width" min="0" max="1" step="0.0001" aria-label="Width" />
+                <span class="cell-label" data-i18n="width">Width</span>
+                <input type="range" class="cell-range" id="ctl-width" min="0" max="1" step="0.0001" aria-label="Width" data-i18n-aria="width" />
                 <span class="cell-value" id="val-width">&#8212;</span>
               </div>
               <!-- v1.5.0. DIRECTLY UNDER WIDTH, AND THE PLACEMENT IS THE FEATURE'S
@@ -404,103 +404,103 @@
                    they are not advisory here, they are the reason this comment
                    names the tradeoff instead of assuming it. -->
               <div class="cell">
-                <span class="cell-label">Decorrelate</span>
-                <input type="range" class="cell-range" id="ctl-decorr" min="0" max="1" step="0.0001" aria-label="Decorrelate" />
+                <span class="cell-label" data-i18n="decorr">Decorrelate</span>
+                <input type="range" class="cell-range" id="ctl-decorr" min="0" max="1" step="0.0001" aria-label="Decorrelate" data-i18n-aria="decorr" />
                 <span class="cell-value" id="val-decorr">&#8212;</span>
               </div>
             </div>
             <div class="group-body group-body--dense" id="panel-motion" role="tabpanel" data-tab-panel data-tab-button="gtab-motion" hidden>
               <div class="cell cell-dense cell-toggle">
-                <span class="cell-label">Run</span>
-                <input type="checkbox" class="cell-check" id="ctl-motionOn" aria-label="Motion On" />
+                <span class="cell-label" data-i18n="motionOn">Run</span>
+                <input type="checkbox" class="cell-check" id="ctl-motionOn" aria-label="Motion On" data-i18n-aria="motionOn" />
                 <span class="cell-value" id="val-motionOn">&#8212;</span>
               </div>
               <div class="cell cell-dense cell-select">
-                <span class="cell-label">Path</span>
-                <select class="cell-choice" id="ctl-motionPath" aria-label="Motion Path"></select>
+                <span class="cell-label" data-i18n="label.motionPath">Path</span>
+                <select class="cell-choice" id="ctl-motionPath" aria-label="Motion Path" data-i18n-aria="motionPath"></select>
                 <span class="cell-value" id="val-motionPath">&#8212;</span>
               </div>
               <div class="cell cell-dense cell-select">
-                <span class="cell-label">Sync</span>
-                <select class="cell-choice" id="ctl-motionSync" aria-label="Motion Sync"></select>
+                <span class="cell-label" data-i18n="motionSync">Sync</span>
+                <select class="cell-choice" id="ctl-motionSync" aria-label="Motion Sync" data-i18n-aria="motionSync"></select>
                 <span class="cell-value" id="val-motionSync">&#8212;</span>
               </div>
               <div class="cell cell-dense">
-                <span class="cell-label">Rate</span>
-                <input type="range" class="cell-range" id="ctl-motionRate" min="0" max="1" step="0.0001" aria-label="Motion Rate" />
+                <span class="cell-label" data-i18n="motionRate">Rate</span>
+                <input type="range" class="cell-range" id="ctl-motionRate" min="0" max="1" step="0.0001" aria-label="Motion Rate" data-i18n-aria="motionRate" />
                 <span class="cell-value" id="val-motionRate">&#8212;</span>
               </div>
               <div class="cell cell-dense">
-                <span class="cell-label">Size</span>
-                <input type="range" class="cell-range" id="ctl-motionSize" min="0" max="1" step="0.0001" aria-label="Motion Size" />
+                <span class="cell-label" data-i18n="motionSize">Size</span>
+                <input type="range" class="cell-range" id="ctl-motionSize" min="0" max="1" step="0.0001" aria-label="Motion Size" data-i18n-aria="motionSize" />
                 <span class="cell-value" id="val-motionSize">&#8212;</span>
               </div>
               <div class="cell cell-dense">
-                <span class="cell-label">Ratio</span>
-                <input type="range" class="cell-range" id="ctl-motionRatio" min="0" max="1" step="0.0001" aria-label="Motion Ratio" />
+                <span class="cell-label" data-i18n="motionRatio">Ratio</span>
+                <input type="range" class="cell-range" id="ctl-motionRatio" min="0" max="1" step="0.0001" aria-label="Motion Ratio" data-i18n-aria="motionRatio" />
                 <span class="cell-value" id="val-motionRatio">&#8212;</span>
               </div>
               <div class="cell cell-dense">
-                <span class="cell-label">Angle</span>
-                <input type="range" class="cell-range" id="ctl-motionAngle" min="0" max="1" step="0.0001" aria-label="Motion Angle" />
+                <span class="cell-label" data-i18n="motionAngle">Angle</span>
+                <input type="range" class="cell-range" id="ctl-motionAngle" min="0" max="1" step="0.0001" aria-label="Motion Angle" data-i18n-aria="motionAngle" />
                 <span class="cell-value" id="val-motionAngle">&#8212;</span>
               </div>
               <div class="cell cell-dense">
-                <span class="cell-label">Height</span>
-                <input type="range" class="cell-range" id="ctl-motionHeight" min="0" max="1" step="0.0001" aria-label="Motion Height" />
+                <span class="cell-label" data-i18n="motionHeight">Height</span>
+                <input type="range" class="cell-range" id="ctl-motionHeight" min="0" max="1" step="0.0001" aria-label="Motion Height" data-i18n-aria="motionHeight" />
                 <span class="cell-value" id="val-motionHeight">&#8212;</span>
               </div>
               <div class="cell cell-dense" id="cell-motionPhase">
-                <span class="cell-label">Phase</span>
-                <input type="range" class="cell-range" id="ctl-motionPhase" min="0" max="1" step="0.0001" aria-label="Motion Phase" />
+                <span class="cell-label" data-i18n="motionPhase">Phase</span>
+                <input type="range" class="cell-range" id="ctl-motionPhase" min="0" max="1" step="0.0001" aria-label="Motion Phase" data-i18n-aria="motionPhase" />
                 <span class="cell-value" id="val-motionPhase">&#8212;</span>
               </div>
               <div class="cell cell-dense" id="cell-motionSeed" hidden>
-                <span class="cell-label">Seed</span>
-                <input type="range" class="cell-range" id="ctl-motionSeed" min="0" max="1" step="0.0001" aria-label="Motion Seed" />
+                <span class="cell-label" data-i18n="motionSeed">Seed</span>
+                <input type="range" class="cell-range" id="ctl-motionSeed" min="0" max="1" step="0.0001" aria-label="Motion Seed" data-i18n-aria="motionSeed" />
                 <span class="cell-value" id="val-motionSeed">&#8212;</span>
               </div>
             </div>
           </section>
 
           <section class="group" id="group-solve">
-            <h2 class="group-title">Solve</h2>
+            <h2 class="group-title" data-i18n="label.group.solve">Solve</h2>
             <div class="group-body">
               <div class="cell">
-                <span class="cell-label">Rolloff</span>
-                <input type="range" class="cell-range" id="ctl-rolloff" min="0" max="1" step="0.0001" aria-label="Rolloff" />
+                <span class="cell-label" data-i18n="label.rolloff">Rolloff</span>
+                <input type="range" class="cell-range" id="ctl-rolloff" min="0" max="1" step="0.0001" aria-label="Rolloff" data-i18n-aria="rolloff" />
                 <span class="cell-value" id="val-rolloff">&#8212;</span>
               </div>
               <div class="cell">
-                <span class="cell-label">Blur</span>
-                <input type="range" class="cell-range" id="ctl-blur" min="0" max="1" step="0.0001" aria-label="Blur" />
+                <span class="cell-label" data-i18n="blur">Blur</span>
+                <input type="range" class="cell-range" id="ctl-blur" min="0" max="1" step="0.0001" aria-label="Blur" data-i18n-aria="blur" />
                 <span class="cell-value" id="val-blur">&#8212;</span>
               </div>
             </div>
           </section>
 
           <section class="group" id="group-space">
-            <h2 class="group-title">Space</h2>
+            <h2 class="group-title" data-i18n="label.group.space">Space</h2>
             <div class="group-body">
               <div class="cell">
-                <span class="cell-label">Hull Atten</span>
-                <input type="range" class="cell-range" id="ctl-hullAtten" min="0" max="1" step="0.0001" aria-label="Hull Atten" />
+                <span class="cell-label" data-i18n="label.hullAtten">Hull Atten</span>
+                <input type="range" class="cell-range" id="ctl-hullAtten" min="0" max="1" step="0.0001" aria-label="Hull Atten" data-i18n-aria="aria.hullAtten" />
                 <span class="cell-value" id="val-hullAtten">&#8212;</span>
               </div>
               <div class="cell">
-                <span class="cell-label">Air</span>
-                <input type="range" class="cell-range" id="ctl-airAmount" min="0" max="1" step="0.0001" aria-label="Air" />
+                <span class="cell-label" data-i18n="airAmount">Air</span>
+                <input type="range" class="cell-range" id="ctl-airAmount" min="0" max="1" step="0.0001" aria-label="Air" data-i18n-aria="airAmount" />
                 <span class="cell-value" id="val-airAmount">&#8212;</span>
               </div>
             </div>
           </section>
 
           <section class="group" id="group-output">
-            <h2 class="group-title">Output</h2>
+            <h2 class="group-title" data-i18n="label.group.output">Output</h2>
             <div class="group-body">
               <div class="cell">
-                <span class="cell-label">Output</span>
-                <input type="range" class="cell-range" id="ctl-outputGain" min="0" max="1" step="0.0001" aria-label="Output" />
+                <span class="cell-label" data-i18n="outputGain">Output</span>
+                <input type="range" class="cell-range" id="ctl-outputGain" min="0" max="1" step="0.0001" aria-label="Output" data-i18n-aria="outputGain" />
                 <span class="cell-value" id="val-outputGain">&#8212;</span>
               </div>
             </div>
@@ -534,22 +534,22 @@
                catch: a fixed-index implementation must FAIL. -->
           <section class="group" id="group-scenes">
             <div class="group-head">
-              <h2 class="group-title">Scenes</h2>
+              <h2 class="group-title" data-i18n="label.group.scenes">Scenes</h2>
               <!-- D22's arm. Deliberately asymmetric with D21's hover-to-
                    preview: recalling a scene is reversible, OVERWRITING A SLOT
                    IS NOT, and it is the one gesture where a mid-concert
                    mis-click destroys data the user measured. It auto-disarms
                    after one capture. -->
               <button type="button" class="store-toggle" id="btn-scene-store"
-                      aria-pressed="false" aria-label="Arm store">STORE</button>
+                      aria-pressed="false" aria-label="Arm store" data-i18n-aria="aria.scene-store" data-i18n="label.store">STORE</button>
             </div>
-            <div class="scene-row" id="scene-row" role="group" aria-label="Weight scenes">
-              <button type="button" class="scene-btn" id="scene-ALL"   data-scene="ALL">ALL</button>
-              <button type="button" class="scene-btn" id="scene-FRONT" data-scene="FRONT">FRONT</button>
-              <button type="button" class="scene-btn" id="scene-REAR"  data-scene="REAR">REAR</button>
-              <button type="button" class="scene-btn" id="scene-LEFT"  data-scene="LEFT">LEFT</button>
-              <button type="button" class="scene-btn" id="scene-RIGHT" data-scene="RIGHT">RIGHT</button>
-              <button type="button" class="scene-btn" id="scene-SIDES" data-scene="SIDES">SIDES</button>
+            <div class="scene-row" id="scene-row" role="group" aria-label="Weight scenes" data-i18n-aria="aria.scene-row">
+              <button type="button" class="scene-btn" id="scene-ALL"   data-scene="ALL" data-i18n="label.all">ALL</button>
+              <button type="button" class="scene-btn" id="scene-FRONT" data-scene="FRONT" data-i18n="label.front">FRONT</button>
+              <button type="button" class="scene-btn" id="scene-REAR"  data-scene="REAR" data-i18n="label.rear">REAR</button>
+              <button type="button" class="scene-btn" id="scene-LEFT"  data-scene="LEFT" data-i18n="label.left">LEFT</button>
+              <button type="button" class="scene-btn" id="scene-RIGHT" data-scene="RIGHT" data-i18n="label.right">RIGHT</button>
+              <button type="button" class="scene-btn" id="scene-SIDES" data-scene="SIDES" data-i18n="label.sides">SIDES</button>
               <button type="button" class="scene-btn is-slot" id="scene-slot1" data-scene="slot1" data-slot="1">U1</button>
               <button type="button" class="scene-btn is-slot" id="scene-slot2" data-scene="slot2" data-slot="2">U2</button>
               <button type="button" class="scene-btn is-slot" id="scene-slot3" data-scene="slot3" data-slot="3">U3</button>
@@ -591,11 +591,11 @@
                ~11.5 m, far above a 6.5 m axis (P76 rule 3). -->
           <section class="group" id="group-elevation">
             <div class="group-head">
-              <h2 class="group-title">Elevation</h2>
+              <h2 class="group-title" data-i18n="elevation">Elevation</h2>
               <span class="elev-readouts">
-                <span class="cell-label">Ear</span>
+                <span class="cell-label" data-i18n="label.ear">Ear</span>
                 <span class="cell-value" id="elev-ear">&#8212;</span>
-                <span class="cell-label">Source</span>
+                <span class="cell-label" data-i18n="label.source">Source</span>
                 <span class="cell-value" id="elev-src">&#8212;</span>
               </span>
             </div>
@@ -614,8 +614,8 @@
                      one runs LEFT-TO-RIGHT — rotated 90 degrees — so the ends
                      are labelled explicitly rather than relying on a shared
                      orientation the two views do not have. -->
-                <text class="elev-end" id="elev-end-front" x="0" y="0">FRONT</text>
-                <text class="elev-end" id="elev-end-rear"  x="0" y="0">REAR</text>
+                <text class="elev-end" id="elev-end-front" x="0" y="0" data-i18n="label.front">FRONT</text>
+                <text class="elev-end" id="elev-end-rear"  x="0" y="0" data-i18n="label.rear">REAR</text>
               </svg>
             </div>
           </section>
@@ -649,7 +649,7 @@
         <div class="venue-main">
 
           <div class="venue-head">
-            <span class="cell-label">Venue</span>
+            <span class="cell-label" data-i18n="tab-venue">Venue</span>
             <span class="vcell-value" id="vvenue-name">&#8212;</span>
           </div>
 
@@ -657,100 +657,100 @@
             <thead>
               <tr>
                 <th class="vcol-head vcol-n">#</th>
-                <th class="vcol-head vcol-label">Label</th>
+                <th class="vcol-head vcol-label" data-i18n="label.vcol.label">Label</th>
                 <th class="vcol-head vcol-num">X&#8202;m</th>
                 <th class="vcol-head vcol-num">Y&#8202;m</th>
                 <th class="vcol-head vcol-num">Z&#8202;m</th>
-                <th class="vcol-head vcol-num">Trim&#8202;dB</th>
+                <th class="vcol-head vcol-num" data-i18n="label.vcol.trim">Trim&#8202;dB</th>
                 <!-- v1.4.0. The word "Delay" is AUTHORED AND NEVER REWRITTEN; only the unit
                      changes, so only the unit is a value node. Writing textContent onto the whole
                      <th> would erase an authored label — the exact shape of
                      pattern_js_state_updater_overwrites_html_labels, which section 6 exists to
                      catch — and widening that whitelist to allow it would be answering the gate
                      rather than the rule. -->
-                <th class="vcol-head vcol-num">Delay&#8202;<span class="vcell-value" id="vcol-delay-unit">ms</span></th>
-                <th class="vcol-head vcol-class">Class</th>
+                <th class="vcol-head vcol-num"><span data-i18n="label.vcol.delay">Delay</span>&#8202;<span class="vcell-value" id="vcol-delay-unit">ms</span></th>
+                <th class="vcol-head vcol-class" data-i18n="label.vcol.class">Class</th>
               </tr>
             </thead>
             <tbody>
           <tr class="vrow" id="vrow-1" data-speaker="1">
             <th scope="row" class="vcell-num">1</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-1" aria-label="Speaker 1 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-x" aria-label="Speaker 1 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-y" aria-label="Speaker 1 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-z" aria-label="Speaker 1 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-trim" aria-label="Speaker 1 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-delay" aria-label="Speaker 1 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-1" aria-label="Speaker 1 channel label" data-i18n-aria="aria.spk1.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-x" aria-label="Speaker 1 X metres" data-i18n-aria="aria.spk1.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-y" aria-label="Speaker 1 Y metres" data-i18n-aria="aria.spk1.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-z" aria-label="Speaker 1 Z metres" data-i18n-aria="aria.spk1.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-trim" aria-label="Speaker 1 trim dB" data-i18n-aria="aria.spk1.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-1-delay" aria-label="Speaker 1 alignment delay" data-i18n-aria="aria.spk1.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-1">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-2" data-speaker="2">
             <th scope="row" class="vcell-num">2</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-2" aria-label="Speaker 2 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-x" aria-label="Speaker 2 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-y" aria-label="Speaker 2 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-z" aria-label="Speaker 2 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-trim" aria-label="Speaker 2 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-delay" aria-label="Speaker 2 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-2" aria-label="Speaker 2 channel label" data-i18n-aria="aria.spk2.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-x" aria-label="Speaker 2 X metres" data-i18n-aria="aria.spk2.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-y" aria-label="Speaker 2 Y metres" data-i18n-aria="aria.spk2.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-z" aria-label="Speaker 2 Z metres" data-i18n-aria="aria.spk2.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-trim" aria-label="Speaker 2 trim dB" data-i18n-aria="aria.spk2.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-2-delay" aria-label="Speaker 2 alignment delay" data-i18n-aria="aria.spk2.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-2">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-3" data-speaker="3">
             <th scope="row" class="vcell-num">3</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-3" aria-label="Speaker 3 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-x" aria-label="Speaker 3 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-y" aria-label="Speaker 3 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-z" aria-label="Speaker 3 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-trim" aria-label="Speaker 3 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-delay" aria-label="Speaker 3 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-3" aria-label="Speaker 3 channel label" data-i18n-aria="aria.spk3.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-x" aria-label="Speaker 3 X metres" data-i18n-aria="aria.spk3.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-y" aria-label="Speaker 3 Y metres" data-i18n-aria="aria.spk3.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-z" aria-label="Speaker 3 Z metres" data-i18n-aria="aria.spk3.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-trim" aria-label="Speaker 3 trim dB" data-i18n-aria="aria.spk3.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-3-delay" aria-label="Speaker 3 alignment delay" data-i18n-aria="aria.spk3.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-3">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-4" data-speaker="4">
             <th scope="row" class="vcell-num">4</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-4" aria-label="Speaker 4 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-x" aria-label="Speaker 4 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-y" aria-label="Speaker 4 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-z" aria-label="Speaker 4 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-trim" aria-label="Speaker 4 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-delay" aria-label="Speaker 4 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-4" aria-label="Speaker 4 channel label" data-i18n-aria="aria.spk4.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-x" aria-label="Speaker 4 X metres" data-i18n-aria="aria.spk4.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-y" aria-label="Speaker 4 Y metres" data-i18n-aria="aria.spk4.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-z" aria-label="Speaker 4 Z metres" data-i18n-aria="aria.spk4.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-trim" aria-label="Speaker 4 trim dB" data-i18n-aria="aria.spk4.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-4-delay" aria-label="Speaker 4 alignment delay" data-i18n-aria="aria.spk4.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-4">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-5" data-speaker="5">
             <th scope="row" class="vcell-num">5</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-5" aria-label="Speaker 5 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-x" aria-label="Speaker 5 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-y" aria-label="Speaker 5 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-z" aria-label="Speaker 5 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-trim" aria-label="Speaker 5 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-delay" aria-label="Speaker 5 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-5" aria-label="Speaker 5 channel label" data-i18n-aria="aria.spk5.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-x" aria-label="Speaker 5 X metres" data-i18n-aria="aria.spk5.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-y" aria-label="Speaker 5 Y metres" data-i18n-aria="aria.spk5.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-z" aria-label="Speaker 5 Z metres" data-i18n-aria="aria.spk5.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-trim" aria-label="Speaker 5 trim dB" data-i18n-aria="aria.spk5.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-5-delay" aria-label="Speaker 5 alignment delay" data-i18n-aria="aria.spk5.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-5">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-6" data-speaker="6">
             <th scope="row" class="vcell-num">6</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-6" aria-label="Speaker 6 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-x" aria-label="Speaker 6 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-y" aria-label="Speaker 6 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-z" aria-label="Speaker 6 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-trim" aria-label="Speaker 6 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-delay" aria-label="Speaker 6 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-6" aria-label="Speaker 6 channel label" data-i18n-aria="aria.spk6.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-x" aria-label="Speaker 6 X metres" data-i18n-aria="aria.spk6.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-y" aria-label="Speaker 6 Y metres" data-i18n-aria="aria.spk6.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-z" aria-label="Speaker 6 Z metres" data-i18n-aria="aria.spk6.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-trim" aria-label="Speaker 6 trim dB" data-i18n-aria="aria.spk6.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-6-delay" aria-label="Speaker 6 alignment delay" data-i18n-aria="aria.spk6.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-6">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-7" data-speaker="7">
             <th scope="row" class="vcell-num">7</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-7" aria-label="Speaker 7 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-x" aria-label="Speaker 7 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-y" aria-label="Speaker 7 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-z" aria-label="Speaker 7 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-trim" aria-label="Speaker 7 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-delay" aria-label="Speaker 7 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-7" aria-label="Speaker 7 channel label" data-i18n-aria="aria.spk7.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-x" aria-label="Speaker 7 X metres" data-i18n-aria="aria.spk7.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-y" aria-label="Speaker 7 Y metres" data-i18n-aria="aria.spk7.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-z" aria-label="Speaker 7 Z metres" data-i18n-aria="aria.spk7.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-trim" aria-label="Speaker 7 trim dB" data-i18n-aria="aria.spk7.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-7-delay" aria-label="Speaker 7 alignment delay" data-i18n-aria="aria.spk7.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-7">&#8212;</span></td>
           </tr>
           <tr class="vrow" id="vrow-8" data-speaker="8">
             <th scope="row" class="vcell-num">8</th>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-8" aria-label="Speaker 8 channel label" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-x" aria-label="Speaker 8 X metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-y" aria-label="Speaker 8 Y metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-z" aria-label="Speaker 8 Z metres" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-trim" aria-label="Speaker 8 trim dB" /></td>
-            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-delay" aria-label="Speaker 8 alignment delay" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield vfield-label" id="vf-label-8" aria-label="Speaker 8 channel label" data-i18n-aria="aria.spk8.label" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-x" aria-label="Speaker 8 X metres" data-i18n-aria="aria.spk8.x" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-y" aria-label="Speaker 8 Y metres" data-i18n-aria="aria.spk8.y" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-z" aria-label="Speaker 8 Z metres" data-i18n-aria="aria.spk8.z" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-trim" aria-label="Speaker 8 trim dB" data-i18n-aria="aria.spk8.trim" /></td>
+            <td class="vcell"><input type="text" inputmode="decimal" class="vfield" id="vf-8-delay" aria-label="Speaker 8 alignment delay" data-i18n-aria="aria.spk8.delay" /></td>
             <td class="vcell"><span class="vcell-value" id="vclass-8">&#8212;</span></td>
           </tr>
             </tbody>
@@ -759,11 +759,11 @@
           <!-- The two rake heights. Venue-scoped, not per-speaker, which is why
                they sit under the table rather than in a ninth column. -->
           <div class="venue-rake">
-            <span class="cell-label">Rake</span>
-            <span class="cell-label vrake-key">Front</span>
-            <input type="text" inputmode="decimal" class="vfield" id="vf-rake-front" aria-label="Rake front metres" />
-            <span class="cell-label vrake-key">Rear</span>
-            <input type="text" inputmode="decimal" class="vfield" id="vf-rake-rear" aria-label="Rake rear metres" />
+            <span class="cell-label" data-i18n="rake">Rake</span>
+            <span class="cell-label vrake-key" data-i18n="label.rake-front">Front</span>
+            <input type="text" inputmode="decimal" class="vfield" id="vf-rake-front" aria-label="Rake front metres" data-i18n-aria="aria.rake-front" />
+            <span class="cell-label vrake-key" data-i18n="label.rake-rear">Rear</span>
+            <input type="text" inputmode="decimal" class="vfield" id="vf-rake-rear" aria-label="Rake rear metres" data-i18n-aria="aria.rake-rear" />
           </div>
 
           <!-- v1.4.0 — the delay column's two venue-scoped controls, under the table for the same
@@ -775,16 +775,16 @@
                unit, an operator does, and putting it on disk would make two identical rooms
                compare unequal. -->
           <div class="venue-delay">
-            <span class="cell-label">Delay</span>
+            <span class="cell-label" data-i18n="label.delay">Delay</span>
             <!-- TWO BUTTONS, NOT ONE THAT RELABELS ITSELF. Both labels are authored and never
                  rewritten — the active state is a class and aria-pressed — so this control makes
                  no textContent write at all. It also shows the operator both options instead of
                  asking them to click to discover the other one. -->
-            <div class="vunit-group" role="group" aria-label="Delay unit">
+            <div class="vunit-group" role="group" aria-label="Delay unit" data-i18n-aria="delay-unit">
               <button type="button" class="vbtn vbtn-unit is-active" id="btn-delay-ms" aria-pressed="true">ms</button>
               <button type="button" class="vbtn vbtn-unit" id="btn-delay-m" aria-pressed="false">m</button>
             </div>
-            <button type="button" class="vbtn" id="btn-delay-derive">Derive</button>
+            <button type="button" class="vbtn" id="btn-delay-derive" data-i18n="label.derive">Derive</button>
           </div>
 
         </div>
@@ -794,7 +794,7 @@
           <!-- The NEGOTIATED output-set name (ROADMAP orphan 6). Stage 4's R2
                reads it off this screen. -->
           <div class="rail-line">
-            <span class="cell-label">Set</span>
+            <span class="cell-label" data-i18n="label.set">Set</span>
             <span class="vcell-value" id="vset-name">&#8212;</span>
           </div>
 
@@ -821,10 +821,10 @@
           </div>
 
           <div class="rail-group">
-            <h3 class="group-title">Venue file</h3>
+            <h3 class="group-title" data-i18n="label.group.venue-file">Venue file</h3>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-venue-save">Save</button>
-              <button type="button" class="vbtn" id="btn-venue-load">Load</button>
+              <button type="button" class="vbtn" id="btn-venue-save" data-i18n="label.save">Save</button>
+              <button type="button" class="vbtn" id="btn-venue-load" data-i18n="label.load">Load</button>
             </div>
           </div>
 
@@ -834,11 +834,11 @@
                (PLAN-3.2 P58). The option elements below are created with
                document.createElement, never assigned as HTML. -->
           <div class="rail-group">
-            <h3 class="group-title">Preset</h3>
-            <select class="vselect" id="preset-list" aria-label="Preset"></select>
+            <h3 class="group-title" data-i18n="label.group.preset">Preset</h3>
+            <select class="vselect" id="preset-list" aria-label="Preset" data-i18n-aria="preset-list"></select>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-preset-save">Save</button>
-              <button type="button" class="vbtn" id="btn-preset-load">Load</button>
+              <button type="button" class="vbtn" id="btn-preset-save" data-i18n="label.save">Save</button>
+              <button type="button" class="vbtn" id="btn-preset-load" data-i18n="label.load">Load</button>
             </div>
             <span class="vcell-value" id="vpreset-current">&#8212;</span>
           </div>
@@ -851,10 +851,10 @@
                factory surround-role labels. The ping group directly below is
                the 60-second confirmation in ANY host. -->
           <div class="rail-group">
-            <h3 class="group-title">Output order</h3>
+            <h3 class="group-title" data-i18n="label.group.output-order">Output order</h3>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-oo-direct">Direct 1&#8211;8</button>
-              <button type="button" class="vbtn" id="btn-oo-roles">Roles</button>
+              <button type="button" class="vbtn" id="btn-oo-direct" data-i18n="oo-direct">Direct 1&#8211;8</button>
+              <button type="button" class="vbtn" id="btn-oo-roles" data-i18n="oo-roles">Roles</button>
             </div>
             <span class="vcell-value" id="voo-state">&#8212;</span>
           </div>
@@ -864,7 +864,7 @@
                while 6 sounds, during the one procedure whose entire purpose is
                confirming that speaker N is speaker N. -->
           <div class="rail-group">
-            <h3 class="group-title">Ping</h3>
+            <h3 class="group-title" data-i18n="label.group.ping">Ping</h3>
             <div class="ping-grid">
             <button type="button" class="vbtn ping-btn" id="btn-ping-1" data-speaker="1">1</button>
             <button type="button" class="vbtn ping-btn" id="btn-ping-2" data-speaker="2">2</button>
@@ -876,8 +876,8 @@
             <button type="button" class="vbtn ping-btn" id="btn-ping-8" data-speaker="8">8</button>
             </div>
             <div class="rail-buttons">
-              <button type="button" class="vbtn" id="btn-ping-auto">Auto</button>
-              <button type="button" class="vbtn" id="btn-ping-stop">Stop</button>
+              <button type="button" class="vbtn" id="btn-ping-auto" data-i18n="label.auto">Auto</button>
+              <button type="button" class="vbtn" id="btn-ping-stop" data-i18n="ping-stop">Stop</button>
             </div>
             <span class="vcell-value" id="vping-state">&#8212;</span>
           </div>
@@ -897,10 +897,10 @@
                SUPPOSED to write — data-label is therefore deliberately absent
                (contrast pattern_js_state_updater_overwrites_html_labels). -->
           <div class="rail-group">
-            <h3 class="group-title">Monitor</h3>
+            <h3 class="group-title" data-i18n="label.group.monitor">Monitor</h3>
             <div class="rail-buttons">
               <button type="button" class="vbtn monitor-toggle" id="monitor-toggle"
-                      aria-pressed="false">Headphones</button>
+                      aria-pressed="false" data-i18n="label.headphones">Headphones</button>
             </div>
             <span class="vcell-value" id="vmonitor-state">&#8212;</span>
           </div>
@@ -921,9 +921,9 @@
          displaying it is Phase 3.2 work and putting it on screen now would be a
          non-goal landing in a 3.1 diff. -->
     <footer class="footer">
-      <span class="readout-label" id="readout-label-source">Source</span>
+      <span class="readout-label" id="readout-label-source" data-i18n="label.source">Source</span>
       <span class="readout" id="readout-metres">&#8212;</span>
-      <span class="readout-label" id="readout-label-envelope">Envelope</span>
+      <span class="readout-label" id="readout-label-envelope" data-i18n="label.envelope">Envelope</span>
       <span class="readout" id="readout-envelope">&#8212;</span>
     </footer>
 

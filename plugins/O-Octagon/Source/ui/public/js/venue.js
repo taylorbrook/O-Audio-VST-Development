@@ -680,7 +680,14 @@ export function createVenueScreen(deps) {
       .then((result) => {
         if (result === true || armed) return;
         // Asked to arm, came back disarmed: refused.
-        monitorNode.textContent = "unavailable on this output";
+        //
+        // THROUGH window.__setLabel, NOT A LITERAL. This module is a sibling of
+        // the canon block, which lives in app.js and exports nothing — the canon
+        // publishes setLabel on window for exactly this case. A literal here
+        // would be stranded English the moment the selector fired, and it is the
+        // same string renderMonitor() writes from app.js, so the two paths must
+        // resolve the same key rather than carry two copies of one sentence.
+        window.__setLabel(monitorNode, "monitor.unavailable");
       })
       .catch((err) => console.error("setMonitorArmed failed", err));
   });
@@ -699,10 +706,25 @@ export function createVenueScreen(deps) {
       .then((result) => {
         if (result === null || typeof result !== "object") return;
 
+        // if/else with LITERAL keys, never a ternary in the argument — the
+        // rule check-i18n assertion 13 states, applied here by hand because
+        // assertion 12 only scans the ONE controller module and never sees this
+        // file. A gate that cannot reach a file is not a reason to write worse
+        // code in it.
         const value = ooStateNode;
-        value.textContent = result.ok === true
-          ? (id === "direct" ? "direct 1–8" : "roles")
-          : String(result.reason ?? "");
+        if (result.ok !== true) {
+          // A REFUSAL REASON FROM C++, not authored prose. It is a diagnostic
+          // code, so it is printed as sent — and the stale mirror is cleared so
+          // dataset.label cannot end up disagreeing with textContent, which is
+          // the invariant §6 and check-ui-labels assertion 3 both assert.
+          delete value.dataset.i18n;
+          delete value.dataset.label;
+          value.textContent = String(result.reason ?? "");
+        } else if (id === "direct") {
+          window.__setLabel(value, "oo.direct");
+        } else {
+          window.__setLabel(value, "oo.roles");
+        }
       })
       .catch((err) => console.error("applyOutputOrderPreset failed", err));
   }
