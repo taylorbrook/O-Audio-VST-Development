@@ -1,5 +1,89 @@
 # O-Octagon Changelog
 
+## v1.7.0 (2026-08-26)
+
+**Binaural / stereo monitoring fold-down — the piece is finally audible away from the hall.**
+Closes the HIGH-priority gap in `.planning/FEATURE-REVIEW.md`: the brief's own use case, "preparing
+and revising a piece away from the venue", had no listening path at all, while SpatGRIS (BINAURAL),
+L-ISA Studio, SPAT Revolution and dearVR all treat headphone monitoring as table stakes.
+
+**The primary design constraint was not the DSP — it was that the monitor must never silently
+contaminate a render.** Five independent guards enforce it, and no single mistake disables more
+than one:
+
+| # | Guard | What it kills |
+|---|---|---|
+| 1 | Not an APVTS parameter | No automation lane exists to record an arm and replay it |
+| 2 | Not persisted in session state | A reopened session is *always* disarmed — the only guard covering a **realtime** bounce |
+| 3 | `isNonRealtime()` structural bypass | Logic's Bounce and Bounce in Place |
+| 4 | `processBlockBypassed()` disarms | A bypassed plugin that still folds |
+| 5 | Editor destructor disarms | The fold cannot outlive its own warning banner |
+
+Plus: refused in SAFE mode, refused on an unresolved monitor pair, and mutually exclusive with the
+verify ping (each arms by disarming the other).
+
+### Added
+
+- **`Source/DSP/MonitorFold.h` / `.cpp`** — folds the eight solved feeds to a headphone pair using
+  the venue's own measured geometry. Per speaker, about a listener at the audience centroid at
+  `plane::earHeight()` on the raked plane: Woodworth inter-aural delay, constant-power lateral pan,
+  `1/r` distance gain referenced to the mean speaker distance, and a head-shadow one-pole on the
+  shadowed ear with a rear-darkening approximation of the pinna cue. **No new venue fields** — the
+  venue schema stays at 2.
+- **MONITOR banner** — a third frame-level banner beside SAFE and MAP, and deliberately the loudest
+  of the three: *filled* with `--alert` rather than outlined, because the other two report what the
+  host or the venue did, and this one reports something that could reach a delivered file. When the
+  fold is suppressed for an offline render the copy says so, which is the reassuring half.
+- **Monitor toggle** on the Venue rail, directly under Ping because the two are mutually exclusive.
+- **`ochan::resolveMonitorSlots()`** — resolves the pair through `getChannelIndexForType()`, on the
+  message thread, published as `VenueSnapshot::monitorSlot`. **Not speakers 1 and 2**: the monitor
+  has to reach the physical outputs a headphone amp is plugged into, which under the measured
+  CoreAudio device order are outputs 1–2 = `left`/`right`.
+- **`tests/monitor-fold/`** — a standalone 15-check correctness harness for the fold, linking only
+  three JUCE modules and the class under test.
+- **Probes CY, CZ, DA, DB** in the render harness (61 total, all green).
+
+### Fixed
+
+- **The far ear was silent at ±90°, and it was found by the new harness rather than by ear.** An
+  uncompressed constant-power pan drives the far ear to *exactly zero* at full lateral deflection,
+  which took the inter-aural delay and the head shadow out of the signal path for precisely the
+  lateral sources they matter most for — the fold had quietly degraded into a hard-panned stereo
+  mix that happened to own eight delay lines. Fixed with `kPanDepth`, an ILD ceiling of ~17 dB (a
+  real head is 15–20 dB at 90°, never infinite).
+
+  Worth recording *how* it hid: every assertion that measured the **near** ear passed throughout.
+  Only a check on the far ear could see it. The two assertions that had passed vacuously alongside
+  it were then tightened from `>` comparisons to plausible **bands**, so neither the rail nor its
+  absence can pass silently again.
+
+### Notes
+
+- **Latency is deliberately not reported.** The ITD lines add up to ~0.66 ms and
+  `setLatencySamples()` is *not* called for them — reporting it would move host PDC and therefore
+  change the render, which is the exact contamination the feature exists to be incapable of.
+- **No HRTF convolution.** Scoped out as milestone-sized: it needs an embedded HRIR dataset
+  (licence, megabytes of binary data, the `juce_add_binary_data` hyphen-stripping trap) and 16
+  partitioned convolvers. A pure ITD/ILD model is front-back ambiguous by construction; the rear
+  darkening is a hint, not a resolution.
+- **Bit-identity with v1.6.0 is structural, not approximate.** Disarmed, `MonitorFold::isRunning()`
+  is false and `GainStage` does not call `fold()` at all — nothing is clocked, no line is pushed,
+  no filter advances. Probe CY asserts `monitorSamples == 0` across a full render, and probe CU's
+  v1.4.0 digest still matches.
+
+### Testing
+
+- Render harness: **61 probes, 0 failures**.
+- **Negative control run for CZ**, the primary-constraint probe: with guard 3 removed it fails with
+  "OFFLINE RENDER WAS CONTAMINATED", while CY, DA and DB stay green — so CZ targets that guard
+  specifically and is not decoration.
+- `tests/monitor-fold`: 15 checks, 0 failures. ITD measures 31 samples @48 kHz for a source at 90°
+  against a model maximum of 0.6558 ms (31.5 samples); ILD mirrors to ±16.9 dB.
+- Static gates: `ui_frontend_check.js` 43/43, `ui_layout_check.js` 31/31, `check-i18n.js` all pass.
+- `auval -v aufx OuOc OuDv` PASS · pluginval strictness 10 SUCCESS.
+- **Not yet done:** hall/headphone listening, and the two manual render checks (bounce offline with
+  the monitor armed; reload a session and confirm it comes back disarmed).
+
 ## v1.6.0 (2026-08-26)
 
 **Hover help in English or French, and a settings gear to choose between them** — Stage C of the

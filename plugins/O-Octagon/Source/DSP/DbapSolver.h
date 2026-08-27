@@ -95,6 +95,12 @@ namespace instr
     /// audio, and neither on its own is the claim.
     inline std::atomic<std::uint64_t> decorrSamples { 0 };
 
+    /// v1.7.0. decorrSamples' sibling and it carries the same kind of claim: probe CY asserts this
+    /// is ZERO across a render that never armed the monitor, which is what makes "the fold is
+    /// structurally bypassed" a statement about the branch never being taken rather than about two
+    /// buffers happening to match.
+    inline std::atomic<std::uint64_t> monitorSamples { 0 };
+
     inline void resetCounters() noexcept
     {
         powCalls.store           (0, std::memory_order_relaxed);
@@ -104,6 +110,7 @@ namespace instr
         airCutoffUpdates.store   (0, std::memory_order_relaxed);
         airSamplesFiltered.store (0, std::memory_order_relaxed);
         decorrSamples.store      (0, std::memory_order_relaxed);
+        monitorSamples.store     (0, std::memory_order_relaxed);
     }
 
     inline std::uint64_t get (const std::atomic<std::uint64_t>& c) noexcept
@@ -154,6 +161,13 @@ namespace instr
     {
        #if OOCTAGON_INSTRUMENT
         decorrSamples.fetch_add (1, std::memory_order_relaxed);
+       #endif
+    }
+
+    inline void countMonitorSample() noexcept
+    {
+       #if OOCTAGON_INSTRUMENT
+        monitorSamples.fetch_add (1, std::memory_order_relaxed);
        #endif
     }
 }

@@ -450,6 +450,15 @@ let status = {
   mapInvalidReason: "none",
   mapInvalidSpeaker: -1,
   venueGen,
+
+  // ── v1.7.0 — the monitor fold-down ──
+  // monitorAvailable MIRRORS the C++ predicate (not SAFE and not mapInvalid)
+  // rather than being a free-standing flag, so a stub that drifts from the
+  // processor's refusal rule fails the page's disabled-state handling here
+  // instead of in a hall.
+  monitorArmed: false,
+  monitorSuppressed: false,
+  monitorAvailable: true,
 };
 
 // ── SliderState ────────────────────────────────────────────────────────────
@@ -842,6 +851,20 @@ const NATIVE_FNS = {
   stopPing: () => stopPing(),
 
   getPingState: () => pingState(),
+
+  // ── v1.7.0 — the monitor fold-down ──
+  // Mirrors setMonitorArmed()'s REFUSAL, not only its success path: the browser
+  // stub is the only place the page's handling of a refused arm is exercised at
+  // all, and a stub that always said yes would leave that branch untested
+  // outside a host. Refuses in SAFE mode and on an invalid map, exactly as the
+  // C++ does, and aborts a running ping for the same reason.
+  setMonitorArmed: (want) => {
+    const available = !status.safeMode && !status.mapInvalid;
+    status.monitorArmed = want === true && available;
+    status.monitorAvailable = available;
+    if (status.monitorArmed) stopPing();
+    return status.monitorArmed;
+  },
 
   // ── Phase 3.3 ──
   getMeters: () => readMeters(),

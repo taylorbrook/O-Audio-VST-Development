@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.5.0 (dev build installed; not released)
+- **Version:** 1.7.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -320,6 +320,33 @@ fact was refused twice), and none affects a recorded result:
 4. the runbook's NC4 lacks its `dHull > 0` precondition — as spelled the control cannot fire
    (air is structurally inert at the mandated centre position)
 
+- **2026-08-26 (v1.7.0 — binaural / stereo monitoring fold-down):** closes the HIGH-priority gap in
+  `.planning/FEATURE-REVIEW.md` — the brief's own use case, revising a piece away from the venue,
+  previously had no listening path. New `Source/DSP/MonitorFold.h/.cpp` folds the eight solved feeds
+  to a headphone pair from the venue's measured geometry (Woodworth ITD, constant-power pan, `1/r`
+  distance gain, head-shadow tilt), writing the `left`/`right` carrier lanes and hard-zeroing the
+  other six behind a filled MONITOR banner.
+
+  **The design constraint was "must never silently contaminate a render", and it is enforced by
+  five independent guards** — not a parameter, not persisted, `isNonRealtime()` bypass, disarm on
+  bypass, disarm when the editor closes (the fold must not outlive its own warning). Probe CZ holds
+  the offline case and was **negative-controlled**: with guard 3 removed it fails and its three
+  siblings stay green.
+
+  Three things a later reader will want to know:
+  1. **No parameter was added** and the count stays at 18 — an automation lane is a *recording of
+     the arm* that a bounce could replay. See `.planning/parameter-spec.md`'s v1.7.0 amendment.
+  2. **`setLatencySamples()` is deliberately not called** for the ~0.66 ms of ITD lines; reporting
+     it would move host PDC and change the render.
+  3. **The far ear was silent at ±90°** in the first implementation — an uncompressed constant-power
+     pan zeroes it, taking the ITD and head shadow out of the path for lateral sources. Caught by
+     `tests/monitor-fold/`, which measures the FAR ear; every near-ear assertion passed throughout.
+     Fixed with `kPanDepth`. Read that directory's README before touching the pan.
+
+  Gates: 61/61 render probes, 15/15 monitor-fold checks, 43/43 `ui_frontend_check`, 31/31
+  `ui_layout_check`, `check-i18n` pass, auval PASS, pluginval strictness 10 SUCCESS. **Hall and
+  headphone listening still outstanding**, as are the two manual render checks.
+
 **Planning artifacts:**
 - `.planning/BRIEF.md` — creative brief
 - `.planning/REQUIREMENTS.md` — 30 requirements with acceptance criteria and stage traceability
@@ -327,6 +354,8 @@ fact was refused twice), and none affects a recorded result:
 - `.planning/research/ARCHITECTURE.md` — binding DSP architecture contract
 - `.planning/ROADMAP.md` — phased implementation plan
 - `.planning/stages/0-ideation/CONTEXT.md` — Stage 0 findings, decisions, risk register
+- `.planning/FEATURE-REVIEW.md` — competitive gap analysis; the v1.7.0 monitor closes gap 2 of 3
+- `.planning/MONITOR-FOLD-INTEGRATION.md` — the v1.7.0 build record, incl. why it was split
 
 **Related research:**
 - `research/logic-pro-multichannel-octaphonic-dbap.md` — the locked architecture
@@ -337,3 +366,4 @@ fact was refused twice), and none affects a recorded result:
 - VST3: `~/Library/Audio/Plug-Ins/VST3/O-Octagon-dev.vst3`
 - AU: `~/Library/Audio/Plug-Ins/Components/O-Octagon-dev.component`
 - Installed binaries byte-identical to freeze `378fb4cd` (VST3 `928cd447…`, AU `cc54db02…`)
+  — **superseded at v1.6.0/v1.7.0;** the installed build is newer than that freeze

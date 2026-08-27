@@ -37,6 +37,7 @@
 #include "DbapSolver.h"
 #include "Decorrelator.h"
 #include "HullProcessor.h"
+#include "MonitorFold.h"
 #include "SourceShaper.h"
 
 namespace oo
@@ -215,9 +216,14 @@ public:
                      DEFAULTED so every Phase 2.x call site compiles unchanged. Passed in rather
                      than reached for: this class does not ask the processor anything and does not
                      decide when the ping runs (P24). */
+    /** @param monitorOn  v1.7.0. DEFAULTED so every existing call site — the whole render harness
+                          included — compiles unchanged, exactly as `ping` is. PASSED IN rather
+                          than reached for: the isNonRealtime() and SAFE-mode rules that decide it
+                          live on the processor, and this class does not ask the processor
+                          anything (P24). */
     void process (juce::AudioBuffer<float>& buffer, int numIn, int numOut, bool mapped,
                   const VenueSnapshot& snapshot, const ParamSnapshot& p,
-                  VerifyPing* ping = nullptr) noexcept;
+                  VerifyPing* ping = nullptr, bool monitorOn = false) noexcept;
 
    #if OOCTAGON_INSTRUMENT
     /** The 17 smoothers' CURRENT values — gL[0..7], gR[0..7], outGain.
@@ -323,6 +329,20 @@ private:
     // A single instance shared by both feeds would return the same output for the same input,
     // which is the pre-v1.5.0 behaviour with a ring buffer attached to it.
     Decorrelator decorrL, decorrR;
+
+    //==========================================================================
+    // ── v1.7.0 — THE MONITOR FOLD-DOWN ────────────────────────────────────────────────────────
+    //
+    // Sits at the very END of the REAL arm, after the verify ping, reading the eight lanes it has
+    // just written. NOT a term in the gain path and not a second renderer — see MonitorFold.h.
+    //
+    // It is the ONLY member of this class that does not advance when the plugin is running: when
+    // the monitor is disarmed and its crossfade has settled, isRunning() is false and fold() is
+    // not called at all. That asymmetry is deliberate and is what the bit-identity claim rests on,
+    // so it is stated here as well as there — the rule "everything advances unconditionally" that
+    // governs the seventeen smoothers, the eight delay ramps and the two decorrelation chains does
+    // NOT extend to this, and must not be "made consistent" by a later reader.
+    MonitorFold monitorFold;
 
     /** The dry -> decorrelated crossfade, 0 or 1, on the same 5 ms as everything else.
 

@@ -129,6 +129,21 @@ export const I18N = Object.freeze({
               reviewed: false },
     },
 
+    'monitor-banner': {
+        en: { t: 'Monitor fold-down',
+              b: 'Headphone fold of the eight solved feeds into outputs 1\u20112, with the other six muted. Never included in an offline bounce, never remembered across a reload, and switched off when this window closes.' },
+        fr: { t: 'Repli de contrôle',
+              b: 'Repli casque des huit sorties calculées vers les sorties 1\u20112, les six autres étant coupées. Jamais inclus dans un export hors ligne, jamais conservé au rechargement, et désactivé à la fermeture de cette fenêtre.',
+              reviewed: false },
+    },
+    'monitor-toggle': {
+        en: { t: 'Monitor on headphones',
+              b: 'Fold the eight speaker feeds to a stereo pair so the piece can be heard away from the venue. Position, distance and inter-aural delay come from the measured venue geometry. This is a listening aid — it cannot reach an offline render.' },
+        fr: { t: 'Écoute au casque',
+              b: 'Replie les huit sorties haut-parleurs en une paire stéréo pour écouter la pièce hors du lieu. La position, la distance et le retard interaural proviennent de la géométrie mesurée du lieu. C’est une aide à l’écoute — elle ne peut pas atteindre un export hors ligne.',
+              reviewed: false },
+    },
+
     // ── Room plan ───────────────────────────────────────────────────────────
     'puck': {
         en: { t: 'Source',
@@ -443,6 +458,8 @@ export const TIP_BINDINGS = [
 
     ['#safe-banner',           'safe-banner'],
     ['#map-banner',            'map-banner'],
+    ['#monitor-banner',        'monitor-banner'],
+    ['#monitor-toggle',        'monitor-toggle'],
 
     ['#puck',                  'puck'],
 

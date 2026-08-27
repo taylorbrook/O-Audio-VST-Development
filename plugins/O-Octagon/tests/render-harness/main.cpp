@@ -6080,6 +6080,200 @@ int main()
                    + (live ? "" : " — SIGNAL IS SILENT, probe vacuous"));
     }
 
+    //==========================================================================
+    // CY — THE STRUCTURAL BYPASS. A SESSION THAT NEVER ARMS THE MONITOR CLOCKS NOTHING.
+    //
+    // This is the mechanism the bit-identity claim rests on, asserted directly rather than
+    // inferred: fold() is the only thing that writes a monitor sample, isRunning() gates every
+    // call to it, and monitorSamples counts every sample it processes. Zero means the v1.6.0
+    // signal path was reached LITERALLY, not approximately.
+    //
+    // CROSS-VERSION IDENTITY IS A DIFFERENT TEST AND THIS IS NOT IT. That one compares against the
+    // v1.6.0 backup's own render digest (pattern_reanchor_cross_version_digest_probe). Saying so
+    // here stops this probe from being read as more than it proves.
+    {
+        constexpr int total = 4096 * 4;
+
+        OOctagonProcessor proc;
+        negotiate (proc, mono, set71);
+        applyRotatedLabels (proc);
+        setParam (proc, "srcX", 0.30f);
+        setParam (proc, "srcY", 0.70f);
+
+        juce::AudioBuffer<float> out (8, total);
+
+        // ARMED HERE. monitorSamples is a running total since the last reset and probes CZ/DA/DB
+        // have not run yet, but CU's decorr counter proves the general hazard: an unreset read
+        // reports on ANOTHER probe's render and the gate below measures nothing. This is the
+        // counter equivalent of an unarmed probe.
+        oo::instr::resetCounters();
+        renderInto (proc, out, total, { 1, 7, 64, 333, 4096 }, {});
+
+        const bool clean = oo::instr::get (oo::instr::monitorSamples) == 0;
+        const bool live  = out.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("CY monitor-disarmed-is-structural-bypass", clean && live,
+               juce::String ("monitorSamples = ")
+                   + juce::String ((juce::int64) oo::instr::get (oo::instr::monitorSamples))
+                   + (clean ? " — the fold never ran" : " — THE FOLD CLOCKED WHILE DISARMED")
+                   + (live ? "" : "; SIGNAL IS SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // CZ — THE PRIMARY CONSTRAINT. AN OFFLINE RENDER IS BIT-IDENTICAL TO A NEVER-ARMED ONE.
+    //
+    // "Must not silently contaminate a render" is the requirement this whole feature was shaped
+    // around, and this is the probe that holds it. Three processors, identical material:
+    //
+    //   a — never armed                   the reference
+    //   b — ARMED, setNonRealtime (true)  must equal a, BIT FOR BIT
+    //   c — ARMED, realtime               must DIFFER from a, or b's match proves nothing
+    //
+    // c IS NOT DECORATION. Without it a fold that was broken, silent, refused, or wired to nothing
+    // would pass this probe perfectly — the probe would be measuring the absence of a feature
+    // rather than the presence of a guard (pattern_probe_must_target_the_branch_the_fix_changed).
+    {
+        constexpr int total = 4096 * 4;
+
+        auto build = [&] (OOctagonProcessor& p)
+        {
+            negotiate (p, mono, set71);
+            applyRotatedLabels (p);
+            setParam (p, "srcX", 0.22f);
+            setParam (p, "srcY", 0.63f);
+        };
+
+        OOctagonProcessor a, b, c;
+        build (a); build (b); build (c);
+
+        // BEFORE the arm and before the render: setNonRealtime is what the wrapper calls on an
+        // offline bounce, and processBlock reads it every block.
+        b.setNonRealtime (true);
+
+        const bool armedB = b.setMonitorArmed (true);
+        const bool armedC = c.setMonitorArmed (true);
+
+        juce::AudioBuffer<float> outA (8, total), outB (8, total), outC (8, total);
+
+        renderInto (a, outA, total, { 4096 }, {});
+        renderInto (b, outB, total, { 4096 }, {});
+        renderInto (c, outC, total, { 4096 }, {});
+
+        const bool offlineClean  = bitIdentical (outA, outB);
+        const bool realtimeFolds = ! bitIdentical (outA, outC);
+
+        check ("CZ monitor-cannot-contaminate-offline-render",
+               offlineClean && realtimeFolds && armedB && armedC,
+               juce::String (offlineClean
+                                 ? "armed + isNonRealtime: bit-identical to never-armed over "
+                                   "16384 samples x 8 lanes"
+                                 : juce::String ("OFFLINE RENDER WAS CONTAMINATED — ")
+                                       + firstDifference (outA, outB))
+                   + (realtimeFolds ? "; realtime arm DOES fold (so the probe can fail)"
+                                    : "; REALTIME ARM CHANGED NOTHING — probe vacuous")
+                   + (armedB && armedC ? "" : "; AN ARM WAS REFUSED — probe vacuous"));
+    }
+
+    //==========================================================================
+    // DA — TWO LANES CARRY, SIX ARE HARD ZERO, AND THE TWO ARE left/right.
+    //
+    // ON A NON-IDENTITY MAP, which is the whole point: applyRotatedLabels puts "L" on speaker 8
+    // and "R" on speaker 1, so the monitor pair resolves to out[] slots 7 and 0 while landing in
+    // the BUFFER channels left/right occupy. A probe on the default map would be byte-identical to
+    // one asserting "channels 0 and 1" and would test nothing at all (the C1 argument, reused).
+    {
+        constexpr int total = 4096 * 3;
+
+        OOctagonProcessor proc;
+        negotiate (proc, mono, set71);
+        applyRotatedLabels (proc);
+        setParam (proc, "srcX", 0.35f);
+
+        const bool armed = proc.setMonitorArmed (true);
+
+        juce::AudioBuffer<float> out (8, total);
+        renderInto (proc, out, total, { 4096 }, {});
+
+        const auto set  = proc.getBusesLayout().getMainOutputChannelSet();
+        const int  bufL = set.getChannelIndexForType (juce::AudioChannelSet::left);
+        const int  bufR = set.getChannelIndexForType (juce::AudioChannelSet::right);
+
+        // The SETTLED TAIL only. The first 5 ms is the engage crossfade, during which the six rig
+        // lanes are legitimately still fading and are NOT yet zero — measuring from sample 0 would
+        // fail on correct behaviour.
+        const int from = total / 2;
+
+        int   sounding = 0;
+        float worstRigLane = 0.0f;
+
+        for (int ch = 0; ch < 8; ++ch)
+        {
+            const float mag = out.getMagnitude (ch, from, total - from);
+
+            if (ch == bufL || ch == bufR) { if (mag > 1.0e-4f) ++sounding; }
+            else                          worstRigLane = juce::jmax (worstRigLane, mag);
+        }
+
+        check ("DA monitor-writes-left-right-mutes-six",
+               armed && sounding == 2 && worstRigLane == 0.0f,
+               juce::String ("monitor pair = buffer ch ") + juce::String (bufL) + "/"
+                   + juce::String (bufR) + " under a ROTATED map; " + juce::String (sounding)
+                   + " of 2 sounding; worst rig-lane magnitude "
+                   + juce::String (worstRigLane, 9)
+                   + (armed ? "" : " — ARM REFUSED, probe vacuous"));
+    }
+
+    //==========================================================================
+    // DB — THE FOLD IS LIVE, POSITION-DEPENDENT, AND INSIDE A PLAUSIBLE ILD BAND.
+    //
+    // BOTH RAILS ON PURPOSE, and the upper one is not defensive padding. During development a ">"
+    // comparison passed at an ILD of 108 dB — which was the far ear being SILENT. An uncompressed
+    // constant-power pan had driven it to exactly zero at +/-90 degrees, taking the inter-aural
+    // delay and the head shadow out of the signal path with it, and the NEAR ear looked perfect
+    // throughout. Asserting a BAND is what makes that visible; asserting the MIRROR is what
+    // catches a flipped atan2 convention, which is otherwise inaudible without a reference.
+    {
+        auto ildDbForSource = [&] (float srcX)
+        {
+            constexpr int total = 4096 * 4;
+
+            OOctagonProcessor proc;
+            negotiate (proc, mono, set71);
+            applyRotatedLabels (proc);
+            setParam (proc, "srcX", srcX);
+            setParam (proc, "srcY", 0.5f);
+            proc.setMonitorArmed (true);
+
+            juce::AudioBuffer<float> out (8, total);
+            renderInto (proc, out, total, { 4096 }, {});
+
+            const auto set  = proc.getBusesLayout().getMainOutputChannelSet();
+            const int  bufL = set.getChannelIndexForType (juce::AudioChannelSet::left);
+            const int  bufR = set.getChannelIndexForType (juce::AudioChannelSet::right);
+
+            const int from = total / 2;
+
+            const double eL = juce::jmax (1.0e-12f, out.getRMSLevel (bufL, from, total - from));
+            const double eR = juce::jmax (1.0e-12f, out.getRMSLevel (bufR, from, total - from));
+
+            return 20.0 * std::log10 (eR / eL);
+        };
+
+        const double right = ildDbForSource (0.95f);
+        const double left  = ildDbForSource (0.05f);
+
+        const bool banded   = right > 3.0 && right < 25.0 && left < -3.0 && left > -25.0;
+        const bool mirrored = std::fabs (right + left) < 4.0;
+
+        check ("DB monitor-fold-is-position-dependent", banded && mirrored,
+               juce::String ("srcX 0.95 -> ") + juce::String (right, 1)
+                   + " dB, srcX 0.05 -> " + juce::String (left, 1)
+                   + " dB (want +/-3..25, mirrored within 4 dB)"
+                   + (banded ? "" : " — OUT OF BAND: 0 dB means the fold is wired to nothing, "
+                                    "> 25 dB means the FAR EAR IS SILENT")
+                   + (mirrored ? "" : " — NOT MIRRORED: the azimuth convention is flipped"));
+    }
+
     scratch32.deleteRecursively();
 
     //==========================================================================

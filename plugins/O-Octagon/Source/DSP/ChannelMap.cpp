@@ -150,4 +150,40 @@ bool verifyEnumBitOrder (const juce::AudioChannelSet& set, juce::String* whyNot)
     return true;
 }
 
+//==============================================================================
+bool resolveMonitorSlots (const juce::AudioChannelSet& outSet,
+                          const std::array<int, kNumSpeakers>& speakerToBuffer,
+                          std::array<int, 2>& out)
+{
+    // THROUGH getChannelIndexForType(), WHICH IS A GENUINE LOOKUP — the same reason the speaker map
+    // is keyed on ChannelType and not on a slot number. A hardcoded 0 and 1 would be correct for
+    // the shipped 7.1 container and wrong for any set whose bitset orders left/right elsewhere, and
+    // it would be wrong SILENTLY, which is this file's defining hazard.
+    const int bufL = outSet.getChannelIndexForType (juce::AudioChannelSet::left);
+    const int bufR = outSet.getChannelIndexForType (juce::AudioChannelSet::right);
+
+    if (bufL < 0 || bufR < 0 || bufL == bufR)
+        return false;
+
+    // INVERT speakerToBuffer. A valid map is a permutation of 0..7 (isPermutationOf0to7 is what
+    // guarantees it, and an invalid map never reaches the audio path), so exactly one slot maps to
+    // each buffer channel and this loop cannot find two candidates for either.
+    std::array<int, 2> resolved { -1, -1 };
+
+    for (int i = 0; i < kNumSpeakers; ++i)
+    {
+        if (speakerToBuffer[(std::size_t) i] == bufL) resolved[0] = i;
+        if (speakerToBuffer[(std::size_t) i] == bufR) resolved[1] = i;
+    }
+
+    // The equality test is not redundant with the bufL != bufR test above: that one compares BUFFER
+    // channels, this one compares the SLOTS that reached them, and a malformed map that repeated an
+    // index would collapse the two here having passed there.
+    if (resolved[0] < 0 || resolved[1] < 0 || resolved[0] == resolved[1])
+        return false;
+
+    out = resolved;
+    return true;
+}
+
 } // namespace ochan

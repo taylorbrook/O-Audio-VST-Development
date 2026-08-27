@@ -1,0 +1,3 @@
+# Standalone harness build products — see build-standalone.sh
+*.o
+monitor-fold-test

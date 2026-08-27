@@ -530,6 +530,22 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             obj->setProperty ("scenesGen",
                               static_cast<juce::int64> (processorRef.getScenesGeneration()));
 
+            // ── v1.7.0 — THE MONITOR FOLD ────────────────────────────────────
+            // Rides the EXISTING poll rather than adding a native function, the
+            // same argument scenesGen makes. The banner has to react to state
+            // the page never set — a bypass, a SAFE-mode flip, a ping start and
+            // an offline render all clear or suppress the arm behind its back —
+            // so a one-shot push at init would go stale within seconds
+            // (pattern_webview_one_shot_state_push_stale_on_preset_load).
+            obj->setProperty ("monitorArmed",      processorRef.isMonitorArmed());
+            obj->setProperty ("monitorSuppressed", processorRef.isMonitorSuppressed());
+
+            // Whether the ARM WOULD BE ACCEPTED, so the page can disable the
+            // control instead of offering a button that silently refuses. The
+            // predicate mirrors setMonitorArmed()'s preconditions.
+            obj->setProperty ("monitorAvailable",  ! processorRef.isSafeMode()
+                                                && ! processorRef.isChannelMapInvalid());
+
             complete (juce::var (obj));
         });
 
@@ -1331,6 +1347,34 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                 processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
+    // ══════════════════════════════════════════════════════════════════════
+    // v1.7.0 — THE MONITOR FOLD-DOWN
+    //
+    // Plain withNativeFunction, no relay and no parameter attachment, and that
+    // is the point rather than a shortcut: an APVTS parameter would give the
+    // arm an automation lane, and an automation lane is a recording of the arm
+    // that a bounce could replay. See PluginProcessor.h's four guards.
+    // ══════════════════════════════════════════════════════════════════════
+    options = options.withNativeFunction ("setMonitorArmed",
+        [this] (auto& args, auto complete)
+        {
+            const bool want = args.size() > 0 && static_cast<bool> (args[0]);
+
+            // The RESULT is what the page renders, never the request. An arm is
+            // refused in SAFE mode and on an unresolved monitor pair, and a
+            // banner that lit because the page ASKED would be claiming the rig
+            // lanes are muted while eight speakers carry on playing.
+            processorRef.setMonitorArmed (want);
+
+            complete (juce::var (processorRef.isMonitorArmed()));
+        });
+
+    // THERE IS DELIBERATELY NO getMonitorArmed. getStatus already carries
+    // monitorArmed on the 2 Hz poll the banner needs anyway, and a second
+    // reader would be a native function nothing calls — a dead bridge, which
+    // section 3 of ui_frontend_check.js fails the build over precisely because
+    // a half-wired bridge fails SILENTLY (pattern_webview_native_fn_bridge_gap).
+
    #if JUCE_WINDOWS
     // WebView2's default user-data folder is denied in most DAW hosts; a failed
     // construction falls back to the IE backend with no resource provider, which
@@ -1471,6 +1515,21 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
 OctagonEditor::~OctagonEditor()
 {
     processorRef.stopVerifyPing();
+
+    // ── v1.7.0 — CLOSING THE WINDOW DISARMS THE MONITOR, AND THAT IS A SAFETY RULE ────────────
+    //
+    // THE INVARIANT IS: THE FOLD CAN ONLY BE ACTIVE WHILE ITS WARNING IS VISIBLE.
+    //
+    // The MONITOR banner is the only thing standing between an armed session and a REALTIME
+    // bounce — isNonRealtime() catches the offline path, and not persisting catches a reload, but
+    // nothing catches "armed, bounced in real time, same sitting" except a human seeing the
+    // banner. A closed editor has no banner, so an armed monitor behind a closed window is the
+    // one configuration where the fold is running with every warning switched off.
+    //
+    // The cost is that a composer who closes the window while listening has to reopen it and
+    // re-arm. That is the correct side to err on: the failure this prevents is a delivered file
+    // with six silent channels, and the failure it causes is one extra click.
+    processorRef.setMonitorArmed (false);
 }
 
 // ── Layout ──────────────────────────────────────────────────────────────────

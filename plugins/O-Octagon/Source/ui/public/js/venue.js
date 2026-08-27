@@ -650,6 +650,41 @@ export function createVenueScreen(deps) {
 
   window.addEventListener("pagehide", stopPingPoll);
 
+  // ── v1.7.0 — the monitor fold-down toggle ────────────────────────────────
+  //
+  // WRITE-ONLY FROM HERE. It sends the request and renders NOTHING: the arm is
+  // reflected by renderMonitor() on the existing 2 Hz getStatus poll in app.js,
+  // which is the only reader. Two reasons, and the second is the sharp one:
+  //
+  //   * setMonitorArmed REFUSES in SAFE mode and on an unresolved monitor pair,
+  //     so the request is not the result. Rendering the request would light a
+  //     banner claiming the rig lanes are muted while eight speakers keep
+  //     playing — the banner lying in the dangerous direction.
+  //   * The processor clears the arm behind the page's back in four other
+  //     situations (bypass, SAFE flip, ping start, editor close). Only a poll
+  //     sees those.
+  //
+  // The completion feeds the advisory line and nothing else, exactly as
+  // requestPing's refusal and the output-order presets' do.
+  const monitorNode = need("vmonitor-state");
+  const monitorBtn = need("monitor-toggle");
+
+  monitorBtn.addEventListener("click", () => {
+    // The CURRENT state comes from the attribute the poll wrote, never from a
+    // local boolean this handler keeps — a local one would drift out of step
+    // the first time the processor disarmed on its own, and the next click
+    // would then send the wrong request.
+    const armed = monitorBtn.getAttribute("aria-pressed") === "true";
+
+    nativeFn("setMonitorArmed")(!armed)
+      .then((result) => {
+        if (result === true || armed) return;
+        // Asked to arm, came back disarmed: refused.
+        monitorNode.textContent = "unavailable on this output";
+      })
+      .catch((err) => console.error("setMonitorArmed failed", err));
+  });
+
   // ── v1.1.0 — the output-order presets ────────────────────────────────────
   // Two one-click label sets, applied WHOLE in C++ (applyOutputOrderPreset)
   // through the same guard the table's commit uses. NOT a second setVenue call

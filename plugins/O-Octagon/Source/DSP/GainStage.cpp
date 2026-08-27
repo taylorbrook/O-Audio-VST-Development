@@ -233,6 +233,15 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
     // 3 — force a solve. haveSolved is cleared so the dirty check cannot short-circuit the one
     //     update that establishes the starting gain vector.
     haveSolved = false;
+
+    // v1.7.0. Step 2's teleport for the monitor, in the class that owns it. MonitorFold::prepare()
+    // allocates the eight ITD lines, prepares the sixteen shadow filters (MANDATORY: an unprepared
+    // FirstOrderTPTFilter decays from 2.0f) and teleports its own ramps to a freshly derived
+    // geometry. It also forces itself DISARMED — a monitor cannot survive a sample-rate change
+    // armed, because every ramp is about to be re-derived at the new rate and a half-faded
+    // crossfade would resume against coefficients belonging to the old one.
+    monitorFold.prepare (sampleRateToUse, snapshot);
+
     updateControl (snapshot, p);
 
     // 4 — teleport to that solve, so sample 0 is already correct rather than 5 ms into a fade-in
@@ -287,7 +296,7 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
 //==============================================================================
 void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut, bool mapped,
                          const VenueSnapshot& snapshot, const ParamSnapshot& p,
-                         VerifyPing* ping) noexcept
+                         VerifyPing* ping, bool monitorOn) noexcept
 {
     const int numSamples = buffer.getNumSamples();
 
@@ -302,7 +311,22 @@ void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut
         const auto phase = static_cast<int> (absoluteSampleCounter & (kControlBlock - 1));
 
         if (phase == 0)
+        {
             updateControl (snapshot, p);
+
+            // ── v1.7.0 — THE MONITOR, DRIVEN FROM THE CONTROL BOUNDARY ───────────────────────
+            //
+            // OUTSIDE updateControl() ON PURPOSE. That function's dirty check is a memcmp of the
+            // PARAMETER snapshot, and the fold is a function of the ROOM — it must re-derive on a
+            // venue publish and must NOT re-derive when the source moves. Its own generation gate
+            // is the right place for that; folding it into the parameter memcmp would couple two
+            // independent staleness questions and get both subtly wrong.
+            //
+            // The monitor is refused on an unresolved pair here as well as upstream. The upstream
+            // check is the gate; this is the backstop, and it is free.
+            monitorFold.updateGeometry (snapshot);
+            monitorFold.setEngaged (monitorOn && snapshot.monitorSlot[0] >= 0);
+        }
 
         const int toBoundary = static_cast<int> (kControlBlock) - phase;
         const int chunk      = juce::jmin (numSamples - n, toBoundary);
@@ -807,6 +831,21 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
         // aborts a running one on the flip (Q5).
         if (ping != nullptr && ping->isActive())
             ping->overwrite (out, kNumSpeakers, start, count);
+
+        // ── v1.7.0 — THE MONITOR FOLD, AND IT IS THE LAST THING THAT HAPPENS ──────────────────
+        //
+        // AFTER the ping so its six-lane mute is authoritative. The two are mutually exclusive
+        // upstream — arming either drops the other — so this ordering is a backstop rather than a
+        // policy, but the ordering still has to be decided and this is the safe direction: if both
+        // were somehow live, "the rig lanes are silent" stays true.
+        //
+        // isRunning() FALSE IS THE STRUCTURAL BYPASS, and it is what makes "every session written
+        // before v1.7.0 renders bit-identically" a claim about CONSTRUCTION rather than about
+        // arithmetic. Nothing below is clocked, no line is pushed, no filter advances — the same
+        // shape as `delayEngaged` false clocking no delay line, and deliberately NOT the
+        // advance-unconditionally rule the smoothers live under (see the member's comment).
+        if (monitorFold.isRunning())
+            monitorFold.fold (out, snapshot.monitorSlot[0], snapshot.monitorSlot[1], start, count);
     }
     else
     {

@@ -156,6 +156,7 @@ them against the UI four ways. What follows is the ledger of what changed, not a
 | v1.3.0 | `width` max 6 → 12 m; `rolloff` max 6 → 12 dB/2x; `blur` default 0.10 → 0.03 (`kBlurScale` tripled). Pre-1.3 presets re-mapped by the editor's migration hook |
 | v1.4.0 | Venue values 42 → 50: a per-speaker alignment delay. **Not** a parameter — venue-scoped, so no automation lane reaches it |
 | v1.5.0 | **18th musical parameter: `decorr`** |
+| v1.7.0 | The monitor fold-down adds **NO parameter** — deliberately. See below |
 
 ### v1.5.0 — `decorr`
 
@@ -181,3 +182,28 @@ probe CU against the v1.4.0 binary's own render digest.
 **Preset scope: preserved, not authored.** `decorr` joins `oo::presets::kPreserved` (11 → 12), so
 a factory preset load leaves it alone. It describes the *material* — is this stem effectively
 mono? — not the room the preset is painting.
+
+### v1.7.0 — the monitor fold-down adds NO parameter, and that is the feature
+
+The count stays at **18**. An `AudioParameterBool` named `monitor` would have been the natural
+spelling for a defeatable feature — `decorr`'s note above explains why that spelling was rejected
+there for UI-uniformity reasons — and here it is rejected for a stronger one:
+
+**An APVTS parameter has an automation lane, and an automation lane is a recording of the arm that
+a bounce can replay.** The monitor fold writes a headphone mix into two carrier channels and hard-
+zeroes the other six. A lane that could restore that state during an offline render is precisely
+the failure the whole feature is built to be incapable of, so the arm is a bare `std::atomic<bool>`
+on the processor, reachable only from the editor's `setMonitorArmed` native function.
+
+It is also **absent from `getStateInformation()`**, which makes it unlike `tooltipsEnabled` and
+`uiLanguage` — the two other non-parameter UI booleans, both of which legitimately ride the
+session. A reopened session is always disarmed. That is the only guard covering a *realtime*
+bounce, where `isNonRealtime()` correctly reports real time and cannot help.
+
+Consequences worth stating once, because each is a question someone will ask:
+
+- **Preset scope: none.** It is not in `oo::presets::kPreserved` and does not need to be — a preset
+  cannot see it at all.
+- **No migration.** No id, no range, no index; nothing to version-gate.
+- **`params::kCount` is untouched**, so the control-block snapshot layout and its `memcmp` dirty
+  check are byte-for-byte what v1.6.0 had.
