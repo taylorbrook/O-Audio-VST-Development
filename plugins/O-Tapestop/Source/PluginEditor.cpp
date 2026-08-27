@@ -93,6 +93,14 @@ TapestopEditor::getResource (const juce::String& url)
         return makeBinaryResource (UIBinaryData::app_js, UIBinaryData::app_jsSize,
                                    "application/javascript; charset=utf-8");
 
+    // v1.5.0 — the hover-help copy table, imported by app.js as './i18n.js'.
+    // This branch, the juce_add_binary_data SOURCES entry and the import all
+    // land in one commit: any two of the three leaves the page 404ing at
+    // runtime with nothing failing at build time.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (UIBinaryData::i18n_js, UIBinaryData::i18n_jsSize,
+                                   "application/javascript; charset=utf-8");
+
     // Underscore name on purpose: juce_add_binary_data STRIPS hyphens, so an
     // envelope-editor.js would have become `envelopeeditor_js`
     // (critical_binary_data_strips_hyphens).
@@ -242,6 +250,36 @@ TapestopEditor::TapestopEditor (TapestopProcessor& p)
         {
             complete (juce::var (processorRef.tooltipsEnabled.load (
                                      std::memory_order_acquire)));
+        });
+
+    // ── v1.5.0: the hover-help LANGUAGE pair ────────────────────────────────
+    //
+    // Same shape and same discipline as the toggle pair above: plain
+    // withNativeFunction, no relay, PULLED once by the page at init. No push
+    // from this constructor, no timer, no poll().then(poll) and no revision
+    // counter — the language is not preset content, and
+    // OuariconPresetManager::loadPreset walks preset["parameters"] only, so no
+    // preset path can change it behind the page's back.
+    options = options.withNativeFunction ("getUiLanguage",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (TapestopProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction ("setUiLanguage",
+        [this] (auto& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    TapestopProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (TapestopProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
     // ── PRESET NATIVE FUNCTIONS — 10 (Stage 4) ─────────────────────────────

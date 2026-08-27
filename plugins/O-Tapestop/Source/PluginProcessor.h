@@ -141,6 +141,24 @@ public:
     // asked for.
     std::atomic<bool> tooltipsEnabled { false };
 
+    // ── v1.5.0: the hover-help LANGUAGE. 0 = en, 1 = fr ─────────────────────
+    // An INDEX rather than a string because std::atomic<juce::String> does not
+    // compile — juce::String is not trivially copyable — so the audio-safe form
+    // is an index behind the two-function codec below while the PERSISTED form
+    // stays a language code.
+    //
+    // Deliberately NOT an AudioParameterChoice, for the same two reasons
+    // tooltipsEnabled is not one: it must not appear in a DAW automation lane,
+    // and a preset must not be able to change which language somebody reads
+    // their help in. It rides the APVTS state tree as a non-parameter property.
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // ── Ring sizing (research/ARCHITECTURE.md "Ring Sizing", BINDING) ────────
     // Worst-case debt growth is Scratch full-reverse: d(debt)/dt = 1 − r with
     // r = −2 ⇒ 3 s of debt per second of pass. Over the longest gesture

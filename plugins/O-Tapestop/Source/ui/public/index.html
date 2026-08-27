@@ -41,17 +41,66 @@
   <img src="img/shell.png" class="botanical-overlay" alt="" />
 
   <div class="frame">
-    <!-- ─── Hover-help toggle (v1.4.0) ──────────────────────────────────────
-         ABSOLUTE against .frame, deliberately outside the header's centred
-         flow — the 860 x 580 layout is a PLAN Locked Decision and a button in
-         the header's flow would shift the title. Ships UNLIT: the preference
-         defaults to false in the processor and app.js PULLS it at init.
-         Its own tip is EXEMPT from the on/off gate (data-tip-always), so the
-         user who turned help off can still learn how to turn it back on. -->
-    <button type="button" class="help-toggle" id="help-toggle"
-            aria-pressed="false" aria-label="Toggle hover help"
-            data-tip-always data-tip-title="Hover Help"
-            data-tip="Turns the hover descriptions on and off for every control on this page. The setting is saved with the session.">?</button>
+    <!-- ─── Settings (v1.5.0) ───────────────────────────────────────────────
+         NO COPY IS AUTHORED IN THIS MARKUP. Every data-tip / data-tip-title on
+         this page is written at runtime by applyI18n() out of js/i18n.js, and
+         scripts/check-i18n.js assertion 3 fails if a literal reappears here.
+
+         ABSOLUTE against .frame, in the v1.4.0 "?" button's EXACT slot and at
+         its exact 22 px circle geometry — deliberately outside the header's
+         centred flow, because the 860 x 580 layout is a PLAN Locked Decision
+         and a control in the header's flow would shift the title. The cluster
+         wraps the button rather than replacing it, so the absolute box is
+         unchanged and the panel has something to anchor to.
+
+         The v1.4.0 toggle MOVED inside the panel; it is not duplicated.
+
+         data-tip-always on the gear and on both controls inside: this plugin's
+         help layer ships OFF, so without it the three controls that reach and
+         restore the layer would be the three unable to explain themselves. -->
+    <div class="settings-cluster">
+      <button type="button" class="help-toggle gear-btn" id="gear-btn"
+              aria-haspopup="dialog" aria-expanded="false" aria-label="Settings"
+              data-tip-always>&#9881;</button>
+
+      <div class="settings-popover" id="settings-popover"
+           role="dialog" aria-label="Settings" hidden>
+
+        <label class="settings-row" for="lang-select">
+          <!-- data-label so a shared state updater that writes textContent
+               reads the authored caption back instead of erasing it
+               (pattern_js_state_updater_overwrites_html_labels). -->
+          <span class="settings-label" data-label="Language">Language</span>
+          <!-- ENDONYMS. Never localized and never written by a state updater:
+               a French speaker looking for their language looks for
+               "Fran&ccedil;ais". -->
+          <select class="settings-select" id="lang-select"
+                  aria-label="Hover help language" data-tip-always>
+            <option value="en">English</option>
+            <option value="fr">Fran&ccedil;ais</option>
+          </select>
+        </label>
+
+        <!-- The v1.4.0 toggle, moved. Its caption is written from script now,
+             but the copy comes from data-on / data-off AUTHORED HERE, never
+             from a literal in app.js
+             (pattern_js_state_updater_overwrites_html_labels). Its own tip is
+             ONE key covering both states, per the settled contract: a
+             state-swapped pair would be stranded in the previous language the
+             moment the selector fires, and window.__setLanguage() — which the
+             clamp gate drives — fires no change event at all.
+
+             A <div>, not a <label for="help-toggle">: a button is a labelable
+             element, so a label wrapping one re-dispatches the click. -->
+        <div class="settings-row">
+          <span class="settings-label" data-label="Hover help">Hover help</span>
+          <button type="button" class="settings-toggle" id="help-toggle"
+                  aria-pressed="false" aria-label="Toggle hover help"
+                  data-on="On" data-off="Off"
+                  data-tip-always>Off</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ─── Header ──────────────────────────────────────────────────────── -->
     <header class="header">
@@ -67,12 +116,8 @@
          data-label / data-confirm, never in JS. -->
     <div class="preset-bar">
       <span class="fleuron">&#10086;</span>
-      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled
-              data-tip-title="Previous"
-              data-tip="Steps back one entry through the preset list, factory and user alike.">&#9664;</button>
-      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled
-              data-tip-title="Next"
-              data-tip="Steps forward one entry through the preset list, factory and user alike.">&#9654;</button>
+      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" disabled>&#9654;</button>
       <!-- v1.3: the name readout doubles as the themed-dropdown trigger.
            #preset-name stays a childless div (PresetManager._updateDisplay
            writes its textContent); the caret is the wrapper's ::after and the
@@ -80,21 +125,13 @@
            panel's groups from PRESET_THEMES + getPresetList() on each open. -->
       <div class="preset-select" id="preset-select">
         <div class="preset-name" id="preset-name" role="button" tabindex="-1"
-             aria-haspopup="listbox" aria-expanded="false" aria-live="polite"
-             data-tip-title="Preset"
-             data-tip="The loaded preset. Click to open the list, grouped into Tape Stops, Scratch, Wobble &amp; Warp, and Glitch &amp; Chaos.">Default</div>
+             aria-haspopup="listbox" aria-expanded="false" aria-live="polite">Default</div>
         <div class="preset-dropdown" id="preset-dropdown" role="listbox" hidden></div>
       </div>
-      <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled
-              data-tip-title="Save"
-              data-tip="Writes every control, including the drawn scratch envelope, to a user preset.">Save</button>
-      <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled
-              data-tip-title="Load"
-              data-tip="Opens a preset file from disk rather than from the list above.">Load</button>
+      <button type="button" class="preset-btn" id="preset-save" data-label="Save" disabled>Save</button>
+      <button type="button" class="preset-btn" id="preset-load" data-label="Load" disabled>Load</button>
       <button type="button" class="preset-btn" id="preset-delete"
-              data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled
-              data-tip-title="Delete"
-              data-tip="Removes the loaded user preset. Click once to arm, again to confirm. Factory presets are protected.">Delete</button>
+              data-label="Delete" data-confirm="Confirm?" data-armed="0" disabled>Delete</button>
       <span class="fleuron">&#10086;</span>
     </div>
 
@@ -111,9 +148,7 @@
         <div class="group-body">
 
           <button type="button" class="engage-btn" id="engage-btn"
-                  aria-pressed="false" data-label="Engage"
-                  data-tip-title="Engage"
-                  data-tip="The performance control. It latches: pressing it starts the gesture the current Mode describes, releasing it hands the transport back. Automate or MIDI-map this and leave the rest of the page alone.">Engage</button>
+                  aria-pressed="false" data-label="Engage">Engage</button>
 
           <div class="pair-cell">
             <div class="pair-caption">Mode</div>
@@ -121,28 +156,18 @@
                  choice "Continuous" — it matches the Motion Rate/Depth/Chaos
                  knob family it reveals. -->
             <div class="segments" id="modeSegments" role="group" aria-label="Mode">
-              <button type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true"
-                      data-tip-title="Stop Mode"
-                      data-tip="The reel losing power. Engage spins the tape down to a halt; releasing spins it back up to speed. Spin Down and Spin Up shape each half separately.">Stop</button>
-              <button type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false"
-                      data-tip-title="Scratch Mode"
-                      data-tip="A hand on the platter. Engage plays one pass of the drawn speed curve, reverse included, then returns to normal speed.">Scratch</button>
+              <button type="button" class="segment" id="seg-mode-stop"    data-choice="0" aria-pressed="true">Stop</button>
+              <button type="button" class="segment" id="seg-mode-scratch" data-choice="1" aria-pressed="false">Scratch</button>
               <button type="button" class="segment" id="seg-mode-cont"    data-choice="2" aria-pressed="false"
-                      aria-label="Continuous motion"
-                      data-tip-title="Motion Mode"
-                      data-tip="Worn tape that never settles. Engage holds the speed in continuous modulation for as long as it stays lit — wobble, lurch or stutter, depending on Character.">Motion</button>
+                      aria-label="Continuous motion">Motion</button>
             </div>
           </div>
 
           <div class="pair-cell">
             <div class="pair-caption">Timing</div>
             <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
-              <button type="button" class="segment" id="seg-sync-sync" data-choice="0" aria-pressed="true"
-                      data-tip-title="Sync"
-                      data-tip="Every duration on this page locks to the host's tempo grid and is chosen as a note division. Switches all three panels at once.">Sync</button>
-              <button type="button" class="segment" id="seg-sync-free" data-choice="1" aria-pressed="false"
-                      data-tip-title="Free"
-                      data-tip="Every duration is set in milliseconds (or hertz, for Motion) and ignores the host tempo. Switches all three panels at once.">Free</button>
+              <button type="button" class="segment" id="seg-sync-sync" data-choice="0" aria-pressed="true">Sync</button>
+              <button type="button" class="segment" id="seg-sync-free" data-choice="1" aria-pressed="false">Free</button>
             </div>
           </div>
 
@@ -152,9 +177,7 @@
                The readout span is JS-owned from birth (placeholder em-dash);
                the caption and tick labels are HTML-authored and never
                rewritten. -->
-          <div class="ratio-cell"
-               data-tip-title="Playback Rate"
-               data-tip="Live readout of the transport's speed. 1× is normal, 0 is a dead stop, and anything left of zero is running backwards.">
+          <div class="ratio-cell">
             <div class="pair-caption">Playback</div>
             <div class="ratio-bar" aria-hidden="true">
               <div class="ratio-fill" id="ratio-fill"></div>
@@ -189,9 +212,7 @@
               <div class="col-caption">Spin Down</div>
               <div class="time-slot">
                 <div class="slot-wrap" id="wrap-STOP_SYNC_DIV">
-                  <div class="select-cell"
-                       data-tip-title="Spin-Down Time"
-                       data-tip="How long the reel takes to reach a standstill, as a note division of the host tempo. Latched the moment Engage is pressed — moving it mid-gesture is inert.">
+                  <div class="select-cell">
                     <!-- Options built at runtime from properties.choices — the
                          C++ StringArray is the single source (never hardcode). -->
                     <select class="division-select" id="combo-STOP_SYNC_DIV" aria-label="Stop Time"></select>
@@ -199,18 +220,14 @@
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-STOP_FREE_MS">
-                  <div class="knob-cell"
-                   data-tip-title="Spin-Down Time"
-                   data-tip="How long the reel takes to reach a standstill, in milliseconds. Latched the moment Engage is pressed.">
+                  <div class="knob-cell">
                     <div class="knob" id="knob-STOP_FREE_MS" data-param="STOP_FREE_MS"><div class="knob-stem"></div></div>
                     <div class="knob-label">Time</div>
                     <div class="knob-value" id="val-STOP_FREE_MS">&#8212;</div>
                   </div>
                 </div>
               </div>
-              <div class="knob-cell"
-                   data-tip-title="Spin-Down Curve"
-                   data-tip="Shapes the fall. At 0 the speed drops in a straight line; at 100 it plunges away at once and then crawls the last stretch. 50 is turntable physics.">
+              <div class="knob-cell">
                 <div class="knob" id="knob-STOP_CURVE" data-param="STOP_CURVE"><div class="knob-stem"></div></div>
                 <div class="knob-label">Curve</div>
                 <div class="knob-value" id="val-STOP_CURVE">&#8212;</div>
@@ -221,26 +238,20 @@
               <div class="col-caption">Spin Up</div>
               <div class="time-slot">
                 <div class="slot-wrap" id="wrap-START_SYNC_DIV">
-                  <div class="select-cell"
-                       data-tip-title="Spin-Up Time"
-                       data-tip="How long the reel takes to regain full speed once Engage is released, as a note division of the host tempo.">
+                  <div class="select-cell">
                     <select class="division-select" id="combo-START_SYNC_DIV" aria-label="Start Time"></select>
                     <div class="knob-label">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-START_FREE_MS">
-                  <div class="knob-cell"
-                   data-tip-title="Spin-Up Time"
-                   data-tip="How long the reel takes to regain full speed once Engage is released, in milliseconds.">
+                  <div class="knob-cell">
                     <div class="knob" id="knob-START_FREE_MS" data-param="START_FREE_MS"><div class="knob-stem"></div></div>
                     <div class="knob-label">Time</div>
                     <div class="knob-value" id="val-START_FREE_MS">&#8212;</div>
                   </div>
                 </div>
               </div>
-              <div class="knob-cell"
-                   data-tip-title="Spin-Up Curve"
-                   data-tip="Shapes the return. At 0 the speed rises in a straight line; at 100 it hangs near a standstill and then rushes back at the end. 50 is turntable physics.">
+              <div class="knob-cell">
                 <div class="knob" id="knob-START_CURVE" data-param="START_CURVE"><div class="knob-stem"></div></div>
                 <div class="knob-label">Curve</div>
                 <div class="knob-value" id="val-START_CURVE">&#8212;</div>
@@ -254,9 +265,7 @@
                .hidden) — two independent nested class toggles, never one
                computed flag. -->
           <div class="mode-pane hidden" id="pane-scratch">
-            <div class="env-plate"
-                 data-tip-title="Scratch Envelope"
-                 data-tip="Speed across one pass. The 1× line is normal speed, 0 is a standstill, and everything below the 0 line plays backwards — down to −2×. Drag the points to reshape it.">
+            <div class="env-plate">
               <!-- width/height attributes are the backing store; JS rewrites
                    them for devicePixelRatio. CSS sizes the element — a canvas
                    is a replaced element, so left+right would NOT stretch it
@@ -268,17 +277,13 @@
               <div class="col-caption env-caption">Pass Length</div>
               <div class="time-slot env-slot">
                 <div class="slot-wrap" id="wrap-ENV_SYNC_DIV">
-                  <div class="select-cell"
-                       data-tip-title="Pass Length"
-                       data-tip="How long one trip through the drawn envelope takes, as a note division of the host tempo.">
+                  <div class="select-cell">
                     <select class="division-select" id="combo-ENV_SYNC_DIV" aria-label="Env Length"></select>
                     <div class="knob-label">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-ENV_FREE_MS">
-                  <div class="knob-cell"
-                   data-tip-title="Pass Length"
-                   data-tip="How long one trip through the drawn envelope takes, in milliseconds.">
+                  <div class="knob-cell">
                     <div class="knob" id="knob-ENV_FREE_MS" data-param="ENV_FREE_MS"><div class="knob-stem"></div></div>
                     <div class="knob-label">Time</div>
                     <div class="knob-value" id="val-ENV_FREE_MS">&#8212;</div>
@@ -300,15 +305,9 @@
             <div class="stop-col">
               <div class="col-caption">Character</div>
               <div class="segments" id="characterSegments" role="group" aria-label="Character">
-                <button type="button" class="segment" id="seg-char-wobble" data-choice="0" aria-pressed="true"
-                        data-tip-title="Wobble"
-                        data-tip="Deterministic wow and flutter — a steady sine with a three-harmonic flutter band above it. The seasick end of worn tape.">Wobble</button>
-                <button type="button" class="segment" id="seg-char-random" data-choice="1" aria-pressed="false"
-                        data-tip-title="Random"
-                        data-tip="A drifting random walk across three time-scales at once. It never repeats and never quite settles.">Random</button>
-                <button type="button" class="segment" id="seg-char-glitch" data-choice="2" aria-pressed="false"
-                        data-tip-title="Glitch"
-                        data-tip="A grid scheduler firing discrete speed events — dips, half-speed stalls, reverse stabs. Chaos decides how many fire and how short they get.">Glitch</button>
+                <button type="button" class="segment" id="seg-char-wobble" data-choice="0" aria-pressed="true">Wobble</button>
+                <button type="button" class="segment" id="seg-char-random" data-choice="1" aria-pressed="false">Random</button>
+                <button type="button" class="segment" id="seg-char-glitch" data-choice="2" aria-pressed="false">Glitch</button>
               </div>
             </div>
 
@@ -316,17 +315,13 @@
               <div class="col-caption">Rate</div>
               <div class="time-slot">
                 <div class="slot-wrap" id="wrap-CONT_RATE_SYNC_DIV">
-                  <div class="select-cell"
-                       data-tip-title="Motion Rate"
-                       data-tip="How fast the motion cycles, as a note division of the host tempo.">
+                  <div class="select-cell">
                     <select class="division-select" id="combo-CONT_RATE_SYNC_DIV" aria-label="Motion Rate"></select>
                     <div class="knob-label">Division</div>
                   </div>
                 </div>
                 <div class="slot-wrap hidden" id="wrap-CONT_RATE_HZ">
-                  <div class="knob-cell"
-                   data-tip-title="Motion Rate"
-                   data-tip="How fast the motion cycles, in hertz. 0.05 Hz is one slow sweep every twenty seconds; 20 Hz is a buzz.">
+                  <div class="knob-cell">
                     <div class="knob" id="knob-CONT_RATE_HZ" data-param="CONT_RATE_HZ"><div class="knob-stem"></div></div>
                     <div class="knob-label">Rate</div>
                     <div class="knob-value" id="val-CONT_RATE_HZ">&#8212;</div>
@@ -337,9 +332,7 @@
 
             <div class="stop-col">
               <div class="col-caption">Motion</div>
-              <div class="knob-cell"
-                   data-tip-title="Motion Depth"
-                   data-tip="Peak speed deviation, scaled by ear rather than linearly: 0 is barely two cents of drift, 50 is about one percent, 100 reaches roughly two semitones.">
+              <div class="knob-cell">
                 <div class="knob" id="knob-CONT_DEPTH" data-param="CONT_DEPTH"><div class="knob-stem"></div></div>
                 <div class="knob-label">Depth</div>
                 <div class="knob-value" id="val-CONT_DEPTH">&#8212;</div>
@@ -348,9 +341,7 @@
 
             <div class="stop-col">
               <div class="col-caption">&#8203;</div>
-              <div class="knob-cell"
-                   data-tip-title="Chaos"
-                   data-tip="How irregular the motion is. At 0 each Character runs its tamest, most repeatable shape; raising it jitters Wobble, widens Random's drift, and unlocks faster, shorter Glitch events.">
+              <div class="knob-cell">
                 <div class="knob" id="knob-CONT_CHAOS" data-param="CONT_CHAOS"><div class="knob-stem"></div></div>
                 <div class="knob-label">Chaos</div>
                 <div class="knob-value" id="val-CONT_CHAOS">&#8212;</div>
@@ -365,23 +356,17 @@
       <section class="group group-output">
         <div class="group-label">Output</div>
         <div class="group-body">
-          <div class="knob-cell"
-                   data-tip-title="Tone Track"
-                   data-tip="Darkens the varispeed path as the tape slows, the way tape and vinyl lose their highs off-speed. At 0 nothing is filtered; at 100 a full standstill reaches down to 150 Hz. Full speed is always open.">
+          <div class="knob-cell">
             <div class="knob" id="knob-TONE_TRACK" data-param="TONE_TRACK"><div class="knob-stem"></div></div>
             <div class="knob-label">Tone Track</div>
             <div class="knob-value" id="val-TONE_TRACK">&#8212;</div>
           </div>
-          <div class="knob-cell"
-                   data-tip-title="Mix"
-                   data-tip="Balance of the dry input against the varispeed path — a straight crossfade, so it doubles as a parallel blend. Applies to the engaged chain only; disengaged output is bit-for-bit dry.">
+          <div class="knob-cell">
             <div class="knob" id="knob-MIX" data-param="MIX"><div class="knob-stem"></div></div>
             <div class="knob-label">Mix</div>
             <div class="knob-value" id="val-MIX">&#8212;</div>
           </div>
-          <div class="knob-cell"
-                   data-tip-title="Output Gain"
-                   data-tip="Final trim, −24 to +12 dB. Like Mix, it rides the engaged chain only and glides back to unity across the resync fade.">
+          <div class="knob-cell">
             <div class="knob" id="knob-OUTPUT_GAIN" data-param="OUTPUT_GAIN"><div class="knob-stem"></div></div>
             <div class="knob-label">Gain</div>
             <div class="knob-value" id="val-OUTPUT_GAIN">&#8212;</div>
