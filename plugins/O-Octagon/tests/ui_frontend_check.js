@@ -302,92 +302,241 @@ head(5, 'dblclick reset reads getParameterDefaults, never a JS default table');
 }
 
 // ─────────────────────────────────────────────────── 6. HTML-authored labels ──
-head(6, 'HTML-authored labels are never written via textContent');
+head(6, 'no textContent write erases an authored label — the dataset.label mirror');
 {
-    // A shared JS state updater writing textContent erases HTML-authored labels
-    // and passes every build gate (pattern_js_state_updater_overwrites_html_labels).
-    const receivers = new Set([...PAGE_MODULES.map(m => m.src).join('\n')
-        .matchAll(/([A-Za-z_$][A-Za-z0-9_$]*)\.textContent\s*=/g)].map(m => m[1]));
-
-    // AN EXPLICIT WHITELIST, REVIEWED WHEN IT GROWS — the property being protected is that no
-    // AUTHORED text is ever overwritten, not that only two identifiers exist. 3.3 adds the
-    // elevation strip's two readings (UI-05/2), which are .cell-value nodes in the group title row,
-    // beside an authored <h2> exactly as .safe-copy sits beside .safe-tag.
-    // v1.2.0 adds the hover-help surface's three: tipEl is #tooltip itself — a node no label
-    // shares, whose whole content is rebuilt per show — and t / b are createElement'd title and
-    // body children that never existed in the authored HTML at all.
-    // v1.4.0 adds ONE: delayUnitNode, the Delay column header's unit. The word "Delay" beside
-    // it is AUTHORED AND NEVER WRITTEN — only the unit changes — and the ms/m toggle carries two
-    // authored labels switched by class, so the whole feature costs exactly one receiver. The
-    // binding is proved below, as earOut / srcOut / tipEl are.
-    // v1.7.0 adds TWO, and notably NOT a third: monitorCopy is #monitor-copy, the banner's
-    // rewritable half beside the authored MONITOR tag — exactly the .map-copy / .map-tag split
-    // this section already blesses through `el`. monitorNode is #vmonitor-state, a .vcell-value
-    // in the rail beside an authored <h3>, exactly as #vping-state sits beside "Ping".
+    // ══ REWRITTEN AT v1.9.0, AND THE OLD SHAPE WAS ABOUT TO PASS VACUOUSLY ══
     //
-    // THE MONITOR BUTTON'S CAPTION IS NOT HERE BECAUSE IT IS NEVER WRITTEN. An armed toggle that
-    // relabels itself was the obvious implementation and was rejected: the caption is authored,
-    // and the state rides aria-pressed plus a CSS fill instead — the idiom the tips toggle and the
-    // ms/m unit toggle already use. That is a control added without widening this whitelist at
-    // all, which is the outcome this section exists to push towards.
+    // The rule has not changed: a shared JS state updater writing textContent
+    // erases HTML-authored labels and passes every build gate
+    // (pattern_js_state_updater_overwrites_html_labels). What changed is that
+    // canon v2 makes applyLabel() a textContent writer for EVERY [data-i18n]
+    // element on the page — 84 of them here.
+    //
+    // The old shape was an explicit whitelist of receiver IDENTIFIERS, reviewed
+    // when it grew. Against canon v2 it did not grow at all: applyLabel takes
+    // its element as a PARAMETER named `el`, and `el` was already whitelisted
+    // for the map-copy and the venue name. So the single largest textContent
+    // writer ever added to this page walked straight through, and the gate
+    // reported nothing. That is the failure mode this section exists to catch,
+    // arriving through the gate rather than around it.
+    //
+    // Growing the whitelist by 84 entries was the other option and is worse: it
+    // would say "these identifiers may write", which is not the property. The
+    // property is that AUTHORED TEXT IS NEVER SILENTLY REPLACED. Canon v2 makes
+    // that checkable rather than trusted, because applyLabel writes the string
+    // to dataset.label and textContent TOGETHER:
+    //
+    //     el.dataset.label = s;
+    //     el.textContent   = s;
+    //
+    // so an element's label is always mirrored by the element's own record of
+    // what its label should be. A write is legitimate when it is one half of
+    // that mirror. A write that sets textContent WITHOUT the matching
+    // dataset.label is a state updater overwriting a caption, which is the
+    // original bug.
+    //
+    // check-ui-labels asserts the RENDERED half — dataset.label === textContent
+    // after init, after a language switch and after a state pass, in both
+    // languages. This section asserts the STATIC half, which that gate cannot:
+    // that no code path exists which could break it.
+    const writeSites = [];
+    for (const m of PAGE_MODULES) {
+        const src = m.code;
+        for (const w of src.matchAll(/([A-Za-z_$][A-Za-z0-9_$]*)\s*\.textContent\s*=/g)) {
+            writeSites.push({
+                file: m.name, ident: w[1],
+                line: src.slice(0, w.index).split('\n').length,
+                index: w.index, src,
+            });
+        }
+    }
+
+    check(writeSites.length > 0,
+        `there are textContent writes to classify — ${writeSites.length} across `
+        + `${PAGE_MODULES.length} module(s)`);
+
+    // ── (a) the mirror itself ────────────────────────────────────────────
+    //
+    // Asserted on the CANON BLOCK as it actually sits in app.js, not on the
+    // copy in scripts/i18n-canon.js: check-i18n already byte-compares those
+    // two, and a gate that reads the canonical file instead of the shipped one
+    // would pass on a plugin whose block had been deleted.
+    const applyLabelBody = blockAt(S.appJs, S.appJs.indexOf('function applyLabel'));
+    check(applyLabelBody.length > 0, 'applyLabel() exists in app.js');
+
+    // BOTH writes, and the SAME expression on both. A mirror that recorded a
+    // DIFFERENT string from the one it rendered would satisfy "two writes" and
+    // certify nothing — the record has to be the record OF the render.
+    const mirrorPair = /(\w+)\.dataset\.label\s*=\s*([A-Za-z_$][\w$]*)\s*;\s*\1\.textContent\s*=\s*\2\s*;/
+        .exec(applyLabelBody.replace(/\s+/g, ' '));
+    check(mirrorPair !== null,
+        'applyLabel writes dataset.label and textContent from the SAME expression, adjacently'
+        + (mirrorPair ? ` — ${mirrorPair[1]}.dataset.label = ${mirrorPair[2]} = ${mirrorPair[1]}.textContent` : ''));
+
+    // ── (b) every write is a mirror half, or a dedicated value node ──────
+    //
+    // THE WHITELIST SURVIVES, and it is much smaller than it was heading for.
+    // It names nodes whose entire content IS a value — a readout, a tooltip
+    // surface, a unit — none of which ever carried authored prose. It is still
+    // reviewed when it grows, and now it can only grow for a genuine value
+    // node, because a LABEL write has the mirror route instead.
+    //
+    // v1.9.0 REMOVED TWO: monitorCopy and monitorNode. Both were added at v1.7.0
+    // as raw textContent writers, and both are now setLabel() calls — the banner
+    // copy and the rail state line are LABELS, they were only ever whitelisted
+    // because there was no other route for a state-dependent caption. The
+    // whitelist shrinking as the page gets MORE localized is the sign the
+    // mechanism is the right one.
     const VALUE_RECEIVERS = new Set(['value', 'el', 'earOut', 'srcOut', 'tipEl', 't', 'b',
-                                     'delayUnitNode', 'monitorCopy', 'monitorNode']);
+                                     'delayUnitNode']);
 
-    check(receivers.size > 0, `textContent is written through ${receivers.size} receiver(s)`);
-    check([...receivers].every(r => VALUE_RECEIVERS.has(r)),
-        `every textContent write goes through a dedicated value node — receivers {${[...receivers].sort().join(', ')}}`);
+    // A write is a MIRROR HALF when the same identifier is assigned
+    // dataset.label within the same statement neighbourhood. 200 characters
+    // rather than a whole function body, because the canon writes the pair
+    // adjacently and a distant dataset.label is not a mirror of THIS write.
+    const isMirrorHalf = (w) => new RegExp(`\\b${w.ident}\\.dataset\\.label\\s*=`)
+        .test(w.src.slice(Math.max(0, w.index - 200), w.index + 200));
 
-    // ...and the three v1.2.0 receivers really are the tooltip's own nodes: tipEl binds the one
-    // shared surface, and t / b are created fresh inside showTip, never queried from the page.
-    check(/const tipEl = document\.getElementById\("tooltip"\)/.test(S.appJs),
-        'tipEl binds #tooltip — the one shared hover-help surface');
+    // A write is a MIRROR TEARDOWN when the code DELETES both dataset.i18n and
+    // dataset.label first. That is how a node stops being a label and becomes a
+    // raw diagnostic sink — the C++ reason code the map banner and the
+    // output-order line print when they get a code this build does not know.
+    // Leaving a stale mirror there is precisely what would break assertion 3 of
+    // check-ui-labels, so the teardown is REQUIRED, not merely tolerated.
+    const isMirrorTeardown = (w) => {
+        const before = w.src.slice(Math.max(0, w.index - 300), w.index);
+        return new RegExp(`delete\\s+${w.ident}\\.dataset\\.i18n\\b`).test(before)
+            && new RegExp(`delete\\s+${w.ident}\\.dataset\\.label\\b`).test(before);
+    };
 
-    // ...and the v1.4.0 receiver is a DEDICATED value node, not the header itself.
+    // `appendChild(el(...)).textContent = ...` creates its node in the same
+    // expression, so there is no authored text to erase — the node did not
+    // exist a statement ago. Matched on the CALL, not on an identifier.
+    const isFreshlyCreated = (w) => /appendChild\([^;]*\)\s*$/
+        .test(w.src.slice(Math.max(0, w.index - 200), w.index).replace(/\s+$/, ''));
+
+    const unclassified = writeSites.filter((w) =>
+        !VALUE_RECEIVERS.has(w.ident) && !isMirrorHalf(w) && !isMirrorTeardown(w) && !isFreshlyCreated(w));
+
+    check(unclassified.length === 0,
+        'every textContent write is a dataset.label mirror half, an explicit mirror teardown, '
+        + 'a freshly created node, or a dedicated value receiver'
+        + (unclassified.length
+            ? ` — ${unclassified.length} unclassified: `
+              + unclassified.slice(0, 6).map((w) => `${w.file}:${w.line} ${w.ident}`).join(', ')
+            : ''));
+
+    // NON-VACUITY. The three routes must each be CARRIED by something, or a
+    // predicate that always returned true would make the check above pass
+    // while classifying nothing. This is the same argument §21 makes about the
+    // derived module registry.
+    const mirrorCount = writeSites.filter(isMirrorHalf).length;
+    check(mirrorCount > 0, `[non-vacuity] the mirror route is actually used — ${mirrorCount} write(s)`);
+    check(writeSites.some((w) => VALUE_RECEIVERS.has(w.ident)),
+        '[non-vacuity] the value-receiver route is actually used');
+
+    // ── (c) a keyed element must be a LEAF ───────────────────────────────
     //
-    // READ OFF PAGE_MODULES, NOT OFF VENUE_CODE. That const is declared further down this file and
-    // is in its TEMPORAL DEAD ZONE here — touching it throws ReferenceError at load and takes the
-    // whole gate with it, which is this repo's own pattern_module_toplevel_init_tdz firing inside
-    // the script that checks for it. PAGE_MODULES is already initialised: section 6 opened by
-    // reading it.
+    // applyLabel writes textContent, which DELETES element children. Keying an
+    // element that has any would silently destroy them on the first sweep, and
+    // it would do it in English too, so no language check would catch it. This
+    // is why the Delay column head was SPLIT at v1.9.0 rather than keyed whole.
+    const htmlNoComments = S.html.replace(/<!--[\s\S]*?-->/g, '');
+    const keyedWithChildren = [];
+    for (const m of htmlNoComments.matchAll(/<(\w+)([^>]*\bdata-i18n=("[^"]*")[^>]*)>([\s\S]*?)<\/\1>/g)) {
+        if (/<[a-zA-Z]/.test(m[4])) keyedWithChildren.push(`${m[3]} on <${m[1]}>`);
+    }
+    check(keyedWithChildren.length === 0,
+        'no [data-i18n] element has element children — applyLabel writes textContent and would delete them'
+        + (keyedWithChildren.length ? ` — ${keyedWithChildren.slice(0, 4).join(' | ')}` : ''));
+
+    // ...and the Delay column head is the worked example of the split.
+    check(/<th class="vcol-head vcol-num"><span data-i18n="[^"]+">Delay<\/span>&#8202;<span class="vcell-value" id="vcol-delay-unit">/
+        .test(S.html),
+        'the Delay column head is SPLIT: a keyed caption span beside the unit value span');
+
+    // ── (d) every keyed element still carries its authored English ───────
+    //
+    // The authored text is the fallback that renders if applyI18n never runs —
+    // a native-function failure, a throw in the canon block, a stripped
+    // i18n.js. An empty keyed element ships a blank page in that case, and a
+    // blank page is the failure the whole "paint the default SYNCHRONOUSLY
+    // first" rule in initI18n exists to prevent.
+    const emptyKeyed = [];
+    for (const m of htmlNoComments.matchAll(/<(\w+)([^>]*\bdata-i18n="([^"]*)"[^>]*)>([\s\S]*?)<\/\1>/g))
+        if (m[4].trim() === '') emptyKeyed.push(m[3]);
+    check(emptyKeyed.length === 0,
+        'every [data-i18n] element carries authored English as its fallback'
+        + (emptyKeyed.length ? ` — ${emptyKeyed.length} empty: ${emptyKeyed.slice(0, 5).join(', ')}` : ''));
+
+    // ── (e) the value nodes really are value nodes ───────────────────────
+    //
+    // Carried from the pre-v1.9.0 section, because these are the bindings the
+    // whitelist above is TRUSTING and an untested trust is a whitelist that
+    // means nothing.
     const venueSrc = (PAGE_MODULES.find(m => m.name.endsWith('venue.js')) || {}).code || '';
 
-    check(/const delayUnitNode = need\("vcol-delay-unit"\)/.test(venueSrc),
-        'delayUnitNode binds #vcol-delay-unit — a span, not the <th>');
-    check(/<th class="vcol-head vcol-num">Delay&#8202;<span class="vcell-value" id="vcol-delay-unit">/.test(S.html),
-        'and that span sits INSIDE an authored <th> whose "Delay" is never rewritten');
-    // The toggle writes no text at all — if it ever starts to, this fires before the whitelist does.
-    check(! /delayUnitButtons\[[a-z]+\]\.textContent/.test(venueSrc),
-        'the ms/m toggle switches by class — it writes no textContent');
+    check(/const tipEl = document\.getElementById\("tooltip"\)/.test(S.appJs),
+        'tipEl binds #tooltip — the one shared hover-help surface');
     check(/const t = document\.createElement\("div"\)/.test(S.appJs)
           && /const b = document\.createElement\("div"\)/.test(S.appJs),
         't / b are createElement\'d tooltip children, not authored nodes');
-
-    // ...and the two 3.3 receivers really are bound to dedicated value nodes, not to a heading.
+    check(/const delayUnitNode = need\("vcol-delay-unit"\)/.test(venueSrc),
+        'delayUnitNode binds #vcol-delay-unit — a span, not the <th>');
+    check(! /delayUnitButtons\[[a-z]+\]\.textContent/.test(venueSrc),
+        'the ms/m toggle switches by class — it writes no textContent');
     check(/const earOut = document\.getElementById\("elev-ear"\)/.test(ELEVATION_SRC)
           && /const srcOut = document\.getElementById\("elev-src"\)/.test(ELEVATION_SRC),
         'earOut / srcOut bind #elev-ear and #elev-src — the strip\'s two dedicated readouts');
-
-    // ...and those two locals are bound to value nodes only.
     check(/const value = document\.getElementById\(`val-\$\{id\}`\)/.test(S.appJs),
         '`value` is bound to the val-<id> readout node');
-    // An explicit whitelist rather than a prefix rule, and it is reviewed when
-    // it grows: the property being protected is "`el` never binds a node whose
-    // text was AUTHORED". 3.2 adds two frame-level nodes app.js writes — the
-    // mapInvalid copy and the negotiated set name — and both are value nodes
-    // beside an authored tag, exactly as .safe-copy is beside .safe-tag.
-    // 3.3 adds one: the field legend, which prints the dB span the plugin returned beside the plan
-    // caption's authored "Field" key — the same tag/value pairing as every entry above it.
+
+    // `el` is a whitelisted receiver, so what it BINDS is the load-bearing
+    // claim. An explicit target list rather than a prefix rule, and it is
+    // reviewed when it grows: the property is "`el` never binds a node whose
+    // text was AUTHORED". Every entry is a value node beside an authored tag,
+    // exactly as .safe-copy sits beside .safe-tag.
     const EL_TARGETS = /^(?:readout-|venue-name$|vset-name$|map-invalid-copy$|field-legend$)/;
     const elBindings = [...S.appJs.matchAll(/const el = document\.getElementById\("([^"]+)"\)/g)].map(m => m[1]);
     check(elBindings.length > 0 && elBindings.every(id => EL_TARGETS.test(id)),
         `\`el\` is bound only to dedicated value nodes — {${elBindings.join(', ')}}`);
 
-    // The labels themselves must actually carry authored text.
+    // venue.js aliases `el` to a node it bound earlier under a NAMED const, so
+    // the same claim is made by pinning the alias source rather than a
+    // getElementById literal. Without this the alias would let any node in
+    // through a receiver the whitelist has already blessed.
+    //
+    // THE RIGHT-HAND SIDE IS MATCHED WHOLE, not as a bare identifier. The first
+    // version of this assertion read /const el = ([A-Za-z_$][\w$]*);/ and a
+    // negative control walked straight through it: `const el = rows[0].labelInput;`
+    // simply did not match, the alias vanished from the list, and `.every()`
+    // passed over what was left. A gate that stops seeing the thing it checks
+    // when that thing gets more complicated is the vacuity class this file
+    // already catches three times elsewhere — found here by a control rather
+    // than reasoned about, which is why the controls are run at all.
+    const VENUE_EL_ALIASES = new Set(['venueNameNode', 'presetCurrentNode']);
+    const venueAliases = [...venueSrc.matchAll(/const el = ([^;\n]+);/g)].map(m => m[1].trim());
+    check(venueAliases.length > 0,
+        `[non-vacuity] venue.js does alias \`el\` — ${venueAliases.length} site(s)`);
+    check(venueAliases.every(a => VENUE_EL_ALIASES.has(a)),
+        `venue.js aliases \`el\` only to a known value node — {${[...new Set(venueAliases)].join(', ')}}`);
+
+    // A value receiver must never bind a node that is ALSO a label. If one did,
+    // the mirror and the value write would fight and the last writer would win
+    // — which is the original bug wearing the new mechanism's clothes.
+    const keyedIds = new Set([...htmlNoComments.matchAll(/<[^>]*\bid="([^"]+)"[^>]*\bdata-i18n=/g)].map(m => m[1]));
+    const alsoKeyed = [...S.appJs.matchAll(/const (?:el|value|earOut|srcOut|delayUnitNode) = document\.getElementById\("([^"]+)"\)/g)]
+        .map(m => m[1]).filter(id => keyedIds.has(id));
+    check(alsoKeyed.length === 0,
+        'no dedicated value receiver binds an element that also carries data-i18n'
+        + (alsoKeyed.length ? ` — ${alsoKeyed.join(', ')}` : ''));
+
+    // ── (f) the labels themselves carry authored text ────────────────────
     const LABEL_CLASSES = ['cell-label', 'w-label', 'group-title', 'screen-tab',
                            'readout-label', 'caption-key', 'glyph-num', 'safe-tag',
                            'map-tag', 'vcol-head', 'vcell-num'];
     for (const cls of LABEL_CLASSES) {
-        const re = new RegExp(`class="[^"]*\\b${cls}\\b[^"]*"[^>]*>\\s*([^<\\s][^<]*)`, 'g');
+        const re = new RegExp(`class="[^"]*\\b${cls}\\b[^"]*"[^>]*>\\s*(?:<span[^>]*>)?\\s*([^<\\s][^<]*)`, 'g');
         check([...S.html.matchAll(re)].length > 0, `.${cls} carries authored text in index.html`);
     }
 }

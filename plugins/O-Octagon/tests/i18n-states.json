@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Motion tab (the ten v1.8.0 motion captions)",
+    "click": "#gtab-motion"
+  },
+  {
+    "name": "Motion tab, path = Drift (the Seed caption is hidden on every other path)",
+    "eval": "(() => { const s = document.getElementById('ctl-motionPath'); const i = [...s.options].findIndex(o => o.textContent.trim() === 'Drift'); if (i < 0) throw new Error('no Drift choice in ctl-motionPath'); s.selectedIndex = i; s.dispatchEvent(new Event('change', { bubbles: true })); })();"
+  },
+  {
+    "name": "settings popover OPEN (language row, hover-help row, On/Off faces)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "speaker -> output popover (dblclick is the authored gesture, v1.1.0)",
+    "dblclick": "#glyph-1"
+  },
+  {
+    "name": "SAFE banner alone",
+    "eval": "window.__OCTAGON_STUB__.setMapInvalid('none', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, monitorArmed: false });"
+  },
+  {
+    "name": "MAP INVALID banner alone, with its reason and row (the setLabel map keys)",
+    "eval": "window.__OCTAGON_STUB__.setStatus({ safeMode: false, monitorArmed: false }); window.__OCTAGON_STUB__.setMapInvalid('labelNotInSet', 3);"
+  },
+  {
+    "name": "MONITOR banner alone (monitorAvailable is !safeMode && !mapInvalid, so it cannot stack with either)",
+    "eval": "window.__OCTAGON_STUB__.setMapInvalid('none', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: false, monitorAvailable: true, monitorArmed: true, monitorSuppressed: false });"
+  },
+  {
+    "name": "Venue screen (table head, rail, 48 speaker fields, monitor state line)",
+    "eval": "window.__OCTAGON_STUB__.setStatus({ safeMode: false, monitorArmed: false });",
+    "click": "#tab-venue"
+  }
+]

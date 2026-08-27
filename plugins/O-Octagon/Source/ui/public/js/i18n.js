@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Octagon hover-help copy, English + French (v1.6.0)
+// i18n.js — O-Octagon hover help AND page labels, English + French (v1.9.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -93,9 +93,9 @@ export const I18N = Object.freeze({
     },
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language this hover help is written in. English and French are available; the labels on the page itself do not change.' },
+              b: 'The language this hover help is written in. English and French are available; the labels on the page change with it, but numbers and unit symbols stay as they are.' },
         fr: { t: 'Langue',
-              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page elle-même ne changent pas.',
+              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page changent avec elle, mais les nombres et les symboles d’unité restent inchangés.',
               reviewed: false },
     },
     // ONE key covering both states, never a state-swapped pair. applyI18n()
@@ -224,9 +224,9 @@ export const I18N = Object.freeze({
     },
     'motionSync': {
         en: { t: 'Sync',
-              b: 'Free runs at the Rate in Hz. A division locks one cycle to the host beat — 1/4 is one cycle per bar at 4/4 — so a bounce is downbeat-aligned and repeatable; with the transport stopped the source rests where playback will resume.' },
+              b: 'Free runs at the Rate in Hz. A division locks one cycle to the host clock — 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed) — so a bounce is downbeat-aligned and repeatable; with the transport stopped the source rests where playback will resume.' },
         fr: { t: 'Synchro',
-              b: 'Libre suit la Vitesse en Hz. Une division cale un cycle sur la pulsation de l’hôte — 1/4 fait un cycle par mesure à 4/4 — de sorte qu’un export soit aligné sur le temps fort et reproductible ; transport arrêté, la source se pose là où la lecture reprendra.',
+              b: 'Libre suit la Vitesse en Hz. Une division cale un cycle sur l’horloge de l’hôte — 1/4 fait un cycle par temps, 1 mesure un cycle par quatre temps (4/4 supposé) — de sorte qu’un export soit aligné sur le temps fort et reproductible ; transport arrêté, la source se pose là où la lecture reprendra.',
               reviewed: false },
     },
     'motionRate': {
@@ -449,9 +449,9 @@ export const I18N = Object.freeze({
     },
     'preset-list': {
         en: { t: 'Preset',
-              b: 'Musical presets carry the 17 parameters and the four user scenes — never the 42 measured venue values.' },
+              b: 'Musical presets carry the 28 parameters and the four user scenes — never the 42 measured venue values.' },
         fr: { t: 'Préréglage',
-              b: 'Les préréglages musicaux contiennent les 17 paramètres et les quatre scènes utilisateur — jamais les 42 valeurs mesurées du lieu.',
+              b: 'Les préréglages musicaux contiennent les 28 paramètres et les quatre scènes utilisateur — jamais les 42 valeurs mesurées du lieu.',
               reviewed: false },
     },
     'preset-save': {
@@ -533,6 +533,298 @@ export const I18N = Object.freeze({
 // `vars` is static data. A var value is substituted literally by tr() unless it
 // is itself an I18N key, in which case it resolves against the CURRENT
 // language; O-Octagon's two parameterised entries both take a plain number.
+// ============================================================================
+// LABELS — the page's own captions, English + French (canon v2, v1.9.0)
+//
+// Separate from I18N because the two tables answer different questions. I18N
+// holds hover-help: a TITLE and a BODY, prose, read only when the pointer
+// rests. LABELS holds the words printed ON the control — one string, no body,
+// and every one of them occupies a box whose width the layout depends on.
+//
+// trLabel() falls back to I18N, so a control whose tooltip TITLE already IS its
+// label carries ONE key rather than two copies of the same string in two tables
+// drifting apart. THE REUSE RULE, settled in Stage F and applied here: a label
+// reuses a tooltip key only where the string is right in BOTH languages. An
+// English-only match is not enough — #ctl-rolloff's tip title is
+// "Atténuation" (11 chars) where the 72 px cell needs "Décroiss.", so it gets
+// its own entry rather than a reused one. Reusing there would make every future
+// tooltip copy edit a silent geometry change to a control.
+//
+// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
+// speaker has read one. Entries whose French was chosen with WIDTH as a
+// constraint say so at the entry — those are the ones a reviewer should
+// challenge first.
+//
+// EVERY `en` VALUE WAS MOVED, NEVER RE-TYPED: each came out of
+// scripts/i18n-extract.js's inventory of index.html, and the generated table
+// was compared back against the markup before it was pasted.
+// ============================================================================
+
+// The eight speaker rows in the Venue table carry six accessible names each,
+// and the eight weight cells one each — 56 of this plugin's 89 aria-labels.
+// GENERATED FROM A TEMPLATE, not transcribed 56 times, for the reason §21 of
+// ui_frontend_check gives about the module registry: a transcribed list is a
+// list that goes stale in one row and passes every gate.
+//
+// They are generated rather than carrying one parameterised key with {n},
+// because canon v2's applyI18nAttributes() calls trLabel(key, lang, null) —
+// an ATTRIBUTE sweep has no vars argument. A {n} key would render the literal
+// "Speaker {n} X metres" into the accessible name, which is worse than English.
+// The eight speaker rows in the Venue table carry six accessible names each,
+// and the eight weight cells one each — 56 of this plugin's 89 aria-labels.
+// GENERATED FROM A TEMPLATE, not transcribed 56 times, for the reason §21 of
+// ui_frontend_check gives about the module registry: a transcribed list is a
+// list that goes stale in one row and passes every gate.
+//
+// They are generated rather than carrying ONE parameterised key with {n},
+// because canon v2's applyI18nAttributes() calls trLabel(key, lang, null) — an
+// ATTRIBUTE sweep has no vars argument. A {n} key would put the literal
+// "Speaker {n} X metres" into the accessible name, which is worse than English.
+//
+// THE GENERATORS LIVE INSIDE THE EXPORT DECLARATION, not above it. assertion 7
+// of scripts/check-i18n.js bans every top-level statement here that is not an
+// export, and it is right to: this module must never self-execute
+// (pattern_module_toplevel_init_tdz). A top-level `const f = (n) => [...]` is
+// inert in fact, but "this particular top-level statement is harmless" is the
+// judgement the rule exists to refuse.
+
+export const LABELS = Object.freeze({
+
+    // ...spread in, so the whole table is still ONE export declaration.
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    // The product name itself is I18N_EXEMPT; only the strapline is localized.
+    'label.subtitle':    { en: { t: 'Eight · Channel DBAP' },
+                           fr: { t: 'DBAP · Huit canaux', reviewed: false } },
+    'aria.screens':      { en: { t: 'Screen' },  fr: { t: 'Écran', reviewed: false } },
+
+    // ── Settings popover ────────────────────────────────────────────────────
+    // 'lang-select', 'tips-toggle' and 'settings' come from I18N through
+    // trLabel's fallback: their tooltip titles ARE these captions, in both
+    // languages. The two BUTTON faces do not — a tip title of "Hover help"
+    // is not the word printed on the On button.
+    'aria.lang-select':  { en: { t: 'Hover help language' },
+                           fr: { t: 'Langue de l’aide au survol', reviewed: false } },
+    'label.on':          { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },
+    'label.off':         { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: false } },
+
+    // ── The three frame banners ─────────────────────────────────────────────
+    // The TAGS are small-caps badges in a fixed-width slot, so each French tag
+    // was chosen to sit inside the English one's box wherever it could.
+    'label.safe-tag':    { en: { t: 'SAFE' },    fr: { t: 'REPLI',    reviewed: false } },
+    'label.safe-copy':   { en: { t: 'Stereo fold — not the 8 · channel rig' },
+                           fr: { t: 'Repli stéréo — pas le dispositif à 8 · canaux', reviewed: false } },
+    'label.map-tag':     { en: { t: 'MAP' },     fr: { t: 'AFFECT.',  reviewed: false } },
+    'label.monitor-tag': { en: { t: 'MONITOR' }, fr: { t: 'CONTRÔLE', reviewed: false } },
+
+    // The MAP banner's copy half. C++ sends a REASON CODE, never prose — see
+    // MAP_REASON_COPY's replacement in app.js — so each code gets two entries:
+    // one bare, one naming the row. TWO KEYS RATHER THAN A {n} THAT IS
+    // SOMETIMES ABSENT, because contract §6 authors around the inflection
+    // instead of engineering it, and because assertion 13 rejects the ternary
+    // that a single key would need at its call site.
+    'map.notEightChannels':     { en: { t: 'output set is not 8 channels' },
+                                  fr: { t: 'le jeu de sorties n’a pas 8 canaux', reviewed: false } },
+    'map.notEightChannels.spk': { en: { t: 'output set is not 8 channels — speaker {n}' },
+                                  fr: { t: 'le jeu de sorties n’a pas 8 canaux — haut-parleur {n}', reviewed: false } },
+    'map.labelNotInSet':        { en: { t: 'label not in the negotiated set' },
+                                  fr: { t: 'libellé absent du jeu négocié', reviewed: false } },
+    'map.labelNotInSet.spk':    { en: { t: 'label not in the negotiated set — speaker {n}' },
+                                  fr: { t: 'libellé absent du jeu négocié — haut-parleur {n}', reviewed: false } },
+    'map.duplicateLabel':       { en: { t: 'duplicate label' },
+                                  fr: { t: 'libellé en double', reviewed: false } },
+    'map.duplicateLabel.spk':   { en: { t: 'duplicate label — speaker {n}' },
+                                  fr: { t: 'libellé en double — haut-parleur {n}', reviewed: false } },
+
+    // The MONITOR banner's copy half and the Venue rail's state line. Both are
+    // written by renderMonitor() through setLabel(), so the language sweep owns
+    // them: through v1.8.0 they were JS literals, which would have left the
+    // banner stranded in English the instant the selector fired mid-fold.
+    'monitor.folding':     { en: { t: 'Headphone fold — rig outputs muted' },
+                             fr: { t: 'Repli casque — sorties du dispositif coupées', reviewed: false } },
+    // WIDTH, and it is the widest string on the whole page. The full form
+    // "Désactivé pour l’export hors ligne — l’export est propre" measures
+    // 370.8 px against the English 311.2, which puts the banner at 461.7 in a
+    // 1100 px header that already carries the title, the tab pair and the gear.
+    // Shortened ONCE, here, in the table — never chosen at runtime (D-04).
+    'monitor.suppressed':  { en: { t: 'Suppressed for offline render — bounce is clean' },
+                             fr: { t: 'Désactivé hors ligne — l’export est propre', reviewed: false } },
+    'monitor.unavailable': { en: { t: 'unavailable on this output' },
+                             fr: { t: 'indisponible sur cette sortie', reviewed: false } },
+    'monitor.armed':       { en: { t: 'armed — suppressed offline' },
+                             fr: { t: 'armé — désactivé hors ligne', reviewed: false } },
+    'monitor.folding.rail':{ en: { t: 'folding to outputs 1–2' },
+                             fr: { t: 'repli vers les sorties 1–2', reviewed: false } },
+    'monitor.off':         { en: { t: 'off' }, fr: { t: 'désactivé', reviewed: false } },
+
+    // ── Room screen: the plan, the puck, the weights ────────────────────────
+    'aria.puck':         { en: { t: 'Source position' },
+                           fr: { t: 'Position de la source', reviewed: false } },
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
+        [`aria.w${n}`, { en: { t: `Weight ${n}` },
+                         fr: { t: `Poids ${n}`, reviewed: false } }],
+    ])),
+
+    // The speaker→output popover.
+    'label.speaker':     { en: { t: 'Speaker' },  fr: { t: 'H.-parleur', reviewed: false } },
+    // WIDTH: the caption sits in a 3-part title line inside a 168 px popover;
+    // "Haut-parleur" is the correct full form and is used everywhere it fits.
+    'label.to-output':   { en: { t: '→ output' }, fr: { t: '→ sortie', reviewed: false } },
+    'label.out-pop-note':{ en: { t: 'CoreAudio order · confirm with ping' },
+                           fr: { t: 'Ordre CoreAudio · à confirmer par le bip', reviewed: false } },
+
+    // The plan caption. "Plan" is the same word in both languages.
+    'label.plan':        { en: { t: 'Plan' },  fr: { t: 'Plan', sameAsEn: true, reviewed: false } },
+    'label.field':       { en: { t: 'Field' }, fr: { t: 'Champ', reviewed: false } },
+
+    // ── Controls column ─────────────────────────────────────────────────────
+    'aria.gtabs':        { en: { t: 'Position or Motion' },
+                           fr: { t: 'Position ou mouvement', reviewed: false } },
+    // 'gtab-position', 'gtab-motion', 'srcX', 'srcY', 'srcZ', 'width',
+    // 'decorr', 'motionOn', 'motionPath', 'motionSync', 'motionRate',
+    // 'motionSize', 'motionRatio', 'motionAngle', 'motionHeight',
+    // 'motionPhase', 'motionSeed', 'blur', 'airAmount' and 'outputGain' all
+    // reuse their I18N tip title: identical in BOTH languages, and every one
+    // fits its cell.
+    //
+    // These do NOT reuse, and each says why.
+    // WIDTH: "Atténuation" is 11 characters in a 72 px cell that holds 9.
+    'label.rolloff':     { en: { t: 'Rolloff' },    fr: { t: 'Décroiss.', reviewed: false } },
+    // THE REUSE RULE, applied. The tip title for motionPath is "Trajectoire",
+    // which is right for a sentence and 66.7 px in a caption track that reaches
+    // 52 even after this version widened it. "Tracé" is the better caption in
+    // its own right — the plugin's own English internals call this the TRACE
+    // (refreshTrace, TRACE_SHAPE_IDS) — so this is a case where the width
+    // constraint and the better French agree, which is the only kind of
+    // width-driven wording that should not worry a reviewer. Same shape as
+    // Stage F's "Suivi tonal", and it is recorded here for the same reason. */
+    'label.motionPath':  { en: { t: 'Path' },       fr: { t: 'Tracé', reviewed: false } },
+    // The tip title is the full "Hull attenuation"; the cell carries the
+    // abbreviation the English markup already used.
+    'label.hullAtten':   { en: { t: 'Hull Atten' }, fr: { t: 'Att. env.', reviewed: false } },
+    'aria.hullAtten':    { en: { t: 'Hull Atten' },
+                           fr: { t: 'Atténuation hors enveloppe', reviewed: false } },
+
+    // Group headings. None of these has a tooltip of its own.
+    'label.group.solve':   { en: { t: 'Solve' },    fr: { t: 'Calcul', reviewed: false } },
+    'label.group.space':   { en: { t: 'Space' },    fr: { t: 'Espace', reviewed: false } },
+    'label.group.output':  { en: { t: 'Output' },   fr: { t: 'Sortie', reviewed: false } },
+    'label.group.scenes':  { en: { t: 'Scenes' },   fr: { t: 'Scènes', reviewed: false } },
+
+    // ── Scenes row ──────────────────────────────────────────────────────────
+    // UPPERCASE IS AUTHORED, not a text-transform: these seven captions are the
+    // literal strings §36 of ui_frontend_check greps for as `>ALL<`, so the
+    // French halves are authored uppercase too rather than relying on CSS that
+    // is not there.
+    'aria.scene-store':  { en: { t: 'Arm store' },     fr: { t: 'Armer la mémorisation', reviewed: false } },
+    'aria.scene-row':    { en: { t: 'Weight scenes' }, fr: { t: 'Scènes de poids', reviewed: false } },
+    'label.store':       { en: { t: 'STORE' }, fr: { t: 'MÉM.',   reviewed: false } },
+    'label.all':         { en: { t: 'ALL' },   fr: { t: 'TOUS',   reviewed: false } },
+    'label.front':       { en: { t: 'FRONT' }, fr: { t: 'AVANT',  reviewed: false } },
+    'label.rear':        { en: { t: 'REAR' },  fr: { t: 'ARR.',   reviewed: false } },
+    'label.left':        { en: { t: 'LEFT' },  fr: { t: 'GAUCHE', reviewed: false } },
+    'label.right':       { en: { t: 'RIGHT' }, fr: { t: 'DROITE', reviewed: false } },
+    'label.sides':       { en: { t: 'SIDES' }, fr: { t: 'CÔTÉS',  reviewed: false } },
+
+    // ── Elevation strip ─────────────────────────────────────────────────────
+    'label.ear':         { en: { t: 'Ear' },    fr: { t: 'Oreille', reviewed: false } },
+    'label.source':      { en: { t: 'Source' }, fr: { t: 'Source', sameAsEn: true, reviewed: false } },
+    'label.envelope':    { en: { t: 'Envelope' }, fr: { t: 'Enveloppe', reviewed: false } },
+
+    // ── Venue screen: the table head ────────────────────────────────────────
+    'label.vcol.label':  { en: { t: 'Label' },   fr: { t: 'Libellé', reviewed: false } },
+    'label.vcol.trim':   { en: { t: 'Trim dB' }, fr: { t: 'Corr. dB', reviewed: false } },
+    // SPLIT OUT OF ITS <th>. The header cell holds this caption AND the
+    // #vcol-delay-unit value span, so the caption needed its own leaf: a keyed
+    // element with element children would have its siblings deleted by
+    // applyLabel's textContent write. §6 of ui_frontend_check asserts the split.
+    'label.vcol.delay':  { en: { t: 'Delay' },   fr: { t: 'Retard', reviewed: false } },
+    'label.vcol.class':  { en: { t: 'Class' },   fr: { t: 'Classe', reviewed: false } },
+
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
+        [`aria.spk${n}.label`, { en: { t: `Speaker ${n} channel label` },
+                                 fr: { t: `Libellé de canal du haut-parleur ${n}`, reviewed: false } }],
+        [`aria.spk${n}.x`,     { en: { t: `Speaker ${n} X metres` },
+                                 fr: { t: `Haut-parleur ${n}, X en mètres`, reviewed: false } }],
+        [`aria.spk${n}.y`,     { en: { t: `Speaker ${n} Y metres` },
+                                 fr: { t: `Haut-parleur ${n}, Y en mètres`, reviewed: false } }],
+        [`aria.spk${n}.z`,     { en: { t: `Speaker ${n} Z metres` },
+                                 fr: { t: `Haut-parleur ${n}, Z en mètres`, reviewed: false } }],
+        [`aria.spk${n}.trim`,  { en: { t: `Speaker ${n} trim dB` },
+                                 fr: { t: `Haut-parleur ${n}, correction en dB`, reviewed: false } }],
+        [`aria.spk${n}.delay`, { en: { t: `Speaker ${n} alignment delay` },
+                                 fr: { t: `Haut-parleur ${n}, retard d’alignement`, reviewed: false } }],
+    ])),
+
+    // ── Venue screen: the rail ──────────────────────────────────────────────
+    'aria.rake-front':   { en: { t: 'Rake front metres' },
+                           fr: { t: 'Inclinaison, avant en mètres', reviewed: false } },
+    'aria.rake-rear':    { en: { t: 'Rake rear metres' },
+                           fr: { t: 'Inclinaison, arrière en mètres', reviewed: false } },
+    // The rake row's two keys are Title Case where the scenes row is uppercase,
+    // and they are different words in French too, so they are separate keys.
+    'label.rake-front':  { en: { t: 'Front' }, fr: { t: 'Avant',   reviewed: false } },
+    'label.rake-rear':   { en: { t: 'Rear' },  fr: { t: 'Arrière', reviewed: false } },
+    // The tip title is the full "Alignment delay"; the rail caption is short.
+    'label.delay':       { en: { t: 'Delay' },  fr: { t: 'Retard', reviewed: false } },
+    'label.derive':      { en: { t: 'Derive' }, fr: { t: 'Calculer', reviewed: false } },
+    // The tip title is "Output set"; the caption is the one word.
+    'label.set':         { en: { t: 'Set' },    fr: { t: 'Jeu', reviewed: false } },
+
+    'label.group.venue-file':   { en: { t: 'Venue file' },
+                                  fr: { t: 'Fichier de lieu', reviewed: false } },
+    'label.group.preset':       { en: { t: 'Preset' },  fr: { t: 'Préréglage', reviewed: false } },
+    'label.group.output-order': { en: { t: 'Output order' },
+                                  fr: { t: 'Ordre des sorties', reviewed: false } },
+    'label.group.ping':         { en: { t: 'Ping' },    fr: { t: 'Bip', reviewed: false } },
+    'label.group.monitor':      { en: { t: 'Monitor' }, fr: { t: 'Contrôle', reviewed: false } },
+
+    // WIDTH, on all three buttons: the venue and preset rows put two buttons
+    // side by side in a 168 px rail. "Enregistrer" measures 90.1 px against
+    // Save's 40.6 — the same growth Stage H sized on three other plugins, and
+    // the same two abbreviations were chosen, deliberately, so the suite reads
+    // consistently. A reviewer who dislikes them should change all four plugins.
+    'label.save':        { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: false } },
+    'label.load':        { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: false } },
+    'label.auto':        { en: { t: 'Auto' },   fr: { t: 'Auto', sameAsEn: true, reviewed: false } },
+    'label.headphones':  { en: { t: 'Headphones' }, fr: { t: 'Casque', reviewed: false } },
+
+    // The output-order advisory line, written by venue.js on the completion of
+    // applyOutputOrderPreset. Localized through window.__setLabel for the same
+    // reason the monitor line is: an English literal here is stranded English.
+    'oo.direct':         { en: { t: 'direct 1–8' }, fr: { t: 'direct 1–8', sameAsEn: true, reviewed: false } },
+    'oo.roles':          { en: { t: 'roles' },   fr: { t: 'rôles', reviewed: false } },
+});
+
+// ============================================================================
+// I18N_EXEMPT — reasoned exclusions, never silence
+//
+// Every visible string the coverage scan finds must be a [data-i18n] element, a
+// setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let a
+// missed label hide as a deliberate one, which is the failure this plugin's own
+// §6 whitelist was already guarding against in a different form.
+// ============================================================================
+
+export const I18N_EXEMPT = [
+    // The product name, split across the <h1>'s own text node and the italic
+    // .title-accent span, so both halves need an entry. The markup authors HAIR
+    // SPACES around the en dash (&#8202;), but the scanner collapses every
+    // whitespace run to one U+0020 before it classifies, so these entries carry
+    // ORDINARY spaces — exempting the as-authored form would silently fail to
+    // match and report the product name as an unlocalized label.
+    ['O – Octa', 'half of the product name O–Octagon — a product name is never translated'],
+    ['gon',      'the italic half of the product name O–Octagon, in .title-accent'],
+
+    // Unit symbols. D-03: a readout and its unit are language-neutral, and the
+    // ms/m pair is a TOGGLE whose two faces are the symbols themselves.
+    ['ms', 'unit symbol, language-neutral (D-03) — the Delay column head and the ms/m toggle'],
+    ['m',  'unit symbol, language-neutral (D-03) — the metres face of the ms/m toggle'],
+
+    // Endonyms.
+    ['English',  'endonym — a language name is never translated'],
+    ['Français', 'endonym — a language name is never translated'],
+];
+
 export const TIP_BINDINGS = [
     ['#tab-room',              'tab-room'],
     ['#tab-venue',             'tab-venue'],

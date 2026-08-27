@@ -1,5 +1,114 @@
 # O-Octagon Changelog
 
+## v1.9.0 (2026-08-27)
+
+**The PAGE speaks French, not only the hover help.** O-Octagon has offered a French/English
+selector since v1.6.0, and its own `lang-select` tooltip told the user, in both languages, that
+"the labels on the page itself do not change". That was true and it was the wrong thing to be
+true. This version localizes the page: **84 captions, 89 accessible names and 12 script-written
+strings**, on canon v2 — the same contract O-Tapestop, O-MultiBandCompressor, O-Bitrot and
+O-ReverseDelay already carry. All five shipped plugins are now on canon v2, and
+`check-i18n --strict-v2` passes repo-wide for the first time.
+
+Numbers do not move: a readout is never a `[data-i18n]` element, and `ms`, `m` and every metre
+value read identically in both languages.
+
+### The mechanism
+
+- **A label is owned by its element**, through `data-i18n="key"` on a LEAF element, with the
+  authored English left in the markup as the fallback that renders if `applyI18n()` never runs.
+- **`applyLabel()` writes `textContent` AND `dataset.label` together.** That mirror is the
+  systemic answer to `pattern_js_state_updater_overwrites_html_labels`: an element carries its
+  own record of what its caption should be, so "no state updater erased a label" becomes a
+  checkable invariant rather than a convention.
+- **A script-written caption declares its own key** through `setLabel(el, 'literal.key')` and
+  becomes a `[data-i18n]` element from that moment, so the language sweep owns it. Two-state
+  captions are two calls behind an `if`/`else`, never one call with a ternary.
+- **`aria-label` is keyed** through `data-i18n-aria`. All 89 are keyed; **56 of them are
+  generated from a template** rather than transcribed, because the attribute sweep has no `vars`
+  argument and eight speaker rows × six accessible names is a list that goes stale in one row.
+- Zero native `title=` attributes remain, and `I18N_EXEMPT` carries the six reasoned exclusions
+  (the product name's two halves, `ms`, `m`, and the two language endonyms).
+
+### `tests/ui_frontend_check.js` §6 was REWRITTEN, and the old shape was about to pass vacuously
+
+§6 asserts that no `textContent` write erases an HTML-authored label. It did that with an explicit
+whitelist of receiver identifiers, reviewed when it grew.
+
+Canon v2 makes `applyLabel()` a `textContent` writer for **every** label on the page — and the
+whitelist did not grow at all, because `applyLabel` takes its element as a parameter named `el`
+and `el` was already whitelisted for the map-banner copy. The single largest `textContent` writer
+ever added to this page walked straight through and the gate reported nothing.
+
+Growing the whitelist by 84 entries was the alternative and is worse: it asserts "these
+identifiers may write", which is not the property. §6 now understands the mirror. A write is
+legitimate when it is one half of a `dataset.label` / `textContent` pair written from the SAME
+expression, or an explicit mirror teardown (`delete el.dataset.i18n; delete el.dataset.label;`
+before printing a raw C++ diagnostic code), or a freshly created node, or one of the remaining
+dedicated value receivers. It also now asserts that no keyed element has element children —
+`applyLabel` writes `textContent` and would delete them — which is why the Delay column head was
+**split** into a keyed caption span beside its unit value span.
+
+**The whitelist SHRANK by two.** `monitorCopy` and `monitorNode` were added at v1.7.0 only because
+there was no route for a state-dependent caption; both are `setLabel()` calls now.
+
+### Layout — measured at the shipping 1100 × 720, both languages
+
+Before the CSS work, **four** non-label elements moved between English and French — the fewest of
+the five plugins localized so far, which is what the roomiest frame in the suite should produce.
+Driving the eight page states the gate can now reach (Motion tab, Drift path, settings popover,
+the speaker→output popover, the three banners individually, the Venue screen) raised that to
+**twelve** across all states. Every one traces to a shrink-to-fit container:
+
+| Fixed | Measured cause |
+|---|---|
+| `.screen-tab { min-width: 84px }` | VENUE 80.4 → LIEU 64.5 slid the right-anchored nav 15.7 px |
+| `.scene-btn { padding: 6px 3px }` | GAUCHE / DROITE 38.5 in a 36.2 px content box, in a 10-column 1fr grid with no cell to spare |
+| `.cell-dense` caption track 44 → 52 px | MARCHE 45.4, SYNCHRO 49.7, VITESSE 45.1 all overran 44 |
+| `.settings-unit` 36 → 44 px | MARCHE 39.7 in a 34 px content box |
+| `.elev-readouts .cell-label { min-width: 46px }` | Ear 21.0 → Oreille 43.3 dragged the strip 22.4 px |
+| `.caption-field { min-width: 50px }` | FIELD 40.1 → CHAMP 48.2 moved `#field-legend` 8.1 px |
+| `#readout-label-envelope { min-width: 82px }` | ENVELOPE 71.5 → ENVELOPPE 79.6 |
+| `.safe-banner` 184, `.map-banner` 396, `.monitor-banner` 400 px | the three banners are shrink-to-fit in the header flex, so a copy line that grows slides the nav AND the gear |
+| `.venue-rake / .venue-delay > .cell-label` 42 → 70 px | RAKE 42.0 → INCLINAISON 69.4 |
+| `.vcol-head > [data-i18n] { min-width: 38px }` | DELAY 30.7 → RETARD 36.8 slid the unit span |
+| `.venue-head > .cell-label { min-width: 40px }` | VENUE 37.8 → LIEU 27.2 — a caption that gets SHORTER moves its neighbour too |
+| `#btn-scene-store { min-width: 46px }` | STORE 44.1 → MÉM. 37.7; a keyed label, so the geometry diff excludes it by design and this was found by measuring |
+
+Nine of these change ENGLISH geometry as well. That is the trade D-04 asks for: French is sized,
+never shrunk, and the only box two languages can share is the wider one.
+
+**Two French strings were shortened once, in the table, never at runtime.** `Trajectoire` (66.7 px,
+the tooltip's wording) became **`Tracé`** as the Path caption — which is also what this plugin's own
+English internals call it (`refreshTrace`, `TRACE_SHAPE_IDS`). The monitor's suppressed-render copy
+went from 370.8 px to `Désactivé hors ligne — l'export est propre`, because the full form put the
+banner at 461.7 px in a header that also carries the title, the tab pair and the gear.
+
+### Fixed
+
+- **The `lang-select` tooltip no longer lies.** In both languages it said the page labels do not
+  change. It now says they do, and that numbers and unit symbols do not.
+- **The preset tooltip said "17 parameters".** The real figure is 28 —
+  `oo::params::kCount`, static-asserted in `DSP/GainStage.h:79`. It has been wrong since v1.8.0
+  added the ten motion parameters. Corrected in both languages.
+
+### Verification
+
+`ui_frontend_check.js` 43 sections, `ui_layout_check.js` 31 sections, `check-i18n --plugin` (canon
+v2), `check-i18n --strict-v2` repo-wide, `check-ui-labels --plugin` (84/84 labels measured across
+9 states, zero geometry shifts), `boot-all-uis.js` (clean; `title=0 aria=89 i18n=84`),
+`O-Octagon-geometry-test` 57 probes and `O-Octagon-render-test` 73 probes from a fresh
+`-DOUARICON_BUILD_TESTS=ON` configure, `auval -v aufx OuOc OuDv`.
+
+**Twenty-six negative controls, all twenty-six fired** — including one that did not, at first: the
+new `venue.js` alias assertion matched only a bare identifier right-hand side, so
+`const el = rows[0].labelInput;` slipped past it. Widened to match the whole RHS, then re-run.
+
+**All 184 French entries are machine drafts, every one `reviewed: false`.** No native speaker has
+read one. The language round-trip through the C++ APVTS has still never been executed by hand.
+
+---
+
 ## v1.8.0 (2026-08-27)
 
 **Motion engine — generative trajectories for the source puck.** Closes the last HIGH-priority gap
