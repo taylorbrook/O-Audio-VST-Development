@@ -207,6 +207,16 @@ const PROBE = () => {
                 return rng.getBoundingClientRect().width;
             })(),
             contentWidth: el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+            // clientWidth is DEFINED as 0 for a non-replaced inline element —
+            // an inline box has no content box of its own, it is a run of line
+            // boxes. Comparing a Range width against it therefore reports every
+            // inline label as spilling, in ENGLISH, on correct markup:
+            // O-Bitrot's nine panel captions are `<span>`s inside a
+            // `white-space: nowrap` caption and fired all nine. The spill check
+            // skips them and SAYS SO rather than quietly passing; assertions 5,
+            // 6 and 7 still measure their rects, so the label is not unwatched
+            // — only this one check cannot express itself about it.
+            inlineBox: cs.display === 'inline',
             parentPad: parent ? (() => {
                 const pcs = getComputedStyle(parent);
                 const pb = parent.getBoundingClientRect();
@@ -448,9 +458,16 @@ const overlaps = (a, b) =>
             // than its clientWidth, so the check above passes on a label whose
             // text is spilling out of its button in plain sight. This one
             // measures the text and asks whether it fits.
-            const spilling = snaps[lang].before.labels.filter((l) =>
-                l.visible && l.leaf && l.textWidth != null
-                && l.textWidth > l.contentWidth + 0.5);
+            const spillable = snaps[lang].before.labels.filter((l) =>
+                l.visible && l.leaf && l.textWidth != null && !l.inlineBox);
+            const skippedInline = snaps[lang].before.labels.filter((l) =>
+                l.visible && l.leaf && l.textWidth != null && l.inlineBox);
+            if (lang === 'en' && skippedInline.length)
+                console.log(`   NOTE: [4] ${skippedInline.length} label(s) are non-replaced INLINE boxes, `
+                    + 'which have no content box of their own (clientWidth is 0 by definition). '
+                    + 'The text-spill check cannot express itself about them and skips them; '
+                    + `assertions 5, 6 and 7 still measure their rects: ${skippedInline.slice(0, 5).map((l) => l.key).join(', ')}`);
+            const spilling = spillable.filter((l) => l.textWidth > l.contentWidth + 0.5);
             check(spilling.length === 0,
                 `[4][${lang}] no leaf label's TEXT is wider than its own content box `
                 + `(the case overflow:visible hides from scrollWidth)`
