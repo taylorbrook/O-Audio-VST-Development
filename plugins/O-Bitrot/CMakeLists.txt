@@ -8,7 +8,7 @@ juce_add_plugin(OBitrot
     PLUGIN_CODE OBrt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bitrot${OUARICON_DEV_SUFFIX}"
-    VERSION 1.13.0
+    VERSION 1.14.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_WEB_BROWSER TRUE
@@ -101,6 +101,12 @@ ouaricon_add_module(OBitrot preset-manager)
 juce_add_binary_data(OBitrot_UIResources
     SOURCES
         Source/ui/public/index.html
+        # v1.14.0 — hover-help copy, English + French. NO HYPHEN in the
+        # filename: juce_add_binary_data STRIPS hyphens rather than converting
+        # them to underscores (critical_binary_data_strips_hyphens), so one
+        # combined file for both languages sidesteps the question a second
+        # i18n-fr.js would have raised. Symbol: BinaryData::i18n_js.
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
