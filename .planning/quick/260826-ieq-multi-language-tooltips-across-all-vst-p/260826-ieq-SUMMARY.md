@@ -3,9 +3,9 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E]
-stages_remaining: [F, G, H, I, J, K, L, M]
-stopped_at: "End of Stage E (T6-T9). Four repo-level tools shipped, NO plugin touched. Stages F, G, H are approved but are separate dispatches; do NOT stop here for long — Stage E leaves canon v2 in the tree with zero plugins on it."
+stages_complete: [A, B, C, D, E, F]
+stages_remaining: [G, H, I, J, K, L, M]
+stopped_at: "End of Stage F (T10). O-Tapestop v1.6.0 is the first FULLY localized plugin and the label pattern-bearer. Stages G and H are approved but are separate dispatches. Checkpoint 4 is OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five."
 plugins_shipped:
   - name: O-MultiBandCompressor
     version: 1.10.0
@@ -20,8 +20,8 @@ plugins_shipped:
     version: 1.14.0
     commit: 1f3a9faa
   - name: O-Tapestop
-    version: 1.5.0
-    commit: 547f9738
+    version: 1.6.0
+    commit: 8b146dd3      # v1.6.0, Stage F — labels. v1.5.0 was 547f9738, tooltips only.
 subsystem: webview-ui / i18n
 tags: [i18n, tooltips, webview, juce, apvts-persistence]
 key-files:
@@ -1048,3 +1048,229 @@ Carry forward into Stage E:
   and hold them back rather than sweeping them in.
 - O-Contrabass's bridge count `:123` goes 34 → 36, and it should be checked for
   the quote-style trap before that count is bumped.
+
+
+---
+
+# Stage F — T10: the label pattern-bearer, O-Tapestop v1.6.0
+
+**Commits:** `92e5fdc9` (gate fixes, `scripts/`) then `8b146dd3`
+(`plugins/O-Tapestop` + `PLUGINS.md`). Two path-scoped commits, in that
+order, because the plugin cannot pass gates that are themselves wrong.
+
+O-Tapestop is now the first plugin in the suite whose **page** is French, not
+only its hover help. It is also the first on canon v2 (`check-i18n` split:
+v2 1, v1 4).
+
+## THE LABEL CONTRACT — this is what Stages G–L replicate
+
+Stated plainly, because 42 more plugins inherit it under a rule that forbids
+fixing it centrally afterwards.
+
+1. **A label is owned by its element**, via `data-i18n="key"` on a LEAF
+   element. The authored English stays in the markup as the fallback that
+   renders if `applyI18n()` never runs. An element with element children is
+   never keyed — `applyLabel()` writes `textContent` and would delete them.
+2. **`applyLabel()` writes `textContent` AND `dataset.label` together.** This
+   is the systemic answer to
+   `pattern_js_state_updater_overwrites_html_labels`. The documented repo fix
+   is that an updater reads `el.dataset.label ?? fallback`; writing both in
+   one place means the mirror is always in the CURRENT language, and it makes
+   the invariant checkable at render time rather than guarded by a whitelist.
+   `check-ui-labels` assertion 3 asserts `dataset.label === textContent`
+   after init, after a language switch, and after a state pass.
+3. **A script-written label declares its own key** through `setLabel(el,
+   'literal.key')`, becoming a `[data-i18n]` element that the sweep owns.
+   Two-state captions are **two calls behind an `if`/`else`**, never one call
+   with a ternary in its argument — `check-i18n` assertion 13 rejects that
+   shape, and it is what contract §6 authors around.
+4. **`aria-label` / `placeholder` / `alt` are keyed** through
+   `data-i18n-aria` etc. Native `title=` is **deleted**, not localized.
+5. **THE REUSE RULE, which the plan left open and this stage settles: a label
+   reuses a tooltip key only where the string is identical in BOTH
+   languages.** English-only matches are not enough. `#seg-sync-sync`'s tip
+   title is `Sync` / `Synchronisé`; the label needs `Sync` / `Synchro`,
+   because `SYNCHRONISÉ` is 90 px of type in a 66 px segment. Reusing there
+   would make every future tooltip copy edit a silent geometry change to a
+   control. Nine keys here qualified for reuse; the rest got their own.
+6. **French is sized, never shrunk.** One French string per key; nothing
+   chooses between variants at runtime. Where French did not fit, the fix was
+   the plugin's own CSS — except `Suivi tonal` over `Suivi de timbre` for
+   TONE TRACK, which was simply the better French and is recorded as such in
+   the table.
+
+## The plan's fact 3 was wrong, in the direction that mattered
+
+The plan chose O-Tapestop partly because it has **"zero JS-written prose, so
+Stage F proves the label mechanism without also proving `setLabel`"**, and
+gave `setLabel` to Stage H's MBC.
+
+`i18n-extract` found **four** JS-written prose sites: the hover-help toggle's
+`On`/`Off` face and the delete button's `Delete`/`Confirm?` face. They were
+not literals — they came from `data-on` / `data-off` / `data-confirm`
+attributes AUTHORED IN THE MARKUP, which is exactly the idiom the repo's own
+pattern note prescribes, and which is why a source scan for string literals
+in `app.js` missed them. **An attribute holds one string.** On a two-language
+page the off face would have been restored in English the instant the user
+picked Français.
+
+So Stage F proved `setLabel` after all. That is good news for Stage H — the
+mechanism is no longer unproven — but the estimate for **every** stage should
+now assume `setLabel` work, because the `data-*`-authored caption idiom is
+this repo's house style and appears wherever a caption swaps with state.
+Running the extractor rather than trusting the count is what caught it.
+
+## What the geometry diff found, and what was done about each
+
+Measured at the shipping 860 × 580 across 7 states. 26–30 non-label elements
+moved between English and French. D-04 forbids auto-shrink and short
+variants, so every fix spends slack the container already had.
+
+| Moved | By | Cause | Fix |
+|---|---|---|---|
+| both fleurons, both nav arrows, the 300 px preset readout | ±46.9 px | SAVE/LOAD/DELETE 188 px vs ENREGISTRER/CHARGER/SUPPRIMER 282 px, in a `justify-content:center` band | fixed button widths 108 / 84 / 96 |
+| `#pane-stop .stop-col:1`, dragging its combo and curve knob | dw +17.1, dx −9.2 | RALENTISSEMENT 105.1 px vs SPIN DOWN 66.1 px setting the column width | `#pane-stop .stop-col { width: 108px }` |
+| the env slot and `#knob-ENV_FREE_MS` | dx −31.0, dw −8.5 | three shrink-to-fit tracks over-ran the pane, so flex-shrink took the difference **out of the time slot** | fixed tracks 84 / 88 / 202, gap 12 = 398 |
+| `#pane-continuous .stop-col:1` | dw −1.1 | CARACTÈRE vs CHARACTER | first column pinned 72 px |
+| both footer fleurons | ~±70 px | caption 403.5 px vs 542.7 px | `.footer-text { width: 560px }` |
+
+**The env-row fix corrects an English bug too.** That time slot has been
+rendering 79.2 px against its designed 88 for as long as the row has existed.
+Nothing was measuring it. French did not cause it; French exposed it.
+
+**Nothing moved at all after the fixes** — and on the tightest frame in the
+suite that is a claim worth distrusting, so: it is credible *because* the
+fixes made every container in the paths that moved a fixed size. The diff is
+load-bearing on a shrink-to-fit layout and goes quiet once the layout is
+pinned. That is not the gate going blind — negative control NC-2 (an
+over-long French label) still fails the run — but it fails **assertion 8**,
+the overlap check, not assertion 7. On a pinned page the overlap and
+text-spill checks are the ones still doing work. Stages G–L should expect the
+same shift and should not read a silent assertion 7 as proof of anything on
+its own.
+
+## Three gate defects, found by running Stage E's tooling for real
+
+All three would have followed the tooling into 42 plugins.
+
+1. **`check-ui-labels` assertion 4 was blind to the overflow it exists to
+   catch.** A leaf whose computed `overflow` is `visible` reports
+   `scrollWidth === clientWidth` however far its text spills. PLEURAGE
+   (60.2 px) and ALÉATOIRE (63.8 px) sat outside their 58 px CHARACTER
+   segments with every assertion green. Fixed by measuring the rendered text
+   with a `Range`. Segments widened to 72 px.
+2. **Assertions 5 and 6 failed on O-Tapestop IN ENGLISH**, on two authored
+   layout facts: three `.group-label` legends are `position: absolute` and
+   deliberately straddle the panel border (9.0 px of intended overhang), and
+   a decorative `.botanical-overlay` runs 20 px past the frame so
+   `body.scrollWidth` reports 880 where `documentElement` reports 860. Both
+   are identical in both languages and **identical at the pre-retrofit
+   commit — measured, by rendering HEAD's files side by side, not assumed.**
+   The committed clamp gate asserts `documentElement` and passes; the plan
+   said that if the two tools disagree about O-Tapestop's geometry the tool
+   is wrong. Both assertions now measure the French delta and report the
+   English baseline.
+3. **`check-i18n` assertions 1, 4, 5 and the reviewer worklist read `I18N`
+   only.** All 39 French LABEL strings were invisible to every one: no en/fr
+   pair check, no passthrough check, no `reviewed` flag, and absent from the
+   worklist that exists precisely to mark machine drafts. Thirty-nine
+   unreviewed strings reported as zero is worse than no worklist, because it
+   reads as done. Worklist now splits tooltip and label counts; repo total
+   200 → 251.
+
+## Verification — every gate, individually
+
+| Gate | Result |
+|---|---|
+| `check-ui-labels.js --plugin O-Tapestop` | **exit 0**, all assertions, **46/46** labels measured visible across 7 states (was 26/46 before `i18n-states.json`) |
+| `check-i18n.js` (all 5 plugins) | **exit 0**; canon split **v2 1, v1 4**; `--strict-v2` still not the default |
+| `check-i18n.js --plugin O-Tapestop` | **exit 0**, reports canon **v2**, assertions 10–15 all run |
+| `tests/ui_tooltip_clamp_check.js` | **exit 0 — not 77.** 35 anchors, 13 clamped / 4 flipped per language, French +0 clamps +0 flips |
+| `tests/render-harness` (`O-Tapestop-render-test`) | **exit 0**, 69 probe checks, 0 failures |
+| `boot-all-uis.js` | 41/43 clean, **unchanged**. O-Tapestop: `title=0 aria=15 i18n=46` |
+| `./scripts/build-and-install.sh O-Tapestop` | VST3 + AU built and installed, AU cache cleared, dual-variant sweep ran |
+| `auval -v aufx OTsp OuDv` | **AU VALIDATION SUCCEEDED** |
+
+**Clamp count moved 12 → 13 per language.** The plan's done-criterion asked
+for Stage D's numbers unchanged and said a change means the label gate missed
+a movement. It did not: the fixed-width preset buttons move `#preset-delete`
+38 px right **in English**, which the label gate does not assert (it asserts
+en == fr, not en == previous-en). The change is identical in both languages,
+so it is a consequence of a deliberate English layout change, not an
+unreported French one. Anchor and flip counts are unchanged at 35 and 4.
+
+## Negative controls — ten, every one fired
+
+Each applied to a byte-exact backup and restored FROM THAT BACKUP; `git
+checkout --` would have wiped the uncommitted work alongside the mutation.
+Restores verified by sha256 after every round.
+
+| Mutation | Assertion that fired |
+|---|---|
+| revert the CHARACTER segment widening | `[4][fr]` text-spill, both segments named with widths |
+| an over-long French label | `[8]` new overlap (**not** `[7]` — see above) |
+| clobber `textContent` after `applyLabel` | `[3]` in both languages, `label="Enclencher" text="CLOBBERED"` |
+| stub `__setLanguage` to a no-op | `[2]` vacuity, `0/46 labels differ` |
+| a French label spilling more than English | `[5]` `9.0px -> 105.6px`, and `[6][fr]` frame crossing |
+| strip a LABELS `reviewed` flag | `[5]` LABELS |
+| a LABELS French entry copied from English | `[4]` LABELS |
+| a ternary inside a `setLabel` argument | `[13]` |
+| remove one `data-i18n` from the markup | `[10]`, plus `[15]` dead key |
+| reinstate a native `title=` | `[11]` |
+
+**A methodological note worth carrying.** The `reviewed`-flag control at
+first appeared NOT to fire. The assertion was fine; the mutation was a
+Python `str.replace` whose pattern did not match, and `str.replace` returns
+the string unchanged rather than raising. A silent no-op mutation is
+indistinguishable from a working gate. Every later control was written to
+print its substitution count and assert it is non-zero.
+
+## NOT VERIFIED — read this before Stage G
+
+- **THE C++ PERSISTENCE ROUND-TRIP HAS STILL NEVER BEEN RUN.** Checkpoint 4's
+  part (b) is outstanding and has been since Stage B. Every claim that a
+  language choice survives a session is REASONED from source, not measured.
+  Nothing in Stage F touched C++ and nothing in Stage F tested this.
+- **No human has seen the French UI.** All geometry is headless Chromium
+  through the plugin's own bridge stub. Whether `RALENTISSEMENT` at 10 px
+  uppercase reads well inside O-Tapestop's aesthetic — as opposed to merely
+  fitting — is Checkpoint 4 part (a) and is unanswered.
+- **The state-update pass is weaker than it reads.** `check-ui-labels`
+  reports `state-update pass driven via: events-only` on this plugin: it
+  drives real slider/toggle/combo states only where `window.__stubStates`
+  exists, which the GENERIC stub provides and O-Tapestop's own committed stub
+  does not. Assertion 3's "after a state pass" is therefore dispatched
+  `input`/`change` events, not driven parameter updates. It still caught the
+  clobber control, but it is not the full-strength check on the five plugins
+  with hand-written stubs.
+- **All 74 French strings are machine-drafted, `reviewed: false`.** No native
+  speaker has read one. Several are judgement calls a reviewer should
+  challenge: `Timing` → `Cadence`, `On`/`Off` → `Marche`/`Arrêt`, `Tone
+  Track` → `Suivi tonal` (chosen partly for width, and recorded as such).
+- **Windows / WebView2 remains a named deferral, blocked on hardware.** Every
+  width in the fix table was measured in Chromium on macOS. A French label
+  that fits at 860 px here may clip under WebView2's font metrics. Unchanged
+  by this stage; not retired by it.
+- **Nothing was tested in a DAW.** The plugin builds, installs and `auval`s;
+  it has not been opened in Logic or Ableton.
+- The generated inventory artifacts (`plugins/O-Tapestop/.planning/i18n-*`)
+  are left UNCOMMITTED. They are regenerable from `i18n-extract.js` and are
+  not part of the shipped plugin.
+
+## Carried into Stage G (O-Octagon)
+
+- **Another session is actively working inside `plugins/O-Octagon/` right
+  now**, including `Source/ui/public/js/i18n.js`, `tests/ui_frontend_check.js`
+  and `tests/ui_layout_check.js`. Stage G must reconcile with it before
+  starting, not after.
+- **Run `i18n-extract` before trusting any per-plugin count in the plan.** It
+  was wrong about O-Tapestop's JS prose, in the direction that adds work.
+- Assertion 7 goes quiet once a layout is pinned. Do not read its silence as
+  a result on its own.
+- The `data-*`-authored two-state caption idiom (`data-on`/`data-off`,
+  `data-label`/`data-confirm`) is house style and is invisible to a literal
+  scan. Grep for it directly.
+- O-Octagon's `ui_frontend_check.js` §6 whitelist is the fourth wrong-shaped
+  gate assumption candidate. The `dataset.label === textContent` mirror is
+  the assertion that should replace it — and the clamp-gate rewrite in this
+  commit is a worked example of doing that without weakening the rule.
