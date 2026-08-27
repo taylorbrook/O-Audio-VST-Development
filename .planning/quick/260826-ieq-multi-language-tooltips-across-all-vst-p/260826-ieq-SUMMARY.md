@@ -3,17 +3,18 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F, H]
-stages_remaining: [G, I, J, K, L, M]      # G is DEFERRED, not skipped — see the Stage H section
-stopped_at: "End of Stage H (T12). FOUR of the five shipped plugins are now fully localized on canon v2 — O-Tapestop, O-MultiBandCompressor, O-Bitrot, O-ReverseDelay. Stage G (O-Octagon) is DEFERRED, not skipped: another session was mid-flight on a v1.8.0 motion feature across 27 of its files including index.html, app.js, i18n.js, styles.css and all three test files, and a path-scoped commit would have swept their work in. Checkpoints 4 AND 5 are OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five, and no human has seen the French UI."
+stages_complete: [A, B, C, D, E, F, G, H]
+stages_remaining: [I, J, K, L, M]
+stopped_at: "End of Stage G (T11). ALL FIVE shipped plugins are now fully localized on canon v2 — O-Tapestop, O-MultiBandCompressor, O-Bitrot, O-ReverseDelay and O-Octagon. `check-i18n --strict-v2` passes repo-wide for the first time. Stage G was run LAST, out of order, because its blocker cleared after Stage H. Checkpoints 4 AND 5 remain OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five, and no human has seen the French UI. PREVIOUSLY, at end of Stage H (T12). FOUR of the five shipped plugins are now fully localized on canon v2 — O-Tapestop, O-MultiBandCompressor, O-Bitrot, O-ReverseDelay. Stage G (O-Octagon) is DEFERRED, not skipped: another session was mid-flight on a v1.8.0 motion feature across 27 of its files including index.html, app.js, i18n.js, styles.css and all three test files, and a path-scoped commit would have swept their work in. Checkpoints 4 AND 5 are OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five, and no human has seen the French UI."
 plugins_shipped:
   - name: O-MultiBandCompressor
     version: 1.11.0
     commit: cc2ea600      # v1.11.0, Stage H — labels. v1.10.0 was b98aa9ec, tooltips only.
   - name: O-Octagon
-    version: 1.6.0
-    commit: 8dcb1317      # TOOLTIPS ONLY — still canon v1. Stage G deferred; another
-                          # session has since shipped its v1.8.0 motion engine (2ba236a1).
+    version: 1.9.0
+    commit: 99e7d206      # v1.9.0, Stage G — labels, on canon v2. v1.6.0 was 8dcb1317,
+                          # tooltips only. Run against v1.8.0 (2ba236a1), not the v1.6.0
+                          # the plan describes. Scripts fixes: 3f6b201d.
   - name: O-ReverseDelay
     version: 1.10.0
     commit: 55228ffb      # v1.10.0, Stage H — labels. v1.9.0 was 951dd584, tooltips only.
@@ -1638,3 +1639,419 @@ normalisations, both recorded at the entry:**
   it first; it accounted for most of the 307 moved elements across the three.
 - Stage F's note still holds: assertion 7 goes quiet once a layout is pinned, so
   its silence is not a result on its own.
+
+
+---
+---
+
+# Stage G — T11: gate-hardening, O-Octagon v1.9.0
+
+**Commits, in order:** `3f6b201d` (`scripts/`, three gate fixes) then `99e7d206`
+(O-Octagon v1.9.0 + `PLUGINS.md`). Two commits, in that order, because a plugin
+cannot pass gates that are themselves wrong.
+
+**Run LAST, out of order.** Stage G was deferred at Stage H because another
+session held `plugins/O-Octagon`. That session landed its v1.8.0 motion engine as
+`2ba236a1` and the blocker cleared. **All five shipped plugins are now on canon
+v2**, and `check-i18n --strict-v2` — reserved for Stage L — passes repo-wide for
+the first time.
+
+## The plan's numbers were stale, in the direction that adds work
+
+Stage H's carried-forward note said to re-run `i18n-extract.js` and disbelieve
+the plan. That was right again, on every count.
+
+| The plan said | Live at v1.8.0 |
+|---|---|
+| **78** `aria-label` attributes | **89** |
+| §6, §9/21 and §2 to check | §6 and §2; the numbering also now has TWO §41s |
+| "1100 x 720 is roomiest, expect FEWER findings than O-Tapestop" | correct — **4** before fixes vs O-Tapestop's 26–30 |
+| implicitly, a v1.6.0 page | a v1.8.0 page with a Motion tab, 10 new captions, 10 new aria-labels and a Drift-only Seed cell |
+
+The extractor found **184 label candidates**: 88 html-text, 89 html-attr, 12
+js-prose, 7 js-composed. Final shipped counts: **84 `[data-i18n]` elements, 89
+`data-i18n-aria`, 125 LABELS keys** (some elements reuse a tooltip key through
+`trLabel`'s fallback, so keys ≠ elements).
+
+## §6 WAS ABOUT TO PASS VACUOUSLY, and that is the finding of this stage
+
+The plan predicted §6's whitelist was "the fourth wrong-shaped gate assumption
+candidate" and warned against simply growing it. The reality was worse than
+predicted, and in the opposite direction.
+
+**It would not have grown at all.** §6 scanned for `IDENT.textContent =` and
+required every receiver identifier to be whitelisted. Canon v2's `applyLabel`
+takes its element as a parameter named **`el`** — and `el` was already on the
+whitelist, for the map-banner copy and the venue name. So the single largest
+`textContent` writer ever added to this page, one that writes all 84 labels,
+walked straight through.
+
+This was **measured, not reasoned**: with canon v2 fully in place and §6
+untouched, the gate's only complaint was a markup regex about the `<th>` split.
+The receiver check said nothing.
+
+### What replaced it
+
+A write is now legitimate when it is one of four things, and each is asserted:
+
+1. **A mirror half** — `IDENT.dataset.label` is assigned within the same
+   statement neighbourhood. Plus a separate assertion that `applyLabel` writes
+   both *from the same expression, adjacently*: a mirror that recorded a
+   different string from the one it rendered would satisfy "two writes" and
+   certify nothing.
+2. **An explicit mirror teardown** — `delete el.dataset.i18n; delete
+   el.dataset.label;` before writing. That is how a node stops being a label and
+   becomes a raw diagnostic sink for a C++ reason code this build does not know.
+   Required, not merely tolerated: a stale mirror is exactly what breaks
+   `check-ui-labels` assertion 3.
+3. **A freshly created node** — `appendChild(el(...)).textContent = ...`. There
+   is no authored text to erase; the node did not exist a statement ago.
+4. **A dedicated value receiver**, from a whitelist that **SHRANK by two**.
+   `monitorCopy` and `monitorNode` were added at v1.7.0 only because there was no
+   route for a state-dependent caption; both are `setLabel()` calls now. The
+   whitelist getting smaller as the page gets *more* localized is the sign the
+   mechanism is the right one.
+
+Three further assertions were added that the old §6 could not make:
+
+- **No `[data-i18n]` element may have element children.** `applyLabel` writes
+  `textContent`, which deletes them — silently, and in English too, so no
+  language check would ever catch it. This is why the Delay column head was
+  **split** into a keyed caption span beside its `#vcol-delay-unit` value span.
+- **Every keyed element must carry authored English.** That text is the fallback
+  that renders if `applyI18n()` never runs, which is the whole point of
+  `initI18n`'s "paint the default SYNCHRONOUSLY first" rule.
+- **No value receiver may bind an element that also carries `data-i18n`.** The
+  mirror and the value write would fight and the last writer would win — the
+  original bug wearing the new mechanism's clothes. **This assertion caught a
+  real leftover on its first run:** `monitor-copy` was both keyed and bound.
+
+Non-vacuity checks on the mirror route and the value route sit beside them, for
+the reason §21 gives about the derived module registry.
+
+**§2 is intact and was confirmed rather than assumed.** `init();` is still the
+literal last statement of `app.js`, with no module-level declaration after it —
+and NC-8 proves the check still fires.
+
+## The TDZ trap did not bite here, and the reason is worth carrying
+
+Stage H's sixth trap — canon v2 is reached at BINDING time — cost MBC and
+O-Bitrot a swallowed `ReferenceError`. **It did not fire on O-Octagon, and not by
+luck.** This plugin has no eager top-level binding at all: `init()` is the only
+top-level call and it is the last statement, so every `let` above it is already
+initialised when any binder runs. §2 has been enforcing exactly that since Phase
+3.1. The i18n block did not need to move.
+
+That is a data point for Stages I–L: **the plugins that need the block moved are
+the ones without an `init()`-last discipline**, not a random subset.
+
+## Three gate defects, all repo-level, all fixed in `3f6b201d`
+
+1. **`check-i18n` assertions 12, 13 and 15 scanned ONE module.** Correct for the
+   canon drift gate; wrong for "does any shipped JS write raw prose, and is every
+   key live and resolvable". **Eleven plugins** split their page across sibling
+   modules; O-Octagon has seven, and `js/venue.js` alone is 796 lines of
+   controller code. The gate was wrong in both directions simultaneously: two raw
+   English prose writes in `venue.js` passed assertion 12 **green**, and two keys
+   referenced only from `venue.js` reported as **dead**. Now derived from the
+   directory with a non-vacuity check on the derivation itself.
+
+2. **`readSetLabelCalls` could not see `window.__setLabel(...)`.** The canon block
+   publishes `window.__setLabel = setLabel` and states, in its own comment, that
+   this is how a sibling module writes a localized label without `app.js`
+   exporting anything. So that spelling is not a workaround — it is the *only*
+   in-canon route available to `venue.js`. A scan matching only the bare name
+   reported every key reached that way as dead, and treated a ternary in the same
+   call as invisible to assertion 13. Same shape as the `dataset.i18nAria` gap
+   fixed in `a1d80957`.
+
+3. **`check-ui-labels` could only drive a state by `click`.** Two shapes ordinary
+   in this repo were unreachable, and a label the gate cannot reveal is a label it
+   certifies by never looking at it. Added `dblclick` (the house popover idiom —
+   O-Octagon's speaker→output assignment) and `eval` (a state the PLUGIN owns,
+   reached through the plugin's own committed ui-stub hook; the three frame
+   banners render from `getStatus()` and cannot be clicked into existence).
+   **On O-Octagon this took measured coverage from 35/84 to 84/84.**
+
+**That is eight wrong-shaped gate assumptions in this task now, and five of the
+eight reported a violation of a rule the code was obeying.**
+
+## Geometry — 4 before fixes, exactly as the plan predicted
+
+The plan said 1100 × 720 is the roomiest of the five, so expect fewer findings
+than O-Tapestop, and that MORE would mean the tool or the attribute handling was
+wrong. **Four**, against O-Tapestop's 26–30 and MBC's 222. The tool is behaving.
+
+Driving the eight new states raised the total to **twelve**. Every one is the
+`align-items: center` / shrink-to-fit family Stage H named — it was the first
+thing looked for, and it was the answer every time.
+
+| Fix | Measured cause |
+|---|---|
+| `.screen-tab { min-width: 84px }` | VENUE 80.4 → LIEU 64.5; `.screens` is `margin-left:auto`, so the pair does not just narrow, it slides 15.7 px right |
+| `.scene-btn { padding: 6px 3px }` | GAUCHE/DROITE 38.5 in a 36.2 px content box, in a 10-column 1fr grid with no cell to spare — the padding was the only slack |
+| `.cell-dense` track 44 → 52 px | MARCHE 45.4, SYNCHRO 49.7, VITESSE 45.1 |
+| `.settings-unit` 36 → 44 px | MARCHE 39.7 in a 34 px content box |
+| `.elev-readouts .cell-label { min-width: 46px }` | Ear 21.0 → Oreille 43.3 widened the strip 188.8 → 211.1 and dragged it 22.4 px left |
+| `.caption-field { min-width: 50px }` | FIELD 40.1 → CHAMP 48.2 moved `#field-legend` 8.1 px |
+| `#readout-label-envelope { min-width: 82px }` | ENVELOPE 71.5 → ENVELOPPE 79.6 |
+| `.safe-banner` 184, `.map-banner` 396, `.monitor-banner` 400 px | all three are shrink-to-fit in the header flex; a growing copy line slid `nav.screens` AND `.settings-cluster` by 47.2 / 50.3 / 73.8 px |
+| `.venue-rake / .venue-delay > .cell-label` 42 → 70 px | RAKE 42.0 → INCLINAISON 69.4. The floor was ALREADY there for this reason; it just needed the number French wants |
+| `.vcol-head > [data-i18n] { min-width: 38px }` | DELAY 30.7 → RETARD 36.8 slid the unit span 6.1 px |
+| `.venue-head > .cell-label { min-width: 40px }` | VENUE 37.8 → **LIEU 27.2** |
+| `#btn-scene-store { min-width: 46px }` | STORE 44.1 → MÉM. 37.7 |
+
+**Two of these are worth reading twice.**
+
+The `.venue-head` one is a shape not seen in Stages F or H: **a caption that gets
+SHORTER moves its neighbour just as surely as one that grows.** Every prior
+stage's mental model was "French is longer". Four of this stage's twelve are
+French being *shorter* — LIEU, MÉM., → SORTIE, and the tab pair. Stages I–L should
+not scan only for growth.
+
+The `#btn-scene-store` one was **not found by the gate**. It is a `[data-i18n]`
+element, so assertion 7 excludes it by design — the exact coverage hole Stage H
+documented and left open. It was found by measuring by hand. That hole is still
+open and still real.
+
+Nine of the twelve change ENGLISH geometry too. That is the trade D-04 asks for:
+French is sized, never shrunk, and the only box two languages can share is the
+wider one.
+
+### Two French strings were sized, once, in the table
+
+- **`Trajectoire` → `Tracé`** for the Path caption (66.7 px in a track that
+  reaches 52 even after widening). This one should NOT worry a reviewer: `Tracé`
+  is what this plugin's own English internals call it (`refreshTrace`,
+  `TRACE_SHAPE_IDS`), so the width constraint and the better French agree. It
+  needed its own LABELS key under the Stage F reuse rule, because the *tooltip*
+  title is correctly `Trajectoire`.
+- **The monitor's suppressed copy** → `Désactivé hors ligne — l'export est
+  propre` (370.8 → ~283 px). The full form put the banner at 461.7 px in a header
+  that also carries the title, the tab pair and the gear.
+
+Neither is chosen at runtime. Both are recorded at their entry.
+
+## Two stale facts fixed, both pre-existing
+
+1. **The `lang-select` tooltip lied**, in both languages, saying the page labels
+   do not change. Now says they do, and that numbers and unit symbols do not.
+2. **The preset tooltip said "17 parameters".** The real figure is **28** —
+   `oo::params::kCount`, static-asserted at `DSP/GainStage.h:79`. Stale since
+   v1.8.0 added the ten motion parameters. Stage H correctly identified this
+   string as O-Octagon's, not MBC's, and left it for this stage. Both languages.
+
+## Deviations from the plan
+
+**[Rule 1 — Bug] The `preset-list` tooltip's parameter count was wrong.** Not
+part of the label retrofit; found while editing the file, verifiable against a
+`static_assert`, and shipping a false claim about the product. Fixed inline.
+
+**[Rule 2 — Missing critical functionality] Three repo-level gate defects.** A
+gate that passes prose it should reject is not a cosmetic problem — assertion 12
+was green over two raw English strings. Fixed in `scripts/`, in a separate commit,
+per the Stage F/H precedent.
+
+**[Rule 3 — Blocking] `check-ui-labels` could not reach 49 of 84 labels.** The
+plan's done-criterion requires all 89 aria-labels to resolve in both languages
+and the geometry diff to be clean. Neither claim is checkable on labels the gate
+cannot render. `dblclick` and `eval` state actions unblocked it.
+
+**[Rule 3 — Blocking] `check-i18n` assertion 7 rejected the LABELS generators.**
+The 56 speaker/weight aria keys are generated from a template rather than
+transcribed, and a top-level `const speakerAria = (n) => [...]` is a top-level
+statement. The rule is right — `i18n.js` must never self-execute — so the
+generators moved INSIDE the export declaration rather than the rule being
+softened. "This particular top-level statement is harmless" is the judgement the
+rule exists to refuse.
+
+**Scope note, honestly stated:** the plan's T11 step 7 says "version bump,
+CHANGELOG, PLUGINS.md, build-and-install, staging and commit discipline exactly
+as T10 step 10", i.e. one plugin commit. It became two, because the scripts fixes
+had to land first. That is the Stage F and Stage H shape, not a new one.
+
+## Verification — every gate, individually
+
+| Gate | Result |
+|---|---|
+| `tests/ui_frontend_check.js` | **exit 0 — 43 sections**, with §6 rewritten and §2 confirmed |
+| `tests/ui_layout_check.js` | **exit 0 — 31 sections**. The label work did not disturb the layout it asserts |
+| `check-i18n.js --plugin O-Octagon` | **exit 0**, reports canon **v2**, assertions 10–15 all run |
+| `check-i18n.js` repo-wide | **exit 0** — canon split **v2 5, v1 0** |
+| `check-i18n.js --strict-v2` | **exit 0 repo-wide — the first time.** Stage L's gate, reached at Stage G |
+| `check-ui-labels.js --plugin O-Octagon` | **exit 0** — **84/84** labels measured across **9 states**, zero geometry shifts, 83/89 attributes change language |
+| `check-ui-labels.js` on the other four | **exit 0 each** — the three tool changes disturbed nothing |
+| `boot-all-uis.js` | **41/43 clean, unchanged.** O-Octagon: `title=0 aria=89 i18n=84`. The two failures are O-Bowed and O-Reed, pre-existing and unrelated |
+| `O-Octagon-geometry-test` | **exit 0 — 57 probes, 0 failures**, from a FRESH `-DOUARICON_BUILD_TESTS=ON` configure |
+| `O-Octagon-render-test` | **exit 0 — 73 probes, 0 failures**, same fresh configure |
+| `./scripts/build-and-install.sh O-Octagon` | clean; VST3 + AU built and installed, AU cache cleared, dual-variant sweep ran |
+| `auval -v aufx OuOc OuDv` | **AU VALIDATION SUCCEEDED** |
+| binary embedding | `i18n_jsSize` **60485** == `wc -c` — the retrofit really reached the binary |
+
+The two C++ targets were built from a fresh configure into a throwaway
+`build-octagon-tests/`, which was deleted afterwards rather than left as an
+untracked directory.
+
+## Negative controls — 26 run, 26 fire
+
+Each applied to a byte-exact backup and restored **from that backup**, never
+`git checkout --`, which would have wiped the uncommitted retrofit alongside the
+mutation. Every mutation printed its substitution count and the harness refused
+to run a gate on a zero-count mutation. All files sha256-verified after every
+round and again at the end.
+
+| Mutation | Assertion that fired |
+|---|---|
+| `applyLabel` writes textContent with NO `dataset.label` mirror | §6 mirror-pair, and the classifier |
+| the mirror records a DIFFERENT string from the one it renders | §6 "from the SAME expression" |
+| a raw prose textContent write in a SIBLING module | §6 classifier, `js/venue.js:686 strayNode` |
+| revert the `<th>` split — key an element with element children | §6 leaf check, `"label.vcol.delay" on <th>` |
+| a keyed element with no authored English fallback | §6 fallback check |
+| a value receiver bound to a KEYED element | §6 `readout-label-envelope` |
+| `venue.js` aliases `el` to `rows[0].labelInput` | §6 alias check — **see below** |
+| `venue.js` aliases `el` to a different bare identifier | §6 alias check |
+| a module-level declaration after `init();` | **§2** |
+| clobber textContent after `applyLabel` ran | `[3]` both languages, `label="Ear" text="CLOBBERED"` |
+| stub `__setLanguage` to a no-op | `[2]` vacuity, `0/84` |
+| revert the `.cell-dense` 52 px track | `[4][fr]` text-spill, 5 captions named with widths |
+| revert the `.screen-tab` pin | `[7]` geometry diff |
+| revert the three banner pins | `[7]` geometry diff, 4 moved |
+| an over-long French label | `[7]` geometry diff |
+| remove one `data-i18n` from the markup | `[10]` |
+| reinstate a native `title=` | `[11]` |
+| a ternary inside a `setLabel` argument | `[13]` |
+| a COMPUTED `setLabel` key | `[13]`, with `js/app.js:711` |
+| drift ONE line of the canon block | `[6]` matches NEITHER canon |
+| a LABELS `fr` entry copied from `en` | `[4]` LABELS |
+| strip a LABELS `reviewed` flag | `[5]` LABELS |
+| empty an `I18N_EXEMPT` reason | `[14]` |
+| raw prose in a sibling module | **`[12]`** — the page-module scan fix |
+| a dangling key on a `window.__setLabel` call | **`[15]`** — the spelling fix |
+| a ternary inside a `window.__setLabel` argument | **`[13]`** — the spelling fix |
+
+**A counter-proof, because a control that passes both ways is decoration.**
+Reverting the `window.__setLabel` spelling fix in `i18n-extract.js` and re-running
+the dangling-key control confirms it goes **SILENT**. The fix is load-bearing.
+
+### THE ONE THAT DID NOT FIRE AT FIRST, and it was my own new gate
+
+`venue.js aliases el to an unknown node` produced **no failure**. The assertion
+was new, written in this stage, and wrong: it read
+`/const el = ([A-Za-z_$][\w$]*);/`, so `const el = rows[0].labelInput;` simply did
+not match, the alias dropped out of the list, and `.every()` passed over what was
+left. **A gate that stops seeing the thing it checks when that thing gets more
+complicated** — the same vacuity class §21 of this very file exists to catch, and
+the ninth wrong-shaped assumption in this task.
+
+Widened to match the whole right-hand side, given a non-vacuity check of its own,
+and re-run: it fires on both the property-access form and a bare-identifier form.
+
+It is worth being blunt that this was **found by a control, not by review**. The
+assertion had been read over several times and looked correct.
+
+## English fidelity
+
+Every `en` entry came from `i18n-extract.js`'s inventory of the live markup rather
+than being transcribed. **One deliberate normalisation, recorded at its entry:**
+the Delay column head's caption moved from a bare text node inside the `<th>` into
+its own `<span>`, unchanged in wording. `.venue-rake`'s label floor changed 42 →
+70 px, which moves English — but that floor already existed precisely to keep the
+rake and delay rows' controls on one vertical line, so the mechanism is unchanged.
+
+## NOT VERIFIED — read this before Stage I
+
+1. **THE C++ PERSISTENCE ROUND-TRIP HAS STILL NEVER BEEN RUN.** Checkpoint 4(b)
+   has been outstanding since Stage B and is outstanding on all five plugins.
+   Nothing in Stage G touched C++ and nothing in Stage G tested it. Every claim
+   that a language choice survives a session is REASONED from source. **This is
+   now the single highest-value outstanding check in the whole task**, because
+   all five plugins are done and every one of them rests on it.
+2. **No human has seen the French UI, on any plugin.** All geometry is headless
+   Chromium. Whether `INCLINAISON` at 9 px uppercase, or `AFFECT.` as the MAP
+   badge, or `MÉM.` on the store button read well inside O-Octagon's aesthetic —
+   as opposed to merely fitting — is Checkpoint 4(a) and Checkpoint 5.
+   `AFFECT.` and `MÉM.` are the two I would challenge first.
+3. **Nothing was tested in a DAW.** It builds, installs and `auval`s; it has not
+   been opened in Logic or Ableton. The plugin is a 7.1 surround spatializer, so
+   its DAW behaviour is the least covered by headless testing of any of the five.
+4. **The Standalone `.app` is stale.** `build-and-install.sh` builds VST3 + AU
+   only. It was NOT refreshed by this stage.
+5. **A single over-long caption in a shrink-to-fit cell is still not gated.** The
+   hole Stage H documented is unchanged, and `#btn-scene-store` is this stage's
+   instance of it — found by hand, not by the gate.
+6. **`check-ui-labels`'s state pass is `events-only` on O-Octagon**, because its
+   committed ui-stub exposes no `window.__stubStates`. Assertion 3's "after a
+   state pass" is therefore dispatched events, not driven parameter updates —
+   weaker here than on MBC and O-Bitrot. It still caught the clobber control.
+7. **The `eval` state action is new and is a sharp tool.** It runs arbitrary JS in
+   the page. O-Octagon's states file uses it only through the plugin's own
+   committed stub hook (`window.__OCTAGON_STUB__.setStatus` / `.setMapInvalid`),
+   which is the intended discipline — but nothing enforces that. A states file
+   that drove the DOM directly would measure a state the plugin cannot actually
+   produce. **That is a review question for Stages I–L, deliberately left to
+   review rather than forbidden**, because forbidding it would also forbid the
+   legitimate use.
+8. **My first banner state drove an IMPOSSIBLE combination** — SAFE + MAP +
+   MONITOR at once, which `monitorAvailable = !safeMode && !mapInvalid` forbids —
+   and produced 106 moved elements and frame crossings **in English too**. That
+   was the states file being wrong, not the plugin. It is a warning for Stages
+   I–L: an `eval` state can manufacture a state the plugin never reaches, and the
+   resulting "failure" is noise.
+9. **All 184 French entries are machine drafts**, every one `reviewed: false`. No
+   native speaker has read any. Repo total is now **435 unreviewed** across five
+   plugins.
+10. **Windows / WebView2 remains a named deferral, blocked on hardware.** Every
+    width in the table above was measured in Chromium on macOS.
+11. **The generated inventory artifacts** (`plugins/O-Octagon/.planning/i18n-*`)
+    are left UNCOMMITTED, as on the other four. They are regenerable.
+12. **`§41` appears TWICE in `ui_frontend_check.js`** — "the trace is NOT generated
+    on the page (v1.8.0)" and "the rake line spans the BBOX". Pre-existing, from
+    the v1.8.0 work, untouched here because it is not this task's file to
+    renumber. The section COUNT (43) is right; the labels are not.
+
+## Concurrency — the thing that deferred this stage, encountered again
+
+**Another session was writing inside `plugins/O-Octagon` throughout this dispatch.**
+Between starting and committing, it modified `Source/DSP/MotionClock.h` (a v1.10.0
+WR-01 fix: the v1.8.0 sync multiplier table was 4× slower than every label and
+made `1/16D` and `1/8T` bit-identical), `Source/PluginProcessor.cpp`,
+`Source/ui/public/js/elevation.js`, `CODE_REVIEW.md`, and all four test
+`main.cpp` files.
+
+**`git commit -- plugins/O-Octagon` would have swept all of it in.** The commit
+names its ten files explicitly instead. Verified after committing: every one of
+their paths is still dirty and untouched.
+
+**Carry this forward.** The plan's T10 step 10 and the CLAUDE.md rule both say
+"path-scope the commit", and the canonical example given is
+`git commit -- plugins/<Name>`. On a plugin another session is editing, that is
+not narrow enough. **The scope that matters is the FILE SET, not the directory.**
+
+**A version-numbering note for whoever picks up next:** that session's comments
+target **v1.10.0**. This stage shipped **v1.9.0**. The numbers are compatible in
+that order, but they were chosen independently and nobody coordinated them.
+
+**Observed live, minutes after `99e7d206` landed:** that session bumped the
+working tree's `CMakeLists.txt` from the `1.9.0` this stage committed to
+`1.10.0`, i.e. it sequenced on top rather than colliding. Their bump is
+uncommitted and is theirs to commit; it was deliberately left untouched. The
+practical consequence is that **the installed bundle is v1.9.0 while the working
+tree now reads v1.10.0**, so the next `build-and-install.sh` will produce a
+v1.10.0 binary carrying both stages' work.
+
+## Carried into Stage I
+
+- **Re-run `i18n-extract.js`.** Wrong about every plugin in every stage so far.
+- **`align-items: center` is still the tell**, and it accounted for all twelve
+  findings here.
+- **Also scan for French getting SHORTER.** Four of twelve were shrink, not
+  growth — a shape Stages F and H never hit.
+- **Expect to move the i18n block only where there is no `init()`-last
+  discipline.** O-Octagon did not need it, and §2 is why.
+- **`data-*`-authored captions**: O-Octagon had `data-label` on two settings rows
+  with nothing writing them. Grep for the idiom anyway.
+- **`boot-all-uis.js` on every plugin** — still the only gate that sees a
+  swallowed binding failure.
+- **The new `dblclick` / `eval` state actions** are what made 84/84 coverage
+  possible. Write a `tests/i18n-states.json` for every plugin from now on, and
+  drive banners through the plugin's OWN stub hook, one reachable state at a time.
