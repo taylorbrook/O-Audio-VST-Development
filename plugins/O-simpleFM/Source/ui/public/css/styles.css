@@ -137,6 +137,16 @@ body {
   border-bottom: 1px solid rgba(139, 115, 85, 0.4);
   padding-bottom: 6px;
 }
+/* NOT PINNED, and the reason is worth recording. The first reading of the
+   geometry diff was that .title-block shrink-wrapped its own strapline — 361.7px
+   English against 354.2px French — and a flex: 1 1 0 pin was written for it. Its
+   negative control PASSED: reverting the pin alone left the gate green. The
+   7.5px was never the strapline. It was the preset bar one item to the right,
+   which is 7.5px wider in French ("ENREG." +12.2, "SUPPR." -4.7), and
+   .title-block is the only item here that can absorb shrink, so it reported the
+   difference its neighbour caused. Pinning .preset-act is the whole fix; the
+   pin here was decoration and was removed rather than kept and claimed.
+   (§3: read the geometry diff as a list of CONSEQUENCES, not causes.) */
 .title {
   font-size: 26px;
   font-weight: 400;
@@ -153,6 +163,107 @@ body {
   margin-top: 2px;
 }
 .fleuron-row { font-size: 22px; color: var(--fleuron-color); }
+
+/* ── Settings gear + popover (v1.3.0) ───────────────────────────────────────
+   Written in this plugin's own aged-paper field-guide vocabulary, not pasted in
+   from another: the panel wears the .group plate (rgba(250,240,230,.45) over
+   the --brown-border rule at 5px radius), the gear wears the .toggle's
+   --btn-border green and its lit --btn-active state, and the selector wears the
+   .preset-bar button's paper fill, 1px brown border and 4px radius at panel
+   scale.
+   ------------------------------------------------------------------------- */
+#settings-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: 8px;
+  height: 24px;                      /* aligns with the 24px preset-bar row */
+}
+
+.gear-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: var(--symbol-font);   /* Garamond has no U+2699 on Windows */
+  font-size: 13px;
+  line-height: 1;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 1.5px solid var(--btn-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 1px 1px 3px var(--shadow-light);
+}
+.gear-btn:hover { background: rgba(139, 168, 112, 0.45); }
+.gear-btn[aria-expanded="true"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+.gear-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+
+/* z-index sits below .tooltip (50) on purpose: the gear and the selector both
+   carry hover help, and at the top of the frame their tips land ON this panel.
+   A panel above the tip would hide the help for the two controls that exist to
+   reach the help. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 214px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px var(--shadow-medium);
+  text-align: left;
+}
+.settings-popover[hidden] { display: none; }
+
+/* space-between with a flex:1 caption, not a shrink-to-fit one: a caption that
+   shrink-wraps makes its own box language-dependent even where nothing visibly
+   moves, and the geometry diff flags the BOX, not the glyphs
+   (pattern_flex1_container_slack_invisible_to_row_sum). */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.settings-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--brown-text);
+}
+/* The preset-bar button, at panel scale, with its width PINNED. Left to
+   shrink-to-fit it would step with the endonym the user picked, moving the
+   caption beside it. */
+.settings-select {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 24px;
+  padding: 2px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.15s ease;
+}
+.settings-select:hover { border-color: var(--green-dark); }
+.settings-select:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 /* ── Visualization ──────────────────────────────────────────────────────── */
 .viz-panel {
@@ -203,12 +314,20 @@ body {
   border: 1px solid var(--brown-border);
   border-radius: 4px;
 }
+/* v1.3.0 — flex: 0 0 77px, NOT min-width: 70px. min-width on the FIRST item of
+   a flex row is not a pin: the used width is still max-content, 76.1px for
+   "Signal Path" and 114.8px for "Chemin du signal", and because it is the first
+   item its width ALONE positioned the routing SVG — 38.7px of drift on a
+   language switch. Pinned to the English width rounded up; the French wraps to
+   two 11px lines inside it, which the 64px-tall SVG beside it already absorbs,
+   so the panel does not grow. */
 .routing-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--brown-border);
-  min-width: 70px;
+  flex: 0 0 77px;
+  line-height: 1.1;
 }
 #routingSvg { height: 64px; width: 240px; }
 .op-node { stroke: var(--brown-frame); stroke-width: 2; }
@@ -219,12 +338,19 @@ body {
 .route-line, .route-arc { stroke: var(--green-dark); stroke-width: 2.5; }
 .route-line-out { stroke: var(--brown-border); }
 .route-head { fill: var(--green-dark); }
+/* Both children are white-space: nowrap, so this column shrink-wraps to the
+   longer of them and its own box is language-dependent: 116.9px English,
+   155.4px French. It is right-aligned against margin-left:auto, so the growth
+   is entirely leftward and nothing visibly collides — but the BOX moved, which
+   is what the geometry diff measures. Reserved at the French width; the panel
+   had 229px of slack between the SVG and this column in English. */
 .routing-readout-col {
   margin-left: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
+  min-width: 156px;
 }
 .routing-readout {
   font-size: 13px;
@@ -242,8 +368,16 @@ body {
 }
 /* Carrier-null teaching badge — lights when the effective index ≈ Bessel J₀
    zero (β ≈ 2.405) and the carrier collapses into the sidebands. */
+/* min-width pins the pill to the wider of "carrier null" (88.5px) and
+   "porteuse nulle" (101.1px). The badge is the LAST inline box on a
+   right-aligned readout line, so its width alone moved both live numbers and
+   the whole readout column 12.7px whenever it lit. text-align centres the word
+   inside the reserved pill rather than letting it hug the left edge; the cost
+   is a 13.5px wider badge in English. */
 .carrier-null-badge {
   display: none;
+  min-width: 102px;
+  text-align: center;
   margin-left: 8px;
   padding: 1px 7px;
   font-size: 9px;
@@ -357,6 +491,17 @@ body {
   box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
 }
 
+/* v1.3.0 — white-space: nowrap. A .knob-label in a column cell with
+   align-items: center SHRINK-WRAPS: its box is text-width, not the cell's 62px,
+   so a caption longer than the cell already overflows symmetrically into the
+   24px row gap rather than being clipped, and three English captions already
+   sit within 2px of that edge. What is NOT free is WRAPPING: "Rapport P:M" and
+   "Indice mod." each broke at their space, made their cell 10.4px taller and
+   pushed the readout under them down a line — in French only. nowrap costs ZERO
+   English page height (no English caption wraps today) and makes the cell height
+   language-independent by construction. Worst French overflow is
+   "Véloc→Indice" at 80.6px in a 62px cell: 9.3px each side into a 24px gap, and
+   the widest adjacent pair still clears by 12px. */
 .knob-label {
   font-size: 9.5px;
   text-transform: uppercase;
@@ -365,6 +510,7 @@ body {
   margin-top: 6px;
   text-align: center;
   line-height: 1.1;
+  white-space: nowrap;
 }
 .knob-value {
   font-size: 11px;
@@ -391,6 +537,12 @@ body {
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
 }
+/* Pinned PER BUTTON to its own wider language rather than both to one width:
+   "Ratio Snap" 101.5 / "Rapport entier" 129.5, "Fixed Mode" 105.4 / "Mode fixe"
+   97.4. One shared min-width would have grown the English Fixed Mode by 24px for
+   nothing. The cost lands in English on the first button only, +28.5px. */
+#toggle-ratioSnap    { min-width: 130px; }
+#toggle-modFixedMode { min-width: 106px; }
 .toggle:hover { background: rgba(139, 168, 112, 0.45); transform: translateY(-1px); box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.3); }
 .toggle.active { background: var(--btn-active); border-color: var(--btn-border-active); color: #1f2b08; }
 .fleuron-corner {
@@ -410,11 +562,15 @@ body {
   border-top: 1px solid rgba(139, 115, 85, 0.4);
   flex-wrap: wrap;
 }
+/* Pinned to the English width: "Lesson Presets" is 98.8px and "Leçons" 46.1px,
+   and as the first item of this row its width alone positioned all five lesson
+   buttons — 52.7px of drift on a language switch. Costs English nothing. */
 .tour-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--brown-border);
+  flex: 0 0 99px;
 }
 .tour-buttons { display: flex; gap: 8px; }
 .tour-btn {
@@ -431,13 +587,21 @@ body {
 }
 .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
 .tour-btn.active { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+/* flex-basis 100%, not max-width 48%. At 48% of this row (325px) the caption
+   was ONE line in English and TWO in French, and the extra line pushed the whole
+   keyboard panel down 12px — in French only. It already fell onto its own flex
+   line in both languages, so giving it the full row costs English nothing (the
+   text is right-aligned, so the glyphs do not move) and makes the line count
+   deterministic instead of a function of the string: the longest of the eleven
+   captions across both languages measures ~507px inside 678px. Basis 100% also
+   means it can never REJOIN the button row on a copy edit, which is the wrapping
+   -row failure O-simpleGrain paid for. */
 .tour-caption {
   font-size: 11px;
   font-style: italic;
   color: var(--brown-soft);
-  margin-left: auto;
+  flex: 0 0 100%;
   opacity: 0.85;
-  max-width: 48%;
   text-align: right;
 }
 
@@ -595,7 +759,19 @@ body {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.preset-act { height: 24px; padding: 0 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
+/* min-width pins both faces to the WIDER of the four strings across the two
+   languages — SAVE 49.2 / ENREG. 61.4 / DELETE 63.4 / SUPPR. 58.7 — so neither
+   button steps and neither pushes the other. min-width rather than width: on a
+   platform with wider font metrics the box grows instead of clipping. The cost
+   is paid in ENGLISH, where SAVE now sits in a 64px box instead of a 49px one. */
+.preset-act {
+  height: 24px;
+  min-width: 64px;
+  padding: 0 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
 
 /* Dropdown — escapes the header stacking context via :has() below. */
 .preset-dropdown {

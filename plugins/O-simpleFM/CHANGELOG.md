@@ -3,6 +3,167 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] — 2026-08-28
+
+**The PAGE speaks French, not only the hover help.** (Stage I batch I2, canon v2 —
+fifth of the seven `O-simple*` plugins.)
+
+Every caption, heading, button face, hint, diagram node, status line and tooltip
+switches with a language selector in a new header gear. Value readouts, the
+factory preset names and the five lesson-button faces stay English per D-03/D-02.
+The language rides the APVTS tree as a plain `uiLanguage` property (the string
+`"en"`/`"fr"`, restored behind an `isVoid()` gate). **80 French entries — 27
+tooltip, 53 label — all `reviewed: false`.** No native speaker has read them.
+
+### Added
+- `Source/ui/public/js/i18n.js` — the interface copy table in both languages:
+  `LANGUAGES`, `I18N` (27 tooltip pairs), `LABELS` (53), `TIP_BINDINGS` (27),
+  `I18N_EXEMPT` (10 reason-bearing entries), `tr`. Embedded through
+  `juce_add_binary_data` and served from `getResource()` at `/js/i18n.js` — both
+  halves in this commit, because either one alone is a blank page rather than an
+  English one.
+- Canon v2 in `js/app.js`, verbatim from `scripts/i18n-canon.js`, directly under
+  the imports and above every other declaration (`uiLanguage` is a module-level
+  `let`, and this file has eager top-level work below it).
+- A settings gear in the header holding the language selector alone. This plugin
+  has no hover-help bridge and never had a "?" toggle — not a C++ one, not a
+  localStorage one — so a toggle row here would be a control for a preference
+  that does not exist. Styled in this plugin's own vocabulary: the `.group`
+  plate, the `.toggle`'s green border and lit state, the preset-bar button's
+  paper fill and radius at panel scale.
+- `getUiLanguage` / `setUiLanguage` native functions and a `std::atomic<int>
+  uiLanguage` on the processor, persisted as a ROOT property on the APVTS tree.
+  Not an `AudioParameterChoice`: it must not reach a DAW automation lane, and a
+  lesson preset must not be able to change which language somebody reads their
+  interface in. `getStateAsXml()` starts from `parameters.copyState()`, so the
+  property is set BEFORE that call; `setStateFromXml()` ends in
+  `replaceState()`, so it is read AFTER.
+- `tests/i18n-states.json` — three states the resting page cannot reach: the
+  gear popover, a lesson caption, and the carrier-null badge.
+- **Accessible names on the fifteen knobs.** `js/app.js` gives each knob
+  `role="slider"` and `tabindex`, and until now none of them had a name at all.
+  `data-i18n-aria` naming the parameter resolves to the control's own tooltip
+  title and fixes it in both languages for free. 29 keyed attributes, 29 of 29
+  confirmed switching by the gate. **Pre-existing bug, fixed here.**
+
+### Changed
+- **Tooltip copy moved out of `app.js`'s `TIPS` object into `js/i18n.js`.** The
+  renderer reads the anchor's own `data-tip-title` / `data-tip`, which
+  `applyI18n` rewrites per language, and its listeners are DELEGATED on the
+  document — no anchor carries `data-tip` until the first sweep runs, so the old
+  `querySelectorAll("[data-tip]")` at setup time would have bound nothing at all.
+- **The 24 markup anchors moved off `data-tip`**, which now carries the tip BODY:
+  the fifteen knob cells onto a new `data-param`, the two toggles and the routing
+  panel / readout / badge onto an id, the five lesson buttons onto the
+  `data-preset` they already had.
+- **`js/app.js:222` read `.knob-cell[data-tip="modFixedHz"]`** to dim the Fixed Hz
+  cell when Fixed Mode is off. That selector matches nothing once the anchor
+  moves — silently, with no error. Re-pointed at `[data-param="modFixedHz"]` and
+  verified end to end by driving the toggle in a headless page: opacity goes
+  0.4 → 1 → 0.4. Negative control: with the old selector restored, the opacity is
+  never set at all and no error is raised.
+- 101 English strings were compared back to v1.2.5 byte-for-byte with entities
+  decoded rather than re-typed — 98 verbatim, 3 legitimately new (`carrierNull`'s
+  tip TITLE, and the gear's two `aria.*` names).
+- **Three deliberate English changes**, each recorded because it is a copy edit
+  and not a translation:
+  1. The tip bodies lost their `strong`/`em` tags. The WORDS are unchanged; the
+     renderer writes `textContent` now, so a tag would render as literal
+     characters (and `check-i18n` assertion 9 forbids an angle bracket in an
+     `i18n.js` string literal).
+  2. The routing meta line was `harmonic · ≈ 1 sideband` / `≈ 4 sidebands`, an
+     inline English plural. Contract §6 forbids engineering plural inflection for
+     one plugin, so the count moved to the end of a count-neutral phrase:
+     `harmonic · sidebands ≈ 4`. It is written through two literal-keyed
+     `setLabel` writers behind an `if`/`else`, never a ternary in the argument.
+  3. The carrier-null badge's explanation was a native `title=`. Contract §4
+     deletes native titles; this page already owns a tooltip renderer, so the
+     copy moved into it verbatim rather than becoming an `aria-label` nobody
+     would hear. The badge is now the 25th tip anchor.
+- **All six native `title=` attributes deleted.** Two (`presetPrev`,
+  `presetNext`) duplicated an `aria-label` that was already there and simply
+  went. Three (`presetName`, `presetSave`, `presetDelete`) were the only help
+  those buttons had and moved to `data-i18n-aria`. The sixth is the carrier-null
+  badge above.
+- The five lesson captions, the two preset-dropdown group headings
+  (`Factory`/`User`) and the three strings in the delete-confirmation dialog were
+  raw `textContent` writes of finished English. Each call site names its own
+  literal key now. The confirmation takes the preset NAME rather than the
+  sentence the vendored preset-manager module composes, so the sentence is
+  localized here without editing a shared module — and the name itself is
+  substituted verbatim, because a preset name is its JSON filename (D-02).
+- **The five lesson-button faces stay English, and this is a deliberate
+  departure from O-simpleGrain, which translated its chips.** Here the face IS
+  the factory preset name, and this plugin — unlike O-simpleGrain — DISPLAYS
+  that name in its header preset bar. A French face over an English bar entry
+  would be exactly the page-versus-preset disagreement D-02 exists to prevent.
+  They are `I18N_EXEMPT` with that reason; their tooltips are translated.
+
+### Fixed — French label geometry (D-04)
+Eight CSS rules, each measured, each reverted ALONE to confirm the gate
+re-breaks. Eight rules, eight negative controls, none decoration.
+
+| Rule | What it holds |
+|---|---|
+| `.preset-act { min-width: 64px }` | "SAVE" 49.2 / "ENREG." 61.4 / "DELETE" 63.4 / "SUPPR." 58.7. The two buttons net +7.5px in French, which moved the whole preset bar, the gear, and the title block that absorbs their shrink. 10 elements moved. Cost lands in English: SAVE now sits in a 64px box. |
+| `.routing-label { flex: 0 0 77px }` (was `min-width: 70px`) | **`min-width` on the FIRST item of a flex row is not a pin** — the used width is still max-content, 76.1px for "Signal Path" and 114.8px for "Chemin du signal", and as the first item its width ALONE positioned the routing SVG. 38.7px of drift. The French wraps to two 11px lines inside the pin, which the 64px-tall SVG beside it already absorbs. |
+| `.routing-readout-col { min-width: 156px }` | Both children are `nowrap`, so the column shrink-wrapped to the longer of them: 116.9px English, 155.4px French. Right-aligned, so nothing visibly collided — but the BOX moved, and the box is what the diff measures. The panel had 229px of slack. |
+| `.knob-label { white-space: nowrap }` | A `.knob-label` in a `column` + `align-items: center` cell SHRINK-WRAPS: its box is text-width, not the cell's 62px, so a long caption already overflows symmetrically into the 24px row gap. What is not free is WRAPPING — "Rapport P:M" and "Indice mod." broke at their space, made their cell 10.4px taller and pushed the readout below them down a line, in French only. 103 elements moved. nowrap costs ZERO English page height (no English caption wraps) and makes the cell height language-independent by construction. Worst French overflow is "Véloc→Indice" at 80.6px in a 62px cell — 9.3px each side into a 24px gap, widest adjacent pair still clearing by 12px. |
+| `#toggle-ratioSnap { min-width: 130px }` `#toggle-modFixedMode { min-width: 106px }` | "Ratio Snap" 101.5 / "Rapport entier" 129.5; "Fixed Mode" 105.4 / "Mode fixe" 97.4. Pinned per button rather than both to one width — one shared min-width would have grown the English Fixed Mode by 24px for nothing. |
+| `.tour-label { flex: 0 0 99px }` | "Lesson Presets" 98.8 / "Leçons" 46.1, and as the first item of the tour row its width alone positioned all five lesson buttons. 52.7px of drift. Costs English nothing. |
+| `.tour-caption { flex: 0 0 100% }` (was `max-width: 48%`) | At 48% of the row (325px) the caption was ONE line in English and TWO in French, pushing the whole keyboard panel down 12px. It already fell onto its own flex line in both languages, so the full row costs English nothing (the text is right-aligned, the glyphs do not move) and makes the line count deterministic: the longest of the eleven captions across both languages measures ~507px inside 678px. Basis 100% also means it can never rejoin the button row on a copy edit. |
+| `.carrier-null-badge { min-width: 102px; text-align: center }` | "carrier null" 88.5 / "porteuse nulle" 101.1. The badge is the LAST inline box on a right-aligned readout line, so its width alone moved both live numbers and the whole readout column 12.7px whenever it lit. Cost: a 13.5px wider pill in English, with the word centred inside it. |
+
+**One French string was shortened rather than fitted, and is flagged for the
+reviewer:** `label.vizWaveformHint`. The faithful "la forme de la porteuse qui en
+résulte" measures 226.1px against the ~165px this hint has beside its caption in
+a 240px viz block, so it wrapped and shrank the scope canvas 11px in French only.
+It ships as "la porteuse qui en résulte" — "shape" is dropped, and the caption
+immediately to its left already reads "Forme d'onde". The alternative, reserving
+the second line in BOTH languages, costs 11px of English page height on a frame
+that already scrolls.
+
+**One attempted fix was DECORATION and was removed rather than kept and claimed.**
+The first reading of the diff was that `.title-block` shrink-wrapped its own
+strapline — 361.7px English against 354.2px French — and a `flex: 1 1 0` pin was
+written for it. Its negative control PASSED: reverting the pin alone left the
+gate green. The 7.5px was never the strapline; it was the preset bar one item to
+the right, and `.title-block` is the only item here that can absorb shrink, so it
+reported the difference its neighbour caused.
+
+**Frame cost: ZERO.** `.frame` scroll extent is 1027px inside a 974px client area
+at v1.2.5, 1027px at v1.3.0 in English, and 1027px at v1.3.0 in French. The page
+scrolls by 53px in every one of those three cases — it did before this work and
+it does after, identically in both languages. The 760 × 980 frame is untouched;
+it is the narrowest in the batch and nothing here moved it.
+
+### Testing
+- `check-i18n --plugin O-simpleFM`: exit 0, canon **v2**, all 15 assertions.
+- `check-i18n --strict-v2`: exit 0 — **12 canon v2, 0 canon v1**.
+- `check-ui-labels --plugin O-simpleFM`: **ALL CHECKS PASSED** at 760 × 980 across
+  four states, with **ZERO** non-label elements moved between English and French,
+  vacuity 37/38 labels + 29/29 attributes actually changing language,
+  `dataset.label === textContent` after init, after the switch and after a state
+  pass in both languages, **38 of 38 labels measured** (no coverage hole), no
+  page error, every resource served.
+- `boot-all-uis`: clean — 38 i18n, 0 native title. (`O-Bowed` and `O-Reed` still
+  fail this repo-wide with `Unexpected token 'export'`; pre-existing, untouched.)
+- Render harness: **ALL PASS, 8/8**, and every printed number is digit-identical
+  to the pre-change C++. Unlike O-simpleGrain's, **this harness is
+  deterministic** — that was established first, by running the same binary twice
+  and getting the same digits, before any cross-version comparison was made.
+- `auval -a` lists `aumu OSiF OuDv`.
+- The re-pointed `modFixedHz` selector was verified by driving the toggle in a
+  headless page, with a negative control against the old selector.
+
+### Not verified
+- The C++ persistence round-trip has never been executed by hand on this plugin:
+  that a language choice survives quitting and reopening a DAW session is a
+  strong inference from the code, not a measurement.
+- Windows / WebView2 font metrics remain a named deferral, blocked on hardware.
+  A French label measured as fitting on macOS could clip under WebView2.
+- The French is machine-drafted. All 80 entries are `reviewed: false`.
+
 ## [1.2.5] — 2026-08-25
 
 ### Fixed
