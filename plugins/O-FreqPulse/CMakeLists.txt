@@ -5,7 +5,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-FreqPulse
-    VERSION 1.17.0
+    VERSION 1.18.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFPu
@@ -61,6 +61,7 @@ juce_add_binary_data(O-FreqPulse_UIResources
         Resources/ui/index.html
         Resources/ui/css/styles.css
         Resources/ui/js/app.js
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/modules/preset-manager.js

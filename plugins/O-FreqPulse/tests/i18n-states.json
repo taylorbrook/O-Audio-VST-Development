@@ -1,0 +1,22 @@
+[
+  {
+    "name": "band controls panel OPEN on the SUB band (label.bandControls with its {band} token substituted, plus label.steps / label.pulses / label.offset / label.phase — the panel is display:none until an Expand button is clicked)",
+    "click": "#expand-0"
+  },
+  {
+    "name": "band controls panel OPEN on the MID band (the same five labels with the LONGEST French band name substituted into the heading — the SUB pass above would certify the shortest)",
+    "click": "#expand-2"
+  },
+  {
+    "name": "the SUB band switched to EUCLIDEAN (label.euclidean, the other face of the mode caption; label.manual is the resting face the default state already measured)",
+    "click": "#mode-0"
+  },
+  {
+    "name": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the toggle are all inside a [hidden] panel, so the gate never measures them at rest). LAST but one on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the toggle below is clicked.",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help ON (the ui.on face of the settings toggle, which no resting state shows — the C++ default is off). A real click on the real control, inside the popover the previous state opened, so the dismiss handler leaves the panel up.",
+    "click": "#tips-toggle"
+  }
+]

@@ -127,11 +127,36 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
             complete(juce::var(true));
         })
         // WR-01: getter so the WebView can PULL the persisted tooltip state once its JS is
-        // ready (replaces the racy one-shot 30 Hz timer push, which fired before restoreTooltipState
-        // existed on a cold WebView start and never retried).
+        // ready (replaces the racy one-shot 30 Hz timer push, which fired before the JS restore
+        // hook existed on a cold WebView start and never retried).
         .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&,
                                                          std::function<void(juce::var)> complete) {
             complete(juce::var(processorRef.getTooltipsEnabled()));
+        })
+        // v1.18.0: the UI language. PULLED once by the page at init, never
+        // pushed — a push from this constructor or from a timer tick fires
+        // before the page module has evaluated, so the stored preference would
+        // silently never arrive. That is the same WR-01 lesson the tooltip
+        // getter above already records. No revision counter and no poll: the
+        // language is not preset content, and OuariconPresetManager::loadPreset
+        // walks only preset["parameters"] and never touches a state-tree
+        // property, so nothing but this page can change it.
+        .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>&,
+                                                     std::function<void(juce::var)> complete) {
+            complete(juce::var(OFreqPulseAudioProcessor::languageCode(
+                processorRef.getUiLanguageIndex())));
+        })
+        .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args,
+                                                     std::function<void(juce::var)> complete) {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument degrades to English rather than being stored
+            // unvalidated.
+            if (! args.isEmpty())
+                processorRef.setUiLanguageIndex(
+                    OFreqPulseAudioProcessor::languageIndex(args[0].toString()));
+
+            complete(juce::var(OFreqPulseAudioProcessor::languageCode(
+                processorRef.getUiLanguageIndex())));
         })
         // v1.6.0: Preset Manager native functions
         .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args,
@@ -405,6 +430,17 @@ OFreqPulseAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/app.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.18.0: the i18n table. Embedded in CMakeLists.txt's
+    // juce_add_binary_data SOURCES, served here, and imported by js/app.js —
+    // all four places or the page 404s at runtime and presents as a dead panel
+    // with no other symptom (check-i18n assertion 8).
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String("text/javascript")
         };
     }

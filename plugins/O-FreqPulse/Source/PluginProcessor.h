@@ -56,6 +56,25 @@ public:
     // v1.5.0: Tooltip system state (saved with plugin state)
     bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
     void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
+
+    //==========================================================================
+    // v1.18.0: UI language.
+    //
+    // 0 = en, 1 = fr. Held as an int index rather than the string it persists
+    // as because std::atomic<juce::String> does not compile — juce::String is
+    // not trivially copyable — so the audio-safe form is an index behind the
+    // two-function codec below while the PERSISTED form stays a language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their interface in. It rides the APVTS state tree as a
+    // non-parameter property, which the JSON preset path never touches.
+    //==========================================================================
+    int  getUiLanguageIndex() const           { return uiLanguage.load(std::memory_order_acquire); }
+    void setUiLanguageIndex(int i)            { uiLanguage.store(i, std::memory_order_release); }
+
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -165,6 +184,10 @@ private:
 
     // v1.5.0: Tooltip enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };
+
+    // v1.18.0: UI language index (0 = en, 1 = fr), saved with plugin state as
+    // the language CODE string. See the codec above.
+    std::atomic<int> uiLanguage { 0 };
 
     // Cached parameter values (for change detection)
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };

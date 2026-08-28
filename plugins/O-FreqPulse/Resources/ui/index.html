@@ -26,6 +26,14 @@
     <link rel="stylesheet" href="/css/styles.css">
     <script type="module" src="/js/app.js"></script>
 </head>
+<!-- v1.18.0: NO hover-help copy is authored in this markup any more. Every
+     data-tip / data-tip-title on this page is written at runtime by applyI18n()
+     from js/i18n.js, and scripts/check-i18n.js assertion 3 fails the build if a
+     literal reappears here. Native title= is likewise GONE, not localized:
+     contract §4 — on an element that also has a data-tip it renders a second,
+     untranslated OS tooltip competing with the measure-then-pin renderer. Where
+     a title= was an element's only accessible name its text moved to
+     data-i18n-aria; no new prose was invented. -->
 <body>
     <div class="container" id="plugin-container">
         <!-- Header -->
@@ -33,76 +41,130 @@
             <div class="header-top">
                 <h1>Ouaricon Frequency Pulse</h1>
                 <div class="preset-bar">
-                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
-                    <span class="preset-name" id="presetName" title="Click to see all presets">Init</span>
-                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&gt;</button>
-                    <button class="preset-action-btn" id="loadPreset" title="Load preset from file">Load</button>
-                    <button class="preset-action-btn" id="savePreset" title="Save current settings">Save</button>
+                    <button class="preset-nav-btn" id="prevPreset"
+                            data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&lt;</button>
+                    <span class="preset-name" id="presetName"
+                          data-i18n-aria="aria.presetName" aria-label="Click to see all presets">Init</span>
+                    <button class="preset-nav-btn" id="nextPreset"
+                            data-i18n-aria="aria.presetNext" aria-label="Next preset">&gt;</button>
+                    <button class="preset-action-btn" id="loadPreset"
+                            data-i18n="label.load"
+                            data-i18n-aria="aria.presetLoad" aria-label="Load preset from file">Load</button>
+                    <button class="preset-action-btn" id="savePreset"
+                            data-i18n="label.save"
+                            data-i18n-aria="aria.presetSave" aria-label="Save current settings">Save</button>
                     <div class="preset-dropdown" id="presetDropdown"></div>
                 </div>
             </div>
-            <p class="tagline">Frequency Band Step Sequencer</p>
+            <p class="tagline" data-i18n="label.tagline">Frequency Band Step Sequencer</p>
+
+            <!-- v1.18.0: the settings popover. Absolutely positioned inside the
+                 header rather than added to .header-top, which is a CENTRED flex
+                 row — a third item there would have shifted both the title and
+                 the preset bar sideways for a control that belongs in the
+                 corner. -->
+            <div class="settings-cluster">
+                <button type="button" class="gear-btn" id="gear-btn"
+                        aria-haspopup="dialog" aria-expanded="false"
+                        data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
+
+                <div class="settings-popover" id="settings-popover"
+                     role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
+                    <label class="settings-row" for="lang-select">
+                        <!-- data-label so a shared state updater that writes
+                             textContent reads the authored caption back instead
+                             of erasing it. -->
+                        <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                        <!-- Endonyms. Never localized, never written by a state
+                             updater: a French speaker looking for their language
+                             looks for "Français". -->
+                        <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                            <option value="en">English</option>
+                            <option value="fr">Fran&ccedil;ais</option>
+                        </select>
+                    </label>
+
+                    <!-- A div, not a <label for="tips-toggle">: a button is a
+                         labelable element, so a label wrapping it can re-dispatch
+                         the click and toggle twice. The button names itself with
+                         aria-label instead. -->
+                    <div class="settings-row">
+                        <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+                        <button type="button" class="settings-toggle" id="tips-toggle"
+                                aria-pressed="false" data-i18n-aria="aria.helpToggle"
+                                aria-label="Toggle hover help"
+                                data-i18n="ui.off" data-tip-always>Off</button>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <!-- Grid Area -->
-        <div class="grid-area" data-tooltip="Step sequencer grid. Each row is a frequency band; click cells to toggle steps on/off. Active steps highlight green during playback.">
+        <div class="grid-area" id="grid-area">
             <div id="grid-container"></div>
         </div>
 
         <!-- Euclidean Panel (hidden by default) -->
         <div class="euclidean-panel" id="euclidean-panel">
-            <h3 id="euc-band-title">Band Controls</h3>
+            <!-- ONE key with a {band} token, re-keyed per band by
+                 openEuclideanPanel(). The data-i18n-vars here paints only the
+                 resting state nobody sees, and exists so no {band} placeholder
+                 can survive into a rendered box. -->
+            <h3 id="euc-band-title" data-i18n="label.bandControls"
+                data-i18n-vars='{"band":"bandName.sub"}'>Band Controls</h3>
             <div class="euc-controls">
-                <div class="control-group" data-tooltip="Euclidean Steps: The total length of the Euclidean pattern. Steps beyond this wrap around.">
-                    <label>Steps</label>
+                <div class="control-group">
+                    <label data-i18n="label.steps">Steps</label>
                     <input type="range" class="slider" id="euc-steps" min="1" max="32" value="16">
                     <span class="value-display" id="euc-steps-value">16</span>
                 </div>
-                <div class="control-group" data-tooltip="Euclidean Pulses: The number of active beats distributed as evenly as possible across the pattern length.">
-                    <label>Pulses</label>
+                <div class="control-group">
+                    <label data-i18n="label.pulses">Pulses</label>
                     <input type="range" class="slider" id="euc-pulses" min="1" max="32" value="8">
                     <span class="value-display" id="euc-pulses-value">8</span>
                 </div>
-                <div class="control-group" data-tooltip="Euclidean Offset: Rotates the generated pattern by this many steps, shifting where the rhythm starts.">
-                    <label>Offset</label>
+                <div class="control-group">
+                    <label data-i18n="label.offset">Offset</label>
                     <input type="range" class="slider" id="euc-offset" min="0" max="31" value="0">
                     <span class="value-display" id="euc-offset-value">0</span>
                 </div>
-                <div class="control-group" data-tooltip="Phase: Shifts this band's pattern read position by N steps. Creates phase-shifted polyrhythmic patterns between bands. Works in both Manual and Euclidean modes.">
-                    <label>Phase</label>
+                <div class="control-group">
+                    <label data-i18n="label.phase">Phase</label>
                     <input type="range" class="slider" id="euc-phase" min="0" max="31" value="0">
                     <span class="value-display" id="euc-phase-value">0</span>
                 </div>
-                <div class="control-group" data-tooltip="Band Steps: Override the global step count for this band (0 = follow global). Creates polymetric loops when bands have different step counts.">
-                    <label>Steps</label>
+                <div class="control-group">
+                    <label data-i18n="label.steps">Steps</label>
                     <input type="range" class="slider" id="euc-band-steps" min="0" max="32" value="0">
                     <span class="value-display" id="euc-band-steps-value">Global</span>
                 </div>
             </div>
-            <button class="close-btn" id="euc-close">×</button>
+            <button class="close-btn" id="euc-close"
+                    data-i18n-aria="aria.closePanel" aria-label="Close band controls">&times;</button>
         </div>
 
-        <!-- v1.5.0: Tooltip toggle button -->
-        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
-
         <!-- Tooltip element (positioned dynamically by JS) -->
-        <div class="tooltip" id="tooltip"></div>
+        <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
         <!-- Footer Controls -->
         <footer class="footer">
             <div class="global-controls">
-                <div class="control" data-tooltip="Mix: Blends between the dry (unprocessed) and wet (gated) signal. At 0% you hear only dry; at 100% only the gated output.">
-                    <label>Mix</label>
+                <div class="control">
+                    <label data-i18n="label.mix">Mix</label>
                     <input type="range" class="slider" id="mix" min="0" max="100" value="100">
                     <span class="value-display" id="mix-value">100%</span>
                 </div>
-                <div class="control" data-tooltip="Steps: Sets the number of active steps in the sequence (2-32). Higher values create longer, more complex patterns.">
-                    <label>Steps</label>
+                <div class="control">
+                    <label data-i18n="label.steps">Steps</label>
                     <input type="range" class="slider" id="steps" min="2" max="32" value="16">
                     <span class="value-display" id="steps-value">16</span>
                 </div>
-                <div class="control" data-tooltip="Rate: Sets the tempo-synced note division for each step. Smaller values (1/32) create faster patterns; larger values (1/1) create slower ones. T = triplet, D = dotted.">
-                    <label>Rate</label>
+                <div class="control">
+                    <label data-i18n="label.rate">Rate</label>
+                    <!-- The ten option texts are the `rate` AudioParameterChoice
+                         entries verbatim and stay English under D-01 — they are
+                         the host automation contract, and they are note
+                         divisions, which are language-neutral anyway. -->
                     <select class="dropdown" id="rate">
                         <option value="0">1/1</option>
                         <option value="1">1/2</option>
@@ -116,18 +178,18 @@
                         <option value="9">1/8D</option>
                     </select>
                 </div>
-                <div class="control" data-tooltip="Swing: Delays every other step to create a shuffle/groove feel. At 0% timing is straight; higher values push odd steps later.">
-                    <label>Swing</label>
+                <div class="control">
+                    <label data-i18n="label.swing">Swing</label>
                     <input type="range" class="slider" id="swing" min="0" max="100" value="0">
                     <span class="value-display" id="swing-value">0%</span>
                 </div>
-                <div class="control" data-tooltip="Attack: Fade-in time when a step turns ON (0-500ms). Lower values create sharper onsets; higher values create gentle swells.">
-                    <label>Attack</label>
+                <div class="control">
+                    <label data-i18n="label.attack">Attack</label>
                     <input type="range" class="slider" id="attack" min="0" max="1000" value="0">
                     <span class="value-display" id="attack-value">5ms</span>
                 </div>
-                <div class="control" data-tooltip="Release: Fade-out time when a step turns OFF (0-500ms). Lower values create sharp cuts; higher values create gentle tails.">
-                    <label>Release</label>
+                <div class="control">
+                    <label data-i18n="label.release">Release</label>
                     <input type="range" class="slider" id="release" min="0" max="1000" value="0">
                     <span class="value-display" id="release-value">5ms</span>
                 </div>
