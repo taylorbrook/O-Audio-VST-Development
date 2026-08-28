@@ -407,6 +407,29 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
             .withOptionsFrom(*patternLane4Step15Relay)
             .withOptionsFrom(*patternLane4Step16Relay)
             // v1.6.0: Preset manager native functions
+            // v1.14.0: the UI language. PULLED once by the page at init, never
+            // pushed — a push from this constructor or from a timer tick fires
+            // before the page module has evaluated, so the stored preference
+            // would silently never arrive. No revision counter and no poll: the
+            // language is not preset content, and
+            // OuariconPresetManager::loadPreset walks only preset["parameters"]
+            // and never touches a state-tree property, so nothing but this page
+            // can change it.
+            .withNativeFunction("getUiLanguage", [this](auto&, auto complete) {
+                complete(juce::var(OPolystutterAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
+            .withNativeFunction("setUiLanguage", [this](auto& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument degrades to English rather than being
+                // stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.setUiLanguageIndex(
+                        OPolystutterAudioProcessor::languageIndex(args[0].toString()));
+
+                complete(juce::var(OPolystutterAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
                     complete(processorRef.presetManager.savePreset(args[0].toString()));
@@ -936,6 +959,27 @@ OPolystutterAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/juce/check_native_interop.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.14.0: the page controller, extracted from four inline <script> blocks
+    // in index.html so this served tree has the same file shape as every other
+    // canon-v2 plugin.
+    if (url == "/js/app.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.14.0: the i18n table. Embedded in CMakeLists.txt's
+    // juce_add_binary_data SOURCES, served here, and imported by js/app.js —
+    // all four places or the page 404s at runtime and presents as a dead panel
+    // with no other symptom (check-i18n assertion 8).
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String("text/javascript")
         };
     }

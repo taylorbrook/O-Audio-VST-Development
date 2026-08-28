@@ -63,6 +63,25 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
+    //==========================================================================
+    // v1.14.0: UI language.
+    //
+    // 0 = en, 1 = fr. Held as an int index rather than the string it persists
+    // as because std::atomic<juce::String> does not compile — juce::String is
+    // not trivially copyable — so the audio-safe form is an index behind the
+    // two-function codec below while the PERSISTED form stays a language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their interface in. It rides the APVTS state tree as a
+    // non-parameter property, which the JSON preset path never touches.
+    //==========================================================================
+    int  getUiLanguageIndex() const           { return uiLanguage.load(std::memory_order_acquire); }
+    void setUiLanguageIndex(int i)            { uiLanguage.store(i, std::memory_order_release); }
+
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // Public access to APVTS for UI binding
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
 
@@ -82,6 +101,10 @@ public:
     std::atomic<bool> lane2Active { false };
     std::atomic<bool> lane3Active { false };
     std::atomic<bool> lane4Active { false };
+
+    // v1.14.0: UI language index (0 = en, 1 = fr), saved with plugin state as
+    // the language CODE string. See the codec above.
+    std::atomic<int> uiLanguage { 0 };
 
 private:
     // DSP Components (BEFORE parameters for initialization order)

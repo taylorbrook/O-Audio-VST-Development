@@ -1,0 +1,14 @@
+[
+  {
+    "name": "preset dropdown OPEN (label.factory on every factory row — .preset-dropdown-menu is display:none until #preset-name-display is clicked, and the rows are built by buildPresetDropdown at runtime, so no resting state can show them). FIRST on purpose: its click handler calls stopPropagation, so the document-level dismiss never fires and the menu stays up while the states below open the popover as well.",
+    "click": "#preset-name-display"
+  },
+  {
+    "name": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the toggle are all inside a [hidden] panel, so the gate never measures them at rest)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help ON (the ui.on face of the settings toggle, which no resting state shows — the layer starts off). A real click on the real control, inside the popover the previous state opened: the popover's dismiss handler ignores a press on its own subtree, so the panel is still up.",
+    "click": "#tips-toggle"
+  }
+]
