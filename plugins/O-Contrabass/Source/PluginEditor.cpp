@@ -171,6 +171,33 @@ OContrabassAudioProcessorEditor::OContrabassAudioProcessorEditor(OContrabassAudi
             })
 
             // =============================================================
+            // INTERFACE LANGUAGE (v1.8.0) — the same shape and the same
+            // discipline as the toggle pair above: plain withNativeFunction,
+            // no relay, PULLED once by the page at init. No push from this
+            // constructor, no timer, no revision counter — the language is not
+            // preset content, and OuariconPresetManager::loadPreset walks
+            // preset["parameters"] only, so no preset path can change it
+            // behind the page's back.
+            // =============================================================
+            .withNativeFunction("getUiLanguage", [this](const auto&, auto complete) {
+                complete(juce::var(OContrabassAudioProcessor::languageCode(
+                                       processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+
+            .withNativeFunction("setUiLanguage", [this](const auto& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument from the page degrades to English rather
+                // than being stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.uiLanguage.store(
+                        OContrabassAudioProcessor::languageIndex(args[0].toString()),
+                        std::memory_order_release);
+
+                complete(juce::var(OContrabassAudioProcessor::languageCode(
+                                       processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+
+            // =============================================================
             // PRESET NATIVE FUNCTIONS (Task 8 — preset-manager v1.0.4
             // contract; 10 fns required by js/preset-manager.js)
             // =============================================================
@@ -757,6 +784,20 @@ OContrabassAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
             juce::String("text/html")};
+    }
+
+    // v1.8.0 — the interface copy table, imported by the inline module in
+    // index.html as './js/i18n.js'. THIS BRANCH, the juce_add_binary_data
+    // SOURCES entry and the import all land in one commit: any two of the three
+    // leaves the page 404ing at runtime with nothing failing at build time.
+    // charset=utf-8 on this one, unlike its neighbours: the French copy is full
+    // of accented characters and typographic apostrophes, which mojibake on
+    // some hosts without it.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("application/javascript; charset=utf-8")};
     }
 
     // MIME must be application/javascript or the module import silently fails.

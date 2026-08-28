@@ -4,6 +4,111 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.8.0] — 2026-08-27 — The PAGE speaks French, not only the hover help
+
+Canon v2 of the suite-wide i18n retrofit (quick task 260826-ieq, Stage I).
+O-Contrabass is the sixth plugin on canon v2 and the first outside the five
+that already shipped tooltips. It gains BOTH halves in one release: its 44
+hover-help tips move out of the markup into a copy table, and its 52 page
+labels, 6 accessible names and 2 script-written captions are localized with
+them. Splitting them would have shipped a half-localized plugin twice.
+
+### Added
+
+- **`Source/ui/public/js/i18n.js`** — 46 tooltip entries (44 moved verbatim
+  from `index.html`, plus the two new settings controls), 57 LABELS keys,
+  46 TIP_BINDINGS and a 30-entry reasoned `I18N_EXEMPT`. English was MOVED,
+  not rewritten: every `en` string was extracted mechanically and compared
+  back byte-for-byte, with HTML entities decoded to the characters they named
+  (`&beta;` → β, `&mdash;` → —) because `setAttribute` and `textContent` do
+  not decode entities. **All 103 French entries are machine drafts flagged
+  `reviewed: false`. No native speaker has read one.**
+- **A settings gear in the header**, replacing the v1.7.0 "?" in the same slot
+  and inheriting its 26 px circle, so the header silhouette is unchanged. It
+  opens a popover written in the preset menu's own dark vocabulary — the same
+  `#4A3226 → #3E2A20` gradient, rule and radius — carrying a language selector
+  and the hover-help toggle, which MOVED in rather than being duplicated.
+- **Interface-language persistence.** `getUiLanguage` / `setUiLanguage` take
+  the native-fn bridge from 34 to 36. The choice rides the session as a root
+  XML attribute beside `tooltipsEnabled`, deliberately NOT as an
+  `AudioParameterChoice`: it must not appear in an automation lane and a preset
+  must not be able to change which language somebody reads.
+- **`tests/i18n-states.json`** — drives the settings popover open and the
+  hover-help toggle lit, which is what takes the label gate's measured coverage
+  to 52 of 52.
+
+### Fixed
+
+- **The header row had NO slack, in English, since the tab strip was added.**
+  `.header-spacer` rendered 0 px wide and the 300 px preset readout was being
+  flex-shrunk to 250.2 — it had never once rendered at its authored width.
+  French did not cause that; French exposed it, by needing 35.3 px more for
+  PRINCIPAL/ACCORD and taking it out of the readout, both nav arrows, the whale
+  and the brand line. The readout is pinned at 180 px and the tab buttons at
+  100 px, so the row now has real slack in both languages. The longest factory
+  preset name, "Cinematic Bass Sustain", measures 135 px inside it.
+- **`ui_frontend_check.js` §6 certified a silent 404.** Its resource-provider
+  scan enumerated three import SHAPES — a double-quoted `src=`/`href=`, a
+  dynamic `import()` and a namespace `import * as`. A NAMED import is a fourth,
+  so it counted 4 references where the page has 5 and reported PASS over a file
+  with no `getResource()` branch — the blank-UI failure the assertion exists to
+  prevent. It now matches any module specifier in either quote style, and
+  asserts the derived set is non-empty. Proven both ways: with the old scan
+  restored AND the branch deleted, it goes silent.
+- **The Active Strings readout said "4 of 4" in French.** "of" is a connective
+  word, not a unit symbol, so D-03 does not cover it. The number stays a number
+  and is substituted as `{n}`; only the connective is localized.
+- **The Tuning tab's load-failure notice was an untranslated `innerHTML`
+  string literal** with an inline style. It is a keyed element built with
+  `createElement` + `setLabel` now, and its presentation moved to
+  `.tuning-load-error`.
+
+### Changed
+
+- Six panel captions were split into their own `<span>` beside the Roman
+  numeral, and the drone caption into two spans either side of its authored
+  `<br>`: `applyLabel()` writes `textContent`, which would delete an element
+  child — silently, and in English too.
+- Ten containers pinned to the wider language, every one measured rather than
+  guessed: `.tab-btn` 100 px (MAIN 64.3 / PRINCIPAL 98.2), `.preset-save-btn`
+  66 (SAVE 52.5 / ENREG. 64), `.strip-field > .strip-field-label` 98 (Tuning
+  System 80.3 / Système d'accord 97.5), `.scl-btn` 98 (81.8 / 97.5),
+  `.sec-body .sublabel` 93, `.sec-expression .sublabel` 108, and
+  `.panel-label > span:first-child` given the remaining space instead of being
+  shrink-to-fit. Nine of these change English geometry too — D-04 sizes French
+  rather than shrinking it, and the only box two languages can share is the
+  wider one.
+- **One French string was SIZED**, recorded at its entry: the Schelleng
+  sublabel is `point de fonctionnement`, not `point de fonctionnement de
+  l'archet`. The full form is 156.3 px beside a 167.4 px title in a 314 px
+  panel head, which wrapped to two lines and pushed the canvas down 11 px. The
+  panel is already titled "Diagramme de Schelleng", so "de l'archet" said twice
+  what the title says once.
+- Native `title=` attributes: there were none to delete. The page had zero.
+
+### Verified
+
+- `check-i18n --strict-v2` passes repo-wide — **6 canon v2, 0 canon v1**.
+- `check-ui-labels` — 52/52 labels measured across 3 states, **zero non-label
+  geometry shifts**, 6/6 keyed attributes change language.
+- `ui_frontend_check` — all checks pass, bridge 36 ↔ 36.
+- `boot-all-uis` — 41/43 clean, unchanged; O-Contrabass `title=0 aria=6 i18n=52`.
+- **All 21 render goldens byte-identical.** No DSP was touched.
+- `auval -v aumu OCbs OuDv` — AU VALIDATION SUCCEEDED. Bundle reports 1.8.0.
+- `i18n_jsSize` 43114 == `wc -c` — the retrofit reached the binary.
+- 29 negative controls, 29 fired.
+
+### NOT verified
+
+- **The C++ language round-trip has not been run in a DAW.** It is reasoned
+  from source, exactly as on the five plugins before it. Same for the
+  hover-help toggle it sits beside.
+- No human has seen the French UI. All geometry is headless Chromium on macOS;
+  Windows/WebView2 font metrics remain a named deferral, blocked on hardware.
+- The Tuning tab is rendered by the shared `scala-tuning-engine` module and is
+  **NOT localized** by this release. Its panel is English in both languages.
+- The Standalone `.app` is stale — `build-and-install.sh` builds VST3 + AU only.
+
 ## [1.7.2] — 2026-08-20 — Tuning tab restored to the 3-column layout
 
 ### Fixed

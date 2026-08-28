@@ -694,6 +694,13 @@ void OContrabassAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         // getBoolAttribute below sidesteps that class of bug entirely.
         xml->setAttribute("tooltipsEnabled",
                           tooltipsEnabled.load(std::memory_order_acquire));
+
+        // v1.8.0 — the interface LANGUAGE rides the same root, beside the
+        // toggle it belongs with, and as a root XML attribute for the same
+        // reason. Written as a STRING ("en"/"fr") rather than the atomic's int
+        // index, so a hand-inspected session file says what it means.
+        xml->setAttribute("uiLanguage",
+                          languageCode(uiLanguage.load(std::memory_order_acquire)));
         copyXmlToBinary(*xml, destData);
     }
 }
@@ -709,6 +716,14 @@ void OContrabassAudioProcessor::setStateInformation(const void* data, int sizeIn
         if (xml->hasAttribute("tooltipsEnabled"))
             tooltipsEnabled.store(xml->getBoolAttribute("tooltipsEnabled"),
                                   std::memory_order_release);
+
+        // v1.8.0 — same treatment. Pre-1.8.0 sessions have no attribute and the
+        // default (English) stands. languageIndex() clamps anything that is not
+        // "fr" to 0, so a hand-edited value degrades to English rather than to a
+        // bad index. Also PULLED by the page at init, never pushed.
+        if (xml->hasAttribute("uiLanguage"))
+            uiLanguage.store(languageIndex(xml->getStringAttribute("uiLanguage")),
+                             std::memory_order_release);
 
         presetManager.setStateFromXml(xml.get());
     }

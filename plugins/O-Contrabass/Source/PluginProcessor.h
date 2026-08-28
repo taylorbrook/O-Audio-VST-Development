@@ -139,6 +139,28 @@ public:
     // attribute in get/setStateInformation so it survives a session reload.
     std::atomic<bool> tooltipsEnabled { false };
 
+    // ------------------------------------------------------------------------
+    // v1.8.0 — the interface language. 0 = en, 1 = fr.
+    //
+    // An INDEX rather than a string because std::atomic<juce::String> does not
+    // compile — juce::String is not trivially copyable — so the audio-safe form
+    // is an index behind the two-function codec below while the PERSISTED form
+    // stays a language code.
+    //
+    // Deliberately NOT an AudioParameterChoice, for the same two reasons
+    // tooltipsEnabled is not one: it must not appear in a DAW automation lane,
+    // and a preset must not be able to change which language somebody reads
+    // their interface in. It rides the session as a root XML attribute beside
+    // the toggle it belongs with, which the JSON preset path never touches.
+    // ------------------------------------------------------------------------
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
