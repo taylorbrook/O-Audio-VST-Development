@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover OPEN (lang-select and help-toggle — the two caption labels are invisible at rest, and so is the switch's own face)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help switched OFF (ui.off — the switch's other face, which no resting state shows; the popover is still open from the state above)",
+    "click": "#help-toggle"
+  }
+]

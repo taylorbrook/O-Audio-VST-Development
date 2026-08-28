@@ -3,6 +3,162 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.0] — 2026-08-28
+
+**The PAGE speaks French, not only the hover help.** Sixth of the seven `O-simple*`
+plugins and the sixth of batch I2 (canon v2). Every caption, column heading, button
+face, diagram node, hint, dropdown group heading and tooltip switches with a language
+selector in a new header gear. Value readouts, the factory preset names and the three
+`AudioParameterChoice` drop-downs stay English per D-03/D-02/D-01. No parameter or
+audio change.
+
+### Added
+- **Interface language, English + French.** `Source/ui/public/js/i18n.js` — 24 tooltip
+  entries (21 MOVED verbatim out of the `TIPS` object in `js/app.js`, 3 new for the
+  settings panel), 53 label entries, 8 reasoned `I18N_EXEMPT` exclusions, 24
+  `TIP_BINDINGS`. 39 `[data-i18n]` elements and 29 keyed attributes in the markup.
+  **77 French strings, every one `reviewed: false` — machine-drafted, no native
+  speaker has read it.** `node scripts/check-i18n.js` prints the worklist.
+- **Settings gear in the header**, in the slot the "?" chip held. The hover-help
+  switch MOVED into it rather than sitting beside it — a plugin should not grow a
+  second settings surface, and the two settings that decide what the hover help says
+  and whether it says it belong in one place. Its `localStorage` key
+  (`opms.tipsEnabled`) is unchanged, so a preference set before this version survives
+  the move. Styled in this plugin's own aged-paper vocabulary: the gear keeps the
+  chip's 22px paper circle exactly, and the panel wears `.preset-dropdown`'s plate.
+- **An accessible name on all fourteen knobs.** Pre-existing gap: `bindKnob()` gives
+  each knob `role="slider"` and `tabindex="0"` and the markup gave it no name at all.
+  `data-i18n-aria` naming the parameter resolves to the control's own tooltip title
+  and fixes it in both languages for free.
+- **`tests/i18n-states.json`** — two states the label gate cannot reach on its own:
+  the settings popover open, and the hover-help switch in its Off position.
+- C++ `getUiLanguage` / `setUiLanguage` native functions and a `std::atomic<int>
+  uiLanguage`, persisted as a plain `uiLanguage` property on the APVTS root — the
+  string `"en"`/`"fr"`, restored behind an `isVoid()` gate. Not an
+  `AudioParameterChoice`: it must not reach a DAW automation lane, and loading a
+  preset must not change which language somebody reads their interface in.
+  **`setProperty` runs BEFORE `getStateAsXml()` and `getProperty` AFTER
+  `setStateFromXml()`** — opposite ordering on the two sides, because
+  `OuariconPresetManager::getStateAsXml()` starts from `parameters.copyState()` (a
+  property written after the copy never reaches the XML) and `setStateFromXml()` ends
+  in `replaceState()` (`parameters.state` is the OLD tree until it returns).
+
+### Changed
+- **The tooltip anchors moved off `data-tip`.** Canon v2's `applyI18n` WRITES
+  `data-tip` as the tip BODY, so the key and the copy would have fought over one
+  attribute. The seventeen control cells carry a new `data-param`; the four diagram
+  boxes carry an id (`#diagExciteBox`, `#diagResonatorBox`, `#diagMaterialBox`,
+  `#diagOutBox`).
+- **The tooltip listeners are DELEGATED on the document.** No anchor carries
+  `data-tip` until the first `applyI18n` sweep runs, so v1.1.0's
+  `querySelectorAll("[data-tip]")` at setup time would have bound nothing at all.
+  `pointerover`/`pointerout` and `focusin`/`focusout` because — unlike
+  `pointerenter`/`pointerleave` and `focus`/`blur` — they bubble.
+- **The tip is built with `createElement` + `textContent`, not `innerHTML`.** The tip
+  bodies lost their `<strong>`/`<em>` tags; **the words are unchanged.** Localized
+  copy must never reach a markup path.
+- Five native `title=` attributes deleted (contract §4 — a native title renders a
+  second, untranslated OS tooltip). Two (`#presetPrev`, `#presetNext`) duplicated an
+  `aria-label` already there; three (`#presetName`, `#presetSave`, `#presetDelete`)
+  were the only help their button had and moved to `data-i18n-aria`.
+- `addGroup()` in `buildPresetDropdown()` takes a one-line WRITER instead of a label
+  string, so the "Factory"/"User" headings can be localized at the call site with a
+  plain literal key. The preset NAMES it lists are untouched — a preset name is its
+  JSON filename (D-02). **The vendored `modules/preset-manager.js` was not edited.**
+
+### Fixed
+- **PRE-EXISTING: the render harness's version had drifted two releases.**
+  `tests/render-harness/CMakeLists.txt` hard-coded `JucePlugin_VersionString="1.0.0"`
+  while the plugin shipped 1.1.0. The processor ctor runs
+  `initializeFactoryPresets()`, whose `.factory-version` sentinel compares against
+  `JucePlugin_VersionString`, so **every harness run rewrote the user's real
+  factory-preset directory with a two-release-stale stamp** — observed live, the
+  sentinel at `~/Library/O-simplePhysicalModelSynth/Presets/Factory/.factory-version`
+  read `1.0.0`. Both files now derive the version BY REFERENCE from a single
+  `set(OSIMPLEPHYSICALMODELSYNTH_VERSION ...)` in the plugin's own CMakeLists, the
+  shape O-simpleFM and O-simpleGrain already use. `JucePlugin_VersionCode` was stale
+  the same way (`0x10000`) and is now `0x10200`.
+- **PRE-EXISTING: the resonator-/exciter-aware grey-out would have died silently.**
+  `setDisabled()` built its selector from a TEMPLATE LITERAL —
+  ``document.querySelector(`[data-tip="${id}"]`)`` — which a grep for the static form
+  never finds. Once the anchors moved it matched nothing, with no error and no
+  warning: the four gated controls simply stop dimming. Re-pointed at `data-param`
+  and verified by driving both engine selectors in a headless page (String/Pluck →
+  Modal/Pluck → Modal/Bow → back, all four cells following correctly). **Negative
+  control: with the old selector restored, nothing dims in any of the four states.**
+
+### Geometry — two measured rules, four measured copy decisions
+D-04 forbids auto-shrink fonts and short-variant fallbacks. The 1040 x 860 frame is a
+Locked Decision and is untouched. Each rule was reverted ALONE and the gate re-broke;
+each copy decision was reverted alone and the gate re-broke.
+
+| Rule | Measurement |
+|---|---|
+| `.title-block { flex: 1 1 0; min-width: 0 }` | The header is a two-item space-between row, so the block's used width WAS its own max-content: 520.7px English, 640.5px French. It reported a 113.5px width change AND had to shrink to the 634.2px the preset bar left it, wrapping the strapline and pushing the whole page down 12px. At basis 0 it is 626.3px in both. Costs English nothing — the h1 and strapline are left-aligned blocks in a transparent box. |
+| `.preset-act { min-width: 64px }` | SAVE 49.2 / ENREG. 61.4 and DELETE 63.4 / SUPPR. 58.7 — the pair disagrees about which language is longer, net +7.5px in French, which carried the preset bar, the fleuron and the gear left with it. 10 moved elements. One shared 64px rather than two id rules: the per-element widths would be 62 and 64, two pixels saved on SAVE at the cost of an asymmetric pair. |
+
+| French string | Measurement |
+|---|---|
+| `label.subtitle` **shortened** | The faithful "Synthétiseur à corde **de** Karplus–Strong et **à** résonateur modal" is 640.5px against the 626.3px the header can give. Two connecting words dropped → 605.4px, 20.9px of clearance. 146 moved elements when reverted. |
+| `label.vizWaveformHint` **shortened** | "la corde ou le corps qui **résonne, en** s'éteignant" is 203.6px against the 177.3px it has beside its 93.6px caption in a 273.7px viz block; it wrapped and shrank the scope canvas 11px in French only. → "la corde ou le corps qui s'éteint", 135.5px, 41.8px of clearance. |
+| `label.knobBowForce` **shortened** | "Force archet" is 76.5px in a 60px cell and wraps to two lines, making its cell 10.5px taller than the English "Bow Force" (59.5px, one line) — the only caption on the page whose LINE COUNT differed. → "Pression", 48.9px. The knob is greyed unless Excitation = Bow and its tip title spells out "Pression d'archet". |
+| `label.knobModeBright` **kept at two words** | "Mode Bright" (71.2px) is the one English caption that already wraps in its 60px cell. "Brillance modes" (96.4px) wraps the same way — line one "BRILLANCE" at 57.8px clears the cell — so the cell is the same height in both. A one-word "Brillance" would fit on ONE line and make the French cell 10.5px SHORTER, the same defect in the other direction. |
+
+**One attempted pin was DECORATION and was removed rather than kept and claimed.**
+`.settings-label { min-width: 86px }` was written for the popover captions ("Language"
+63.5 / "Langue" 47.1, "Hover help" 72.0 / "Aide au survol" 96.0); its negative control
+PASSED. The row is space-between with a fixed-width right-hand control, so the
+caption's own box positions nothing. `.settings-toggle { min-width: 78px }` is KEPT but
+is a DESIGN pin, not a geometry fix — its negative control also passes; what it buys is
+that clicking the switch does not resize it ("Activée" 65.0px → "Désactivée").
+
+**FRAME COST ZERO.** The `.frame` scroll extent is 854px inside an 854px client area at
+v1.1.0, and 854px in both languages at v1.2.0 — the page did not scroll before and does
+not scroll now. Measured by swapping HEAD's files in and out from an in-memory copy,
+never `git checkout`.
+
+### Copy decisions recorded
+- **`pluck·strike·bow`, `string · loop` and `modal · stems` stay ENGLISH** and are
+  `I18N_EXEMPT` under D-01. The first is the `excitationType` choice list verbatim
+  (Pluck / Strike / Bow), the other two are the `resonatorType` state line written by
+  `applyDiagramSkin()`. Both mirror `AudioParameterChoice` values the combos display
+  in English, and translating the diagram without translating the automation lane
+  would make the page and the host disagree about what the plugin is SET to. The node
+  CAPTIONS above them — EXCITE, RESONATOR, MATERIAL — ARE keyed: a caption names the
+  box, these name what is selected inside it.
+- The split wordmark (`O – simple` + `PhysicalModel`), the `Default` preset face and
+  the two endonyms are the other five exemptions.
+
+### Gates
+`check-i18n --plugin` exit 0 on **canon v2**; `check-i18n --strict-v2` exit 0 with
+**13 v2 / 0 v1**; `check-ui-labels` **ALL CHECKS PASSED** across three states with
+**ZERO** non-label elements moved, vacuity 36/39 labels + 29/29 attributes,
+`dataset.label === textContent` after init, after the switch and after a state pass in
+both languages, **no coverage hole**, no page error, every resource served;
+`boot-all-uis` clean (39 i18n, 0 title); render harness **ALL PASS 22/22**; `auval`
+lists `aumu OsPM OuDv`.
+
+**THIS RENDER HARNESS IS DETERMINISTIC, and that was established BEFORE any
+cross-version comparison.** Three consecutive runs of one binary are digit-identical,
+at v1.1.0 and at v1.2.0 alike. Comparing the two builds: every DSP number is
+unchanged, and exactly one number moved — `state-roundtrip stateBytes` 852 → 868, the
+16 bytes of the ` uiLanguage="en"` XML attribute this version adds.
+
+### Not verified
+- **The C++ persistence round-trip has never been executed by hand on this plugin.**
+  The claim that a language choice survives a session is reasoned from the source, not
+  measured.
+- Windows / WebView2 font metrics remain a named deferral: a French label measured as
+  fitting on macOS could clip on Windows. The tightest margin here is the strapline's
+  20.9px on 605.4px (3.5%).
+- **PRE-EXISTING, reported not fixed: the Delete button deletes without asking.**
+  `setupPresetManager()` calls `presetManager.deletePreset()` directly rather than
+  `promptDelete()`, and passes no `deleteButton` to the module, so neither the
+  module's own confirmation path nor an `onConfirmDelete` hook is ever reached. The
+  module's `Delete preset "X"?` sentence and its dialog buttons are unreachable code
+  in this plugin — which is why this commit localizes neither. Adding a confirmation
+  is a design change, not a localization change.
+
 ## [1.1.0] — 2026-08-09
 
 UI enhancement. No parameter/state-format changes.
