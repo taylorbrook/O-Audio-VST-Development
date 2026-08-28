@@ -100,9 +100,26 @@
         }
 
         /* Tab Navigation */
+        /* v2.9.0: the nav's WIDTH is pinned and its four buttons share it.
+           .header is justify-content: space-between, so a nav that shrink-wraps
+           to the sum of its captions slides sideways as those captions change
+           language — 8.7 px, carrying the dice button and the gear with it.
+           392 px is the English sum as rendered (70.61 + 80.17 + 73.67 + 84.86,
+           five 6 px gaps, and the two 26 px round buttons), so the English
+           layout is unchanged to within a pixel while French can no longer move
+           anything. `flex: 1 1 0`, not `1 1 auto`: line-breaking runs on the
+           hypothetical main size BEFORE shrink, so an `auto` basis leaves the
+           buttons at their caption widths and the fix comes back byte-identical
+           to the bug. */
         .tab-nav {
             display: flex;
             gap: 6px;
+            width: 392px;
+            justify-content: flex-end;
+        }
+
+        .tab-button {
+            flex: 1 1 0;
         }
 
         .tab-button {
@@ -193,11 +210,37 @@
             text-align: center;
         }
 
+        /* v2.9.0: THE WIDTH IS PINNED, PER SIZE CLASS.
+           A .knob-container shrink-wraps to the wider of its 44/52 px visual and
+           its caption, so localizing the caption moved every knob in a
+           justify-content:center row — 250 of the 303 elements the both-language
+           geometry diff reported. Both numbers are the widest caption MEASURED AS
+           RENDERED across en and fr, plus headroom: 80.78 px ("Complexity", and
+           "Complexité" at 80.19 is within a pixel of it) for the 52 px knobs, and
+           69.48 px ("Fréq. méd.") for the 44 px ones. A font probe reads short —
+           text-transform: uppercase and letter-spacing are not in
+           getComputedStyle().font — so these come from getBoundingClientRect().
+           Pinned per size class, never one uniform value: a single number wide
+           enough for the 52 px row pushes the eight-knob envelope row off its
+           plate. */
         .knob-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
+            width: 84px;
+        }
+
+        .knob-container.small {
+            width: 72px;
+        }
+
+        /* With the width pinned, a caption that outgrows it must OVERFLOW rather
+           than wrap: a wrapped caption changes the row's height and the gate
+           reports the change as a geometry move with no hint of the cause,
+           whereas an overflow trips the clip assertion by name. */
+        .knob-container .knob-label {
+            white-space: nowrap;
         }
 
         /* SVG Vine-Arc Knobs (O-Detune style) */
@@ -478,7 +521,12 @@
             margin-bottom: 4px;
         }
 
+        /* v2.9.0: pinned to the widest of ALL / TOUS / NONE / AUCUN as rendered
+           (99.86 px). The two buttons are labels and may move; this box is not. */
         .interval-quick-btns {
+            width: 101px;
+            justify-content: flex-end;
+
             display: flex;
             gap: 4px;
         }
@@ -634,10 +682,22 @@
             pointer-events: none;
         }
 
-        /* ═══ Tooltip System ═══ */
-        .help-toggle {
+        /* ═══ v2.9.0: THE SETTINGS POPOVER ═══
+
+           The gear takes the exact 26px slot the floating "?" occupied through
+           v2.8.4 — last in the tab row — so nothing on a packed 800 x 500
+           layout had to move to make room for it. The hover-help toggle moves
+           inside, next to the language selector. Every colour, border and
+           radius below is the "?" button's own, carried across unchanged. */
+        .settings-cluster {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .gear-btn {
             width: 26px;
             height: 26px;
+            padding: 0;
             border: 2px solid #5C4033;
             border-radius: 50%;
             background: rgba(139, 168, 112, 0.3);
@@ -653,14 +713,101 @@
             flex-shrink: 0;
         }
 
-        .help-toggle:hover {
+        .gear-btn:hover {
             background: rgba(139, 168, 112, 0.5);
         }
 
-        .help-toggle.active {
+        .gear-btn[aria-expanded="true"] {
             background: rgba(107, 142, 35, 0.6);
             color: #1a2a10;
             box-shadow: 0 0 8px rgba(107, 142, 35, 0.4);
+        }
+
+        .gear-btn:focus-visible {
+            outline: 2px solid #6B8E23;
+            outline-offset: 2px;
+        }
+
+        /* Opens DOWNWARDS and to the left: the gear sits in the header, so a
+           panel above it would be outside the frame. */
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            z-index: 1001;
+            min-width: 176px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            background: rgba(255, 248, 220, 0.98);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .settings-popover[hidden] {
+            display: none;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .settings-label {
+            font-family: 'Garamond', serif;
+            font-size: 11px;
+            color: #3C2F2F;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .settings-popover select {
+            flex: 0 0 auto;
+            padding: 2px 4px;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            background: rgba(139, 168, 112, 0.25);
+            color: #3C2F2F;
+            font-family: 'Garamond', serif;
+            font-size: 11px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-popover select:focus-visible {
+            outline: 2px solid #6B8E23;
+            outline-offset: 1px;
+        }
+
+        /* A pill rather than a circle so the caption fits. min-width covers the
+           widest of the four faces across both languages — On / Off / Marche /
+           Arrêt — so switching either the state or the language cannot resize
+           the row. Measured as rendered, not from a font probe. */
+        .settings-toggle {
+            min-width: 56px;
+            padding: 2px 8px;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            background: rgba(139, 168, 112, 0.25);
+            color: #3C2F2F;
+            font-family: 'Garamond', serif;
+            font-size: 11px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-toggle[aria-pressed="true"] {
+            background: rgba(107, 142, 35, 0.6);
+            color: #1a2a10;
+        }
+
+        .settings-toggle:focus-visible {
+            outline: 2px solid #6B8E23;
+            outline-offset: 1px;
         }
 
         /* ═══ Dice Randomize Button ═══ */
@@ -740,31 +887,106 @@
             margin-top: 1px;
         }
 
-        .tooltip-popup {
+        /* ═══ v2.9.0: the measure-then-pin tooltip ═══
+
+           max-width stays 220px — this plugin's OWN value, parsed out of the
+           .tooltip-popup rule it replaces and carried across unchanged rather
+           than normalised to any other plugin's number. The title/body split is
+           new: v2.8.4 rendered one flat string. */
+        .tooltip {
             position: fixed;
+            left: 0;
+            top: 0;
             max-width: 220px;
             padding: 6px 10px;
             background: rgba(60, 47, 47, 0.92);
             color: #FFF8DC;
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            font-size: 10px;
-            line-height: 1.4;
             border-radius: 4px;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s;
             z-index: 9999;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            white-space: normal;
         }
 
-        .tooltip-popup.visible {
+        .tooltip.visible {
             opacity: 1;
         }
 
+        .tooltip-title {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #A8C08A;
+            margin-bottom: 3px;
+        }
+
+        .tooltip-body {
+            font-size: 10px;
+            line-height: 1.4;
+            color: #FFF8DC;
+        }
+
+        /* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the
+           tip can be clamped to the viewport edge while the arrow still points
+           at its control. */
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            left: var(--arrow-x, 50%);
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+        }
+
+        .tooltip[data-placement="above"]::after {
+            top: 100%;
+            border-top-color: rgba(60, 47, 47, 0.92);
+        }
+
+        .tooltip[data-placement="below"]::after {
+            bottom: 100%;
+            border-bottom-color: rgba(60, 47, 47, 0.92);
+        }
+
         /* Subtle outline on hoverable tooltip targets when help mode active */
-        .tooltips-active [data-tooltip]:hover {
+        .tooltips-enabled [data-tip]:hover {
             outline: 1px dashed rgba(107, 142, 35, 0.5);
             outline-offset: 2px;
+        }
+
+        /* ═══ v2.9.0: tuning-panel geometry pins ═══
+
+           These live HERE, not in css/tuning-panel.css, because that file is a
+           plugin-local copy of the scala-tuning-engine module's stylesheet and
+           this commit does not fork it. index.html's <style> is parsed after the
+           <link>, so an equal-specificity rule here wins.
+
+           Every value is a rendered box, measured in both languages. */
+
+        /* .viz-btn is flex: 1 with a min-content floor, so "True Keys" breaks
+           after "True" and the row is 34 px tall in English while "Touches" fits
+           on one line and makes it 24 px in French. That 10 px lifted the pitch
+           circle, the visualization container and the whole centre column. The
+           BUTTONS are labels and may change height; the ROW may not. */
+        .viz-mode-toggle {
+            height: 34px;
+        }
+
+        /* Tonic / Étirement / Plage PB — each caption sits at the head of a row
+           whose slider and readout follow it, so the caption's width IS the
+           position of everything after it. Pinned to the wider language:
+           41.59 px (Tonique) and 51.84 px (Étirement). */
+        .tonic-label {
+            width: 44px;
+            flex: 0 0 44px;
+        }
+
+        .octave-stretch-label {
+            width: 54px;
+            flex: 0 0 54px;
         }
 
         /* ═══ v2.7.0: Preset Browser ═══ */
@@ -820,7 +1042,12 @@
             background: rgba(139, 168, 112, 0.2);
         }
 
+        /* v2.9.0: pinned. SAVE is 44.83 px and ENREG. is wider, and
+           .preset-name-display beside it is flex:1, so the growth was absorbed by
+           the preset name shrinking 46.5 px in French — a real reflow of two
+           non-label boxes. 60 px covers both faces as rendered. */
         .preset-save-btn {
+            width: 60px;
             padding: 2px 8px;
             border: 1px solid rgba(92, 64, 51, 0.4);
             border-radius: 3px;
@@ -1129,51 +1356,98 @@
 </head>
 <body>
     <div class="plugin-container">
-        <img src="img/paper.jpg" alt="Background" class="background">
-        <img src="img/shell.png" alt="Botanical" class="botanical-overlay">
+        <img src="img/paper.jpg" data-i18n-alt="alt.background" alt="Background" class="background">
+        <img src="img/shell.png" data-i18n-alt="alt.botanical" alt="Botanical" class="botanical-overlay">
 
         <div class="content">
             <div class="header">
+                <!-- NOT keyed: a product name is never translated, and this is the display
+                     form of the registered PRODUCT_NAME. I18N_EXEMPT carries the reason. -->
                 <h1 class="title">Ouaricon Intonation Pad</h1>
                 <div class="tab-nav">
-                    <button class="tab-button active" data-tab="voice" data-tooltip="Chord voicing controls: voice count, complexity, intervals, and live note display">Voice</button>
-                    <button class="tab-button" data-tab="tuning" data-tooltip="Microtonal tuning system: scale editor, visualizations, presets, and generators">Tuning</button>
-                    <button class="tab-button" data-tab="synth" data-tooltip="Synthesis controls: dual wavetable oscillators, envelope, filter, and randomization">Synth</button>
-                    <button class="tab-button" data-tab="effects" data-tooltip="Post-synthesis effects chain: Chorus, Delay, EQ, and Reverb">Effects</button>
+                    <button class="tab-button active" data-tab="voice" data-i18n="label.tabVoice">Voice</button>
+                    <button class="tab-button" data-tab="tuning" data-i18n="label.tabTuning">Tuning</button>
+                    <button class="tab-button" data-tab="synth" data-i18n="label.tabSynth">Synth</button>
+                    <button class="tab-button" data-tab="effects" data-i18n="label.tabEffects">Effects</button>
                     <div class="dice-wrapper">
-                        <button class="dice-btn" id="diceBtn" title="Randomize parameters">&#x1F3B2;</button>
+                        <button class="dice-btn" id="diceBtn" data-i18n-aria="aria.randomize" aria-label="Randomize parameters">&#x1F3B2;</button>
                         <div class="dice-menu" id="diceMenu">
+                            <!-- The caption and its description are two keyed FRAGMENTS
+                                 inside the button, never one key on the button: applyLabel
+                                 writes textContent, so a key on the <button> would delete
+                                 the .mode-desc span on the first sweep, and the geometry
+                                 diff would measure the whole row forever (assertion 7). -->
                             <button class="dice-menu-item" data-mode="gentle">
-                                Gentle
-                                <span class="mode-desc">&plusmn;15% variation from current</span>
+                                <span data-i18n="label.diceGentle">Gentle</span>
+                                <span class="mode-desc" data-i18n="label.diceGentleDesc">&plusmn;15% variation from current</span>
                             </button>
                             <button class="dice-menu-item" data-mode="wild">
-                                Wild
-                                <span class="mode-desc">Full range randomization</span>
+                                <span data-i18n="label.diceWild">Wild</span>
+                                <span class="mode-desc" data-i18n="label.diceWildDesc">Full range randomization</span>
                             </button>
                             <button class="dice-menu-item" data-mode="soundOnly">
-                                Sound Only
-                                <span class="mode-desc">Preserve tuning, chord &amp; volume</span>
+                                <span data-i18n="label.diceSoundOnly">Sound Only</span>
+                                <span class="mode-desc" data-i18n="label.diceSoundOnlyDesc">Preserve tuning, chord &amp; volume</span>
                             </button>
                         </div>
                     </div>
-                    <button class="help-toggle" id="helpToggle" title="Toggle tooltips">?</button>
+                    <!-- v2.9.0: the settings popover, in the slot the floating "?"
+                         used to occupy. The gear and the hover-help switch both carry
+                         data-tip-always: the two controls that reach and restore the
+                         help layer have to keep explaining themselves while help is
+                         off. -->
+                    <div class="settings-cluster">
+                        <div class="settings-popover" id="settings-popover"
+                             role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                            <label class="settings-row" for="lang-select">
+                                <!-- data-label so a shared state updater that writes
+                                     textContent reads the authored caption back instead
+                                     of erasing it. -->
+                                <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                                <!-- Endonyms. Never localized: a French speaker looking
+                                     for their language looks for "Fran&ccedil;ais". -->
+                                <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                                    <option value="en">English</option>
+                                    <option value="fr">Fran&ccedil;ais</option>
+                                </select>
+                            </label>
+
+                            <!-- A div, not a <label for="tips-toggle">: a button is a
+                                 labelable element, so a label wrapping it can re-dispatch
+                                 the click and toggle twice. -->
+                            <div class="settings-row">
+                                <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+                                <button type="button" class="settings-toggle" id="tips-toggle"
+                                        aria-pressed="false" data-i18n-aria="aria.helpToggle"
+                                        aria-label="Toggle hover help"
+                                        data-i18n="ui.off" data-tip-always>Off</button>
+                            </div>
+                        </div>
+
+                        <button type="button" class="gear-btn" id="gear-btn"
+                                aria-haspopup="dialog" aria-expanded="false"
+                                data-i18n-aria="aria.settings" aria-label="Settings" data-tip-always>&#9881;</button>
+                    </div>
                 </div>
             </div>
-            <div class="tooltip-popup" id="tooltipPopup"></div>
+            <!-- Tooltip element (positioned dynamically by js/app.js) -->
+            <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
             <!-- v2.7.0: Preset Bar -->
             <div class="preset-bar">
-                <button class="preset-nav-btn" id="presetPrevBtn" title="Previous preset">&#x25C0;</button>
-                <div class="preset-name-display" id="presetNameDisplay" title="Click to browse presets">Init</div>
-                <button class="preset-nav-btn" id="presetNextBtn" title="Next preset">&#x25B6;</button>
-                <button class="preset-save-btn" id="presetSaveBtn" title="Save current settings as preset">Save</button>
+                <button class="preset-nav-btn" id="presetPrevBtn" data-i18n-aria="aria.prevPreset" aria-label="Previous preset">&#x25C0;</button>
+                <!-- The preset NAME is not keyed: the name IS the JSON filename
+                     (OuariconPresetManager.h:283-285), so translating it breaks recall
+                     outright. D-02, and I18N_EXEMPT carries the reason. -->
+                <div class="preset-name-display" id="presetNameDisplay" data-i18n-aria="aria.browsePresets" aria-label="Click to browse presets">Init</div>
+                <button class="preset-nav-btn" id="presetNextBtn" data-i18n-aria="aria.nextPreset" aria-label="Next preset">&#x25B6;</button>
+                <button class="preset-save-btn" id="presetSaveBtn" data-i18n-aria="aria.savePreset" aria-label="Save current settings as preset" data-i18n="label.save">Save</button>
             </div>
 
             <!-- Preset Browser Overlay -->
             <div class="preset-browser-overlay" id="presetBrowser">
                 <div class="preset-browser-header">
-                    <span class="preset-browser-title">Preset Browser</span>
+                    <span class="preset-browser-title" data-i18n="label.presetBrowser">Preset Browser</span>
                     <button class="preset-browser-close" id="presetBrowserClose">&times;</button>
                 </div>
                 <div class="preset-categories" id="presetCategories"></div>
@@ -1183,18 +1457,21 @@
             <!-- Save Dialog -->
             <div class="preset-save-backdrop" id="presetSaveBackdrop"></div>
             <div class="preset-save-dialog" id="presetSaveDialog">
-                <div class="preset-save-dialog-title">Save Preset</div>
-                <input class="preset-save-input" id="presetSaveNameInput" type="text" placeholder="Preset name..." maxlength="64">
+                <div class="preset-save-dialog-title" data-i18n="label.savePresetTitle">Save Preset</div>
+                <input class="preset-save-input" id="presetSaveNameInput" type="text" data-i18n-placeholder="placeholder.presetName" placeholder="Preset name..." maxlength="64">
+                <!-- A PLAIN select, not an AudioParameterChoice: the English string
+                     stays the VALUE that reaches savePreset() and comes back on
+                     preset.category, and only the caption is localized. -->
                 <select class="preset-save-category-select" id="presetSaveCategorySelect">
-                    <option value="Ambient">Ambient</option>
-                    <option value="Cinematic">Cinematic</option>
-                    <option value="Classic Pads">Classic Pads</option>
-                    <option value="Drones">Drones</option>
-                    <option value="Experimental">Experimental</option>
+                    <option value="Ambient" data-i18n="label.catAmbient">Ambient</option>
+                    <option value="Cinematic" data-i18n="label.catCinematic">Cinematic</option>
+                    <option value="Classic Pads" data-i18n="label.catClassicPads">Classic Pads</option>
+                    <option value="Drones" data-i18n="label.catDrones">Drones</option>
+                    <option value="Experimental" data-i18n="label.catExperimental">Experimental</option>
                 </select>
                 <div class="preset-save-btns">
-                    <button class="preset-save-cancel" id="presetSaveCancelBtn">Cancel</button>
-                    <button class="preset-save-confirm" id="presetSaveConfirmBtn">Save</button>
+                    <button class="preset-save-cancel" id="presetSaveCancelBtn" data-i18n="label.cancel">Cancel</button>
+                    <button class="preset-save-confirm" id="presetSaveConfirmBtn" data-i18n="label.save">Save</button>
                 </div>
             </div>
 
@@ -1206,8 +1483,8 @@
                     <div class="section-divider"></div>
 
                     <div class="knob-row voice-settings-row">
-                        <div class="dropdown-container" data-tooltip="Root note for chord scale mapping">
-                            <div class="knob-label">Key Root</div>
+                        <div class="dropdown-container">
+                            <div class="knob-label" data-i18n="label.keyRoot">Key Root</div>
                             <select class="dropdown" id="keyRootSelect">
                                 <option value="0">C</option>
                                 <option value="1">C#</option>
@@ -1224,8 +1501,11 @@
                             </select>
                         </div>
 
-                        <div class="dropdown-container" data-tooltip="Chord voicing strategy: how sub-voices are distributed across octaves">
-                            <div class="knob-label">Voicing</div>
+                        <!-- The seven option strings are voicingMode's own choice-parameter
+                             values, which the host shows in its automation lane. NOT keyed —
+                             D-01, and I18N_EXEMPT carries the reason. -->
+                        <div class="dropdown-container">
+                            <div class="knob-label" data-i18n="label.voicing">Voicing</div>
                             <select class="dropdown" id="voicingModeSelect">
                                 <option value="0">Free</option>
                                 <option value="1">Close</option>
@@ -1238,16 +1518,16 @@
                         </div>
 
                         <!-- Interval Selector -->
-                        <div class="interval-selector" data-tooltip="Toggle scale degrees used for chord generation. Only enabled intervals produce chord voices">
+                        <div class="interval-selector">
                             <div class="interval-selector-header">
-                                <div class="knob-label">Intervals</div>
+                                <div class="knob-label" data-i18n="label.intervals">Intervals</div>
                                 <div class="interval-quick-btns">
-                                    <button class="interval-quick-btn" id="intervalAllBtn" data-tooltip="Enable all scale degrees">All</button>
-                                    <button class="interval-quick-btn" id="intervalNoneBtn" data-tooltip="Disable all except root">None</button>
+                                    <button class="interval-quick-btn" id="intervalAllBtn" data-i18n="label.all">All</button>
+                                    <button class="interval-quick-btn" id="intervalNoneBtn" data-i18n="label.none">None</button>
                                 </div>
                             </div>
                             <div class="interval-toggle-list" id="intervalToggleList">
-                                <div class="interval-loading">Loading...</div>
+                                <div class="interval-loading" data-i18n="label.loading">Loading...</div>
                             </div>
                         </div>
                     </div>
@@ -1255,17 +1535,17 @@
                     <div class="section-divider"></div>
 
                     <div class="keyboard-section">
-                        <div class="knob-label active-notes-label">Active Notes</div>
-                        <div class="mini-keyboard" id="miniKeyboard" data-tooltip="Live display of all sounding chord voices (C2-B5). Brightness shows voice gain"></div>
-                        <div class="freq-list" id="freqList" data-tooltip="Note name, frequency, and cent deviation from 12-TET for each sounding voice">
-                            <span class="freq-placeholder">Play a note to see chord voicing</span>
+                        <div class="knob-label active-notes-label" data-i18n="label.activeNotes">Active Notes</div>
+                        <div class="mini-keyboard" id="miniKeyboard"></div>
+                        <div class="freq-list" id="freqList">
+                            <span class="freq-placeholder" data-i18n="label.playANote">Play a note to see chord voicing</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Tuning Tab -->
                 <div class="tab-content scrollable-tab" id="tuning-tab">
-                    <div id="tuning-container" data-tooltip="Microtonal tuning system — edit intervals, load presets, or generate custom scales"></div>
+                    <div id="tuning-container"></div>
                 </div>
 
                 <!-- Synth Tab -->
@@ -1281,31 +1561,31 @@
 
                 <!-- Effects Tab -->
                 <div class="tab-content scrollable-tab" id="effects-tab">
-                    <div class="fx-section" id="chorusSection" data-tooltip="Chorus effect — adds width and movement via modulated delay copies">
+                    <div class="fx-section" id="chorusSection">
                         <div class="fx-header">
-                            <span class="fx-title">Chorus</span>
-                            <button class="fx-bypass-btn" id="chorusBypassBtn" data-tooltip="Enable/disable chorus processing">On</button>
+                            <span class="fx-title" data-i18n="label.fxChorus">Chorus</span>
+                            <button class="fx-bypass-btn" id="chorusBypassBtn" data-i18n="ui.on">On</button>
                         </div>
                         <div class="fx-knobs" id="chorus-knobs"></div>
                     </div>
-                    <div class="fx-section" id="delaySection" data-tooltip="Stereo delay with Normal and PingPong modes">
+                    <div class="fx-section" id="delaySection">
                         <div class="fx-header">
-                            <span class="fx-title">Delay</span>
-                            <button class="fx-bypass-btn" id="delayBypassBtn" data-tooltip="Enable/disable delay processing">On</button>
+                            <span class="fx-title" data-i18n="label.fxDelay">Delay</span>
+                            <button class="fx-bypass-btn" id="delayBypassBtn" data-i18n="ui.on">On</button>
                         </div>
                         <div class="fx-knobs" id="delay-knobs"></div>
                     </div>
-                    <div class="fx-section" id="eqSection" data-tooltip="3-band EQ: low shelf (200 Hz), mid peak (variable), high shelf (8 kHz)">
+                    <div class="fx-section" id="eqSection">
                         <div class="fx-header">
-                            <span class="fx-title">EQ</span>
-                            <button class="fx-bypass-btn" id="eqBypassBtn" data-tooltip="Enable/disable EQ processing">On</button>
+                            <span class="fx-title" data-i18n="label.fxEq">EQ</span>
+                            <button class="fx-bypass-btn" id="eqBypassBtn" data-i18n="ui.on">On</button>
                         </div>
                         <div class="fx-knobs" id="eq-knobs"></div>
                     </div>
-                    <div class="fx-section" id="reverbSection" data-tooltip="Schroeder reverb with adjustable pre-delay">
+                    <div class="fx-section" id="reverbSection">
                         <div class="fx-header">
-                            <span class="fx-title">Reverb</span>
-                            <button class="fx-bypass-btn" id="reverbBypassBtn" data-tooltip="Enable/disable reverb processing">On</button>
+                            <span class="fx-title" data-i18n="label.fxReverb">Reverb</span>
+                            <button class="fx-bypass-btn" id="reverbBypassBtn" data-i18n="ui.on">On</button>
                         </div>
                         <div class="fx-knobs" id="reverb-knobs"></div>
                     </div>
@@ -1314,1443 +1594,15 @@
         </div>
     </div>
 
-    <!-- JUCE WebView Bridge -->
-    <script type="module">
-        import * as Juce from './js/juce/index.js';
-        import { NOTE_NAMES } from './js/constants.js';
-
-        // JUCE Parameter States
-        let voiceCountState, complexityState, keyRootState, voicingModeState, stereoSpreadState, spacingState, inversionState;
-        let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
-        let wavetableBank2State, wavetablePos2State, lfoRate2State, lfoDepth2State, gainAState, gainBState;
-        let attackTimeState, decayTimeState, sustainLevelState, releaseTimeState, filterCutoffState, filterLfoDepthState, velocityToFilterState, masterVolumeState;
-        let chorusRateState, chorusDepthState, chorusMixState;
-        let delayTimeState, delayFeedbackState, delayModeState, delayMixState;
-        let eqLowGainState, eqMidGainState, eqMidFreqState, eqHighGainState;
-        let reverbSizeState, reverbDampState, reverbPredelayState, reverbMixState;
-        let chorusBypassState, delayBypassState, eqBypassState, reverbBypassState;
-
-        // ====================================================================
-        // KNOB FACTORY + WAVETABLE BANK DATA
-        // ====================================================================
-
-        const WAVETABLE_BANKS = [
-            'JI Harmonic', 'Warm Analog', 'Choir', 'Strings', 'Glass', 'Evolving',
-            'Organ', 'Ethereal', 'Dark Matter', 'Sine', 'Square', 'Triangle',
-            'Spectral Cloud', 'Metallic Res.', 'Formant Vowel', 'Warm Sub',
-            'Soft Flute', 'Velvet Pad', 'Whisper', 'Deep Haze'
-        ];
-
-        // ====================================================================
-        // TOOLTIP SYSTEM
-        // ====================================================================
-
-        const TOOLTIPS = {
-            // Voice tab knobs
-            voiceCount: 'Number of chord voices generated from a single MIDI note (2-12)',
-            complexity: 'How many chord extensions (7th, 9th, 11th, 13th) are added to the basic triad',
-            stereoSpread: 'Distributes chord voices across the stereo field. 0% = mono, 100% = full width',
-            voicingMode: 'Chord voicing strategy: Free (default), Close (1 oct), Open (2 oct), Drop-2, Thirds, Quartal (4ths), Quintal (5ths)',
-            spacing: 'Octave displacement of chord voices for wider/tighter voicings',
-            inversion: 'Randomly shifts voices to different octaves for varied chord inversions',
-            // Synth tab - OSC A
-            wavetablePos: 'Morph position within the wavetable bank (0-100%)',
-            lfoRate: 'LFO speed for wavetable position modulation',
-            lfoDepth: 'LFO modulation depth for wavetable position',
-            gainA: 'Volume level for oscillator A',
-            // Synth tab - OSC B
-            wavetablePos2: 'Morph position within the wavetable bank (0-100%)',
-            lfoRate2: 'LFO speed for wavetable position modulation',
-            lfoDepth2: 'LFO modulation depth for wavetable position',
-            gainB: 'Volume level for oscillator B',
-            // Synth tab - envelope/filter
-            attackTime: 'Envelope attack time — how quickly the sound fades in (1-5000 ms)',
-            decayTime: 'Envelope decay time — how quickly the sound drops from peak to sustain level (10-5000 ms)',
-            sustainLevel: 'Envelope sustain level — volume held while note is on after decay (0-100%)',
-            releaseTime: 'Envelope release time — how long the sound fades out after note off (10-10000 ms)',
-            filterCutoff: 'Low-pass filter cutoff frequency (20-20000 Hz)',
-            filterLfoDepth: 'Filter LFO depth — modulates cutoff using LFO A phase for sweeping filter effects (0-100%)',
-            velocityToFilter: 'Velocity to filter — MIDI velocity modulates filter cutoff. Low velocity = darker, high velocity = brighter (0-100%)',
-            masterVolume: 'Master output volume in dB',
-            // Synth tab - randomization
-            timingRandom: 'Random delay offset per chord voice — adds organic strum feel (0-100 ms)',
-            detuneRandom: 'Random pitch deviation per chord voice — creates ensemble/unison width (0-50 cents)',
-            // Effects knobs
-            chorusRate: 'Chorus LFO rate (0.1-10 Hz)',
-            chorusDepth: 'Chorus modulation depth',
-            chorusMix: 'Chorus dry/wet mix',
-            delayTime: 'Delay time (1-2000 ms)',
-            delayFeedback: 'Delay feedback amount (0-95%)',
-            delayMix: 'Delay dry/wet mix',
-            eqLowGain: 'Low shelf gain at 200 Hz (+/-12 dB)',
-            eqMidGain: 'Mid peak gain (+/-12 dB)',
-            eqMidFreq: 'Mid peak center frequency (200-8000 Hz)',
-            eqHighGain: 'High shelf gain at 8 kHz (+/-12 dB)',
-            reverbSize: 'Reverb room size (0-100%)',
-            reverbDamp: 'Reverb high-frequency damping (0-100%)',
-            reverbPredelay: 'Time before reverb onset (0-200 ms)',
-            reverbMix: 'Reverb dry/wet mix',
-        };
-
-        // Tooltip for dropdowns
-        const DROPDOWN_TOOLTIPS = {
-            wavetableBankSelect: 'Wavetable bank for oscillator A — 20 banks from analog to spectral',
-            wavetableBank2Select: 'Wavetable bank for oscillator B — 20 banks from analog to spectral',
-            delayModeSelect: 'Normal: mono delay. PingPong: alternating stereo bounces',
-        };
-
-        let tooltipsActive = false;
-        const tooltipPopup = { el: null };
-
-        function initTooltipSystem() {
-            tooltipPopup.el = document.getElementById('tooltipPopup');
-            const toggle = document.getElementById('helpToggle');
-            if (!toggle) return;
-
-            toggle.addEventListener('click', () => {
-                tooltipsActive = !tooltipsActive;
-                toggle.classList.toggle('active', tooltipsActive);
-                document.querySelector('.plugin-container').classList.toggle('tooltips-active', tooltipsActive);
-                if (!tooltipsActive) hideTooltip();
-            });
-
-            // Delegate hover events for tooltip targets
-            document.addEventListener('mouseover', (e) => {
-                if (!tooltipsActive) return;
-                const target = e.target.closest('[data-tooltip]');
-                if (target) showTooltip(target, target.dataset.tooltip);
-            });
-
-            document.addEventListener('mouseout', (e) => {
-                if (!tooltipsActive) return;
-                const target = e.target.closest('[data-tooltip]');
-                if (target) hideTooltip();
-            });
-        }
-
-        function showTooltip(el, text) {
-            const popup = tooltipPopup.el;
-            if (!popup) return;
-            popup.textContent = text;
-            popup.classList.add('visible');
-
-            const rect = el.getBoundingClientRect();
-            let top = rect.bottom + 6;
-            let left = rect.left + rect.width / 2 - 110;
-
-            // Keep within viewport
-            if (left < 4) left = 4;
-            if (left + 220 > window.innerWidth) left = window.innerWidth - 224;
-            if (top + 60 > window.innerHeight) top = rect.top - 36;
-
-            popup.style.top = top + 'px';
-            popup.style.left = left + 'px';
-        }
-
-        function hideTooltip() {
-            if (tooltipPopup.el) tooltipPopup.el.classList.remove('visible');
-        }
-
-        // size: 'small' = 44px (r=18), default = 52px (r=22)
-        function makeKnob(id, label, size, labelStyle) {
-            const isSmall = size === 'small';
-            const vb = isSmall ? 44 : 52;
-            const c = isSmall ? 22 : 26;
-            const r = isSmall ? 18 : 22;
-            const da = (2 * Math.PI * r * 0.75).toFixed(2);
-
-            const container = document.createElement('div');
-            container.className = 'knob-container';
-            const tip = TOOLTIPS[id];
-            if (tip) container.setAttribute('data-tooltip', tip);
-            container.innerHTML =
-                `<div class="knob" id="${id}Knob">` +
-                    `<div class="knob-visual${isSmall ? ' small' : ''}">` +
-                        `<svg viewBox="0 0 ${vb} ${vb}">` +
-                            `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
-                            `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
-                        `</svg>` +
-                    `</div>` +
-                `</div>` +
-                `<div class="knob-label"${labelStyle ? ` style="${labelStyle}"` : ''}>${label}</div>` +
-                `<div class="knob-value" id="${id}Value"></div>`;
-            return container;
-        }
-
-        function makeWavetableDropdown(selectId, oscLabel, canvasId) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'dropdown-container';
-            const tip = DROPDOWN_TOOLTIPS[selectId];
-            if (tip) wrapper.setAttribute('data-tooltip', tip);
-            const lbl = document.createElement('div');
-            lbl.className = 'knob-label';
-            lbl.style.cssText = 'font-weight: bold; color: #2C3E10;';
-            lbl.textContent = oscLabel;
-            const sel = document.createElement('select');
-            sel.className = 'dropdown';
-            sel.id = selectId;
-            sel.style.width = '120px';
-            WAVETABLE_BANKS.forEach((name, i) => {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.textContent = name;
-                sel.appendChild(opt);
-            });
-            const canvasWrap = document.createElement('div');
-            canvasWrap.className = 'wt-canvas-wrap';
-            const canvas = document.createElement('canvas');
-            canvas.className = 'wt-canvas';
-            canvas.id = canvasId;
-            canvas.width = 240;
-            canvas.height = 136;
-            canvasWrap.appendChild(canvas);
-            wrapper.appendChild(lbl);
-            wrapper.appendChild(sel);
-            wrapper.appendChild(canvasWrap);
-            return wrapper;
-        }
-
-        function populateKnobs(containerId, knobs) {
-            const el = document.getElementById(containerId);
-            if (!el) return;
-            for (const k of knobs) {
-                el.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle));
-            }
-        }
-
-        // ====================================================================
-        // Wavetable Waveform Display
-        // ====================================================================
-
-        class WavetableDisplay {
-            constructor(canvasId) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.samples = [];
-                this.w = 0;
-                this.h = 0;
-                this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
-                this._fetching = false;
-                this._pendingFetch = null;
-                // Use ResizeObserver to size canvas when layout is computed
-                this._resizeObserver = new ResizeObserver(() => {
-                    this.resizeCanvas();
-                    if (this.samples.length) this.draw();
-                });
-                this._resizeObserver.observe(this.canvas);
-            }
-
-            resizeCanvas() {
-                const dpr = window.devicePixelRatio || 1;
-                const w = this.canvas.clientWidth;
-                const h = this.canvas.clientHeight;
-                if (w === 0 || h === 0) return;
-                this.canvas.width = w * dpr;
-                this.canvas.height = h * dpr;
-                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                this.w = w;
-                this.h = h;
-            }
-
-            async fetchAndDraw(bankIndex, position) {
-                if (typeof this.getFrame !== 'function') {
-                    this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
-                }
-                if (typeof this.getFrame !== 'function') return;
-                // Coalesce overlapping calls — keep only the latest request
-                if (this._fetching) {
-                    this._pendingFetch = { bankIndex, position };
-                    return;
-                }
-                this._fetching = true;
-                try {
-                    const result = await this.getFrame(bankIndex, position);
-                    if (result) {
-                        this.samples = typeof result === 'string' ? JSON.parse(result) : result;
-                        this.draw();
-                    }
-                } catch(e) { console.error('Wavetable fetch error:', e); }
-                this._fetching = false;
-                // Process most recent pending request (drops intermediate ones)
-                if (this._pendingFetch) {
-                    const pend = this._pendingFetch;
-                    this._pendingFetch = null;
-                    this.fetchAndDraw(pend.bankIndex, pend.position);
-                }
-            }
-
-            draw() {
-                if (this.w === 0 || this.h === 0) this.resizeCanvas();
-                const { ctx, w, h, samples } = this;
-                if (!samples.length || w === 0 || h === 0) return;
-                const mid = h / 2;
-
-                ctx.clearRect(0, 0, w, h);
-
-                // Dark background
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fillRect(0, 0, w, h);
-
-                // Center line
-                ctx.strokeStyle = 'rgba(107, 142, 35, 0.2)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(0, mid);
-                ctx.lineTo(w, mid);
-                ctx.stroke();
-
-                // Waveform fill (green gradient matching theme)
-                const grad = ctx.createLinearGradient(0, 0, 0, h);
-                grad.addColorStop(0, 'rgba(107, 142, 35, 0.3)');
-                grad.addColorStop(0.5, 'rgba(107, 142, 35, 0.08)');
-                grad.addColorStop(1, 'rgba(107, 142, 35, 0.0)');
-
-                ctx.beginPath();
-                for (let i = 0; i < samples.length; i++) {
-                    const x = (i / (samples.length - 1)) * w;
-                    const y = mid - samples[i] * mid * 0.85;
-                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-                }
-                ctx.lineTo(w, mid);
-                ctx.lineTo(0, mid);
-                ctx.closePath();
-                ctx.fillStyle = grad;
-                ctx.fill();
-
-                // Waveform stroke (green)
-                ctx.beginPath();
-                for (let i = 0; i < samples.length; i++) {
-                    const x = (i / (samples.length - 1)) * w;
-                    const y = mid - samples[i] * mid * 0.85;
-                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-                }
-                ctx.strokeStyle = '#8BC34A';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                // Border
-                ctx.strokeStyle = '#5C4033';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(0, 0, w, h);
-            }
-        }
-
-        function wireWavetableDisplay(display, posState, bankState) {
-            function refresh() {
-                const bankIdx = Math.round(bankState.getChoiceIndex());
-                const pos = posState.getNormalisedValue();
-                display.fetchAndDraw(bankIdx, pos);
-            }
-
-            posState.valueChangedEvent.addListener(refresh);
-            bankState.valueChangedEvent.addListener(refresh);
-
-            // Initial draw with retry
-            let retries = 0;
-            async function tryInitialDraw() {
-                const bankIdx = Math.round(bankState.getChoiceIndex());
-                const pos = posState.getNormalisedValue();
-                await display.fetchAndDraw(bankIdx, pos);
-                retries++;
-                if (display.samples.length === 0 && retries < 8) {
-                    setTimeout(tryInitialDraw, 500);
-                }
-            }
-            setTimeout(tryInitialDraw, 500);
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('JUCE backend:', window.__JUCE__?.backend);
-
-            // Initialize tooltip system
-            initTooltipSystem();
-
-            // v2.6.0: Dice randomization button
-            {
-                const diceBtn = document.getElementById('diceBtn');
-                const diceMenu = document.getElementById('diceMenu');
-                let menuOpen = false;
-
-                diceBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    menuOpen = !menuOpen;
-                    diceMenu.classList.toggle('open', menuOpen);
-                });
-
-                document.addEventListener('click', () => {
-                    if (menuOpen) {
-                        menuOpen = false;
-                        diceMenu.classList.remove('open');
-                    }
-                });
-
-                diceMenu.addEventListener('click', async (e) => {
-                    const item = e.target.closest('.dice-menu-item');
-                    if (!item) return;
-                    e.stopPropagation();
-                    const mode = item.dataset.mode;
-
-                    // Roll animation
-                    diceBtn.classList.add('rolling');
-                    setTimeout(() => diceBtn.classList.remove('rolling'), 400);
-
-                    // Close menu
-                    menuOpen = false;
-                    diceMenu.classList.remove('open');
-
-                    // Call native function
-                    if (window.__JUCE__?.backend) {
-                        await Juce.getNativeFunction('randomizeParameters')(mode);
-                    }
-                });
-            }
-
-            // Build knob DOM from config
-            populateKnobs('voice-knobs', [
-                { id: 'voiceCount', label: 'Voices' },
-                { id: 'complexity', label: 'Complexity' },
-                { id: 'stereoSpread', label: 'Spread' },
-                { id: 'spacing', label: 'Spacing' },
-                { id: 'inversion', label: 'Inversion' },
-            ]);
-
-            // OSC A: dropdown + waveform canvas + knobs
-            const oscARow = document.getElementById('oscA-row');
-            oscARow.appendChild(makeWavetableDropdown('wavetableBankSelect', 'OSC A', 'canvasOscA'));
-            [{ id: 'wavetablePos', label: 'Pos', size: 'small' },
-             { id: 'lfoRate', label: 'Rate', size: 'small' },
-             { id: 'lfoDepth', label: 'Depth', size: 'small' },
-             { id: 'gainA', label: 'Gain', size: 'small', labelStyle: 'color: #6B8E23;' },
-            ].forEach(k => oscARow.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle)));
-
-            // OSC B: dropdown + waveform canvas + knobs
-            const oscBRow = document.getElementById('oscB-row');
-            oscBRow.appendChild(makeWavetableDropdown('wavetableBank2Select', 'OSC B', 'canvasOscB'));
-            [{ id: 'wavetablePos2', label: 'Pos', size: 'small' },
-             { id: 'lfoRate2', label: 'Rate', size: 'small' },
-             { id: 'lfoDepth2', label: 'Depth', size: 'small' },
-             { id: 'gainB', label: 'Gain', size: 'small', labelStyle: 'color: #6B8E23;' },
-            ].forEach(k => oscBRow.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle)));
-
-            populateKnobs('synth-env-knobs', [
-                { id: 'attackTime', label: 'Attack', size: 'small' },
-                { id: 'decayTime', label: 'Decay', size: 'small' },
-                { id: 'sustainLevel', label: 'Sustain', size: 'small' },
-                { id: 'releaseTime', label: 'Release', size: 'small' },
-                { id: 'filterCutoff', label: 'Filter', size: 'small' },
-                { id: 'filterLfoDepth', label: 'Flt LFO', size: 'small' },
-                { id: 'velocityToFilter', label: 'Vel>Flt', size: 'small' },
-                { id: 'masterVolume', label: 'Volume', size: 'small' },
-            ]);
-            populateKnobs('synth-random-knobs', [
-                { id: 'timingRandom', label: 'Timing', size: 'small' },
-                { id: 'detuneRandom', label: 'Detune', size: 'small' },
-            ]);
-
-            // Effects knobs
-            populateKnobs('chorus-knobs', [
-                { id: 'chorusRate', label: 'Rate', size: 'small' },
-                { id: 'chorusDepth', label: 'Depth', size: 'small' },
-                { id: 'chorusMix', label: 'Mix', size: 'small' },
-            ]);
-            {
-                const delayRow = document.getElementById('delay-knobs');
-                [{ id: 'delayTime', label: 'Time', size: 'small' },
-                 { id: 'delayFeedback', label: 'Feedback', size: 'small' }
-                ].forEach(k => delayRow.appendChild(makeKnob(k.id, k.label, k.size)));
-                // delayMode: discrete choice → dropdown (not a knob)
-                const modeWrap = document.createElement('div');
-                modeWrap.className = 'dropdown-container';
-                const modeTip = DROPDOWN_TOOLTIPS['delayModeSelect'];
-                if (modeTip) modeWrap.setAttribute('data-tooltip', modeTip);
-                const modeLbl = document.createElement('div');
-                modeLbl.className = 'knob-label';
-                modeLbl.textContent = 'Mode';
-                const modeSel = document.createElement('select');
-                modeSel.className = 'dropdown';
-                modeSel.id = 'delayModeSelect';
-                modeSel.style.width = '90px';
-                ['Normal', 'PingPong'].forEach((name, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = i;
-                    opt.textContent = name;
-                    modeSel.appendChild(opt);
-                });
-                modeWrap.appendChild(modeLbl);
-                modeWrap.appendChild(modeSel);
-                delayRow.appendChild(modeWrap);
-                delayRow.appendChild(makeKnob('delayMix', 'Mix', 'small'));
-            }
-            populateKnobs('eq-knobs', [
-                { id: 'eqLowGain', label: 'Low', size: 'small' },
-                { id: 'eqMidGain', label: 'Mid', size: 'small' },
-                { id: 'eqMidFreq', label: 'Mid Freq', size: 'small' },
-                { id: 'eqHighGain', label: 'High', size: 'small' },
-            ]);
-            populateKnobs('reverb-knobs', [
-                { id: 'reverbSize', label: 'Size', size: 'small' },
-                { id: 'reverbDamp', label: 'Damp', size: 'small' },
-                { id: 'reverbPredelay', label: 'Pre-dly', size: 'small' },
-                { id: 'reverbMix', label: 'Mix', size: 'small' },
-            ]);
-
-            // Initialize parameter states
-            voiceCountState = Juce.getSliderState('voiceCount');
-            complexityState = Juce.getSliderState('complexity');
-            keyRootState = Juce.getComboBoxState('keyRoot');
-            voicingModeState = Juce.getComboBoxState('voicingMode');
-            stereoSpreadState = Juce.getSliderState('stereoSpread');
-            spacingState = Juce.getSliderState('spacing');
-            inversionState = Juce.getSliderState('inversion');
-            wavetableBankState = Juce.getComboBoxState('wavetableBank');
-            wavetablePosState = Juce.getSliderState('wavetablePos');
-            wavetableBank2State = Juce.getComboBoxState('wavetableBank2');
-            wavetablePos2State = Juce.getSliderState('wavetablePos2');
-            gainAState = Juce.getSliderState('gainA');
-            gainBState = Juce.getSliderState('gainB');
-            lfoRateState = Juce.getSliderState('lfoRate');
-            lfoRate2State = Juce.getSliderState('lfoRate2');
-            lfoDepthState = Juce.getSliderState('lfoDepth');
-            lfoDepth2State = Juce.getSliderState('lfoDepth2');
-            timingRandomState = Juce.getSliderState('timingRandom');
-            detuneRandomState = Juce.getSliderState('detuneRandom');
-            attackTimeState = Juce.getSliderState('attackTime');
-            decayTimeState = Juce.getSliderState('decayTime');
-            sustainLevelState = Juce.getSliderState('sustainLevel');
-            releaseTimeState = Juce.getSliderState('releaseTime');
-            filterCutoffState = Juce.getSliderState('filterCutoff');
-            filterLfoDepthState = Juce.getSliderState('filterLfoDepth');
-            velocityToFilterState = Juce.getSliderState('velocityToFilter');
-            masterVolumeState = Juce.getSliderState('masterVolume');
-
-            chorusRateState = Juce.getSliderState('chorusRate');
-            chorusDepthState = Juce.getSliderState('chorusDepth');
-            chorusMixState = Juce.getSliderState('chorusMix');
-            delayTimeState = Juce.getSliderState('delayTime');
-            delayFeedbackState = Juce.getSliderState('delayFeedback');
-            delayModeState = Juce.getComboBoxState('delayMode');
-            delayMixState = Juce.getSliderState('delayMix');
-            eqLowGainState = Juce.getSliderState('eqLowGain');
-            eqMidGainState = Juce.getSliderState('eqMidGain');
-            eqMidFreqState = Juce.getSliderState('eqMidFreq');
-            eqHighGainState = Juce.getSliderState('eqHighGain');
-            reverbSizeState = Juce.getSliderState('reverbSize');
-            reverbDampState = Juce.getSliderState('reverbDamp');
-            reverbPredelayState = Juce.getSliderState('reverbPredelay');
-            reverbMixState = Juce.getSliderState('reverbMix');
-            chorusBypassState = Juce.getToggleState('chorusBypass');
-            delayBypassState = Juce.getToggleState('delayBypass');
-            eqBypassState = Juce.getToggleState('eqBypass');
-            reverbBypassState = Juce.getToggleState('reverbBypass');
-
-            // Setup tab switching
-            setupTabs();
-
-            // v2.7.0: Setup preset system
-            setupPresetSystem();
-
-            // Setup all knobs
-            setupKnob('voiceCount', voiceCountState, 2, 12, '', v => Math.round(v));
-            setupKnob('complexity', complexityState, 0, 100, '%', v => Math.round(v));
-            setupKnob('stereoSpread', stereoSpreadState, 0, 100, '%', v => Math.round(v));
-            setupKnob('spacing', spacingState, 0, 100, '%', v => Math.round(v));
-            setupKnob('inversion', inversionState, 0, 100, '%', v => Math.round(v));
-            setupKnob('wavetablePos', wavetablePosState, 0, 100, '%', v => Math.round(v));
-            setupKnob('wavetablePos2', wavetablePos2State, 0, 100, '%', v => Math.round(v));
-            setupKnob('gainA', gainAState, 0, 100, '%', v => Math.round(v));
-            setupKnob('gainB', gainBState, 0, 100, '%', v => Math.round(v));
-            setupKnob('lfoRate', lfoRateState, 0.01, 20, ' Hz', v => v.toFixed(2));
-            setupKnob('lfoRate2', lfoRate2State, 0.01, 20, ' Hz', v => v.toFixed(2));
-            setupKnob('lfoDepth', lfoDepthState, 0, 100, '%', v => Math.round(v));
-            setupKnob('lfoDepth2', lfoDepth2State, 0, 100, '%', v => Math.round(v));
-            setupKnob('timingRandom', timingRandomState, 0, 100, ' ms', v => Math.round(v));
-            setupKnob('detuneRandom', detuneRandomState, 0, 50, '¢', v => Math.round(v));
-            setupKnob('attackTime', attackTimeState, 1, 5000, ' ms', v => Math.round(v));
-            setupKnob('decayTime', decayTimeState, 10, 5000, ' ms', v => Math.round(v));
-            setupKnob('sustainLevel', sustainLevelState, 0, 100, '%', v => Math.round(v));
-            setupKnob('releaseTime', releaseTimeState, 10, 10000, ' ms', v => Math.round(v));
-            setupKnob('filterCutoff', filterCutoffState, 20, 20000, ' Hz', v => Math.round(v));
-            setupKnob('filterLfoDepth', filterLfoDepthState, 0, 100, '%', v => Math.round(v));
-            setupKnob('velocityToFilter', velocityToFilterState, 0, 100, '%', v => Math.round(v));
-            // masterVolume is a linear gain 0.0–1.26; display as dB = 20*log10(gain)
-            setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => v.toFixed(1), { db: true });
-
-            // Setup dropdowns
-            // WR-02: keyRoot is an AudioParameterChoice → WebComboBoxRelay/getComboBoxState (was WebSliderRelay by luck)
-            setupComboBox('keyRoot', keyRootState);
-            setupComboBox('voicingMode', voicingModeState);
-
-            setupComboBox('wavetableBank', wavetableBankState);
-            setupComboBox('wavetableBank2', wavetableBank2State);
-
-            // Wavetable waveform displays
-            const wtDisplayA = new WavetableDisplay('canvasOscA');
-            const wtDisplayB = new WavetableDisplay('canvasOscB');
-            wireWavetableDisplay(wtDisplayA, wavetablePosState, wavetableBankState);
-            wireWavetableDisplay(wtDisplayB, wavetablePos2State, wavetableBank2State);
-
-            // Refresh wavetable canvases when Synth tab becomes visible
-            document.querySelector('[data-tab="synth"]').addEventListener('click', () => {
-                requestAnimationFrame(() => {
-                    wtDisplayA.resizeCanvas();
-                    wtDisplayB.resizeCanvas();
-                    const bankA = Math.round(wavetableBankState.getChoiceIndex());
-                    const bankB = Math.round(wavetableBank2State.getChoiceIndex());
-                    wtDisplayA.fetchAndDraw(bankA, wavetablePosState.getNormalisedValue());
-                    wtDisplayB.fetchAndDraw(bankB, wavetablePos2State.getNormalisedValue());
-                });
-            });
-
-            // v2.4.1: Animate waveform displays with LFO-modulated positions (30 Hz from C++)
-            if (window.__JUCE__ && window.__JUCE__.backend) {
-                window.__JUCE__.backend.addEventListener("wavetableModPos", (raw) => {
-                    try {
-                        const data = JSON.parse(raw);
-                        const bankA = Math.round(wavetableBankState.getChoiceIndex());
-                        const bankB = Math.round(wavetableBank2State.getChoiceIndex());
-                        wtDisplayA.fetchAndDraw(bankA, data.posA);
-                        wtDisplayB.fetchAndDraw(bankB, data.posB);
-                    } catch(e) { /* ignore parse errors */ }
-                });
-            }
-
-            setupKnob('chorusRate', chorusRateState, 0.1, 10, ' Hz', v => v.toFixed(2));
-            setupKnob('chorusDepth', chorusDepthState, 0, 100, '%', v => Math.round(v));
-            setupKnob('chorusMix', chorusMixState, 0, 100, '%', v => Math.round(v));
-            setupKnob('delayTime', delayTimeState, 1, 2000, ' ms', v => Math.round(v));
-            setupKnob('delayFeedback', delayFeedbackState, 0, 95, '%', v => Math.round(v));
-            setupComboBox('delayMode', delayModeState);
-            setupKnob('delayMix', delayMixState, 0, 100, '%', v => Math.round(v));
-            setupKnob('eqLowGain', eqLowGainState, -12, 12, ' dB', v => v.toFixed(1));
-            setupKnob('eqMidGain', eqMidGainState, -12, 12, ' dB', v => v.toFixed(1));
-            setupKnob('eqMidFreq', eqMidFreqState, 200, 8000, ' Hz', v => Math.round(v));
-            setupKnob('eqHighGain', eqHighGainState, -12, 12, ' dB', v => v.toFixed(1));
-            setupKnob('reverbSize', reverbSizeState, 0, 100, '%', v => Math.round(v));
-            setupKnob('reverbDamp', reverbDampState, 0, 100, '%', v => Math.round(v));
-            setupKnob('reverbPredelay', reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
-            setupKnob('reverbMix', reverbMixState, 0, 100, '%', v => Math.round(v));
-
-            setupBypassToggle('chorus', chorusBypassState);
-            setupBypassToggle('delay', delayBypassState);
-            setupBypassToggle('eq', eqBypassState);
-            setupBypassToggle('reverb', reverbBypassState);
-
-            initIntervalSelector();
-
-            // Build mini keyboard
-            buildKeyboard();
-
-            // Listen for active notes from C++
-            if (window.__JUCE__ && window.__JUCE__.backend) {
-                window.__JUCE__.backend.addEventListener("activeNotes", (data) => {
-                    try {
-                        const notes = JSON.parse(data);
-                        updateActiveNotes(notes);
-                    } catch (e) {
-                        console.error('Failed to parse activeNotes:', e);
-                    }
-                });
-            }
-        });
-
-        // ====================================================================
-        // TUNING PANEL INITIALIZATION
-        // ====================================================================
-
-        (async () => {
-            try {
-                const { TuningPanel } = await import('./js/tuning-panel.js');
-                const container = document.getElementById('tuning-container');
-                const tuningPanel = new TuningPanel(container, Juce);
-                await tuningPanel.init();
-
-                // Expose note highlighting for C++ evaluateJavascript calls
-                window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
-                window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
-                window.updateHeldNotes = (notes, freqs) => tuningPanel.updateHeldNotes(notes, freqs);
-
-                console.log('[Tuning] Panel initialized successfully');
-            } catch (err) {
-                console.error('[Tuning] Failed to initialize panel:', err);
-            }
-        })();
-
-        // Tab switching logic
-        function setupTabs() {
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabContents = document.querySelectorAll('.tab-content');
-
-            tabButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const targetTab = button.dataset.tab;
-
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    tabContents.forEach(content => content.classList.remove('active'));
-
-                    button.classList.add('active');
-                    document.getElementById(`${targetTab}-tab`).classList.add('active');
-                });
-            });
-        }
-
-        // ═══ v2.7.0: Preset System ═══
-        function setupPresetSystem() {
-            const nameDisplay = document.getElementById('presetNameDisplay');
-            const prevBtn = document.getElementById('presetPrevBtn');
-            const nextBtn = document.getElementById('presetNextBtn');
-            const saveBtn = document.getElementById('presetSaveBtn');
-            const browser = document.getElementById('presetBrowser');
-            const browserClose = document.getElementById('presetBrowserClose');
-            const categoriesEl = document.getElementById('presetCategories');
-            const listEl = document.getElementById('presetList');
-            const saveDialog = document.getElementById('presetSaveDialog');
-            const saveBackdrop = document.getElementById('presetSaveBackdrop');
-            const saveNameInput = document.getElementById('presetSaveNameInput');
-            const saveCategorySelect = document.getElementById('presetSaveCategorySelect');
-            const saveCancelBtn = document.getElementById('presetSaveCancelBtn');
-            const saveConfirmBtn = document.getElementById('presetSaveConfirmBtn');
-
-            let allPresets = [];
-            let activeCategory = 'All';
-
-            // Load initial preset name
-            (async () => {
-                try {
-                    const name = await Juce.getNativeFunction('getCurrentPresetName')();
-                    if (name) nameDisplay.textContent = name;
-                } catch (e) { console.warn('[Presets] Could not get current name:', e); }
-            })();
-
-            // Navigation
-            prevBtn.addEventListener('click', async () => {
-                try {
-                    const name = await Juce.getNativeFunction('loadPrevPreset')();
-                    if (name) nameDisplay.textContent = name;
-                } catch (e) { console.error('[Presets] Prev failed:', e); }
-            });
-
-            nextBtn.addEventListener('click', async () => {
-                try {
-                    const name = await Juce.getNativeFunction('loadNextPreset')();
-                    if (name) nameDisplay.textContent = name;
-                } catch (e) { console.error('[Presets] Next failed:', e); }
-            });
-
-            // Open browser
-            nameDisplay.addEventListener('click', async () => {
-                await refreshBrowser();
-                browser.classList.add('open');
-            });
-
-            // Close browser
-            browserClose.addEventListener('click', () => {
-                browser.classList.remove('open');
-            });
-
-            // Save button → open dialog
-            saveBtn.addEventListener('click', () => {
-                saveNameInput.value = nameDisplay.textContent || '';
-                saveBackdrop.classList.add('open');
-                saveDialog.classList.add('open');
-                saveNameInput.focus();
-                saveNameInput.select();
-            });
-
-            // Save dialog cancel
-            saveCancelBtn.addEventListener('click', closeSaveDialog);
-            saveBackdrop.addEventListener('click', closeSaveDialog);
-
-            function closeSaveDialog() {
-                saveDialog.classList.remove('open');
-                saveBackdrop.classList.remove('open');
-            }
-
-            // Save dialog confirm
-            saveConfirmBtn.addEventListener('click', async () => {
-                const name = saveNameInput.value.trim();
-                const category = saveCategorySelect.value;
-                if (!name) return;
-
-                try {
-                    const success = await Juce.getNativeFunction('savePreset')(name, category);
-                    if (success) {
-                        nameDisplay.textContent = name;
-                        closeSaveDialog();
-                    }
-                } catch (e) { console.error('[Presets] Save failed:', e); }
-            });
-
-            // Enter key in save dialog
-            saveNameInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') saveConfirmBtn.click();
-                if (e.key === 'Escape') closeSaveDialog();
-            });
-
-            // Refresh browser data
-            async function refreshBrowser() {
-                try {
-                    const raw = await Juce.getNativeFunction('getPresetList')();
-                    allPresets = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                } catch (e) {
-                    console.error('[Presets] Failed to load list:', e);
-                    allPresets = [];
-                }
-                renderCategories();
-                renderList();
-            }
-
-            // Render category buttons
-            function renderCategories() {
-                const cats = ['All', 'Ambient', 'Cinematic', 'Classic Pads', 'Drones', 'Experimental'];
-                categoriesEl.innerHTML = '';
-                for (const cat of cats) {
-                    const btn = document.createElement('button');
-                    btn.className = 'preset-category-btn' + (cat === activeCategory ? ' active' : '');
-                    btn.textContent = cat;
-                    btn.addEventListener('click', () => {
-                        activeCategory = cat;
-                        categoriesEl.querySelectorAll('.preset-category-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        renderList();
-                    });
-                    categoriesEl.appendChild(btn);
-                }
-            }
-
-            // Render preset list
-            function renderList() {
-                listEl.innerHTML = '';
-                const currentName = nameDisplay.textContent;
-                const filtered = activeCategory === 'All'
-                    ? allPresets
-                    : allPresets.filter(p => p.category === activeCategory);
-
-                for (const preset of filtered) {
-                    const item = document.createElement('div');
-                    item.className = 'preset-item' + (preset.name === currentName ? ' active' : '');
-
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'preset-item-name';
-                    nameSpan.textContent = preset.name;
-                    item.appendChild(nameSpan);
-
-                    const catSpan = document.createElement('span');
-                    catSpan.className = 'preset-item-category';
-                    catSpan.textContent = preset.category;
-                    item.appendChild(catSpan);
-
-                    if (preset.isFactory) {
-                        const badge = document.createElement('span');
-                        badge.className = 'preset-item-factory';
-                        badge.textContent = 'F';
-                        badge.title = 'Factory preset';
-                        item.appendChild(badge);
-                    } else {
-                        // User preset actions: rename, delete
-                        const actions = document.createElement('div');
-                        actions.className = 'preset-item-actions';
-
-                        const renameBtn = document.createElement('button');
-                        renameBtn.className = 'preset-item-action-btn';
-                        renameBtn.textContent = '\u270E'; // pencil
-                        renameBtn.title = 'Rename';
-                        renameBtn.addEventListener('click', async (e) => {
-                            e.stopPropagation();
-                            const newName = prompt('Rename preset:', preset.name);
-                            if (newName && newName !== preset.name) {
-                                const ok = await Juce.getNativeFunction('renamePreset')(preset.name, newName);
-                                if (ok) {
-                                    if (nameDisplay.textContent === preset.name) nameDisplay.textContent = newName;
-                                    await refreshBrowser();
-                                }
-                            }
-                        });
-                        actions.appendChild(renameBtn);
-
-                        const delBtn = document.createElement('button');
-                        delBtn.className = 'preset-item-action-btn delete';
-                        delBtn.textContent = '\u2715'; // x
-                        delBtn.title = 'Delete';
-                        delBtn.addEventListener('click', async (e) => {
-                            e.stopPropagation();
-                            if (confirm('Delete preset "' + preset.name + '"?')) {
-                                await Juce.getNativeFunction('deletePreset')(preset.name);
-                                await refreshBrowser();
-                            }
-                        });
-                        actions.appendChild(delBtn);
-
-                        item.appendChild(actions);
-                    }
-
-                    // Click to load
-                    item.addEventListener('click', async () => {
-                        const isFactory = preset.isFactory ? 1 : 0;
-                        const success = await Juce.getNativeFunction('loadPreset')(preset.name, isFactory);
-                        if (success) {
-                            nameDisplay.textContent = preset.name;
-                            browser.classList.remove('open');
-                        }
-                    });
-
-                    listEl.appendChild(item);
-                }
-
-                if (filtered.length === 0) {
-                    const empty = document.createElement('div');
-                    empty.style.cssText = 'grid-column: 1/-1; text-align: center; color: rgba(212,201,176,0.4); font-family: Garamond, serif; font-size: 12px; padding: 20px;';
-                    empty.textContent = 'No presets in this category';
-                    listEl.appendChild(empty);
-                }
-            }
-        }
-
-        // Global knob drag state — one pair of document-level listeners for all knobs
-        const knobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
-
-        document.addEventListener('mousemove', (e) => {
-            if (!knobDrag.active) return;
-            const deltaY = knobDrag.lastY - e.clientY;
-            const sensitivity = 0.005;
-            knobDrag.virtualNorm = Math.max(0, Math.min(1, knobDrag.virtualNorm + (deltaY * sensitivity)));
-            knobDrag.state.setNormalisedValue(knobDrag.virtualNorm);
-            knobDrag.lastY = e.clientY;
-        });
-
-        document.addEventListener('mouseup', () => {
-            if (knobDrag.active) {
-                knobDrag.state.sliderDragEnded();
-                knobDrag.active = false;
-                knobDrag.state = null;
-            }
-        });
-
-        // Generic knob setup (SVG vine-arc style)
-        //
-        // CR-02: The readout is driven by state.getScaledValue() — the true C++
-        // engineering value from the parameter's NormalisableRange (skew-aware) —
-        // NOT a linear `min + norm*(max-min)` map, which was ~8x wrong for skewed
-        // knobs (filterCutoff, lfoRate, time knobs, etc.). `dispMin`/`dispMax` are
-        // the DISPLAY endpoints matching the range endpoints; the ratio against
-        // the live properties.start/end handles unit conversion (s→ms, gain→%).
-        // opts.db=true routes the display through 20*log10(gain) for Master Volume.
-        function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
-            if (!state) {
-                console.error(`Failed to get slider state for ${paramId}`);
-                return;
-            }
-            const isDb = !!(opts && opts.db);
-
-            const knobEl = document.getElementById(`${paramId}Knob`);
-            const vine = document.getElementById(`${paramId}Vine`);
-            const valueDisplay = document.getElementById(`${paramId}Value`);
-
-            if (!knobEl || !vine || !valueDisplay) return;
-
-            // Calculate arc length from SVG circle radius
-            // Arc spans 270 degrees (0.75 of circumference)
-            const r = parseFloat(vine.getAttribute('r'));
-            const arcLength = 2 * Math.PI * r * 0.75;
-
-            let isEditing = false;
-
-            // Scaled engineering value (C++ range) -> displayed number
-            function scaledToDisplay(scaled) {
-                if (isDb) return scaled > 1e-4 ? (20 * Math.log10(scaled)) : -Infinity;
-                const { start, end } = state.properties;
-                if (end === start) return dispMin;
-                return dispMin + ((scaled - start) / (end - start)) * (dispMax - dispMin);
-            }
-            // Displayed number -> scaled engineering value (C++ range)
-            function displayToScaled(disp) {
-                if (isDb) return Math.pow(10, disp / 20);
-                const { start, end } = state.properties;
-                if (dispMax === dispMin) return start;
-                return start + ((disp - dispMin) / (dispMax - dispMin)) * (end - start);
-            }
-            // Scaled engineering value -> normalised [0,1] (skew-aware, matches JUCE)
-            function scaledToNorm(scaled) {
-                const { start, end, skew } = state.properties;
-                if (end === start) return 0;
-                const frac = Math.max(0, Math.min(1, (scaled - start) / (end - start)));
-                return Math.pow(frac, skew);
-            }
-            function formatDisplay(scaled) {
-                const disp = scaledToDisplay(scaled);
-                if (!isFinite(disp)) return '-∞' + unit;  // e.g. 0 gain -> -∞ dB
-                const formatted = formatter ? formatter(disp) : disp.toFixed(1);
-                return formatted + unit;
-            }
-
-            function updateVisual() {
-                const normValue = state.getNormalisedValue();
-
-                // Update SVG vine arc (getNormalisedValue is already skew-correct)
-                const offset = arcLength - (normValue * arcLength);
-                vine.style.strokeDashoffset = offset;
-
-                // Update value display (skip when user is editing)
-                if (!isEditing) {
-                    valueDisplay.textContent = formatDisplay(state.getScaledValue());
-                }
-            }
-
-            // JUCE -> UI
-            state.valueChangedEvent.addListener(() => updateVisual());
-            // Re-render once the backend pushes the real range (start/end/skew)
-            state.propertiesChangedEvent.addListener(() => updateVisual());
-
-            // UI -> JUCE (drag on knob-visual)
-            const knobVisual = knobEl.querySelector('.knob-visual');
-            (knobVisual || knobEl).addEventListener('mousedown', (e) => {
-                knobDrag.active = true;
-                knobDrag.state = state;
-                knobDrag.lastY = e.clientY;
-                knobDrag.virtualNorm = state.getNormalisedValue();
-                state.sliderDragStarted();
-                e.preventDefault();
-            });
-
-            // Mouse wheel support
-            (knobVisual || knobEl).addEventListener('wheel', (e) => {
-                e.preventDefault();
-                const currentNorm = state.getNormalisedValue();
-                const delta = e.deltaY < 0 ? 0.02 : -0.02;
-                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
-                state.setNormalisedValue(newNorm);
-            }, { passive: false });
-
-            updateVisual();
-
-            // Double-click to edit knob value
-            valueDisplay.style.cursor = 'text';
-            valueDisplay.title = 'Double-click to edit';
-            valueDisplay.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                if (isEditing) return;
-                isEditing = true;
-
-                const initDisp = scaledToDisplay(state.getScaledValue());
-                const formatted = isFinite(initDisp)
-                    ? (formatter ? formatter(initDisp) : initDisp.toFixed(1))
-                    : '';
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = formatted;
-                input.style.cssText = `
-                    width: 50px; text-align: center; font-size: 10px;
-                    font-family: 'Garamond', serif; font-weight: bold;
-                    color: #5C4033; background: rgba(255,248,220,0.9);
-                    border: 1px solid #8B7355; border-radius: 3px;
-                    padding: 1px 2px; outline: none; user-select: text;
-                    -webkit-user-select: text;
-                `;
-
-                valueDisplay.textContent = '';
-                valueDisplay.appendChild(input);
-                input.focus();
-                input.select();
-
-                function commitValue() {
-                    if (!isEditing) return;
-                    const rawVal = parseFloat(input.value);
-                    if (!isNaN(rawVal)) {
-                        // display -> scaled -> normalised (skew-aware inverse)
-                        let scaled = displayToScaled(rawVal);
-                        const { start, end } = state.properties;
-                        const lo = Math.min(start, end), hi = Math.max(start, end);
-                        scaled = Math.max(lo, Math.min(hi, scaled));
-                        const norm = scaledToNorm(scaled);
-                        state.sliderDragStarted();
-                        state.setNormalisedValue(Math.max(0, Math.min(1, norm)));
-                        state.sliderDragEnded();
-                    }
-                    isEditing = false;
-                    updateVisual();
-                }
-
-                input.addEventListener('keydown', (ev) => {
-                    if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
-                    else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
-                });
-
-                input.addEventListener('blur', () => {
-                    if (isEditing) commitValue();
-                });
-            });
-        }
-
-        // Dropdown setup
-        function setupDropdown(paramId, state, maxIndex) {
-            if (!state) {
-                console.error(`Failed to get slider state for ${paramId}`);
-                return;
-            }
-
-            const select = document.getElementById(`${paramId}Select`);
-
-            function updateVisual() {
-                const normValue = state.getNormalisedValue();
-                const index = Math.round(normValue * (maxIndex - 1));
-                select.value = index.toString();
-            }
-
-            state.valueChangedEvent.addListener(() => {
-                updateVisual();
-            });
-
-            select.addEventListener('change', () => {
-                const index = parseInt(select.value);
-                const normValue = index / (maxIndex - 1);
-                state.setNormalisedValue(normValue);
-            });
-
-            updateVisual();
-        }
-
-        // ComboBox setup (for WebComboBoxRelay parameters)
-        function setupComboBox(paramId, state) {
-            if (!state) {
-                console.error(`Failed to get combobox state for ${paramId}`);
-                return;
-            }
-
-            const select = document.getElementById(`${paramId}Select`);
-            if (!select) return;
-
-            function updateVisual() {
-                select.value = state.getChoiceIndex().toString();
-            }
-
-            state.valueChangedEvent.addListener(() => {
-                updateVisual();
-            });
-
-            select.addEventListener('change', () => {
-                state.setChoiceIndex(parseInt(select.value));
-            });
-
-            updateVisual();
-        }
-
-        // ====================================================================
-        // BYPASS TOGGLE SETUP
-        // ====================================================================
-
-        function setupBypassToggle(fxName, toggleState) {
-            const btn = document.getElementById(`${fxName}BypassBtn`);
-            const section = document.getElementById(`${fxName}Section`);
-            if (!btn || !section || !toggleState) return;
-
-            function updateVisual() {
-                const bypassed = toggleState.getValue();
-                btn.textContent = bypassed ? 'Off' : 'On';
-                btn.classList.toggle('bypassed', bypassed);
-                section.classList.toggle('bypassed', bypassed);
-            }
-
-            toggleState.valueChangedEvent.addListener(() => {
-                updateVisual();
-            });
-
-            btn.addEventListener('click', () => {
-                toggleState.setValue(!toggleState.getValue());
-            });
-
-            updateVisual();
-        }
-
-        // ====================================================================
-        // INTERVAL SELECTOR
-        // ====================================================================
-
-        let intervalData = [];      // Array of { cents, enabled }
-
-        async function initIntervalSelector() {
-            // Load intervals from tuning engine (don't block on initial load —
-            // DAW hosts may delay native function responses during init)
-            refreshIntervalSelector();
-
-            // Quick buttons
-            document.getElementById('intervalAllBtn')?.addEventListener('click', async () => {
-                if (window.__JUCE__?.backend) {
-                    await Juce.getNativeFunction('resetEnabledIntervals')();
-                    await refreshIntervalSelector();
-                }
-            });
-
-            document.getElementById('intervalNoneBtn')?.addEventListener('click', async () => {
-                // Disable all except root (degree 0)
-                for (let i = 0; i < intervalData.length; i++) {
-                    if (i > 0) {
-                        await Juce.getNativeFunction('setIntervalEnabled')(i, false);
-                    }
-                }
-                await refreshIntervalSelector();
-            });
-        }
-
-        async function refreshIntervalSelector() {
-            if (!window.__JUCE__?.backend) {
-                // Fallback for standalone testing
-                renderIntervalToggles([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
-                                      Array(13).fill(true));
-                return;
-            }
-
-            try {
-                // Get tuning intervals (cents)
-                const intervalsJson = await Juce.getNativeFunction('getTuningIntervals')();
-                const intervals = JSON.parse(intervalsJson);
-
-                // Get enabled state
-                const enabledJson = await Juce.getNativeFunction('getEnabledIntervals')();
-                const enabled = JSON.parse(enabledJson);
-
-                renderIntervalToggles(intervals, enabled);
-            } catch (e) {
-                console.error('[IntervalSelector] Failed to refresh:', e);
-            }
-        }
-
-        function renderIntervalToggles(intervals, enabled) {
-            const container = document.getElementById('intervalToggleList');
-            if (!container) return;
-
-            // intervals includes period as last element; exclude it from toggles
-            const count = intervals.length - 1;
-
-            intervalData = [];
-            let html = '';
-
-            for (let i = 0; i < count; i++) {
-                const cents = intervals[i];
-                const isEnabled = enabled[i] !== false;
-                const isRoot = i === 0;
-                intervalData.push({ cents, enabled: isEnabled });
-
-                const label = getIntervalLabel(i, count, cents);
-                const centsStr = cents.toFixed(1);
-
-                const classes = ['interval-toggle-item'];
-                if (isRoot) classes.push('root');
-                else if (isEnabled) classes.push('enabled');
-
-                html += `<div class="${classes.join(' ')}" data-index="${i}" ${isRoot ? '' : 'data-toggleable="true"'}>
-                    <span class="interval-toggle-dot"></span>
-                    <span>${label}</span>
-                    <span class="interval-toggle-cents">${centsStr}c</span>
-                </div>`;
-            }
-
-            container.innerHTML = html;
-
-            // Attach toggle handlers
-            container.querySelectorAll('[data-toggleable]').forEach(item => {
-                item.addEventListener('click', async () => {
-                    const idx = parseInt(item.dataset.index);
-                    const currentlyEnabled = item.classList.contains('enabled');
-                    const newState = !currentlyEnabled;
-
-                    // Update C++
-                    if (window.__JUCE__?.backend) {
-                        await Juce.getNativeFunction('setIntervalEnabled')(idx, newState);
-                    }
-
-                    // Update UI immediately
-                    item.classList.toggle('enabled', newState);
-                    intervalData[idx].enabled = newState;
-                });
-            });
-        }
-
-        function getIntervalLabel(index, scaleSize, cents) {
-            if (index === 0) return 'R';  // Root
-
-            if (scaleSize === 12) {
-                // For 12-note scales, use semitone names
-                const names = ['R', 'm2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7'];
-                return names[index] || index.toString();
-            }
-
-            // For other scale sizes, use degree number
-            return index.toString();
-        }
-
-        // Refresh interval selector when any scale change occurs
-        // (covers preset changes, .SCL loads, generators, embedded tunings, tonic rotation)
-        window.addEventListener('tuningScaleChanged', () => {
-            setTimeout(() => refreshIntervalSelector(), 100);
-        });
-
-        // Also refresh when temperament preset changes via APVTS (direct parameter change)
-        const tempState = Juce.getComboBoxState('tuning_temperamentPreset');
-        if (tempState) {
-            tempState.valueChangedEvent.addListener(() => {
-                setTimeout(() => refreshIntervalSelector(), 100);
-            });
-        }
-
-        // ====================================================================
-        // MINI KEYBOARD + ACTIVE NOTES VISUALIZATION
-        // ====================================================================
-
-        // Keyboard range: C2 (36) to B5 (83) = 4 octaves
-        const KB_LOW = 36;
-        const KB_HIGH = 83;
-        const BLACK_KEYS = new Set([1, 3, 6, 8, 10]); // pitch classes that are black keys
-
-        // Map of MIDI note -> key DOM element
-        const keyElements = new Map();
-
-        // Previous active MIDI notes (for diffing) — Map<midi, gain>
-        let prevActiveMidi = new Map();
-
-        function buildKeyboard() {
-            const container = document.getElementById('miniKeyboard');
-            if (!container) return;
-
-            // Count white keys in range to calculate widths
-            let whiteCount = 0;
-            for (let m = KB_LOW; m <= KB_HIGH; m++) {
-                if (!BLACK_KEYS.has(m % 12)) whiteCount++;
-            }
-
-            // Available width (Voice tab is ~760px)
-            const availWidth = 720;
-            const whiteW = Math.floor(availWidth / whiteCount);
-            const blackW = Math.floor(whiteW * 0.6);
-            container.style.width = (whiteCount * whiteW) + 'px';
-
-            let whiteIndex = 0;
-            for (let m = KB_LOW; m <= KB_HIGH; m++) {
-                const pc = m % 12;
-                const isBlack = BLACK_KEYS.has(pc);
-                const key = document.createElement('div');
-                key.classList.add('key', isBlack ? 'black' : 'white');
-                key.dataset.midi = m;
-
-                if (isBlack) {
-                    // Position black key overlapping previous white key
-                    const leftPos = (whiteIndex * whiteW) - Math.floor(blackW / 2);
-                    key.style.left = leftPos + 'px';
-                    key.style.width = blackW + 'px';
-                } else {
-                    key.style.left = (whiteIndex * whiteW) + 'px';
-                    key.style.width = whiteW + 'px';
-                    whiteIndex++;
-                }
-
-                // Add C note labels on white keys
-                if (pc === 0) {
-                    const oct = Math.floor(m / 12) - 1;
-                    const label = document.createElement('span');
-                    label.className = 'key-label';
-                    label.textContent = 'C' + oct;
-                    key.appendChild(label);
-                }
-
-                container.appendChild(key);
-                keyElements.set(m, key);
-            }
-        }
-
-        function updateActiveNotes(notes) {
-            const activeMidi = new Map();   // midi -> max gain
-            const uniqueNotes = new Map();  // midi -> freq (first seen)
-            const groups = new Map();       // midi -> { note, count, maxGain }
-            const freqList = document.getElementById('freqList');
-
-            // Single pass: build activeMidi, uniqueNotes, and groups together
-            for (const n of notes) {
-                const gain = n.gain !== undefined ? n.gain : 1.0;
-                activeMidi.set(n.midi, Math.max(activeMidi.get(n.midi) || 0, gain));
-
-                if (!uniqueNotes.has(n.midi)) {
-                    uniqueNotes.set(n.midi, n.hz);
-                    groups.set(n.midi, { note: n, count: 1, maxGain: gain });
-                } else {
-                    const g = groups.get(n.midi);
-                    g.count++;
-                    g.maxGain = Math.max(g.maxGain, gain);
-                }
-            }
-
-            // Update keyboard highlighting with gain-based opacity
-            for (const midi of prevActiveMidi.keys()) {
-                if (!activeMidi.has(midi)) {
-                    const el = keyElements.get(midi);
-                    if (el) {
-                        el.classList.remove('active');
-                        el.style.removeProperty('--key-opacity');
-                    }
-                    if (window.tuningNoteOff) window.tuningNoteOff(midi);
-                }
-            }
-            for (const [midi, gain] of activeMidi) {
-                const el = keyElements.get(midi);
-                if (el) {
-                    el.classList.add('active');
-                    el.style.setProperty('--key-opacity', gain.toFixed(3));
-                }
-                if (!prevActiveMidi.has(midi) && window.tuningNoteOn) {
-                    window.tuningNoteOn(midi);
-                }
-            }
-            prevActiveMidi = activeMidi;
-
-            // Feed held notes + frequencies to tuning panel for TrueKeys
-            if (window.updateHeldNotes) {
-                const midiArr = [...uniqueNotes.keys()];
-                const freqArr = midiArr.map(m => uniqueNotes.get(m));
-                window.updateHeldNotes(midiArr, freqArr);
-            }
-
-            // Update frequency list
-            if (notes.length === 0) {
-                freqList.innerHTML = '<span class="freq-placeholder">Play a note to see chord voicing</span>';
-                return;
-            }
-
-            // Sort groups by MIDI note for display
-            const sorted = [...groups.entries()].sort((a, b) => a[0] - b[0]);
-
-            let html = '';
-            for (const [, { note: n, count, maxGain }] of sorted) {
-                const noteName = NOTE_NAMES[n.pc] + n.oct;
-                const centsAbs = Math.abs(n.cents);
-                let centsStr, centsClass;
-                const outOfRange = n.midi < KB_LOW || n.midi > KB_HIGH;
-
-                if (centsAbs < 0.5) {
-                    centsStr = '0¢';
-                    centsClass = 'zero';
-                } else if (n.cents > 0) {
-                    centsStr = '+' + n.cents.toFixed(1) + '¢';
-                    centsClass = 'sharp';
-                } else {
-                    centsStr = n.cents.toFixed(1) + '¢';
-                    centsClass = 'flat';
-                }
-
-                const rangeClass = outOfRange ? ' out-of-range' : '';
-                const rangeBadge = outOfRange
-                    ? `<span class="freq-range-badge">${n.midi > KB_HIGH ? '↑' : '↓'}</span>`
-                    : '';
-                const countBadge = count > 1 ? `<span class="freq-count">×${count}</span>` : '';
-                // Opacity reflects complexity gain (min 0.3 so fading notes are still visible)
-                const opacity = (0.3 + maxGain * 0.7).toFixed(3);
-
-                html += `<div class="freq-item${rangeClass}" style="opacity: ${opacity}; transition: opacity 0.15s;">
-                    <span class="freq-note">${noteName}${rangeBadge}</span>
-                    ${countBadge}
-                    <span class="freq-hz">${n.hz.toFixed(1)} Hz</span>
-                    <span class="freq-cents ${centsClass}">${centsStr}</span>
-                </div>`;
-            }
-            freqList.innerHTML = html;
-        }
-    </script>
+    <!-- JUCE WebView Bridge.
+
+         v2.9.0: the controller moved OUT of this file into js/app.js. It was a
+         1,435-line inline <script type="module"> holding the JUCE bindings, the
+         preset system, the knob factory AND a 60-line tooltip positioner, which
+         is the one layout in the repo that puts the tooltip runtime inside the
+         markup — and is how the second renderer stayed invisible long enough to
+         spread to seven plugins. index.html is markup now, js/app.js is the
+         controller, js/i18n.js is the copy. -->
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

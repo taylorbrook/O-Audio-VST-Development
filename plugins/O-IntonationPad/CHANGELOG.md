@@ -1,5 +1,85 @@
 # O-IntonationPad Changelog
 
+## [2.9.0] - 2026-08-28
+
+### Added
+
+- **The PAGE speaks French, not only the hover help.** Every control caption, section
+  heading, button face, tab name, dialog title, accessible name and status line is now a
+  key in `Source/ui/public/js/i18n.js` and re-renders on a language change with no reload
+  and no stale English survivor. A gear popover in the tab row holds the language selector
+  and the hover-help switch; the choice rides the APVTS state tree as a non-parameter
+  `uiLanguage` property and is restored with the session.
+- **The C++ language pair, created from scratch.** This plugin had no
+  `setTooltipsEnabled` bridge to join, so `getUiLanguage` / `setUiLanguage` are new
+  registrations, with a new `std::atomic<int> uiLanguage` behind a `languageCode` /
+  `languageIndex` codec on the processor. It is deliberately NOT an
+  `AudioParameterChoice`: it must not appear in a DAW automation lane and a preset must
+  not be able to change which language somebody reads their interface in.
+
+### Changed
+
+- **The second tooltip renderer is DELETED, not disabled.** v2.8.4's positioner never
+  measured — it tested `top + 60 > window.innerHeight` against a tooltip height it never
+  took, `left + 220 > window.innerWidth` against a width it never took, and centred on
+  `rect.left + rect.width / 2 - 110` with the same 220 baked in a third time. It is
+  replaced by the measure-then-pin runtime from O-ReverseDelay: title/body pair, dwell
+  delay, width released-measured-and-pinned before `left` is applied, vertical flip,
+  vertical clamp, horizontal clamp, and an arrow offset recomputed AFTER the clamp.
+  `grep -rn 'tooltipHeight\|tooltipWidth\|data-tooltip' Source/ui/public/` returns
+  nothing outside comments.
+- **The controller moved out of `index.html` into `js/app.js`.** It was a 1,435-line
+  inline `<script type="module">`; the served tree now has the same shape as every other
+  canon-v2 plugin. `js/tuning-panel.js` and `js/constants.js` are unchanged in shape.
+- **The knob factory builds with `createElement`, not `innerHTML`,** and every caption is
+  applied by the CALLER with a plain string literal key. A `{ id, labelKey }` table
+  through a loop fails `check-i18n` assertion 13 and would have reported all 37 captions
+  as dead translations under assertion 15.
+
+### Fixed
+
+- **`TOOLTIPS.voicingMode` was dead copy.** It was applied by `makeKnob()`, and there has
+  never been a voicingMode KNOB — the control is a `<select>` carrying its own, different
+  tooltip. 38 table entries, 37 knobs. Not carried forward.
+- **Six geometry pins, every value a rendered box measured in both languages.** The
+  both-language diff reported **303 non-label elements moved** before them and **0** after:
+  `.knob-container` width pinned per size class (84 px / 72 px, from "Complexity" at 80.78
+  and "Fréq. méd." at 69.48); `.tab-nav` pinned to 392 px with `flex: 1 1 0` buttons;
+  `.preset-save-btn` pinned to 60 px; `.interval-quick-btns` to 101 px; `.viz-mode-toggle`
+  height pinned to 34 px; `.tonic-label` and `.octave-stretch-label` to 44 px and 54 px.
+  The tuning-panel pins live in `index.html`'s `<style>`, not in `css/tuning-panel.css`,
+  so the vendored stylesheet is not forked.
+
+### Notes
+
+- **Sixty-three of the seventy-seven tooltips were HAND-SPLIT.** The plan expects copy
+  authored as `"Label: sentence."` split on the first `": "`; that shape holds on 14 of
+  them. 61 were authored as a bare sentence with no colon, and 2 more have a colon that is
+  not a title separator (`Normal: mono delay. PingPong: …` would have been titled
+  "Normal"; the A4 reference tip's first `": "` is 71 characters in). Every hand-split
+  title is the control's OWN EXISTING English caption — no hover-help prose was authored,
+  which is Stage M's job — and every body is byte-identical to v2.8.4.
+- **The counts in the plan were wrong and are corrected here.** "~37 tips" is a grep
+  count; parsed out of the DOM there are **77 live anchors carrying 74 unique strings**
+  (20 in `index.html`, 17 in the tuning panel's template, 37 applied by `makeKnob`, 3 on
+  the wavetable/delay dropdowns), plus 3 new controls. Three tips are worn by two controls
+  each and share one key.
+- **Two contract §6 rewrites,** both composed with a count and an inflected noun, both
+  reachable at n = 0: `Intervals (12 notes)` → `Intervals: 12` and `12 notes` →
+  `Notes: 12`. The English loses the word "notes" from the interval header; that is the
+  visible cost of authoring around the inflection rather than building a plural engine.
+- **`grep -rn 'data-i18n' js/tuning-panel.js` is a real key reference.** Two repo-level
+  gate assumptions had to be fixed before this plugin could pass, each in its own commit
+  ahead of this one: `check-i18n` assertion 12 classified injected MARKUP as prose, and
+  assertion 15 could not see a key declared inside injected markup.
+- **The vertical clamp IS independently reproducible here,** unlike on O-Polystutter,
+  O-Lyrica and O-SpectralShaper. Removing it and re-hovering all 184 rendered tips reports
+  two French tips off the bottom of the frame, by 53 px and 67 px, both on tall tuning-tab
+  anchors. The sweep is not blind: removing the HORIZONTAL clamp instead reports 26
+  off-frame tips out to 74 px.
+- All French is machine-drafted and flagged `reviewed: false` — 199 entries, 79 tooltip
+  and 120 label. No native speaker has read it.
+
 ## [2.8.4] - 2026-08-02
 
 ### Fixed

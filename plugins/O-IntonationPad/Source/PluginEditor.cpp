@@ -168,6 +168,40 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         .withOptionsFrom(*eqBypassRelay)
         .withOptionsFrom(*reverbBypassRelay)
 
+        // --- v2.9.0: the UI language ---
+        //
+        // PULLED once by the page at init, never pushed — a push from this
+        // constructor or from the 30 Hz timer tick fires before the page module
+        // has evaluated, so the stored preference would silently never arrive.
+        // No revision counter and no poll: the language is not preset content,
+        // and PresetManager::loadPreset walks only the preset JSON's parameter
+        // list and never touches a state-tree property, so nothing but this page
+        // can change it.
+        //
+        // THIS PLUGIN HAD NO TOOLTIPS-TOGGLE BRIDGE, so this pair is new rather
+        // than joining an existing one. A missing native function fails SILENTLY
+        // — Juce.getNativeFunction() returns a callable that never settles, no
+        // page error fires, and the selector appears to work until the session
+        // is reopened. Both names below are grep-matched against
+        // js/app.js's getNativeFunction calls; there are exactly two, and these
+        // are they.
+        .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>&, auto complete) {
+            complete(juce::var(OIntonationPadAudioProcessor::languageCode(
+                processorRef.getUiLanguageIndex())));
+        })
+
+        .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args, auto complete) {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument degrades to English rather than being stored
+            // unvalidated.
+            if (args.size() > 0)
+                processorRef.setUiLanguageIndex(
+                    OIntonationPadAudioProcessor::languageIndex(args[0].toString()));
+
+            complete(juce::var(OIntonationPadAudioProcessor::languageCode(
+                processorRef.getUiLanguageIndex())));
+        })
+
         // --- Tuning Intervals ---
         .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
             complete(JsonHelper::arrayToJSON(processorRef.getTuningEngine().getIntervals()));
@@ -827,6 +861,25 @@ OIntonationPadAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::check_native_interop_js,
                       BinaryData::check_native_interop_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v2.9.0: the i18n copy table. FOUR PLACES, ONE COMMIT — the file on disk,
+    // the juce_add_binary_data SOURCES list, this branch, and the import in
+    // js/app.js. Miss one and the page 404s at runtime and presents as a dead
+    // panel with no other symptom.
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v2.9.0: the page controller, extracted from index.html's inline module.
+    if (url == "/js/app.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::app_js, BinaryData::app_jsSize),
             juce::String("text/javascript")
         };
     }

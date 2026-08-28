@@ -129,19 +129,20 @@ export class TuningPanel {
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->
                 <div class="tuning-intervals-column">
-                    <div class="interval-list" id="interval-list" data-tooltip="Scale intervals in cents. Click any value to edit. Last row is the period (usually 1200c for octave)">
-                        <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
+                    <div class="interval-list" id="interval-list">
+                        <div class="interval-list-header" data-i18n="label.intervalsHeader"
+                             data-i18n-vars='{"n":12}'>Intervals: 12</div>
                     </div>
                 </div>
 
                 <!-- CENTER: Viz Toggle + Visualization -->
                 <div class="tuning-center-column">
                     <div class="viz-mode-toggle">
-                        <button class="viz-btn active" data-mode="circle" data-tooltip="Pitch circle: intervals as spokes around a circle. Active notes highlight in red">Circle</button>
-                        <button class="viz-btn" data-mode="polar" data-tooltip="Polar plot: intervals mapped by both angle and distance">Polar</button>
-                        <button class="viz-btn" data-mode="matrix" data-tooltip="Interval matrix: cent distance between every pair of scale degrees">Matrix</button>
-                        <button class="viz-btn" data-mode="truekeys" data-tooltip="True Keys: hold 2+ notes to see real cent intervals between them">True Keys</button>
-                        <button class="viz-btn" data-mode="rotation" data-tooltip="Rotation table: all modes of the current scale">Rotation</button>
+                        <button class="viz-btn active" data-mode="circle" data-i18n="label.vizCircle">Circle</button>
+                        <button class="viz-btn" data-mode="polar" data-i18n="label.vizPolar">Polar</button>
+                        <button class="viz-btn" data-mode="matrix" data-i18n="label.vizMatrix">Matrix</button>
+                        <button class="viz-btn" data-mode="truekeys" data-i18n="label.vizTrueKeys">True Keys</button>
+                        <button class="viz-btn" data-mode="rotation" data-i18n="label.vizRotation">Rotation</button>
                     </div>
                     <div class="viz-container" id="viz-container">
                         <div class="viz-view active" id="circle-view">
@@ -153,7 +154,7 @@ export class TuningPanel {
                                     <g id="interval-lines"></g>
                                     <g id="degree-labels" font-size="11" fill="#5C4033"></g>
                                 </svg>
-                                <div class="pitch-circle-label">Scale Intervals</div>
+                                <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
                             </div>
                         </div>
                         <div class="viz-view" id="polar-view">
@@ -161,7 +162,7 @@ export class TuningPanel {
                         </div>
                         <div class="viz-view matrix-view" id="matrix-view"></div>
                         <div class="viz-view truekeys-view" id="truekeys-view">
-                            <div class="tk-hint">Hold 2+ notes to see intervals</div>
+                            <div class="tk-hint" data-i18n="label.tkHint">Hold 2+ notes to see intervals</div>
                         </div>
                         <div class="viz-view rotation-view" id="rotation-view"></div>
                     </div>
@@ -170,20 +171,20 @@ export class TuningPanel {
                 <!-- RIGHT: Controls Panel -->
                 <div class="tuning-controls-panel">
                     <!-- Tuning Library -->
-                    <div class="library-section" id="library-section" data-tooltip="Browse 24+ built-in tuning presets across Historical, World, and Experimental categories">
+                    <div class="library-section" id="library-section">
                         <div class="library-header">
-                            <span class="library-header-text">Tuning Library</span>
+                            <span class="library-header-text" data-i18n="label.tuningLibrary">Tuning Library</span>
                             <span class="library-toggle" id="library-toggle">▼</span>
                         </div>
                         <div class="library-content" id="library-content">
                             <div class="library-filter">
                                 <select id="library-filter" class="library-filter-select">
-                                    <option value="all">All Categories</option>
-                                    <option value="Historical">Historical</option>
-                                    <option value="Just Intonation">Just Intonation</option>
-                                    <option value="Equal Divisions">Equal Divisions</option>
-                                    <option value="Non-Octave">Non-Octave</option>
-                                    <option value="World">World</option>
+                                    <option value="all" data-i18n="label.catAllCategories">All Categories</option>
+                                    <option value="Historical" data-i18n="label.catHistorical">Historical</option>
+                                    <option value="Just Intonation" data-i18n="label.catJustIntonation">Just Intonation</option>
+                                    <option value="Equal Divisions" data-i18n="label.catEqualDivisions">Equal Divisions</option>
+                                    <option value="Non-Octave" data-i18n="label.catNonOctave">Non-Octave</option>
+                                    <option value="World" data-i18n="label.catWorld">World</option>
                                 </select>
                             </div>
                             <div class="library-list" id="library-list"></div>
@@ -191,23 +192,23 @@ export class TuningPanel {
                     </div>
 
                     <!-- Reference Pitch -->
-                    <div class="tuning-ref-section" data-tooltip="A4 reference frequency (400-480 Hz). Drag up/down to adjust. Default: 440 Hz">
+                    <div class="tuning-ref-section">
                         <div class="ref-knob-container">
                             <div class="ref-knob" id="ref-pitch-knob">
                                 <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
                             </div>
                         </div>
-                        <div class="ref-knob-label">A4 REF</div>
+                        <div class="ref-knob-label" data-i18n="label.a4Ref">A4 REF</div>
                         <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
                     </div>
 
                     <!-- Scale Name Display -->
-                    <div class="scale-name-display" id="scale-name-display" data-tooltip="Name of the currently loaded tuning/scale">12-TET Standard</div>
+                    <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
 
                     <!-- Octave Stretch -->
-                    <div class="octave-stretch-section" data-tooltip="Stretch or compress the octave ratio. 1.00 = pure octave (1200 cents)">
+                    <div class="octave-stretch-section">
                         <div class="octave-stretch-row">
-                            <span class="octave-stretch-label">Stretch</span>
+                            <span class="octave-stretch-label" data-i18n="label.stretch">Stretch</span>
                             <input type="range" id="octave-stretch" class="octave-stretch-slider"
                                    min="0.95" max="1.25" step="0.01" value="1.0">
                             <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
@@ -215,9 +216,9 @@ export class TuningPanel {
                     </div>
 
                     <!-- Pitch Bend Range -->
-                    <div class="octave-stretch-section" data-tooltip="Pitch bend range in semitones (1-48 st). Controls how far the pitch wheel bends notes">
+                    <div class="octave-stretch-section">
                         <div class="octave-stretch-row">
-                            <span class="octave-stretch-label">PB Range</span>
+                            <span class="octave-stretch-label" data-i18n="label.pbRange">PB Range</span>
                             <input type="range" id="pitch-bend-range" class="octave-stretch-slider"
                                    min="1" max="48" step="1" value="2">
                             <span class="octave-stretch-value" id="pitch-bend-range-value">2 st</span>
@@ -227,39 +228,39 @@ export class TuningPanel {
                     <!-- File Operations -->
                     <div class="tuning-file-section">
                         <div class="tuning-file-buttons">
-                            <button class="tuning-file-btn" id="btn-load-scl" data-tooltip="Import a Scala (.scl) tuning file">Load .SCL</button>
-                            <button class="tuning-file-btn" id="btn-load-kbm" data-tooltip="Import a keyboard mapping (.kbm) file">Load .KBM</button>
-                            <button class="tuning-file-btn" id="btn-save-scl" data-tooltip="Export current tuning as Scala (.scl) file">Save .SCL</button>
-                            <button class="tuning-file-btn" id="btn-save-kbm" data-tooltip="Export keyboard mapping as .kbm file">Save .KBM</button>
-                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-tooltip="Export tuning documentation as a standalone HTML page">Export HTML</button>
+                            <button class="tuning-file-btn" id="btn-load-scl" data-i18n="label.loadScl">Load .SCL</button>
+                            <button class="tuning-file-btn" id="btn-load-kbm" data-i18n="label.loadKbm">Load .KBM</button>
+                            <button class="tuning-file-btn" id="btn-save-scl" data-i18n="label.saveScl">Save .SCL</button>
+                            <button class="tuning-file-btn" id="btn-save-kbm" data-i18n="label.saveKbm">Save .KBM</button>
+                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-i18n="label.exportHtml">Export HTML</button>
                         </div>
                     </div>
 
                     <!-- Scale Generator -->
-                    <div class="generator-section" id="generator-section" data-tooltip="Generate custom scales: Equal Division (EDO), Harmonic Series, or Rank-2 Temperament">
+                    <div class="generator-section" id="generator-section">
                         <div class="generator-header">
-                            <span class="generator-header-text">Generate Scale</span>
+                            <span class="generator-header-text" data-i18n="label.generateScale">Generate Scale</span>
                             <span class="generator-toggle" id="generator-toggle">▼</span>
                         </div>
                         <div class="generator-content" id="generator-content">
                             <div class="generator-type-row">
                                 <select id="generator-type" class="generator-type-select">
-                                    <option value="edo">EDO (Equal Division)</option>
-                                    <option value="harmonic">Harmonic Series</option>
-                                    <option value="rank2">Rank-2 Temperament</option>
+                                    <option value="edo" data-i18n="label.genEdo">EDO (Equal Division)</option>
+                                    <option value="harmonic" data-i18n="label.genHarmonic">Harmonic Series</option>
+                                    <option value="rank2" data-i18n="label.genRank2">Rank-2 Temperament</option>
                                 </select>
                             </div>
                             <div class="generator-inputs" id="generator-inputs">
                                 <div class="gen-row">
-                                    <label>Divisions</label>
+                                    <label data-i18n="label.genDivisions">Divisions</label>
                                     <input type="number" id="gen-divisions" value="19" min="5" max="53">
                                 </div>
                                 <div class="gen-row">
-                                    <label>Period (c)</label>
+                                    <label data-i18n="label.genPeriod">Period (c)</label>
                                     <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
                                 </div>
                             </div>
-                            <button class="generator-btn" id="btn-generate">Generate</button>
+                            <button class="generator-btn" id="btn-generate" data-i18n="label.generate">Generate</button>
                         </div>
                     </div>
                 </div>
@@ -351,19 +352,25 @@ export class TuningPanel {
 
     updateIntervalList() {
         const listEl = this.container.querySelector('#interval-list');
-        const countEl = this.container.querySelector('#interval-count');
 
         if (!listEl) return;
 
         const count = this.intervals.length - 1; // Exclude period
-        if (countEl) countEl.textContent = count;
 
-        let html = `<div class="interval-list-header">Intervals (${count} notes)</div>`;
+        // v2.9.0: the header is a KEY with a {n} var, written by __setLabel once
+        // the row exists. Through v2.8.4 it read `Intervals (${count} notes)`,
+        // which is a count with an inflected noun after it — French pluralises
+        // zero as singular and English does not, and `count` here is
+        // `intervals.length - 1`, which a degenerate one-line .scl makes 0.
+        // Contract section 6: the copy is authored AROUND the inflection rather
+        // than through a plural engine, so the noun moved in front of the number
+        // where it is invariant in both languages.
+        let html = `<div class="interval-list-header" id="interval-list-header"></div>`;
 
         // Tonic selector
         html += `
             <div class="tonic-selector">
-                <span class="tonic-label">Tonic</span>
+                <span class="tonic-label" data-i18n="label.tonic">Tonic</span>
                 <button class="tonic-arrow" id="tonic-down">◄</button>
                 <span class="tonic-value" id="tonic-value">${NOTE_NAMES[this.tonic]}</span>
                 <button class="tonic-arrow" id="tonic-up">►</button>
@@ -386,6 +393,15 @@ export class TuningPanel {
         }
 
         listEl.innerHTML = html;
+
+        // The header and the tonic caption are inside a subtree this method
+        // just rebuilt, so they are re-keyed here rather than left to the next
+        // language change.
+        if (window.__setLabel) {
+            window.__setLabel(listEl.querySelector('#interval-list-header'),
+                              'label.intervalsHeader', { n: count });
+            window.__setLabel(listEl.querySelector('.tonic-label'), 'label.tonic');
+        }
 
         // Attach event listeners for intervals
         listEl.querySelectorAll('.interval-input:not([readonly])').forEach(input => {
@@ -621,7 +637,8 @@ export class TuningPanel {
         if (!container) return;
 
         if (!this.heldNotesMidi || this.heldNotesMidi.length < 2) {
-            container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+            container.innerHTML = '<div class="tk-hint" data-i18n="label.tkHint"></div>';
+            if (window.__setLabel) window.__setLabel(container.querySelector('.tk-hint'), 'label.tkHint');
             return;
         }
 
@@ -655,7 +672,7 @@ export class TuningPanel {
             const totalCents = 1200 * Math.log2(highest.freq / lowest.freq);
             html += `
                 <div class="tk-interval tk-total">
-                    <span><strong>Total span</strong></span>
+                    <span><strong class="tk-total-label"></strong></span>
                     <span class="tk-cents">${totalCents.toFixed(1)}¢</span>
                 </div>
             `;
@@ -663,6 +680,11 @@ export class TuningPanel {
 
         html += '</div>';
         container.innerHTML = html;
+
+        // Keyed after the accumulation is injected: `html +=` builds a STRING,
+        // which no [data-i18n] sweep and no coverage scanner can reach.
+        if (window.__setLabel)
+            window.__setLabel(container.querySelector('.tk-total-label'), 'label.totalSpan');
     }
 
     /**
@@ -694,7 +716,7 @@ export class TuningPanel {
         const count = this.intervals.length - 1;
         const period = this.intervals[this.intervals.length - 1] || 1200;
 
-        let html = '<table class="rotation-table"><tr><th>Mode</th>';
+        let html = '<table class="rotation-table"><tr><th class="rotation-mode-header"></th>';
 
         for (let i = 0; i < count; i++) {
             html += `<th>${this.getNoteLabel(i, count)}</th>`;
@@ -717,6 +739,10 @@ export class TuningPanel {
 
         html += '</table>';
         container.innerHTML = html;
+
+        // Same shape and same reason as the True Keys total-span row above.
+        if (window.__setLabel)
+            window.__setLabel(container.querySelector('.rotation-mode-header'), 'label.mode');
     }
 
     /**
@@ -817,12 +843,21 @@ export class TuningPanel {
             html += `
                 <div class="library-item" data-id="${tuning.id}">
                     <div class="library-item-name">${tuning.name}</div>
-                    <div class="library-item-desc">${tuning.noteCount} notes</div>
+                    <div class="library-item-desc" data-count="${tuning.noteCount}"></div>
                 </div>
             `;
         }
 
         listEl.innerHTML = html;
+
+        // A KEY with a {n} var, written after injection. Through v2.8.4 this row
+        // read `${noteCount} notes` — a count with an inflected noun after it,
+        // which is the shape contract section 6 rules out, so the noun moved in
+        // front of the number. The tuning NAME above it is an identifier and is
+        // not keyed: it is what loadEmbeddedTuning() matches on.
+        if (window.__setLabel)
+            for (const el of listEl.querySelectorAll('.library-item-desc'))
+                window.__setLabel(el, 'label.noteCount', { n: el.dataset.count });
 
         // Attach click handlers
         listEl.querySelectorAll('.library-item').forEach(item => {
@@ -865,11 +900,11 @@ export class TuningPanel {
             case 'edo':
                 inputsDiv.innerHTML = `
                     <div class="gen-row">
-                        <label>Divisions</label>
+                        <label data-i18n="label.genDivisions">Divisions</label>
                         <input type="number" id="gen-divisions" value="19" min="5" max="53">
                     </div>
                     <div class="gen-row">
-                        <label>Period (c)</label>
+                        <label data-i18n="label.genPeriod">Period (c)</label>
                         <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
                     </div>
                 `;
@@ -877,11 +912,11 @@ export class TuningPanel {
             case 'harmonic':
                 inputsDiv.innerHTML = `
                     <div class="gen-row">
-                        <label>Start Harmonic</label>
+                        <label data-i18n="label.genStart">Start Harmonic</label>
                         <input type="number" id="gen-start" value="8" min="1" max="32">
                     </div>
                     <div class="gen-row">
-                        <label>End Harmonic</label>
+                        <label data-i18n="label.genEnd">End Harmonic</label>
                         <input type="number" id="gen-end" value="16" min="2" max="64">
                     </div>
                 `;
@@ -889,20 +924,27 @@ export class TuningPanel {
             case 'rank2':
                 inputsDiv.innerHTML = `
                     <div class="gen-row">
-                        <label>Generator (c)</label>
+                        <label data-i18n="label.genGenerator">Generator (c)</label>
                         <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
                     </div>
                     <div class="gen-row">
-                        <label>Period (c)</label>
+                        <label data-i18n="label.genPeriod">Period (c)</label>
                         <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
                     </div>
                     <div class="gen-row">
-                        <label>Notes</label>
+                        <label data-i18n="label.genCount">Notes</label>
                         <input type="number" id="gen-count" value="12" min="3" max="31">
                     </div>
                 `;
                 break;
         }
+
+        // The form was just REBUILT, so its two or three [data-i18n] labels are
+        // brand-new nodes the last sweep never saw. __reapplyI18n() re-runs the
+        // sweep at the CURRENT language; __setLanguage() would need a language
+        // argument this module cannot read, and guessing 'en' would silently
+        // reset a French page every time the generator type changed.
+        if (window.__reapplyI18n) window.__reapplyI18n();
     }
 
     async generate() {

@@ -841,6 +841,15 @@ void OIntonationPadAudioProcessor::getStateInformation(juce::MemoryBlock& destDa
 {
     auto state = parameters.copyState();
 
+    // v2.9.0: the UI language rides the state tree as a non-parameter property.
+    //
+    // Written on the COPY, not on parameters.state: copyState() has already
+    // snapshotted the tree by this line, so a setProperty on the live tree here
+    // would never reach the XML that gets serialised a few lines below.
+    state.setProperty("uiLanguage",
+                      languageCode(uiLanguage.load(std::memory_order_acquire)),
+                      nullptr);
+
     // Save tuning engine custom state
     auto tuningState = state.getOrCreateChildWithName("tuningEngine", nullptr);
     auto intervals = tuningEngine.getIntervals();
@@ -882,6 +891,20 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
     {
         auto state = juce::ValueTree::fromXml(*xmlState);
         parameters.replaceState(state);
+
+        // v2.9.0: read from the RESTORED tree.
+        //
+        // isVoid() is the ONLY correct guard and toString() the only correct
+        // read. NamedValueSet::setFromXmlAttributes rebuilds every property as a
+        // var over the attribute STRING, so isBool()/isInt()/isString() type
+        // predicates are false for every session ever saved
+        // (critical_valuetree_xml_roundtrip_loses_type). A session written before
+        // v2.9.0 has no such attribute at all and simply leaves the language
+        // where it is — English on a fresh instance.
+        const juce::var lang = state.getProperty("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
 
         // Restore tuning engine custom state
         auto tuningState = state.getChildWithName("tuningEngine");

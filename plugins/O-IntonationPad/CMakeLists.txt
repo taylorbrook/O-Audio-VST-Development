@@ -6,7 +6,7 @@ juce_add_plugin(O-IntonationPad
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuIP
-    VERSION "2.8.4"
+    VERSION "2.9.0"
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-IntonationPad${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
@@ -70,6 +70,8 @@ juce_add_binary_data(O-IntonationPad_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/constants.js
         Source/ui/public/js/tuning-panel.js
         Source/ui/public/css/tuning-panel.css
