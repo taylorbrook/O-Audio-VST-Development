@@ -140,8 +140,34 @@ body {
   justify-content: space-between;
   border-bottom: 1px solid rgba(139, 115, 85, 0.4);
   padding-bottom: 6px;
+  /* v1.3.0 — WRAPPING, so the lesson caption can be the header's own row.
+     Through v1.2.1 it was a flex-basis:100% row inside .preset-bar-container,
+     which made its box 100% of the 571px preset bar rather than 100% of the
+     846px header. The French lesson captions run ~15% longer than the English
+     and needed a line the English did not; at the header's full width both fit
+     the same box. (pattern_maxwidth_cap_was_doing_the_alignment's cousin —
+     a caption's box is the box it is IN.) */
+  flex-wrap: wrap;
 }
-.title-block { flex-shrink: 0; }     /* title never yields width to the preset bar */
+.header > .tour-caption { flex-basis: 100%; }
+/* v1.3.0 — flex:1 with min-width:0, not shrink-to-fit. The block shrink-wrapped
+   its widest child, which is the .subtitle: French made it 73.8px wider
+   (275.0 -> 348.8) and, at 348.8 + the 481.7px preset bar + the 32px gear
+   cluster = 862.5 in an 846px header, the GEAR WRAPPED ONTO A SECOND ROW and
+   took 22px of header height with it — which then pushed the workspace, the
+   readout, the rail and the keyboard down by 22px in French only. Taking the
+   header's slack instead pins the box at 332.3px in both languages.
+   (pattern_flex1_container_slack_invisible_to_row_sum) */
+.title-block {
+  /* BASIS ZERO, not auto. `flex: 1 1 auto` was the first attempt and left the
+     French header wrapping exactly as before: flex line-breaking runs on the
+     hypothetical main size — the block's max-content 348.8px — BEFORE any
+     shrink is applied, so the row still measured 862.5 and still spilled the
+     gear onto a second line. At basis 0 the row measures 513.7 in both
+     languages and the block grows into the leftover 332.3px. */
+  flex: 1 1 0;
+  min-width: 0;
+}
 .title {
   font-size: 26px;
   font-weight: 400;
@@ -157,8 +183,142 @@ body {
   text-transform: uppercase;
   color: var(--brown-border);
   margin-top: 2px;
+  /* v1.3.0 — the second line is RESERVED in both languages. Pinned to 332.3px
+     by the rule above, the English strapline is one line (275.0px) and the
+     French is two (348.8px natural). Reserving the line is D-04's "let it wrap
+     where the row can afford the height"; the alternative — a shorter French
+     strapline — is the short-variant answer D-04 rules out. The row can afford
+     it: the header was 80.2px at v1.2.1 and is 80.4px here, because moving the
+     lesson caption out of the preset bar and onto the header's own row paid for
+     it almost exactly. */
+  min-height: 2.2em;
 }
 .fleuron-row { font-size: 22px; color: var(--fleuron-color); }
+
+/* ── Settings gear + popover (v1.3.0) ────────────────────────────────────────
+   Written in this plugin's OWN aged-paper vocabulary, not pasted in from a
+   sibling: the panel wears the .group plate (rgba(250,240,230,.45) over the
+   --brown-border rule at 5px radius), the selector is select.combo at panel
+   scale with the same 1.5px border, 4px radius and inset shadow the two
+   drop-downs already wear, and the gear and the switch carry the exact greens
+   the "?" chip they replace carried — --green-mid on --bg-paper-light at rest,
+   --green-mid filled when lit.
+   -------------------------------------------------------------------------- */
+#settings-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: 10px;
+}
+
+.gear-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: var(--symbol-font);   /* Garamond has no U+2699 on Windows */
+  font-size: 13px;
+  line-height: 1;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gear-btn:hover { background: var(--green-light); color: #1f2b08; }
+.gear-btn[aria-expanded="true"] {
+  background: var(--green-mid);
+  color: #f5f0e6;
+  border-color: var(--green-darkest);
+}
+.gear-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+
+/* z-index sits below .tooltip (which this page puts at 50) on purpose: the gear
+   and the two rows inside carry hover help, and at the top of the frame their
+   tips land ON this panel. A panel above the tip would hide the help for the
+   controls that exist to reach the help. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 226px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 5px;
+  box-shadow: 0 6px 20px var(--shadow-medium);
+  text-align: left;
+}
+.settings-popover[hidden] { display: none; }
+
+/* space-between with a flex:1 caption, not a shrink-to-fit one: a caption that
+   shrink-wraps makes its own box language-dependent even where nothing visibly
+   moves, and the geometry diff flags the BOX, not the glyphs
+   (pattern_flex1_container_slack_invisible_to_row_sum). */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.settings-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--brown-text);
+}
+/* select.combo, at panel scale, with its width PINNED. Left to shrink-to-fit it
+   would step with the endonym the user picked, moving the caption beside it. */
+.settings-select {
+  flex: 0 0 100px;
+  width: 100px;
+  height: 24px;
+  padding: 2px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.15s ease;
+}
+.settings-select:hover { border-color: var(--green-dark); }
+.settings-select:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+
+/* The "?" chip's successor. Same flex basis as the selector above it so the two
+   rows line up in both languages, and PINNED for the same reason: "On"/"Off"
+   and "Activee"/"Desactivee" are very different widths. */
+.settings-toggle {
+  flex: 0 0 100px;
+  width: 100px;
+  height: 24px;
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.settings-toggle:hover { background: var(--green-light); color: #1f2b08; }
+.settings-toggle[aria-pressed="true"] {
+  background: var(--green-mid);
+  color: #f5f0e6;
+  border-color: var(--green-darkest);
+}
+.settings-toggle:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 /* ── Visualization ──────────────────────────────────────────────────────── */
 .viz-panel {
@@ -372,6 +532,21 @@ body {
   text-align: center;
   line-height: 1.1;
 }
+/* v1.3.0 — min-height reserves TWO lines in BOTH languages, for the six cells
+   in the Spray & Scatter group ONLY. A .knob-label in a column cell with
+   align-items:center shrink-wraps to TEXT width, so its wrapping — not its
+   width — is what moves the readout below it. Two of the six wrap in French and
+   not in English ("Pos Spray" 1 line vs "Dispersion position" 2; "Pan Spray" 1
+   vs "Dispersion stéréo" 2), each pushing its own #val- readout down by one
+   line-height. Reserving the line is D-04's "let it wrap where the row can
+   afford the height"; a shorter French caption is the short-variant answer D-04
+   rules out.
+   SCOPED to .group-spray rather than applied to all seventeen .knob-labels,
+   because the whole-rack version would charge every group for one group's wrap
+   (the O-simpleSampler lesson: whole-rack 49px vs scoped 10.4px). This group
+   already carries two 2-line captions in English ("Pitch Spray", "Grain
+   Pitch"), so the wrapped line they sit on costs nothing at all. */
+.group-spray .knob-label { min-height: 2.2em; }   /* 2 x 1.1 line-height at 9.5px = 20.9px */
 .knob-value {
   font-size: 11px;
   color: var(--brown-text);
@@ -382,6 +557,16 @@ body {
 
 /* ── Toggles ────────────────────────────────────────────────────────────── */
 .toggle-row { display: flex; gap: 16px; margin-top: 8px; }
+/* v1.3.0 — PINNED to the English width, on the Freeze toggle ALONE. French is
+   SHORTER here ("Gel" against "Freeze", 57.8px against 77.5px), which flags
+   exactly as loudly as French being longer: the button shrank 19.6px and the ❦
+   fleuron in its corner moved with it. 78px is the English button's measured
+   width rounded up, so English moves 0.5px and no more. NOT applied to
+   .toggle-row .toggle: the other toggle on this page reads "ADSR" in both
+   languages and pinning it too would widen it 12.1px for nothing.
+   min-width rather than width, so a platform with wider font metrics grows the
+   box instead of clipping it. */
+#toggle-freeze { min-width: 78px; }
 .toggle {
   position: relative;
   font-family: inherit;
@@ -657,33 +842,31 @@ body {
    ============================================================================ */
 
 /* ── Header preset bar shell (8 concept-tour buttons; wired in 3.3) ───────── */
+/* v1.3.0 — a fixed 4 x 2 GRID, not a wrapping flex row. As a wrapping row the
+   eight chips shrink-wrapped their captions and re-wrapped when the language
+   changed: "Async Cloud" sat on row 1 in English and "Nuage async" fell to row
+   2 in French, where the settings panel — which hangs from the gear directly
+   above — covered it. check-ui-labels assertion 8 caught it as two labels that
+   are disjoint in English and intersect in French, and it is right to: the bar
+   visibly reflowed on every language switch. Four equal columns give every chip
+   the same box in both languages, so the bar cannot reflow at all. The chips
+   are 110.5px each now rather than 60-90px of shrink-wrap; the block is the
+   same 460px wide and the same two rows tall. */
 .preset-bar-tour {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: end;
+  width: 460px;
   max-width: 460px;
 }
 .preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 8px; }
 
-/* ── "?" tooltip toggle (header, right of the tour bar) ───────────────────── */
-.tip-toggle {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--brown-text);
-  background: var(--bg-paper-light);
-  border: 1px solid var(--brown-border);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.tip-toggle:hover { background: var(--green-light); color: #1f2b08; }
-.tip-toggle[aria-pressed="true"] { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+/* The v1.2.1 "?" tooltip chip lived here. It MOVED into the settings popover at
+   v1.3.0 — a plugin should not grow a second settings surface — and its rules
+   went with it: .gear-btn carries its shape and .settings-toggle carries its
+   lit-state greens. Its localStorage key ("osg.tipsEnabled") is unchanged. */
 
 /* ── Workspace: viz grid (main, left) + side control rail (right) ──────────── */
 .workspace {
@@ -782,6 +965,19 @@ body {
   letter-spacing: 1px;
   color: var(--brown-border);
 }
+/* v1.3.0 — PINNED to the FRENCH width, on the Overlap key alone. The three
+   readout keys sit in one left-aligned flex strip, so the width of any key
+   positions everything to its right: "OVERLAP" is 50.8px and "RECOUVREMENT" is
+   90.1px, which moved #readoutOverlap, the whole CPU item and #cpuBar 39.3px
+   right in French. "Recouvrement" is the term the French granular literature
+   uses for overlap-add, so a shorter caption here would be the short-variant
+   answer D-04 rules out; pinning the box to 91px is the answer D-04 allows.
+   The cost is paid in ENGLISH and is visible: a 40px gap opens between OVERLAP
+   and its ×0.0. The strip can afford it — its content ended at x=411 in a 532px
+   box, leaving 121px of slack — and the alternative was a less accurate word.
+   The other two keys are unpinned on purpose: "Grains" and "CPU" are
+   sameAsEn: true and their boxes are already identical in both languages. */
+.grain-readout .readout-key[data-i18n="label.readoutOverlap"] { min-width: 91px; }
 .grain-readout .readout-val { font-size: 13px; color: var(--green-darkest); font-weight: 500; }
 .cpu-bar {
   position: relative;

@@ -31,6 +31,119 @@
 import * as Juce from "./juce/index.js";
 import { readFileEntryAsBase64 } from "./modules/webview-drop-streaming.js";
 
+// ════════════════════════════════════════════════════════════════════════════
+// INTERFACE LANGUAGE (v1.3.0) — canon v2, verbatim from scripts/i18n-canon.js.
+//
+// It sits HERE, directly under the imports and above every other declaration in
+// this module, because `uiLanguage` is a module-level `let`: anything above it
+// that reached applyLabel() would touch it inside its temporal dead zone and
+// throw out of module evaluation, taking the nineteen parameter bindings, the
+// four canvases, the drop handlers and the keyboard with it
+// (pattern_module_toplevel_init_tdz). This file DOES have eager top-level work
+// below — KNOB_IDS, FORMAT, GLOBAL_GRAIN_CAP — so the ordering is load-bearing
+// here, not merely defensive. `node scripts/boot-all-uis.js` is the ONLY gate
+// in the repo that sees this class of failure.
+//
+// Do NOT edit the region between the import line and the close of initI18n():
+// check-i18n assertion 6 byte-compares it against scripts/i18n-canon.js.
+// ════════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+
 // ── Parameter inventory (must match OSimpleGrain::ParamIDs exactly) ─────────
 const KNOB_IDS = [
   "grainSize", "density", "position", "scan",
@@ -62,96 +175,19 @@ const FORMAT = {
   outputLevel: (v) => `${v.toFixed(1)} dB`,
 };
 
-// ── Tooltip copy (FUNC-07) — plain-language, class-grounded hover copy for EVERY
-// control + the load action, the drop zone, the four visualizations, the readout,
-// and the eight concept presets. Keyed by the data-tip attribute on each element;
-// each entry is [title, bodyHTML]. Tone = field-guide, not jargon: every tip names
-// the concept AND a concrete consequence you can hear/see.
-const TIPS = {
-  // ── Source ────────────────────────────────────────────────────────────────
-  sourceSample: ["Source Sample",
-    "The short sound the synth chops into grains. Granular synthesis never makes tone from scratch — it sprinkles tiny slices of <em>this</em> recording. Pick fire, voice, water, or piano; or drop your own below."],
-  loadSource: ["Load your own",
-    "Open a file picker to granulate any short <code>.wav</code> / <code>.aif</code> (capped at 10&nbsp;s). The same grain controls then operate on your sound — the engine doesn't care what the source is."],
-  dropZone: ["Drop a source",
-    "Drag a <code>.wav</code> / <code>.aif</code> here to granulate your own sound. Files over 10&nbsp;s are trimmed (you'll see a notice). Try a spoken word or a field recording — granular makes textures out of anything."],
-
-  // ── Grain ─────────────────────────────────────────────────────────────────
-  grainSize: ["Grain Size",
-    "How long each slice is, 2–200&nbsp;ms. This is the buzz&nbsp;&harr;&nbsp;fragments axis: very short grains (a few&nbsp;ms) lose the source and turn to tone; long grains (&gt;60&nbsp;ms) keep recognisable chunks. With Density it sets how deeply grains <strong>overlap</strong> (overlap = size&nbsp;&times;&nbsp;density)."],
-  density: ["Density",
-    "Grains fired per second, 1–200. Sparse = you hear separated grains; dense = they fuse into a continuous cloud. Overlap-add only sounds smooth when many grains overlap, so Density and Size work together (watch the Overlap readout)."],
-  position: ["Position",
-    "Where in the source the read head rests, 0–100&nbsp;%. It's the point grains are sliced from — sweep it to scrub through the recording. Pairs with Scan (which moves the head) and Freeze (which pins it)."],
-  scan: ["Scan / Time-Stretch",
-    "How fast the read head travels, &minus;200…+200&nbsp;%. 0&nbsp;% holds on one instant; below 100&nbsp;% stretches the source in time without changing pitch; negative scans <em>backwards</em>. This is granular time-stretch."],
-  freeze: ["Freeze",
-    "Pins the read head on the current instant and sustains it forever — the grain stream keeps flowing but never advances through the source. Add Pitch Spray for a shimmering frozen pad. The pin crossfades in, so no click."],
-
-  // ── Window ────────────────────────────────────────────────────────────────
-  windowShape: ["Window Shape",
-    "The fade envelope on each grain. Hann/Gauss fade in and out smoothly so overlapping grains crossfade cleanly. <strong>Rectangular has no fade</strong> — every grain edge is a hard step, which clicks. Try Rect to hear <em>why</em> windows exist (it's a lesson, not a bug)."],
-
-  // ── Spray & Scatter ───────────────────────────────────────────────────────
-  pitchSpray: ["Pitch Spray",
-    "Random per-grain transposition, 0–12&nbsp;st. Each grain is nudged up/down by a random amount, so a frozen or static texture starts to shimmer and thicken instead of sitting on one dead pitch."],
-  positionSpray: ["Position Spray",
-    "Random per-grain read position, 0–100&nbsp;%. Scatters where each grain is sliced from around the Position point — turns a tight read into a wash drawn from a whole region of the source (shown as the green band on the waveform)."],
-  scatter: ["Scatter",
-    "Randomises the <em>timing</em> of grains, 0–100&nbsp;%. This is the synchronous&nbsp;&harr;&nbsp;asynchronous axis: at 0&nbsp;% grains fire on a perfect clock (a pitched comb, discrete sidebands); high scatter dissolves the comb into broadband noise. Watch the Spectrum."],
-  grainPitch: ["Grain Pitch",
-    "Global transposition of every grain, &minus;24…+24&nbsp;st. Stacks on top of MIDI key-tracking and Pitch Spray — shift the whole cloud up an octave without touching the keyboard."],
-  panSpray: ["Pan Spray",
-    "Per-grain stereo spread, 0–100&nbsp;%. At 0 every grain is centred; raise it and grains scatter left/right (equal-power), widening a mono source into an immersive stereo cloud."],
-  velToDensity: ["Velocity → Density",
-    "How much your playing velocity drives Density, 0–100&nbsp;%. At 0 density is fixed; raise it and harder keys spawn thicker clouds (loudness already follows velocity through the amp envelope — this adds <em>thickness</em> on top)."],
-
-  // ── Amplitude envelope ─────────────────────────────────────────────────────
-  adsrEnabled: ["ADSR On / Off",
-    "Switches the per-voice amplitude envelope on or off. <strong>Off</strong> bypasses Attack/Decay/Sustain/Release — each note plays at a flat level while held and, on release, simply stops launching new grains so the cloud fades out over one grain length through the <em>Window</em> envelopes (no click). Turn it on for shaped swells and pads; off for a raw, immediate gate."],
-  ampAttack: ["Amp Attack",
-    "How quickly a note fades in, 0–5&nbsp;s. This is the per-<em>voice</em> envelope over the whole grain stream — short for percussive, long for a pad swell. (Each grain has its own tiny Window envelope; this is the bigger one.)"],
-  ampDecay: ["Amp Decay",
-    "How the note falls from its attack peak toward the sustain level, 0–5&nbsp;s. Together with Sustain it shapes the body of a held note."],
-  ampSustain: ["Amp Sustain",
-    "The level a held note settles at after the attack/decay, 0–100&nbsp;%. 100&nbsp;% holds full volume while a key is down; lower it for notes that bloom then back off."],
-  ampRelease: ["Amp Release",
-    "How long the note fades out after you let go, 0–5&nbsp;s. Long release lets clouds ring on and overlap into the next note — granular pads love a generous release."],
-
-  // ── Output ─────────────────────────────────────────────────────────────────
-  outputLevel: ["Output Level",
-    "Master volume trim, &minus;&infin;…0&nbsp;dB. Dense overlapping clouds can pile up energy, so trim here if a thick patch peaks. (Headroom normalisation upstream already tames the worst of it.)"],
-
-  // ── Visualizations ─────────────────────────────────────────────────────────
-  vizCloud: ["Grain Cloud",
-    "Every grain that spawns drops a sepia dot — horizontal = where in the source it was read, vertical = its pitch, dot size = grain length. Raise Density and the cloud thickens; raise the sprays and it spreads out."],
-  vizWave: ["Source Waveform",
-    "The loaded source drawn as a waveform. The brown line is the live read head (Position + Scan), the green band is the Position-Spray range grains are drawn from, and a snowflake pins the head when Freeze is on."],
-  vizScope: ["Output Scope",
-    "The actual audio coming out, plotted as a waveform. Useful for spotting the hard edges of a rectangular window (the clicks) versus the smooth crossfades of Hann."],
-  vizSpectrum: ["Spectrum",
-    "The frequency content of the output. At Scatter&nbsp;0 you'll see discrete spikes (the synchronous grain comb — a pitched sound); push Scatter up and the spikes smear into a continuous noise floor. The sync&nbsp;&rarr;&nbsp;async lesson, made visible."],
-  readout: ["Grain Readout",
-    "Live cost meter. <strong>Grains</strong> = active grains out of the 192 global cap. <strong>Overlap</strong> = grain size &times; density (how many grains sound at once — over ~2&times; they fuse). The <strong>CPU</strong> bar tracks the grain load: density &times; size &times; polyphony is what makes granular expensive."],
-
-  // ── Concept presets (the 8-stop tour) ──────────────────────────────────────
-  lessonSingleGrain: ["Single Grain",
-    "One long grain fired slowly — density at the floor so grains stay separated. Hear a single slice on its own: the atom of granular synthesis."],
-  lessonPitchedBuzz: ["Pitched Buzz",
-    "Tiny grains fired fast and perfectly in sync. The grain <em>rate itself</em> becomes an audible pitch (a comb) — granular can make tone, not just texture."],
-  lessonFragments: ["Fragments",
-    "Medium grains, sparse. You still recognise chunks of the source — the middle ground between one grain and a smooth cloud."],
-  lessonSmoothCloud: ["Smooth Cloud",
-    "Many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add doing its job: size &times; density well above 1."],
-  lessonFrozenPad: ["Frozen Pad",
-    "Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source."],
-  lessonAsyncCloud: ["Asynchronous Cloud",
-    "High Scatter randomises the grain timing — the pitched comb dissolves and the spectrum smears into broadband noise. The async end of the axis."],
-  lessonGranularFire: ["Granular Fire",
-    "The worked example on the crackling-fire recording: a lively grain/spray set that turns a field recording into a moving granular bed."],
-  lessonRectClick: ["Rect Click",
-    "The intentional artifact: a rectangular window has no fade, so every grain edge clicks. Sparse grains let each click stand alone — this is <em>why</em> windows matter."],
-};
+// ── Tooltip copy ────────────────────────────────────────────────────────────
+// MOVED to js/i18n.js at v1.3.0. Through v1.2.1 the copy lived in a `TIPS`
+// object here (34 entries, each [title, bodyHTML]) and each anchor carried the
+// KEY in its own data-tip attribute. applyI18n now WRITES data-tip (the body)
+// and data-tip-title on every anchor named by TIP_BINDINGS, so the renderer
+// below reads the attributes rather than a table — one code path, and no way
+// for a tip to be stranded in the previous language after the selector fires.
+//
+// The bodies lost their strong/em/code emphasis tags on the way. The WORDS are
+// unchanged, and were compared back to v1.2.1 with entities decoded rather than
+// re-typed. check-i18n assertion 9 forbids an angle bracket in an i18n.js
+// string literal, and it is right to: the renderer writes textContent now, so a
+// tag would render as literal characters rather than as emphasis.
 
 // ── Knob geometry ────────────────────────────────────────────────────────────
 const KNOB_MIN_DEG = -135;   // 0.0 normalised
@@ -312,38 +348,65 @@ function bindToggle(id) {
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
+// v1.3.0: the COPY and the SHOWING are separate now. Through v1.2.1 showToast()
+// took a finished English string and wrote it with `t.textContent = msg`, which
+// is exactly the raw-write canon §3 forbids — a toast raised in English and
+// still on screen when the selector fires would have been stranded there. Each
+// call site names its own key through setLabel() instead, so the toast element
+// is a [data-i18n] element from that moment on and the language sweep owns it.
+const toastEl = () => document.getElementById("toast");
+
 let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById("toast");
+function flashToast() {
+  const t = toastEl();
   if (!t) return;
-  t.textContent = msg;
   t.classList.add("show");
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
-function setSourceStatus(text, truncated) {
-  const el = document.getElementById("sourceStatus");
-  if (!el) return;
-  el.textContent = text || "";
-  el.classList.toggle("truncated", !!truncated);
+const statusEl = () => document.getElementById("sourceStatus");
+function markStatusTruncated(truncated) {
+  const el = statusEl();
+  if (el) el.classList.toggle("truncated", !!truncated);
 }
 
 // Label for the next user-initiated load, consumed by the "sourceChanged"
 // backend event (IN-08). Set BEFORE invoking the load so the event handler —
 // which fires as soon as the decode publishes — can't beat it. Built-in
-// switches leave it null (no status line, matching the old behaviour).
+// switches leave it null (no status line, matching the old behaviour); the file
+// picker parks the EMPTY STRING, which is falsy and selects the un-named pair
+// of status writers above.
 let pendingSourceLabel = null;
 
 // ── After a load completes, surface the 10 s truncation notice ──────────────
-async function reportTruncationIfAny(label) {
-  try {
-    const wasTrunc = await Juce.getNativeFunction("wasLastLoadTruncated")();
-    if (wasTrunc) setSourceStatus(`${label} — truncated to 10 s`, true);
-    else setSourceStatus(`${label} loaded`, false);
-  } catch (e) {
-    setSourceStatus(`${label} loaded`, false);
+// Four one-line writers, each naming a plain string literal. A single writer
+// taking `name ? "label.sourceLoaded" : "label.sourceLoadedGeneric"` reads more
+// naturally and is what this was first written as; check-i18n assertion 13
+// rejects a conditional ANYWHERE inside a setLabel call, including the vars
+// object, and it is right to — a reviewer cannot tell a message-selection
+// ternary from a plural one by reading the call.
+function writeSourceStatus(name, truncated) {
+  const el = statusEl();
+  if (!el) return;
+  markStatusTruncated(truncated);
+  if (name) {
+    if (truncated) setLabel(el, "label.sourceTruncated", { name: name });
+    else           setLabel(el, "label.sourceLoaded",    { name: name });
+  } else {
+    // The file picker knows no name until the decode publishes; v1.2.1 filled
+    // the same two templates with the literal word "Source", and these two
+    // entries are that result, authored rather than interpolated.
+    if (truncated) setLabel(el, "label.sourceTruncatedGeneric");
+    else           setLabel(el, "label.sourceLoadedGeneric");
   }
+}
+
+async function reportTruncationIfAny(name) {
+  let wasTrunc = false;
+  try { wasTrunc = await Juce.getNativeFunction("wasLastLoadTruncated")(); }
+  catch (e) { wasTrunc = false; }
+  writeSourceStatus(name, wasTrunc);
 }
 
 // ── Single-source drag-drop (custom: calls the GRAIN drop native fns) ───────
@@ -357,26 +420,32 @@ function newSessionId() {
 
 async function commitDroppedFile(fileEntry) {
   const sessionId = newSessionId();
-  showToast(`Loading ${fileEntry.name}…`);
+  setLabel(toastEl(), "toast.loading", { name: fileEntry.name });
+  flashToast();
   pendingSourceLabel = fileEntry.name;   // consumed by the sourceChanged event (IN-08)
   try {
     const startOk = await Juce.getNativeFunction("dropSessionStart")(sessionId, "");
-    if (!startOk) { pendingSourceLabel = null; showToast("Drop session start failed"); return; }
+    if (!startOk) { pendingSourceLabel = null; setLabel(toastEl(), "toast.dropStartFailed"); flashToast(); return; }
 
     const base64 = await readFileEntryAsBase64(fileEntry);
 
     const addOk = await Juce.getNativeFunction("dropSessionAddFile")(sessionId, fileEntry.name, base64);
-    if (!addOk) { pendingSourceLabel = null; showToast("File transfer failed"); return; }
+    if (!addOk) { pendingSourceLabel = null; setLabel(toastEl(), "toast.transferFailed"); flashToast(); return; }
 
     const commitOk = await Juce.getNativeFunction("dropSessionCommitFile")(sessionId, fileEntry.name, base64);
-    if (!commitOk) { pendingSourceLabel = null; showToast("File load failed at commit"); return; }
+    if (!commitOk) { pendingSourceLabel = null; setLabel(toastEl(), "toast.commitFailed"); flashToast(); return; }
 
     // Thumbnail + truncation status are driven by the "sourceChanged" backend
     // event, which fires only after the decode has actually published (IN-08).
   } catch (e) {
     pendingSourceLabel = null;
     console.error("[O-simpleGrain] drop failed:", e);
-    showToast(`Drop failed: ${e && e.message ? e.message : e}`);
+    // HOISTED. check-i18n assertion 13 rejects a conditional anywhere inside a
+    // setLabel call — including in the vars object, which is where this one
+    // used to sit as a template interpolation.
+    const detail = (e && e.message) ? e.message : String(e);
+    setLabel(toastEl(), "toast.dropFailed", { error: detail });
+    flashToast();
   }
 }
 
@@ -404,8 +473,8 @@ function bindSourceDrop() {
       : null;
     if (!entry) return;
 
-    if (entry.isDirectory) { showToast("Drop a single audio file, not a folder"); return; }
-    if (!audioRe.test(entry.name)) { showToast("Drop a .wav / .aif / .aiff file"); return; }
+    if (entry.isDirectory) { setLabel(toastEl(), "toast.dropFolder"); flashToast(); return; }
+    if (!audioRe.test(entry.name)) { setLabel(toastEl(), "toast.dropFileType"); flashToast(); return; }
     await commitDroppedFile(entry);
   });
 }
@@ -419,12 +488,15 @@ function bindLoadButton() {
       // The picker is async on the C++ side; the "sourceChanged" backend event
       // reports truncation + refreshes the waveform once the decode publishes
       // (IN-08 — the old 1.2 s fixed delay went stale on a longer browse).
-      pendingSourceLabel = "Source";
+      // The empty string, not the word "Source": the status line's copy is a
+      // table entry now, so the placeholder only has to be truthy-or-not.
+      pendingSourceLabel = "";
       await Juce.getNativeFunction("loadSourceFromFileChooser")();
     } catch (e) {
       pendingSourceLabel = null;
       console.error("[O-simpleGrain] Load… failed:", e);
-      showToast("Load failed");
+      setLabel(toastEl(), "toast.loadFailed");
+      flashToast();
     }
   });
 }
@@ -751,10 +823,13 @@ function setupVizEvents() {
   // switches refresh silently, matching the old behaviour).
   be.addEventListener("sourceChanged", () => {
     fetchSourceThumbnail();
-    if (pendingSourceLabel) {
-      const label = pendingSourceLabel;
+    // `!== null`, not truthiness: the file picker parks the EMPTY STRING here
+    // (it has no name to show until the decode publishes), and a truthiness
+    // gate would silently drop the picker's own status line.
+    if (pendingSourceLabel !== null) {
+      const name = pendingSourceLabel;
       pendingSourceLabel = null;
-      reportTruncationIfAny(label);
+      reportTruncationIfAny(name);
     }
   });
 }
@@ -849,15 +924,34 @@ function drawGrainReadout(n) {
 // full APVTS write; the relays/attachments sync every knob/combo/toggle back to
 // the page and the viz reacts on the next timer tick. We only set the caption +
 // the active-button highlight here. data-preset MUST match the C++ preset names.
-const LESSONS = {
-  "Single Grain":       "Single Grain — one long grain fired slowly. Density at the floor keeps grains separated: hear a single slice on its own, the atom of granular synthesis.",
-  "Pitched Buzz":       "Pitched Buzz — tiny grains fired fast and perfectly in sync. The grain rate itself becomes an audible pitch (a comb). Granular can make tone, not just texture.",
-  "Fragments":          "Fragments — medium grains, sparse. You still recognise chunks of the source: the middle ground between one grain and a smooth cloud.",
-  "Smooth Cloud":       "Smooth Cloud — many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add at work: size × density well above 1.",
-  "Frozen Pad":         "Frozen Pad — Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source.",
-  "Asynchronous Cloud": "Asynchronous Cloud — high Scatter randomises grain timing. The pitched comb dissolves and the spectrum smears into broadband noise: the async end of the axis.",
-  "Granular Fire":      "Granular Fire — the worked example on the crackling-fire recording. A lively grain/spray set turns a field recording into a moving granular bed.",
-  "Rect Click":         "Rect Click — the intentional artifact: a rectangular window has no fade, so every grain edge clicks. Sparse grains let each click stand alone. This is why windows matter.",
+// Through v1.2.1 a LESSONS table here held each caption and applyLesson wrote
+// it with a raw `cap.textContent = LESSONS[name] || ""`. Both the copy and the
+// write have moved: the eight captions are authored table entries in
+// js/i18n.js, and the write below goes through setLabel, which makes the
+// caption a [data-i18n] element from that moment on so the language sweep owns
+// it. Written raw it would be stranded in the language it was picked in the
+// instant the selector fires — and it is the one string on this page that is
+// chosen by a click.
+//
+// What is left here is a dispatch from the C++ preset name (which is also the
+// button's data-preset, and is never localized) to a WRITER that names its
+// caption key as a plain string literal.
+//
+// A map of name -> key with `setLabel(cap, KEYS[name] || "label.tourCaption")`
+// reads more naturally and is what this was first written as. check-i18n
+// assertion 13 rejects it twice over, correctly: a computed key cannot be
+// checked against the table, and the `||` is the conditional-inside-a-localized-
+// string shape contract §6 forbids. Eight call sites, eight literals, and
+// assertion 15 can see that all eight keys are live.
+const LESSON_CAPTION_WRITERS = {
+  "Single Grain":       (el) => setLabel(el, "label.captionSingleGrain"),
+  "Pitched Buzz":       (el) => setLabel(el, "label.captionPitchedBuzz"),
+  "Fragments":          (el) => setLabel(el, "label.captionFragments"),
+  "Smooth Cloud":       (el) => setLabel(el, "label.captionSmoothCloud"),
+  "Frozen Pad":         (el) => setLabel(el, "label.captionFrozenPad"),
+  "Asynchronous Cloud": (el) => setLabel(el, "label.captionAsyncCloud"),
+  "Granular Fire":      (el) => setLabel(el, "label.captionGranularFire"),
+  "Rect Click":         (el) => setLabel(el, "label.captionRectClick"),
 };
 
 let applyPresetFn = null;
@@ -867,8 +961,14 @@ async function applyLesson(name) {
     try { await applyPresetFn(name); }
     catch (e) { console.error("[O-simpleGrain] applyFactoryPreset failed:", e); }
   }
+  // An unknown name falls back to the resting caption rather than to "", so a
+  // C++/JS name drift shows as the default text instead of a blank row.
   const cap = document.getElementById("tourCaption");
-  if (cap) cap.textContent = LESSONS[name] || "";
+  if (cap) {
+    const write = LESSON_CAPTION_WRITERS[name];
+    if (write) write(cap);
+    else setLabel(cap, "label.tourCaption");
+  }
   document.querySelectorAll(".tour-btn").forEach((b) =>
     b.classList.toggle("active", b.getAttribute("data-preset") === name));
 }
@@ -882,18 +982,70 @@ function setupPresets() {
 }
 
 // ── Tooltips ─────────────────────────────────────────────────────────────────
+// v1.3.0: the copy is read from the ANCHOR'S OWN attributes, which applyI18n
+// rewrote in the current language. v1.2.1 looked it up in a TIPS object keyed
+// by the anchor's data-tip; that table is gone, and with it the second code
+// path that would have gone stale on a language switch.
+//
+// The hover-help switch lives in the settings popover now (it was a "?" chip in
+// the preset bar through v1.2.1). Its storage is unchanged: localStorage under
+// "osg.tipsEnabled", so a preference set before this version survives the move.
+// It is a BROWSER-side preference, not session state — this plugin has no
+// tooltips bridge and never had one, and adding C++ state for it would be a new
+// persistence surface rather than a localization change.
+let tipsEnabled = true;                 // shipped default; localStorage wins at boot
+let hideTooltip = () => {};             // published by setupTooltips (used by the toggle)
+
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+
+  const btn = document.getElementById("help-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+  // Two calls behind an if/else, never a ternary in the setLabel argument:
+  // check-i18n assertion 13 rejects a conditional anywhere inside the call, and
+  // it is right to — a reviewer cannot tell a message-selection ternary from a
+  // plural one by reading it.
+  if (tipsEnabled) setLabel(btn, "ui.on");
+  else             setLabel(btn, "ui.off");
+}
+
+function setupTipsToggle() {
+  const btn = document.getElementById("help-toggle");
+  if (!btn) { console.error("Missing help-toggle element"); return; }
+
+  let stored = null;
+  try { stored = localStorage.getItem("osg.tipsEnabled"); } catch (e) { stored = null; }
+  applyTipsEnabled(stored !== "false");
+
+  btn.addEventListener("click", () => {
+    applyTipsEnabled(!tipsEnabled);
+    try { localStorage.setItem("osg.tipsEnabled", String(tipsEnabled)); } catch (e) { /* private mode */ }
+  });
+}
+
 function setupTooltips() {
   const tip = document.getElementById("tooltip");
   if (!tip) return;
   let active = null;
-  let enabled = true;
-  try { enabled = localStorage.getItem("osg.tipsEnabled") !== "false"; } catch (e) {}
 
-  const show = (key, x, y) => {
-    if (!enabled) return;
-    const entry = TIPS[key];
-    if (!entry) return;   // 3.1: most keys have no copy yet (3.3 fills TIPS)
-    tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
+  // Built with createElement + textContent, not innerHTML. The tip text is
+  // table-sourced and localized now rather than a fixed literal, and localized
+  // copy must never reach a markup path.
+  const show = (el, x, y) => {
+    if (!tipsEnabled) return;
+    const title = el.getAttribute("data-tip-title");
+    const body = el.getAttribute("data-tip");
+    if (!title && !body) return;
+    tip.textContent = "";
+    if (title) {
+      const t = document.createElement("span");
+      t.className = "tip-title";
+      t.textContent = title;
+      tip.appendChild(t);
+    }
+    if (body) tip.appendChild(document.createTextNode(body));
     tip.classList.add("show");
     tip.setAttribute("aria-hidden", "false");
     position(x, y);
@@ -907,39 +1059,88 @@ function setupTooltips() {
     tip.style.top = `${Math.max(8, ny)}px`;
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
+  hideTooltip = hide;
 
-  // Strip HTML tags/entities to a plain string for the native title= fallback.
-  const plain = (html) => {
-    const d = document.createElement("div");
-    d.innerHTML = html;
-    return (d.textContent || d.innerText || "").replace(/\s+/g, " ").trim();
+  // DELEGATED on the document rather than attached per element. No anchor
+  // carries data-tip until applyI18n has run, so a querySelectorAll at setup
+  // time would bind nothing at all. Delegation has no ordering to get wrong.
+  // pointerover/pointerout and focusin/focusout are used because — unlike
+  // pointerenter/pointerleave and focus/blur — they bubble.
+  const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
+
+  document.addEventListener("pointerover", (e) => {
+    const el = anchorOf(e.target);
+    if (!el || el === active) return;
+    active = el;
+    show(el, e.clientX, e.clientY);
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerout", (e) => {
+    if (!active) return;
+    // Ignore a move between two descendants of the SAME anchor: pointerout
+    // fires on every child boundary and would flicker the tip off and on.
+    if (anchorOf(e.relatedTarget) === active) return;
+    hide();
+  });
+  document.addEventListener("pointerdown", hide);
+
+  document.addEventListener("focusin", (e) => {
+    const el = anchorOf(e.target);
+    if (!el) return;
+    active = el;
+    const r = el.getBoundingClientRect();
+    show(el, r.left + r.width / 2, r.bottom);
+  });
+  document.addEventListener("focusout", hide);
+
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+}
+
+// ── Settings popover (v1.3.0) ───────────────────────────────────────────────
+// The gear panel holding the language selector and the hover-help switch. All
+// state lives in this closure, so nothing here can join a TDZ chain.
+//
+// Styled in O-simpleGrain's own aged-paper vocabulary in css/styles.css: the
+// panel wears the .group plate, the selector wears select.combo's border,
+// radius and inset shadow at panel scale, and the switch wears the .tip-toggle
+// chip's own lit-state greens — the chip it replaces. It is not a widget pasted
+// in unchanged from another plugin.
+function setupSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("Settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
   };
 
-  document.querySelectorAll("[data-tip]").forEach((el) => {
-    const key = el.getAttribute("data-tip");
-    const entry = TIPS[key];
-    // aria-label keeps the copy readable to assistive tech WITHOUT the native
-    // title= popup, which doubled up with the floating tooltip on hover.
-    if (entry && !el.hasAttribute("aria-label"))
-      el.setAttribute("aria-label", `${entry[0]} — ${plain(entry[1])}`);
-    el.removeAttribute("title");
-    el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
-    el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
-    el.addEventListener("pointerleave", hide);
-    el.addEventListener("pointerdown", hide);
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
 
-  const toggle = document.getElementById("tipToggle");
-  if (toggle) {
-    toggle.setAttribute("aria-pressed", String(enabled));
-    toggle.addEventListener("click", () => {
-      enabled = !enabled;
-      toggle.setAttribute("aria-pressed", String(enabled));
-      if (!enabled) hide();
-      try { localStorage.setItem("osg.tipsEnabled", String(enabled)); } catch (e) {}
-    });
-  }
+  // Dismiss on a press anywhere else, and on Escape. pointerdown rather than
+  // click, so the panel is gone before a drag on a knob underneath it begins —
+  // bindKnob calls preventDefault in its own pointerdown handler.
+  document.addEventListener("pointerdown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
 }
 
 // ── On-screen keyboard (play without external MIDI) ──────────────────────────
@@ -1050,6 +1251,22 @@ function boot() {
   bindSourceDrop();
   bindLoadButton();
   setupPresets();
+
+  // The popover, the language sweep and the hover-help switch go here, EACH IN
+  // ITS OWN try/catch. applyI18n is what writes data-tip onto every anchor, and
+  // the delegated tooltip listeners below read that attribute — but delegation
+  // means the order between them is free, and a translation-table typo must not
+  // be allowed to take the nineteen parameter bindings, the four canvases and
+  // the keyboard down with it. That is the v1.4.0 TDZ failure this repo has
+  // already paid for once.
+  //
+  // setupTipsToggle runs AFTER initI18n because it writes the switch's own face
+  // through setLabel and would otherwise write it in the default language a
+  // moment before the sweep, which is harmless but reads as a race.
+  try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
+  try { setupTipsToggle(); }      catch (e) { console.error("tips toggle init failed:", e); }
+
   setupTooltips();
   setupKeyboard();
 

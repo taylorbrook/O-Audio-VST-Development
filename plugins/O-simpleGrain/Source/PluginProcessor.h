@@ -155,6 +155,27 @@ public:
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
 
     //==========================================================================
+    // INTERFACE LANGUAGE (v1.3.0) — the WebView UI's own language preference.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a concept preset must not be able to change which
+    // language somebody reads their interface in. It rides the APVTS tree as a
+    // plain PROPERTY, which is the same shape this processor already uses for
+    // the loaded-source identity it persists as custom ValueTree state.
+    // applyFactoryPreset() sets parameters only, so no preset path can touch it
+    // behind the page's back.
+    //
+    // The RUNTIME form is an index; the PERSISTED form is the language code.
+    // The editor PULLS it once at page init; nothing pushes.
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
+    //==========================================================================
     // Stage-3 visualization accessors. The editor reads these on its
     // message-thread Timer (30 Hz). Audio thread is copy-only / lock-free.
     //   getVizRing()         -> output scope/spectrum (UI-04; editor runs the FFT)
@@ -474,6 +495,9 @@ private:
     // Custom-state element names for get/setStateInformation.
     static constexpr const char* kSourceStateTag = "SOURCE";
     static constexpr const char* kSourceIdProp   = "identity";
+    // v1.3.0 — a ROOT property, not a child of the SOURCE node: the interface
+    // language has nothing to do with which sound is loaded.
+    static constexpr const char* kUiLanguageProp = "uiLanguage";
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleGrainAudioProcessor)
 };
