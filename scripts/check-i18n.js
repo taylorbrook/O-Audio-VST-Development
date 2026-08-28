@@ -853,7 +853,22 @@ function checkPlugin(p) {
                     .matchAll(/\.dataset\.(i18n|i18nAria|i18nPlaceholder|i18nAlt)\s*=\s*(['"])([^'"]+)\2/g))
                 datasetKeys.add(m[3]);
 
-        const referenced = new Set([...markupKeys, ...jsKeys, ...datasetKeys]);
+        // A key declared inside markup a module INJECTS with innerHTML is a
+        // reference too. The three sets above all read the page as AUTHORED:
+        // index.html's attributes, a literal setLabel key, a literal
+        // `.dataset.i18n* =`. A module that builds a subtree from a template and
+        // keys the captions inside it declares its keys in none of them, so all
+        // 37 of O-IntonationPad's tuning-panel captions reported DEAD while
+        // being read on every language change — the gate describing a violation
+        // of a rule the code was obeying, for the fourteenth time in this task.
+        //
+        // Same discovery path assertion 12 uses to look for UNKEYED copy in the
+        // same templates, so the two cannot disagree about what a template says.
+        const injectedKeys = new Set();
+        for (const pm of pageModules)
+            for (const k of EXTRACT.markupKeyRefs(pm.code)) injectedKeys.add(k);
+
+        const referenced = new Set([...markupKeys, ...jsKeys, ...datasetKeys, ...injectedKeys]);
 
         const dangling = [...referenced].filter((k) => !known.has(k));
         check(dangling.length === 0,
