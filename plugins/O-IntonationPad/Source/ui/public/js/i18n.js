@@ -1,0 +1,1145 @@
+/*
+   This file is part of O-IntonationPad, an Ouaricon Audio plugin.
+   Copyright (C) 2026  Ouaricon Audio
+
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+// ============================================================================
+// i18n.js — O-IntonationPad UI copy, English + French (v2.9.0, canon v2)
+//
+// An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
+// statement here throws out of module evaluation and takes every later
+// initializer on the page with it (pattern_module_toplevel_init_tdz).
+// scripts/check-i18n.js assertion 7 enforces that.
+//
+// SERVED ROOT IS Source/ui/public, read from CMakeLists.txt before a byte was
+// written here. THE BINARY-DATA TARGET CARRIES NO NAMESPACE ARGUMENT —
+// juce_add_binary_data(O-IntonationPad_UIResources SOURCES ...) takes the
+// default BinaryData namespace and works only because it is the only such
+// target in this plugin. This file was added to that EXISTING SOURCES list; a
+// second juce_add_binary_data target would collide on the BinaryData namespace
+// and break the build in a way that reads like something else entirely
+// (critical_dual_binary_data_namespace_collision).
+//
+// FOUR PLACES, ONE COMMIT: this file on disk, the existing SOURCES list, a
+// getResource() branch in PluginEditor.cpp, and the import in js/app.js. Miss
+// one and the page 404s at runtime and presents as a dead panel with no other
+// symptom (assertion 8).
+//
+// FILENAME: no hyphen. juce_add_binary_data STRIPS hyphens rather than
+// converting them to underscores, so a second file named i18n-fr.js would have
+// to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
+// One combined file for both languages sidesteps the question entirely.
+//
+// NO MARKUP. This table is data, never HTML. The tooltip renderer in js/app.js
+// builds the tip with createElement + textContent, and check-i18n assertion 9
+// rejects any innerHTML reference here and any string literal containing the
+// opening angle bracket.
+//
+// ── THE COUNTS, PARSED RATHER THAN GREPPED ─────────────────────────────────
+// The plan's table says "~37 tips". That is the number `grep -c data-tooltip
+// index.html` reports if the CSS selector and the JS references are stripped,
+// and it is wrong by more than half, because this plugin wrote most of its tips
+// from JS. Parsed out of the DOM instead:
+//
+//     index.html static attributes         20
+//     js/tuning-panel.js template          17
+//     TOOLTIPS[] applied by makeKnob       37
+//     DROPDOWN_TOOLTIPS[]                   3
+//     ───────────────────────────────────────
+//     LIVE ANCHORS                         77   (80 with the three new controls)
+//     UNIQUE STRINGS                       74   (77 with them)
+//
+// THREE tips are worn by two controls each and share ONE key: oscillator A's
+// and oscillator B's Pos, Rate and Depth carry byte-identical copy that names
+// neither oscillator. gainA and gainB are NOT among them — their bodies say
+// "oscillator A" and "oscillator B", so they are two keys.
+//
+// ONE MORE STRING EXISTED AND RENDERED NOWHERE. v2.8.4's `TOOLTIPS.voicingMode`
+// was applied by makeKnob(), and there has never been a voicingMode KNOB — the
+// control is a `<select>` in index.html which carries its own, different,
+// data-tooltip. So the entry was dead: 38 TOOLTIPS keys, 37 knobs. Its copy is
+// not carried forward and is named here rather than left to be discovered. The
+// live voicing tip below is the one index.html authored.
+//
+// ── THE SPLIT: 14 CLEAN, 63 HAND-SPLIT ─────────────────────────────────────
+// The plan expects copy authored as "Label: sentence." and split on the first
+// ": ". That shape holds on 14 of the 77 strings. It does NOT hold on this
+// plugin at large: 61 tips were authored as a bare sentence with no colon at
+// all, and 2 more have a colon that is NOT a title separator. Every one of
+// those 63 is hand-split and named in the CHANGELOG, and the rule used is:
+//
+//     THE TITLE IS THE CONTROL'S OWN EXISTING ENGLISH CAPTION.
+//
+// Not new prose. "Voices", "Complexity", "Load .SCL", "Chorus", "A4 REF" are
+// already on the page in English; putting one in the tip's title line reuses a
+// string this plugin already ships rather than authoring hover-help copy, which
+// is Stage M's job. THE BODY IS THE ORIGINAL STRING, BYTE-IDENTICAL.
+//
+// The two false colons, called out because a mechanical split would have taken
+// them and produced nonsense:
+//     'Normal: mono delay. PingPong: alternating stereo bounces'
+//         -> a mechanical split titles this tip "Normal". Hand-split: the
+//            title is the control's caption, "Mode", and the body is whole.
+//     'A4 reference frequency (400-480 Hz). Drag up/down to adjust. Default: 440 Hz'
+//         -> its first ": " is 71 characters in, inside the last sentence.
+//
+// THREE NEW CONTROLS carry new English copy: `settings`, `lang-select` and
+// `tips-toggle`. The first two are the gear popover and the language selector,
+// which did not exist before; the third is the hover-help toggle, which did
+// exist as a floating "?" in the tab row and had only a native title=.
+//
+// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
+// speaker has read it. `node scripts/check-i18n.js` prints the worklist.
+// ============================================================================
+
+export const LANGUAGES = ['en', 'fr'];
+
+// key -> { en: {t, b}, fr: {t, b, reviewed} }
+//   t = tooltip title (the small-caps line), b = tooltip body.
+//
+// Object.freeze() rather than a bare `{...}` literal for two reasons. It says
+// out loud that this module is inert data nothing may mutate at runtime — and
+// it keeps the export a SINGLE top-level statement, because a statement written
+// `export const X = {...};` closes its brace at depth zero and segments the
+// trailing `;` off on its own.
+export const I18N = Object.freeze({
+
+    // ── The settings popover (v2.9.0) ───────────────────────────────────────
+    // New controls, new copy. The hover-help toggle moves in here from the
+    // floating "?" that sat at the end of the tab row: one place for the two
+    // things that decide what the hover help says and whether it says it at all.
+    'settings': {
+        en: { t: 'Settings',
+              b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
+        fr: { t: 'Réglages',
+              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.',
+              reviewed: false },
+    },
+    'lang-select': {
+        en: { t: 'Language',
+              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note names, tuning names and preset names stay in English.' },
+        fr: { t: 'Langue',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes, les noms de gammes et les noms de préréglages restent en anglais.',
+              reviewed: false },
+    },
+    'tips-toggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: false },
+    },
+
+    // ── The four tabs. All four SPLIT CLEANLY. ──────────────────────────────
+    'tab-voice': {
+        en: { t: 'Chord voicing controls',
+              b: 'voice count, complexity, intervals, and live note display' },
+        fr: { t: 'Commandes de disposition d’accord',
+              b: 'nombre de voix, complexité, intervalles et affichage des notes en temps réel',
+              reviewed: false },
+    },
+    'tab-tuning': {
+        en: { t: 'Microtonal tuning system',
+              b: 'scale editor, visualizations, presets, and generators' },
+        fr: { t: 'Système d’accord microtonal',
+              b: 'éditeur de gamme, visualisations, préréglages et générateurs',
+              reviewed: false },
+    },
+    'tab-synth': {
+        en: { t: 'Synthesis controls',
+              b: 'dual wavetable oscillators, envelope, filter, and randomization' },
+        fr: { t: 'Commandes de synthèse',
+              b: 'deux oscillateurs à table d’ondes, enveloppe, filtre et aléatoire',
+              reviewed: false },
+    },
+    'tab-effects': {
+        en: { t: 'Post-synthesis effects chain',
+              b: 'Chorus, Delay, EQ, and Reverb' },
+        fr: { t: 'Chaîne d’effets après synthèse',
+              b: 'Chorus, Délai, EQ et Réverbe',
+              reviewed: false },
+    },
+
+    // ── Voice tab ───────────────────────────────────────────────────────────
+    // HAND-SPLIT: title is the caption already beside the control.
+    'key-root': {
+        en: { t: 'Key Root',
+              b: 'Root note for chord scale mapping' },
+        fr: { t: 'Fondamentale',
+              b: 'Note fondamentale pour le placement de l’accord dans la gamme',
+              reviewed: false },
+    },
+    // CLEAN SPLIT.
+    'voicing': {
+        en: { t: 'Chord voicing strategy',
+              b: 'how sub-voices are distributed across octaves' },
+        fr: { t: 'Stratégie de disposition',
+              b: 'répartition des voix secondaires entre les octaves',
+              reviewed: false },
+    },
+    'intervals': {
+        en: { t: 'Intervals',
+              b: 'Toggle scale degrees used for chord generation. Only enabled intervals produce chord voices' },
+        fr: { t: 'Intervalles',
+              b: 'Activer ou désactiver les degrés de la gamme utilisés pour l’accord. Seuls les intervalles actifs produisent des voix',
+              reviewed: false },
+    },
+    'intervals-all': {
+        en: { t: 'All',
+              b: 'Enable all scale degrees' },
+        fr: { t: 'Tous',
+              b: 'Activer tous les degrés de la gamme',
+              reviewed: false },
+    },
+    'intervals-none': {
+        en: { t: 'None',
+              b: 'Disable all except root' },
+        fr: { t: 'Aucun',
+              b: 'Désactiver tous les degrés sauf la fondamentale',
+              reviewed: false },
+    },
+    // Two tips under ONE on-page caption, "Active Notes". They share the title
+    // and differ in the body, which is why they are two keys and not one.
+    'keyboard': {
+        en: { t: 'Active Notes',
+              b: 'Live display of all sounding chord voices (C2-B5). Brightness shows voice gain' },
+        fr: { t: 'Notes actives',
+              b: 'Affichage en temps réel de toutes les voix de l’accord (C2-B5). La luminosité indique le gain de la voix',
+              reviewed: false },
+    },
+    'freq-list': {
+        en: { t: 'Active Notes',
+              b: 'Note name, frequency, and cent deviation from 12-TET for each sounding voice' },
+        fr: { t: 'Notes actives',
+              b: 'Nom de note, fréquence et écart en cents par rapport au 12-TET pour chaque voix',
+              reviewed: false },
+    },
+    'voice-count': {
+        en: { t: 'Voices',
+              b: 'Number of chord voices generated from a single MIDI note (2-12)' },
+        fr: { t: 'Voix',
+              b: 'Nombre de voix d’accord produites par une seule note MIDI (2-12)',
+              reviewed: false },
+    },
+    'complexity': {
+        en: { t: 'Complexity',
+              b: 'How many chord extensions (7th, 9th, 11th, 13th) are added to the basic triad' },
+        fr: { t: 'Complexité',
+              b: 'Nombre d’extensions (7e, 9e, 11e, 13e) ajoutées à l’accord de trois sons',
+              reviewed: false },
+    },
+    'stereo-spread': {
+        en: { t: 'Spread',
+              b: 'Distributes chord voices across the stereo field. 0% = mono, 100% = full width' },
+        fr: { t: 'Étalement',
+              b: 'Répartit les voix de l’accord dans le champ stéréo. 0 % = mono, 100 % = largeur maximale',
+              reviewed: false },
+    },
+    'spacing': {
+        en: { t: 'Spacing',
+              b: 'Octave displacement of chord voices for wider/tighter voicings' },
+        fr: { t: 'Espacement',
+              b: 'Déplacement des voix par octaves pour des dispositions plus larges ou plus serrées',
+              reviewed: false },
+    },
+    'inversion': {
+        en: { t: 'Inversion',
+              b: 'Randomly shifts voices to different octaves for varied chord inversions' },
+        fr: { t: 'Renversement',
+              b: 'Déplace au hasard les voix vers d’autres octaves pour varier les renversements',
+              reviewed: false },
+    },
+
+    // ── Synth tab ───────────────────────────────────────────────────────────
+    // ONE key, TWO anchors: oscillator A's and oscillator B's copy is
+    // byte-identical and names neither oscillator.
+    'wavetable-pos': {
+        en: { t: 'Pos',
+              b: 'Morph position within the wavetable bank (0-100%)' },
+        fr: { t: 'Pos.',
+              b: 'Position de morphing dans la banque de tables d’ondes (0-100 %)',
+              reviewed: false },
+    },
+    'lfo-rate': {
+        en: { t: 'Rate',
+              b: 'LFO speed for wavetable position modulation' },
+        fr: { t: 'Vitesse',
+              b: 'Vitesse du LFO qui module la position dans la table d’ondes',
+              reviewed: false },
+    },
+    'lfo-depth': {
+        en: { t: 'Depth',
+              b: 'LFO modulation depth for wavetable position' },
+        fr: { t: 'Profondeur',
+              b: 'Profondeur de modulation du LFO sur la position dans la table d’ondes',
+              reviewed: false },
+    },
+    'gain-a': {
+        en: { t: 'Gain',
+              b: 'Volume level for oscillator A' },
+        fr: { t: 'Gain',
+              b: 'Niveau de sortie de l’oscillateur A',
+              reviewed: false },
+    },
+    'gain-b': {
+        en: { t: 'Gain',
+              b: 'Volume level for oscillator B' },
+        fr: { t: 'Gain',
+              b: 'Niveau de sortie de l’oscillateur B',
+              reviewed: false },
+    },
+    'bank-a': {
+        en: { t: 'OSC A',
+              b: 'Wavetable bank for oscillator A — 20 banks from analog to spectral' },
+        fr: { t: 'OSC A',
+              b: 'Banque de tables d’ondes de l’oscillateur A — 20 banques, de l’analogique au spectral',
+              reviewed: false },
+    },
+    'bank-b': {
+        en: { t: 'OSC B',
+              b: 'Wavetable bank for oscillator B — 20 banks from analog to spectral' },
+        fr: { t: 'OSC B',
+              b: 'Banque de tables d’ondes de l’oscillateur B — 20 banques, de l’analogique au spectral',
+              reviewed: false },
+    },
+    'attack': {
+        en: { t: 'Attack',
+              b: 'Envelope attack time — how quickly the sound fades in (1-5000 ms)' },
+        fr: { t: 'Attaque',
+              b: 'Temps d’attaque de l’enveloppe — rapidité d’apparition du son (1-5000 ms)',
+              reviewed: false },
+    },
+    'decay': {
+        en: { t: 'Decay',
+              b: 'Envelope decay time — how quickly the sound drops from peak to sustain level (10-5000 ms)' },
+        fr: { t: 'Chute',
+              b: 'Temps de chute de l’enveloppe — rapidité de descente du sommet au niveau de tenue (10-5000 ms)',
+              reviewed: false },
+    },
+    'sustain': {
+        en: { t: 'Sustain',
+              b: 'Envelope sustain level — volume held while note is on after decay (0-100%)' },
+        fr: { t: 'Tenue',
+              b: 'Niveau de tenue de l’enveloppe — volume maintenu après la chute tant que la note dure (0-100 %)',
+              reviewed: false },
+    },
+    'release': {
+        en: { t: 'Release',
+              b: 'Envelope release time — how long the sound fades out after note off (10-10000 ms)' },
+        fr: { t: 'Extinction',
+              b: 'Temps d’extinction de l’enveloppe — durée de disparition du son après le relâchement (10-10000 ms)',
+              reviewed: false },
+    },
+    'filter-cutoff': {
+        en: { t: 'Filter',
+              b: 'Low-pass filter cutoff frequency (20-20000 Hz)' },
+        fr: { t: 'Filtre',
+              b: 'Fréquence de coupure du filtre passe-bas (20-20000 Hz)',
+              reviewed: false },
+    },
+    'filter-lfo-depth': {
+        en: { t: 'Flt LFO',
+              b: 'Filter LFO depth — modulates cutoff using LFO A phase for sweeping filter effects (0-100%)' },
+        fr: { t: 'LFO filtre',
+              b: 'Profondeur du LFO sur le filtre — module la coupure avec la phase du LFO A pour des balayages (0-100 %)',
+              reviewed: false },
+    },
+    'velocity-to-filter': {
+        en: { t: 'Vel>Flt',
+              b: 'Velocity to filter — MIDI velocity modulates filter cutoff. Low velocity = darker, high velocity = brighter (0-100%)' },
+        fr: { t: 'Vél>Filt',
+              b: 'Vélocité vers filtre — la vélocité MIDI module la coupure. Vélocité faible = plus sombre, vélocité forte = plus clair (0-100 %)',
+              reviewed: false },
+    },
+    'master-volume': {
+        en: { t: 'Volume',
+              b: 'Master output volume in dB' },
+        fr: { t: 'Volume',
+              b: 'Volume général de sortie, en dB',
+              reviewed: false },
+    },
+    'timing-random': {
+        en: { t: 'Timing',
+              b: 'Random delay offset per chord voice — adds organic strum feel (0-100 ms)' },
+        fr: { t: 'Décalage',
+              b: 'Retard aléatoire pour chaque voix de l’accord — donne une sensation de plaqué naturel (0-100 ms)',
+              reviewed: false },
+    },
+    'detune-random': {
+        en: { t: 'Detune',
+              b: 'Random pitch deviation per chord voice — creates ensemble/unison width (0-50 cents)' },
+        fr: { t: 'Désaccord',
+              b: 'Écart de hauteur aléatoire pour chaque voix — crée une largeur d’ensemble ou d’unisson (0-50 cents)',
+              reviewed: false },
+    },
+
+    // ── Effects tab ─────────────────────────────────────────────────────────
+    // Each section and its own bypass button share the section's caption as the
+    // tip title and differ in the body.
+    'fx-chorus': {
+        en: { t: 'Chorus',
+              b: 'Chorus effect — adds width and movement via modulated delay copies' },
+        fr: { t: 'Chorus',
+              b: 'Effet de chorus — ajoute largeur et mouvement par des copies retardées et modulées',
+              reviewed: false },
+    },
+    'fx-chorus-bypass': {
+        en: { t: 'Chorus',
+              b: 'Enable/disable chorus processing' },
+        fr: { t: 'Chorus',
+              b: 'Activer ou désactiver le traitement de chorus',
+              reviewed: false },
+    },
+    'fx-delay': {
+        en: { t: 'Delay',
+              b: 'Stereo delay with Normal and PingPong modes' },
+        fr: { t: 'Délai',
+              b: 'Délai stéréo avec les modes Normal et PingPong',
+              reviewed: false },
+    },
+    'fx-delay-bypass': {
+        en: { t: 'Delay',
+              b: 'Enable/disable delay processing' },
+        fr: { t: 'Délai',
+              b: 'Activer ou désactiver le traitement de délai',
+              reviewed: false },
+    },
+    // CLEAN SPLIT.
+    'fx-eq': {
+        en: { t: '3-band EQ',
+              b: 'low shelf (200 Hz), mid peak (variable), high shelf (8 kHz)' },
+        fr: { t: 'EQ 3 bandes',
+              b: 'plateau grave (200 Hz), cloche médium (variable), plateau aigu (8 kHz)',
+              reviewed: false },
+    },
+    'fx-eq-bypass': {
+        en: { t: 'EQ',
+              b: 'Enable/disable EQ processing' },
+        fr: { t: 'EQ',
+              b: 'Activer ou désactiver le traitement d’égalisation',
+              reviewed: false },
+    },
+    'fx-reverb': {
+        en: { t: 'Reverb',
+              b: 'Schroeder reverb with adjustable pre-delay' },
+        fr: { t: 'Réverbe',
+              b: 'Réverbération de Schroeder avec pré-délai réglable',
+              reviewed: false },
+    },
+    'fx-reverb-bypass': {
+        en: { t: 'Reverb',
+              b: 'Enable/disable reverb processing' },
+        fr: { t: 'Réverbe',
+              b: 'Activer ou désactiver le traitement de réverbération',
+              reviewed: false },
+    },
+    'chorus-rate': {
+        en: { t: 'Rate',
+              b: 'Chorus LFO rate (0.1-10 Hz)' },
+        fr: { t: 'Vitesse',
+              b: 'Vitesse du LFO de chorus (0,1-10 Hz)',
+              reviewed: false },
+    },
+    'chorus-depth': {
+        en: { t: 'Depth',
+              b: 'Chorus modulation depth' },
+        fr: { t: 'Profondeur',
+              b: 'Profondeur de modulation du chorus',
+              reviewed: false },
+    },
+    'chorus-mix': {
+        en: { t: 'Mix',
+              b: 'Chorus dry/wet mix' },
+        fr: { t: 'Mixage',
+              b: 'Dosage son direct / son traité du chorus',
+              reviewed: false },
+    },
+    'delay-time': {
+        en: { t: 'Time',
+              b: 'Delay time (1-2000 ms)' },
+        fr: { t: 'Durée',
+              b: 'Temps de retard (1-2000 ms)',
+              reviewed: false },
+    },
+    'delay-feedback': {
+        en: { t: 'Feedback',
+              b: 'Delay feedback amount (0-95%)' },
+        fr: { t: 'Réinjection',
+              b: 'Taux de réinjection du délai (0-95 %)',
+              reviewed: false },
+    },
+    // HAND-SPLIT, and the reason is spelled out at the head of this file: a
+    // mechanical split on the first ": " would have titled this tip "Normal".
+    'delay-mode': {
+        en: { t: 'Mode',
+              b: 'Normal: mono delay. PingPong: alternating stereo bounces' },
+        fr: { t: 'Mode',
+              b: 'Normal : délai mono. PingPong : rebonds stéréo alternés',
+              reviewed: false },
+    },
+    'delay-mix': {
+        en: { t: 'Mix',
+              b: 'Delay dry/wet mix' },
+        fr: { t: 'Mixage',
+              b: 'Dosage son direct / son traité du délai',
+              reviewed: false },
+    },
+    'eq-low': {
+        en: { t: 'Low',
+              b: 'Low shelf gain at 200 Hz (+/-12 dB)' },
+        fr: { t: 'Grave',
+              b: 'Gain du plateau grave à 200 Hz (+/-12 dB)',
+              reviewed: false },
+    },
+    'eq-mid': {
+        en: { t: 'Mid',
+              b: 'Mid peak gain (+/-12 dB)' },
+        fr: { t: 'Médium',
+              b: 'Gain de la cloche médium (+/-12 dB)',
+              reviewed: false },
+    },
+    'eq-mid-freq': {
+        en: { t: 'Mid Freq',
+              b: 'Mid peak center frequency (200-8000 Hz)' },
+        fr: { t: 'Fréq. méd.',
+              b: 'Fréquence centrale de la cloche médium (200-8000 Hz)',
+              reviewed: false },
+    },
+    'eq-high': {
+        en: { t: 'High',
+              b: 'High shelf gain at 8 kHz (+/-12 dB)' },
+        fr: { t: 'Aigu',
+              b: 'Gain du plateau aigu à 8 kHz (+/-12 dB)',
+              reviewed: false },
+    },
+    'reverb-size': {
+        en: { t: 'Size',
+              b: 'Reverb room size (0-100%)' },
+        fr: { t: 'Taille',
+              b: 'Taille de la salle de réverbération (0-100 %)',
+              reviewed: false },
+    },
+    'reverb-damp': {
+        en: { t: 'Damp',
+              b: 'Reverb high-frequency damping (0-100%)' },
+        fr: { t: 'Amortis.',
+              b: 'Amortissement des aigus de la réverbération (0-100 %)',
+              reviewed: false },
+    },
+    'reverb-predelay': {
+        en: { t: 'Pre-dly',
+              b: 'Time before reverb onset (0-200 ms)' },
+        fr: { t: 'Pré-délai',
+              b: 'Temps avant le début de la réverbération (0-200 ms)',
+              reviewed: false },
+    },
+    'reverb-mix': {
+        en: { t: 'Mix',
+              b: 'Reverb dry/wet mix' },
+        fr: { t: 'Mixage',
+              b: 'Dosage son direct / son traité de la réverbération',
+              reviewed: false },
+    },
+
+    // ── Tuning tab: the container, and the seventeen tips inside the panel ──
+    // js/tuning-panel.js authored these seventeen as data-tooltip attributes in
+    // its own template. This version DELETES the attributes and binds the same
+    // copy through TIP_BINDINGS, so the panel's markup carries no copy at all
+    // and the module is not forked further than the attribute deletion.
+    'tuning-container': {
+        en: { t: 'Tuning',
+              b: 'Microtonal tuning system — edit intervals, load presets, or generate custom scales' },
+        fr: { t: 'Gamme',
+              b: 'Système d’accord microtonal — modifier les intervalles, charger des préréglages ou générer des gammes',
+              reviewed: false },
+    },
+    'tp-interval-list': {
+        en: { t: 'Intervals',
+              b: 'Scale intervals in cents. Click any value to edit. Last row is the period (usually 1200c for octave)' },
+        fr: { t: 'Intervalles',
+              b: 'Intervalles de la gamme en cents. Cliquer sur une valeur pour la modifier. La dernière ligne est la période (1200c pour l’octave, en général)',
+              reviewed: false },
+    },
+    'tp-viz-circle': {
+        en: { t: 'Pitch circle',
+              b: 'intervals as spokes around a circle. Active notes highlight in red' },
+        fr: { t: 'Cercle des hauteurs',
+              b: 'intervalles en rayons autour d’un cercle. Les notes actives apparaissent en rouge',
+              reviewed: false },
+    },
+    'tp-viz-polar': {
+        en: { t: 'Polar plot',
+              b: 'intervals mapped by both angle and distance' },
+        fr: { t: 'Tracé polaire',
+              b: 'intervalles placés selon l’angle et la distance',
+              reviewed: false },
+    },
+    'tp-viz-matrix': {
+        en: { t: 'Interval matrix',
+              b: 'cent distance between every pair of scale degrees' },
+        fr: { t: 'Matrice d’intervalles',
+              b: 'écart en cents entre chaque paire de degrés de la gamme',
+              reviewed: false },
+    },
+    'tp-viz-truekeys': {
+        en: { t: 'True Keys',
+              b: 'hold 2+ notes to see real cent intervals between them' },
+        fr: { t: 'Touches',
+              b: 'tenir 2 notes ou plus pour voir les intervalles réels en cents',
+              reviewed: false },
+    },
+    'tp-viz-rotation': {
+        en: { t: 'Rotation table',
+              b: 'all modes of the current scale' },
+        fr: { t: 'Table de rotation',
+              b: 'tous les modes de la gamme actuelle',
+              reviewed: false },
+    },
+    'tp-library': {
+        en: { t: 'Tuning Library',
+              b: 'Browse 24+ built-in tuning presets across Historical, World, and Experimental categories' },
+        fr: { t: 'Bibliothèque de gammes',
+              b: 'Parcourir plus de 24 gammes intégrées, réparties en catégories Historiques, Du monde et Expérimentales',
+              reviewed: false },
+    },
+    'tp-ref-pitch': {
+        en: { t: 'A4 REF',
+              b: 'A4 reference frequency (400-480 Hz). Drag up/down to adjust. Default: 440 Hz' },
+        fr: { t: 'RÉF. A4',
+              b: 'Fréquence de référence du La3 (400-480 Hz). Glisser vers le haut ou le bas pour régler. Par défaut : 440 Hz',
+              reviewed: false },
+    },
+    'tp-scale-name': {
+        en: { t: 'Scale',
+              b: 'Name of the currently loaded tuning/scale' },
+        fr: { t: 'Gamme',
+              b: 'Nom de la gamme actuellement chargée',
+              reviewed: false },
+    },
+    'tp-stretch': {
+        en: { t: 'Stretch',
+              b: 'Stretch or compress the octave ratio. 1.00 = pure octave (1200 cents)' },
+        fr: { t: 'Étirement',
+              b: 'Étirer ou comprimer le rapport d’octave. 1,00 = octave juste (1200 cents)',
+              reviewed: false },
+    },
+    'tp-pb-range': {
+        en: { t: 'PB Range',
+              b: 'Pitch bend range in semitones (1-48 st). Controls how far the pitch wheel bends notes' },
+        fr: { t: 'Plage PB',
+              b: 'Plage du pitch bend en demi-tons (1-48 st). Détermine l’amplitude de la molette de hauteur',
+              reviewed: false },
+    },
+    'tp-load-scl': {
+        en: { t: 'Load .SCL',
+              b: 'Import a Scala (.scl) tuning file' },
+        fr: { t: 'Ouvrir .SCL',
+              b: 'Importer un fichier de gamme Scala (.scl)',
+              reviewed: false },
+    },
+    'tp-load-kbm': {
+        en: { t: 'Load .KBM',
+              b: 'Import a keyboard mapping (.kbm) file' },
+        fr: { t: 'Ouvrir .KBM',
+              b: 'Importer un fichier de mappage clavier (.kbm)',
+              reviewed: false },
+    },
+    'tp-save-scl': {
+        en: { t: 'Save .SCL',
+              b: 'Export current tuning as Scala (.scl) file' },
+        fr: { t: 'Enreg. .SCL',
+              b: 'Exporter la gamme actuelle en fichier Scala (.scl)',
+              reviewed: false },
+    },
+    'tp-save-kbm': {
+        en: { t: 'Save .KBM',
+              b: 'Export keyboard mapping as .kbm file' },
+        fr: { t: 'Enreg. .KBM',
+              b: 'Exporter le mappage clavier en fichier .kbm',
+              reviewed: false },
+    },
+    'tp-export-html': {
+        en: { t: 'Export HTML',
+              b: 'Export tuning documentation as a standalone HTML page' },
+        fr: { t: 'Exporter HTML',
+              b: 'Exporter la documentation de la gamme en page HTML autonome',
+              reviewed: false },
+    },
+    // CLEAN SPLIT.
+    'tp-generator': {
+        en: { t: 'Generate custom scales',
+              b: 'Equal Division (EDO), Harmonic Series, or Rank-2 Temperament' },
+        fr: { t: 'Générer des gammes',
+              b: 'division égale (EDO), série harmonique ou tempérament de rang 2',
+              reviewed: false },
+    },
+
+    // ── Native dialogs ──────────────────────────────────────────────────────
+    // prompt() and confirm() take a STRING, not an element, so neither can be a
+    // [data-i18n] node and neither can go through setLabel(). They live here
+    // with an empty body rather than in LABELS, because assertion 15's dead-key
+    // sweep only recognises a LABELS key that an element or a setLabel call
+    // names — a key reached only through trLabel() would report as dead while
+    // being read on every rename and every delete.
+    'dialog.renamePrompt': {
+        en: { t: 'Rename preset:', b: '' },
+        fr: { t: 'Renommer le préréglage :', b: '', reviewed: false },
+    },
+    'dialog.deleteConfirm': {
+        en: { t: 'Delete preset "{name}"?', b: '' },
+        fr: { t: 'Supprimer le préréglage « {name} » ?', b: '', reviewed: false },
+    },
+});
+
+// ============================================================================
+// LABELS — the on-page text (v2.9.0, canon v2)
+// ============================================================================
+//
+// I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
+// 220 px tooltip. LABELS is ON-PAGE copy: one string dropped into a cell that
+// mostly does not wrap. They are different problems and this table keeps them
+// apart on purpose.
+//
+// ── THE REUSE RULE, AND WHERE IT APPLIES HERE ──────────────────────────────
+// trLabel() falls back to I18N when a key is absent here, so a control whose
+// tooltip TITLE already IS its caption could carry ONE key. That is deliberately
+// NOT done: the hand-split above set every tooltip title FROM the caption, so a
+// fallback would make the tooltip table the owner of the page's captions and a
+// later tooltip rewrite would silently move a knob label. The two tables are
+// kept disjoint and the duplication is on purpose.
+//
+// ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
+// Every `en` below is what index.html, js/app.js's knob configuration or
+// js/tuning-panel.js carried through v2.8.4, taken from
+// scripts/i18n-extract.js's inventory rather than transcribed — with TWO
+// exceptions, both contract §6 rewrites, both named here:
+//
+//   'Intervals (12 notes)'  ->  'Intervals: 12'
+//   '12 notes'              ->  'Notes: 12'
+//
+// Both were composed with a count and an inflected noun. French pluralises zero
+// as singular and English does not, and `count` here is `intervals.length - 1`,
+// which a degenerate one-line .scl file makes 0. Contract §6 says copy that
+// needs a count is authored AROUND the inflection rather than through a plural
+// engine, so the noun moved in front of the number where it is invariant in both
+// languages. The English loses the word "notes" from the interval header; that
+// is the visible cost and it is recorded rather than hidden.
+//
+// ── FRENCH IS SIZED, NOT SHRUNK ────────────────────────────────────────────
+// D-04 forbids an auto-shrink font and a short-variant fallback: exactly ONE
+// French string per key, and nothing chooses between variants at runtime. This
+// is an 800 x 500 frame whose knob captions live in 44 px and 52 px columns, so
+// every French caption below was MEASURED AS RENDERED inside its own element —
+// text-transform and letter-spacing are not in getComputedStyle().font, so a
+// font probe reads short and a pin lands under the French.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`. No native speaker has read
+// it. `node scripts/check-i18n.js` prints the worklist, LABELS included.
+// ============================================================================
+
+export const LABELS = Object.freeze({
+
+    // ── Tab row ─────────────────────────────────────────────────────────────
+    'label.tabVoice':    { en: { t: 'Voice' },   fr: { t: 'Voix',   reviewed: false } },
+    'label.tabTuning':   { en: { t: 'Tuning' },  fr: { t: 'Gamme',  reviewed: false } },
+    'label.tabSynth':    { en: { t: 'Synth' },   fr: { t: 'Synthé', reviewed: false } },
+    'label.tabEffects':  { en: { t: 'Effects' }, fr: { t: 'Effets', reviewed: false } },
+
+    // ── The dice menu. Each row is a caption AND a description, and the two
+    //    are separate keyed FRAGMENTS inside the same button rather than one
+    //    keyed wrapper: applyLabel writes textContent, so keying the button
+    //    would delete the .mode-desc span on the first sweep, and measuring the
+    //    wrapper's box would measure the whole row forever (assertion 7).
+    'label.diceGentle':      { en: { t: 'Gentle' },     fr: { t: 'Léger',       reviewed: false } },
+    // "du réglage actuel", not the fuller "autour des réglages actuels": the
+    // .mode-desc line is 112 px and the longer form wraps to a second line,
+    // making the whole dice menu 10 px taller in French and moving the two rows
+    // below it. Measured as rendered, both ways.
+    'label.diceGentleDesc':  { en: { t: '±15% variation from current' },
+                               fr: { t: '±15 % du réglage actuel', reviewed: false } },
+    'label.diceWild':        { en: { t: 'Wild' },       fr: { t: 'Extrême',     reviewed: false } },
+    'label.diceWildDesc':    { en: { t: 'Full range randomization' },
+                               fr: { t: 'Aléatoire sur toute la plage', reviewed: false } },
+    'label.diceSoundOnly':   { en: { t: 'Sound Only' }, fr: { t: 'Timbre seul', reviewed: false } },
+    'label.diceSoundOnlyDesc': { en: { t: 'Preserve tuning, chord & volume' },
+                               fr: { t: 'Conserve gamme, accord et volume', reviewed: false } },
+
+    // ── Preset bar, browser and save dialog ─────────────────────────────────
+    // "Enreg.", not "Enregistrer": this caption is worn by the preset bar's SAVE
+    // button, whose width is pinned in the CSS so its French face cannot squeeze
+    // the preset-name display beside it. The full word is 91.28 px against
+    // SAVE's 44.83; the abbreviation is the same one the tuning panel's file
+    // buttons already use.
+    'label.save':            { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: false } },
+    'label.cancel':          { en: { t: 'Cancel' }, fr: { t: 'Annuler',     reviewed: false } },
+    'label.presetBrowser':   { en: { t: 'Preset Browser' }, fr: { t: 'Navigateur de préréglages', reviewed: false } },
+    'label.savePresetTitle': { en: { t: 'Save Preset' },    fr: { t: 'Enregistrer le préréglage', reviewed: false } },
+    'label.noPresetsInCategory': { en: { t: 'No presets in this category' },
+                               fr: { t: 'Aucun préréglage dans cette catégorie', reviewed: false } },
+
+    // The six preset CATEGORIES. Only the caption is localized — the English
+    // string stays the value that reaches C++ and comes back on preset.category.
+    // 'label.all' is shared with the interval selector's All button: one string,
+    // one key, two anchors.
+    'label.all':             { en: { t: 'All' },          fr: { t: 'Tous',      reviewed: false } },
+    'label.catAmbient':      { en: { t: 'Ambient' },      fr: { t: 'Ambient',   reviewed: false, sameAsEn: true } },
+    'label.catCinematic':    { en: { t: 'Cinematic' },    fr: { t: 'Cinéma',    reviewed: false } },
+    'label.catClassicPads':  { en: { t: 'Classic Pads' }, fr: { t: 'Nappes classiques', reviewed: false } },
+    'label.catDrones':       { en: { t: 'Drones' },       fr: { t: 'Bourdons',  reviewed: false } },
+    'label.catExperimental': { en: { t: 'Experimental' }, fr: { t: 'Expérimental', reviewed: false } },
+
+    // ── Voice tab ───────────────────────────────────────────────────────────
+    'label.keyRoot':     { en: { t: 'Key Root' },  fr: { t: 'Fondamentale', reviewed: false } },
+    'label.voicing':     { en: { t: 'Voicing' },   fr: { t: 'Disposition',  reviewed: false } },
+    'label.intervals':   { en: { t: 'Intervals' }, fr: { t: 'Intervalles',  reviewed: false } },
+    'label.none':        { en: { t: 'None' },      fr: { t: 'Aucun',        reviewed: false } },
+    'label.loading':     { en: { t: 'Loading...' }, fr: { t: 'Chargement…',  reviewed: false } },
+    'label.activeNotes': { en: { t: 'Active Notes' }, fr: { t: 'Notes actives', reviewed: false } },
+    'label.playANote':   { en: { t: 'Play a note to see chord voicing' },
+                           fr: { t: 'Jouer une note pour voir la disposition', reviewed: false } },
+
+    // The five Voice-tab knob captions, written by makeKnob() from a key.
+    'label.voices':      { en: { t: 'Voices' },     fr: { t: 'Voix',        reviewed: false } },
+    'label.complexity':  { en: { t: 'Complexity' }, fr: { t: 'Complexité',  reviewed: false } },
+    'label.spread':      { en: { t: 'Spread' },     fr: { t: 'Étalement',   reviewed: false } },
+    'label.spacing':     { en: { t: 'Spacing' },    fr: { t: 'Espacement',  reviewed: false } },
+    'label.inversion':   { en: { t: 'Inversion' },  fr: { t: 'Renvers.',    reviewed: false } },
+
+    // ── Synth tab ───────────────────────────────────────────────────────────
+    // "OSC A" and "OSC B" are oscillator designations, not words: the French is
+    // the same and says so with sameAsEn rather than by silence.
+    'label.oscA':        { en: { t: 'OSC A' },   fr: { t: 'OSC A',   reviewed: false, sameAsEn: true } },
+    'label.oscB':        { en: { t: 'OSC B' },   fr: { t: 'OSC B',   reviewed: false, sameAsEn: true } },
+    'label.pos':         { en: { t: 'Pos' },     fr: { t: 'Pos.',    reviewed: false } },
+    'label.rate':        { en: { t: 'Rate' },    fr: { t: 'Vitesse', reviewed: false } },
+    'label.depth':       { en: { t: 'Depth' },   fr: { t: 'Prof.',   reviewed: false } },
+    'label.gain':        { en: { t: 'Gain' },    fr: { t: 'Gain',    reviewed: false, sameAsEn: true } },
+    'label.attack':      { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false } },
+    'label.decay':       { en: { t: 'Decay' },   fr: { t: 'Chute',   reviewed: false } },
+    'label.sustain':     { en: { t: 'Sustain' }, fr: { t: 'Tenue',   reviewed: false } },
+    'label.release':     { en: { t: 'Release' }, fr: { t: 'Extinct.', reviewed: false } },
+    'label.filter':      { en: { t: 'Filter' },  fr: { t: 'Filtre',  reviewed: false } },
+    'label.fltLfo':      { en: { t: 'Flt LFO' }, fr: { t: 'LFO filt.', reviewed: false } },
+    'label.velFlt':      { en: { t: 'Vel>Flt' }, fr: { t: 'Vél>Filt', reviewed: false } },
+    'label.volume':      { en: { t: 'Volume' },  fr: { t: 'Volume',  reviewed: false, sameAsEn: true } },
+    'label.timing':      { en: { t: 'Timing' },  fr: { t: 'Décalage', reviewed: false } },
+    'label.detune':      { en: { t: 'Detune' },  fr: { t: 'Désacc.', reviewed: false } },
+
+    // ── Effects tab ─────────────────────────────────────────────────────────
+    'label.fxChorus':    { en: { t: 'Chorus' },   fr: { t: 'Chorus',  reviewed: false, sameAsEn: true } },
+    'label.fxDelay':     { en: { t: 'Delay' },    fr: { t: 'Délai',   reviewed: false } },
+    'label.fxEq':        { en: { t: 'EQ' },       fr: { t: 'EQ',      reviewed: false, sameAsEn: true } },
+    'label.fxReverb':    { en: { t: 'Reverb' },   fr: { t: 'Réverbe', reviewed: false } },
+    'label.mix':         { en: { t: 'Mix' },      fr: { t: 'Dosage',  reviewed: false } },
+    'label.time':        { en: { t: 'Time' },     fr: { t: 'Durée',   reviewed: false } },
+    'label.feedback':    { en: { t: 'Feedback' }, fr: { t: 'Réinj.',  reviewed: false } },
+    'label.low':         { en: { t: 'Low' },      fr: { t: 'Grave',   reviewed: false } },
+    'label.mid':         { en: { t: 'Mid' },      fr: { t: 'Médium',  reviewed: false } },
+    'label.midFreq':     { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: false } },
+    'label.high':        { en: { t: 'High' },     fr: { t: 'Aigu',    reviewed: false } },
+    'label.size':        { en: { t: 'Size' },     fr: { t: 'Taille',  reviewed: false } },
+    'label.damp':        { en: { t: 'Damp' },     fr: { t: 'Amortis.', reviewed: false } },
+    'label.preDly':      { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.', reviewed: false } },
+    // Shared by the delay-mode dropdown caption and the rotation table's first
+    // column header. One string, one key, two anchors.
+    'label.mode':        { en: { t: 'Mode' },     fr: { t: 'Mode',    reviewed: false, sameAsEn: true } },
+
+    // ── Tuning panel (js/tuning-panel.js) ───────────────────────────────────
+    // A PARAMETERISED entry, written by __setLabel with vars = { n }. See the
+    // §6 note at the head of this table for why the noun sits in front of the
+    // number instead of after it.
+    'label.intervalsHeader': { en: { t: 'Intervals: {n}' },
+                               fr: { t: 'Intervalles : {n}', reviewed: false } },
+    'label.noteCount':       { en: { t: 'Notes: {n}' },
+                               fr: { t: 'Notes : {n}', reviewed: false } },
+    'label.tonic':           { en: { t: 'Tonic' },  fr: { t: 'Tonique', reviewed: false } },
+    'label.scaleIntervals':  { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: false } },
+    'label.vizCircle':       { en: { t: 'Circle' },    fr: { t: 'Cercle',   reviewed: false } },
+    'label.vizPolar':        { en: { t: 'Polar' },     fr: { t: 'Polaire',  reviewed: false } },
+    'label.vizMatrix':       { en: { t: 'Matrix' },    fr: { t: 'Matrice',  reviewed: false } },
+    'label.vizTrueKeys':     { en: { t: 'True Keys' }, fr: { t: 'Touches',  reviewed: false } },
+    'label.vizRotation':     { en: { t: 'Rotation' },  fr: { t: 'Rotation', reviewed: false, sameAsEn: true } },
+    'label.tkHint':          { en: { t: 'Hold 2+ notes to see intervals' },
+                               fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: false } },
+    'label.totalSpan':       { en: { t: 'Total span' }, fr: { t: 'Écart total', reviewed: false } },
+    // "Bibliothèque", not the fuller "Bibliothèque de gammes": the tuning
+    // panel's 220 px controls column already sits PARTLY OUTSIDE the 800 px
+    // frame in English — a pre-existing horizontal overflow this commit does not
+    // introduce and does not fix — so the English caption at 94.22 px is the
+    // budget. "Bibliothèque de gammes" is 152.5 px and crossed the frame edge by
+    // 17.4 px; "Bibliothèque" is 82.28 px and clears it.
+    'label.tuningLibrary':   { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque', reviewed: false } },
+    // The library filter is a PLAIN select over the strings all / Historical /
+    // ... — it is not an AudioParameterChoice, no host ever shows these six
+    // strings, and translating them cannot make the page and an automation lane
+    // disagree. That is the discriminator; the five dropdowns that ARE choice
+    // parameters are exempt below.
+    'label.catAllCategories':  { en: { t: 'All Categories' },  fr: { t: 'Toutes catégories', reviewed: false } },
+    'label.catHistorical':     { en: { t: 'Historical' },      fr: { t: 'Historiques',   reviewed: false } },
+    'label.catJustIntonation': { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: false } },
+    'label.catEqualDivisions': { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: false } },
+    'label.catNonOctave':      { en: { t: 'Non-Octave' },      fr: { t: 'Non octaviantes', reviewed: false } },
+    'label.catWorld':          { en: { t: 'World' },           fr: { t: 'Du monde',      reviewed: false } },
+    // "A4" is a pitch identifier and stays; only the abbreviation "REF" moves.
+    'label.a4Ref':       { en: { t: 'A4 REF' },   fr: { t: 'RÉF. A4',   reviewed: false } },
+    'label.stretch':     { en: { t: 'Stretch' },  fr: { t: 'Étirement', reviewed: false } },
+    'label.pbRange':     { en: { t: 'PB Range' }, fr: { t: 'Plage PB',  reviewed: false } },
+    // The four file buttons keep their EXTENSIONS, which are file-format
+    // identifiers, and translate only the verb.
+    'label.loadScl':     { en: { t: 'Load .SCL' }, fr: { t: 'Ouvrir .SCL', reviewed: false } },
+    'label.loadKbm':     { en: { t: 'Load .KBM' }, fr: { t: 'Ouvrir .KBM', reviewed: false } },
+    'label.saveScl':     { en: { t: 'Save .SCL' }, fr: { t: 'Enreg. .SCL', reviewed: false } },
+    'label.saveKbm':     { en: { t: 'Save .KBM' }, fr: { t: 'Enreg. .KBM', reviewed: false } },
+    'label.exportHtml':  { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: false } },
+    'label.generateScale': { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: false } },
+    'label.genEdo':      { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: false } },
+    'label.genHarmonic': { en: { t: 'Harmonic Series' },      fr: { t: 'Série harmonique',     reviewed: false } },
+    'label.genRank2':    { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: false } },
+    'label.genDivisions': { en: { t: 'Divisions' },     fr: { t: 'Divisions', reviewed: false, sameAsEn: true } },
+    'label.genPeriod':   { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: false } },
+    'label.genStart':    { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: false } },
+    'label.genEnd':      { en: { t: 'End Harmonic' },   fr: { t: 'Harmonique de fin',    reviewed: false } },
+    'label.genGenerator': { en: { t: 'Generator (c)' }, fr: { t: 'Générateur (c)', reviewed: false } },
+    'label.genCount':    { en: { t: 'Notes' },          fr: { t: 'Notes', reviewed: false, sameAsEn: true } },
+    'label.generate':    { en: { t: 'Generate' },       fr: { t: 'Générer', reviewed: false } },
+
+    // ── The settings popover, and the two faces of every toggle ─────────────
+    'label.language':    { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
+    'label.hoverHelp':   { en: { t: 'Hover help' }, fr: { t: 'Aide',   reviewed: false } },
+    // Worn by the four FX bypass buttons AND by the hover-help switch. Written
+    // only by setLabel, from an if/else and never a ternary — assertion 13.
+    'ui.on':             { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },
+    'ui.off':            { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: false } },
+
+    // ── Accessible names and the one placeholder ────────────────────────────
+    // Every one of these was a native title= or an alt= in v2.8.4. Contract §4
+    // DELETES native title= rather than localizing it: on a page with a
+    // measure-then-pin renderer a native title renders a second, untranslated OS
+    // tooltip competing with the tip. Where the title was an element's only
+    // help, its text became the accessible name — no new prose was invented.
+    'alt.background':      { en: { t: 'Background' }, fr: { t: 'Arrière-plan', reviewed: false } },
+    'alt.botanical':       { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: false } },
+    'aria.randomize':      { en: { t: 'Randomize parameters' }, fr: { t: 'Rendre les paramètres aléatoires', reviewed: false } },
+    'aria.prevPreset':     { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false } },
+    'aria.browsePresets':  { en: { t: 'Click to browse presets' }, fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
+    'aria.nextPreset':     { en: { t: 'Next preset' }, fr: { t: 'Préréglage suivant', reviewed: false } },
+    'aria.savePreset':     { en: { t: 'Save current settings as preset' },
+                             fr: { t: 'Enregistrer les réglages actuels comme préréglage', reviewed: false } },
+    'placeholder.presetName': { en: { t: 'Preset name...' }, fr: { t: 'Nom du préréglage…', reviewed: false } },
+    'aria.factoryPreset':  { en: { t: 'Factory preset' }, fr: { t: 'Préréglage d’usine', reviewed: false } },
+    'aria.rename':         { en: { t: 'Rename' }, fr: { t: 'Renommer', reviewed: false } },
+    'aria.delete':         { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: false } },
+    'aria.doubleClickEdit': { en: { t: 'Double-click to edit' }, fr: { t: 'Double-cliquer pour modifier', reviewed: false } },
+    'aria.settings':       { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: false } },
+    'aria.langSelect':     { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.helpToggle':     { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+});
+
+// ============================================================================
+// I18N_EXEMPT — reasoned exclusions, never silence
+// ============================================================================
+//
+// Every visible string the coverage scan finds must be a [data-i18n] element, a
+// setLabel() call, or an entry HERE WITH A REASON. A bare skip list would let a
+// missed label hide as a deliberate one.
+// ============================================================================
+
+export const I18N_EXEMPT = [
+    ['Ouaricon Intonation Pad',
+     'the product name in .title — a product name is never translated, and this one is the display form of the plugin\'s registered PRODUCT_NAME in CMakeLists.txt'],
+
+    // #presetNameDisplay shows the loaded preset. The name IS the JSON filename
+    // (OuariconPresetManager.h:283-285), so translating it breaks recall
+    // outright. "Init" is the placeholder the manager overwrites on its first
+    // pass.
+    ['Init', 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
+
+    // ── The five AudioParameterChoice dropdowns (D-01) ──────────────────────
+    // keyRoot, voicingMode, wavetableBank, wavetableBank2 and delayMode are all
+    // WebComboBoxRelay controls over choice parameters. Their option strings are
+    // the parameter's own choice list, which the host shows in its automation
+    // lane and which some hosts cache. Translating the option text would make
+    // the page and the automation lane disagree about the same parameter. The
+    // library filter and the generator type ARE localized, and the difference is
+    // exactly this: those two are plain selects no host ever sees.
+    ['Free',     'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Close',    'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Open',     'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Drop-2',   'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Thirds',   'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Quartal',  'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Quintal',  'voicingMode choice-parameter value — host automation contract (D-01)'],
+    ['Normal',   'delayMode choice-parameter value — host automation contract (D-01)'],
+    ['PingPong', 'delayMode choice-parameter value — host automation contract (D-01)'],
+
+    // ── Identifiers, not words ──────────────────────────────────────────────
+    ['12-TET Standard',
+     'a tuning IDENTIFIER, not a caption — it is the name the tuning engine reports for the loaded scale and is matched against Scala file names'],
+    ['English',  'endonym — a language name is never translated'],
+    ['Français', 'endonym — a language name is never translated'],
+];
+
+// [selector, key] or [selector, key, wrapperSelector] or
+// [selector, key, wrapperSelector, vars].
+//
+// The selector is the BINDING SITE and the wrapper climbs to the box the tip
+// should hang off. applyI18n() uses document.querySelector, which returns the
+// FIRST match in document order, so every row below names an element that
+// carries a UNIQUE id — the knob, the select, the section — and never a bare
+// class that repeats.
+//
+// NOT EVERY ANCHOR EXISTS AT PARSE TIME, and that is the one structural
+// difference from every plugin shipped before this one. The 37 knob containers
+// are built by makeKnob() inside the DOMContentLoaded handler, and the 17
+// tuning-panel anchors are built by an async import that resolves later still.
+// js/app.js therefore calls initI18n() at the END of DOMContentLoaded rather
+// than the start, and calls applyI18n() again once the tuning panel reports
+// ready. The first of those two sweeps warns about the 17 tuning selectors it
+// cannot yet see; that is the canon's own "tip target not found" console.warn,
+// left alone rather than worked around, because the canon block is byte-compared
+// against scripts/i18n-canon.js and a local edit to silence it would fail
+// assertion 6 on every plugin at once.
+// EXPORTED, though js/app.js never imports it: assertion 7 requires this module
+// to hold nothing but export declarations, because a bare top-level statement
+// here throws out of module evaluation and takes every later initializer on the
+// page with it. Same shape as O-Polystutter's exported LANES.
+export const KNOB_TIPS = [
+    ['voiceCount',       'voice-count'],
+    ['complexity',       'complexity'],
+    ['stereoSpread',     'stereo-spread'],
+    ['spacing',          'spacing'],
+    ['inversion',        'inversion'],
+    // ONE key, TWO anchors — oscillator A and oscillator B.
+    ['wavetablePos',     'wavetable-pos'],
+    ['wavetablePos2',    'wavetable-pos'],
+    ['lfoRate',          'lfo-rate'],
+    ['lfoRate2',         'lfo-rate'],
+    ['lfoDepth',         'lfo-depth'],
+    ['lfoDepth2',        'lfo-depth'],
+    ['gainA',            'gain-a'],
+    ['gainB',            'gain-b'],
+    ['attackTime',       'attack'],
+    ['decayTime',        'decay'],
+    ['sustainLevel',     'sustain'],
+    ['releaseTime',      'release'],
+    ['filterCutoff',     'filter-cutoff'],
+    ['filterLfoDepth',   'filter-lfo-depth'],
+    ['velocityToFilter', 'velocity-to-filter'],
+    ['masterVolume',     'master-volume'],
+    ['timingRandom',     'timing-random'],
+    ['detuneRandom',     'detune-random'],
+    ['chorusRate',       'chorus-rate'],
+    ['chorusDepth',      'chorus-depth'],
+    ['chorusMix',        'chorus-mix'],
+    ['delayTime',        'delay-time'],
+    ['delayFeedback',    'delay-feedback'],
+    ['delayMix',         'delay-mix'],
+    ['eqLowGain',        'eq-low'],
+    ['eqMidGain',        'eq-mid'],
+    ['eqMidFreq',        'eq-mid-freq'],
+    ['eqHighGain',       'eq-high'],
+    ['reverbSize',       'reverb-size'],
+    ['reverbDamp',       'reverb-damp'],
+    ['reverbPredelay',   'reverb-predelay'],
+    ['reverbMix',        'reverb-mix'],
+];
+
+export const TIP_BINDINGS = [
+    // The three new controls.
+    ['#gear-btn',     'settings'],
+    ['#lang-select',  'lang-select'],
+    ['#tips-toggle',  'tips-toggle'],
+
+    // The tab row.
+    ['.tab-button[data-tab="voice"]',   'tab-voice'],
+    ['.tab-button[data-tab="tuning"]',  'tab-tuning'],
+    ['.tab-button[data-tab="synth"]',   'tab-synth'],
+    ['.tab-button[data-tab="effects"]', 'tab-effects'],
+
+    // Voice tab.
+    ['#keyRootSelect',      'key-root',       '.dropdown-container'],
+    ['#voicingModeSelect',  'voicing',        '.dropdown-container'],
+    ['.interval-selector',  'intervals'],
+    ['#intervalAllBtn',     'intervals-all'],
+    ['#intervalNoneBtn',    'intervals-none'],
+    ['#miniKeyboard',       'keyboard'],
+    ['#freqList',           'freq-list'],
+
+    // Synth tab — the two wavetable bank selects.
+    ['#wavetableBankSelect',  'bank-a', '.dropdown-container'],
+    ['#wavetableBank2Select', 'bank-b', '.dropdown-container'],
+    ['#delayModeSelect',      'delay-mode', '.dropdown-container'],
+
+    // Effects tab — a section and its own bypass button each carry a tip. The
+    // button is INSIDE the section, and closest('[data-tip]') from the pointer
+    // resolves to the button, which is the behaviour v2.8.4 already had.
+    ['#chorusSection',    'fx-chorus'],
+    ['#chorusBypassBtn',  'fx-chorus-bypass'],
+    ['#delaySection',     'fx-delay'],
+    ['#delayBypassBtn',   'fx-delay-bypass'],
+    ['#eqSection',        'fx-eq'],
+    ['#eqBypassBtn',      'fx-eq-bypass'],
+    ['#reverbSection',    'fx-reverb'],
+    ['#reverbBypassBtn',  'fx-reverb-bypass'],
+
+    // Tuning tab — the pane itself, then the seventeen anchors js/tuning-panel.js
+    // builds. Their copy used to live in that module's own template as
+    // data-tooltip attributes; the attributes are deleted and the copy is here.
+    ['#tuning-container',  'tuning-container'],
+    ['#interval-list',     'tp-interval-list'],
+    ['.viz-btn[data-mode="circle"]',   'tp-viz-circle'],
+    ['.viz-btn[data-mode="polar"]',    'tp-viz-polar'],
+    ['.viz-btn[data-mode="matrix"]',   'tp-viz-matrix'],
+    ['.viz-btn[data-mode="truekeys"]', 'tp-viz-truekeys'],
+    ['.viz-btn[data-mode="rotation"]', 'tp-viz-rotation'],
+    ['#library-section',   'tp-library'],
+    ['#ref-pitch-knob',    'tp-ref-pitch',  '.tuning-ref-section'],
+    ['#scale-name-display', 'tp-scale-name'],
+    ['#octave-stretch',    'tp-stretch',    '.octave-stretch-section'],
+    ['#pitch-bend-range',  'tp-pb-range',   '.octave-stretch-section'],
+    ['#btn-load-scl',      'tp-load-scl'],
+    ['#btn-load-kbm',      'tp-load-kbm'],
+    ['#btn-save-scl',      'tp-save-scl'],
+    ['#btn-save-kbm',      'tp-save-kbm'],
+    ['#btn-export-html',   'tp-export-html'],
+    ['#generator-section', 'tp-generator'],
+
+    // The 37 knobs. Generated from KNOB_TIPS so a knob cannot be given a tip
+    // here and forgotten in the configuration js/app.js builds it from.
+    ...KNOB_TIPS.map(([id, key]) => ['#' + id + 'Knob', key, '.knob-container']),
+];
+
+export function tr(key, lang, vars) {
+    const entry = I18N[key];
+    if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
+    const s = entry[lang] || entry.en;
+
+    // A var VALUE that is itself an I18N key resolves to that key's localized
+    // title; anything else is used literally. TIP_BINDINGS is evaluated once at
+    // module load, so a localized string stored there would be frozen at the
+    // load-time language.
+    const resolve = (v) => {
+        const nested = I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+
+    const sub = (v) => vars
+        ? String(v).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(v);
+
+    return { t: sub(s.t), b: sub(s.b) };
+}

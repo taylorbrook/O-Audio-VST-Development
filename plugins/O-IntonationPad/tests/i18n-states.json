@@ -1,0 +1,78 @@
+[
+  {
+    "name": "SYNTH tab (the two oscillator captions and the ten envelope/filter/randomisation knob captions, every one of them written by setLabel from js/app.js and all of them behind a display:none tab-content)",
+    "click": ".tab-button[data-tab=\"synth\"]"
+  },
+  {
+    "name": "EFFECTS tab (the four section titles, the four bypass faces and all fourteen effect knob captions — same shape, same reason)",
+    "click": ".tab-button[data-tab=\"effects\"]"
+  },
+  {
+    "name": "the Chorus section BYPASSED (ui.off, the other face of the four bypass buttons — their resting face is ui.on, so no resting state shows it)",
+    "click": "#chorusBypassBtn"
+  },
+  {
+    "name": "TUNING tab (the interval-list header with its {n} token substituted, the tonic caption, the five visualization buttons, A4 REF, Stretch, PB Range, the five file buttons and the scale generator — the whole panel js/tuning-panel.js injects)",
+    "click": ".tab-button[data-tab=\"tuning\"]"
+  },
+  {
+    "name": "the tuning LIBRARY expanded (its six filter options sit inside a .library-content that is collapsed at rest)",
+    "click": ".library-header"
+  },
+  {
+    "name": "the scale generator expanded (Generate Scale's three type options, the EDO form's Divisions and Period captions and the Generate button all sit inside a collapsed .generator-content)",
+    "click": ".generator-header"
+  },
+  {
+    "name": "the generator switched to Harmonic Series (label.genStart and label.genEnd exist only in that form — setGeneratorType REBUILDS #generator-inputs, so no single state can show all three forms at once). Driven through the plugin's own <select> and its own change handler, not by calling the method: this is the state a user can actually produce.",
+    "eval": "const s = document.getElementById('generator-type'); s.value = 'harmonic'; s.dispatchEvent(new Event('change'));"
+  },
+  {
+    "name": "the generator switched to Rank-2 Temperament (label.genGenerator and label.genCount, the last two captions of the third form)",
+    "eval": "const s = document.getElementById('generator-type'); s.value = 'rank2'; s.dispatchEvent(new Event('change'));"
+  },
+  {
+    "name": "the generator switched BACK to EDO (setGeneratorType REBUILDS #generator-inputs, so the Divisions and Period captions the resting markup carries are DESTROYED by the two states above and exist again only once the form is rebuilt — without this they report as never measured while being the form the panel opens on)",
+    "eval": "const s = document.getElementById('generator-type'); s.value = 'edo'; s.dispatchEvent(new Event('change'));"
+  },
+  {
+    "name": "the ROTATION visualization (label.mode is the rotation table's first column header, written into an `html +=` accumulation and keyed afterwards — the one view no resting state renders)",
+    "click": ".viz-btn[data-mode=\"rotation\"]"
+  },
+  {
+    "name": "the TRUE KEYS visualization (label.tkHint is the empty-state line inside #truekeys-view, which is display:none in every other mode)",
+    "click": ".viz-btn[data-mode=\"truekeys\"]"
+  },
+  {
+    "name": "back to the VOICE tab, so the dice menu and the preset chrome below are measured over the layout they actually open on",
+    "click": ".tab-button[data-tab=\"voice\"]"
+  },
+  {
+    "name": "the DICE menu open (three captions and three descriptions inside a .dice-menu that is closed at rest)",
+    "click": "#diceBtn"
+  },
+  {
+    "name": "the PRESET BROWSER open (its title, and the six category buttons renderCategories builds from scratch every time it is opened)",
+    "click": "#presetNameDisplay"
+  },
+  {
+    "name": "the preset browser CLOSED again — its overlay would otherwise sit over the save dialog and the settings popover below, and the popover's own dismiss handler closes it the moment a mousedown lands on anything it does not contain",
+    "click": "#presetBrowserClose"
+  },
+  {
+    "name": "the SAVE dialog open (its title, Cancel, Save, the five category options and the name placeholder — all inside a dialog that is closed at rest)",
+    "click": "#presetSaveBtn"
+  },
+  {
+    "name": "the save dialog CANCELLED — same reason: its backdrop covers the frame, so the settings popover opened next would be dismissed by the very click meant to reach the switch inside it",
+    "click": "#presetSaveCancelBtn"
+  },
+  {
+    "name": "the settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the switch are all inside a [hidden] panel). SECOND TO LAST on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the switch below is clicked.",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help ON (the ui.on face of the settings switch, which no resting state shows — hover help starts off). A real click on the real control, inside the popover the previous state opened, so the dismiss handler leaves the panel up.",
+    "click": "#tips-toggle"
+  }
+]
