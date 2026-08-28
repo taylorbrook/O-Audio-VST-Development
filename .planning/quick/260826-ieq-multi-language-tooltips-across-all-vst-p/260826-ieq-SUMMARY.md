@@ -5,8 +5,14 @@ mode: quick
 status: incomplete
 stages_complete: [A, B, C, D, E, F, G, H]
 stages_remaining: [I, J, K, L, M]
-stopped_at: "End of Stage G (T11). ALL FIVE shipped plugins are now fully localized on canon v2 — O-Tapestop, O-MultiBandCompressor, O-Bitrot, O-ReverseDelay and O-Octagon. `check-i18n --strict-v2` passes repo-wide for the first time. Stage G was run LAST, out of order, because its blocker cleared after Stage H. Checkpoints 4 AND 5 remain OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five, and no human has seen the French UI. PREVIOUSLY, at end of Stage H (T12). FOUR of the five shipped plugins are now fully localized on canon v2 — O-Tapestop, O-MultiBandCompressor, O-Bitrot, O-ReverseDelay. Stage G (O-Octagon) is DEFERRED, not skipped: another session was mid-flight on a v1.8.0 motion feature across 27 of its files including index.html, app.js, i18n.js, styles.css and all three test files, and a path-scoped commit would have swept their work in. Checkpoints 4 AND 5 are OUTSTANDING: the C++ persistence round-trip has still never been run by hand on any of the five, and no human has seen the French UI."
+stopped_at: "End of Stage I BATCH I1, PARTIAL — 1 of the 9 plugins Stage I covers. O-Contrabass v1.8.0 is done and is the SIXTH plugin on canon v2; `check-i18n --strict-v2` reports 6 canon v2, 0 canon v1. O-Orbit, the other half of batch I1, was NOT dispatched to this agent — its scope was explicitly excluded because another session held plugins/O-Orbit at dispatch time. That blocker has since cleared: that session landed O-Orbit v1.1.1 as 3593213d and no O-Orbit file is dirty now, so O-Orbit is ready to run. The seven `O-simple*` plugins of batch I2 are untouched. Stage I therefore stays in stages_remaining. Checkpoints 4 AND 5 remain OUTSTANDING and are now outstanding on SIX plugins: the C++ language round-trip has still never been run by hand on any of them, and no human has seen the French UI. PREVIOUSLY, at end of Stage G (T11): all five originally-shipped plugins fully localized on canon v2, `check-i18n --strict-v2` green repo-wide for the first time, eight wrong-shaped gate assumptions found and fixed."
 plugins_shipped:
+  - name: O-Contrabass
+    version: 1.8.0
+    commit: 7035029a      # v1.8.0, Stage I batch I1 — tooltips AND labels in ONE
+                          # release. First plugin outside the original five, and the
+                          # sixth on canon v2. Bridge 34 -> 36. No prior tooltip
+                          # release: v1.7.0 shipped the data-tip renderer in English.
   - name: O-MultiBandCompressor
     version: 1.11.0
     commit: cc2ea600      # v1.11.0, Stage H — labels. v1.10.0 was b98aa9ec, tooltips only.
@@ -28,6 +34,8 @@ subsystem: webview-ui / i18n
 tags: [i18n, tooltips, webview, juce, apvts-persistence]
 key-files:
   created:
+    - plugins/O-Contrabass/Source/ui/public/js/i18n.js
+    - plugins/O-Contrabass/tests/i18n-states.json
     - scripts/serve-ui.js
     - scripts/boot-all-uis.js
     - scripts/ui-stub/generic-juce-stub.js
@@ -44,6 +52,11 @@ key-files:
     - plugins/O-Bitrot/Source/ui/public/js/i18n.js
     - plugins/O-Tapestop/Source/ui/public/js/i18n.js
   modified:
+    - plugins/O-Contrabass/Source/ui/public/index.html
+    - plugins/O-Contrabass/Source/Plugin{Processor.h,Processor.cpp,Editor.cpp}
+    - plugins/O-Contrabass/CMakeLists.txt
+    - plugins/O-Contrabass/CHANGELOG.md
+    - plugins/O-Contrabass/tests/ui_frontend_check.js
     - plugins/O-MultiBandCompressor/Source/ui/public/js/app.js
     - plugins/O-MultiBandCompressor/Source/ui/public/index.html
     - plugins/O-MultiBandCompressor/Source/ui/public/css/styles.css
@@ -102,6 +115,10 @@ actuals_stage_h:
   tokens: 470000
   tasks: 1              # T12, three plugins
   commits: 5            # 3 plugin commits + 2 scripts/ commits
+actuals_stage_i_batch_i1:
+  tokens: 205000
+  tasks: 1              # T13, ONE plugin of the nine
+  commits: 1            # one path-scoped plugin commit; NO scripts/ commit was needed
 ---
 
 # Quick Task 260826-ieq — Stage B Summary
@@ -2055,3 +2072,423 @@ v1.10.0 binary carrying both stages' work.
 - **The new `dblclick` / `eval` state actions** are what made 84/84 coverage
   possible. Write a `tests/i18n-states.json` for every plugin from now on, and
   drive banners through the plugin's OWN stub hook, one reachable state at a time.
+
+
+---
+---
+
+# Stage I (batch I1) — T13: O-Contrabass v1.8.0
+
+**Commit:** `7035029a` — **ONE** path-scoped plugin commit, ten files named
+individually. No `scripts/` commit: the one gate defect found this stage lives
+in the plugin's own `tests/`, so unlike Stages F, G and H there was nothing
+repo-level to land first.
+
+**PARTIAL: 1 of the 9 plugins Stage I covers.** O-Orbit — the other half of
+batch I1 — was excluded from this dispatch, and the seven `O-simple*` plugins of
+batch I2 are untouched. Stage I stays open.
+
+O-Contrabass is the **sixth plugin on canon v2** and the first outside the five
+that already shipped tooltips. `check-i18n --strict-v2` reports **v2 6, v1 0**.
+
+## What was different here: BOTH halves in one release
+
+The five before it were already on canon v1 — French tooltips over English
+labels — and Stages F–H were retrofits. O-Contrabass had the `data-tip` renderer
+(v1.7.0) with its copy authored in the markup and no `i18n.js` at all, so this
+release moves 44 tooltips out of `index.html` AND localizes 52 labels, 6
+accessible names and 2 script-written captions in the same commit. Splitting
+them would have shipped a half-localized plugin twice, which is the state the
+five were being rescued from.
+
+Final shipped counts: **46 I18N entries** (44 moved + `gear-btn` + `lang-select`),
+**57 LABELS keys**, **46 TIP_BINDINGS**, **30 I18N_EXEMPT entries**, **52
+`[data-i18n]` elements**, **6 `data-i18n-aria`**, 103 French strings.
+
+## The plan's numbers, again
+
+Stage G's carried-forward note said to run `i18n-extract.js` and disbelieve the
+plan. It was right again, though this time in BOTH directions.
+
+| The plan said | Live at v1.7.2 |
+|---|---|
+| 44 tips | **44** — correct, the first per-plugin count in this task that was |
+| 61 text | **61** (60 html-text + 1 js-prose) — also correct |
+| **47 attrs** — "second-highest attribute count in the repo" | **3.** Three `aria-label`s, zero `title=`, zero `placeholder`, zero `alt`. The 47 is `44 data-tip-title` + `3 aria-label`, i.e. it counted the tooltip TITLES as localizable attributes. They are, but they are handled by TIP_BINDINGS, not by `data-i18n-aria`. The real attribute-keying job was **3**, not 47. |
+| bridge 34 → **36** | **36**, exactly. The one arithmetic prediction in the plan that held. |
+| "19 render goldens" (`STATUS.md`) | **21**. `reproduce-goldens.sh` has 21 entries; the status line was written before `note-expression` and `mpe-yz` were added. All 21 reproduce byte-identical. |
+
+**The `data-*`-authored two-state caption idiom is ABSENT on this plugin** —
+`grep -on 'data-\(on\|off\|confirm\|label\)='` over `index.html` returns
+nothing. It appeared on all three Stage H plugins and Stage F predicted it would
+recur everywhere; it is house style, not a law. Grepping for it directly still
+cost nothing and is still the right move.
+
+## THE ONE GATE DEFECT, and it certified a silent 404
+
+The plan warned to check this plugin's gates "for a double-quote-only import
+scan BEFORE bumping the bridge count", because that exact shape cost a false
+failure in Stage C. The defect was there. It was not a false failure — it was a
+**false PASS**, which is worse.
+
+`ui_frontend_check.js` §6 is the resource-provider closure check: every local
+file the page references must have a `getResource()` branch, because a missing
+one is a silent 404 and a blank UI. It enumerated **three import SHAPES**:
+
+```js
+/(?:src|href)="(\.\/|)((?:js|css)\/[^"]+)"/          // double-quoted attribute
+/import\(\s*["']\.\/((?:js|css)\/[^"']+)["']\s*\)/   // dynamic import
+/import\s+\*\s+as\s+\w+\s+from\s+["']\.\/…/          // NAMESPACE import
+```
+
+Canon v2's import is `import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from
+'./js/i18n.js';` — a **named** import, a fourth shape, matching none of the
+three. The scan counted 4 references where the page has 5 and reported
+`PASS: all 4 local UI file references have resource-provider entries`.
+
+It now matches any module specifier — named, default, namespace, side-effect or
+dynamic — in either quote style, with a non-vacuity check on the derived set and
+a targeted assertion that `/js/i18n.js` is in it.
+
+**Proven both ways, because a control that passes both ways is decoration.** With
+the v1.7.2 scan restored AND the `getResource()` branch deleted, the gate prints
+`PASS: all 4 local UI file references have resource-provider entries` over a page
+that really would 404. The fix is load-bearing. That is NC-28.
+
+That is **nine wrong-shaped gate assumptions in this task**, and this is the
+second of the nine that passed a rule the code was breaking rather than failing
+one the code was obeying.
+
+## Two English bugs French exposed
+
+The Stage F/H/G pattern held for a fourth stage running.
+
+1. **The header row has had ZERO slack, in English, since the tab strip was
+   added.** `.header-spacer` measures **0 px** in English, and the preset readout
+   authored at `width: 300px` was being flex-shrunk to **250.2** — it had never
+   once rendered at its authored width, and nothing was measuring it. French did
+   not cause that; French made it visible by needing 35.3 px more for
+   PRINCIPAL/ACCORD and taking it out of the readout (−22.9), both nav arrows
+   (−1 each), the whale (−3.6) and the brand line (−16.3). Fixed by pinning the
+   readout at 180 and the tab buttons at 100, which gives the row real slack in
+   both languages. "Cinematic Bass Sustain", the longest factory preset name,
+   measures 135 px inside the 180.
+2. **The Active Strings readout said "4 of 4" on a French page.** It was
+   `FMT.ACTIVE_STRINGS = v => Math.round(v) + " of 4"`. D-03 exempts a number and
+   its UNIT SYMBOL; "of" is a connective word, and no assertion in the suite
+   would have caught it — a `fmt(v)` call is not a string literal, so
+   `check-i18n` assertion 12 is silent about it by construction. It goes through
+   `setLabel(valueEl, "readout.activeStrings", { n: v })` now: the number stays a
+   number, only the connective is localized, and the element joins the sweep.
+   A new §7 assertion scans what is LEFT in `FMT` for connective words so the
+   next one cannot be added without a key.
+
+## Geometry — 21 moved before fixes, ZERO after
+
+Measured at the shipping 1000 × 650 across three driven states.
+
+| Plugin | frame | labels | moved before | after |
+|---|---|---|---|---|
+| O-Tapestop (F) | 860 × 580 | 46 | 26–30 | 0 |
+| O-MultiBandCompressor (H) | 900 × 640 | 77 | 222 | 0 |
+| O-Bitrot (H) | 900 × 740 | 71 | 78 | 0 |
+| O-ReverseDelay (H) | 940 × 768 | 50 | 7 | 0 |
+| O-Octagon (G) | 1100 × 720 | 84 | 4 (12 with states) | 0 |
+| **O-Contrabass (I)** | **1000 × 650** | **52** | **21** | **0** |
+
+Every one of the 21 is the `align-items: center` / shrink-to-fit family Stage H
+named. It was the first thing looked for and it was the answer every time.
+
+| Fix | Measured cause |
+|---|---|
+| `.tab-btn { min-width: 100px }` | MAIN 64.3 → PRINCIPAL 98.2; the strip grew 148.6 → 183.9 and re-dealt a header row with no slack — 9 of the 21 |
+| `.preset-name-display { width: 180px; flex: 0 0 180px }` | was 300, rendering 250.2; see the English bug above |
+| `.preset-save-btn { min-width: 66px }` | SAVE 52.5 → ENREG. 64. It is a `[data-i18n]` element so assertion 7 excludes its own box — it still PUSHED the tab strip and the whole right cluster 9.5 px |
+| `.panel-label > span:first-child { flex: 1 1 auto }` | the caption span was shrink-to-fit on all six numeral panels: Bow +22.1, Body +6.5, Drone +18.2, Strings −4.3, Output −4.3 |
+| `.sec-body .sublabel { min-width: 93px }` | resonator 87.7 → résonateur 92.7 |
+| `.sec-expression .sublabel { min-width: 108px }` | vibrato · bow drift 81.7 → vibrato · dérive d'archet 107.1 |
+| `.strip-field > .strip-field-label { min-width: 98px }` | Tuning System 80.3 → Système d'accord 97.5, sliding the select and the toggle |
+| `.scl-btn { min-width: 98px }` | Load .scl… 81.8 → Charger .scl… 97.5, sliding the Note Expression toggle a further 15.7 |
+
+**Two of these are worth reading twice.**
+
+`.preset-save-btn` is the Stage H "container sized by a keyed child" shape at its
+sharpest: assertion 7 excludes a `[data-i18n]` element by design, so the button
+that caused nine rows of the diff never appeared in it. The diff named the nine
+victims and not the culprit. On a flex row, read the diff as a list of
+CONSEQUENCES and look one step upstream.
+
+`.panel-label > span:first-child` is a shape the earlier stages did not hit.
+Nothing on screen moved — `.panel-label` is `justify-content: space-between`, so
+the caption is pinned left and the sublabel right, and a wider caption just eats
+empty space. The gate flagged it anyway, correctly: the BOX changed. The fix is
+to give the span the remaining space instead of letting it shrink-wrap, which
+makes the box deterministic and changes nothing visible. **Four of the six
+captions got SHORTER in French** (Strings, Output) or stayed the same
+(Expression, Microtonal) — Stage G's "also scan for French getting shorter" note
+held, and a shorter caption flags exactly as loudly as a longer one.
+
+**One French string was SIZED**, recorded at its entry with the measurement:
+`point de fonctionnement de l'archet` (156.3 px) beside a 167.4 px title in a
+314 px panel head **wrapped to two lines and pushed the Schelleng canvas down
+11 px**. Shortened to `point de fonctionnement`. This one should not worry a
+reviewer: the panel is already titled "Diagramme de Schelleng", so "de l'archet"
+was saying twice what the title says once.
+
+Nine of the pins change ENGLISH geometry too. That is the trade D-04 asks for.
+
+## Structural markup changes, and why each was forced
+
+- **Six panel captions split** into a `.panel-title` span beside the Roman
+  numeral, and the drone caption into two spans either side of its authored
+  `<br>`. `applyLabel()` writes `textContent`, which deletes an element child —
+  silently, and in English too, so no language check would ever catch it.
+- **The "?" toggle became a gear + popover.** The gear carries `.help-toggle` as
+  well as `.gear-btn`, so it inherits the 26 px circle, border, hover and lit
+  state and the header silhouette is unchanged. The popover is written in the
+  **preset menu's own dark vocabulary** — the same `#4A3226 → #3E2A20` gradient,
+  the same `rgba(237,217,190,0.3)` rule, the same 4 px radius — not O-Bitrot's
+  paper card. This header band is dark; a paper panel here would read as pasted
+  in from another plugin.
+- **The Tuning tab's load-failure notice** was an `innerHTML` string literal with
+  an inline style. It is `createElement` + `setLabel` now, with its presentation
+  moved to `.tuning-load-error`.
+- **Native `title=`: there were none.** The page had zero at v1.7.2, so
+  contract §4 was already satisfied. Asserted, not assumed.
+
+## The TDZ trap fired here, and Stage G's rule predicted it
+
+Stage G's carried note: *"expect to move the i18n block only where there is no
+`init()`-last discipline"*. O-Contrabass has no `init()` at all — the 25 knob
+bindings, the four fine-tuners, `bindActiveStrings()` and `bindMicrotonal()` all
+run at module top level — so the canon block had to go ABOVE them, and it does.
+
+**Proven, not reasoned.** NC-29 physically relocates the canon block to below the
+bind calls and `boot-all-uis` reports
+`O-Contrabass: Cannot access 'uiLanguage' before initialization`, exactly the
+Stage H failure. `check-ui-labels` and `check-i18n` both stay silent about it.
+`boot-all-uis` remains the only gate that sees this class.
+
+A new §7 assertion pins the ORDER positionally, because that is what the bug is.
+
+## Verification — every gate, individually
+
+| Gate | Result |
+|---|---|
+| `tests/ui_frontend_check.js` | **exit 0**, all checks, 7 sections. Bridge **36 ↔ 36** |
+| `check-i18n.js --plugin O-Contrabass` | **exit 0**, canon **v2**, assertions 10–15 all run |
+| `check-i18n.js --strict-v2` repo-wide | **exit 0** — canon split **v2 6, v1 0** |
+| `check-ui-labels.js --plugin O-Contrabass` | **exit 0** — **52/52** labels measured across **3 states**, **zero** geometry shifts, 6/6 keyed attributes change language, 46/52 (88%) differ en→fr |
+| `check-ui-labels.js` on the other five | **exit 0 each** — nothing shared was touched, and this confirms it |
+| `boot-all-uis.js` | **41/43 clean, unchanged.** O-Contrabass: `title=0 aria=6 i18n=52`. The two failures are O-Bowed and O-Reed, pre-existing and unrelated |
+| `tests/render-harness/reproduce-goldens.sh` | **all 21 goldens byte-identical.** The DSP-FROZEN invariant held; `PluginProcessor.cpp` is in the harness build and was edited |
+| `./scripts/build-and-install.sh O-Contrabass` | clean; VST3 + AU built and installed, AU cache cleared, dual-variant sweep ran |
+| `auval -v aumu OCbs OuDv` | **AU VALIDATION SUCCEEDED** |
+| bundle version | `CFBundleShortVersionString` **1.8.0** — the single `VERSION` declaration reached the artefact |
+| binary embedding | `i18n_jsSize` **43114** == `wc -c` — the retrofit really reached the binary |
+
+`CMakeLists.txt` was checked for a second version declaration before editing, per
+the plan's step 3. There is exactly one (`VERSION 1.7.2` at line 16); the render
+harness does not carry its own copy.
+
+## Negative controls — 29 run, 29 fired
+
+Each mutation was applied to a **byte-exact backup** and restored **FROM THAT
+BACKUP**, never `git checkout --`, which would have wiped the uncommitted
+retrofit alongside it. Every mutation printed its substitution count and the
+harness **refused to run the gate on a zero-count mutation**. Every file was
+sha256-verified after every round.
+
+| Mutation | Assertion that fired |
+|---|---|
+| revert `.tab-btn` min-width | `[7]` geometry diff, 9 moved |
+| revert `.preset-save-btn` min-width | `[7]` geometry diff, 9 moved |
+| revert the panel-caption `flex: 1` pin | `[7]` geometry diff, 5 moved |
+| revert `.strip-field-label` min-width | `[7]` geometry diff, 5 moved |
+| revert `.scl-btn` min-width | `[7]` geometry diff, 3 moved |
+| restore the over-long Schelleng French sublabel | `[7]` geometry diff, 2 moved |
+| an over-long French knob caption | `[4][fr]` text-spill, `label.brightness 159>62` |
+| stub `__setLanguage` to a no-op | `[2]` vacuity, `0/52 labels differ` |
+| clobber `textContent` after `applyLabel` | `[3]` in both languages |
+| remove one `data-i18n` from the markup | `[10]` |
+| reinstate a native `title=` | `[11]` |
+| a ternary inside a `setLabel` argument | `[13]` |
+| a raw prose literal written to `textContent` | `[12]`, with file:line |
+| drift ONE line of the canon block | `[6]` matches NEITHER canon |
+| a LABELS `fr` entry copied from `en` | `[4]` LABELS |
+| strip a LABELS `reviewed` flag | `[5]` LABELS |
+| empty an `I18N_EXEMPT` reason | `[14]` |
+| delete the `getResource()` branch for `/js/i18n.js` | `[8]`, **and** frontend §6 |
+| a dangling `data-i18n` key | `[15]` dangling |
+| an unreferenced LABELS key | `[15]` dead |
+| break a TIP_BINDINGS selector | frontend §7 UNMATCHED |
+| delete the `fr` half of a LABELS key | frontend §7 `fr MISSING` |
+| write the toggle caption as a JS literal | frontend §7 setLabel keys |
+| put a connective word back into `FMT` | frontend §7 D-03 |
+| drop the toggle's markup fallback key | frontend §7 |
+| a native fn call the C++ never registers | frontend §2 bridge parity |
+| **NC-28: the v1.7.2 §6 scan + a deleted provider branch** | **SILENT — the counter-proof.** The old scan prints PASS over a page that would 404 |
+| **NC-29: canon block below the eager bindings** | **`boot-all-uis`: `Cannot access 'uiLanguage' before initialization`**, plus frontend §7 positional |
+
+**A note on which assertion fires.** The over-long-French-caption control fired
+`[4][fr]` text-spill, not `[7]` — `.knob-label` here has a fixed 62 px content
+box, so the text overflows rather than moving a neighbour. On O-Tapestop the same
+control fired `[8]` overlap and on O-Bitrot `[7]`. The three assertions cover
+each other; none of them is the one that always catches it, which is the argument
+for keeping all three.
+
+## English fidelity, checked mechanically
+
+Every `en` entry was extracted from `index.html` by script and **compared back
+byte-for-byte** — 44/44 titles and bodies, 0 drift. Two things that could have
+gone wrong silently and did not:
+
+1. **Seven distinct HTML entities** appear in the tooltip copy
+   (`&mdash; &ndash; &beta; &times; &plusmn; &cent; &minus;`). `getAttribute`
+   decodes them at parse time, so the page has always rendered `β`; a
+   transcription into a JS string literal would not. The extraction decoded them
+   explicitly and **threw on any entity it did not know**, which is how the set
+   above is known to be complete rather than assumed.
+2. `scripts/i18n-extract.js`'s own `decodeEntities` does **not** know `&beta;` —
+   it left the literal `&beta;` in two rows of the generated inventory. That is a
+   defect in the extractor's convenience output, not in anything shipped, and it
+   was caught because the verification decoder threw rather than passing the
+   entity through. It is **left OPEN and reported here** rather than patched: the
+   inventory is a review aid, the fix belongs with whoever next touches
+   `i18n-extract.js`, and a `scripts/` commit for it was out of this dispatch's
+   scope.
+
+**No English wording was changed anywhere.**
+
+## Commit discipline — the sweep that nearly landed, and did
+
+Another session was live in this checkout throughout, holding 13 files under
+`plugins/O-Octagon/` and 5 under `.claude/`. HEAD moved under this work once
+(`3593213d`, O-Orbit v1.1.1) before the commit.
+
+The ten files were named individually, never `git commit -- plugins/O-Contrabass`.
+That was still not enough. **`PLUGINS.md` is a shared file, and the other session
+had an uncommitted row edit in it** (O-Octagon `1.10.0-dev` → `1.10.1-dev`).
+Naming the FILE stages the whole file, so the first commit swept their row in.
+
+Caught by inspecting `git show --stat` and then the actual diff — `PLUGINS.md`
+reported `4 +-` where a one-row edit is `2`. Fixed by amending: `PLUGINS.md` was
+rebuilt from `HEAD~1` plus only the O-Contrabass row, re-staged, `--amend`ed
+(unpushed, HEAD verified unmoved and still mine), and their row edit then written
+back into the working tree so it survives as theirs to commit. Final commit
+`7035029a`; their 22 files verified still dirty and untouched afterwards.
+
+**Carry this forward, because Stage G's lesson was one level short.** Stage G
+concluded "the scope that matters is the FILE SET, not the directory". That is
+necessary and not sufficient. On a file two sessions both edit — and `PLUGINS.md`
+is the one file in this repo that every plugin release touches — **the scope that
+matters is the HUNK**. Read `git show -- PLUGINS.md` after every plugin commit,
+not just the `--stat`.
+
+## Deviations from the plan
+
+**[Rule 1 — Bug] The header row had no slack in English.** Not part of the
+localization; found because the geometry diff named nine victims of it; verifiable
+by measuring `.header-spacer` at 0 px; shipping a preset readout that never
+rendered at its authored width. Fixed inline.
+
+**[Rule 1 — Bug] The Active Strings readout wrote English prose.** Same shape:
+found while reading every `READOUT` row by hand, as the procedure's step 1 asks.
+
+**[Rule 2 — Missing critical functionality] `ui_frontend_check` §6 certified a
+silent 404.** A resource-provider gate that passes a missing provider branch is
+not a cosmetic problem — it is the blank-UI failure the assertion exists to
+prevent, and this commit is the one that would have hit it. Fixed in the plugin's
+own `tests/`, so it lands in the plugin commit rather than a `scripts/` one.
+
+**[Rule 2] Three new §7 assertion groups** were added to the plugin gate: key
+resolution in both languages, TIP_BINDINGS selector liveness, and the canon
+block's POSITION relative to the eager bindings. The third is the only gate in
+the repo that pins the TDZ ordering statically; `boot-all-uis` catches it at
+runtime but only after the fact.
+
+**Scope note, honestly stated:** the plan's T13 lists nine plugins. This dispatch
+was scoped to one, on instruction. That is a dispatch boundary, not a deviation
+from the plan's content.
+
+## NOT VERIFIED — read this before the rest of Stage I
+
+1. **THE C++ LANGUAGE ROUND-TRIP HAS STILL NEVER BEEN RUN.** Checkpoint 4(b) has
+   been outstanding since Stage B and is now outstanding on **six** plugins.
+   Nothing in this stage tested it. The claim that a language choice survives a
+   session reload is REASONED from source — the `uiLanguage` atomic, the root XML
+   attribute in `get/setStateInformation`, and the `getUiLanguage` pull at page
+   init. O-Contrabass uses `xml->setAttribute` / `getStringAttribute` rather than
+   a ValueTree property, which sidesteps
+   `critical_valuetree_xml_roundtrip_loses_type` by construction (an XML
+   attribute is a string by definition, so there is no `isBool()` guard to
+   misfire) — but *sidesteps by construction* is still not *measured*. This
+   remains the single highest-value outstanding check in the task.
+2. **No human has seen the French UI, on any plugin.** All geometry here is
+   headless Chromium at 1000 × 650. Whether `— ARCHET` reads well in this
+   plugin's naturalist-plate hand, or whether `Tendeurs fins` sits right over the
+   tailpiece faders, is Checkpoint 4(a) and Checkpoint 5. `Chute` for Release,
+   `Satur.` for Saturate and `Vib Ampl.` are the three I would challenge first.
+3. **Nothing was tested in a DAW.** It builds, installs and `auval`s; it has not
+   been opened in Logic or Ableton. The four Stage-4 human gates in
+   `plugins/O-Contrabass/.planning/STATUS.md` (Windows pluginval via CI, the
+   Dorico 24-EDO smoke test, the subjective sign-off and the Logic manual checks)
+   were **not attempted and are not affected** — the goldens and `auval` confirm
+   nothing regressed under them.
+4. **The Standalone `.app` is stale.** `build-and-install.sh` builds VST3 + AU
+   only. It was NOT refreshed by this stage.
+5. **The Tuning tab is NOT localized.** It is rendered by the shared
+   `scala-tuning-engine` module (`js/tuning-panel.js`), which O-Wind, O-Bowed,
+   O-Reed and O-Bassoon also consume, so localizing it is a MODULE change and out
+   of a per-plugin commit's scope. Half of this plugin's UI surface is therefore
+   English in both languages. `check-i18n` cannot see it (assertion 10 scans
+   `index.html`) and `check-ui-labels` was not driven into it. This is a scope
+   statement, not an oversight, and it is the largest single gap in the claim
+   "O-Contrabass speaks French".
+6. **`label.tuningLoadFailed` was never RENDERED.** It only appears if the
+   `import('./js/tuning-panel.js')` throws. Driving that would need an `eval`
+   state manufacturing a condition the plugin cannot reach on its own — the
+   Stage G warning about impossible states — so it is verified statically
+   (assertion 15, and frontend §7 resolves it in both languages) and never
+   measured. Its geometry is unknown.
+7. **A single over-long caption in a shrink-to-fit cell is still not gated.** The
+   hole Stage H documented and Stage G hit again is unchanged. It did not bite
+   here — `.knob-label` on this plugin has a fixed content box, so the text-spill
+   check does fire — but that is a property of this page, not a fix.
+8. **All 103 French entries are machine drafts**, every one `reviewed: false`. No
+   native speaker has read any. Repo total is now **618 unreviewed** across six
+   plugins.
+9. **Windows / WebView2 remains a named deferral, blocked on hardware.** Every
+   width in the fix table was measured in Chromium on macOS.
+10. **`i18n-extract.js` does not decode `&beta;`** — see the English-fidelity
+    section. Left OPEN; affects the generated inventory only, nothing shipped.
+11. **The generated inventory artifacts** (`plugins/O-Contrabass/.planning/i18n-*`)
+    are left UNCOMMITTED, as on the five before. They are regenerable.
+
+## Carried into the rest of Stage I
+
+- **O-Orbit is now UNBLOCKED.** It was excluded from this dispatch because
+  another session held `plugins/O-Orbit`; that session landed O-Orbit v1.1.1 as
+  `3593213d` and no O-Orbit file is dirty. Its plan row still warns that
+  `CMakeLists.txt:54-62` serves `Resources/ui/`, **not** `Source/ui/public/` —
+  verify that against the live tree before writing a byte, and re-run
+  `i18n-extract` for its counts.
+- **Read `git show -- PLUGINS.md` after every plugin commit**, not the `--stat`.
+  A one-row edit is 2 changed lines; anything more is another session's row.
+- **The plan's "attrs" column counts tooltip TITLES, not `aria-label`s.** For the
+  seven `O-simple*` plugins its attribute figures (5, 5, 10, 6, 3, 1, 14) are
+  small enough that they are probably genuine `aria-label` counts — but check,
+  the same way, before sizing the work.
+- **On a flex row, read the geometry diff as a list of CONSEQUENCES.** The
+  element that caused nine of the 21 rows never appeared in the diff, because it
+  is a `[data-i18n]` element and assertion 7 excludes those by design.
+- **`.panel-label > span:first-child { flex: 1 1 auto }`** is a reusable answer
+  for the "caption span beside a numeral in a space-between header" shape, which
+  is house style across the naturalist-plate plugins.
+- **French getting SHORTER flags as loudly as French getting longer** — four of
+  six panel captions here. Stage G's note, confirmed on a second plugin.
+- **`boot-all-uis.js` on every plugin.** Still the only gate that sees the TDZ
+  throw, and NC-29 proves it on this plugin specifically.
+- **Write a `tests/i18n-states.json` for every plugin.** Two states — the gear
+  popover open, and the hover-help toggle lit — took measured coverage from 49/52
+  to **52/52** here.
