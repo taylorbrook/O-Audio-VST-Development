@@ -158,6 +158,28 @@ public:
     void setTipsEnabled (bool on) noexcept { tipsEnabled.store (on, std::memory_order_relaxed); }
 
     //==========================================================================
+    // INTERFACE LANGUAGE (v1.4.0) — the WebView UI's own language preference.
+    //
+    // Deliberately NOT an AudioParameterChoice, for exactly the two reasons
+    // tipsEnabled above is not one: it must not appear in a DAW automation lane,
+    // and a concept preset must not be able to change which language somebody
+    // reads their interface in (applyFactoryPreset writes parameters only). It
+    // rides the SAME custom <UI> state child, as a second attribute beside
+    // tipsEnabled — no new state shape is introduced.
+    //
+    // The RUNTIME form is an index; the PERSISTED form is the language CODE, so
+    // a hand-inspected session file says what it means. The editor PULLS it once
+    // at page init; nothing pushes.
+    int  getUiLanguage() const noexcept { return uiLanguage.load (std::memory_order_relaxed); }
+    void setUiLanguage (int i) noexcept { uiLanguage.store (i, std::memory_order_relaxed); }
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
+    //==========================================================================
     // Source loading (Stage 3.1 / FUNC-03). The drag-drop streaming handlers are
     // the C++ side of the WebView bridge — the Stage-3 editor registers JS that
     // CALLS them via withNativeFunction. Single source: Start -> Chunk -> Commit.
@@ -441,11 +463,16 @@ private:
     // the shipped behaviour a fresh instance must reproduce.
     std::atomic<bool> tipsEnabled { true };
 
+    // Interface language (see getUiLanguage above). 0 = en, 1 = fr. English is
+    // the shipped default and the value a pre-1.4.0 session restores to.
+    std::atomic<int> uiLanguage { 0 };
+
     // Custom-state element names for get/setStateInformation.
     static constexpr const char* kSourceStateTag = "SOURCE";
     static constexpr const char* kSourceIdProp   = "identity";
     static constexpr const char* kUiStateTag     = "UI";
     static constexpr const char* kTipsProp       = "tipsEnabled";
+    static constexpr const char* kLanguageProp   = "uiLanguage";
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimpleSamplerAudioProcessor)
 };

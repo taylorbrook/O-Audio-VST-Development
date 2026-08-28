@@ -36,6 +36,118 @@
 import * as Juce from "./juce/index.js";
 import { readFileEntryAsBase64 } from "./modules/webview-drop-streaming.js";
 
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERFACE LANGUAGE (v1.4.0) — canon v2, verbatim from scripts/i18n-canon.js.
+//
+// It sits HERE, directly under the imports and above every other declaration in
+// this module, because `uiLanguage` is a module-level `let`: anything above it
+// that reached applyLabel() would touch it inside its temporal dead zone and
+// throw out of module evaluation, taking the 20 parameter bindings, the four
+// canvases and the keyboard with it (pattern_module_toplevel_init_tdz). This
+// file DOES have eager top-level work below — KNOB_IDS, FORMAT, the formatters
+// — so the ordering is load-bearing here, not merely defensive.
+// `node scripts/boot-all-uis.js` is the ONLY gate in the repo that sees this
+// class of failure.
+//
+// Do NOT edit the region between the import line and the close of initI18n():
+// check-i18n assertion 6 byte-compares it against scripts/i18n-canon.js.
+// ═══════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
 // ── Parameter inventory (must match OSimpleSampler::ParamIDs string IDs) ─────
 const KNOB_IDS = [
   "start", "end", "loopStart", "loopEnd", "loopCrossfade",
@@ -82,96 +194,19 @@ const FORMAT = {
   outputLevel: fmtDb,
 };
 
-// ── Tooltip copy (UI-04) — plain-language, projector-friendly hover copy keyed
-// by data-tip. Shape: key → [title, bodyHtml] (the body is dropped into innerHTML
-// after the title span; the title-attr fallback strips the HTML). Covers all 20
-// controls + the source drop/load affordances + the four viz cells + the seven
-// concept-preset lessons. Teaching tone: what it does, in something you can hear.
-const TIPS = {
-  // ── Source ──────────────────────────────────────────────────────────────────
-  loadSource: ["Load your own",
-    "The plugin starts on its built-in recording — everything else on this panel shapes <em>that</em> sound. Press this to open a file picker and sample any <code>.wav</code>&nbsp;/&nbsp;<code>.aif</code>&nbsp;/&nbsp;<code>.flac</code> instead. Anything longer than 30&nbsp;s is trimmed (you'll see a notice). The same controls then play your sound."],
-  dropZone: ["Drop a sound here",
-    "Drag an audio file straight from your desktop onto this panel to sample it. Try a spoken word, a drum hit, or a field recording — a sampler can play <strong>any</strong> sound across the keyboard. This and the Load&#8230; button are the two ways to change the source."],
-
-  // ── Region ──────────────────────────────────────────────────────────────────
-  start: ["Start",
-    "Where playback begins in the source. Pull it in to skip silence or a soft front edge so a key press lands right on the sound. Drag the gold marker on the waveform too."],
-  end: ["End",
-    "Where playback stops. Pull it in to drop a noisy tail or dead air at the end. Start and End together isolate just the useful part of the recording."],
-  loopStart: ["Loop Start",
-    "The front edge of the repeating section, measured <em>inside</em> the trimmed region. Only matters when Loop&nbsp;Mode is on — it sets where each repeat begins."],
-  loopEnd: ["Loop End",
-    "The back edge of the repeating section. While you hold a key the sound cycles Loop&nbsp;Start&nbsp;&rarr;&nbsp;Loop&nbsp;End forever, so a short sample can sustain indefinitely."],
-  loopCrossfade: ["Loop Crossfade",
-    "Blends the loop's end back into its start so the seam doesn't click. 0&nbsp;ms is a hard splice; longer fades smooth a rough loop into a seamless sustain."],
-  loopMode: ["Loop Mode",
-    "<strong>Off</strong> plays once and stops. <strong>Forward</strong> repeats the loop start&rarr;end. <strong>Ping-Pong</strong> runs it forward then backward — smoother for held pads and textures."],
-  reverse: ["Reverse",
-    "Plays the sample backwards. Pair it with a slow attack for a rising swell, or use it for whooshes and that distinctive 'sucking-in' tail."],
-
-  // ── Pitch ───────────────────────────────────────────────────────────────────
-  rootKey: ["Root Key",
-    "The key where the sample plays at its original recorded pitch. Notes above it play higher, notes below play lower — this is what turns one recording into a whole instrument."],
-  pitchMode: ["Pitch Mode",
-    "The headline A/B. <strong>Repitch</strong> changes speed to change pitch (like speeding up a record — higher is faster). <strong>Stretch</strong> holds the timing and moves pitch on its own."],
-  tune: ["Tune",
-    "Coarse pitch in whole semitones, &plusmn;24. Use it to drop the whole sample into the key of your song without re-loading anything."],
-  fine: ["Fine",
-    "Tiny pitch trim in cents (1/100 of a semitone). Tune a sample exactly in, or detune it a hair to thicken a layered sound."],
-
-  // ── Vintage ─────────────────────────────────────────────────────────────────
-  vintage: ["Vintage",
-    "Old-sampler grit: lowers the sample rate and bit depth to throw away resolution. At&nbsp;0 it's clean; turn it up for crunchy, lo-fi SP-1200 character."],
-
-  // ── Filter ──────────────────────────────────────────────────────────────────
-  filterCutoff: ["Filter Cutoff",
-    "The brightness control. Wide open lets everything through; lower it to roll off the highs and darken the sound. The curve above shows exactly what gets through."],
-  filterResonance: ["Filter Resonance",
-    "Boosts the frequencies right at the cutoff, adding a vocal, whistling peak. Push it for a sharper, more synth-like sweep as you move the cutoff."],
-
-  // ── Amplitude envelope ───────────────────────────────────────────────────────
-  ampAttack: ["Attack",
-    "How long the note takes to fade in after a key press. Short&nbsp;= a sharp hit; long&nbsp;= a slow swell that eases in."],
-  ampDecay: ["Decay",
-    "After the attack peak, how fast the level falls to the sustain level. This shapes the initial 'thump' before the held part of the note."],
-  ampSustain: ["Sustain",
-    "The level the note holds at while you keep the key down. 100% holds full volume; lower it so the sound settles back after its attack."],
-  ampRelease: ["Release",
-    "How long the note takes to fade out after you let go. Short&nbsp;= an abrupt stop; long&nbsp;= a lingering tail that rings on."],
-  velToAmp: ["Velocity &rarr; Amp",
-    "How much your playing strength (velocity) changes loudness. At&nbsp;0 every note is equal; higher makes soft and hard playing far more expressive."],
-
-  // ── Output ──────────────────────────────────────────────────────────────────
-  outputLevel: ["Output Level",
-    "The master volume of the plugin, in decibels. Use it to balance against your other tracks; the bottom of the range (&minus;inf) is silent."],
-
-  // ── Viz cells ────────────────────────────────────────────────────────────────
-  vizWaveform: ["Waveform Editor",
-    "A picture of the loaded sound over time. Drag the gold and red edges to trim the region, the green handles to set the loop, and watch the white playhead track where the sample is being read."],
-  vizFilter: ["Filter Response",
-    "The filter's actual frequency shape. It shows what passes through — falling away past the cutoff, with a peak when resonance is up. This curve <em>is</em> what you hear."],
-  vizAmp: ["Envelope Display",
-    "The Attack&ndash;Decay&ndash;Sustain&ndash;Release volume shape drawn from the four knobs. The moving dot shows where a held note sits on that curve right now."],
-  vizScope: ["Output Scope",
-    "A live oscilloscope of the sound leaving the plugin. Watch the waveform react as you play and as you turn the filter, vintage, and envelope controls."],
-
-  // ── Concept presets (each tells you the lesson it isolates) ───────────────────
-  lessonRawOneShot: ["Raw One-Shot",
-    "Press a key, hear the whole sample once, no loop. The simplest thing a sampler does and the place to start."],
-  lessonTunedKeyboard: ["Tuned Across the Keyboard",
-    "How one recording becomes a playable instrument: set the Root&nbsp;Key and every key plays the sample at its own pitch."],
-  lessonLoopedPad: ["Looped Pad",
-    "A loop with a crossfade turns a short sound into an endless one you can hold — no click at the seam."],
-  lessonReversedSwell: ["Reversed Swell",
-    "Reverse plus a slow attack makes a backwards swell that rises into the downbeat — a classic intro and transition effect."],
-  lessonRepitchStretch: ["Repitch vs Stretch",
-    "The headline A/B. Play the same note in each mode: Repitch changes speed with pitch (tape-style); Stretch keeps the timing and moves pitch on its own."],
-  lessonSp1200: ["SP-1200 Crunch",
-    "Lean on Vintage to hear how an old sampler's low sample rate and bit depth add the gritty, lo-fi character beloved in hip-hop."],
-  lessonFilteredEnv: ["Filtered & Enveloped",
-    "The low-pass filter and the amp envelope together — the two main shaping tools — sculpt a raw sample into a finished, musical note."],
-};
+// ── Tooltip copy ────────────────────────────────────────────────────────────
+// MOVED to js/i18n.js at v1.4.0. Through v1.3.1 the copy lived in a `TIPS`
+// object here and each anchor carried the KEY in its own data-tip attribute.
+// applyI18n now WRITES data-tip (the body) and data-tip-title on every anchor
+// named by TIP_BINDINGS, so the renderer below reads the attributes rather than
+// a table — one code path, and no way for a tip to be stranded in the previous
+// language after the selector fires.
+//
+// The bodies used to carry `<em>` / `<strong>` / `<code>` because the renderer
+// dropped them into innerHTML. The renderer builds the tip with createElement +
+// textContent now, so the tags are gone and the words are unchanged; that
+// tag-free form is the string v1.3.1 already installed as the native `title=`
+// fallback, so nothing a user has read has changed.
 
 // ── Knob geometry ────────────────────────────────────────────────────────────
 const KNOB_MIN_DEG = -135;   // 0.0 normalised
@@ -319,33 +354,62 @@ function bindToggle(id) {
   el.addEventListener("click", () => { st.setValue(!st.getValue()); refresh(); });
 }
 
-// ── Toast ────────────────────────────────────────────────────────────────────
+// ── Toast + source status ────────────────────────────────────────────────────
+// Both were `el.textContent = "some English sentence"` through v1.3.1. They are
+// setLabel() writers now, so each element becomes a [data-i18n] element the
+// moment it is written and the language sweep owns it from then on. A raw
+// string would be stranded in whichever language the drop happened in — and a
+// drop is exactly the kind of event that outlives a language switch, because
+// the toast and the status line both persist on screen.
+//
+// The key is a PLAIN STRING LITERAL at every call site. A `showToast(key)`
+// forwarding wrapper would put a variable in setLabel's key position, which
+// check-i18n assertion 13 rejects: a computed key cannot be checked against the
+// table. So the element lookup and the flash are the two helpers, and the copy
+// is named where it is chosen.
 let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById("toast");
+const toastEl  = () => document.getElementById("toast");
+const statusEl = () => document.getElementById("sourceStatus");
+
+function flashToast() {
+  const t = toastEl();
   if (!t) return;
-  t.textContent = msg;
   t.classList.add("show");
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
-function setSourceStatus(text, truncated) {
-  const el = document.getElementById("sourceStatus");
-  if (!el) return;
-  el.textContent = text || "";
-  el.classList.toggle("truncated", !!truncated);
+function markStatusTruncated(truncated) {
+  const el = statusEl();
+  if (el) el.classList.toggle("truncated", !!truncated);
 }
 
 // ── After a load completes, surface the 30 s truncation notice ──────────────
-async function reportTruncationIfAny(label) {
-  try {
-    const wasTrunc = await Juce.getNativeFunction("wasLastLoadTruncated")();
-    if (wasTrunc) setSourceStatus(`${label} — truncated to 30 s`, true);
-    else setSourceStatus(`${label} loaded`, false);
-  } catch (e) {
-    setSourceStatus(`${label} loaded`, false);
-  }
+// TWO reporters, not one with a name argument. The drop path knows the filename;
+// the picker path never learns it, because the C++ FileChooser is async and
+// nothing reports the chosen file back to the page. v1.3.1 papered over that by
+// passing the English word "Source" as the name, which would have shipped an
+// English word inside a French sentence — and routing that word through the
+// table as a var VALUE instead makes its key invisible to check-i18n
+// assertion 15, which counts a key as referenced only where it is a literal in a
+// setLabel call. Two literal-keyed writers, no indirection.
+async function isLastLoadTruncated() {
+  try { return !!(await Juce.getNativeFunction("wasLastLoadTruncated")()); }
+  catch (e) { return false; }
+}
+
+async function reportLoadedFile(name) {
+  const trunc = await isLastLoadTruncated();
+  if (trunc) setLabel(statusEl(), "label.sourceTruncated", { name: name });
+  else       setLabel(statusEl(), "label.sourceLoaded",    { name: name });
+  markStatusTruncated(trunc);
+}
+
+async function reportPickedSource() {
+  const trunc = await isLastLoadTruncated();
+  if (trunc) setLabel(statusEl(), "label.sourceTruncatedGeneric");
+  else       setLabel(statusEl(), "label.sourceLoadedGeneric");
+  markStatusTruncated(trunc);
 }
 
 // ── Single-source drag-drop (content-streaming, macOS WKWebView-safe) ───────
@@ -359,24 +423,32 @@ function newSessionId() {
 
 async function commitDroppedFile(fileEntry) {
   const sessionId = newSessionId();
-  showToast(`Loading ${fileEntry.name}…`);
+  setLabel(toastEl(), "toast.loading", { name: fileEntry.name });
+  flashToast();
   try {
     const startOk = await Juce.getNativeFunction("dropSampleStart")(sessionId, fileEntry.name);
-    if (!startOk) { showToast("Drop session start failed"); return; }
+    if (!startOk) { setLabel(toastEl(), "toast.dropStartFailed"); flashToast(); return; }
 
     const base64 = await readFileEntryAsBase64(fileEntry);
 
     const chunkOk = await Juce.getNativeFunction("dropSampleChunk")(sessionId, fileEntry.name, base64);
-    if (!chunkOk) { showToast("File transfer failed"); return; }
+    if (!chunkOk) { setLabel(toastEl(), "toast.transferFailed"); flashToast(); return; }
 
     const commitOk = await Juce.getNativeFunction("dropSampleCommit")(sessionId, fileEntry.name, "");
-    if (!commitOk) { showToast("File load failed at commit"); return; }
+    if (!commitOk) { setLabel(toastEl(), "toast.commitFailed"); flashToast(); return; }
 
-    await reportTruncationIfAny(fileEntry.name);
+    await reportLoadedFile(fileEntry.name);
     fetchSourceThumbnail();   // new source published → refresh the waveform editor
   } catch (e) {
     console.error("[O-simpleSampler] drop failed:", e);
-    showToast(`Drop failed: ${e && e.message ? e.message : e}`);
+    // The message is picked BEFORE the call. check-i18n assertion 13 rejects a
+    // conditional anywhere inside a setLabel call, not only in the key position,
+    // and it is right to: a ternary in a localized argument is where inflection
+    // logic creeps back in, and a reviewer cannot tell a message-selection
+    // ternary from a plural one by reading the call.
+    const detail = (e && e.message) ? e.message : String(e);
+    setLabel(toastEl(), "toast.dropFailed", { error: detail });
+    flashToast();
   }
 }
 
@@ -404,8 +476,8 @@ function bindSourceDrop() {
       : null;
     if (!entry) return;
 
-    if (entry.isDirectory) { showToast("Drop a single audio file, not a folder"); return; }
-    if (!audioRe.test(entry.name)) { showToast("Drop a .wav / .aif / .flac file"); return; }
+    if (entry.isDirectory) { setLabel(toastEl(), "toast.dropFolder"); flashToast(); return; }
+    if (!audioRe.test(entry.name)) { setLabel(toastEl(), "toast.dropFileType"); flashToast(); return; }
     await commitDroppedFile(entry);
   });
 }
@@ -419,10 +491,11 @@ function bindLoadButton() {
       await Juce.getNativeFunction("loadSourceFromFileChooser")();
       // The picker is async on the C++ side; report truncation + refresh the
       // waveform after a beat so the decode has a chance to finish. Best-effort.
-      setTimeout(() => { reportTruncationIfAny("Source"); fetchSourceThumbnail(); }, 1200);
+      setTimeout(() => { reportPickedSource(); fetchSourceThumbnail(); }, 1200);
     } catch (e) {
       console.error("[O-simpleSampler] Load… failed:", e);
-      showToast("Load failed");
+      setLabel(toastEl(), "toast.loadFailed");
+      flashToast();
     }
   });
 }
@@ -436,21 +509,30 @@ function bindLoadButton() {
 // live now: clicking resets to defaults + resyncs the UI, proving the round-trip).
 // Use the `Juce` ES-module namespace for getNativeFunction (window.__JUCE__ has no
 // such method — a silent TypeError otherwise eats the call and the button is dead).
-const PRESET_LESSONS = {
-  "Raw One-Shot":
-    "Raw One-Shot — press a key and hear the whole sample once, no loop. The simplest thing a sampler does, and the place to start.",
-  "Tuned Across the Keyboard":
-    "Tuned Across the Keyboard — one recording becomes a playable instrument. Set the Root Key and every key plays the sample at its own pitch.",
-  "Looped Pad":
-    "Looped Pad — a loop with a crossfade turns a short sound into an endless one you can hold, with no click at the seam.",
-  "Reversed Swell":
-    "Reversed Swell — Reverse plus a slow attack makes a backwards swell that rises into the downbeat. A classic intro / transition.",
-  "Repitch vs Stretch A/B":
-    "Repitch vs Stretch — the headline A/B. Repitch changes speed with pitch (tape-style); Stretch keeps the timing and moves pitch independently.",
-  "SP-1200 Crunch":
-    "SP-1200 Crunch — Vintage drops the sample rate and bit depth to add the gritty, lo-fi character of classic hip-hop samplers.",
-  "Filtered & Enveloped":
-    "Filtered & Enveloped — the low-pass filter and the amp envelope together sculpt a raw sample into a finished, musical note.",
+// Through v1.3.1 a PRESET_LESSONS table here held each caption as one English
+// string. Both the caption and the button tooltip are authored table entries in
+// js/i18n.js now: a caption chosen by a click and written as a raw string is
+// stranded in the language it was picked in the instant the selector fires, and
+// it is the one string on this page a user changes deliberately.
+//
+// What is left is a dispatch from the C++ preset name — which is also the
+// button's data-preset, and is never localized — to a WRITER that names its
+// caption key as a plain string literal.
+//
+// `setLabel(cap, KEYS[name] || "label.tourCaption")` reads more naturally and is
+// what this was first written as. check-i18n assertion 13 rejects it twice over,
+// correctly: a computed key cannot be checked against the table, and the `||` is
+// the conditional-inside-a-localized-string shape contract §6 forbids. Seven
+// call sites, seven literals, and assertion 15 can see that all seven keys are
+// live.
+const LESSON_CAPTION_WRITERS = {
+  "Raw One-Shot":              (el) => setLabel(el, "label.captionRawOneShot"),
+  "Tuned Across the Keyboard": (el) => setLabel(el, "label.captionTuned"),
+  "Looped Pad":                (el) => setLabel(el, "label.captionLoopedPad"),
+  "Reversed Swell":            (el) => setLabel(el, "label.captionReversed"),
+  "Repitch vs Stretch A/B":    (el) => setLabel(el, "label.captionRepitchStretch"),
+  "SP-1200 Crunch":            (el) => setLabel(el, "label.captionSp1200"),
+  "Filtered & Enveloped":      (el) => setLabel(el, "label.captionFiltered"),
 };
 
 let applyPresetFn = null;
@@ -460,8 +542,16 @@ async function applyPreset(name) {
     try { await applyPresetFn(name); }
     catch (e) { console.error("[O-simpleSampler] applyFactoryPreset failed:", e); }
   }
+  // setLabel, not textContent: the caption becomes a [data-i18n] element from
+  // this moment on, so the language sweep owns it. An unknown name falls back to
+  // the RESTING caption rather than to the raw preset name, so a C++/JS name
+  // drift shows as the default instruction instead of an untranslated word.
   const cap = document.getElementById("tourCaption");
-  if (cap) cap.textContent = PRESET_LESSONS[name] || name;
+  if (cap) {
+    const write = LESSON_CAPTION_WRITERS[name];
+    if (write) write(cap);
+    else setLabel(cap, "label.tourCaption");
+  }
   document.querySelectorAll(".tour-btn").forEach((b) =>
     b.classList.toggle("active", b.getAttribute("data-preset") === name));
 }
@@ -475,11 +565,18 @@ function setupPresets() {
 }
 
 // ── Tooltips ─────────────────────────────────────────────────────────────────
-// TWO hover surfaces are gated by one flag: the floating rich #tooltip, and the
-// native `title=` fallback the same loop installs. Switching tips off has to
-// strip the title attributes as well — leave them and the OS tooltip still pops
-// up on hover, so the "?" button reads as broken. The authored copy is parked in
-// data-tip-title so it can be restored verbatim when tips come back on.
+// ONE hover surface, not two. Through v1.3.1 this layer ALSO installed a native
+// `title=` on every [data-tip] element as a plain-text fallback, and the "?"
+// toggle had to strip those titles as well or the OS tooltip kept popping up
+// with the explanations switched off. Contract §4 deletes the native title
+// outright: on an element that already has a rich tip it is a second,
+// untranslated OS tooltip competing with the measure-then-pin renderer.
+//
+// Deleting it also deletes the save/restore path the toggle needed. That path
+// parked the authored English in data-tip-title and put it back verbatim when
+// tips came on again — and applyI18n WRITES data-tip-title on every sweep, so a
+// restore of the parked copy would have resurrected English text after a French
+// switch. The bug never shipped because the layer it belonged to is gone.
 let tipsEnabled = true;                 // shipped default; the session state wins at boot
 let hideTooltip = () => {};             // published by setupTooltips (used by the toggle)
 
@@ -487,15 +584,14 @@ function applyTipsEnabled(on) {
   tipsEnabled = !!on;
   if (!tipsEnabled) hideTooltip();
 
-  document.querySelectorAll("[data-tip]").forEach((el) => {
-    const parked = el.getAttribute("data-tip-title");
-    if (!parked) return;
-    if (tipsEnabled) el.setAttribute("title", parked);
-    else el.removeAttribute("title");
-  });
-
-  const btn = document.getElementById("tipsToggle");
-  if (btn) btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+  const btn = document.getElementById("help-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+  // Two calls behind an if/else, never a ternary in the setLabel argument
+  // (check-i18n assertion 13). The face is a [data-i18n] element from here on,
+  // so the language sweep owns whichever of the two is showing.
+  if (tipsEnabled) setLabel(btn, "ui.on");
+  else             setLabel(btn, "ui.off");
 }
 
 function setupTooltips() {
@@ -503,11 +599,27 @@ function setupTooltips() {
   if (!tip) return;
   let active = null;
 
-  const show = (key, x, y) => {
+  // The copy is read from the anchor's OWN attributes, which applyI18n rewrote
+  // in the current language. v1.3.1 looked it up in a TIPS object keyed by the
+  // anchor's data-tip; that table is gone, and with it the second code path
+  // that would have gone stale on a language switch.
+  //
+  // Built with createElement + textContent, not innerHTML. The tip text is now
+  // table-sourced rather than a fixed literal, and localized copy must never
+  // reach a markup path.
+  const show = (el, x, y) => {
     if (!tipsEnabled) return;
-    const entry = TIPS[key];
-    if (!entry) return;
-    tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
+    const title = el.getAttribute("data-tip-title");
+    const body  = el.getAttribute("data-tip");
+    if (!title && !body) return;
+    tip.textContent = "";
+    if (title) {
+      const t = document.createElement("span");
+      t.className = "tip-title";
+      t.textContent = title;
+      tip.appendChild(t);
+    }
+    if (body) tip.appendChild(document.createTextNode(body));
     tip.classList.add("show");
     tip.setAttribute("aria-hidden", "false");
     position(x, y);
@@ -522,43 +634,59 @@ function setupTooltips() {
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
 
-  const plain = (html) => {
-    const d = document.createElement("div");
-    d.innerHTML = html;
-    return (d.textContent || d.innerText || "").replace(/\s+/g, " ").trim();
-  };
+  // DELEGATED on the document rather than attached per element. No anchor
+  // carries data-tip until applyI18n has run, so a querySelectorAll at setup
+  // time would bind nothing at all — the anchors hold data-param / an id / a
+  // data-preset now, and the copy arrives on the first sweep. Delegation has no
+  // ordering to get wrong. pointerover/pointerout and focusin/focusout are used
+  // because — unlike pointerenter/pointerleave and focus/blur — they bubble.
+  const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
 
-  document.querySelectorAll("[data-tip]").forEach((el) => {
-    const key = el.getAttribute("data-tip");
-    const entry = TIPS[key];
-    if (entry && !el.hasAttribute("title")) {
-      const fallback = `${entry[0]} — ${plain(entry[1])}`;
-      el.setAttribute("data-tip-title", fallback);   // parked copy for the toggle
-      el.setAttribute("title", fallback);
-    }
-    el.addEventListener("pointerenter", (e) => {
-      if (!tipsEnabled) return;
-      active = key;
-      show(key, e.clientX, e.clientY);
-    });
-    el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
-    el.addEventListener("pointerleave", hide);
-    el.addEventListener("pointerdown", hide);
+  document.addEventListener("pointerover", (e) => {
+    const el = anchorOf(e.target);
+    if (!el || el === active) return;
+    active = el;
+    show(el, e.clientX, e.clientY);
   });
+  document.addEventListener("pointermove", (e) => {
+    if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerout", (e) => {
+    if (!active) return;
+    // Ignore a move between two descendants of the SAME anchor: pointerout
+    // fires on every child boundary and would flicker the tip off and on.
+    if (anchorOf(e.relatedTarget) === active) return;
+    hide();
+  });
+  document.addEventListener("pointerdown", hide);
+
+  document.addEventListener("focusin", (e) => {
+    const el = anchorOf(e.target);
+    if (!el) return;
+    active = el;
+    const r = el.getBoundingClientRect();
+    show(el, r.left + r.width / 2, r.bottom);
+  });
+  document.addEventListener("focusout", hide);
+
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
 
   hideTooltip = hide;   // the toggle needs to retract a tip that is already open
 }
 
-// ── Tooltip on/off toggle ("?" chip) ─────────────────────────────────────────
-// The flag is NOT an APVTS parameter — it is a UI preference living in a custom
-// <UI tipsEnabled="…"/> child of the saved state tree, alongside <SOURCE>. That
-// keeps the automatable parameter count at 20 and, just as importantly, keeps
-// the seven concept presets from resetting the user's choice every time one is
-// clicked (applyFactoryPreset writes parameters only).
-function setupTipsToggle() {
-  const btn = document.getElementById("tipsToggle");
-  if (!btn) { console.error("Missing tipsToggle element"); return; }
+// ── Hover-help toggle (inside the settings popover) ──────────────────────────
+// The flag is NOT an APVTS parameter — it is a UI preference living in the
+// custom <UI tipsEnabled="…"/> child of the saved state tree, alongside
+// <SOURCE>. That keeps the automatable parameter count at 20 and, just as
+// importantly, keeps the seven concept presets from resetting the user's choice
+// every time one is clicked (applyFactoryPreset writes parameters only).
+//
+// The C++ bridge is unchanged from v1.3.0: getTipsEnabled / setTipsEnabled and
+// the tipsEnabledChanged push. Only the button moved — from a lone "?" chip in
+// the header into the gear panel beside the language selector.
+function setupHelpToggle() {
+  const btn = document.getElementById("help-toggle");
+  if (!btn) { console.error("Missing help-toggle element"); return; }
 
   let setTipsFn = null;
   try { setTipsFn = Juce.getNativeFunction("setTipsEnabled"); }
@@ -585,6 +713,51 @@ function setupTipsToggle() {
   const be = window.__JUCE__ && window.__JUCE__.backend;
   if (be) be.addEventListener("tipsEnabledChanged",
                               (v) => applyTipsEnabled(Array.isArray(v) ? !!v[0] : !!v));
+}
+
+// ── Settings popover (v1.4.0) ────────────────────────────────────────────────
+// The gear panel holding the language selector and the hover-help toggle. All
+// state lives in this closure, so nothing here can join a TDZ chain.
+//
+// Styled in O-simpleSampler's own aged-paper vocabulary in css/styles.css: the
+// panel wears the .group plate the seven rack groups wear, the selector is the
+// .combo the two drop-downs already wear at panel scale, and the lit face is
+// the same --green-mid that .tour-btn.active and the old "?" chip used. It is
+// not a widget pasted in unchanged from another plugin.
+function setupSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("Settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. pointerdown rather than
+  // click, so the panel is gone before a drag on a knob underneath it begins —
+  // the knobs call preventDefault in their own pointerdown handlers.
+  document.addEventListener("pointerdown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
 }
 
 // ── On-screen keyboard (play without external MIDI) ──────────────────────────
@@ -1187,15 +1360,20 @@ function setupVizEvents() {
 }
 
 // ── Repitch-vs-Stretch readout (UI-02) ───────────────────────────────────────
-const PITCH_MODE_TEXT = [
-  "Repitch — pitch & time linked",
-  "Stretch — time held, pitch independent",
-];
+// The two faces were a PITCH_MODE_TEXT array indexed by the choice index. They
+// are two table entries written through setLabel() now, each named by a plain
+// string literal behind an if/else — a `setLabel(el, TEXT[i])` would be a
+// computed key (check-i18n assertion 13) and a ternary in the argument would be
+// the inflection shape contract §6 forbids. The default face is also authored
+// in index.html so the row is never blank without JS.
 function setupPitchModeReadout() {
   const el = document.getElementById("pitchModeReadout");
   const st = comboState["pitchMode"];
   if (!el || !st) return;
-  const refresh = () => { el.textContent = PITCH_MODE_TEXT[st.getChoiceIndex()] || ""; };
+  const refresh = () => {
+    if (st.getChoiceIndex() === 1) setLabel(el, "label.pitchStretch");
+    else                           setLabel(el, "label.pitchRepitch");
+  };
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
   refresh();
@@ -1203,6 +1381,15 @@ function setupPitchModeReadout() {
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
+  // The popover and the language sweep go FIRST, EACH IN ITS OWN try/catch. A
+  // translation-table typo must not be allowed to take the 20 parameter
+  // bindings, the four canvases and the keyboard down with it — that is the
+  // v1.4.0 TDZ failure this repo has already paid for once. Everything the
+  // sweep touches is authored in index.html, so there is nothing to build
+  // first: this page generates no labelled cells at runtime.
+  try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
+
   KNOB_IDS.forEach(bindKnob);
   COMBO_IDS.forEach(bindCombo);
   TOGGLE_IDS.forEach(bindToggle);
@@ -1211,7 +1398,7 @@ function boot() {
   bindLoadButton();
   setupPresets();
   setupTooltips();
-  setupTipsToggle();   // MUST follow setupTooltips — it parks the title copy the toggle restores
+  setupHelpToggle();   // MUST follow setupTooltips — applyTipsEnabled retracts an open tip
   setupKeyboard();
 
   // Phase 3.2 — interactive waveform editor + viz layer.
@@ -1221,10 +1408,13 @@ function boot() {
   fetchSourceThumbnail();
 
   // Seed the source status line. Without a selector in the Source group, nothing
-  // else tells the user what is playing until a load completes — setSourceStatus
-  // only ever fires from a picker/drop. A fresh instance therefore has to read as
-  // "loaded" rather than blank. Any subsequent load overwrites this text.
-  setSourceStatus(`${BUILT_IN_SOURCE_NAME} — built-in source`, false);
+  // else tells the user what is playing until a load completes — the status line
+  // is only written from a picker/drop otherwise. A fresh instance therefore has
+  // to read as "loaded" rather than blank. Any subsequent load overwrites it.
+  // "piano" is the embedded WAV's filename and is exempt (it is also the saved
+  // <SOURCE identity>), so it goes in as a var value, not as a key.
+  setLabel(statusEl(), "label.sourceBuiltIn", { name: BUILT_IN_SOURCE_NAME });
+  markStatusTruncated(false);
 }
 
 if (document.readyState === "loading")

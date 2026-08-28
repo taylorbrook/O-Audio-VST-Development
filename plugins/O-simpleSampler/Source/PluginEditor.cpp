@@ -71,6 +71,13 @@ OSimpleSamplerAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/js/app.js")
         return makeBinaryResource (UIBinaryData::app_js, UIBinaryData::app_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.4.0 — the interface copy table (English + French). Served from the same
+    // provider as app.js, which imports it; a branch missing here is a BLANK page
+    // rather than an English one, because the import fails to resolve and takes
+    // the whole module down with it.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (UIBinaryData::i18n_js, UIBinaryData::i18n_jsSize, "application/javascript; charset=utf-8");
+
     if (url == "/js/juce/index.js")
         return makeBinaryResource (UIBinaryData::index_js, UIBinaryData::index_jsSize, "application/javascript; charset=utf-8");
 
@@ -209,6 +216,33 @@ OSimpleSamplerAudioProcessorEditor::OSimpleSamplerAudioProcessorEditor (OSimpleS
                 lastTipsEnabled = processorRef.getTipsEnabled();
             }
             complete (juce::var (true));
+        })
+        // ── Interface-language pair (v1.4.0) ───────────────────────────────
+        // Plain withNativeFunction, no relay: the language is not a parameter
+        // and must not reach a DAW automation lane. PULLED once by the page at
+        // init; nothing pushes from here or from the 30 Hz Timer, and
+        // applyFactoryPreset sets parameters only, so no preset path can change
+        // it behind the page's back. It rides the SAME custom <UI> state child
+        // that already carries tipsEnabled — this plugin's own idiom for a
+        // preference that must not be automatable.
+        //
+        // The WebView is never hidden in this editor (no setVisible anywhere in
+        // Source/), so these completions always settle
+        // (critical_webview_completion_gated_on_isvisible).
+        .withNativeFunction ("getUiLanguage", [this] (auto&, auto complete) {
+            complete (juce::var (OSimpleSamplerAudioProcessor::languageCode (
+                                     processorRef.getUiLanguage())));
+        })
+        .withNativeFunction ("setUiLanguage", [this] (const juce::Array<juce::var>& args, auto complete) {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.setUiLanguage (
+                    OSimpleSamplerAudioProcessor::languageIndex (args[0].toString()));
+
+            complete (juce::var (OSimpleSamplerAudioProcessor::languageCode (
+                                     processorRef.getUiLanguage())));
         });
 
    #if JUCE_WINDOWS

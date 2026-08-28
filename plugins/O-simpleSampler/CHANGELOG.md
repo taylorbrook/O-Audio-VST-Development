@@ -3,6 +3,152 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] — 2026-08-28
+
+**The page speaks French, not only the hover help.** Every caption, heading,
+button face, hint, toast and tooltip switches with a language selector in a new
+header gear. Readouts stay English (D-03) and so do the Loop Mode / Pitch Mode
+menu entries, which come from the C++ `AudioParameterChoice` and are the host
+automation contract (D-01). No DSP change, no parameter change: the APVTS
+contract stays at **20 parameters** with identical string IDs, ranges and
+defaults, so sessions, presets and automation written by 1.3.x restore unchanged.
+
+109 French entries — 36 tooltips and 73 labels — **all machine-drafted and
+flagged `reviewed: false`**. No native speaker has read them.
+`node scripts/check-i18n.js` prints the worklist.
+
+### Added
+- **A language selector.** English and French, explicit, no locale sniffing. It
+  rides the APVTS state tree as a `uiLanguage` attribute on the SAME custom
+  `<UI>` child that has carried `tipsEnabled` since 1.3.0 — deliberately not an
+  APVTS parameter, for both of the reasons that flag is not one: a preference
+  must not appear in a host automation lane, and `applyFactoryPreset` (which
+  writes parameters only) must not be able to reset which language somebody
+  reads their interface in. Persisted as the CODE (`"en"` / `"fr"`), restored
+  behind an `isVoid()` gate.
+- **`Source/ui/public/js/i18n.js`**, the copy table for both languages, embedded
+  in `O-simpleSampler_UIResources` and served from `getResource()`.
+- **Render-harness probe `language-state-roundtrip`**: both languages survive a
+  save/restore, a fresh instance is English, the value is persisted as the code
+  rather than the runtime int, and a 1.3.x tree — which HAS a `<UI>` child but no
+  `uiLanguage` attribute on it — restores to English. That last case is the one a
+  child-presence check gets wrong: the child is valid and the property is VOID.
+
+### Changed
+- **The "?" chip moved into the gear panel** as a labelled Hover help row, rather
+  than being duplicated. It occupies the same 21px circle in the same header
+  slot, so the header silhouette is unchanged and only the glyph differs. One
+  place for the two settings that decide what the hover help says and whether it
+  says it; a second settings surface beside a gear would be two answers to one
+  question. The C++ bridge (`getTipsEnabled` / `setTipsEnabled` and the
+  `tipsEnabledChanged` push) is untouched.
+- **The native `title=` hover fallback is gone** (canon v2 §4). 1.3.0 installed a
+  plain-text `title=` on all 34 tip anchors and had to strip them when tips went
+  off; on an element that already carries a rich tip it is a second, untranslated
+  OS tooltip competing with the measure-then-pin renderer.
+
+  Deleting it also deleted the save/restore path the toggle needed. That path
+  parked the authored English in `data-tip-title` and put it back verbatim when
+  tips came on again — and `applyI18n` WRITES `data-tip-title` on every sweep, so
+  restoring the parked copy would have resurrected English text after a French
+  switch. The bug never shipped because the layer it belonged to is gone.
+- **Tooltip copy moved out of `js/app.js`'s `TIPS` object into `js/i18n.js`.** The
+  renderer reads the anchor's own `data-tip-title` / `data-tip`, which `applyI18n`
+  rewrites per language — one code path, so no tip can be stranded in the previous
+  language after the selector fires. The 34 markup anchors moved off `data-tip`
+  (which now carries the tip BODY) onto `data-param`, an id, or the `data-preset`
+  the lesson buttons already carried. Listeners are delegated on the document,
+  because no anchor carries `data-tip` until the first sweep has run.
+- **The tip bodies lost their `<em>` / `<strong>` / `<code>` markup.** The renderer
+  builds the tip with `createElement` + `textContent` now, not `innerHTML`. The
+  WORDS are unchanged, and the tag-free form is not new copy: 1.3.0 already
+  installed exactly this string as the native `title=` fallback, so it is a
+  sentence this plugin has been shipping since then.
+- **The lesson caption is the header's own full-width row** instead of a wrapped
+  row inside the preset bar. It always was a full-width row; it was just 100% of
+  the 554px preset bar rather than 100% of the 926px header. At 554px several
+  French lesson captions took a second line where their English counterparts took
+  one (SP-1200: 13.2px against 26.4px). At the header's full width all eight
+  captions are a single line in both languages, so no line has to be reserved —
+  which is what the alternative would have cost 13.2px of English page height for.
+- **The knobs have accessible names.** Each `.knob` carries `data-i18n-aria`
+  naming its parameter, resolved through the label table's fallback to the
+  tooltip TITLE. Through 1.3.1 the knobs had `role="slider"` and `tabindex` but no
+  name at all.
+
+### Fixed
+- **The seven per-group flex declarations in the rack have been dead since the
+  rack was written.** `.rack .group { flex: 1 1 auto }` scores (0,2,0); a bare
+  `.group-source` scores (0,1,0), so the shorthand won on specificity whatever
+  the source order and every group has been sized by its own max-content. That is
+  what made the rack language-dependent: with an `auto` basis, the French
+  drop-zone sentence widened the Source group by 170.8px and the rack folded from
+  two rows into three, growing 194.4px. The seven rules now use the child
+  combinator `.rack > .group-x`, which also scores (0,2,0) and comes later, so
+  the authored bases apply. An explicit basis takes content out of the
+  line-breaking decision entirely.
+
+  This is a visible change to the ENGLISH layout, and the only one in this
+  release: the groups take their authored widths (Vintage 144.7 -> 110, Filter
+  204.5 -> 232, Amp 408.5 -> 424, Region 366.2 -> 403, Pitch 275.5 -> 241.5)
+  rather than the widths their own text happened to produce.
+
+### Geometry (D-04)
+Six pins. Each was measured, and each was reverted ALONE to confirm
+`check-ui-labels` re-breaks without it — a fix that passes both ways is
+decoration.
+
+| Pin | Measured | Negative control |
+|---|---|---|
+| `.title-block` 372px | French subtitle 370.8px against English 246.2 — the block widened 124.6px and pushed the whole preset bar sideways | assertion 7: 3 moved |
+| `.preset-bar-tour` `min-width: 478px` | the seven French chips measure 441.9px against 477.1 — French getting SHORTER moved the fleuron and gear | assertion 7: 2 moved |
+| `.rack > .group-*` child combinator | rack 382.8px -> 577.2px in French, three rows instead of two | assertions 5, 6 and 7: 139 moved |
+| `min-height: 2.2em` on Region + Pitch knob captions | "Note de réf." wraps where "Root Key" does not, taking the Pitch group and everything under it down 10.4px; Region's "Fin boucle" / "Fondu boucle" move their own readouts 10.4px inside a row whose height never changes | assertion 7: 105 moved (Region half alone: 4 moved) |
+| `#toggle-reverse` `min-width: 87px` | "Reverse" 86.1px against "Inverse" 83.8 — the button's right edge and the fleuron pinned to it both move | assertion 7: 3 moved |
+| the caption row move (above) | SP-1200 caption 13.2px against 26.4 at 554px | assertion 7: 145 moved |
+
+The `min-width` pins are `min-width` and not `width` on purpose: on a platform
+whose Garamond metrics run wider, the box grows instead of clipping. That failure
+mode is a geometry difference the gate reports; a cap is what orphaned "Filtered"
+onto a second row at 460px in 1.2.0.
+
+**Frame cost, measured.** The page's scroll extent inside the fixed 980x720
+editor grows from 796px (1.3.1, English) to **835px, identical in both
+languages**. The frame has scrolled since the rack was built and the on-screen
+keyboard was already 60% below the fold; it is now entirely below it, and the
+keyboard is reached by scrolling. 17px of that is the rack basis repair, 10.4px
+the reserved caption line, the rest the header's caption row. The alternative —
+trimming eight French lesson captions to a character budget so they hold their
+English line count — was rejected as copy that any later edit re-breaks.
+
+### Known gaps
+- **Canvas text is not localized.** `drawWaveformEditor` paints "drop or load a
+  source to see its waveform" and the `root C3` marker with `ctx.fillText`. A
+  2D-context string is not a DOM node: neither the canon sweep nor either gate can
+  reach it, and localizing it would need a repaint hook outside the canon block.
+  Both strings are recorded in `I18N_EXEMPT` with that reason rather than left
+  silent. O-Orbit ships FRONT / ELEV and O-MultiBandCompressor its analyzer
+  placeholder the same way; this is the suite's existing position on canvas text,
+  carried into Stage M rather than discovered there.
+- **French is unreviewed.** All 109 entries are machine drafts.
+- **Windows/WebView2 is unverified.** WebView2 font metrics differ from WebKit, so
+  a French label that fits on macOS could clip on Windows. Named deferral, owner
+  none, blocked on hardware.
+
+### Testing
+- `check-i18n --plugin O-simpleSampler`: exit 0, canon v2.
+- `check-i18n --strict-v2`: exit 0 — 9 plugins on canon v2, 0 on canon v1.
+- `check-ui-labels --plugin O-simpleSampler`: ALL PASS across four states
+  (default, gear open, hover help off, a concept preset picked). ZERO non-label
+  elements moved between English and French; vacuity 43/47 labels (91%) and 24/25
+  attributes actually changed language; `dataset.label === textContent` holds
+  after init, after the switch and after a state pass; 48 of 47 `[data-i18n]`
+  elements visible in at least one state.
+- `boot-all-uis`: clean. (O-Bowed and O-Reed fail repo-wide with
+  `Unexpected token 'export'` — pre-existing, unrelated, untouched.)
+- Render harness: ALL PASS, 12 probes, 1.3.1's numbers unchanged.
+- `auval -a` lists `aumu OsSm OuDv`.
+
 ## [1.3.1] — 2026-08-25
 
 ### Fixed
