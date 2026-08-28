@@ -318,6 +318,55 @@ function readInlineModule(indexHtml) {
              code: blocks[0], inline: true };
 }
 
+// ───────────────────────────────────────────── every inline script on the page ──
+// readInlineModule above answers "where does the CANON block live" and returns
+// ONE block. Assertions 12, 13 and 15 ask a different question — "does any
+// shipped JS write raw prose, and is every key both live and resolvable" — and
+// for that the answer is every script the page actually runs.
+//
+// THE HOLE THIS CLOSES. pageModules was assembled as: the inline module IF it
+// was also the canon target, plus the .js files in the ui/js directory. On a
+// plugin that has js/app.js AND an inline controller, moduleSrc resolves to
+// app.js, `moduleSrc.inline` is false, and the inline block is in no directory
+// — so it was scanned by nothing. O-Lyrica is that shape: a 1,647-line inline
+// <script type="module"> holding the tuning controller and a ~350-line classic
+// <script> holding the scale-generator forms, between them writing "Factory",
+// "Custom", "No presets available" and three innerHTML label forms. All of it
+// would have passed assertion 12 green by not being looked at.
+//
+// Same shape as the venue.js gap and the dataset.i18nAria gap before it: the
+// gate reporting a rule as satisfied because its scan could not reach the code.
+// DERIVED FROM THE PAGE, never from whichever single module happened to be the
+// canon target.
+//
+// CLASSIC SCRIPTS ARE INCLUDED HERE and are deliberately NOT included in
+// readInlineModule. The exclusion there is correct and stays: a classic script
+// cannot carry an `import`, so hunting a canon block in one would report a
+// confusing failure. But it can absolutely write prose to textContent, which is
+// all assertions 12/13/15 read. The type filter matches i18n-extract.js's own
+// jsSources loop exactly, so the GATE and the WORKLIST see the same set.
+function readInlineScripts(indexHtml) {
+    if (!fs.existsSync(indexHtml)) return [];
+
+    const html = fs.readFileSync(indexHtml, 'utf8');
+    const { elements } = EXTRACT.scanHtml(html);
+    const out = [];
+
+    for (const el of elements) {
+        if (el.tag !== 'script' || !el.raw) continue;
+        const type = el.attrs.type ? el.attrs.type.value : '';
+        if (type && type !== 'module' && type !== 'text/javascript') continue;
+        if (el.raw.trim().length === 0) continue;
+        out.push({
+            label: `index.html inline <script${type ? ` type="${type}"` : ''}>`,
+            code: el.raw,
+            inline: true,
+        });
+    }
+
+    return out;
+}
+
 // ───────────────────────────────────────────────────────────── discovery ──
 const UI_ROOTS = [
     ['Source', 'ui', 'public'],
@@ -545,8 +594,17 @@ function checkPlugin(p) {
     // verbatim JUCE, not authored page code.
     const jsDir = path.join(path.dirname(p.i18nJs));
     const pageModules = [];
+    // Every inline script the page runs, whether or not one of them is also the
+    // canon target. Deduped by code so a plugin whose controller IS the inline
+    // module is not scanned twice; moduleSrc's label is kept because it is the
+    // one the drift assertions above already name.
+    const inlineScripts = readInlineScripts(p.indexHtml);
     if (moduleSrc !== null && moduleSrc.inline) {
         pageModules.push(moduleSrc);
+    }
+    for (const s of inlineScripts) {
+        if (pageModules.some((m) => m.code === s.code)) continue;
+        pageModules.push(s);
     }
     if (fs.existsSync(jsDir)) {
         for (const f of fs.readdirSync(jsDir).sort()) {
