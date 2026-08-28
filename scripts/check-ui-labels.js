@@ -119,6 +119,38 @@ if (!plugin) {
 // Everything measured in ONE evaluate per language, so nothing can shift
 // between two round trips.
 const PROBE = () => {
+    // ── FREEZE DECLARATIVE ANIMATION BEFORE MEASURING ──────────────────────
+    //
+    // Assertion 7 compares two rect sweeps taken ~180 ms apart, and reads any
+    // difference as "a French string pushed this". An element that is ANIMATING
+    // moves on its own between the two samples, so it reports as a French
+    // geometry failure when nothing about the language moved it at all — the
+    // wall-clock-inside-a-verdict shape, and a different answer every run.
+    //
+    // Found on O-simplePhysicalModelSynth, whose signal-flow diagram carries a
+    // SMIL <animateTransform> circling a pulse around the Karplus-Strong delay
+    // loop at 1.7 s per turn: #loopPulse, #loopPulseSpin and their parent
+    // #stringSkin reported dx=-18.6 dy=-13.3 with the page in a single language.
+    //
+    // Pausing here rather than at page load means it also covers an animation a
+    // state pass starts. pauseAnimations() is idempotent and never resumed, so
+    // every snapshot in the run — both languages, every state — is measured at
+    // the SAME frozen timeline position.
+    //
+    // CSSTransition is deliberately EXCLUDED. The state pass drives every slider
+    // on the page and this repo's knob stems transition their rotation; pausing a
+    // transition mid-flight would freeze a stem at an arbitrary intermediate
+    // angle and invent exactly the phantom diff this block removes.
+    for (const svg of document.querySelectorAll('svg')) {
+        try { svg.pauseAnimations(); } catch (e) { /* not an SVGSVGElement */ }
+    }
+    if (typeof document.getAnimations === 'function') {
+        for (const a of document.getAnimations()) {
+            try { if (a.constructor && a.constructor.name !== 'CSSTransition') a.pause(); }
+            catch (e) { /* already finished */ }
+        }
+    }
+
     const r = (el) => {
         const b = el.getBoundingClientRect();
         return { x: b.x, y: b.y, w: b.width, h: b.height };
