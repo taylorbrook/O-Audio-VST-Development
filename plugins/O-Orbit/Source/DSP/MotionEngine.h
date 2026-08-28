@@ -55,22 +55,26 @@ public:
 private:
     float getEffectiveSpeed() const;
 
+    // Cycles per BEAT (Hz = bpm/60 * mult). A division names the DURATION of one cycle: "1/4"
+    // is one cycle per quarter note, "1 Bar" one cycle per four beats (4/4 assumed — no time
+    // signature is read). v1.1.1: the v1.0 table was 4x slower than its labels and used 4/3 for
+    // triplets (so 1/16D == 1/8T); a triplet is 3/2 the parent's rate, a dotted note 2/3.
     static constexpr float tempoMultipliers[] = {
         0.0f,         // Off
-        4.0f / 3.0f,  // 1/16T
-        1.0f,         // 1/16
-        2.0f / 3.0f,  // 1/16D
-        2.0f / 3.0f,  // 1/8T
-        0.5f,         // 1/8
-        1.0f / 3.0f,  // 1/8D
-        1.0f / 3.0f,  // 1/4T
-        0.25f,        // 1/4
-        1.0f / 6.0f,  // 1/4D
-        0.125f,       // 1/2
-        1.0f / 12.0f, // 1/2D
-        0.0625f,      // 1 Bar
-        0.03125f,     // 2 Bars
-        0.015625f     // 4 Bars
+        6.0f,         // 1/16T
+        4.0f,         // 1/16
+        8.0f / 3.0f,  // 1/16D
+        3.0f,         // 1/8T
+        2.0f,         // 1/8
+        4.0f / 3.0f,  // 1/8D
+        1.5f,         // 1/4T
+        1.0f,         // 1/4
+        2.0f / 3.0f,  // 1/4D
+        0.5f,         // 1/2
+        1.0f / 3.0f,  // 1/2D
+        0.25f,        // 1 Bar
+        0.125f,       // 2 Bars
+        0.0625f       // 4 Bars
     };
 
     double sampleRate = 48000.0;
