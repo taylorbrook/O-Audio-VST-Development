@@ -647,6 +647,61 @@ function applyPatch(src, patch) {
 
 // ── the JS scanner proper ──────────────────────────────────────────────────
 
+// A string is MARKUP when it opens a tag — `<name` followed by whitespace, a
+// slash or the closing bracket. Deliberately narrow: `a < b && c` and the
+// comparison `if (x<y)` are not markup, and neither is a sentence containing a
+// stray angle bracket such as the caption "Vel>Flt".
+function looksLikeMarkup(value) {
+    return /<[A-Za-z][-\w]*(\s|\/|>)/.test(value);
+}
+
+// The visible-text attributes, and the data-* attribute that keys each one.
+// Same table as check-i18n.js assertion 11, and the same rule: `title` has no
+// keyed form because contract section 4 DELETES it rather than localizing it.
+const MARKUP_KEYED_BY = {
+    'aria-label':  'data-i18n-aria',
+    'placeholder': 'data-i18n-placeholder',
+    'alt':         'data-i18n-alt',
+};
+
+// Parse an innerHTML payload and return the pieces of it that are genuinely
+// unkeyed user-visible copy, each with its OFFSET INSIDE THE PAYLOAD so the
+// reported line number lands on the offending line rather than on the opening
+// backtick of a hundred-line template.
+function markupRows(html) {
+    const { elements, texts } = scanHtml(html);
+    const out = [];
+
+    const keyedAncestor = (el) => {
+        let a = el;
+        while (a) { if (a.attrs['data-i18n']) return true; a = a.parent; }
+        return false;
+    };
+
+    for (const t of texts) {
+        const el = t.parent;
+        if (el && (el.tag === 'script' || el.tag === 'style' || el.tag === 'title')) continue;
+        if (el && keyedAncestor(el)) continue;
+        out.push({ offset: t.start, text: t.text, attr: '' });
+    }
+
+    for (const el of elements) {
+        // `.start` on an attribute record is the offset of its VALUE, not of
+        // its name — see the attribute scanner in scanHtml above.
+        if (el.attrs.title)
+            out.push({ offset: el.attrs.title.start,
+                       text: decodeEntities(el.attrs.title.value), attr: 'title' });
+
+        for (const [attr, keyAttr] of Object.entries(MARKUP_KEYED_BY)) {
+            const rec = el.attrs[attr];
+            if (!rec || el.attrs[keyAttr]) continue;
+            out.push({ offset: rec.start, text: decodeEntities(rec.value), attr });
+        }
+    }
+
+    return out;
+}
+
 function scanJsSource(src, taken) {
     const rows = [];
     const code = stripJsComments(src.code);
@@ -707,10 +762,45 @@ function scanJsSource(src, taken) {
 
         const conditional = lits.length > 1 || /\?|\|\||\?\?|&&/.test(stripLiterals(rhs.text));
 
-        for (const l of prose)
-            emit(l.template && /\$\{/.test(l.value) ? 'js-composed' : 'js-prose',
-                 rhsAt + l.start, l.value,
-                 { receiver, conditional });
+        for (const l of prose) {
+            const kind = l.template && /\$\{/.test(l.value) ? 'js-composed' : 'js-prose';
+
+            // ── innerHTML IS MARKUP, AND MARKUP IS NOT COPY ──────────────
+            //
+            // hasProse() asks "does this string contain a run of two letters",
+            // which is the right question for a textContent assignment and the
+            // WRONG one for an innerHTML assignment: `div`, `class`, `span` and
+            // `data-i18n` are all runs of two letters, so a template that
+            // carries no user-visible word at all reported as prose. The gate
+            // was describing a violation of a rule the code was obeying —
+            // `container.innerHTML = '<div class="tk-hint" data-i18n="label.tkHint"></div>'`
+            // has no copy in it whatsoever and was reported as a raw prose
+            // write. It had never fired before because no shipped canon-v2
+            // plugin built markup with innerHTML; O-IntonationPad's tuning panel
+            // is the first, and it builds its whole skeleton that way.
+            //
+            // The fix is NOT to skip anything that looks like a tag — that
+            // would let `el.innerHTML = '<div>Hold 2+ notes</div>'` through,
+            // which IS unkeyed copy. The markup is PARSED, and its text nodes
+            // and visible-text attributes are judged by exactly the rules
+            // assertions 10 and 11 already apply to index.html: a text node
+            // inside a [data-i18n] element is keyed and is not reported, one
+            // outside it is; an aria-label / placeholder / alt is keyed when its
+            // data-i18n-* twin sits on the same element; and a native title= is
+            // ALWAYS reported, because contract section 4 deletes it and
+            // assertion 11 only ever looked in index.html so an injected one was
+            // invisible to every gate in the repo.
+            //
+            // Strictly stronger than what it replaces, not weaker.
+            if (m[1] === 'innerHTML' && looksLikeMarkup(l.value)) {
+                for (const r of markupRows(l.value))
+                    emit(kind, rhsAt + l.start + r.offset, r.text,
+                         { receiver, conditional, attr: r.attr });
+                continue;
+            }
+
+            emit(kind, rhsAt + l.start, l.value, { receiver, conditional });
+        }
     }
 
     // ── setAttribute on one of the four visible-text attributes ─────────
@@ -1077,5 +1167,6 @@ if (require.main === module) {
 
 module.exports = {
     scanHtml, stripJsComments, classify, residue, suggestKey, extractPlugin,
+    looksLikeMarkup, markupRows,
     decodeEntities, extractJsRows, readSetLabelCalls, readExpression, collectLiterals,
 };
