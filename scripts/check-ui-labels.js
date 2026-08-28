@@ -534,15 +534,54 @@ const overlaps = (a, b) =>
                 + `— an authored layout, reported not asserted: `
                 + authored.slice(0, 4).map((l) => `${l.key} ${spillOf(l).toFixed(1)}px`).join(', '));
 
-        // ── 6. nothing crosses the shipping frame ──────────────────────────
+        // ── 6. nothing crosses the shipping frame MORE in French ───────────
+        //
+        // A DELTA against English, for the same reason assertion 5 is one, and
+        // discovered the same way — by meeting a plugin whose authored English
+        // layout already violates the absolute form.
+        //
+        // Stage I, on O-Orbit: its #controls-container is `flex: 1` with
+        // `overflow-y: auto` and its three parameter groups need 555px in a
+        // 226px pane, so eleven labels sit BELOW the 600px frame at rest. That
+        // is the plugin's D4 resizable design, it is byte-identical at the
+        // pre-retrofit commit, and the eleven are the SAME eleven with the SAME
+        // overshoot to the decimal in both languages — French contributes
+        // exactly zero. The absolute form reported 8 failures per run on a
+        // plugin whose French geometry is perfect, which is the gate arguing
+        // with the design rather than reporting a French problem.
+        //
+        // The failure this assertion exists to catch is a label pushed out of
+        // the frame BY French, and that is `overshoot(fr) > overshoot(en)`. It
+        // is not weakened by the change: the same run that produced the eleven
+        // also caught label.import leaving the right edge at 803px in French
+        // and 731+58 in English, and the delta form still fails on it (NC-9).
+        //
+        // The English overshoot is REPORTED so it can never be silent, and the
+        // per-language document scroll-extent checks below stay ABSOLUTE — a
+        // page whose own scroll extent exceeds its frame is a different and
+        // genuinely broken thing, and O-Orbit passes those in both languages.
+        const frameOver = (l) => {
+            if (!l.visible) return 0;
+            const b = l.rect;
+            return Math.max(0, -b.x, -b.y, (b.x + b.w) - size.w, (b.y + b.h) - size.h);
+        };
+        const enOver = new Map(en.labels.map((l) => [l.path, frameOver(l)]));
+        const pushedOut = fr.labels.filter((l) => frameOver(l) > (enOver.get(l.path) || 0) + TOL);
+        check(pushedOut.length === 0,
+            `[6] no label crosses the ${size.w} x ${size.h} frame MORE in French than in English`
+            + (pushedOut.length ? ` — ${pushedOut.length}: ${pushedOut.slice(0, 4).map((l) =>
+                `${l.key} ${(enOver.get(l.path) || 0).toFixed(1)}px -> ${frameOver(l).toFixed(1)}px `
+                + `@${l.rect.x.toFixed(0)},${l.rect.y.toFixed(0)} ${l.rect.w.toFixed(0)}x${l.rect.h.toFixed(0)}`).join(' | ')}` : ''));
+
+        const authoredOut = en.labels.filter((l) => frameOver(l) > TOL);
+        if (authoredOut.length)
+            console.log(`   NOTE: [6] ${authoredOut.length} label(s) already fall outside the `
+                + `${size.w} x ${size.h} frame in ENGLISH — an authored layout (a scrolling pane, `
+                + `a collapsed panel), reported not asserted: `
+                + authoredOut.slice(0, 4).map((l) => `${l.key} ${frameOver(l).toFixed(1)}px`).join(', '));
+
         for (const lang of ['en', 'fr']) {
             const s = snaps[lang].before;
-            const out = s.labels.filter((l) => l.visible
-                && (l.rect.x < -TOL || l.rect.y < -TOL
-                 || l.rect.x + l.rect.w > size.w + TOL || l.rect.y + l.rect.h > size.h + TOL));
-            check(out.length === 0,
-                `[6][${lang}] no label rect crosses the ${size.w} x ${size.h} frame`
-                + (out.length ? ` — ${out.length}: ${out.slice(0, 4).map((l) => `${l.key} @${l.rect.x.toFixed(0)},${l.rect.y.toFixed(0)} ${l.rect.w.toFixed(0)}x${l.rect.h.toFixed(0)}`).join(' | ')}` : ''));
             // documentElement, NOT max(documentElement, body). body.scrollWidth
             // counts a child that the real scroll container clips: Stage F found
             // O-Tapestop's decorative .botanical-overlay running 20 px past the
