@@ -149,7 +149,7 @@ const KNOB_IDS = [
   "grainSize", "density", "position", "scan",
   "pitchSpray", "positionSpray", "scatter", "grainPitch", "panSpray", "velToDensity",
   "ampAttack", "ampDecay", "ampSustain", "ampRelease",
-  "outputLevel",
+  "outputLevel", "windowTaper",
 ];
 const COMBO_IDS = ["sourceSample", "windowShape"];
 const TOGGLE_IDS = ["freeze", "adsrEnabled"];
@@ -161,6 +161,7 @@ const fmtPct01 = (v) => `${Math.round(v * 100)}%`;    // value 0..1
 const fmtSt = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)} st`;
 const FORMAT = {
   grainSize: (v) => `${Math.round(v)} ms`,
+  windowTaper: fmtPct,
   density: (v) => `${Math.round(v)}/s`,
   position: fmtPct,
   scan: (v) => `${v >= 0 ? "+" : ""}${Math.round(v)}%`,
@@ -835,21 +836,37 @@ function setupVizEvents() {
 }
 
 // ── UI-03: window-envelope inset (recomputed in JS, redrawn on change only) ──
-// The 5 closed-form windows match the DSP LUTs (WindowLuts.h: 0=rect, 1=tri,
-// 2=Welch, 3=Gauss σ≈0.18, 4=Hann). Drawn for one grain's envelope; recomputed
-// only when the windowShape combo changes (+ once at boot) — NOT per frame
-// (Pitfall 4). No C++ change (Open Q2 default = JS recompute).
-// CONTRACT (IN-05): these formulas + GAUSS_SIGMA re-implement WindowLuts.h's
-// build() — any change THERE must be mirrored HERE (and vice versa).
+// The closed-form windows match the DSP LUTs (WindowLuts.h: 0=rect, 1=tri,
+// 2=Welch, 3=Gauss σ≈0.18, 4=Hann, 5=Tukey). Drawn for one grain's envelope;
+// recomputed only when windowShape / windowTaper / grainSize change (+ once at
+// boot) — NOT per frame (Pitfall 4). No C++ change (Open Q2 default = JS recompute).
+// CONTRACT (IN-05): these formulas + GAUSS_SIGMA + RECT_GUARD_MS + taperEndFor()
+// re-implement WindowLuts.h — any change THERE must be mirrored HERE (and vice versa).
 const GAUSS_SIGMA = 0.18;
-function windowValue(shape, phi) {
+const RECT_GUARD_MS = 1.0;      // WindowLuts::kRectGuardMs
+const SHAPE_RECT = 0, SHAPE_TUKEY = 5;
+const HANN = (x) => 0.5 * (1.0 - Math.cos(2 * Math.PI * x));
+// Mirrors WindowLuts::taperEndFor(): phase-unit taper end for rect (fixed 1 ms
+// guard) and Tukey (α/2, floored at the guard). Needs the grain length in ms
+// because the guard is a TIME, not a phase fraction.
+function taperEndFor(shape, alpha, grainMs) {
+  const guard = RECT_GUARD_MS / Math.max(RECT_GUARD_MS, grainMs);
+  let te = guard;
+  if (shape === SHAPE_TUKEY) te = Math.max(guard, 0.5 * Math.min(1, Math.max(0, alpha)));
+  return Math.min(0.5, Math.max(1e-4, te));
+}
+function windowValue(shape, phi, taperEnd) {
   switch (shape) {
-    case 0: return 1.0;                                   // rectangular
+    case 0:                                               // rectangular (guard-faded)
+    case 5: {                                             // Tukey — one remap into Hann
+      const u = Math.min(phi, 1 - phi);
+      return HANN(Math.min(u / Math.max(1e-4, taperEnd), 1) * 0.5);
+    }
     case 1: return 1.0 - Math.abs(2 * phi - 1);           // triangular
     case 2: { const u = 2 * phi - 1; return 1.0 - u * u; }// Welch
     case 3: { const d = (phi - 0.5) / GAUSS_SIGMA; return Math.exp(-0.5 * d * d); } // Gaussian (centre=1)
-    case 4: return 0.5 * (1.0 - Math.cos(2 * Math.PI * phi));   // Hann
-    default: return 0.5 * (1.0 - Math.cos(2 * Math.PI * phi));
+    case 4: return HANN(phi);                             // Hann
+    default: return HANN(phi);
   }
 }
 
@@ -862,6 +879,13 @@ function drawWindowInset() {
 
   const st = comboState.windowShape;
   const shape = st ? st.getChoiceIndex() : 4;   // default Hann
+  const alpha = sliderState.windowTaper ? sliderState.windowTaper.getScaledValue() * 0.01 : 0.5;
+  const grainMs = sliderState.grainSize ? sliderState.grainSize.getScaledValue() : 30;
+  const taperEnd = taperEndFor(shape, alpha, grainMs);
+
+  // Taper knob only means something for Tukey — dim + lock it otherwise.
+  const taperCell = document.getElementById("taper-cell");
+  if (taperCell) taperCell.classList.toggle("taper-inactive", shape !== SHAPE_TUKEY);
 
   // baseline
   ctx.strokeStyle = "rgba(139,115,85,0.30)";
@@ -869,14 +893,14 @@ function drawWindowInset() {
   ctx.beginPath(); ctx.moveTo(0, h - 1.5); ctx.lineTo(w, h - 1.5); ctx.stroke();
 
   // envelope curve
-  const N = 128;
+  const N = 256;   // enough x-resolution for a 1 ms guard on a 500 ms grain
   ctx.strokeStyle = "#6B8E4E";
   ctx.lineWidth = 1.6;
   ctx.lineJoin = "round";
   ctx.beginPath();
   for (let i = 0; i < N; i++) {
     const phi = i / (N - 1);
-    const v = Math.max(0, Math.min(1, windowValue(shape, phi)));
+    const v = Math.max(0, Math.min(1, windowValue(shape, phi, taperEnd)));
     const x = phi * w;
     const y = (h - 2) - v * (h - 4);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -1277,11 +1301,15 @@ function boot() {
   fetchSourceThumbnail();
   drawWindowInset();
 
-  // The window inset is recomputed only on a windowShape change (Pitfall 4).
-  // The overlap/CPU readout floor is refreshed alongside (grainSize/density may
-  // have changed). The grain count itself is driven by grainMeterUpdate.
+  // The window inset is recomputed only on a windowShape / windowTaper /
+  // grainSize change (Pitfall 4) — grainSize because the rect guard is a fixed
+  // 1 ms, so its phase footprint depends on the grain length.
   if (comboState.windowShape)
     comboState.windowShape.valueChangedEvent.addListener(drawWindowInset);
+  if (sliderState.windowTaper)
+    sliderState.windowTaper.valueChangedEvent.addListener(drawWindowInset);
+  if (sliderState.grainSize)
+    sliderState.grainSize.valueChangedEvent.addListener(drawWindowInset);
 
   // Keep the Overlap readout honest when grainSize/density move (no extra tap —
   // recompute from the live slider states; count stays from the last meter push).

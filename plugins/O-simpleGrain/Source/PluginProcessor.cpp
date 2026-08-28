@@ -70,11 +70,13 @@ OSimpleGrainAudioProcessor::createParameterLayout()
         juce::StringArray { "fire", "voice", "water", "piano" }, 0));
 
     //--- Grain -------------------------------------------------------------
-    // Grain size 2–200 ms; skew ~0.4 biases control toward the fine low end
-    // (the buzz↔fragments axis lives down there).
+    // Grain size 2–500 ms (v1.4.0: ceiling raised from 200). Skew 0.35 keeps
+    // the fine low end (the buzz↔fragments axis lives down there) — the knob's
+    // midpoint sits near 70 ms. Stored denormalised (ms), so pre-1.4.0 sessions
+    // restore unchanged.
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { grainSize, 1 }, "Grain Size",
-        juce::NormalisableRange<float> { 2.0f, 200.0f, 0.01f, 0.4f }, 30.0f,
+        juce::NormalisableRange<float> { 2.0f, 500.0f, 0.01f, 0.35f }, 30.0f,
         juce::AudioParameterFloatAttributes().withLabel ("ms")));
 
     // Density 1–200 grains/s, logarithmic feel. setSkewForCentre(20) puts the
@@ -104,11 +106,20 @@ OSimpleGrainAudioProcessor::createParameterLayout()
         juce::ParameterID { freeze, 1 }, "Freeze", false));
 
     //--- Window Shape ------------------------------------------------------
-    // Per-grain amplitude envelope. Default Hann = index 4. Rectangular
-    // intentionally clicks (teaching artifact, not a bug).
+    // Per-grain amplitude envelope. Default Hann = index 4. Tukey (index 5,
+    // v1.4.0) appended LAST so stored indices 0–4 keep their meaning.
+    // Rectangular carries a fixed 1 ms guard fade at each edge since v1.4.0
+    // (WindowLuts::kRectGuardMs) — the hard step used to click.
     params.push_back (std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { windowShape, 1 }, "Window",
-        juce::StringArray { "Rectangular", "Triangular", "Welch", "Gaussian", "Hann" }, 4));
+        juce::StringArray { "Rectangular", "Triangular", "Welch", "Gaussian", "Hann", "Tukey" }, 4));
+
+    // Tukey taper α, 0–100 % of the grain spent fading (half at each edge).
+    // 0 % = rectangular (guard-faded), 100 % = Hann. Only read when Window = Tukey.
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { windowTaper, 1 }, "Taper",
+        juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
 
     //--- Spray & Scatter ---------------------------------------------------
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
@@ -189,6 +200,7 @@ OSimpleGrainAudioProcessor::OSimpleGrainAudioProcessor()
     scanParam          = apvts.getRawParameterValue (scan);
     freezeParam        = apvts.getRawParameterValue (freeze);
     windowShapeParam   = apvts.getRawParameterValue (windowShape);
+    windowTaperParam   = apvts.getRawParameterValue (windowTaper);
     pitchSprayParam    = apvts.getRawParameterValue (pitchSpray);
     positionSprayParam = apvts.getRawParameterValue (positionSpray);
     scatterParam       = apvts.getRawParameterValue (scatter);
@@ -820,6 +832,7 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     p.grainSizeMs    = grainSizeParam->load();
     p.density        = densityParam->load();
     p.windowShape    = (int) windowShapeParam->load();
+    p.windowTaper    = windowTaperParam->load() * 0.01f;      // 0..100 % → α 0..1
     p.grainPitch     = grainPitchParam->load();
     p.positionSpray  = positionSprayParam->load();
     p.pitchSpray     = pitchSprayParam->load();
@@ -984,10 +997,10 @@ void OSimpleGrainAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 // back to the page (no DOM poking). Mirrors O-simpleAdditive::applyFactoryPreset.
 //
 // Stored-range reminders (parameter-spec.md): position / *Spray / scatter /
-// velToDensity are 0–100; grainSize 2–200 ms; density 1–200 g/s; scan ±200 %;
+// velToDensity are 0–100; grainSize 2–500 ms; density 1–200 g/s; scan ±200 %;
 // grainPitch ±24 st; pitchSpray 0–12 st; ampSustain stored 0–1 (NOT %);
 // ADSR times in seconds. Choice indices — sourceSample: 0=fire 1=voice 2=water
-// 3=piano; windowShape: 0=Rect 1=Tri 2=Welch 3=Gauss 4=Hann.
+// 3=piano; windowShape: 0=Rect 1=Tri 2=Welch 3=Gauss 4=Hann 5=Tukey.
 void OSimpleGrainAudioProcessor::applyFactoryPreset (const juce::String& name)
 {
     using namespace OSimpleGrain::ParamIDs;

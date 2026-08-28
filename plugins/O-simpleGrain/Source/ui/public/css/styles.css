@@ -909,19 +909,20 @@ body {
    here since the wrap is the positioned container. */
 
 /* ── Window-envelope inset — tucked in the source-waveform cell's corner ──── */
+/* v1.4.0: lives in the Window group beside the Shape combo (was absolutely
+   positioned in the waveform corner). Sized to the group's knob row so the
+   combo, envelope and Taper knob read as one line. Scoped rules only — the
+   .knob / .knob-cell sizes are shared by every panel. */
 .window-inset {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  width: 88px;
+  position: relative;
+  width: 96px;
   height: 56px;
+  margin-top: 2px;
   background: rgba(26, 20, 13, 0.82);
   border: 1px solid var(--brown-border);
   border-radius: 3px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  z-index: 3;
   overflow: hidden;
-  pointer-events: none;
 }
 /* Inset canvas stretches to its wrapper via explicit calc() sizing (replaced
    element gotcha — never use right/bottom to stretch a <canvas>). */
@@ -943,6 +944,15 @@ body {
   color: rgba(210, 190, 150, 0.85);
   pointer-events: none;
 }
+/* Row budget (measured 2026-08-28): inner width 270px = combo 104 + inset 84 +
+   Taper cell 56 + 2 × 12 gap = 268. The shared select.combo min-width is 132px,
+   which wrapped the knob onto a second row — the override is scoped here only. */
+.group-window .knob-row { gap: 12px; flex-wrap: nowrap; align-items: flex-start; }
+.group-window select.combo { min-width: 104px; width: 104px; }
+.group-window .window-inset { width: 84px; }
+/* Taper only shapes the Tukey window — dim + lock it for every other shape
+   (same treatment as the ADSR knobs under env-bypassed). */
+.knob-cell.taper-inactive { opacity: 0.38; pointer-events: none; transition: opacity 0.2s ease; }
 
 /* ── Grain / overlap / CPU readout (below the grid) ───────────────────────── */
 .grain-readout {

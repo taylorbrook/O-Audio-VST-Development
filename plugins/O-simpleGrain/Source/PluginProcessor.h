@@ -61,14 +61,15 @@ namespace OSimpleGrain::ParamIDs
     inline constexpr auto sourceSample   = "sourceSample";   // choice: fire/voice/water/piano
 
     // Grain
-    inline constexpr auto grainSize      = "grainSize";      // 2–200 ms
+    inline constexpr auto grainSize      = "grainSize";      // 2–500 ms (v1.4.0: was 2–200)
     inline constexpr auto density        = "density";        // 1–200 grains/s (log skew)
     inline constexpr auto position       = "position";       // 0–100 %
     inline constexpr auto scan           = "scan";           // −200–+200 % (bipolar)
     inline constexpr auto freeze         = "freeze";         // bool
 
     // Window
-    inline constexpr auto windowShape    = "windowShape";    // choice: rect/tri/Welch/Gauss/Hann
+    inline constexpr auto windowShape    = "windowShape";    // choice: rect/tri/Welch/Gauss/Hann/Tukey
+    inline constexpr auto windowTaper    = "windowTaper";    // 0–100 % — Tukey taper (α), v1.4.0
 
     // Spray & Scatter
     inline constexpr auto pitchSpray     = "pitchSpray";     // 0–12 st
@@ -474,6 +475,7 @@ private:
     std::atomic<float>* scanParam          = nullptr;
     std::atomic<float>* freezeParam        = nullptr;
     std::atomic<float>* windowShapeParam   = nullptr;
+    std::atomic<float>* windowTaperParam   = nullptr;
     std::atomic<float>* pitchSprayParam    = nullptr;
     std::atomic<float>* positionSprayParam = nullptr;
     std::atomic<float>* scatterParam       = nullptr;

@@ -152,9 +152,9 @@ export const I18N = Object.freeze({
     // ── Grain ───────────────────────────────────────────────────────────────
     grainSize: {
         en: { t: "Grain Size",
-              b: "How long each slice is, 2–200\u00a0ms. This is the buzz\u00a0↔\u00a0fragments axis: very short grains (a few\u00a0ms) lose the source and turn to tone; long grains (>60\u00a0ms) keep recognisable chunks. With Density it sets how deeply grains overlap (overlap = size\u00a0×\u00a0density)." },
+              b: "How long each slice is, 2–500\u00a0ms. This is the buzz\u00a0↔\u00a0fragments axis: very short grains (a few\u00a0ms) lose the source and turn to tone; long grains (>60\u00a0ms) keep recognisable chunks. With Density it sets how deeply grains overlap (overlap = size\u00a0×\u00a0density)." },
         fr: { t: "Taille du grain",
-              b: "Durée de chaque tranche, 2–200\u00a0ms. C'est l'axe bourdonnement\u00a0↔\u00a0fragments : les grains très courts (quelques\u00a0ms) perdent la source et deviennent un timbre ; les grains longs (>60\u00a0ms) gardent des morceaux reconnaissables. Avec la densité, cela fixe la profondeur du recouvrement des grains (recouvrement = taille\u00a0×\u00a0densité).",
+              b: "Durée de chaque tranche, 2–500\u00a0ms. C'est l'axe bourdonnement\u00a0↔\u00a0fragments : les grains très courts (quelques\u00a0ms) perdent la source et deviennent un timbre ; les grains longs (>60\u00a0ms) gardent des morceaux reconnaissables. Avec la densité, cela fixe la profondeur du recouvrement des grains (recouvrement = taille\u00a0×\u00a0densité).",
               reviewed: false },
     },
     density: {
@@ -189,9 +189,16 @@ export const I18N = Object.freeze({
     // ── Window ──────────────────────────────────────────────────────────────
     windowShape: {
         en: { t: "Window Shape",
-              b: "The fade envelope on each grain. Hann/Gauss fade in and out smoothly so overlapping grains crossfade cleanly. Rectangular has no fade — every grain edge is a hard step, which clicks. Try Rect to hear why windows exist (it's a lesson, not a bug)." },
+              b: "The fade envelope on each grain. Hann/Gauss fade in and out smoothly so overlapping grains crossfade cleanly. Rectangular is flat with only a 1\u00a0ms guard at each edge — hard-edged and buzzy, the rough end of the lesson. Tukey sits in between: a flat top with a Hann-shaped fade whose length is set by Taper." },
         fr: { t: "Forme de fenêtre",
-              b: "L'enveloppe de fondu appliquée à chaque grain. Hann/Gauss entrent et sortent en douceur, si bien que les grains superposés se fondent proprement. Rectangular n'a aucun fondu — chaque bord de grain est une marche brutale, qui claque. Essayez Rect pour entendre pourquoi les fenêtres existent (c'est une leçon, pas un défaut).",
+              b: "L'enveloppe de fondu appliquée à chaque grain. Hann/Gauss entrent et sortent en douceur, si bien que les grains superposés se fondent proprement. Rectangular est plate avec seulement 1\u00a0ms de garde à chaque bord — dure et bourdonnante, l'extrémité rugueuse de la leçon. Tukey se situe entre les deux : un sommet plat avec un fondu en forme de Hann dont la longueur est réglée par Taper.",
+              reviewed: false },
+    },
+    windowTaper: {
+        en: { t: "Taper",
+              b: "Tukey only: how much of each grain is spent fading, 0–100\u00a0%, split between the two edges. 0\u00a0% is the flat rectangular window (guard-faded); 100\u00a0% is a full Hann. In between you keep a flat, loud middle and buy just enough fade to stop the edges clicking." },
+        fr: { t: "Fondu",
+              b: "Tukey uniquement : la part de chaque grain passée en fondu, 0–100\u00a0%, répartie entre les deux bords. 0\u00a0% est la fenêtre rectangulaire plate (avec garde) ; 100\u00a0% est un Hann complet. Entre les deux, on garde un milieu plat et fort et on achète juste assez de fondu pour que les bords cessent de claquer.",
               reviewed: false },
     },
 
@@ -374,9 +381,9 @@ export const I18N = Object.freeze({
     },
     lessonRectClick: {
         en: { t: "Rect Click",
-              b: "The intentional artifact: a rectangular window has no fade, so every grain edge clicks. Sparse grains let each click stand alone — this is why windows matter." },
+              b: "The rough end of the lesson: a rectangular window is flat with only a 1\u00a0ms guard at each edge, so every grain starts and stops abruptly. Sparse grains let each hard edge stand alone — compare with Hann to hear why windows matter." },
         fr: { t: "Clic rectangulaire",
-              b: "L'artefact volontaire : une fenêtre rectangulaire n'a aucun fondu, donc chaque bord de grain claque. Des grains clairsemés laissent chaque clic isolé — voilà pourquoi les fenêtres comptent.",
+              b: "L'extrémité rugueuse de la leçon : une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s'arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé — comparez avec Hann pour entendre pourquoi les fenêtres comptent.",
               reviewed: false },
     },
 });
@@ -499,8 +506,8 @@ export const LABELS = Object.freeze({
         fr: { t: "tête de lecture, épingle de gel et plage de dispersion", reviewed: false },
     },
     'label.windowInset': {
-        en: { t: "Window" },
-        fr: { t: "Fenêtre", reviewed: false },
+        en: { t: "Envelope" },
+        fr: { t: "Enveloppe", reviewed: false },
     },
     'label.vizScope': {
         en: { t: "Output Scope ·" },
@@ -575,6 +582,10 @@ export const LABELS = Object.freeze({
     'label.knobShape': {
         en: { t: "Shape" },
         fr: { t: "Forme", reviewed: false },
+    },
+    'label.knobTaper': {
+        en: { t: "Taper" },
+        fr: { t: "Fondu", reviewed: false },
     },
     'label.groupSpray': {
         en: { t: "Spray & Scatter" },
@@ -732,8 +743,8 @@ export const LABELS = Object.freeze({
         fr: { t: "Feu granulaire — l'exemple travaillé sur l'enregistrement de feu crépitant. Un réglage vif de grain et de dispersion transforme un enregistrement de terrain en un lit granulaire mouvant.", reviewed: false },
     },
     'label.captionRectClick': {
-        en: { t: "Rect Click — the intentional artifact: a rectangular window has no fade, so every grain edge clicks. Sparse grains let each click stand alone. This is why windows matter." },
-        fr: { t: "Clic rectangulaire — l'artefact volontaire : une fenêtre rectangulaire n'a aucun fondu, donc chaque bord de grain claque. Des grains clairsemés laissent chaque clic isolé. Voilà pourquoi les fenêtres comptent.", reviewed: false },
+        en: { t: "Rect Click — the rough end of the lesson: a rectangular window is flat with only a 1\u00a0ms guard at each edge, so every grain starts and stops abruptly. Sparse grains let each hard edge stand alone. Compare with Hann to hear why windows matter." },
+        fr: { t: "Clic rectangulaire — l'extrémité rugueuse de la leçon : une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s'arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé. Comparez avec Hann pour entendre pourquoi les fenêtres comptent.", reviewed: false },
     },
 });
 
@@ -821,6 +832,7 @@ export const TIP_BINDINGS = [
     ['[data-param="freeze"]',                        'freeze'],
 
     ['[data-param="windowShape"]',                   'windowShape'],
+    ['[data-param="windowTaper"]',                   'windowTaper'],
 
     ['[data-param="pitchSpray"]',                    'pitchSpray'],
     ['[data-param="positionSpray"]',                 'positionSpray'],

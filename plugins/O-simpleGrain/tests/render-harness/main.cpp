@@ -547,6 +547,56 @@ int main()
                  + " hfHann=" + juce::String (hfHann, 6)
                  + " ratio=" + juce::String (ratio, 2));
 
+        // --- 4b (v1.4.0): the rect guard fade is a RAMP, not a step. Probe the
+        // window directly (deterministic — no source / RNG involved): for an
+        // 18 ms grain the 1 ms guard ends at phase 1/18, so the envelope must
+        // read ~0 at phase 0, ~0.5 halfway through the guard and 1.0 past it.
+        // Negative control: kRectGuardMs = 0 collapses the ramp to 1e-4 of the
+        // grain, and the halfway read comes back 1.0 (verified 2026-08-28).
+        {
+            WindowLuts luts (2048);
+            const float lenSamp = 0.018f * (float) fs;
+            const float te = WindowLuts::taperEndFor (WindowLuts::kShapeRect, 0.0f, lenSamp, fs);
+            const float teExp = 0.001f / 0.018f;   // the SPEC (1 ms), not the constant under test
+            const float w0  = luts.read (WindowLuts::kShapeRect, 0.0f,       te);
+            const float wH  = luts.read (WindowLuts::kShapeRect, 0.5f * teExp, te);
+            const float wIn = luts.read (WindowLuts::kShapeRect, 2.0f * teExp, te);
+            const float wE  = luts.read (WindowLuts::kShapeRect, 1.0f - 0.5f * teExp, te);
+            check ("rect-guard-is-a-ramp",
+                   std::abs (te - teExp) < 1e-4f && w0 < 1e-3f
+                     && std::abs (wH - 0.5f) < 0.02f && std::abs (wE - 0.5f) < 0.02f
+                     && wIn > 0.999f,
+                   juce::String ("taperEnd=") + juce::String (te, 5) + " (exp " + juce::String (teExp, 5)
+                     + ") w(0)=" + juce::String (w0, 4) + " w(guard/2)=" + juce::String (wH, 4)
+                     + " w(2*guard)=" + juce::String (wIn, 4) + " w(1-guard/2)=" + juce::String (wE, 4));
+        }
+
+        // --- 4c (v1.4.0): Tukey sits between rect and Hann, and alpha=100 % IS Hann.
+        setParam (apvts, PID::windowShape, 5.0f);    // Tukey
+        setParam (apvts, PID::windowTaper, 30.0f);
+        auto yTk30 = render (proc, { root }, 1.0, fs);
+        setParam (apvts, PID::windowTaper, 100.0f);
+        auto yTk100 = render (proc, { root }, 1.0, fs);
+        const double hfTk30  = analyze (yTk30,  aOff, fs).bandEnergy (12000.0, 21000.0);
+        const double hfTk100 = analyze (yTk100, aOff, fs).bandEnergy (12000.0, 21000.0);
+        check ("tukey-between-rect-hann",
+               allFinite (yTk30) && allFinite (yTk100)
+                 && hfTk30 < hfRect && hfTk30 > hfHann
+                 && std::abs (hfTk100 - hfHann) < hfHann * 0.15,
+               juce::String ("hfRect=") + juce::String (hfRect, 4)
+                 + " hfTukey30=" + juce::String (hfTk30, 4)
+                 + " hfTukey100=" + juce::String (hfTk100, 4)
+                 + " hfHann=" + juce::String (hfHann, 4));
+
+        // --- 4d (v1.4.0): the new 500 ms ceiling renders finite and bounded.
+        setParam (apvts, PID::windowShape, 4.0f);
+        setParam (apvts, PID::grainSize, 500.0f);
+        setParam (apvts, PID::density,   200.0f);
+        auto y500 = render (proc, { root }, 1.5, fs);
+        double pk500 = 0.0; for (float v : y500) pk500 = juce::jmax (pk500, (double) std::abs (v));
+        check ("grain-500ms-bounded", allFinite (y500) && pk500 < 4.0 && rms (y500, aOff, (int) y500.size() - aOff) > 1e-4,
+               juce::String ("peak=") + juce::String (pk500, 3));
+
         // restore default source for subsequent tests
         setParam (apvts, PID::sourceSample, 0.0f);
         pumpMessages();
