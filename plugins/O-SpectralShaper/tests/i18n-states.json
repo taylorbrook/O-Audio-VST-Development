@@ -1,0 +1,14 @@
+[
+  {
+    "name": "the attack plate's draw mode switched to NODE (ui.node, the other face of the mode toggle — the C++ has no draw-mode parameter and the page opens on Freehand, so no resting state shows it). A real click on the real control, which also rebuilds the curve editor the way a user's click does.",
+    "click": "#attack-mode-toggle"
+  },
+  {
+    "name": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the toggle are all inside a [hidden] panel, so the gate never measures them at rest). LAST but one on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the toggle below is clicked.",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help ON (the ui.on face of the settings toggle, which no resting state shows — the C++ default is off). A real click on the real control, inside the popover the previous state opened, so the dismiss handler leaves the panel up.",
+    "click": "#tips-toggle"
+  }
+]

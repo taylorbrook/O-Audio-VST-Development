@@ -820,6 +820,11 @@ void OSpectralShaperAudioProcessor::getStateInformation(juce::MemoryBlock& destD
         // the preset manager has built it, so it rides along with the host
         // session but never enters a saved preset file.
         xml->setAttribute("tooltipsEnabled", tooltipsEnabled.load(std::memory_order_acquire));
+        // v1.7.0: the interface language rides alongside it, written as the
+        // language CODE rather than the index — a non-parameter value on a
+        // state tree comes back from XML as a var over the attribute STRING
+        // (critical_valuetree_xml_roundtrip_loses_type).
+        xml->setAttribute("uiLanguage", languageCode(uiLanguage.load(std::memory_order_acquire)));
         copyXmlToBinary(*xml, destData);
     }
 }
@@ -833,6 +838,13 @@ void OSpectralShaperAudioProcessor::setStateInformation(const void* data, int si
         // v1.5.0: absent in sessions saved before 1.5.0 — default to off.
         tooltipsEnabled.store(xml->getBoolAttribute("tooltipsEnabled", false),
                               std::memory_order_release);
+
+        // v1.7.0: absent in sessions saved before 1.7.0 — default to English.
+        // languageIndex() maps anything that is not "fr" to 0, so a truncated
+        // or hand-edited attribute degrades to English rather than being stored
+        // unvalidated.
+        uiLanguage.store(languageIndex(xml->getStringAttribute("uiLanguage", "en")),
+                         std::memory_order_release);
     }
 }
 

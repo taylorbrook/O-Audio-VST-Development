@@ -341,6 +341,13 @@ body::after {
     transform: translateY(0);
 }
 
+/* Pinned per-element to their English rendered widths (43.55 / 46.20 px), for
+   the reason given above .curve-spectrum-btn. These two are the LAST items of
+   .preset-bar, so a wider caption pushes the bar's LEFT edge out of the
+   header's space-between centre and takes ‹, the preset readout and › with it. */
+#preset-save { min-width: 43.55px; }
+#preset-load { min-width: 46.2px; }
+
 /* ============================================================================
    SPECIMEN PLATES (spectrogram + curve editors)
 
@@ -465,6 +472,15 @@ body::after {
     transition: all 0.2s ease;
 }
 
+/* The three captioned buttons of .curve-controls, pinned per-element to their
+   English rendered widths (75.92 / 53.52 / 76.41 px). The mode toggle's pin
+   covers all FOUR of its faces — Freehand, Node, Libre, Points — so the row no
+   longer jumps 26px when the mode is switched, which it did in English through
+   v1.6.2. */
+.curve-spectrum-btn { min-width: 75.92px; }
+.curve-reset-btn    { min-width: 53.52px; }
+.curve-mode-toggle  { min-width: 76.41px; }
+
 .curve-undo-btn,
 .curve-redo-btn {
     padding: 4px 6px;
@@ -535,6 +551,8 @@ body::after {
 }
 
 .knob-wrapper {
+    /* v1.7.0, D-04 rule 1 — see the geometry note above .curve-spectrum-btn. */
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -663,6 +681,8 @@ body::after {
 
 .toggle-container {
     grid-column: 1 / -1;
+    /* v1.7.0, D-04 rule 1 — see the geometry note above .curve-spectrum-btn. */
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -714,10 +734,21 @@ body::after {
 }
 
 /* ============================================================================
-   TOOLTIPS (v1.5.0)
+   SETTINGS POPOVER + TOOLTIPS (v1.7.0)
+
+   The tooltip block below is the PORTED measure-then-pin renderer's CSS,
+   replacing v1.6.2's #app-relative surface entirely. The change that matters is
+   `position: fixed` instead of `absolute`: the ported renderer places the box
+   against the VIEWPORT, and leaving it absolutely positioned against #app would
+   have offset every tip by #app's own origin — which on this page is a real
+   12px padding inset, not zero, so the error would have been small enough to
+   look like a rounding artefact rather than a wrong reference frame.
+
+   max-width stays 240px — O-SpectralShaper's OWN value, parsed from this file,
+   never mirrored from O-Lyrica's 200 or O-FreqPulse's 220.
    ============================================================================ */
 
-/* Groups the "?" toggle with the version string so the header keeps three
+/* Groups the settings gear with the version string so the header keeps three
    space-between clusters (title / preset bar / right group). */
 .header-right {
     display: flex;
@@ -725,8 +756,21 @@ body::after {
     gap: 9px;
 }
 
-/* Wax-seal disc, sized to sit on the header baseline without changing its height. */
-.tooltip-toggle {
+/* The gear occupies the EXACT 18x18 slot the wax-seal "?" occupied through
+   v1.6.2, in the same flex row with the same 9px gap before .version, so the
+   new control contributes ZERO geometry delta to a 700x500 frame that has none
+   to spare. `display: flex` on the cluster rather than the default block is
+   what keeps that true: a block wrapper would resolve its height from a line
+   box and pick up the button's descender space. */
+.settings-cluster {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+}
+
+/* Wax-seal disc, sized to sit on the header baseline without changing its
+   height — the same disc the "?" was, now stamped with a gear. */
+.gear-btn {
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
@@ -735,8 +779,7 @@ body::after {
     border: 1px solid var(--brown-border);
     color: var(--brown-text);
     font-family: var(--serif);
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
     line-height: 1;
     cursor: pointer;
     display: flex;
@@ -747,22 +790,119 @@ body::after {
     box-shadow: 1px 1px 2px var(--shadow-light);
 }
 
-.tooltip-toggle:hover {
+.gear-btn:hover {
     background: var(--green-light);
     border-color: var(--green-dark);
 }
 
-.tooltip-toggle.active {
+.gear-btn[aria-expanded="true"] {
     background: var(--green-mid);
     border-color: var(--green-darkest);
     color: var(--paper-light);
     box-shadow: 0 0 5px rgba(60, 92, 26, 0.45);
 }
 
-/* Single reused surface. Absolutely positioned against #app (position: relative),
-   so it is out of flow and never becomes a grid item. */
-.tooltip {
+.gear-btn:focus-visible {
+    outline: 2px solid var(--green-mid);
+    outline-offset: 2px;
+}
+
+/* Opens DOWNWARD, because the gear sits in the header at the TOP of the frame —
+   the opposite of O-Lyrica's, whose gear is 50px off the bottom edge. Anchored
+   `right: 0` so a wider French row grows leftward into the frame rather than
+   past its right edge. */
+.settings-popover {
     position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1001;
+    min-width: 168px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: var(--paper-light);
+    border: 1px solid var(--brown-frame);
+    border-radius: 4px;
+    box-shadow: 2px 4px 14px var(--shadow-medium);
+}
+
+.settings-popover[hidden] {
+    display: none;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.settings-label {
+    font-family: var(--serif);
+    font-size: 10px;
+    color: var(--brown-frame);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.settings-popover select {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 2px 4px;
+    border: 1px solid var(--brown-border);
+    border-radius: 3px;
+    background: var(--paper-mid);
+    color: var(--brown-text);
+    font-family: var(--serif);
+    font-size: 10px;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.settings-popover select:focus-visible {
+    outline: 2px solid var(--green-mid);
+    outline-offset: 1px;
+}
+
+/* min-width covers the widest of the four faces across both languages —
+   On / Off / Oui / Non — so switching either the state or the language cannot
+   resize the row. */
+.settings-toggle {
+    min-width: 40px;
+    padding: 2px 8px;
+    flex: 0 0 auto;
+    border: 1px solid var(--brown-border);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--brown-frame);
+    font-family: var(--serif);
+    font-size: 10px;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.settings-toggle:hover {
+    background: rgba(139, 168, 112, 0.30);
+}
+
+.settings-toggle[aria-pressed="true"] {
+    background: rgba(107, 142, 78, 0.55);
+    color: var(--green-darkest);
+    border-color: var(--green-darkest);
+}
+
+.settings-toggle:focus-visible {
+    outline: 2px solid var(--green-mid);
+    outline-offset: 1px;
+}
+
+/* Single reused surface, positioned against the VIEWPORT (position: fixed) by
+   the ported measure-then-pin renderer. It is out of flow and never becomes a
+   grid item. */
+.tooltip {
+    position: fixed;
     left: 0;
     top: 0;
     max-width: 240px;
@@ -772,8 +912,6 @@ body::after {
     border: 1px solid var(--brown-border);
     border-radius: 3px;
     font-family: var(--serif);
-    font-size: 11px;
-    line-height: 1.45;
     white-space: normal;
     text-shadow: none;
     box-shadow: 0 2px 8px var(--shadow-medium);
@@ -787,8 +925,46 @@ body::after {
     opacity: 1;
 }
 
+/* The title/body pair the ported renderer builds. v1.6.2 wrote one flat string
+   into the surface; the split is what makes a tip scannable at a glance. */
+.tooltip-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--green-light);
+    margin-bottom: 3px;
+}
+
+.tooltip-body {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--plate-ink);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip can
+   be clamped to the viewport edge while the arrow still points at its control.
+   Recomputed AFTER the clamp, which is what lets the clamp be aggressive. */
+.tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after {
+    top: 100%;
+    border-top-color: var(--brown-border);
+}
+
+.tooltip[data-placement="below"]::after {
+    bottom: 100%;
+    border-bottom-color: var(--brown-border);
+}
+
 /* Hover affordance — only while tooltips are armed. */
-.tooltips-enabled [data-tooltip]:hover {
+.tooltips-enabled [data-tip]:hover {
     outline: 1px dashed rgba(107, 142, 78, 0.55);
     outline-offset: 2px;
 }

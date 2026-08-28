@@ -134,6 +134,18 @@ if (typeof window !== "undefined") {
 let stubTooltipsEnabled =
   (typeof window !== "undefined" && window.__stubTooltipsEnabled) || false;
 
+// ── UI language stub (v1.7.0) ───────────────────────────────────────────────
+// Seeded "en", matching the processor's default (uiLanguage { 0 }).
+//
+// THE CODE IS WHAT CROSSES THE BRIDGE, not the index — PluginProcessor.h stores
+// and restores languageCode()/languageIndex() strings, and a stub that traded
+// integers would let the page work here and fail in a DAW. languageIndex()'s
+// "anything that is not fr is en" rule is mirrored on setUiLanguage below, so
+// an unexpected argument degrades the same way it does in C++ rather than being
+// echoed back verbatim.
+let stubUiLanguage =
+  (typeof window !== "undefined" && window.__stubUiLanguage === "fr") ? "fr" : "en";
+
 // ── Preset backend stub ─────────────────────────────────────────────────────
 // The 29 names seeded by the v1.6.0 factory bank, in the NARRATIVE order and
 // grouping the constructor declares them in — which is what
@@ -231,12 +243,18 @@ const CORE_FNS = {
     return stubTooltipsEnabled;
   },
   getTooltipsEnabled: () => stubTooltipsEnabled,
+  getUiLanguage: () => stubUiLanguage,
+  setUiLanguage: (code) => {
+    stubUiLanguage = code === "fr" ? "fr" : "en";
+    return stubUiLanguage;
+  },
 };
 
-// Mirrors the FIFTEEN native functions registered in PluginEditor.cpp:
+// Mirrors the SEVENTEEN native functions registered in PluginEditor.cpp:
 // setAttackCurve + setSustainCurve, setTooltipsEnabled + getTooltipsEnabled,
-// and the eleven preset fns (ten fetched by modules/preset-manager.js plus
-// getPresetListGrouped, fetched by app.js for the menu).
+// getUiLanguage + setUiLanguage (v1.7.0), and the eleven preset fns (ten
+// fetched by modules/preset-manager.js plus getPresetListGrouped, fetched by
+// app.js for the menu).
 //
 // Any OTHER name must still REJECT — rejecting the unknown is the whole point
 // of this stub, and is how a bridge gap surfaces here instead of as a silently

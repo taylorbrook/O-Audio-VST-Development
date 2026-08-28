@@ -31,6 +31,7 @@ import { FreehandCurve } from './components/FreehandCurve.js';
 import { NodeCurve } from './components/NodeCurve.js';
 import { Spectrogram } from './components/Spectrogram.js';
 import { PresetManager } from '../modules/preset-manager.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // ============================================================================
 // APPLICATION STATE
@@ -92,7 +93,15 @@ function initializeApp() {
     // Initialize preset manager
     initializePresetManager();
 
-    // Initialize tooltip system (v1.5.0)
+    // Initialize the interface language (v1.7.0). BEFORE the tooltip system,
+    // so the help toggle's first painted face comes from the table rather than
+    // from the markup fallback, and AFTER every control above exists — a
+    // caption keyed by applyI18n before its element exists writes onto nothing
+    // and reports only as a console warning.
+    try { initI18n(); }            catch (e) { console.error('i18n init failed:', e); }
+    try { initSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+
+    // Initialize tooltip system (v1.5.0, ported to measure-then-pin in v1.7.0)
     initializeTooltips();
 
     // Mark as initialized
@@ -292,8 +301,12 @@ function setupModeToggle(curveType) {
         const newMode = currentMode === 'freehand' ? 'node' : 'freehand';
         app.curveModes[curveType] = newMode;
 
-        // Update button text
-        toggleButton.textContent = newMode === 'freehand' ? 'Freehand' : 'Node';
+        // Update button text. KEYS through setLabel, from an if/else — never a
+        // ternary inside the call (check-i18n assertion 13), and never a
+        // literal, which would strand an English "Node" the instant the
+        // language selector fired.
+        if (newMode === 'freehand') setLabel(toggleButton, 'ui.freehand');
+        else                        setLabel(toggleButton, 'ui.node');
 
         // Get current curve data and spectrum state
         const currentData = app.curveEditors[curveType].getCurveData();
@@ -579,133 +592,461 @@ function initializePresetManager() {
 }
 
 // ============================================================================
-// TOOLTIP SYSTEM (v1.5.0)
+// TOOLTIPS — the measure-then-pin renderer (v1.7.0)
 // ============================================================================
+//
+// PORTED from O-ReverseDelay via O-FreqPulse / O-Lyrica, replacing this
+// plugin's own second positioner ENTIRELY. There is now ONE tooltip renderer
+// repo-wide.
+//
+// THE REFERENCE FRAME CHANGED, AND THAT IS THE POINT ON THIS PLUGIN. v1.6.2
+// already measured its surface — it is the only one of the seven Stage-J
+// plugins that did — but it positioned against #app:
+//
+//     const containerRect = container.getBoundingClientRect();
+//     let left = rect.left - containerRect.left + rect.width / 2 - width / 2;
+//     const maxLeft = containerRect.width - width - EDGE_MARGIN;
+//
+// with the surface `position: absolute` inside #app. #app is NOT the viewport
+// here: it carries `padding: 12px` and sits inside a 700x500 body, so its
+// content box is inset and its clamp rails were 24px narrower than the window.
+// Every tip was therefore held 12px further from each edge than it needed to
+// be, and the vertical rail was computed against containerRect.height rather
+// than window.innerHeight. That is a SMALL error, which is exactly what makes
+// it worth replacing rather than adapting: a 12px bias reads as a styling
+// choice, not as a wrong reference frame, and it would have gone on being
+// re-derived by hand on the next edit.
+//
+// The port replaces that arithmetic outright with the viewport-relative form
+// and moves .tooltip to `position: fixed` in the same commit. Adapting the old
+// code in place would have left `absolute` positioning being fed viewport
+// coordinates, which is off by #app's origin — 12px on both axes here.
+//
+// What else the port brings that v1.6.2 did not have: a title/body pair built
+// from data-tip-title + data-tip rather than one flat string, a dwell delay so
+// a tip does not fire on every crossing, a pointerdown suppression so a tip
+// cannot hang over a knob mid-drag, an arrow whose offset is recomputed AFTER
+// the horizontal clamp so a clamped tip still points at its control, and
+// delegated listeners on the DOCUMENT rather than on #app.
+//
+// The renderer never sees a KEY. applyI18n() writes both attributes from
+// js/i18n.js and rewrites them on every language change; this function reads
+// only what is on the anchor.
 
-/**
- * Hover tooltips for every [data-tooltip] element, armed by the header "?" toggle.
- *
- * One reused .tooltip element positioned against #app rather than per-element
- * popups: the controls live in a fixed 700x500 grid, so a single absolutely
- * positioned surface avoids 25 extra nodes and lets the edge clamping live in
- * one place.
- */
+const TOOLTIP_DELAY_MS = 120;
+const TOOLTIP_MARGIN = 8;   // gap between a tip and its control / the viewport edge
+
+let tooltipEl = null;
+let tooltipTimer = null;
+let tooltipTarget = null;
+let tooltipSuppressed = false;
+
+// v1.5.0: master on/off for the hover-help layer, persisted C++-side.
+// v1.7.0 moved its control out of the wax-seal "?" and into the settings
+// popover, next to the language selector.
+//
+// Starts FALSE, matching the C++ default (PluginProcessor.h: tooltipsEnabled),
+// so the very first hover behaves the same whether or not the stored value has
+// arrived yet — the native call below is a promise.
+let tooltipsEnabled = false;
+let helpToggleEl = null;
+let setTooltipsEnabledNative = null;
+
 function initializeTooltips() {
-    const toggle = document.getElementById('tooltip-toggle');
-    const tooltip = document.getElementById('tooltip');
-    const container = document.getElementById('app');
+    tooltipEl = document.getElementById('tooltip');
+    if (!tooltipEl) { console.warn('Tooltip element not found — tooltips disabled'); return; }
 
-    if (!toggle || !tooltip || !container) {
-        console.warn('Tooltip system: required elements missing, skipping');
+    initializeHelpToggle();
+
+    document.addEventListener('mouseover', handleTooltipOver);
+    document.addEventListener('mouseout', handleTooltipOut);
+
+    // Any press begins a click or a drag: get the tip out of the way and keep
+    // it away until release, so it cannot hang over a knob or a curve canvas
+    // mid-drag. Capture phase, because RotaryKnob and the curve editors call
+    // preventDefault in their own mousedown handlers.
+    document.addEventListener('pointerdown', () => {
+        tooltipSuppressed = true;
+        hideTooltip();
+    }, true);
+
+    document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
+
+    console.log('Tooltips initialized');
+}
+
+function initializeHelpToggle() {
+    helpToggleEl = document.getElementById('tips-toggle');
+    if (!helpToggleEl) { console.warn('Help toggle not found — hover help stays off'); return; }
+
+    helpToggleEl.addEventListener('click', () => setTooltipsEnabled(!tooltipsEnabled, true));
+
+    // Bridge to the processor. Guarded because the same page is opened in a
+    // plain browser for UI checks, where native integration does not exist —
+    // there the toggle still works, it just does not persist.
+    let getTooltipsEnabledNative = null;
+
+    try {
+        getTooltipsEnabledNative = Juce.getNativeFunction('getTooltipsEnabled');
+        setTooltipsEnabledNative = Juce.getNativeFunction('setTooltipsEnabled');
+    } catch (e) {
+        console.warn('Tooltip preference not available, session-only:', e);
+    }
+
+    // Paint the current (default) state first so the button is never blank
+    // while the native call is in flight.
+    setTooltipsEnabled(tooltipsEnabled, false);
+
+    if (getTooltipsEnabledNative) {
+        getTooltipsEnabledNative()
+            .then((stored) => setTooltipsEnabled(!!stored, false))
+            .catch((e) => console.warn('Could not read tooltip preference:', e));
+    }
+}
+
+// `persist` is false for the start-up push, so reading the stored value does
+// not immediately write it back.
+function setTooltipsEnabled(enabled, persist) {
+    tooltipsEnabled = !!enabled;
+
+    if (!tooltipsEnabled) hideTooltip();
+
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.classList.toggle('tooltips-enabled', tooltipsEnabled);
+
+    if (helpToggleEl) {
+        // The two faces are KEYS through setLabel(), not literals. A literal
+        // holds one string, so switching to French mid-session would have
+        // restored an English "On". if/else, not a ternary inside the call —
+        // check-i18n assertion 13.
+        helpToggleEl.setAttribute('aria-pressed', tooltipsEnabled ? 'true' : 'false');
+        if (tooltipsEnabled) setLabel(helpToggleEl, 'ui.on');
+        else                 setLabel(helpToggleEl, 'ui.off');
+    }
+
+    if (persist && setTooltipsEnabledNative) {
+        setTooltipsEnabledNative(tooltipsEnabled)
+            .catch((e) => console.warn('Could not save tooltip preference:', e));
+    }
+}
+
+// The gear and the toggle inside the popover both carry data-tip-always: the
+// two controls that reach and restore the help layer have to keep explaining
+// themselves while help is off.
+function tipAllowed(target) {
+    return tooltipsEnabled || target.hasAttribute('data-tip-always');
+}
+
+function handleTooltipOver(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target || target === tooltipTarget) return;
+    if (!tipAllowed(target)) return;
+
+    tooltipTarget = target;
+    clearTimeout(tooltipTimer);
+
+    if (tooltipSuppressed) return;
+    tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target) return;
+
+    // Moving between children of the same control is not a real exit. Every
+    // .knob-wrapper here wraps a knob, a caption and a value readout, and
+    // crossing between those children previously flickered the surface off and
+    // back on.
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+    hideTooltip();
+}
+
+function showTooltip(target) {
+    // The pointer may have moved on or gone down during the delay, and help may
+    // have been switched off between the hover and the timer firing.
+    if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+    if (!tipAllowed(target)) return;
+
+    const title = target.getAttribute('data-tip-title');
+    const body  = target.getAttribute('data-tip');
+
+    // textContent, not innerHTML — the copy stays inert.
+    tooltipEl.textContent = '';
+
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'tooltip-title';
+        titleEl.textContent = title;
+        tooltipEl.appendChild(titleEl);
+    }
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'tooltip-body';
+    bodyEl.textContent = body;
+    tooltipEl.appendChild(bodyEl);
+
+    const anchor = target.getBoundingClientRect();
+
+    // MEASURE-THEN-PIN. A fixed-position box with `left` set and `width:auto`
+    // shrinks to fit whatever space remains to its right, so measuring at the
+    // PREVIOUS offset under-reports the width, and applying a near-edge `left`
+    // afterwards re-wraps a 240 px tip into a narrow ribbon — and the squeezed
+    // width then resolves `left` straight back against the right edge, so it
+    // never recovers on later hovers. Release the width, measure from the left
+    // edge, pin the result in px, and only then place.
+    //
+    // The pinned width is the FRACTIONAL getBoundingClientRect().width, not the
+    // integer offsetWidth v1.6.2 used: 188.48 rounds to 188, and pinning that
+    // makes the box 0.48 px narrower than its own shrink-to-fit, pushing the
+    // last word onto a second line. Height is only stable once the width is
+    // definite, so it is read after
+    // (pattern_fixed_tooltip_shrink_to_fit_edge).
+    tooltipEl.style.width = '';
+    tooltipEl.style.left  = '0px';
+    tooltipEl.style.top   = '0px';
+
+    const width = tooltipEl.getBoundingClientRect().width;
+    tooltipEl.style.width = `${width}px`;
+
+    const height = tooltipEl.getBoundingClientRect().height;
+
+    // Prefer above; flip below only when there is no room at the top.
+    let top = anchor.top - height - TOOLTIP_MARGIN;
+    let placement = 'above';
+
+    if (top < TOOLTIP_MARGIN) {
+        top = anchor.bottom + TOOLTIP_MARGIN;
+        placement = 'below';
+    }
+
+    // THE VERTICAL CLAMP. O-ReverseDelay's anchors are all knob-sized, so
+    // `below` always fits there and the omission is invisible; O-FreqPulse
+    // reproduced a real 15px overhang on a 376px anchor and added this line.
+    //
+    // ON THIS PAGE IT IS NOT INDEPENDENTLY REPRODUCIBLE, and that is said rather
+    // than dressed up. Sweeping all 28 anchors in French, the SMALLEST slack
+    // between a tip's bottom edge and the 500px frame is 111px, and deleting
+    // this line alone leaves every one of the 56 hovers fully inside the
+    // window. The two shapes that could have produced an overhang both miss:
+    // the tallest anchor is .spectrogram-container at 202px, but it sits at
+    // y=70 and its tip flips `below` to 386.7; the DEEPEST anchors are the
+    // sustain plate's five buttons at y=397, and those all fit `above`.
+    //
+    // The sweep is not blind — removing the HORIZONTAL clamp instead reports 14
+    // off-frame tips, out to 120px, in the same run. So the negative result
+    // above is a measurement, not a probe that passes either way
+    // (pattern_probe_must_target_the_branch_the_fix_changed).
+    //
+    // It is ported anyway because the point of this stage is ONE runtime
+    // repo-wide, and a copy that silently differs from the others is the drift
+    // the canon exists to stop.
+    const maxTop = window.innerHeight - height - TOOLTIP_MARGIN;
+    if (top > maxTop) top = Math.max(TOOLTIP_MARGIN, maxTop);
+
+    const anchorCentreX = anchor.left + anchor.width / 2;
+    const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+    tooltipEl.style.left = `${left}px`;
+    tooltipEl.style.top  = `${top}px`;
+    tooltipEl.dataset.placement = placement;
+
+    // The tip is clamped to the viewport, but the arrow still points at the
+    // control — held clear of the rounded corners. Recomputed AFTER the clamp,
+    // which is the whole reason the clamp can be this aggressive.
+    const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+    tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
+
+    tooltipEl.classList.add('visible');
+    tooltipEl.setAttribute('aria-hidden', 'false');
+}
+
+function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    tooltipTarget = null;
+
+    if (!tooltipEl) return;
+    tooltipEl.classList.remove('visible');
+    tooltipEl.setAttribute('aria-hidden', 'true');
+}
+
+// ============================================================================
+// Interface language (v1.7.0)
+// ============================================================================
+//
+// THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
+// byte-compared (comments stripped, whitespace collapsed) against
+// scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
+// shared UI module and deliberately does not gain one, so 43 hand-copies are
+// only safe because a drifted copy fails a gate. Do not "tidy" it.
+//
+// One PULL at page init, no push, no timer, no poll().then(poll), no revision
+// counter. The language is not preset content: OuariconPresetManager::loadPreset
+// walks preset["parameters"] and never touches a state-tree property, so no
+// preset path can change it. The pull is safe here because
+// `grep -rn setVisible plugins/O-SpectralShaper/Source/` returns NOTHING — the
+// web view is never hidden, so the hidden-completion drop cannot fire
+// (critical_webview_completion_gated_on_isvisible).
+//
+// Declared here at module level, ABOVE every reader. The only statements
+// executed at module-evaluation time are the two window.__ assignments, which
+// touch hoisted function declarations and cannot enter a TDZ chain
+// (pattern_module_toplevel_init_tdz). initI18n() itself is called from INSIDE
+// initializeApp(), after the controls it labels exist.
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ============================================================================
+// The settings popover (v1.7.0)
+// ============================================================================
+//
+// The gear that carries the language selector and the hover-help switch. Two
+// rows: this plugin HAS the setTooltipsEnabled bridge, so its toggle moves in
+// here from the wax-seal "?" rather than sitting beside a second control for
+// the same state.
+//
+// IT SITS EXACTLY WHERE THE "?" SAT — the same 18x18 disc in .header-right,
+// same 9px gap before .version — so the new control adds ZERO geometry delta to
+// a 700x500 frame that has none to spare.
+//
+// The panel opens DOWNWARD, because the gear is in the HEADER: there is 450px
+// of frame below it and 12px above.
+//
+// All state lives in this closure, so nothing here can join a TDZ chain.
+
+let settingsPopoverEl = null;
+let gearBtnEl = null;
+
+function setSettingsPopoverOpen(open) {
+    if (!settingsPopoverEl || !gearBtnEl) return;
+
+    settingsPopoverEl.hidden = !open;
+    gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initSettingsPopover() {
+    gearBtnEl = document.getElementById('gear-btn');
+    settingsPopoverEl = document.getElementById('settings-popover');
+
+    if (!gearBtnEl || !settingsPopoverEl) {
+        console.warn('settings popover missing — language selector unavailable');
         return;
     }
 
-    const EDGE_MARGIN = 8;   // keep the surface clear of the window edge
-    const GAP = 8;           // vertical gap between control and tooltip
-
-    function applyEnabledState(enabled) {
-        app.tooltipsEnabled = !!enabled;
-        toggle.classList.toggle('active', app.tooltipsEnabled);
-        toggle.setAttribute('aria-pressed', String(app.tooltipsEnabled));
-        container.classList.toggle('tooltips-enabled', app.tooltipsEnabled);
-
-        if (!app.tooltipsEnabled) {
-            hideTooltip();
-        }
-    }
-
-    function hideTooltip() {
-        tooltip.classList.remove('visible');
-        tooltip.setAttribute('aria-hidden', 'true');
-    }
-
-    function showTooltipFor(target) {
-        const text = target.getAttribute('data-tooltip');
-        if (!text) return;
-
-        tooltip.textContent = text;
-
-        // Measure at a neutral origin BEFORE placing. An absolutely positioned
-        // element's shrink-to-fit width is computed against (containing block
-        // width - left), so measuring while it still sits near the right edge
-        // reports a narrow, wrapped box and the clamp below then mispositions
-        // it. Reset to 0,0 with width:auto, measure, then pin the width in px.
-        // See pattern_fixed_tooltip_shrink_to_fit_edge.
-        tooltip.style.width = 'auto';
-        tooltip.style.left = '0px';
-        tooltip.style.top = '0px';
-
-        const width = tooltip.offsetWidth;
-        const height = tooltip.offsetHeight;
-        tooltip.style.width = width + 'px';
-
-        const rect = target.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-
-        // Horizontal: centre on the control, then clamp both edges.
-        let left = rect.left - containerRect.left + rect.width / 2 - width / 2;
-        const maxLeft = containerRect.width - width - EDGE_MARGIN;
-        if (left > maxLeft) left = maxLeft;
-        if (left < EDGE_MARGIN) left = EDGE_MARGIN;
-
-        // Vertical: prefer above the control, flip below if it would clip the top.
-        let top = rect.top - containerRect.top - height - GAP;
-        if (top < EDGE_MARGIN) {
-            top = rect.bottom - containerRect.top + GAP;
-        }
-        // If flipping below would clip the bottom, clamp back inside.
-        const maxTop = containerRect.height - height - EDGE_MARGIN;
-        if (top > maxTop) top = maxTop;
-
-        tooltip.style.left = left + 'px';
-        tooltip.style.top = top + 'px';
-        tooltip.classList.add('visible');
-        tooltip.setAttribute('aria-hidden', 'false');
-    }
-
-    toggle.addEventListener('click', () => {
-        applyEnabledState(!app.tooltipsEnabled);
-
-        // Persist to C++. getNativeFunction lives on the `Juce` ES-module
-        // namespace, NOT window.__JUCE__.backend (that object only carries
-        // addEventListener/removeEventListener/emitEvent).
-        try {
-            Juce.getNativeFunction('setTooltipsEnabled')(app.tooltipsEnabled);
-        } catch (error) {
-            console.warn('Could not persist tooltip preference:', error);
-        }
+    gearBtnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSettingsPopoverOpen(settingsPopoverEl.hidden);
     });
 
-    // Delegated hover — covers controls created after init too.
-    container.addEventListener('mouseover', (e) => {
-        if (!app.tooltipsEnabled) return;
-        if (e.target.closest('#tooltip-toggle')) return;  // don't cover the toggle itself
-
-        const target = e.target.closest('[data-tooltip]');
-        if (!target) return;
-
-        showTooltipFor(target);
+    // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+    // click, so the panel is gone before a drag on a knob or a curve canvas
+    // underneath it begins — both call preventDefault in their own mousedown
+    // handlers. Matches how the preset menu already behaves.
+    document.addEventListener('mousedown', (e) => {
+        if (settingsPopoverEl.hidden) return;
+        if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+        setSettingsPopoverOpen(false);
     });
 
-    container.addEventListener('mouseout', (e) => {
-        const target = e.target.closest('[data-tooltip]');
-        if (!target) return;
-
-        // Ignore moves that stay inside the same tooltipped control.
-        if (e.relatedTarget && target.contains(e.relatedTarget)) return;
-
-        hideTooltip();
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+            setSettingsPopoverOpen(false);
+            gearBtnEl.focus();
+        }
     });
-
-    // Pull the persisted preference now that the bridge is live. Doing this here
-    // rather than having C++ push on open avoids racing the WebView load.
-    try {
-        Juce.getNativeFunction('getTooltipsEnabled')().then((enabled) => {
-            applyEnabledState(!!enabled);
-        });
-    } catch (error) {
-        console.warn('Could not read tooltip preference:', error);
-    }
 }
 
 // ============================================================================

@@ -102,6 +102,28 @@ public:
     bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
     void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
 
+    //==========================================================================
+    // UI language (v1.7.0). 0 = en, 1 = fr.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their interface in. It rides the session XML as a plain
+    // attribute beside tooltipsEnabled, which the JSON preset path never
+    // touches.
+    //
+    // STORED AS THE LANGUAGE CODE STRING, not as the index. A non-parameter
+    // value on a state tree round-trips through XML as a var over the attribute
+    // STRING, so every isBool()/isInt() predicate on it is false for every
+    // session ever saved (critical_valuetree_xml_roundtrip_loses_type). Writing
+    // and reading a code sidesteps the question, and languageIndex() maps
+    // anything that is not "fr" to English rather than trusting the file.
+    //==========================================================================
+    int  getUiLanguageIndex() const { return uiLanguage.load(std::memory_order_acquire); }
+    void setUiLanguageIndex(int i)  { uiLanguage.store(i, std::memory_order_release); }
+
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     // DSP Components (declared BEFORE parameters for correct initialization order)
     STFTProcessor stftProcessor[2];  // L/R stereo
@@ -150,6 +172,10 @@ private:
     // Tooltip preference (v1.5.0). Written from the message thread via the
     // WebView native function, read back when the editor reopens.
     std::atomic<bool> tooltipsEnabled { false };
+
+    // v1.7.0: UI language index (0 = en, 1 = fr), saved with the session as the
+    // language CODE string. See the codec above.
+    std::atomic<int> uiLanguage { 0 };
 
     // Helper methods
     float getDryDelayedSample(int channel, float input);
