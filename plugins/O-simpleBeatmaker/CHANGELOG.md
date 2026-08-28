@@ -3,6 +3,190 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.0] — 2026-08-28
+
+**The PAGE speaks French, not only the hover help.** Every caption, column
+heading, hint, legend key, button face, voice name, MIDI-readout field and
+tooltip switches with a language selector in a new header gear. The value
+readouts, the six lesson-preset names and the MIDI note numbers stay English
+(D-03 / D-02 / D-01). 81 French entries (29 tooltip, 52 label), all
+`reviewed: false` — no native speaker has read them.
+
+Seventh and last of the `O-simple*` family on canon v2, and the only plugin in
+the batch with a RESIZABLE frame.
+
+### Added
+- **`Source/ui/public/js/i18n.js`** — the interface copy table, English and
+  French, embedded through `juce_add_binary_data` and served from
+  `PluginEditor::getResource` at `/js/i18n.js`. The tooltip copy MOVED out of the
+  `TIPS` object in `js/app.js`; 78 English strings were compared back to v1.0.3
+  byte-for-byte with entities decoded rather than re-typed, and 0 differed. The
+  strings that are NOT in v1.0.3 are the gear panel's own copy, the two endonyms,
+  the four step-cell accessible-name sentences and the `● synced` face (which
+  lived in `js/app.js`, not in the markup).
+- **A settings gear in the header**, holding the language selector alone. This
+  plugin has never had a hover-help switch and does not gain one here. Styled in
+  its own aged-paper vocabulary: the gear wears the lesson chip's paper fill and
+  brown border rounded to a circle and lights the same green when open; the panel
+  wears the `.group` plate; the selector wears `select.combo`'s border, radius
+  and hand-drawn caret at panel scale.
+- **The interface language rides the APVTS tree** as a plain `uiLanguage`
+  property on the root, beside the `PATTERN` child the step grid already
+  persists — the string `"en"`/`"fr"`, restored behind an `isVoid()` gate,
+  because the ValueTree→XML round trip rebuilds every property as a string var
+  and `isInt()` would never fire. Deliberately not an `AudioParameterChoice`: it
+  must not reach a DAW automation lane, and loading a lesson preset must not
+  change which language somebody reads their interface in.
+- `tests/i18n-states.json` — four states the label gate cannot reach at rest: the
+  gear popover open, the host-transport SYNCED face, one SEQ row and one MIDI row
+  in the live readout, and a lesson preset loaded. With them the gate measures
+  90 of 90 `[data-i18n]` elements.
+
+### Changed
+- **The tooltip anchors moved off `data-tip`.** Canon v2 WRITES `data-tip` as the
+  tip BODY, and the family convention put the tip KEY there — the two cannot
+  share one attribute. The 19 markup anchors moved to `data-param` (six parameter
+  cells), an `id` (three panels, the lesson row, the Clear-all button) and the
+  `data-preset` the six lesson chips already carried; the 36 generated anchors
+  carry `data-param` (24 voice knobs) or the `id` `bindToggle` already needs (12
+  mute/solo buttons). All 55 are named individually in `TIP_BINDINGS`, because
+  `document.querySelector` returns the FIRST match and a class selector would
+  have put all six Tune tips on the Kick strip.
+- **The tooltip listeners are DELEGATED on the document.** No anchor carries
+  `data-tip` until the first sweep runs, and 36 of the 55 do not exist when the
+  markup is parsed, so v1.0.3's `querySelectorAll("[data-tip]")` at setup time
+  would have bound nothing at all. `pointerover`/`pointerout` and
+  `focusin`/`focusout`, because those bubble; a `pointerout` into the same anchor
+  is ignored so the tip cannot flicker.
+- **Four `innerHTML` builders became `createElement` + `textContent`** — the
+  tooltip, the step cell, the MIDI row and the six voice strips. Localized copy
+  must never reach a markup path, and a template string carrying prose is a raw
+  English write no exemption can cover (an exemption lives in `i18n.js`, where an
+  angle bracket is forbidden).
+- **The tip bodies lost their `strong`/`em` tags.** The WORDS are unchanged.
+- **The timing-lane hint is now one string and lost the italic on "actual".**
+  Splitting it at the emphasis, the way the step-grid hint IS split, needs a
+  fragment reading "each hit's" — and French moves both the possessive and the
+  adjective, so that fragment has no translation. The step-grid hint keeps its
+  emphasis and its `Del` keycap because its five fragments are whole clauses
+  whose order survives.
+- **The transport strip's `SEQ` tag no longer pads itself with a trailing space.**
+  A localized string must not carry layout; the column is a CSS `min-width` and
+  both faces are the bare word.
+- The two dead `.tooltip strong` / `.tooltip em` rules are removed — the tip is
+  built with `textContent` now, so a tip body can never contain an element for
+  them to match.
+- The transport strip and the gear share one `.header-right` cluster, so the
+  header stays a TWO-item space-between row. A third top-level item would have
+  re-spread the strip toward the centre in English as well as French.
+
+### Fixed
+- **Pre-existing: the render harness had drifted two patch releases.**
+  `tests/render-harness/CMakeLists.txt` hard-coded `JucePlugin_VersionString="1.0.1"`
+  and `JucePlugin_VersionCode=0x10000` while the plugin shipped 1.0.3. Both files
+  now derive the version BY REFERENCE from one `set(OSIMPLEBEATMAKER_VERSION ...)`,
+  the shape O-simpleFM, O-simpleGrain and O-simplePhysicalModelSynth already use.
+  Unlike O-simplePhysicalModelSynth this plugin has NO preset manager and
+  therefore no `.factory-version` sentinel — `~/Library/O-simpleBeatmaker/` does
+  not exist and was checked rather than assumed — so the drift had no on-disk
+  consequence here. It was still a harness compiled against a version the plugin
+  had not been for two releases.
+- **Pre-existing: the 29 knobs had a language-frozen accessible name.**
+  `bindKnob()` copied its caption's `textContent` into `aria-label` once, at bind
+  time, which runs before `initI18n()` — so the name was the English fallback
+  forever and never followed a language switch. The name now comes from
+  `data-i18n-aria` (markup for the five global knobs, set by `buildVoiceStrips`
+  for the 24 generated ones) and is rewritten by every sweep. 33 keyed
+  attributes, 31 of 33 confirmed switching by the gate (the two that do not are
+  `MIDI` and the `Tempo`/`Swing` titles, which are the same word in French).
+- **Pre-existing: the transport state line resized the header when the host
+  started playing.** `● free-run` is 52.7px and `● synced` is 44.9px, so the
+  strip — which sits at the right-hand end of a space-between header — shifted
+  every time the transport changed. The 53px pin below covers all four faces in
+  both languages, so it no longer moves at all.
+
+### Geometry — every rule reverted ALONE to confirm the gate re-breaks
+- `.title-block { flex: 1 1 0; min-width: 0 }` (was the default `0 1 auto`) — the
+  header is a two-item space-between row, so the block's used width WAS its own
+  max-content, which is the strapline's and therefore language-dependent: 625.6px
+  English against the 640px cap wrapped in French. At basis 0 it is 702.3px in
+  both. Costs English nothing — the h1 and the strapline are left-aligned blocks
+  in a transparent box. Fourth plugin in a row where the BASIS, not the
+  specificity, was the thing to check. **2 moved elements when reverted.**
+- `.subtitle { max-width: 640px → 700px }` — the room the title block actually
+  has now that its basis is pinned. **236 moved when reverted.**
+- `.tr-key-length { min-width: 60px }` — LENGTH 43.3 / LONGUEUR 60.0, measured AS
+  RENDERED: `.tr-label` is uppercased and letter-spaced by CSS, and a probe that
+  copies only the font reads it 12.6px too narrow and lands the pin under the
+  French. Pinned per ELEMENT, not per class: "tempo" is the same word in both
+  languages and one shared `.tr-label` rule would have paid 16.7px on it for
+  nothing. **8 moved when reverted.**
+- `.tr-unit-steps { min-width: 21px }` — steps 21.0 / pas 14.0. **9 moved when
+  reverted.**
+- `#readTransport { min-width: 53px }` — free-run 52.7 / libre 34.0, and it also
+  covers `● synced` 44.9 / `● synchro` 50.7. **10 moved when reverted.**
+- **The `.grid-hint` WRAPPER SPAN was removed** and `.grid-hint` carried onto each
+  of the five fragments instead. A wrapper is not a `[data-i18n]` element, so the
+  label gate measures its box — and its box IS the French sentence's width, which
+  is 142.9px wider than the English one and can never be anything else. Renders
+  identically. **1 moved when reverted, and it was the last one.**
+
+### Copy measured against the layout — each reverted ALONE
+- `label.subtitle` **SHORTENED**: the faithful French is 806.4px against the
+  706.4px the header can give the title block, so it wrapped and pushed the whole
+  page down 15px. 690.0px, 16.4px of clearance. **236 moved when reverted.**
+- `label.gridHintA` **SHORTENED** ("cliquez à nouveau" → "cliquez encore",
+  353.6 → 336.7px): the hint line pushed the Clear-all button onto a second row
+  and took the step-grid panel 15px taller than the English one.
+- `label.gridHintC` **SHORTENED FOR MARGIN, NOT FOR THE GATE** ("la barre qui
+  balaie" → "la barre mobile", 259.8 → 244.2px). Reverting EITHER of these two
+  alone passes — each is independently sufficient — and reverting BOTH breaks the
+  gate on 224 elements. They are an OR, not two fixes. gridHintC is kept anyway
+  because with gridHintA alone the Clear-all button ends **2.0px** inside the
+  1035px content edge instead of 17.6px, and Windows/WebView2 font metrics are a
+  named deferral. "qui balaie" survives verbatim in the grid tooltip.
+- `label.voice*`: the six drum names are the longest French additions on the page
+  ("Grosse caisse", "Charley ouvert"). They land in a fixed 92px grid gutter and
+  measure 13.2px tall — ONE line, the same line count as the English. No pin
+  needed and none added.
+
+### Verification
+- `check-i18n --plugin` exit 0 on canon v2; `check-i18n --strict-v2` exit 0 with
+  **14 v2 / 0 v1** — the whole `data-tip` convention is now localized.
+- `check-ui-labels` **ALL CHECKS PASSED** across four states with **ZERO**
+  non-label elements moved, French confirmed rendered (69/82 labels differ),
+  `dataset.label === textContent` after init, after the switch and after a state
+  pass in both languages, **90 of 90** keyed elements measured, no coverage hole,
+  no page error, every resource served.
+- `boot-all-uis` clean — 107 text elements, 81 aria, **0 title**, 82 i18n.
+- Render harness **ALL PASS**, and **this harness is DETERMINISTIC**: three
+  consecutive runs of one binary are digit-identical, at v1.0.3 and at v1.1.0
+  alike. Comparing the two builds, every number is IDENTICAL, digit for digit —
+  which is the strongest statement available here and is the right one, because
+  this harness has no state-roundtrip probe for the new XML attribute to move.
+- `auval -a` lists `aumu OSiB OuDv`.
+
+### Measured at the 860 x 640 RESIZE MINIMUM — which no gate sees
+`check-ui-labels` pins the viewport to the `setSize()` default it parses out of
+`PluginEditor.cpp`, so it only ever measures 1060 x 900. This is the one
+resizable frame in the family (`setResizeLimits(860, 640, 1920, 1400)`), and a
+French label that fits at the default can still clip 200px narrower. Measured by
+hand, in both languages, with the popover open and closed:
+- **Nothing clips.** No leaf label's rendered text is wider than its own box in
+  either language, at either size.
+- Nothing overflows horizontally: the frame's scroll width equals its client
+  width (854px) in both languages.
+- The French page is **15px taller** than the English (1298px vs 1283px of scroll
+  extent) inside a 634px pane that is already 649px over in English. The single
+  French-only reflow is the timing-lane hint gaining a second line at 854px — a
+  wrap inside a scrolling pane, not a clip.
+The 1060 x 900 default and the 860 x 640 minimum are untouched.
+
+### Not verified
+- The C++ persistence round-trip has never been executed by hand on this plugin.
+- Windows / WebView2 font metrics remain a named deferral, and the tightest
+  French margin here is the step-grid line's 17.6px and the strapline's 16.4px.
+
 ## [1.0.3] — 2026-08-09
 
 License-compliance release; no functional changes.

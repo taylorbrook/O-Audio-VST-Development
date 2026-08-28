@@ -29,19 +29,175 @@
 // getToggleState / getNativeFunction live on the `Juce` ES-module namespace.
 // window.__JUCE__.backend.addEventListener is the low-level channel for the one
 // C++-pushed "frame" event (playhead + drained hits + transport).
+//
+// INTERFACE COPY (v1.1.0): every label, heading, button face, hint, legend key,
+// MIDI row and tooltip on this page comes from js/i18n.js in English or French.
+// applyI18n() writes each tooltip onto its anchor as data-tip-title + data-tip
+// and each caption into its [data-i18n] element; the renderer below only
+// positions what the anchor already carries. The value readouts, the six lesson
+// preset names and the MIDI note numbers stay English (D-01/D-02/D-03).
 // ============================================================================
 
 import * as Juce from "./juce/index.js";
 
+// ════════════════════════════════════════════════════════════════════════════
+// INTERFACE LANGUAGE (v1.1.0) — canon v2, verbatim from scripts/i18n-canon.js.
+//
+// It sits HERE, directly under the imports and above every other declaration in
+// this module, because `uiLanguage` is a module-level `let`: anything above it
+// that reached applyLabel() would touch it inside its temporal dead zone and
+// throw out of module evaluation, taking the 42 parameter bindings, the step
+// grid, the timing lane and the MIDI readout with it
+// (pattern_module_toplevel_init_tdz). This file DOES have eager top-level work
+// below — VOICES, SLIDER_IDS, the FORMAT table — so the ordering is load-bearing
+// here, not merely defensive. `node scripts/boot-all-uis.js` is the ONLY gate in
+// the repo that sees this class of failure.
+//
+// Do NOT edit the region between the import line and the close of initI18n():
+// check-i18n assertion 6 byte-compares it against scripts/i18n-canon.js.
+// ════════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
 // ── Voice roster — row order MUST match BeatmakerIDs kVoicePrefix / kGmNotes ──
+// `name` is the v1.0.3 English face, kept as the no-i18n fallback and as the
+// {voice} token's last resort; `key` is what the six one-line writers below
+// actually use. VOICE_NAME_WRITERS exists because check-i18n assertion 13
+// requires every setLabel key to be a plain string literal and assertion 15
+// counts only literal keys as references — VOICES[v].key is neither, so a
+// key-driven call would fail one gate and report all six keys DEAD to the other.
 const VOICES = [
-  { prefix: "kick",      name: "Kick",       note: 36, hue: "#c0532b" },
-  { prefix: "snare",     name: "Snare",      note: 38, hue: "#b5862e" },
-  { prefix: "clap",      name: "Clap",       note: 39, hue: "#9a6b3f" },
-  { prefix: "closedHat", name: "Closed Hat", note: 42, hue: "#5f9e57" },
-  { prefix: "openHat",   name: "Open Hat",   note: 46, hue: "#3f8e93" },
-  { prefix: "tom",       name: "Tom",        note: 45, hue: "#7a5ba6" },
+  { prefix: "kick",      name: "Kick",       key: "label.voiceKick",      note: 36, hue: "#c0532b" },
+  { prefix: "snare",     name: "Snare",      key: "label.voiceSnare",     note: 38, hue: "#b5862e" },
+  { prefix: "clap",      name: "Clap",       key: "label.voiceClap",      note: 39, hue: "#9a6b3f" },
+  { prefix: "closedHat", name: "Closed Hat", key: "label.voiceClosedHat", note: 42, hue: "#5f9e57" },
+  { prefix: "openHat",   name: "Open Hat",   key: "label.voiceOpenHat",   note: 46, hue: "#3f8e93" },
+  { prefix: "tom",       name: "Tom",        key: "label.voiceTom",       note: 45, hue: "#7a5ba6" },
 ];
+const VOICE_NAME_WRITERS = {
+  kick:      (el) => setLabel(el, "label.voiceKick"),
+  snare:     (el) => setLabel(el, "label.voiceSnare"),
+  clap:      (el) => setLabel(el, "label.voiceClap"),
+  closedHat: (el) => setLabel(el, "label.voiceClosedHat"),
+  openHat:   (el) => setLabel(el, "label.voiceOpenHat"),
+  tom:       (el) => setLabel(el, "label.voiceTom"),
+};
+// The four repeating knob captions and the two toggle faces, keyed ONCE each and
+// applied to all six strips — not six copies of one key.
+const VOICE_KNOB_WRITERS = {
+  Tune:  (el) => setLabel(el, "label.knobTune"),
+  Decay: (el) => setLabel(el, "label.knobDecay"),
+  Tone:  (el) => setLabel(el, "label.knobTone"),
+  Level: (el) => setLabel(el, "label.knobLevel"),
+};
+const VOICE_TOGGLE_WRITERS = {
+  Mute: (el) => setLabel(el, "label.mute"),
+  Solo: (el) => setLabel(el, "label.solo"),
+};
+// The accessible-name key each generated knob carries. A TABLE, not
+// `"voice" + suffix`: check-i18n assertion 15 reads a dataset.i18nAria
+// assignment with a plain string literal on the right as a key REFERENCE, and
+// the concatenated form handed it the prefix `voice` as if that were the key —
+// a dangling reference to a key that does not exist and never could.
+const VOICE_KNOB_ARIA = {
+  Tune:  "voiceTune",
+  Decay: "voiceDecay",
+  Tone:  "voiceTone",
+  Level: "voiceLevel",
+};
 const NUM_VOICES = VOICES.length;   // 6
 const MAX_STEPS = 32;
 
@@ -54,6 +210,19 @@ function nextVelocity(v) {
   return VEL_GHOST;                   // accent → ghost
 }
 function velTier(v) { return v === 0 ? "off" : v <= 55 ? "ghost" : v <= 112 ? "normal" : "accent"; }
+// Velocity glyphs, and the per-tier accessible-name key. Both are LOOKUP TABLES
+// rather than the v1.0.3 chained ternary in the textContent assignment itself:
+// the extractor collects every string literal on the right-hand side of a
+// textContent write, including a comparison operand, so `tier === "accent"`
+// there reported "accent" and "ghost" as raw English prose writes and failed
+// check-i18n assertion 12 over two words the page never renders.
+const VEL_MARK = { off: "", ghost: "·", normal: "", accent: "▲" };
+const VEL_ARIA_KEY = {
+  off:    "aria.cellOff",
+  ghost:  "aria.cellGhost",
+  normal: "aria.cellNormal",
+  accent: "aria.cellAccent",
+};
 
 // ── Parameter inventory (must match OSimpleBeatmaker::ParamIDs exactly) ──────
 const GLOBAL_SLIDERS = ["swing", "humanize", "quantizeStrength", "tempo", "outputLevel"];
@@ -81,32 +250,16 @@ function voiceFmt(suffix) {
   return fmtPct;   // Decay, Tone
 }
 
-// ── Tooltip copy (plain-language pedagogy on every control + the visuals) ─────
-const TIPS = {
-  grid: ["The Step Grid", "Each row is a drum voice, each column a sixteenth-note step. <strong>Click</strong> a cell to light a step; <strong>click again</strong> to cycle <em>normal → accent → ghost</em> (cell height = velocity); <strong>right-click</strong> to clear. The amber bar sweeping across is the playhead — when it crosses a lit cell, that voice fires."],
-  lane: ["Timing / Groove Lane", "The standout view: each dot is a hit, placed at its <em>actual</em> moment relative to its grid line. A line to the left of the tick = early, right = late. This is the exact Δt applied to the audio — turn <strong>Swing</strong> and watch off-beats drift right together; <strong>Humanize</strong> scatters them; <strong>Quantize</strong> pulls the scatter back toward the grid while leaving swing."],
-  midi: ["Live MIDI Readout", "Every note-on as it fires, from the sequencer (<strong>SEQ</strong>) and from notes you play in (<strong>MIDI</strong>). The grid and this list are two views of one MIDI stream — the sequencer literally emits these messages into the same buffer your playing does."],
-  clearGrid: ["Clear All", "Erases every step in the pattern across all six voices — a blank grid to start a fresh beat from."],
-  swing: ["Swing", "Delays every off-beat sixteenth, turning a stiff grid into a shuffle. 0% is dead-straight; 75% is the maximum MPC-style swing. Crucially, swing is <em>not</em> removed by Quantize — it is a deliberate, musical lateness, not an error."],
-  humanize: ["Humanize", "Adds a small random timing and velocity wobble to every hit, like a human drummer who never lands exactly on the grid. A little brings a flat pattern to life; too much sounds sloppy. Watch the lane scatter as you raise it."],
-  quantizeStrength: ["Quantize Strength", "How hard hits are pulled back onto the grid. At 100% the random humanize is fully removed (dead tight); at 0% the full wobble is kept. The exact tradeoff the craft names: quantize enough that the part is solid, without over-quantizing the life out of it. <em>Swing survives quantize</em> — only the random part is pulled in."],
-  tempo: ["Tempo", "Playback speed in beats per minute — used when there is no host transport (the standalone app, or a stopped DAW). When a DAW is playing, the grid locks to the host's tempo instead."],
-  patternLength: ["Pattern Length", "How many steps the loop is before it repeats: 8, 16, or 32. Shrinking then re-growing keeps the cells you drew — they are remembered, just not played while the loop is short."],
-  outputLevel: ["Output Level", "Master output trim in decibels. −60 dB is silence."],
-  voiceTune: ["Tune", "Shifts this voice's pitch up or down by up to an octave (±12 semitones). Tune the kick down for weight, the toms across a fill."],
-  voiceDecay: ["Decay", "How long the voice rings out. Short snaps it into a tight tick; long lets it boom or sizzle. The musical range differs per voice (a kick boom vs. a closed-hat tick)."],
-  voiceTone: ["Tone", "The voice's character knob — snap/brightness/body-vs-noise, depending on the drum. Sweep it to hear the timbre shift from dark to bright (or body to noise)."],
-  voiceLevel: ["Level", "This voice's volume in the mix, in decibels. −60 dB silences it."],
-  voiceMute: ["Mute", "Silences this voice without erasing its pattern — solo a part by muting the rest, or drop a voice out and back in."],
-  voiceSolo: ["Solo", "Plays only the soloed voice(s), muting everything else. Great for hearing exactly what one drum is doing in the groove."],
-  presets: ["Lesson Presets", "A guided tour where each preset isolates one idea — straight vs. swung, accents, ghost notes, humanize, quantize. Click one to load it, then tweak a knob to hear the concept."],
-  lessonStraight:  ["Straight", "A flat, no-feel pattern — every hit dead on the grid at one velocity. The baseline that everything else departs from."],
-  lessonAccents:   ["Backbeat + Accents", "Snare on 2 and 4 with hard accents, quieter hits between — how velocity alone turns a march into a groove."],
-  lessonGhost:     ["Ghost Notes", "Quiet snare hits tucked between the backbeats — the secret to a pattern that breathes."],
-  lessonSwing:     ["Triplet Swing", "The same pattern with swing pushed up — feel the off-beats slide late into a shuffle."],
-  lessonHumanized: ["Humanized", "A tight pattern loosened with humanize — watch the lane scatter off the grid lines."],
-  lessonQuantize:  ["Quantize Demo", "Humanize up, then sweep quantize strength to pull the scatter back — the tradeoff made audible and visible."],
-};
+// ── Tooltip copy ────────────────────────────────────────────────────────────
+// It lives in js/i18n.js now, in BOTH languages, and applyI18n writes it onto
+// each anchor as data-tip-title + data-tip. Through v1.0.3 a TIPS object here
+// held [title, bodyHtml] pairs keyed by the anchor's OWN data-tip attribute —
+// which canon v2 overwrites with the tip BODY, so the key and the copy would
+// have fought over one attribute, and check-i18n assertion 3 requires index.html
+// to carry zero data-tip literals. The six parameter cells in the markup and the
+// 24 generated ones carry a data-param attribute from v1.1.0; the three panels
+// and the lesson row carry an id; the twelve mute/solo buttons already had one;
+// the six lesson chips are addressed by the data-preset they already carried.
 
 // ── Knob geometry (relative vertical drag, matches the simple family) ────────
 const KNOB_MIN_DEG = -135, KNOB_MAX_DEG = 135, DRAG_TRAVEL_PX = 220;
@@ -159,8 +312,11 @@ function bindKnob(id) {
   knob.setAttribute("role", "slider");
   knob.setAttribute("aria-valuemin", "0");
   knob.setAttribute("aria-valuemax", "1");
-  const lbl = knob.parentElement && knob.parentElement.querySelector(".knob-label");
-  if (lbl) knob.setAttribute("aria-label", lbl.textContent);
+  // v1.0.3 named the knob by copying its caption's textContent HERE, once, at
+  // bind time — which runs before initI18n(), so the accessible name was the
+  // English fallback forever and never followed a language switch. The name now
+  // comes from data-i18n-aria (in the markup for the five global knobs, set by
+  // buildVoiceStrips for the 24 generated ones) and is rewritten by every sweep.
   knob.addEventListener("keydown", (e) => {
     let d = 0;
     if (e.key === "ArrowUp" || e.key === "ArrowRight") d = 0.02;
@@ -214,7 +370,7 @@ function bindCombo(id) {
     const choices = (st.properties && st.properties.choices) || [];
     if (choices.length === 0) return false;
     if (sel.options.length === choices.length) return true;
-    sel.innerHTML = "";
+    sel.textContent = "";
     choices.forEach((c, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = c; sel.appendChild(o); });
     return true;
   };
@@ -267,11 +423,29 @@ function paintCell(v, s) {
   const fill = el.querySelector(".cell-fill");
   if (fill) fill.style.height = vel > 0 ? `${Math.max(20, Math.round((vel / 127) * 100))}%` : "0%";
   const mark = el.querySelector(".cell-mark");
-  if (mark) mark.textContent = tier === "accent" ? "▲" : tier === "ghost" ? "·" : "";
-  // a11y: announce the cell's voice, step and current velocity state
+  if (mark) mark.textContent = VEL_MARK[tier] || "";
+  // a11y: announce the cell's voice, step and current velocity state, in the
+  // current language. NOT a [data-i18n] element and not a setLabel call: there
+  // are 96 to 192 of these and every one has a different name, so it is composed
+  // per cell through trLabel() with vars. {voice} is itself a LABELS key and
+  // resolves to the localized voice name; {step} and {vel} are numbers and
+  // substitute verbatim (D-03). No prose literal appears in this call — the four
+  // sentence shapes are in the table, which is what keeps assertion 12 green.
   el.setAttribute("aria-pressed", vel > 0 ? "true" : "false");
-  el.setAttribute("aria-label",
-    `${VOICES[v].name} step ${s + 1}: ${vel === 0 ? "off" : `${tier} (velocity ${vel})`}`);
+  el.setAttribute("aria-label", trLabel(VEL_ARIA_KEY[tier], uiLanguage,
+                                        { voice: VOICES[v].key, step: s + 1, vel }));
+}
+
+// The cells are repainted on edit, not on a language change, so the sweep never
+// reaches their accessible names. One equality check per animation frame does:
+// it covers the selector, the asynchronous boot-time pull from C++ and any
+// future caller, because it watches the RESULT rather than a particular path.
+let lastAriaLang = null;
+function refreshGridAria() {
+  if (lastAriaLang === uiLanguage) return;
+  lastAriaLang = uiLanguage;
+  for (let v = 0; v < NUM_VOICES; v++)
+    for (let s = 0; s < patternLen; s++) paintCell(v, s);
 }
 
 function applyStep(v, s, vel) {
@@ -284,7 +458,7 @@ function applyStep(v, s, vel) {
 function renderGridColumns() {
   const rows = document.getElementById("gridRows");
   if (!rows) return;
-  rows.innerHTML = "";
+  rows.textContent = "";
   lastPhaseCol = -1;   // cells rebuilt — force the playhead class to re-apply
   for (let v = 0; v < NUM_VOICES; v++) {
     cellEls[v].fill(null);
@@ -294,7 +468,7 @@ function renderGridColumns() {
 
     const label = document.createElement("div");
     label.className = "row-label";
-    label.textContent = VOICES[v].name;
+    VOICE_NAME_WRITERS[VOICES[v].prefix](label);
     row.appendChild(label);
 
     const cells = document.createElement("div");
@@ -307,7 +481,15 @@ function renderGridColumns() {
       cell.dataset.step = String(s);
       cell.setAttribute("tabindex", "0");
       cell.setAttribute("role", "button");
-      cell.innerHTML = '<div class="cell-fill"></div><div class="cell-mark"></div>';
+      // createElement, not innerHTML: the copy on this page is table-sourced now
+      // and localized copy must never reach a markup path (check-i18n assertion
+      // 9 forbids an angle bracket in an i18n.js literal for the same reason).
+      const fillEl = document.createElement("div");
+      fillEl.className = "cell-fill";
+      const markEl = document.createElement("div");
+      markEl.className = "cell-mark";
+      cell.appendChild(fillEl);
+      cell.appendChild(markEl);
       cell.addEventListener("click", (e) => { e.preventDefault(); applyStep(v, s, nextVelocity(gridState[v][s])); });
       cell.addEventListener("contextmenu", (e) => { e.preventDefault(); applyStep(v, s, 0); });
       // keyboard: Enter/Space cycles velocity, Delete/Backspace clears the cell
@@ -454,11 +636,37 @@ function pushMidiRow(h) {
   const note = voice ? voice.note : 0;
   const row = document.createElement("div");
   row.className = "midi-row fresh";
-  const srcCls = h.src === 1 ? "src-midi" : "src-seq";
-  const srcTxt = h.src === 1 ? "MIDI" : "SEQ ";
-  row.innerHTML = `<span class="${srcCls}">${srcTxt}</span> ` +
-    `<span class="mr-note">note ${note}</span> ${voice ? voice.name : ""} ` +
-    `<span class="mr-vel">vel ${h.vel}</span>`;
+
+  // Four localized fields, built with createElement + setLabel. Two calls behind
+  // an if/else for the source tag rather than a ternary in the argument:
+  // check-i18n assertion 13 rejects a conditional anywhere inside a setLabel
+  // call, and it is right to — a reviewer cannot tell a message-selection
+  // ternary from a plural one by reading it. The v1.0.3 "SEQ " padded itself to
+  // MIDI's width with a trailing space inside the string; the width is a CSS
+  // min-width now, so neither face carries invisible layout.
+  const srcEl = document.createElement("span");
+  if (h.src === 1) { srcEl.className = "src-midi"; setLabel(srcEl, "label.srcMidi"); }
+  else             { srcEl.className = "src-seq";  setLabel(srcEl, "label.srcSeq"); }
+
+  const noteEl = document.createElement("span");
+  noteEl.className = "mr-note";
+  setLabel(noteEl, "label.midiNote", { n: note });
+
+  const nameEl = document.createElement("span");
+  nameEl.className = "mr-voice";
+  if (voice) VOICE_NAME_WRITERS[voice.prefix](nameEl);
+
+  const velEl = document.createElement("span");
+  velEl.className = "mr-vel";
+  setLabel(velEl, "label.midiVel", { v: h.vel });
+
+  row.appendChild(srcEl);
+  row.appendChild(document.createTextNode(" "));
+  row.appendChild(noteEl);
+  row.appendChild(document.createTextNode(" "));
+  row.appendChild(nameEl);
+  row.appendChild(document.createTextNode(" "));
+  row.appendChild(velEl);
   midiReadout.insertBefore(row, midiReadout.firstChild);   // newest at bottom (column-reverse)
   while (midiReadout.childElementCount > 40) midiReadout.removeChild(midiReadout.lastChild);
 }
@@ -475,10 +683,19 @@ function onFrame(frame) {
   // live SR (host can switch rates after boot; boot's getSampleRate is just a seed)
   if (typeof frame.sr === "number" && frame.sr > 0) sampleRate = frame.sr;
 
+  // THE TRANSPORT STATE LINE IS COPY, NOT A VALUE MIRROR. There is no sync
+  // parameter in this plugin's APVTS — frame.sync is host transport state pushed
+  // from the editor Timer — so translating it cannot make the page and a host
+  // automation lane disagree, which is the D-01 test that keeps O-simpleSubtractive's
+  // and O-simplePhysicalModelSynth's diagram state lines in English. Two
+  // literal-keyed setLabel calls behind an if/else, never a ternary in the
+  // argument (assertion 13). The bullet is inside BOTH strings in BOTH
+  // languages, so no writer ever has to re-attach the glyph.
   const tEl = document.getElementById("readTransport");
   if (tEl) {
     const synced = !!frame.sync;
-    tEl.textContent = synced ? "● synced" : "● free-run";
+    if (synced) setLabel(tEl, "label.synced");
+    else        setLabel(tEl, "label.freeRun");
     tEl.classList.toggle("synced", synced);
   }
 
@@ -519,6 +736,7 @@ function raf(ts) {
   ageLaneHits();
   drawLane();
   updatePlayheadColumn();
+  refreshGridAria();
   // poll the authoritative grid ~4×/s so host preset/state restores show up
   gridPollAccum++;
   if (gridPollAccum >= 15) { gridPollAccum = 0; refreshGridFromBackend(); }
@@ -526,14 +744,34 @@ function raf(ts) {
 }
 
 // ── Tooltips ─────────────────────────────────────────────────────────────────
+// Single floating #tooltip div. The copy is no longer looked up here: applyI18n
+// has already written it onto each anchor as data-tip-title + data-tip, in the
+// current language, and it rewrites both on every language change. This function
+// only positions and shows what the anchor carries. Avoids native title= (slow,
+// unstyled OS tooltips, and untranslated — contract §4; this page never carried
+// one, and index.html still carries zero).
 function initTooltips() {
   const tip = document.getElementById("tooltip");
   if (!tip) return;
   let active = null;
-  const show = (key, x, y) => {
-    const t = TIPS[key];
-    if (!t) return;
-    tip.innerHTML = `<span class="tt-title">${t[0]}</span>${t[1]}`;
+
+  // Built with createElement + textContent, not innerHTML. The tip text is
+  // table-sourced and localized now rather than a fixed literal, and localized
+  // copy must never reach a markup path. v1.0.3's tip bodies carried strong/em
+  // tags; the words are unchanged and the tags are gone (check-i18n assertion 9
+  // forbids an angle bracket in an i18n.js string literal).
+  const show = (el, x, y) => {
+    const title = el.getAttribute("data-tip-title");
+    const body = el.getAttribute("data-tip");
+    if (!title && !body) return;
+    tip.textContent = "";
+    if (title) {
+      const t = document.createElement("span");
+      t.className = "tt-title";
+      t.textContent = title;
+      tip.appendChild(t);
+    }
+    if (body) tip.appendChild(document.createTextNode(body));
     tip.classList.add("show"); tip.setAttribute("aria-hidden", "false");
     position(x, y);
   };
@@ -545,21 +783,94 @@ function initTooltips() {
     tip.style.left = `${Math.max(6, nx)}px`; tip.style.top = `${Math.max(6, ny)}px`;
   };
   const hide = () => { active = null; tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); };
-  const showAtEl = (key, el) => {
-    const r = el.getBoundingClientRect();
-    show(key, r.left + r.width / 2, r.bottom);
-  };
-  document.querySelectorAll("[data-tip]").forEach((el) => {
-    const key = el.getAttribute("data-tip");
-    el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
-    el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
-    el.addEventListener("pointerleave", hide);
-    el.addEventListener("pointerdown", hide);
-    // keyboard / focus users get the same teaching copy
-    el.addEventListener("focusin", (e) => { e.stopPropagation(); active = key; showAtEl(key, el); });
-    el.addEventListener("focusout", hide);
+
+  // DELEGATED on the document rather than attached per element. No anchor
+  // carries data-tip until applyI18n has run, so the v1.0.3
+  // querySelectorAll("[data-tip]") at setup time would bind NOTHING at all — and
+  // 36 of the 55 anchors are built by buildVoiceStrips and do not exist when the
+  // markup is parsed. Delegation has no ordering to get wrong.
+  // pointerover/pointerout and focusin/focusout are used because — unlike
+  // pointerenter/pointerleave and focus/blur — they bubble. closest() also gets
+  // the nesting right for free: a knob cell sits INSIDE the panel anchor and a
+  // lesson chip inside the lesson-row anchor, and the innermost wins with no
+  // stopPropagation.
+  const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
+
+  document.addEventListener("pointerover", (e) => {
+    const el = anchorOf(e.target);
+    if (!el || el === active) return;
+    active = el;
+    show(el, e.clientX, e.clientY);
   });
+  document.addEventListener("pointermove", (e) => {
+    if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerout", (e) => {
+    if (!active) return;
+    // Ignore a move between two descendants of the SAME anchor: pointerout fires
+    // on every child boundary and would flicker the tip off and on.
+    if (anchorOf(e.relatedTarget) === active) return;
+    hide();
+  });
+  document.addEventListener("pointerdown", hide);
+
+  document.addEventListener("focusin", (e) => {
+    const el = anchorOf(e.target);
+    if (!el) return;
+    active = el;
+    const r = el.getBoundingClientRect();
+    show(el, r.left + r.width / 2, r.bottom);
+  });
+  document.addEventListener("focusout", hide);
+
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+}
+
+// ── Settings popover (v1.1.0) ───────────────────────────────────────────────
+// The gear panel holding the language selector. All state lives in this closure,
+// so nothing here can join a TDZ chain.
+//
+// Styled in this plugin's own aged-paper field-guide vocabulary in
+// css/styles.css: the panel wears the .group plate's paper fill and brown rule,
+// the gear wears the .tour-btn chip's border and paper fill rounded to a circle
+// (and lights the same green when open), and the selector wears select.combo's
+// border, radius and caret at panel scale. It is not a widget pasted in
+// unchanged from another plugin.
+function setupSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("Settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    gearBtn.classList.toggle("open", open);
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. pointerdown rather than
+  // click, so the panel is gone before a drag on a knob underneath it begins —
+  // bindKnob calls preventDefault in its own pointerdown handler.
+  document.addEventListener("pointerdown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
 }
 
 // ── Preset tour (concept-isolating factory presets — FUNC-05) ────────────────
@@ -577,35 +888,91 @@ function initPresetTour() {
         try { await applyPresetFn(index); } catch (e) { console.error("applyPreset failed", e); }
         await refreshGridFromBackend(true);   // authoritative pull — bypass the edit holdoff
       }
-      if (caption) caption.textContent = `“${btn.getAttribute("data-preset")}” loaded — tweak a knob to hear the concept.`;
+      // The NAME substitutes verbatim (D-02): it is the factory preset name the
+      // chip carries and the one C++ knows. Hoisted to a const because
+      // assertion 13 rejects a conditional ANYWHERE inside a setLabel call,
+      // including inside the vars object.
+      const presetName = btn.getAttribute("data-preset") || "";
+      if (caption) setLabel(caption, "label.tourLoaded", { name: presetName });
     });
   });
 }
 
 // ── Per-voice strips (built here so IDs stay in lock-step) ────────────────────
+// createElement throughout, not the v1.0.3 innerHTML template. Two reasons, and
+// both are load-bearing: localized copy must never reach a markup path, and a
+// template string carrying prose is reported by check-i18n assertion 12 as a raw
+// English write that no I18N_EXEMPT entry can cover — an exemption lives in
+// i18n.js, where assertion 9 forbids the angle bracket the template is made of.
+//
+// The four knob captions and the two toggle faces repeat identically down all
+// six strips, so they are ONE key each applied six times by the writers above.
+// The tip ANCHOR is data-param (the parameter ID) on the knob cell and the id
+// bindToggle already needs on the buttons; TIP_BINDINGS names all 36 of them
+// individually, because document.querySelector returns the FIRST match.
 function buildVoiceStrips() {
   const host = document.getElementById("voiceStrips");
   if (!host) return;
-  host.innerHTML = "";
+  host.textContent = "";
   for (const v of VOICES) {
     const strip = document.createElement("div");
     strip.className = "voice-strip";
     strip.style.setProperty("--voice-hue", v.hue);
-    const knobs = VOICE_SLIDER_SUFFIX.map((s) => {
-      const id = v.prefix + s;
-      const tipKey = "voice" + s;
-      return `<div class="knob-cell cell-sm" data-tip="${tipKey}">
-                <div class="knob knob-sm" id="knob-${id}"><div class="knob-stem"></div></div>
-                <div class="knob-label">${s}</div>
-                <div class="knob-value" id="val-${id}">—</div>
-              </div>`;
-    }).join("");
-    strip.innerHTML = `<div class="vs-name">${v.name}</div>
-      <div class="vs-knobs">${knobs}</div>
-      <div class="vs-toggles">
-        <button class="toggle-btn mute" id="toggle-${v.prefix}Mute" data-tip="voiceMute">Mute</button>
-        <button class="toggle-btn solo" id="toggle-${v.prefix}Solo" data-tip="voiceSolo">Solo</button>
-      </div>`;
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "vs-name";
+    VOICE_NAME_WRITERS[v.prefix](nameEl);
+    strip.appendChild(nameEl);
+
+    const knobs = document.createElement("div");
+    knobs.className = "vs-knobs";
+    for (const suffix of VOICE_SLIDER_SUFFIX) {
+      const id = v.prefix + suffix;
+
+      const cell = document.createElement("div");
+      cell.className = "knob-cell cell-sm";
+      cell.dataset.param = id;
+
+      const knob = document.createElement("div");
+      knob.className = "knob knob-sm";
+      knob.id = `knob-${id}`;
+      // The accessible name reads the control's own tooltip title through
+      // trLabel's I18N fallback — an accessible name IS the control's name. A
+      // computed key is fine HERE (assertion 13 governs setLabel, and the four
+      // tooltip keys are I18N entries, which assertion 15 does not dead-check).
+      knob.dataset.i18nAria = VOICE_KNOB_ARIA[suffix];
+      const stem = document.createElement("div");
+      stem.className = "knob-stem";
+      knob.appendChild(stem);
+
+      const cap = document.createElement("div");
+      cap.className = "knob-label";
+      VOICE_KNOB_WRITERS[suffix](cap);
+
+      const val = document.createElement("div");
+      val.className = "knob-value";
+      val.id = `val-${id}`;
+      val.textContent = "—";   // a readout placeholder, replaced on the first bind (D-03)
+
+      cell.appendChild(knob);
+      cell.appendChild(cap);
+      cell.appendChild(val);
+      knobs.appendChild(cell);
+    }
+    strip.appendChild(knobs);
+
+    const toggles = document.createElement("div");
+    toggles.className = "vs-toggles";
+    for (const suffix of VOICE_TOGGLE_SUFFIX) {
+      const btn = document.createElement("button");
+      btn.className = `toggle-btn ${suffix.toLowerCase()}`;
+      btn.id = `toggle-${v.prefix}${suffix}`;
+      btn.type = "button";
+      VOICE_TOGGLE_WRITERS[suffix](btn);
+      toggles.appendChild(btn);
+    }
+    strip.appendChild(toggles);
+
     host.appendChild(strip);
   }
 }
@@ -640,6 +1007,17 @@ async function boot() {
 
   initTooltips();
   initPresetTour();
+
+  // The popover and the language sweep go here, EACH IN ITS OWN try/catch, and
+  // AFTER buildVoiceStrips() and the grid render above — the sweep must see the
+  // finished DOM or the 36 generated anchors get no tip and no accessible name
+  // (batch I2 lesson 1.3). applyI18n is what writes data-tip onto every anchor;
+  // initTooltips above reads that attribute, but delegation means the order
+  // between the two is free. A translation-table typo must not be allowed to
+  // take the 42 parameter bindings, the grid and the lane down with it — that is
+  // the TDZ failure this repo has already paid for once.
+  try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
 
   // C++ → JS per-frame push (playhead + drained hits + transport)
   if (window.__JUCE__ && window.__JUCE__.backend) {

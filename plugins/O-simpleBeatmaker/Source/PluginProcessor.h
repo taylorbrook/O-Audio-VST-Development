@@ -139,6 +139,26 @@ public:
     // (setValueNotifyingHost may take the uncontended parameter lock off-audio).
     void applyConceptPreset (int index);
 
+    //==========================================================================
+    // INTERFACE LANGUAGE (v1.1.0) — the WebView UI's own language preference.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and loading a lesson preset must not be able to change
+    // which language somebody reads their interface in. It rides the APVTS tree
+    // as a plain PROPERTY on the ROOT, beside the "PATTERN" child the step grid
+    // already persists there — the same shape this processor's own state
+    // round-trip already has room for.
+    //
+    // The RUNTIME form is an index; the PERSISTED form is the language code.
+    // The editor PULLS it once at page init; nothing pushes.
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     //==========================================================================
     // Class-scoped aliases so in-class and member-function bodies can use the
@@ -148,6 +168,9 @@ private:
 
     juce::AudioProcessorValueTreeState parameters;
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // v1.1.0 — the ROOT property name the interface language is persisted under.
+    static constexpr const char* kUiLanguageProp = "uiLanguage";
 
     // Custom step-grid state (NOT APVTS). Flat row-major: index = voice*kMaxSteps + step.
     std::array<std::atomic<uint8_t>, (size_t) (kNumVoices * kMaxSteps)> grid;

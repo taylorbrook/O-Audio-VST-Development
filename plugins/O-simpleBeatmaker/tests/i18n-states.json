@@ -1,0 +1,18 @@
+[
+  {
+    "name": "settings popover OPEN (lang-select — the caption span and the selector are both invisible at rest, so the gate never measures them otherwise)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "host transport SYNCED (label.synced — the other face of the transport state line, which only a PLAYING host produces; driven as a real frame event through the stub backend, not as a DOM poke)",
+    "eval": "window.__stubEmit('frame', { ph: 0, bpm: 120, sr: 44100, sync: true, hits: [] });"
+  },
+  {
+    "name": "one SEQ row and one MIDI row in the live readout (label.srcSeq, label.srcMidi, label.midiNote, label.midiVel and a voice name — every one of them created per ROW by pushMidiRow, so none exists in the DOM at rest)",
+    "eval": "window.__stubEmit('frame', { ph: 0, bpm: 120, sr: 44100, sync: true, hits: [ { v: 3, s: 4, vel: 127, src: 0, d: 0 }, { v: 0, s: 0, vel: 100, src: 1, d: 0 } ] });"
+  },
+  {
+    "name": "a lesson preset LOADED (label.tourLoaded, with the longest of the six preset names substituted through its {name} token — the tour caption's other face)",
+    "click": "[data-preset=\"Backbeat + Accents\"]"
+  }
+]

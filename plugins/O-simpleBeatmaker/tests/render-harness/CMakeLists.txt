@@ -49,8 +49,14 @@ target_compile_definitions(O-simpleBeatmaker-render-test PRIVATE
     JucePlugin_Manufacturer="Ouaricon"
     JucePlugin_ManufacturerCode=0x4f756172
     JucePlugin_PluginCode=0x4f536942
-    JucePlugin_VersionString="1.0.1"
-    JucePlugin_VersionCode=0x10000
+    # MUST track the plugin version (inherited from the parent CMakeLists).
+    # A stale literal here is a live drift: the processor's own version-stamped
+    # behaviour, and on any plugin with a preset manager the .factory-version
+    # sentinel, would be built against a version that does not exist. Through
+    # v1.0.3 this said "1.0.1" while the plugin shipped 1.0.3 and the code said
+    # 0x10000.
+    JucePlugin_VersionString="${OSIMPLEBEATMAKER_VERSION}"
+    JucePlugin_VersionCode=0x10100
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
     JucePlugin_ProducesMidiOutput=0

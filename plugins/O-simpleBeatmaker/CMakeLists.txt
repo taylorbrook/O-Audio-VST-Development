@@ -8,13 +8,22 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # spine + sample-accurate host-synced sequencer + timing-feel engine + lock-free
 # VizAnalyzer (Stage 2); and the single-page WebView teaching UI (Stage 3, the
 # binary-data target below). WebView2 cross-platform flags set since Foundation.
+# Single source of truth for the version — the render harness derives its
+# JucePlugin_VersionString from this. A harness that hard-codes its own copy
+# drifts silently, and on any plugin with a preset manager it then rewrites the
+# user's REAL factory-preset directory (the .factory-version sentinel compares
+# against JucePlugin_VersionString). Introduced in v1.1.0: through v1.0.3 the
+# harness carried the literal "1.0.1" while the plugin shipped 1.0.3, and its
+# JucePlugin_VersionCode said 0x10000.
+set(OSIMPLEBEATMAKER_VERSION "1.1.0")
+
 juce_add_plugin(O-simpleBeatmaker
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OSiB
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleBeatmaker${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.3"
+    VERSION "${OSIMPLEBEATMAKER_VERSION}"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -56,6 +65,7 @@ juce_add_binary_data(O-simpleBeatmaker_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
 )
