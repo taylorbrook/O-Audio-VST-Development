@@ -145,11 +145,6 @@
             <div class="viz-label"><span data-i18n="label.vizWave">Source Waveform &#183;</span> <span class="viz-hint" data-i18n="label.vizWaveHint">playhead, freeze pin &amp; spray range</span></div>
             <div class="canvas-wrap">
               <canvas id="sourceWaveCanvas"></canvas>
-              <!-- Window-envelope inset (UI-03) tucked into the waveform corner -->
-              <div class="window-inset">
-                <span class="inset-label" data-i18n="label.windowInset">Window</span>
-                <canvas id="windowInsetCanvas"></canvas>
-              </div>
             </div>
           </div>
           <div class="viz-cell" id="vizScopeCell">
@@ -222,13 +217,25 @@
         </section>
 
         <!-- Window -->
-        <section class="group">
+        <section class="group group-window">
           <h2 class="group-title" data-i18n="label.groupWindow">Window</h2>
           <div class="knob-row">
             <div class="select-cell" data-param="windowShape">
               <select class="combo" id="combo-windowShape"
                       data-i18n-aria="windowShape" aria-label="Window Shape"></select>
               <div class="knob-label" data-i18n="label.knobShape">Shape</div>
+            </div>
+            <!-- Window-envelope inset (UI-03): one grain's envelope, redrawn on
+                 shape / taper / grain-size change. Moved here from the waveform
+                 corner in v1.4.0 so it sits beside the control it explains. -->
+            <div class="window-inset">
+              <span class="inset-label" data-i18n="label.windowInset">Envelope</span>
+              <canvas id="windowInsetCanvas"></canvas>
+            </div>
+            <div class="knob-cell" data-param="windowTaper" id="taper-cell">
+              <div class="knob knob-sm" id="knob-windowTaper" data-i18n-aria="windowTaper"><div class="knob-stem"></div></div>
+              <div class="knob-label" data-i18n="label.knobTaper">Taper</div>
+              <div class="knob-value" id="val-windowTaper">50%</div>
             </div>
           </div>
         </section>

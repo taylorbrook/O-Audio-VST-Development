@@ -22,7 +22,7 @@
 
     O-simpleGrain - Plugin Editor (implementation)
 
-    Stage 3 (GUI): Ouaricon "Granular Field Guide" WebView UI. 15 slider relays
+    Stage 3 (GUI): Ouaricon "Granular Field Guide" WebView UI. 16 slider relays
     (grain / spray-scatter / amp ADSR / output) + 2 combo relays (sourceSample,
     windowShape) + 2 toggle relays (freeze, adsrEnabled) bound two-way to the
     APVTS. The five
@@ -106,13 +106,13 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
 {
     using namespace OSimpleGrain::ParamIDs;
 
-    // 19 APVTS params = 15 float sliders + 2 combos + 2 toggles.
+    // 20 APVTS params = 16 float sliders + 2 combos + 2 toggles.
     // (sourceSample / windowShape are choices; freeze / adsrEnabled are bools — NOT sliders.)
     const juce::StringArray sliderIds {
         grainSize, density, position, scan,
         pitchSpray, positionSpray, scatter, grainPitch, panSpray, velToDensity,
         ampAttack, ampDecay, ampSustain, ampRelease,
-        outputLevel
+        outputLevel, windowTaper
     };
     const juce::StringArray comboIds  { sourceSample, windowShape };
     const juce::StringArray toggleIds { freeze, adsrEnabled };

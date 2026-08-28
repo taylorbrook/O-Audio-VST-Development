@@ -65,9 +65,10 @@
 // once per block and calls setParams(...).
 struct GrainVoiceParams
 {
-    float grainSizeMs = 30.0f;   // 2..200 ms
+    float grainSizeMs = 30.0f;   // 2..500 ms
     float density     = 40.0f;   // grains/sec (clamped >= 1 by the scheduler)
-    int   windowShape = 4;       // 0=rect .. 4=Hann
+    int   windowShape = 4;       // 0=rect .. 4=Hann, 5=Tukey
+    float windowTaper = 0.5f;    // Tukey α 0..1 (v1.4.0)
     float grainPitch  = 0.0f;    // global transposition in semitones
 
     // --- Phase 2.2 spray & scatter (per-grain RNG; processor pushes these) ---
@@ -294,7 +295,7 @@ public:
                 if (! g.active)
                     continue;
 
-                const float env = (windowLuts != nullptr) ? windowLuts->read (g.shape, g.phase) : 0.0f;
+                const float env = (windowLuts != nullptr) ? windowLuts->read (g.shape, g.phase, g.taperEnd) : 0.0f;
                 float src = readSourceLagrange (sourcePtr, sourceLen, g.readPos);
                 src = aaOnePole (src, g.aaCoeff, g.aaEngaged, g.aaState);   // band-limit if rate > 1 (DSP-08)
 
@@ -382,6 +383,12 @@ private:
         g.phaseInc      = phaseInc;
         g.lengthSamples = lenSamp;
         g.shape         = params.windowShape;
+        // v1.4.0 — taper end (phase units) for the two remapped shapes. Fixed on
+        // spawn because it depends on THIS grain's length: the rect guard is a
+        // time (1 ms), not a phase fraction, so it stays inaudible at 500 ms and
+        // still fits inside a 2 ms grain (clamped to a full Hann at 0.5).
+        g.taperEnd      = WindowLuts::taperEndFor (params.windowShape, params.windowTaper,
+                                                   lenSamp, sampleRate);
 
         // --- Position spray: scatter the read start ± positionSpray% of the
         // source length around the current playhead. Under freeze the playhead is

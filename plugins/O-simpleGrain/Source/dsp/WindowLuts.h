@@ -28,20 +28,30 @@
     in the grain loop (the O-simpleAdditive table rationale — RESEARCH §2.4).
 
     Shape index meaning (matches the windowShape AudioParameterChoice order in
-    PluginProcessor.cpp: "Rectangular","Triangular","Welch","Gaussian","Hann"):
-        0 = rectangular  (flat 1.0 — clicks at hard edges, the teaching artifact)
+    PluginProcessor.cpp: "Rectangular","Triangular","Welch","Gaussian","Hann","Tukey"):
+        0 = rectangular  flat 1.0 with a fixed kRectGuardMs fade at each edge
+                         (v1.4.0 — the bare step clicked; read via the Tukey remap)
         1 = triangular   1 - |2φ-1|
         2 = Welch        1 - (2φ-1)^2          (parabolic)
         3 = Gaussian     exp(-0.5((φ-0.5)/σ)^2), σ≈0.18, normalized to 1.0 centre
         4 = Hann         0.5(1 - cos(2πφ))     (default)
+        5 = Tukey        flat top, Hann-shaped taper of α/2 at each edge (v1.4.0)
+
+    Tukey is NOT a sixth table. Its taper IS a Hann half, so with taperEnd = α/2:
+        u = min(φ, 1-φ)                      distance to the nearest edge
+        r = min(u / taperEnd, 1) * 0.5       [0, 0.5] — flat top at exactly 0.5
+        w = Hann(r)                          Hann(0.5) == 1.0 → true unity plateau
+    One phase remap into the existing Hann table serves every α (and the rect
+    guard, which is the same remap with taperEnd = guardSamples / grainLength).
 
     LUTs are sample-rate-independent (indexed by phase). Build once; never on the
     audio thread.
 
-    CONTRACT (IN-05): the five closed-form window formulas + the Gaussian σ are
-    re-implemented in the UI's window-envelope inset — app.js windowValue() /
-    GAUSS_SIGMA (an accepted design decision: the inset recomputes JS-side rather
-    than pushing tables). Any change to a formula or σ here MUST be mirrored there.
+    CONTRACT (IN-05): the closed-form window formulas, the Gaussian σ, the Tukey
+    remap, kRectGuardMs and taperEndFor() are re-implemented in the UI's
+    window-envelope inset — app.js windowValue() / GAUSS_SIGMA / RECT_GUARD_MS /
+    taperEndFor() (an accepted design decision: the inset recomputes JS-side
+    rather than pushing tables). Any change here MUST be mirrored there.
 
   ==============================================================================
 */
@@ -55,7 +65,29 @@
 class WindowLuts
 {
 public:
-    static constexpr int kNumShapes = 5;
+    static constexpr int kNumTables = 5;     // rect/tri/Welch/Gauss/Hann tables
+    static constexpr int kNumShapes = 6;     // + Tukey (remapped, no table)
+    static constexpr int kShapeRect  = 0;
+    static constexpr int kShapeHann  = 4;
+    static constexpr int kShapeTukey = 5;
+
+    // Rectangular guard fade, milliseconds per edge (v1.4.0). Short enough to
+    // leave the "hard-edged" character (the pedagogical contrast with Hann is
+    // still >1.5x top-octave energy in the render harness) while removing the
+    // full-scale step that clicked.
+    static constexpr float kRectGuardMs = 1.0f;
+
+    // Taper end in phase units [0, 0.5] for a grain of lenSamp samples. Only
+    // rect (fixed guard) and Tukey (α/2, floored at the guard so α=0 does not
+    // reintroduce the click) use it; the other shapes ignore it.
+    static float taperEndFor (int shape, float alpha, float lenSamp, double sampleRate) noexcept
+    {
+        const float guard = (kRectGuardMs * 0.001f * (float) sampleRate) / juce::jmax (1.0f, lenSamp);
+        float te = guard;
+        if (shape == kShapeTukey)
+            te = juce::jmax (guard, 0.5f * juce::jlimit (0.0f, 1.0f, alpha));
+        return juce::jlimit (1.0e-4f, 0.5f, te);
+    }
 
     // Construct with the LUT length (PluginProcessor::kWindowLutSize = 2048).
     explicit WindowLuts (int lutSize = 2048)
@@ -64,12 +96,21 @@ public:
         build();
     }
 
-    // Read the envelope value for shape ∈ [0,4] at phase ∈ [0,1], linear-interp.
-    // Hot-path: clamp + one table lookup + one lerp. No transcendental.
-    float read (int shape, float phase) const noexcept
+    // Read the envelope value for shape ∈ [0,5] at phase ∈ [0,1], linear-interp.
+    // Hot-path: clamp + one table lookup + one lerp. No transcendental. Rect and
+    // Tukey remap the phase into the Hann table (taperEnd from taperEndFor()).
+    float read (int shape, float phase, float taperEnd = 0.5f) const noexcept
     {
-        const int s = juce::jlimit (0, kNumShapes - 1, shape);
-        const float p = juce::jlimit (0.0f, 1.0f, phase);
+        int s = juce::jlimit (0, kNumShapes - 1, shape);
+        float p = juce::jlimit (0.0f, 1.0f, phase);
+
+        if (s == kShapeRect || s == kShapeTukey)
+        {
+            const float u  = juce::jmin (p, 1.0f - p);
+            const float te = juce::jmax (1.0e-4f, taperEnd);
+            p = juce::jmin (u / te, 1.0f) * 0.5f;
+            s = kShapeHann;
+        }
 
         const float fpos = p * (float) (size - 1);
         const int   i0   = (int) fpos;
@@ -112,7 +153,7 @@ private:
     }
 
     int size;
-    std::array<std::vector<float>, kNumShapes> tables {};
+    std::array<std::vector<float>, kNumTables> tables {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowLuts)
 };

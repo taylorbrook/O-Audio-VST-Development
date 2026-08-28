@@ -3,7 +3,60 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.3.0] — 2026-08-28
+## [1.4.0] — 2026-08-28
+
+**Longer grains, a Tukey window with a Taper knob, the envelope beside the
+control it explains, and a rectangular window that no longer clicks.**
+Parameter set grows by one (`windowTaper`); the `windowShape` choice gains
+"Tukey" as index 5. Both additions are backward compatible: the APVTS stores
+denormalised values, so pre-1.4.0 sessions and factory presets restore the
+same grain size and window they saved.
+
+### Added
+- **Tukey window** (`windowShape` = 5) — a flat top with a Hann-shaped fade at
+  each edge, the fade length set by the new **Taper** knob (`windowTaper`,
+  0–100 %, default 50 %). 0 % is the flat rectangular window, 100 % is a full
+  Hann. Not a sixth LUT: the taper IS a Hann half, so the window is one phase
+  remap into the existing Hann table (`WindowLuts::read` with a per-grain
+  `taperEnd`, fixed at spawn by `WindowLuts::taperEndFor`). No transcendental
+  in the grain loop. The Taper cell dims and locks for every other shape.
+- **Envelope inset beside the Shape combo.** The UI-03 window inset moved from
+  the waveform's corner into the Window group, between the Shape combo and the
+  Taper knob, and now redraws on shape, taper AND grain-size changes (the rect
+  guard is a fixed time, so its footprint depends on the grain length). Row
+  budget measured at 270 px: combo 104 + inset 84 + knob 56 + 2 × 12 gap, all
+  overrides scoped to `.group-window` — the shared combo min-width (132 px)
+  wrapped the knob onto a second row.
+- Render-harness gates `rect-guard-is-a-ramp` (direct `WindowLuts` probe;
+  negative control with `kRectGuardMs = 0` FAILS it — verified),
+  `tukey-between-rect-hann` (α = 30 % sits between rect and Hann in top-octave
+  energy; α = 100 % lands within 15 % of Hann) and `grain-500ms-bounded`
+  (500 ms × 200 g/s renders finite, peak 0.51). 15/15 PASS.
+
+### Changed
+- **Grain Size ceiling 200 → 500 ms.** Skew 0.35 (was 0.4) keeps the fine low
+  end; the knob's midpoint now sits near 70 ms. Tooltips updated (EN/FR).
+- **Rectangular window rounded off.** Root cause of the clicks: the rect LUT
+  was flat 1.0 to the very first and last sample, so every grain edge was a
+  full-scale step. It now carries a fixed **1 ms guard fade** at each edge
+  (`WindowLuts::kRectGuardMs`), applied through the same Tukey remap — a time,
+  not a phase fraction, so it stays inaudible at 500 ms and clamps to a full
+  Hann inside a 2 ms grain. The pedagogical contrast survives: rect still
+  carries 2.45× Hann's >12 kHz energy in the `window-rect-clicks` gate (unchanged
+  numbers), and the "Rect Click" preset still selects it. Tooltip and preset
+  captions reworded from "has no fade / clicks" to "flat with a 1 ms guard /
+  starts and stops abruptly" (EN/FR, FR flagged `reviewed: false`).
+- Inset caption "Window" → "Envelope" (it now lives inside the Window group).
+
+### Testing
+- Render harness 15/15 PASS (12 existing gates unchanged, incl.
+  `window-rect-clicks` ratio 2.45 and `noteoff-click`). Negative control:
+  `kRectGuardMs = 0` fails `rect-guard-is-a-ramp` AND the pre-existing
+  `noteoff-click` gate — the guard is load-bearing for both.
+- Headless UI render (scripts/serve-ui.js + Playwright): Window group lays out
+  on one row at the 900 × 760 editor size; no console errors.
+- auval + install (VST3 + AU) — see NOTES.md.
+
 
 **The PAGE speaks French, not only the hover help** (Stage I batch I2, canon v2).
 Every caption, heading, button face, hint, readout key, status line and tooltip

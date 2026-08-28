@@ -51,7 +51,8 @@ struct Grain
     float  phaseInc      = 0.0f;   // = 1.0f / lengthSamples
     float  lengthSamples = 0.0f;   // grainSize ms * fs
     float  pan           = 0.5f;   // 0 = L .. 1 = R (equal-power) — kept for the viz tap
-    int    shape         = 4;      // window LUT index (0=rect .. 4=Hann)
+    int    shape         = 4;      // window LUT index (0=rect .. 4=Hann, 5=Tukey)
+    float  taperEnd      = 0.5f;   // Tukey/rect taper end in phase units (0..0.5); v1.4.0
     int    age           = 0;      // ++ per sample — for steal-oldest
 
     // Precomputed equal-power pan gains (pan is fixed for a grain's life, so the
