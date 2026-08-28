@@ -10,7 +10,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # JucePlugin_VersionString from this. A mismatched harness version rewrites the
 # user's real factory-preset directory (the .factory-version sentinel compares
 # against JucePlugin_VersionString).
-set(OSIMPLEFM_VERSION "1.2.5")
+set(OSIMPLEFM_VERSION "1.3.0")
 
 juce_add_plugin(O-simpleFM
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -59,6 +59,7 @@ juce_add_binary_data(O-simpleFM_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js

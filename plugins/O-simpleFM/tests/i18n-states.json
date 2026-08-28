@@ -1,0 +1,14 @@
+[
+  {
+    "name": "settings popover OPEN (label lang-select — the language row is invisible at rest)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "a lesson preset picked (label.captionEpiano — the tour caption is chosen by a click and is never the resting string; E-Piano's is the longest of the five in French)",
+    "click": ".tour-btn[data-preset=\"epiano\"]"
+  },
+  {
+    "name": "carrier-null badge LIT (label.carrierNull — display:none at rest). This adds the exact class updateRouting() adds, and nothing else: the badge lights when the effective modulation index reaches the first Bessel J0 zero, and the generic stub gives modIndex a neutral 0..1 range whose scaled value can never reach it, so the parameter path cannot be driven to this state from a stub. Driving the class directly is the state the plugin does produce, on the one line that produces it.",
+    "eval": "document.getElementById('carrierNullBadge').classList.add('show')"
+  }
+]
