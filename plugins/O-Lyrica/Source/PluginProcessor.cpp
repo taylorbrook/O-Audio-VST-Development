@@ -1151,6 +1151,15 @@ void OLyricaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         xml->setAttribute("directTonic", tuningEngine.getTonicNote());
         // v1.18.0: Save tooltip enabled state
         xml->setAttribute("tooltipsEnabled", tooltipsEnabled.load(std::memory_order_acquire));
+        // v2.4.0: Save the UI language as its CODE string, beside the other
+        // non-parameter attributes on this element rather than as a property on
+        // the APVTS tree. Both round-trips reach the same XML, and an ATTRIBUTE
+        // read back with getStringAttribute is a juce::String by construction —
+        // it sidesteps the trap that a NamedValueSet property rebuilt by
+        // setFromXmlAttributes is a var over the attribute STRING, so every
+        // isBool()/isInt() type predicate on it is false for every session ever
+        // saved (critical_valuetree_xml_roundtrip_loses_type).
+        xml->setAttribute("uiLanguage", languageCode(uiLanguage.load(std::memory_order_acquire)));
         // v1.30.0: Save glissando custom degree bitmask
         xml->setAttribute("glissCustomDegrees", juce::String(static_cast<juce::int64>(glissCustomDegrees.load(std::memory_order_acquire))));
         copyXmlToBinary(*xml, destData);
@@ -1182,6 +1191,14 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
             bool enabled = xmlState->getBoolAttribute("tooltipsEnabled", false);
             tooltipsEnabled.store(enabled, std::memory_order_release);
         }
+
+        // v2.4.0: Restore the UI language. hasAttribute() is the guard, and
+        // languageIndex() maps anything that is not "fr" to 0 — so a session
+        // written before v2.4.0, which carries no such attribute at all, simply
+        // leaves the language where it is: English on a fresh instance.
+        if (xmlState->hasAttribute("uiLanguage"))
+            uiLanguage.store(languageIndex(xmlState->getStringAttribute("uiLanguage")),
+                             std::memory_order_release);
 
         // v1.30.0: Restore glissando custom degree bitmask
         if (xmlState->hasAttribute("glissCustomDegrees"))

@@ -188,6 +188,26 @@ public:
     bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
     void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
 
+    //==========================================================================
+    // v2.4.0: UI language.
+    //
+    // 0 = en, 1 = fr. Held as an int index rather than the string it persists
+    // as because std::atomic<juce::String> does not compile — juce::String is
+    // not trivially copyable — so the audio-safe form is an index behind the
+    // two-function codec below while the PERSISTED form stays a language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their interface in. It rides the state XML as a plain
+    // attribute beside directTonic / tooltipsEnabled / glissCustomDegrees,
+    // which the JSON preset path never touches.
+    //==========================================================================
+    int  getUiLanguageIndex() const { return uiLanguage.load(std::memory_order_acquire); }
+    void setUiLanguageIndex(int i)  { uiLanguage.store(i, std::memory_order_release); }
+
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // v1.30.0: Glissando mode state (0=Off, 1=Free, 2=ScaleLocked)
     std::atomic<int> activeGlissandoMode { 0 };
 
@@ -242,6 +262,10 @@ private:
 
     // v1.18.0: Tooltip system enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };
+
+    // v2.4.0: UI language index (0 = en, 1 = fr), saved with plugin state as
+    // the language CODE string. See the codec above.
+    std::atomic<int> uiLanguage { 0 };
 
     // v1.35.0: String crosstalk (soundboard coupling)
     std::atomic<float>* crosstalkParam = nullptr;
