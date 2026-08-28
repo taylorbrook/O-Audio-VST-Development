@@ -1,5 +1,94 @@
 # Changelog — O-Orbit
 
+## v1.2.0 — 2026-08-28
+
+Feature release: **the page speaks French, not only the hover help.** Quick task 260826-ieq
+Stage I, batch I1. O-Orbit is the **seventh plugin on canon v2** and the second outside the
+five that shipped tooltips first, so it gains BOTH halves in one release — 32 tooltips moved
+out of the markup AND 57 labels, 8 accessible names and 6 script-written captions localized —
+rather than being half-localized twice.
+
+### Added
+- **Interface language, English + French.** A settings gear in the header opens a popover
+  holding a language selector and the hover-help toggle. Every control caption, group heading,
+  dropdown option, button face and accessible name follows the selection, with no reload.
+  `Resources/ui/js/i18n.js` carries 34 tooltip entries, 57 label keys, 34 tip bindings and a
+  5-entry reasoned `I18N_EXEMPT`. All 91 French entries are machine drafts flagged
+  `reviewed: false` — no native speaker has read them.
+- **`getUiLanguage` / `setUiLanguage`** native functions. The choice rides the session as a
+  plain APVTS tree property beside `tooltipsEnabled`, never as a parameter: it must not appear
+  in a DAW automation lane, and a preset must not be able to change which language you read
+  your interface in. Stored as the string `"en"` / `"fr"`, restored behind an `isVoid()` gate —
+  the XML round-trip rebuilds every property as a string var, so a type predicate would never
+  fire (`critical_valuetree_xml_roundtrip_loses_type`).
+- **Settings popover**, written in this plugin's own paper vocabulary: the `#F5E6D3` plate and
+  `#8B7355` rule the parameter panels use, with sage `#8BA870` reserved for the lit state. The
+  gear replaces the v1.1.0 "?" in the same header slot and wears the same 20px circle, so the
+  header silhouette is unchanged; the "?" toggle MOVED inside the panel rather than being
+  duplicated.
+
+### Changed
+- **Value readouts, preset names and channel-format designations stay English** (D-03, D-02).
+  `1.0 Hz`, `180°`, `Default`, `5.1.4` read identically in both languages.
+- **Two-click delete faces are now KEYS, not `data-label` / `data-confirm` attributes**, on both
+  the preset button and the layout-library button. An attribute holds one string, so switching
+  language while a button was armed would have restored the English armed face.
+- **Tooltip copy no longer lives in `index.html`.** `applyI18n()` writes `data-tip` and
+  `data-tip-title` at runtime from `TIP_BINDINGS`. The eighteen parameter cells gained a
+  `data-param` attribute as their tip anchor — a bare `.param-container` selector would have
+  matched the first of eighteen.
+
+### Fixed
+- **The view toggle changed width on every click, in English, since v1.1.0.** `#view-toggle`
+  is a shrink-to-fit box whose two faces measure 93.1px ("Motion View") and 114.1px ("Speaker
+  Editor"), and `#header` is `justify-content: space-between`, so switching views dragged the
+  whole preset band 21px sideways. Nothing was measuring it. The button is now pinned to the
+  widest of its four faces (169.3px, "Éditeur d'enceintes"), which holds both languages and
+  both views still.
+
+### Layout — seven containers pinned, every number measured
+Measured in headless Chromium at the shipping 800 × 600 across four driven states. Each pin was
+reverted on its own and confirmed to re-break the geometry gate.
+
+| Fix | Measured cause |
+|---|---|
+| `#view-toggle { min-width: 170px }` | four faces spanning 93.1 → 151.3; see Fixed above |
+| `.preset-btn-hdr { min-width: 58px }` | Save 26.8 → Enreg. 38.8, Load 29.8 → Ouvrir 41.3, Del 21 → Suppr. 36.1 |
+| `.preset-btn[data-preset="6"/"7"] { min-width: 40px }` | Hex 22.1 → Hexa 29.8, Oct 21.5 → Octo 29.0. Stereo/Stéréo and Quad/Quad measure IDENTICALLY, so six of the eight chips needed nothing |
+| `#layout-select { width: 92px }` | Layouts… 42.2 → Dispositions… 60, sliding the whole layout library 23.5px |
+| `#layout-library button { min-width: 53px }` | Enreg. 38.8 / Suppr. 36.1 / Sûr ? 28.9 |
+| `#file-buttons button { min-width: 74px }` | Exporter 55.1, Importer 54.0 |
+| `.preset-btn { padding: 2px 4px }` | pinning every worded control in the editor toolbar took the French row to 785.5px inside 768px of usable width and pushed **Import past the 800px frame**. Trimming 2px a side off the eight format chips returns 32px to BOTH languages, which is where the budget came from |
+
+**One French string was SIZED**, recorded at its entry with the measurement: `Synchro tempo`
+measures 105.4px and the Motion group's grid track is 100.3px, so it wrapped to two lines and
+pushed the Tempo Sync dropdown down 13px. It is `Sync tempo` (79.2px) — the full phrase survives
+as the tooltip title, which renders in a 230px box.
+
+Four of the pins change ENGLISH geometry too. That is the trade D-04 asks for.
+
+### Testing
+- `check-i18n.js --strict-v2` repo-wide: **exit 0**, canon split **v2 7, v1 0**.
+- `check-ui-labels.js --plugin O-Orbit`: **exit 0** — 56 labels over 4 driven states, **zero**
+  non-label elements moved between English and French, 49/56 (88%) of labels and 9/9 keyed
+  attributes change language.
+- `boot-all-uis.js`: **41/43 clean, unchanged.** O-Orbit reports `title=0 aria=8 i18n=56`.
+- **29 negative controls, 29 fired.** Each mutation was applied to a byte-exact backup and
+  restored from that backup, never `git checkout --`, which would have wiped the uncommitted
+  retrofit alongside it.
+- `./scripts/build-and-install.sh O-Orbit` → `auval -v aufx OuOr OuDv` PASSED.
+
+### Known limitations
+- **All 91 French entries are unreviewed machine drafts.** `Oui` / `Non` for the elevation
+  toggle's On/Off faces and `Sync tempo` are the three this release would challenge first.
+- **No human has seen the French UI**, and nothing was tested in a DAW. The language
+  round-trip through `get/setStateInformation` is reasoned from source, not measured.
+- **19 of the 56 keyed elements were never measured** — every one is an `<option>` inside a
+  closed `<select>`, which has no box until the OS renders the popup. No states file can reach
+  them; this is a property of native select menus, not a coverage gap a test could close.
+- Windows / WebView2 font metrics are a named deferral, blocked on hardware. Every width above
+  was measured in Chromium on macOS.
+
 ## v1.1.1 — 2026-08-27
 
 Patch: the tempo-sync table mirrored from O-Octagon's v1.10.0 WR-01 fix (the table originated here

@@ -28,9 +28,33 @@
     <!-- JUCE Bridge: native interop setup (must load first as regular script) -->
     <script src="js/juce/check_native_interop.js"></script>
 
-    <!-- App JS (ES module - imports from JUCE bridge index.js) -->
+    <!-- App JS (ES module - imports from JUCE bridge index.js AND js/i18n.js) -->
     <script type="module" src="js/app.js"></script>
 </head>
+<!--
+  v1.2.0 — INTERFACE COPY LIVES IN js/i18n.js, NOT HERE.
+
+  Two attribute families do the work, and they mean different things:
+
+    data-i18n / data-i18n-aria / data-i18n-placeholder
+        A KEY into LABELS (falling back to I18N). The English left in the
+        markup beside it is the FALLBACK that renders if applyI18n never runs —
+        it is not the source of truth, and check-i18n assertion 15 fails any key
+        that does not resolve.
+
+    data-tip / data-tip-title
+        NOT AUTHORED HERE AT ALL any more. applyI18n() writes both at runtime
+        from TIP_BINDINGS, in whichever language is selected. check-i18n
+        assertion 3 fails this file if a single one comes back.
+
+  data-tip-always survives: it is a FLAG, not copy. It bypasses the enabled
+  gate so the controls that reach and restore the help layer are never the
+  controls unable to explain themselves.
+
+  data-param on the eighteen .param-container cells is new in v1.2.0 and is a
+  TIP ANCHOR, not a parameter binding — app.js still binds by element id. Its
+  value is exactly the string the cell's own <label for> carries.
+-->
 <body>
     <!-- Header -->
     <header id="header">
@@ -41,36 +65,95 @@
              (_updateDisplay writes textContent); the caret is a SIBLING inside
              the trigger, never a child of the readout
              (pattern_js_state_updater_overwrites_html_labels). Ships disabled;
-             un-disabled only after PresetManager.initialize() resolves. -->
+             un-disabled only after PresetManager.initialize() resolves.
+
+             #preset-name is NOT a [data-i18n] element and must never become
+             one: preset-manager.js owns that node, the name it writes IS the
+             JSON filename (D-02), and a sweep writing it would fight the
+             module over one text node. It is I18N_EXEMPT with that reason. -->
         <div id="preset-band">
-            <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list." disabled>&#9664;</button>
-            <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list." disabled>&#9654;</button>
+            <button type="button" class="preset-nav" id="preset-prev" data-i18n-aria="preset-prev" aria-label="Previous preset" disabled>&#9664;</button>
+            <button type="button" class="preset-nav" id="preset-next" data-i18n-aria="preset-next" aria-label="Next preset" disabled>&#9654;</button>
             <div id="preset-select-wrap">
                 <button type="button" id="preset-select"
-                        aria-haspopup="listbox" aria-expanded="false" aria-label="Browse presets"
-                        data-tip-title="Preset"
-                        data-tip="The preset currently loaded — click to browse by category. The 12 factory presets are read-only; saving under the same name writes a user copy instead." disabled>
+                        aria-haspopup="listbox" aria-expanded="false"
+                        data-i18n-aria="aria.browsePresets" aria-label="Browse presets" disabled>
                     <span id="preset-name" aria-live="polite">Default</span>
                     <span id="preset-caret" aria-hidden="true">&#9662;</span>
                 </button>
-                <div id="preset-menu" role="listbox" aria-label="Presets"></div>
+                <div id="preset-menu" role="listbox" data-i18n-aria="aria.presets" aria-label="Presets"></div>
             </div>
-            <button type="button" class="preset-btn-hdr" id="preset-save" data-label="Save" data-tip-title="Save" data-tip="Save the current settings as a user preset." disabled>Save</button>
-            <button type="button" class="preset-btn-hdr" id="preset-load" data-label="Load" data-tip-title="Load" data-tip="Load a preset from a file." disabled>Load</button>
+            <button type="button" class="preset-btn-hdr" id="preset-save" data-i18n="label.save" disabled>Save</button>
+            <button type="button" class="preset-btn-hdr" id="preset-load" data-i18n="label.load" disabled>Load</button>
+            <!-- The armed face is `ui.confirm` through setLabel(), not a
+                 data-confirm ATTRIBUTE as it was through v1.1.1: an attribute
+                 holds ONE string, so a language switch while the button was
+                 armed would restore the ENGLISH armed face. data-label is gone
+                 for the same reason — label.delete is the disarmed key. -->
             <button type="button" class="preset-btn-hdr" id="preset-delete"
-                    data-label="Del" data-confirm="Sure?" data-armed="0" data-tip-title="Delete" data-tip="Delete the current user preset. Click once to arm it, again to confirm." disabled>Del</button>
+                    data-armed="0" data-i18n="label.delete" disabled>Del</button>
         </div>
 
         <div id="header-right">
-            <!-- Hover-help toggle (v1.1.0). Ships unlit. data-tip-always
-                 bypasses the enabled gate so the one control able to turn help
-                 back on is never the one control unable to explain itself. -->
-            <button type="button" id="help-toggle"
-                    aria-pressed="false" aria-label="Toggle hover help"
-                    data-tip-always
-                    data-tip-title="Hover help"
-                    data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
-            <div id="view-toggle" data-tip-title="View" data-tip="Switch between the motion visualizer and the speaker layout editor.">Motion View</div>
+            <!-- v1.2.0 — the settings gear. It replaces the v1.1.0 "?" in the
+                 SAME header slot and inherits the 20px sage circle that toggle
+                 wore, so the header silhouette is unchanged; only the glyph
+                 differs. The "?" toggle MOVED inside the panel beside the
+                 language selector — it is not duplicated. One place for the two
+                 things that decide what the hover help says and whether it says
+                 it.
+
+                 data-tip-always on the gear and on both controls inside: this
+                 plugin's help layer ships OFF, so without it the three controls
+                 that reach and restore the layer would be the three controls
+                 unable to explain themselves. -->
+            <div id="settings-cluster">
+                <button type="button"
+                        class="gear-btn"
+                        id="gear-btn"
+                        aria-haspopup="dialog"
+                        aria-expanded="false"
+                        data-i18n-aria="aria.settings"
+                        aria-label="Settings"
+                        data-tip-always>&#9881;</button>
+
+                <div class="settings-popover" id="settings-popover"
+                     role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+
+                    <label class="settings-row" for="lang-select">
+                        <span class="settings-label" data-i18n="lang-select">Language</span>
+                        <!-- ENDONYMS. Never localized: a French speaker looking
+                             for their language looks for "Fran&ccedil;ais". -->
+                        <select class="settings-select" id="lang-select"
+                                data-i18n-aria="aria.langSelect"
+                                aria-label="Interface language" data-tip-always>
+                            <option value="en">English</option>
+                            <option value="fr">Fran&ccedil;ais</option>
+                        </select>
+                    </label>
+
+                    <!-- The v1.1.0 toggle, moved. Its caption IS written from
+                         script now — through setLabel(), so the element becomes
+                         a [data-i18n] element and the language sweep owns it.
+                         Two calls behind an if/else, never a ternary in the
+                         argument (check-i18n assertion 13).
+
+                         A <div>, not a <label for="help-toggle">: a button is a
+                         labelable element, so a label wrapping one re-dispatches
+                         the click and toggles twice. -->
+                    <div class="settings-row">
+                        <span class="settings-label" data-i18n="help-toggle">Hover help</span>
+                        <button type="button" class="settings-toggle" id="help-toggle"
+                                aria-pressed="false"
+                                data-i18n-aria="aria.helpToggle"
+                                aria-label="Toggle hover help"
+                                data-i18n="ui.off" data-tip-always>Off</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Both faces are keys; app.js swaps them with setLabel(). -->
+            <div id="view-toggle" data-i18n="label.viewMotion">Motion View</div>
         </div>
     </header>
 
@@ -81,29 +164,34 @@
         <!-- Speaker Editor Toolbar (hidden by default) -->
         <div id="editor-toolbar">
             <div id="preset-buttons">
-                <button class="preset-btn" data-preset="0">Stereo</button>
-                <button class="preset-btn" data-preset="1">Quad</button>
+                <button class="preset-btn" data-preset="0" data-i18n="label.fmtStereo">Stereo</button>
+                <button class="preset-btn" data-preset="1" data-i18n="label.fmtQuad">Quad</button>
+                <!-- 5.1 through 7.1.4 carry no key: a channel-count
+                     designation is digits and dots and reads identically in
+                     both languages. -->
                 <button class="preset-btn" data-preset="2">5.1</button>
                 <button class="preset-btn" data-preset="3">7.1</button>
                 <button class="preset-btn" data-preset="4">5.1.4</button>
                 <button class="preset-btn" data-preset="5">7.1.4</button>
-                <button class="preset-btn" data-preset="6">Hex</button>
-                <button class="preset-btn" data-preset="7">Oct</button>
+                <button class="preset-btn" data-preset="6" data-i18n="label.fmtHex">Hex</button>
+                <button class="preset-btn" data-preset="7" data-i18n="label.fmtOct">Oct</button>
             </div>
             <!-- Named layout library (D2, v1.1.0) + file I/O -->
             <div id="layout-library">
-                <select id="layout-select" data-tip-title="Saved layouts" data-tip="Load a named custom speaker layout from your library.">
-                    <option value="">Layouts&#8230;</option>
+                <select id="layout-select">
+                    <!-- The HTML-authored placeholder refreshLayoutList()
+                         preserves (it removes from index 1). Its key survives
+                         every refresh because the element itself does. -->
+                    <option value="" data-i18n="label.layoutsPlaceholder">Layouts&#8230;</option>
                 </select>
-                <input type="text" id="layout-name" maxlength="40" placeholder="name&#8230;"
-                       data-tip-title="Layout name" data-tip="Name for saving the current speaker arrangement to your library." />
-                <button id="layout-save-btn" data-tip-title="Save layout" data-tip="Save the current speaker arrangement under the name to the left.">Save</button>
-                <button id="layout-delete-btn" data-label="Del" data-confirm="Sure?" data-armed="0"
-                        data-tip-title="Delete layout" data-tip="Delete the selected saved layout. Click once to arm, again to confirm.">Del</button>
+                <input type="text" id="layout-name" maxlength="40"
+                       data-i18n-placeholder="placeholder.layoutName" placeholder="name&#8230;" />
+                <button id="layout-save-btn" data-i18n="label.save">Save</button>
+                <button id="layout-delete-btn" data-armed="0" data-i18n="label.delete">Del</button>
             </div>
             <div id="file-buttons">
-                <button id="export-btn" data-tip-title="Export" data-tip="Export the current speaker layout to a JSON file for sharing.">Export</button>
-                <button id="import-btn" data-tip-title="Import" data-tip="Import a speaker layout from a JSON file.">Import</button>
+                <button id="export-btn" data-i18n="label.export">Export</button>
+                <button id="import-btn" data-i18n="label.import">Import</button>
             </div>
         </div>
     </section>
@@ -112,23 +200,23 @@
     <section id="controls-container">
         <!-- Motion Group -->
         <div class="param-group" id="motion-group">
-            <h2 class="group-label">Motion</h2>
+            <h2 class="group-label" data-i18n="label.groupMotion">Motion</h2>
             <div class="param-grid">
                 <!-- Path (dropdown) -->
-                <div class="param-container" data-tip-title="Path" data-tip="Motion trajectory: Orbit circles, Pendulum swings, Linear sweeps and snaps back, Drift wanders organically, Ping-Pong sweeps back and forth without the snap.">
-                    <label for="path">Path</label>
+                <div class="param-container" data-param="path">
+                    <label for="path" data-i18n="label.path">Path</label>
                     <select id="path" class="param-dropdown">
-                        <option value="0">Orbit</option>
-                        <option value="1">Pendulum</option>
-                        <option value="2">Linear</option>
-                        <option value="3">Drift</option>
-                        <option value="4">Ping-Pong</option>
+                        <option value="0" data-i18n="label.pathOrbit">Orbit</option>
+                        <option value="1" data-i18n="label.pathPendulum">Pendulum</option>
+                        <option value="2" data-i18n="label.linear">Linear</option>
+                        <option value="3" data-i18n="label.pathDrift">Drift</option>
+                        <option value="4" data-i18n="label.pathPingPong">Ping-Pong</option>
                     </select>
                 </div>
 
                 <!-- Speed (knob) -->
-                <div class="param-container" data-tip-title="Speed" data-tip="Motion rate in cycles per second. Ignored while Tempo Sync is set to a division.">
-                    <label for="speed">Speed</label>
+                <div class="param-container" data-param="speed">
+                    <label for="speed" data-i18n="label.speed">Speed</label>
                     <div class="knob-container">
                         <div class="knob" id="speed" data-min="0.01" data-max="20" data-default="1.0" data-unit="Hz"></div>
                     </div>
@@ -136,8 +224,8 @@
                 </div>
 
                 <!-- Width (knob) -->
-                <div class="param-container" data-tip-title="Width" data-tip="Angular span of the motion in degrees — 360 is a full circle around the listener.">
-                    <label for="width">Width</label>
+                <div class="param-container" data-param="width">
+                    <label for="width" data-i18n="label.width">Width</label>
                     <div class="knob-container">
                         <div class="knob" id="width" data-min="0" data-max="360" data-default="180" data-unit="°"></div>
                     </div>
@@ -145,8 +233,8 @@
                 </div>
 
                 <!-- Depth (knob) -->
-                <div class="param-container" data-tip-title="Depth" data-tip="Near/far motion. At 0% the source stays at the Distance radius; higher values move it toward and away from you each cycle.">
-                    <label for="depth">Depth</label>
+                <div class="param-container" data-param="depth">
+                    <label for="depth" data-i18n="label.depth">Depth</label>
                     <div class="knob-container">
                         <div class="knob" id="depth" data-min="0" data-max="100" data-default="0" data-unit="%"></div>
                     </div>
@@ -154,8 +242,8 @@
                 </div>
 
                 <!-- Tilt (knob) -->
-                <div class="param-container" data-tip-title="Tilt" data-tip="Static elevation of the path in degrees, used while Elevation motion is off.">
-                    <label for="tilt">Tilt</label>
+                <div class="param-container" data-param="tilt">
+                    <label for="tilt" data-i18n="label.tilt">Tilt</label>
                     <div class="knob-container">
                         <div class="knob" id="tilt" data-min="-90" data-max="90" data-default="0" data-unit="°"></div>
                     </div>
@@ -163,8 +251,8 @@
                 </div>
 
                 <!-- Phase (knob) -->
-                <div class="param-container" data-tip-title="Phase" data-tip="Offset into the motion cycle in degrees — shifts where the source starts.">
-                    <label for="phase">Phase</label>
+                <div class="param-container" data-param="phase">
+                    <label for="phase" data-i18n="label.phase">Phase</label>
                     <div class="knob-container">
                         <div class="knob" id="phase" data-min="0" data-max="360" data-default="0" data-unit="°"></div>
                     </div>
@@ -172,17 +260,19 @@
                 </div>
 
                 <!-- Elevation Enable (toggle) -->
-                <div class="param-container" data-tip-title="Elevation" data-tip="Adds vertical motion — the source rises and falls with the cycle instead of staying at the Tilt angle.">
-                    <label for="elevation_enable">Elevation</label>
+                <div class="param-container" data-param="elevation_enable">
+                    <label for="elevation_enable" data-i18n="label.elevation">Elevation</label>
                     <div class="toggle-container">
                         <input type="checkbox" id="elevation_enable" class="param-toggle">
-                        <label for="elevation_enable" class="toggle-label">Off</label>
+                        <!-- Both faces are keys; bindToggle() swaps them with
+                             setLabel(). The authored "Off" is the fallback. -->
+                        <label for="elevation_enable" class="toggle-label" data-i18n="ui.off">Off</label>
                     </div>
                 </div>
 
                 <!-- Elevation Range (knob) -->
-                <div class="param-container" data-tip-title="Elev Range" data-tip="How far the elevation swings when Elevation motion is on, in degrees.">
-                    <label for="elevation_range">Elev Range</label>
+                <div class="param-container" data-param="elevation_range">
+                    <label for="elevation_range" data-i18n="label.elevRange">Elev Range</label>
                     <div class="knob-container">
                         <div class="knob" id="elevation_range" data-min="0" data-max="90" data-default="45" data-unit="°"></div>
                     </div>
@@ -190,10 +280,13 @@
                 </div>
 
                 <!-- Tempo Sync (dropdown) -->
-                <div class="param-container" data-tip-title="Tempo Sync" data-tip="Locks the motion rate to the host tempo at the chosen division: 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed). While the transport plays, motion phase locks to the beat position, so bounces are deterministic.">
-                    <label for="tempo_sync">Tempo Sync</label>
+                <div class="param-container" data-param="tempo_sync">
+                    <label for="tempo_sync" data-i18n="label.tempoSync">Tempo Sync</label>
                     <select id="tempo_sync" class="param-dropdown">
-                        <option value="0">Off</option>
+                        <option value="0" data-i18n="label.syncOff">Off</option>
+                        <!-- The eleven note-value options are digits, slashes
+                             and the T/D suffixes that mean triplet and dotted
+                             in both languages' notation. No keys. -->
                         <option value="1">1/16T</option>
                         <option value="2">1/16</option>
                         <option value="3">1/16D</option>
@@ -205,9 +298,9 @@
                         <option value="9">1/4D</option>
                         <option value="10">1/2</option>
                         <option value="11">1/2D</option>
-                        <option value="12">1 Bar</option>
-                        <option value="13">2 Bars</option>
-                        <option value="14">4 Bars</option>
+                        <option value="12" data-i18n="label.bar1">1 Bar</option>
+                        <option value="13" data-i18n="label.bars2">2 Bars</option>
+                        <option value="14" data-i18n="label.bars4">4 Bars</option>
                     </select>
                 </div>
             </div>
@@ -215,27 +308,31 @@
 
         <!-- Spatial Group -->
         <div class="param-group" id="spatial-group">
-            <h2 class="group-label">Spatial</h2>
+            <h2 class="group-label" data-i18n="label.groupSpatial">Spatial</h2>
             <div class="param-grid">
                 <!-- Speaker Layout (dropdown) -->
-                <div class="param-container" data-tip-title="Speaker Layout" data-tip="Target speaker arrangement. When the track has fewer channels, an energy-preserving downmix kicks in automatically (badge below shows when active).">
-                    <label for="speaker_layout">Speaker Layout</label>
+                <div class="param-container" data-param="speaker_layout">
+                    <label for="speaker_layout" data-i18n="label.speakerLayout">Speaker Layout</label>
                     <select id="speaker_layout" class="param-dropdown">
-                        <option value="0">Stereo</option>
-                        <option value="1">Quad</option>
+                        <option value="0" data-i18n="label.fmtStereo">Stereo</option>
+                        <option value="1" data-i18n="label.fmtQuad">Quad</option>
                         <option value="2">5.1</option>
                         <option value="3">7.1</option>
                         <option value="4">5.1.4</option>
                         <option value="5">7.1.4</option>
-                        <option value="6">Hexaphonic</option>
-                        <option value="7">Octaphonic</option>
+                        <option value="6" data-i18n="label.hexaphonic">Hexaphonic</option>
+                        <option value="7" data-i18n="label.octaphonic">Octaphonic</option>
                     </select>
-                    <div id="downmix-badge" data-tip-title="Downmix" data-tip="Shown when the layout has more channels than the track output — an energy-preserving fold-down is active."></div>
+                    <!-- Written by setLabel(el, 'ui.downmix', {from, to}) — the
+                         counts ride the element as data-i18n-vars, so the
+                         language sweep re-renders the badge with the SAME
+                         counts rather than a stale English face. -->
+                    <div id="downmix-badge"></div>
                 </div>
 
                 <!-- Distance (knob) -->
-                <div class="param-container" data-tip-title="Distance" data-tip="Base distance of the source in meters — farther is quieter and darker.">
-                    <label for="distance">Distance</label>
+                <div class="param-container" data-param="distance">
+                    <label for="distance" data-i18n="label.distance">Distance</label>
                     <div class="knob-container">
                         <div class="knob" id="distance" data-min="0.1" data-max="30" data-default="1.0" data-unit="m"></div>
                     </div>
@@ -243,8 +340,8 @@
                 </div>
 
                 <!-- Air Absorption (knob) -->
-                <div class="param-container" data-tip-title="Air Absorption" data-tip="High-frequency loss with distance — more absorption makes distant sources darker.">
-                    <label for="air_absorption">Air Absorption</label>
+                <div class="param-container" data-param="air_absorption">
+                    <label for="air_absorption" data-i18n="label.airAbsorption">Air Absorption</label>
                     <div class="knob-container">
                         <div class="knob" id="air_absorption" data-min="0" data-max="100" data-default="50" data-unit="%"></div>
                     </div>
@@ -252,18 +349,18 @@
                 </div>
 
                 <!-- Attenuation Curve (dropdown) -->
-                <div class="param-container" data-tip-title="Atten Curve" data-tip="How level falls with distance: Linear, Inverse (1/d), or Inverse Square (1/d&#178;).">
-                    <label for="attenuation_curve">Atten Curve</label>
+                <div class="param-container" data-param="attenuation_curve">
+                    <label for="attenuation_curve" data-i18n="label.attenCurve">Atten Curve</label>
                     <select id="attenuation_curve" class="param-dropdown">
-                        <option value="0">Linear</option>
-                        <option value="1">Inverse</option>
-                        <option value="2">Inverse Square</option>
+                        <option value="0" data-i18n="label.linear">Linear</option>
+                        <option value="1" data-i18n="label.inverse">Inverse</option>
+                        <option value="2" data-i18n="label.inverseSquare">Inverse Square</option>
                     </select>
                 </div>
 
                 <!-- Center Diverge (knob) -->
-                <div class="param-container" data-tip-title="Center Diverge" data-tip="Spreads energy into more speakers as it rises — 0% is the sharpest point-source imaging.">
-                    <label for="center_diverge">Center Diverge</label>
+                <div class="param-container" data-param="center_diverge">
+                    <label for="center_diverge" data-i18n="label.centerDiverge">Center Diverge</label>
                     <div class="knob-container">
                         <div class="knob" id="center_diverge" data-min="0" data-max="100" data-default="0" data-unit="%"></div>
                     </div>
@@ -274,20 +371,20 @@
 
         <!-- Source/Mix Group -->
         <div class="param-group" id="source-group">
-            <h2 class="group-label">Source / Mix</h2>
+            <h2 class="group-label" data-i18n="label.groupSourceMix">Source / Mix</h2>
             <div class="param-grid">
                 <!-- Source Mode (dropdown) -->
-                <div class="param-container" data-tip-title="Source Mode" data-tip="Mono sums the input into one moving source; L+R Split moves the left and right channels as two separate sources.">
-                    <label for="source_mode">Source Mode</label>
+                <div class="param-container" data-param="source_mode">
+                    <label for="source_mode" data-i18n="label.sourceMode">Source Mode</label>
                     <select id="source_mode" class="param-dropdown">
-                        <option value="0">Mono</option>
-                        <option value="1">L+R Split</option>
+                        <option value="0" data-i18n="label.mono">Mono</option>
+                        <option value="1" data-i18n="label.lrSplit">L+R Split</option>
                     </select>
                 </div>
 
                 <!-- L/R Offset (knob) -->
-                <div class="param-container" data-tip-title="L/R Offset" data-tip="Angle between the left and right sources in L+R Split mode — 180&#176; keeps them opposite.">
-                    <label for="lr_offset">L/R Offset</label>
+                <div class="param-container" data-param="lr_offset">
+                    <label for="lr_offset" data-i18n="label.lrOffset">L/R Offset</label>
                     <div class="knob-container">
                         <div class="knob" id="lr_offset" data-min="0" data-max="360" data-default="180" data-unit="°"></div>
                     </div>
@@ -295,8 +392,8 @@
                 </div>
 
                 <!-- Mix (knob) -->
-                <div class="param-container" data-tip-title="Mix" data-tip="Dry/wet balance. Wet is the spatialized signal on all outputs; dry stays on its native input channels.">
-                    <label for="mix">Mix</label>
+                <div class="param-container" data-param="mix">
+                    <label for="mix" data-i18n="label.mix">Mix</label>
                     <div class="knob-container">
                         <div class="knob" id="mix" data-min="0" data-max="100" data-default="100" data-unit="%"></div>
                     </div>

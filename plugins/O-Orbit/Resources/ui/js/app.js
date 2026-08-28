@@ -23,7 +23,167 @@
 // Phase 3.3: Speaker Layout Editor + File I/O
 
 import { getSliderState, getComboBoxState, getToggleState, getNativeFunction } from './juce/index.js';
+// The canon block below calls Juce.getNativeFunction by NAMESPACE, verbatim
+// across all 43 plugins, so the namespace form is imported alongside the named
+// bindings this module already used. Two imports of one module is one fetch.
+import * as Juce from './juce/index.js';
 import { PresetManager } from './modules/preset-manager.js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERFACE LANGUAGE (v1.2.0) — canon v2, verbatim from scripts/i18n-canon.js.
+//
+// It sits HERE, directly under the imports and above every other declaration in
+// this module, because `uiLanguage` is a module-level `let`: anything above it
+// that reached applyLabel() would touch it inside its temporal dead zone and
+// throw out of module evaluation, taking the knobs, the visualizer, the preset
+// band and the hover help with it (pattern_module_toplevel_init_tdz). Nothing
+// in this file executes at top level today — every initializer runs from the
+// DOMContentLoaded handler — so the ordering is not load-bearing at v1.2.0. It
+// is placed defensively anyway: the next eager top-level line anyone adds is
+// the one that would find the bug, and `node scripts/boot-all-uis.js` is the
+// ONLY gate in the repo that sees this class of failure.
+//
+// Do NOT edit the region between the import line and the close of initI18n():
+// check-i18n assertion 6 byte-compares it against scripts/i18n-canon.js.
+// ═══════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ─── Settings popover (v1.2.0) ──────────────────────────────────
+// The gear panel holding the language selector and the relocated hover-help
+// toggle. All state lives in this closure, so nothing here can join a TDZ
+// chain. Styled in O-Orbit's own paper-and-sage vocabulary — the same
+// #F5E6D3 / #8B7355 plate the preset menu uses, not a widget pasted in from
+// another plugin.
+
+function initializeSettingsPopover() {
+    const gearBtn = document.getElementById('gear-btn');
+    const popover = document.getElementById('settings-popover');
+
+    if (gearBtn === null || popover === null) {
+        console.warn('Settings popover missing — language selector unavailable');
+        return;
+    }
+
+    const setOpen = (open) => {
+        popover.hidden = !open;
+        gearBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    gearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(popover.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+    // click, so the panel is gone before a drag on a knob underneath it begins
+    // — the knobs call preventDefault in their own mousedown handlers.
+    document.addEventListener('mousedown', (e) => {
+        if (popover.hidden) return;
+        if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+        setOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !popover.hidden) {
+            setOpen(false);
+            gearBtn.focus();
+        }
+    });
+}
 
 // ─── Motion State ───────────────────────────────────────────────
 
@@ -44,6 +204,16 @@ let canvasCtxRef = null;
 // ─── Initialization ─────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+    // v1.2.0 — the popover and the language sweep go FIRST, each in its own
+    // try/catch. A translation-table typo must not be allowed to take the
+    // eighteen parameter bindings, the canvas and the preset band down with it,
+    // which is the v1.4.0 TDZ failure this repo has already paid for once.
+    // Running applyI18n() before the bindings also means bindToggle() writes
+    // its first face into an already-swept page rather than being swept a
+    // second time immediately afterwards.
+    try { initializeSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+    try { initI18n(); }                  catch (e) { console.error('i18n init failed:', e); }
+
     initializeParameters();
     initializeVisualizer();
     initializePresetBand();   // B1 (v1.1.0)
@@ -187,10 +357,21 @@ function bindToggle(paramId) {
     const label = checkbox.nextElementSibling;
     const state = getToggleState(paramId);
 
+    // v1.2.0: the two faces are KEYS through setLabel(), not JS literals. Two
+    // calls behind an if/else and never one call with a ternary in its
+    // argument — check-i18n assertion 13 rejects that shape outright, because a
+    // conditional inside a localized string is where an English plural rule
+    // gets smuggled into French copy.
+    const setFace = (on) => {
+        if (!label) return;
+        if (on) setLabel(label, 'ui.on');
+        else    setLabel(label, 'ui.off');
+    };
+
     function updateFromState() {
         const val = state.getValue();
         checkbox.checked = val;
-        if (label) label.textContent = val ? 'On' : 'Off';
+        setFace(val);
     }
 
     updateFromState();
@@ -198,7 +379,7 @@ function bindToggle(paramId) {
 
     checkbox.addEventListener('change', () => {
         state.setValue(checkbox.checked);
-        if (label) label.textContent = checkbox.checked ? 'On' : 'Off';
+        setFace(checkbox.checked);
     });
 }
 
@@ -515,17 +696,21 @@ function initializeViewToggle() {
     const toolbar = document.getElementById('editor-toolbar');
     if (!toggleBtn) return;
 
+    // v1.2.0: both faces are KEYS through setLabel(). The button becomes a
+    // [data-i18n] element on the first click and the language sweep owns it
+    // from then on, so switching language while the editor is open re-renders
+    // the OPEN face rather than restoring the English "Motion View".
     toggleBtn.addEventListener('click', () => {
         if (viewMode === 'motion') {
             viewMode = 'editor';
-            toggleBtn.textContent = 'Speaker Editor';
+            setLabel(toggleBtn, 'label.viewEditor');
             if (toolbar) toolbar.classList.add('visible');
             // Clear motion trails when switching
             trailL = [];
             trailR = [];
         } else {
             viewMode = 'motion';
-            toggleBtn.textContent = 'Motion View';
+            setLabel(toggleBtn, 'label.viewMotion');
             if (toolbar) toolbar.classList.remove('visible');
         }
     });
@@ -900,8 +1085,14 @@ function initializeEditorButtons() {
             });
         });
 
-        // Two-click armed delete — button copy from data-label / data-confirm,
-        // never JS literals (pattern_js_state_updater_overwrites_html_labels).
+        // Two-click armed delete. v1.2.0: the two faces are KEYS through
+        // setLabel(), not the data-label / data-confirm ATTRIBUTES they were
+        // through v1.1.1. Those attributes were the right answer while the page
+        // was English-only — they kept the copy out of this file, which is what
+        // pattern_js_state_updater_overwrites_html_labels asks for. They are the
+        // wrong answer once the page has two languages: an attribute holds ONE
+        // string, so a language switch while the button was armed would have
+        // restored the ENGLISH armed face. A key re-renders with the sweep.
         let layoutDeleteTimer = null;
         layoutDeleteBtn.addEventListener('click', () => {
             const name = layoutSelect.value;
@@ -910,7 +1101,7 @@ function initializeEditorButtons() {
             const disarm = () => {
                 if (layoutDeleteTimer) { clearTimeout(layoutDeleteTimer); layoutDeleteTimer = null; }
                 layoutDeleteBtn.dataset.armed = '0';
-                layoutDeleteBtn.textContent = layoutDeleteBtn.dataset.label || 'Del';
+                setLabel(layoutDeleteBtn, 'label.delete');
             };
 
             if (layoutDeleteBtn.dataset.armed === '1') {
@@ -919,7 +1110,7 @@ function initializeEditorButtons() {
                 return;
             }
             layoutDeleteBtn.dataset.armed = '1';
-            layoutDeleteBtn.textContent = layoutDeleteBtn.dataset.confirm || 'Sure?';
+            setLabel(layoutDeleteBtn, 'ui.confirm');
             layoutDeleteTimer = setTimeout(disarm, 2500);
         });
     }
@@ -934,10 +1125,18 @@ function initializeDownmixBadge() {
 
     const layoutNames = ['Stereo', 'Quad', '5.1', '7.1', '5.1.4', '7.1.4', 'Hex', 'Oct'];
 
+    // v1.2.0: a COMPOSED entry, and the only one on this page. The two channel
+    // counts stay NUMBERS (D-03 \u2014 no readout is localized); "ch" is not a unit
+    // symbol like Hz or dB, it is an abbreviation of the WORD "channels", so it
+    // localizes. Passing the counts as vars rather than baking them into the
+    // string is what lets the language sweep re-render this badge with the SAME
+    // counts instead of a stale English face: setLabel() writes them onto the
+    // element as data-i18n-vars and applyLabel() reads them back every pass.
     function updateBadge() {
         getDownmixStatus().then((status) => {
             if (status && status.active) {
-                badge.textContent = status.sourceChannels + 'ch \u2192 ' + status.targetChannels + 'ch';
+                setLabel(badge, 'ui.downmix',
+                         { from: status.sourceChannels, to: status.targetChannels });
                 badge.classList.add('active');
             } else {
                 badge.classList.remove('active');
@@ -960,8 +1159,10 @@ function initializePresetBand() {
     let deleteArmTimer = null;
 
     // Two-click armed delete — window.confirm() is unreliable (silent no-op
-    // or throw) in some JUCE WebView backends. Button copy comes from
-    // data-label / data-confirm, never JS literals.
+    // or throw) in some JUCE WebView backends. v1.2.0: both faces are KEYS
+    // through setLabel(), for the same reason the layout-library delete button
+    // above changed — an attribute holds one string and cannot follow a
+    // language switch that happens while the button is armed.
     const armedConfirmDelete = () => {
         const btn = document.getElementById('preset-delete');
         if (!btn) return false;
@@ -969,7 +1170,7 @@ function initializePresetBand() {
         const disarm = () => {
             if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
             btn.dataset.armed = '0';
-            btn.textContent = btn.dataset.label || 'Del';
+            setLabel(btn, 'label.delete');
         };
 
         if (btn.dataset.armed === '1') {
@@ -978,7 +1179,7 @@ function initializePresetBand() {
         }
 
         btn.dataset.armed = '1';
-        btn.textContent = btn.dataset.confirm || 'Sure?';
+        setLabel(btn, 'ui.confirm');
         deleteArmTimer = setTimeout(disarm, 2500);
         return false;             // first click — armed only
     };
@@ -1224,13 +1425,25 @@ function initializeHoverHelp() {
         tipEl.setAttribute('aria-hidden', 'false');
     };
 
-    // Class + aria only — the button's "?" glyph is HTML-authored and must
-    // never be written from here.
+    // v1.2.0: the toggle MOVED into the settings popover and its face is now a
+    // WORD rather than the "?" glyph it wore in the header, so this function
+    // writes the caption as well as the class and the aria state. Through
+    // v1.1.1 it deliberately wrote neither, because the glyph was HTML-authored
+    // and a JS write would have erased it
+    // (pattern_js_state_updater_overwrites_html_labels). It goes through
+    // setLabel(), which is the sanctioned way to write a caption: the element
+    // becomes a [data-i18n] element and the language sweep owns it, so
+    // switching to French while the help is ON re-renders the ON face.
+    //
+    // Two calls behind an if/else, never a ternary in the argument
+    // (check-i18n assertion 13).
     const applyTipsEnabled = (enabled) => {
         tipsEnabled = !!enabled;
         if (toggleEl) {
             toggleEl.classList.toggle('active', tipsEnabled);
             toggleEl.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+            if (tipsEnabled) setLabel(toggleEl, 'ui.on');
+            else             setLabel(toggleEl, 'ui.off');
         }
         if (!tipsEnabled) hideTip();
     };

@@ -750,6 +750,16 @@ void OOrbitProcessor::getStateInformation (juce::MemoryBlock& destData)
                        tooltipsEnabled.load (std::memory_order_acquire), nullptr);
     state.setProperty ("currentPreset", presetManager.getCurrentPresetName(), nullptr);
 
+    // v1.2.0: the interface LANGUAGE rides the same tree, beside the toggle it
+    // belongs with. Written as a STRING ("en"/"fr") rather than the atomic's int
+    // index, so a hand-inspected session file says what it means — and because
+    // the ValueTree -> XML round-trip rebuilds every property as a string var
+    // anyway (critical_valuetree_xml_roundtrip_loses_type). Storing the code
+    // means the value that comes back is the value that went in, with no
+    // type predicate to misfire on the way.
+    state.setProperty ("uiLanguage",
+                       languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
 
     if (useCustomLayout)
@@ -821,6 +831,16 @@ void OOrbitProcessor::setStateInformation (const void* data, int sizeInBytes)
         const juce::var presetName = parameters.state.getProperty ("currentPreset");
         if (! presetName.isVoid())
             presetManager.setCurrentPresetName (presetName.toString());
+
+        // v1.2.0: same treatment as tooltipsEnabled above. A pre-1.2.0 session
+        // has no property, getProperty returns a VOID var, and the default
+        // (English) stands. isVoid() is again the only correct gate — the value
+        // comes back as a STRING var, so a type predicate would never fire.
+        // languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited value degrades to English rather than to a bad index.
+        const juce::var lang = parameters.state.getProperty ("uiLanguage");
+        if (! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
         if (useCustomLayout)
             applyLayout (customLayout);

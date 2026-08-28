@@ -1,0 +1,6 @@
+{
+  "_why": "The downmix badge is the only COMPOSED label on this page and it renders ONLY when getDownmixStatus() reports an active fold-down. The generic stub's default for that name is the STRING '{}', on which `status.active` is undefined, so the badge stays hidden and ui.downmix would be a key the geometry gate never measures. This supplies the shape PluginEditor.cpp really completes with (an object carrying active/sourceChannels/targetChannels), so the badge renders and both languages are measured. TEST FIXTURE ONLY - never shipped, never embedded.",
+  "natives": {
+    "getDownmixStatus": { "active": true, "sourceChannels": 8, "targetChannels": 2 }
+  }
+}

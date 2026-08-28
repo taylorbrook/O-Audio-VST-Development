@@ -17,7 +17,7 @@ juce_add_plugin(OuariconOrbit
     PLUGIN_CODE OuOr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Orbit${OUARICON_DEV_SUFFIX}"
-    VERSION 1.1.1
+    VERSION 1.2.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
     IS_SYNTH FALSE
@@ -56,6 +56,13 @@ juce_add_binary_data(OuariconOrbit_WebUI
         Resources/ui/index.html
         Resources/ui/css/styles.css
         Resources/ui/js/app.js
+        # v1.2.0 - interface copy, English + French. Embedded here, served from
+        # the getResource() branch in PluginEditor.cpp, imported by js/app.js.
+        # All three in one commit or the page 404s at runtime with nothing
+        # failing at build time. The symbol is BinaryData::i18n_js and does NOT
+        # collide with BinaryData::index_js (js/juce/index.js) already served by
+        # the same editor.
+        Resources/ui/js/i18n.js
         Resources/ui/js/modules/preset-manager.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
