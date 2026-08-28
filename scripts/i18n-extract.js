@@ -720,17 +720,52 @@ function markupKeyRefs(code) {
     const stripped = stripJsComments(code);
     const keys = new Set();
 
-    for (const m of stripped.matchAll(/\.\s*innerHTML\s*(\+?=)(?!=)\s*/g)) {
-        const rhsAt = m.index + m[0].length;
-        const rhs   = readExpression(stripped, rhsAt, ';');
-        if (!rhs) continue;
-
-        for (const l of collectLiterals(rhs.text)) {
-            if (!looksLikeMarkup(l.value)) continue;
-            for (const el of scanHtml(l.value).elements)
-                for (const a of ['data-i18n', 'data-i18n-aria', 'data-i18n-placeholder', 'data-i18n-alt'])
-                    if (el.attrs[a] && el.attrs[a].value) keys.add(el.attrs[a].value);
-        }
+    // EVERY MARKUP LITERAL IN THE MODULE, not only one sitting syntactically on
+    // an `.innerHTML =` right-hand side.
+    //
+    // The RHS rule was wrong-shaped and this is the sixteenth of that shape in
+    // this task. It reads `el.innerHTML = \'<div data-i18n="k">\'` and misses the
+    // commonest way a page in this repo builds a subtree:
+    //
+    //     let html = `<div class="hdr" data-i18n="label.h">Intervals</div>`;
+    //     for (...) html += `<div class="row">...</div>`;
+    //     list.innerHTML = html;
+    //
+    // The RHS of that assignment is the identifier `html` and carries no
+    // literal at all, so every key declared in the template reported DEAD while
+    // being read on every language change — O-Marimba\'s interval column
+    // declares seven that way. A negative control confirmed the same rule makes
+    // assertion 12 VACUOUS on the identical shape: raw unkeyed English inside an
+    // accumulated template passes green, which is the more serious half.
+    //
+    // Scanning every literal that looksLikeMarkup() is MONOTONE here: this
+    // function only ever ADDS to assertion 15\'s "referenced" set, so a broader
+    // sweep can retire a false dead-key report and can never invent a failure.
+    // The paths it now also covers — insertAdjacentHTML, outerHTML,
+    // createContextualFragment, a template held in a const — were invisible to
+    // the old rule for exactly the same reason.
+    //
+    // THE MIRROR-IMAGE HALF IS DELIBERATELY NOT FIXED HERE, and is named rather
+    // than left to be rediscovered. scanJsSource() has the same RHS-only
+    // discovery rule, which makes assertion 12 VACUOUS on the accumulator
+    // shape: raw unkeyed English inside a template built up with `html +=` and
+    // written to innerHTML later passes green. Measured with a negative
+    // control, not reasoned.
+    //
+    // It is not fixed in this commit because the obvious broadening ARGUES WITH
+    // CORRECT CODE. O-Lyrica v2.4.0 keys five such nodes by id AFTER injection —
+    // window.__setLabel(document.getElementById(\'interval-list-header\'), ...) —
+    // which is legal canon and is what its own CHANGELOG says it does; the
+    // English left in the template is the authored fallback contract §1
+    // requires. A broadened assertion 12 reported all five as violations of a
+    // rule the code was obeying, for the sixteenth time in this task. Fixing it
+    // properly needs the "keyed after injection by id" arm AND a nested-template
+    // literal reader, and half of that is worse than none.
+    for (const l of collectLiterals(stripped)) {
+        if (!looksLikeMarkup(l.value)) continue;
+        for (const el of scanHtml(l.value).elements)
+            for (const a of ['data-i18n', 'data-i18n-aria', 'data-i18n-placeholder', 'data-i18n-alt'])
+                if (el.attrs[a] && el.attrs[a].value) keys.add(el.attrs[a].value);
     }
 
     return keys;
