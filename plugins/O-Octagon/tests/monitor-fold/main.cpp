@@ -52,10 +52,14 @@ int main()
     std::printf ("\nMonitorFold — standalone correctness harness\n");
     std::printf ("----------------------------------------------------\n");
 
-    // ── 1. Woodworth curve properties, through the observable ITD the class derives ──────────
+    // ── 1a. Woodworth FORMULA properties — a local transcription, NOT the class ─────────────
+    //
+    // These five assert properties of the lambda `w` below. They document the model; they do not
+    // touch MonitorFold and they cannot fail when MonitorFold.cpp is wrong (v1.10.0 / WR-04:
+    // proven by mutation — θ-only, 0.5x, 2x, a 45° clamp and a naive 90° clamp all passed them).
+    // Named `woodworth-formula-*` so the ledger stops counting them as class coverage. Section 1b
+    // is the class-driven ITD magnitude gate.
     {
-        // Reconstruct the model the class uses, then assert the PROPERTIES rather than the values:
-        // a probe written against a transcribed 0.656 ms would agree with any implementation.
         auto w = [] (float th)
         {
             const float sign = th < 0.0f ? -1.0f : 1.0f;
@@ -69,14 +73,95 @@ int main()
         const float atRear  = w (3.14159265f);
         const float lo = w (1.5707963f - 1.0e-4f), hi = w (1.5707963f + 1.0e-4f);
 
-        check ("woodworth-zero-at-front", std::fabs (atFront) < 1.0e-9f);
-        check ("woodworth-zero-at-rear",  std::fabs (atRear)  < 1.0e-6f,
+        check ("woodworth-formula-zero-at-front", std::fabs (atFront) < 1.0e-9f);
+        check ("woodworth-formula-zero-at-rear",  std::fabs (atRear)  < 1.0e-6f,
                juce::String ("rear ITD = ") + juce::String (atRear * 1.0e6f, 3) + " us");
-        check ("woodworth-max-at-90",     std::fabs (atRight - oo::MonitorFold::kMaxItdSeconds) < 1.0e-9f,
+        check ("woodworth-formula-max-at-90",     std::fabs (atRight - oo::MonitorFold::kMaxItdSeconds) < 1.0e-9f,
                juce::String (atRight * 1000.0f, 4) + " ms");
-        check ("woodworth-continuous-at-90", std::fabs (hi - lo) < 1.0e-7f,
+        check ("woodworth-formula-continuous-at-90", std::fabs (hi - lo) < 1.0e-7f,
                juce::String ("seam step = ") + juce::String (std::fabs (hi - lo) * 1.0e9f, 2) + " ns");
-        check ("woodworth-odd-symmetric",  std::fabs (w (-0.8f) + w (0.8f)) < 1.0e-9f);
+        check ("woodworth-formula-odd-symmetric",  std::fabs (w (-0.8f) + w (0.8f)) < 1.0e-9f);
+    }
+
+    // ── 1b. ITD MAGNITUDE, THROUGH THE CLASS, against the PUBLISHED formula ──────────────────
+    //
+    // Drive MonitorFold with a lone impulse from a speaker at a known azimuth and measure the
+    // far-ear onset lag in samples. The expectation is Woodworth as PUBLISHED — r/c · (θ + sin θ),
+    // (π − θ) + sin θ past 90° — written here from the literature constants, NOT read back from
+    // kMaxItdSeconds (which is the class's own number and would agree with any class). The head
+    // radius IS taken from the class: it is a design choice, not a derived quantity.
+    //
+    // Tolerance ±2 samples: the ITD line is LINEAR-interpolated, so a fractional delay of d puts
+    // the first non-zero sample at floor(d), and the TPT one-pole shadow filters respond on the
+    // input sample, so they do not move the onset. What ±2 cannot absorb: 0.5x Woodworth (15.7
+    // vs 31.5 at 90°), 2x (63), θ-only (24.5), a 45° clamp (18 at 90°), or a naive 90° clamp
+    // (31.5 at the rear instead of 0). Each mutation that passed 1a fails here.
+    {
+        auto publishedWoodworth = [] (double thetaRad)
+        {
+            const double a = std::fabs (thetaRad);
+            const double f = a <= M_PI_2 ? (a + std::sin (a)) : ((M_PI - a) + std::sin (a));
+            return (oo::MonitorFold::kHeadRadiusM / 343.0) * f;      // c = 343 m/s, the textbook value
+        };
+
+        // Far-ear lag for an impulse into octagon speaker `spk` (i=0 front, clockwise, 45° apart).
+        auto measuredLag = [&] (int spk, int& tNear, int& tFar)
+        {
+            oo::MonitorFold m;
+            auto v = makeVenue();
+            m.prepare (sr, v);
+            m.setEngaged (true);
+
+            Lanes warm (8192);
+            m.fold (warm.get(), 0, 1, 0, 8192);          // settle the crossfade on silence
+
+            Lanes L (2048);
+            L.data[(size_t) spk][64] = 1.0f;
+            m.fold (L.get(), 0, 1, 0, 2048);
+
+            auto firstAbove = [&] (int lane) {
+                for (int n = 0; n < 2048; ++n)
+                    if (std::fabs (L.data[(size_t) lane][(size_t) n]) > 1.0e-5f) return n;
+                return -1;
+            };
+            const int tL = firstAbove (0), tR = firstAbove (1);
+            const bool rightOfListener = spk >= 1 && spk <= 3;
+            tNear = rightOfListener ? tR : tL;
+            tFar  = rightOfListener ? tL : tR;
+            return tFar - tNear;
+        };
+
+        struct Case { const char* name; int spk; double azimuthRad; };
+        const Case cases[] = {
+            { "itd-class-45deg",        1, M_PI_4 },        // between front and side
+            { "itd-class-90deg-seam",   2, M_PI_2 },        // the model maximum AND the piecewise seam
+            { "itd-class-135deg-rear",  3, 3.0 * M_PI_4 },  // past the seam: the (π − θ) branch
+            { "itd-class-180deg-zero",  4, M_PI },          // directly behind: ZERO, not the naive clamp's 31.5
+        };
+
+        for (const auto& c : cases)
+        {
+            int tNear = -1, tFar = -1;
+            const int    lag      = measuredLag (c.spk, tNear, tFar);
+            const double expected = publishedWoodworth (c.azimuthRad) * sr;
+            const bool   ok       = tNear >= 0 && tFar >= 0 && std::fabs ((double) lag - expected) <= 2.0;
+
+            check (c.name, ok,
+                   juce::String ("far-ear lag ") + juce::String (lag) + " smp vs published Woodworth "
+                       + juce::String (expected, 2) + " smp (near n=" + juce::String (tNear)
+                       + ", far n=" + juce::String (tFar) + ")");
+        }
+
+        // Left/right MIRROR through the class: speaker 6 (hard left) must lag the RIGHT ear by
+        // the same amount speaker 2 lags the LEFT.
+        {
+            int n2, f2, n6, f6;
+            const int lagRight = measuredLag (2, n2, f2);
+            const int lagLeft  = measuredLag (6, n6, f6);
+            check ("itd-class-mirror-symmetric", lagRight == lagLeft && lagRight > 0,
+                   juce::String ("hard-right lag ") + juce::String (lagRight) + " smp, hard-left lag "
+                       + juce::String (lagLeft) + " smp");
+        }
     }
 
     // ── 2. Structural bypass: disengaged means NOT RUNNING ───────────────────────────────────

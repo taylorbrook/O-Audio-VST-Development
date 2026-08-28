@@ -6640,7 +6640,8 @@ int main()
     // srcX/srcY/srcZ raw values BIT-unchanged at every one of the 3000 blocks, while the render
     // is live and the motion branch ran. The companion clause (Risk 6): a srcZ of 2 m with
     // motion off renders bit-identically to srcZ 0 + Height 2 m held at sin t = 1 (a stopped
-    // synced transport at ppq 1 with 1/4 -> cycles 0.25 -> t = pi/2), which is only true if the
+    // synced transport at ppq 1 with "1 Bar" -> 0.25 cycles -> t = pi/2; v1.10.0 re-fixtured
+    // from index 8 when WR-01 made 1/4 one cycle per BEAT), which is only true if the
     // effective Z reached BOTH the shaper and the z-cue solve.
     {
         OOctagonProcessor proc;
@@ -6680,7 +6681,7 @@ int main()
         setParam (b, "srcZ", 0.0f);
         setParam (b, "motionOn", 1.0f);
         setParam (b, "motionPath", 0.0f);
-        setParam (b, "motionSync", 8.0f);          // 1/4 -> 0.25 cycles/beat
+        setParam (b, "motionSync", 12.0f);         // 1 Bar -> 0.25 cycles/beat
         setParam (b, "motionSize", 0.0f);
         setParam (b, "motionHeight", 2.0f);
         setParam (b, "motionPhase", 0.0f);
@@ -7026,6 +7027,43 @@ int main()
     }
 
     scratch32.deleteRecursively();
+
+    //==========================================================================
+    // DO — VERSION HINTS ARE MONOTONE BY GENERATION (v1.10.0 / WR-02). The AU wrapper sorts the
+    // parameter list by ID hash then STABLE-sorts by version hint, and Logic keys automation lanes
+    // by index in that list. Every parameter added after a release must carry a hint higher than
+    // everything before it. Evaluated on the LIVE parameter objects, not a mirrored count.
+    {
+        OOctagonProcessor proc;
+        static const char* const originals[] = { "srcX", "srcY", "srcZ", "width", "rolloff", "blur",
+                                                 "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8",
+                                                 "hullAtten", "airAmount", "outputGain" };
+        auto expectedHint = [] (const juce::String& id)
+        {
+            for (auto* o : originals) if (id == o) return 1;
+            if (id == "decorr") return 2;
+            if (id.startsWith ("motion")) return 3;
+            return -1;                                   // unknown id: a NEW parameter with no generation
+        };
+
+        int seen = 0, wrong = 0;
+        juce::String detail;
+        for (auto* p : proc.getParameters())
+        {
+            auto* withId = dynamic_cast<juce::AudioProcessorParameterWithID*> (p);
+            if (withId == nullptr) continue;
+            ++seen;
+            const int want = expectedHint (withId->paramID);
+            if (want < 0 || withId->getVersionHint() != want)
+            {
+                ++wrong;
+                detail << withId->paramID << " hint " << withId->getVersionHint() << " (want " << want << ") ";
+            }
+        }
+        check ("DO version-hints-monotone", seen == 28 && wrong == 0,
+               juce::String (seen) + " parameters, " + juce::String (wrong) + " off-generation"
+                   + (wrong > 0 ? ": " + detail : juce::String ("; originals 1, decorr 2, motion* 3")));
+    }
 
     //==========================================================================
     std::printf ("\n----------------------------------------------------\n");

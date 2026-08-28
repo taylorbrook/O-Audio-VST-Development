@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.7.0 (dev build installed; not released)
+- **Version:** 1.10.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -210,8 +210,23 @@
   three parameters (linear ranges, no skew): `rolloff` 4.0f and `hullAtten` 1.0f are unchanged
   to the bit and only `blur` moves. Gates: `ui_frontend_check` 42, `ui_layout_check` 31,
   geometry 46/0, zero compiler warnings, `auval` registers.
+- **2026-08-27 (v1.10.0 — `/improve-review`, WR-01..04 of the v1.8.0 CODE_REVIEW):** Sync table
+  rewritten to true cycles-per-beat (was 4× slow; 1/16D≡1/8T, 1/8D≡1/4T) with MP9 + DD re-fixtured;
+  AU version hints made monotone by generation (1 / 2 `decorr` / 3 `motion*`) with render probe DO;
+  elevation strip now evaluates ear height at the LIVE depth (`setMotion(offset, running)`) with a
+  raked-venue §22 gate; monitor-fold gained five class-driven ITD-magnitude checks proven by
+  mutation (0.5×, naive-90°, θ-only each fail). O-Orbit v1.1.1 carries the same table fix. Gates:
+  monitor-fold 20/0, geometry 58/0, render 74/0, layout 31, frontend 43, i18n strict-v2, auval PASS.
+  **HEAD 99e7d206 (v1.9.0) is internally inconsistent** — a concurrent commit swept this version's
+  `app.js` edit in ahead of `elevation.js`; v1.10.0 restores it (see CHANGELOG).
 
 ## Known Issues
+
+**Open from the v1.8.0 CODE_REVIEW (2026-08-27):** IN-01 … IN-30 are untouched — `/improve-review`
+resolves Critical and Warning only. Of note for the next release: IN-01 (host-clock `isfinite`
+funnel, three lines), IN-07 (this NOTES history, now caught up), IN-22 (`geometry-gated-on-generation`
+is `check(..., true, ...)`), IN-23 (DF's `motionSolves > 0` liveness gate is over-claimed), and the
+IN-25/26/28/29 tautological probes. `/improve-review-info O-Octagon` sweeps them.
 
 **No test observes `scenesGeneration` (found 2026-08-26, v1.3.4).** Deleting `++scenesGeneration`
 from `commitScenes()` leaves all 51 render-harness probes and all 46 geometry probes green. CK and

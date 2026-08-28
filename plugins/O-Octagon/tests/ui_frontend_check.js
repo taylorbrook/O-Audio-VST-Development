@@ -802,7 +802,7 @@ head(15, 'the stub\'s 28 ranges + defaults match createParameterLayout() PARSED 
     const num = s => parseFloat(String(s).replace(/f$/, ''));
     const layout = new Map();
 
-    const direct = /makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*linearRange\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*(-?[\d.]+f?)/g;
+    const direct = /makeFloat\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*linearRange\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*(-?[\d.]+f?)/g;
     for (const m of S.procCpp.matchAll(direct))
         layout.set(m[1], { start: num(m[2]), end: num(m[3]), def: num(m[4]) });
 
@@ -811,21 +811,23 @@ head(15, 'the stub\'s 28 ranges + defaults match createParameterLayout() PARSED 
     //   makeFloat (id, name, <identifier>, def) where the identifier is a local NormalisableRange
     //     declared as `juce::NormalisableRange<float> <identifier> (lo, hi);` (motionRate)
     //   makeBool (id, name, bool) / makeChoice (id, name, juce::StringArray { ... }, defIdx)
-    const inlineRange = /makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*juce::NormalisableRange<float>\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*(-?[\d.]+f?)/g;
+    // v1.10.0 (WR-02): every factory takes a leading `kHintV1_x` version-hint argument, matched
+    // optionally so the regexes read both the pre- and post-hint spellings.
+    const inlineRange = /makeFloat\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*juce::NormalisableRange<float>\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*(-?[\d.]+f?)/g;
     for (const m of S.procCpp.matchAll(inlineRange))
         layout.set(m[1], { start: num(m[2]), end: num(m[3]), def: num(m[5]) });
 
-    const namedRange = /makeFloat\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?[\d.]+f?)/g;
+    const namedRange = /makeFloat\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(-?[\d.]+f?)/g;
     for (const m of S.procCpp.matchAll(namedRange)) {
         const decl = S.procCpp.match(new RegExp(`juce::NormalisableRange<float>\\s+${m[2]}\\s*\\(\\s*(-?[\\d.]+f?)\\s*,\\s*(-?[\\d.]+f?)\\s*\\)`));
         if (decl) layout.set(m[1], { start: num(decl[1]), end: num(decl[2]), def: num(m[3]) });
     }
 
-    for (const m of S.procCpp.matchAll(/makeBool\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*(true|false)\s*\)/g))
+    for (const m of S.procCpp.matchAll(/makeBool\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*(true|false)\s*\)/g))
         layout.set(m[1], { start: 0, end: 1, def: m[2] === 'true' ? 1 : 0 });
 
     const cppChoices = new Map();
-    for (const m of S.procCpp.matchAll(/makeChoice\s*\(\s*"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*juce::StringArray\s*\{([\s\S]*?)\}\s*,\s*(\d+)\s*\)/g)) {
+    for (const m of S.procCpp.matchAll(/makeChoice\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"([A-Za-z0-9_]+)"\s*,\s*"[^"]*"\s*,\s*juce::StringArray\s*\{([\s\S]*?)\}\s*,\s*(\d+)\s*\)/g)) {
         const names = [...m[2].matchAll(/"([^"]*)"/g)].map(x => x[1]);
         cppChoices.set(m[1], names);
         layout.set(m[1], { start: 0, end: names.length - 1, def: num(m[3]) });
@@ -847,7 +849,7 @@ head(15, 'the stub\'s 28 ranges + defaults match createParameterLayout() PARSED 
     // The eight weights are built in a loop, so they have no literal id in the
     // source. Parsed from the loop body, and expanded here.
     const wLoop = S.procCpp.match(
-        /makeFloat\s*\(\s*"w"\s*\+\s*juce::String\s*\(i\)[\s\S]*?linearRange\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*\n?\s*(-?[\d.]+f?)/);
+        /makeFloat\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"w"\s*\+\s*juce::String\s*\(i\)[\s\S]*?linearRange\s*\(\s*(-?[\d.]+f?)\s*,\s*(-?[\d.]+f?)\s*\)\s*,\s*\n?\s*(-?[\d.]+f?)/);
     check(wLoop !== null, 'the w1..w8 loop in createParameterLayout() is parseable');
     if (wLoop)
         for (let i = 1; i <= 8; ++i)
@@ -904,7 +906,7 @@ head(16, 'createParameterLayout == params::id() == relay derivation == DOM ids')
     // as `makeFloat ("w" + juce::String (i), ...)`, so a regex that stops at the
     // closing quote harvests a nineteenth "parameter" called `w` and reports
     // 19 == 18 as a mismatch on correct code.
-    const layoutIds = new Set([...S.procCpp.matchAll(/make(?:Float|Bool|Choice)\s*\(\s*"([A-Za-z0-9_]+)"\s*,/g)].map(m => m[1]));
+    const layoutIds = new Set([...S.procCpp.matchAll(/make(?:Float|Bool|Choice)\s*\(\s*(?:kHint[A-Za-z0-9_]+\s*,\s*)?"([A-Za-z0-9_]+)"\s*,/g)].map(m => m[1]));
     for (let i = 1; i <= 8; ++i) layoutIds.add(`w${i}`);
 
     const idTable = S.gainH.match(/static constexpr const char\* ids\[\][\s\S]*?\{([\s\S]*?)\};/);

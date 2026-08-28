@@ -134,8 +134,16 @@ export function createElevation(deps) {
   let geometry = null;
   let view = null;
 
-  // v1.8.0 — the motion engine's z offset (metres), polled from getMeters and
-  // handed in by app.js. Zero while motion is off, so the marker is srcZ's.
+  // v1.8.0 — the motion engine's offset (metres), polled from getMeters and
+  // handed in by app.js. Zero while motion is off, so the marker is srcY/srcZ's.
+  //
+  // v1.10.0 (WR-03) — BOTH halves the DSP uses. GainStage shapes the source at
+  // anchor.y + offset.y and evaluates the ear height THERE (SourceShaper.cpp
+  // heightAt), so the strip must add offset.y to the anchor's depth before it
+  // asks earHeight() anything. Adding only offset.z drew the marker at the
+  // anchor's depth: "Ear" never moved on a raked venue, "Source" was wrong by
+  // rake × offset.y, and the section marker never swept front-to-back.
+  let motionY = 0;
   let motionZ = 0;
   let axisMaxM = AXIS_MIN_M;
   let box = { w: 0, h: 0 };
@@ -287,8 +295,11 @@ export function createElevation(deps) {
     // The source's DEPTH comes from srcY through the same normToMetres the
     // plan and the footer readout use — never a second denormalisation. Only
     // the y half is read here, so the x argument is a placeholder: this strip
-    // is a SECTION and has no lateral axis to place a source on.
-    const depthM = normToMetres(0, srcY.state.getNormalisedValue(), geometry).y;
+    // is a SECTION and has no lateral axis to place a source on. The LIVE
+    // depth is the anchor plus the motion engine's y offset — the depth the
+    // audio thread actually shapes at, and therefore the depth the ear height
+    // must be evaluated at (WR-03).
+    const depthM = normToMetres(0, srcY.state.getNormalisedValue(), geometry).y + motionY;
 
     const earM = earHeight(depthM, geometry);
     const srcM = earM + srcZ.state.getScaledValue() + motionZ;
@@ -348,11 +359,16 @@ export function createElevation(deps) {
   srcZ.state.valueChangedEvent.addListener(() => { if (view !== null) drawMarker(); });
 
   return {
-    /** v1.8.0 — the live height from the polled motion triple. */
-    setMotionZ(z) {
-      const v = Number(z) || 0;
-      if (v === motionZ) return;
-      motionZ = v;
+    /** v1.8.0 / v1.10.0 — the polled motion triple (anchor-relative metres).
+        The strip consumes the y AND z halves; x is lateral and a section has
+        no lateral axis. Zero both while motion is off so the marker is the
+        anchor's again. */
+    setMotion(offset, running) {
+      const y = running && Array.isArray(offset) ? Number(offset[1]) || 0 : 0;
+      const z = running && Array.isArray(offset) ? Number(offset[2]) || 0 : 0;
+      if (y === motionY && z === motionZ) return;
+      motionY = y;
+      motionZ = z;
       if (view !== null) drawMarker();
     },
 
