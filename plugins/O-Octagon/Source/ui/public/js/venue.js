@@ -676,6 +676,18 @@ export function createVenueScreen(deps) {
     // would then send the wrong request.
     const armed = monitorBtn.getAttribute("aria-pressed") === "true";
 
+    // v1.11.0 — on a STEREO bus the same button toggles the binaural
+    // preference instead. data-stereo-bus is written by renderMonitor() from
+    // the poll, for the reason aria-pressed is: the page never re-derives
+    // which output sets count as stereo (P43). The setter is never refused,
+    // so there is no refusal branch to render — the ACTIVE state arrives on
+    // the next poll as binauralActive.
+    if (monitorBtn.dataset.stereoBus === "true") {
+      nativeFn("setStereoBinaural")(!armed)
+        .catch((err) => console.error("setStereoBinaural failed", err));
+      return;
+    }
+
     nativeFn("setMonitorArmed")(!armed)
       .then((result) => {
         if (result === true || armed) return;

@@ -305,7 +305,8 @@ void GainStage::prepare (double sampleRateToUse, int samplesPerBlock,
 //==============================================================================
 void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut, bool mapped,
                          const VenueSnapshot& snapshot, const ParamSnapshot& p,
-                         VerifyPing* ping, bool monitorOn, const motion::HostClock* clock) noexcept
+                         VerifyPing* ping, bool monitorOn, const motion::HostClock* clock,
+                         bool binauralOn) noexcept
 {
     const int numSamples = buffer.getNumSamples();
 
@@ -379,13 +380,17 @@ void GainStage::process (juce::AudioBuffer<float>& buffer, int numIn, int numOut
             // The monitor is refused on an unresolved pair here as well as upstream. The upstream
             // check is the gate; this is the backstop, and it is free.
             monitorFold.updateGeometry (snapshot);
-            monitorFold.setEngaged (monitorOn && snapshot.monitorSlot[0] >= 0);
+            //
+            // v1.11.0: the binaural arm engages the SAME fold. It needs no resolved monitor pair —
+            // it folds a scratch whose slots are {0, 1} by construction — so the pair check
+            // belongs only to the 8-channel monitor term.
+            monitorFold.setEngaged ((monitorOn && snapshot.monitorSlot[0] >= 0) || binauralOn);
         }
 
         const int toBoundary = static_cast<int> (kControlBlock) - phase;
         const int chunk      = juce::jmin (numSamples - n, toBoundary);
 
-        renderChunk (buffer, n, chunk, numIn, numOut, mapped, snapshot, ping);
+        renderChunk (buffer, n, chunk, numIn, numOut, mapped, binauralOn, snapshot, ping);
 
         n                     += chunk;
         absoluteSampleCounter += static_cast<std::uint64_t> (chunk);
@@ -695,7 +700,7 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
 
 //==============================================================================
 void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int count,
-                             int numIn, int numOut, bool mapped,
+                             int numIn, int numOut, bool mapped, bool binauralOn,
                              const VenueSnapshot& snapshot, VerifyPing* ping) noexcept
 {
     // ── H7 — INPUT ALIASING, sharper at 2.2 than it was at 2.1 ────────────────────────────────
@@ -717,16 +722,39 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
 
     const int last = start + count;
 
-    if (mapped)
+    // v1.11.0. The binaural arm is the REAL arm with its eight write pointers aimed at the scratch
+    // instead of the host buffer. The processor guarantees mapped and binauralOn are exclusive
+    // (binauralOn requires !mapped); the jassert states it, and `mapped` wins if it were not.
+    jassert (! (mapped && binauralOn));
+
+    const bool binaural = binauralOn && ! mapped;
+
+    if (mapped || binaural)
     {
-        // REAL mode. numOut is exactly 8 here — mappedOutputAvailable() requires it.
+        // REAL mode. numOut is exactly 8 here — mappedOutputAvailable() requires it — OR the
+        // binaural arm, where numOut is 2 and the eight lanes below are the scratch.
         //
         // THE ONLY PLACE IN THIS PLUGIN THAT INDEXES AN OUTPUT CHANNEL is snapshot.speakerToBuffer.
         // Hoisting the WRITE pointers is safe; hoisting a READ pointer is what H7 forbids.
+        //
+        // `off` is the index the sample loop subtracts: 0 for the host buffer (the v1.10.1
+        // expression exactly), `start` for the scratch, which is chunk-relative. An integer
+        // subtraction on the index changes no float, so the 8-channel render is bit-identical.
         float* out[kNumSpeakers];
+        const int off = binaural ? start : 0;
 
-        for (int i = 0; i < kNumSpeakers; ++i)
-            out[i] = buffer.getWritePointer (snapshot.speakerToBuffer[static_cast<std::size_t> (i)]);
+        if (binaural)
+        {
+            jassert (count <= static_cast<int> (kControlBlock));
+
+            for (int i = 0; i < kNumSpeakers; ++i)
+                out[i] = binauralLanes[static_cast<std::size_t> (i)].data();
+        }
+        else
+        {
+            for (int i = 0; i < kNumSpeakers; ++i)
+                out[i] = buffer.getWritePointer (snapshot.speakerToBuffer[static_cast<std::size_t> (i)]);
+        }
 
         // ── P27's re-seed, HOISTED OUT OF THE LOOP ────────────────────────────────────────────
         //
@@ -860,11 +888,11 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
 
                     const float delayed = alignDelay[k].popSample (0, d);
 
-                    out[i][n] = delayActive[k] ? delayed : y;
+                    out[i][n - off] = delayActive[k] ? delayed : y;
                 }
                 else
                 {
-                    out[i][n] = y;
+                    out[i][n - off] = y;
                 }
             }
 
@@ -919,7 +947,11 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
         // In SAFE mode this does not run at all, and it must not: the ping names a speaker, and in
         // SAFE mode there is no speaker N to name. The processor refuses to start one there and
         // aborts a running one on the flip (Q5).
-        if (ping != nullptr && ping->isActive())
+        //
+        // v1.11.0: never in the binaural arm either. The processor aborts a ping the moment
+        // `mapped` goes false, and `mapped` is the guard here rather than `binaural` so the
+        // scratch — which has no speaker N to name — can never receive one.
+        if (mapped && ping != nullptr && ping->isActive())
             ping->overwrite (out, kNumSpeakers, start, count);
 
         // ── v1.7.0 — THE MONITOR FOLD, AND IT IS THE LAST THING THAT HAPPENS ──────────────────
@@ -934,8 +966,52 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
         // arithmetic. Nothing below is clocked, no line is pushed, no filter advances — the same
         // shape as `delayEngaged` false clocking no delay line, and deliberately NOT the
         // advance-unconditionally rule the smoothers live under (see the member's comment).
-        if (monitorFold.isRunning())
+        if (binaural)
+        {
+            // ── v1.11.0 — THE STEREO-BUS BINAURAL ARM'S TAIL ─────────────────────────────────
+            //
+            // The eight solved feeds are in the scratch, chunk-relative. Three things, in order:
+            //
+            //   1. METER THE LANES BEFORE THE FOLD. The host buffer will only ever carry the
+            //      folded pair, and the operator on a stereo bus is working on exactly the
+            //      per-speaker picture the eight meters exist to show. Same post-map, post-trim
+            //      signal the 8-channel meters read; max-merged into atomics the processor
+            //      exchanges to zero on its poll.
+            //   2. FOLD IN PLACE with slots {0, 1}: the scratch is identity-ordered by
+            //      construction, so no monitor-pair resolution is needed or consulted — the
+            //      resolved pair in the snapshot describes the HOST buffer of an 8-channel bus
+            //      and means nothing here. fold() reads all eight before writing any, so the
+            //      in-place write is safe (its own H7 rule).
+            //   3. COPY THE PAIR to host channels 0 and 1. The input pointers in0/in1 alias
+            //      those channels, and every read of them for this chunk happened in the sample
+            //      loop above — the copy is the last write and nothing reads after it.
+            //
+            // isRunning() is true for the whole time the arm is selected: setEngaged (true) was
+            // issued at the control boundary. During the 5 ms engage ramp the pair carries
+            // (1 - m) of speakers 1 and 2's raw feeds — the same crossfade the 8-channel monitor
+            // makes, and inaudible for the same reason.
+            for (int i = 0; i < kNumSpeakers; ++i)
+            {
+                const auto k = static_cast<std::size_t> (i);
+                const auto mm = juce::FloatVectorOperations::findMinAndMax (out[i], count);
+                const float pk = juce::jmax (std::abs (mm.getStart()), std::abs (mm.getEnd()));
+
+                if (pk > binauralLanePeak[k].load (std::memory_order_relaxed))
+                    binauralLanePeak[k].store (pk, std::memory_order_relaxed);
+            }
+
+            if (monitorFold.isRunning())
+                monitorFold.fold (out, 0, 1, 0, count);
+
+            const int numWrite = juce::jmin (numOut, 2);
+
+            for (int ch = 0; ch < numWrite; ++ch)
+                juce::FloatVectorOperations::copy (buffer.getWritePointer (ch) + start, out[ch], count);
+        }
+        else if (monitorFold.isRunning())
+        {
             monitorFold.fold (out, snapshot.monitorSlot[0], snapshot.monitorSlot[1], start, count);
+        }
     }
     else
     {
@@ -1004,6 +1080,18 @@ void GainStage::renderChunk (juce::AudioBuffer<float>& buffer, int start, int co
             instr::countSampleAdvance();
         }
     }
+}
+
+//==============================================================================
+std::array<float, GainStage::kNumSpeakers> GainStage::readAndZeroBinauralLanePeaks() noexcept
+{
+    std::array<float, kNumSpeakers> peaks {};
+
+    for (int i = 0; i < kNumSpeakers; ++i)
+        peaks[static_cast<std::size_t> (i)] =
+            binauralLanePeak[static_cast<std::size_t> (i)].exchange (0.0f, std::memory_order_relaxed);
+
+    return peaks;
 }
 
 //==============================================================================

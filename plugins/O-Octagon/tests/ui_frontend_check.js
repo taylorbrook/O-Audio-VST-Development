@@ -247,8 +247,12 @@ head(3, 'bridge closure in BOTH directions; the surface is exactly THIRTEEN (P65
     // v1.8.0 adds exactly ONE: getMotionTrace — one cycle of the path from the SAME generator the
     // audio thread runs (MotionPath.h), so the map's trace cannot drift from the audible path.
     // The live puck adds NO call: it rides getMeters as three floats + a flag (RESEARCH Q6).
-    check(registered.size === 27,
-        `PluginEditor.cpp registers exactly 27 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
+    // v1.11.0 adds exactly ONE: setStereoBinaural — the persisted stereo-bus preference. Its
+    // read side rides getStatus (stereoBus / binauralActive / stereoBinaural) on the same poll
+    // the monitor uses, for the same reason: the audio thread decides per block whether the arm
+    // applies, and a one-shot reader would go stale the moment the host re-negotiated.
+    check(registered.size === 28,
+        `PluginEditor.cpp registers exactly 28 native functions — ${registered.size}: ${[...registered].sort().join(', ')}`);
     check(setsEqual(called, registered),
         `JS calls == C++ registers${setsEqual(called, registered) ? ''
             : ` — called-not-registered: [${diff(called, registered)}], registered-not-called: [${diff(registered, called)}]`}`);

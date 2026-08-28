@@ -709,7 +709,14 @@ function renderMonitor(status) {
   const suppressed = status.monitorSuppressed === true;
   const available = status.monitorAvailable !== false;
 
-  const key = `${armed}|${suppressed}|${available}`;
+  // v1.11.0 — the stereo-bus binaural arm, two more facts from the SAME poll.
+  // stereoBus makes the Headphones button live on a stereo insert; binaural is
+  // what the audio thread DID last block, never the preference — a mono bus or
+  // an F3 3-7 channel buffer keeps the preference and takes the dry fold.
+  const stereoBus = status.stereoBus === true;
+  const binaural = status.binauralActive === true;
+
+  const key = `${armed}|${suppressed}|${available}|${stereoBus}|${binaural}`;
   if (key === lastMonitorKey) return;
   lastMonitorKey = key;
 
@@ -717,13 +724,19 @@ function renderMonitor(status) {
   // operator mid-bounce needs to be told the bounce is clean, and hiding the
   // banner exactly when the render is running would remove the reassurance at
   // the only moment it is wanted.
+  //
+  // The binaural arm lights the SAME banner: on a stereo bus it is the one
+  // thing telling the operator the pair they hear is a fold of eight solved
+  // feeds and not the rig — which is what the SAFE banner said, and SAFE is
+  // hidden while this is up (applyStatus) so the header carries one claim.
   const banner = document.getElementById("monitor-banner");
-  if (banner !== null) banner.hidden = !armed;
+  if (banner !== null) banner.hidden = !(armed || binaural);
 
   const monitorCopy = document.getElementById("monitor-copy");
   if (monitorCopy !== null) {
-    if (suppressed) setLabel(monitorCopy, "monitor.suppressed");
-    else            setLabel(monitorCopy, "monitor.folding");
+    if (binaural)        setLabel(monitorCopy, "monitor.binaural");
+    else if (suppressed) setLabel(monitorCopy, "monitor.suppressed");
+    else                 setLabel(monitorCopy, "monitor.folding");
   }
 
   // THE BUTTON'S CAPTION IS AUTHORED AND IS NEVER REWRITTEN — the armed state
@@ -732,16 +745,24 @@ function renderMonitor(status) {
   // and the ms/m unit toggle both refuse to relabel themselves), and it is what
   // keeps a shared state updater from ever erasing an authored label
   // (pattern_js_state_updater_overwrites_html_labels).
+  //
+  // On a stereo bus the button is ALWAYS live and toggles the binaural
+  // preference instead of the monitor arm. The click handler in venue.js reads
+  // data-stereo-bus, written here by the poll, to choose which native call to
+  // make — never a local boolean (the same rule as aria-pressed).
   const btn = document.getElementById("monitor-toggle");
   if (btn !== null) {
-    btn.setAttribute("aria-pressed", armed ? "true" : "false");
-    btn.disabled = !available && !armed;
+    btn.setAttribute("aria-pressed", armed || binaural ? "true" : "false");
+    btn.dataset.stereoBus = stereoBus ? "true" : "false";
+    btn.disabled = stereoBus ? false : (!available && !armed);
   }
 
   const monitorNode = document.getElementById("vmonitor-state");
   if (monitorNode !== null) {
-    if (!available)     setLabel(monitorNode, "monitor.unavailable");
-    else if (!armed)    setLabel(monitorNode, "monitor.off");
+    if (binaural)        setLabel(monitorNode, "monitor.binaural.rail");
+    else if (stereoBus)  setLabel(monitorNode, "monitor.off");
+    else if (!available) setLabel(monitorNode, "monitor.unavailable");
+    else if (!armed)     setLabel(monitorNode, "monitor.off");
     else if (suppressed) setLabel(monitorNode, "monitor.armed");
     else                 setLabel(monitorNode, "monitor.folding.rail");
   }
@@ -830,7 +851,10 @@ function renderFieldLegend() {
 function applyStatus(status) {
   if (status === null || typeof status !== "object") return;
 
-  const safe = status.safeMode === true;
+  // v1.11.0: SAFE yields to the binaural arm. Both are true on a stereo bus
+  // with the fold up; the MONITOR banner then carries the claim, and two
+  // banners saying "not the rig" in different words would be noise.
+  const safe = status.safeMode === true && status.binauralActive !== true;
   if (safe !== lastSafeMode) {
     lastSafeMode = safe;
     const banner = document.getElementById("safe-banner");
