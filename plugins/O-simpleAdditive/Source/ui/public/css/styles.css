@@ -135,6 +135,16 @@ body {
   border-bottom: 1px solid rgba(139, 115, 85, 0.4);
   padding-bottom: 4px;
 }
+/* v1.1.0 — flex:1 with min-width:0, not shrink-to-fit. The block shrink-wrapped
+   its widest child, which is the .subtitle: French made it 131.6px wider
+   (397.1 -> 528.7) and the geometry diff named the block and the <h1> inside it,
+   neither of which is a label. Taking the header's slack instead pins the box in
+   both languages and leaves the gear where space-between already put it.
+   (pattern_flex1_container_slack_invisible_to_row_sum) */
+.title-block {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .title {
   font-size: 25px;
   font-weight: 400;
@@ -150,6 +160,105 @@ body {
   color: var(--brown-border);
   margin-top: 2px;
 }
+
+/* ── Settings gear + popover (v1.1.0) ───────────────────────────────────────
+   The gear takes the empty right-hand side of the header, which .header's
+   space-between already reserved for it — the title block does not move.
+
+   Written in this plugin's own aged-paper vocabulary, not pasted in from
+   another: the panel wears the .group plate (rgba(250,240,230,.45) over the
+   --brown-border rule at 5px radius), the selector is the .combo the two
+   drop-downs already wear at a smaller size, and the green is the same
+   --green-mid the .tour-btn:hover and the knob stem use for a lit state.
+   ------------------------------------------------------------------------- */
+#settings-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.gear-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: var(--symbol-font);   /* Garamond has no U+2699 on Windows */
+  font-size: 13px;
+  line-height: 1;
+  color: var(--green-darkest);
+  background: rgba(139, 168, 112, 0.25);
+  border: 1.5px solid var(--green-mid);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 1px 1px 3px var(--shadow-light);
+}
+.gear-btn:hover { background: rgba(139, 168, 112, 0.45); }
+.gear-btn[aria-expanded="true"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+.gear-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+
+/* z-index sits below .tooltip (50) on purpose: the gear and the selector both
+   carry hover help, and at the top of the frame their tips land ON this panel.
+   A panel above the tip would hide the help for the two controls that exist to
+   reach the help. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 214px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px var(--shadow-medium);
+  text-align: left;
+}
+.settings-popover[hidden] { display: none; }
+
+/* space-between with a flex:1 caption, not a shrink-to-fit one: a caption that
+   shrink-wraps makes its own box language-dependent even where nothing visibly
+   moves, and the geometry diff flags the BOX, not the glyphs
+   (pattern_flex1_container_slack_invisible_to_row_sum). */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.settings-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--brown-text);
+}
+/* The .combo, at panel scale, with its width PINNED. Left to shrink-to-fit it
+   would step with the endonym the user picked, moving the caption beside it. */
+.settings-select {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 24px;
+  padding: 2px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--green-darkest);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.12);
+}
+.settings-select:hover { background: #fbf4e6; border-color: var(--brown-frame); }
+.settings-select:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 /* ── Drawbar bay (the headline control surface = the live spectrum) ──────── */
 .drawbar-panel {
@@ -301,7 +410,22 @@ body {
    what keeps the on-screen keyboard above the fold at the 860x980 editor size. */
 .group-row { display: flex; gap: 7px; align-items: stretch; }
 .group-row > .group { flex: 1 1 auto; }
-.group-output { flex: 0 0 auto; }
+/* v1.1.0 — flex-basis 0, not auto. With basis:auto each group's share of the
+   row is seeded by its own max-content width, which is set by its TITLE:
+   "Modulation Envelope · → Scan" grows more in French than "Amplitude
+   Envelope" does, so the amplitude group lost 12.5px to its neighbour
+   (338.7 -> 326.1 / 338.7 -> 363.8) and dragged #knob-ampAttack 6.3px left.
+   basis 0 splits the leftover evenly whatever the titles say. */
+/* Child-combinator selectors so these BEAT `.group-row > .group` above on
+   specificity. Written as `.group-env` they lost (0,1,0 vs 0,2,0) and the gate
+   reported the identical -12.5px shift it had before the rule existed. */
+.group-row > .group-env { flex: 1 1 0; min-width: 0; }
+/* Pinned, for the same reason from the other side: at flex:0 0 auto this group
+   IS its max-content width, and "Sortie" is 12.6px narrower than "Output"
+   (122.7 -> 110.1), which handed the difference to the two envelope groups.
+   123px is the measured English width; the contents need 82px (one 56px
+   knob-cell + 24px padding + 2px border) and the title ~55px. */
+.group-row > .group-output { flex: 0 0 123px; width: 123px; }
 
 .knob-cell { display: flex; flex-direction: column; align-items: center; width: 58px; }
 
@@ -362,6 +486,17 @@ body {
   box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
 }
 
+/* v1.1.0 — min-height reserves TWO lines in BOTH languages.
+   "LFO Rate" (48.9px) and "LFO Depth" (56.3px) fit the 58px cell on one line;
+   "Vitesse LFO" (64.9px) and "Ampleur LFO" (72.3px) do not, so in French those
+   two cells grew 10.4px and pushed #val-scanLfoRate and #val-scanLfoDepth down
+   by exactly one line-height. Reserving the line is D-04's "let it wrap where
+   the row can afford the height" — the shorter alternatives ("Vit. LFO" 42.6,
+   "Prof. LFO" 51.1) are the short-variant answer D-04 rules out.
+   The row CAN afford it: group-row 1 is already 129.9px tall in both languages
+   because the Spectral group's "Spectral Decay" wraps, so this costs row 1
+   nothing; group-row 2 grows 10.4px, and the frame has ~33px of slack
+   (content 891 in 924 usable). Measured after: content 902 in 924. */
 .knob-label {
   font-size: 9.5px;
   text-transform: uppercase;
@@ -370,6 +505,7 @@ body {
   margin-top: 4px;
   text-align: center;
   line-height: 1.1;
+  min-height: 2.2em;   /* 2 x 1.1 line-height at 9.5px = 20.9px */
 }
 .knob-value {
   font-size: 11px;
@@ -413,13 +549,24 @@ body {
   border-top: 1px solid rgba(139, 115, 85, 0.4);
   flex-wrap: wrap;
 }
+/* v1.1.0 — the label box is PINNED and the button group takes the row's slack.
+   .tour-label is the only item before .tour-buttons in this flex row, so its
+   width alone sets where the buttons start. 99px is the English caption's own
+   measured width (98.8px) rounded up, and the French was authored to fit inside
+   it (83.8px), so the English row is unchanged to within 0.2px.
+   .tour-buttons then grows to the rest of line 1 (679px) instead of
+   shrink-wrapping its six buttons, whose captions are 386.6px of text in
+   English and 428.3px in French. Both are [data-i18n] elements and excluded
+   from the geometry diff; their CONTAINER was not, and was reported moving
+   dx=80.3 dw=41.7. The caption stays on line 2, right-aligned, in both. */
 .tour-label {
+  flex: 0 0 99px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--brown-border);
 }
-.tour-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.tour-buttons { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
 .tour-btn {
   font-family: inherit;
   font-size: 10.5px;

@@ -65,6 +65,12 @@ OSimpleAdditiveAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/js/app.js")
         return makeBinaryResource (BinaryData::app_js, BinaryData::app_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.1.0 — the interface copy table (English + French). Served from the same
+    // provider as app.js, which imports it; a branch missing here is a blank
+    // page rather than an English one, because the import fails to resolve.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (BinaryData::i18n_js, BinaryData::i18n_jsSize, "application/javascript; charset=utf-8");
+
     if (url == "/js/juce/index.js")
         return makeBinaryResource (BinaryData::index_js, BinaryData::index_jsSize, "application/javascript; charset=utf-8");
 
@@ -129,6 +135,32 @@ OSimpleAdditiveAudioProcessorEditor::OSimpleAdditiveAudioProcessorEditor (OSimpl
             if (args.size() > 0)
                 processorRef.applyFactoryPreset (args[0].toString());
             complete (juce::var());
+        })
+        // ── Interface-language pair (v1.1.0) ───────────────────────────────
+        // Plain withNativeFunction, no relay: the language is not a parameter
+        // and must not reach a DAW automation lane. PULLED once by the page at
+        // init; nothing pushes from here or from the 30 Hz timer, and
+        // applyFactoryPreset sets parameters only, so no preset path can change
+        // it behind the page's back.
+        //
+        // The WebView is never hidden in this editor (no setVisible anywhere in
+        // Source/), so these completions always settle
+        // (critical_webview_completion_gated_on_isvisible).
+        .withNativeFunction ("getUiLanguage", [this] (auto&, auto complete) {
+            complete (juce::var (OSimpleAdditiveAudioProcessor::languageCode (
+                                     processorRef.uiLanguage.load (std::memory_order_acquire))));
+        })
+        .withNativeFunction ("setUiLanguage", [this] (const juce::Array<juce::var>& args, auto complete) {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    OSimpleAdditiveAudioProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (OSimpleAdditiveAudioProcessor::languageCode (
+                                     processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
    #if JUCE_WINDOWS
