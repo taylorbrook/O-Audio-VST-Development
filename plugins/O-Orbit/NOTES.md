@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.1.1
 - **Type:** Audio Effect (Spatial Orbiter)
 
 ## Lifecycle Timeline
@@ -12,6 +12,7 @@
 - **2026-08-19:** Full code review produced `.planning/improvements/v1.1-review-findings.md` (defects + feature backlog).
 - **2026-08-19:** v1.0.1 — Part A defect fixes: Depth param wired to the distance model, RT-safe IIR coefficients (ArrayCoefficients), per-sample mix smoothing, multichannel dry/wet semantics, skew-aware double-click knob reset. pluginval strictness 10 + auval clean.
 - **2026-08-19:** v1.1.0 — Parts B–D: preset-manager migration (categorized menu + user presets), hover help, PPQ-locked tempo sync, Ping-Pong path, speaker-editor elevation/distance editing, named layout library, height visualization, resizable editor.
+- **2026-08-27:** v1.1.1 — tempo-sync table corrected to true cycles-per-beat (was 4× slow; two duplicate triplet/dotted pairs), mirrored from O-Octagon v1.10.0 WR-01. Tooltip states the convention. auval clean.
 
 ## Known Issues
 

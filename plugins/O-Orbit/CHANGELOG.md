@@ -1,5 +1,32 @@
 # Changelog — O-Orbit
 
+## v1.1.1 — 2026-08-27
+
+Patch: the tempo-sync table mirrored from O-Octagon's v1.10.0 WR-01 fix (the table originated here
+and was byte-copied there).
+
+### Fixed
+- **Tempo Sync ran 4× slower than its labels, and two menu pairs were identical.** `tempoMultipliers`
+  (`MotionEngine.h`) is cycles per beat — `getEffectiveSpeed()` returns `bpm/60 · mult` and the C1
+  PPQ lock uses `ppq · mult` directly, no hidden factor. The table had `1/4 = 0.25` (one cycle per
+  four beats), `1 Bar = 0.0625` (one cycle per **sixteen** beats) and `4 Bars = 1/64`; triplets used
+  4/3 instead of 3/2, so `1/16D ≡ 1/8T` and `1/8D ≡ 1/4T`. The table is now written from the
+  musical definitions: `1/4` = 1.0 cycle per beat, `1 Bar` = 0.25, triplet = 3/2 × parent, dotted =
+  2/3 × parent; no duplicates. The Tempo Sync tooltip now states the convention ("1/4 is one cycle
+  per beat, 1 Bar one cycle per four beats (4/4 assumed)").
+- **Saved state:** a `tempo_sync` index keeps its label and gains its label's meaning — every synced
+  session moves 4× faster than before, which is what the menu always said. The *Tempo Quarter*
+  factory preset (`1/4`) now completes one orbit per beat rather than one per bar.
+
+### Compatibility
+- No parameter IDs, ranges, defaults or choice lists changed. Sessions restore identically as data;
+  synced motion RATE changes as described above.
+
+### Testing
+- `./scripts/build-and-install.sh O-Orbit` → `auval -v aufx OuOr OuDv` PASSED; installed
+  `O-Orbit-dev.component` reports 1.1.1. The table's musical semantics are held by O-Octagon's
+  MP9 probe against the identical numbers (O-Orbit has no render harness — see Known Issues).
+
 ## v1.1.0 — 2026-08-19
 
 Feature release: Parts B–D of the v1.1 review-findings brief (suite parity + motion and speaker-editor upgrades). C2 Doppler and C4 custom path remain deferred per the brief.
