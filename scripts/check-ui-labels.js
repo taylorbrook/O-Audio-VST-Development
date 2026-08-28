@@ -177,6 +177,41 @@ const PROBE = () => {
         return b.width > 0 && b.height > 0;
     };
 
+    // ── THE PAINT LAYER A LABEL LIVES IN ────────────────────────────────
+    //
+    // Assertion 8 asks whether two labels that are disjoint in English
+    // INTERSECT in French. It compares rectangles, and a rectangle has no z.
+    //
+    // A settings popover is an OPAQUE PANEL DRAWN OVER THE PAGE ON PURPOSE.
+    // Every plugin in this rollout has one, and on a page whose first content
+    // row happens to sit under it, one of the popover's own captions overlaps
+    // the page text beneath it in BOTH languages — the gate only notices when
+    // the French string is the one long enough to reach that far, and then
+    // reports a collision that a user can never see, on a panel doing exactly
+    // what a panel is for. (Found on O-simpleBeatmaker: the language caption
+    // against the tail of the step-grid hint.)
+    //
+    // The fix is to record which paint layer each label is in and compare only
+    // labels in the SAME one. A layer here is a positioned ancestor with a
+    // numeric z-index AND a background that actually paints — all three
+    // conditions, because that is what makes it opaque and on top. Two labels
+    // inside the same popover are still compared with each other, and two
+    // labels both in the page are still compared with each other; only a pair
+    // that spans the boundary is skipped, and the skips are REPORTED.
+    const overlayOf = (el) => {
+        let n = el;
+        while (n && n.nodeType === 1) {
+            const cs = getComputedStyle(n);
+            const bg = cs.backgroundColor || '';
+            const paints = bg !== '' && bg !== 'transparent' && !/,\s*0\s*\)$/.test(bg);
+            if ((cs.position === 'absolute' || cs.position === 'fixed')
+                && cs.zIndex !== 'auto' && paints)
+                return pathOf(n);
+            n = n.parentElement;
+        }
+        return null;
+    };
+
     const labels = [...document.querySelectorAll('[data-i18n]')];
     const labelSet = new Set(labels);
     const insideLabel = (el) => {
@@ -219,6 +254,7 @@ const PROBE = () => {
             datasetLabel: el.dataset.label === undefined ? null : el.dataset.label,
             visible: visible(el),
             rect: r(el),
+            overlay: overlayOf(el),
             overflow: `${cs.overflow} ${cs.overflowX}`,
             whiteSpace: cs.whiteSpace,
             leaf: el.children.length === 0,
@@ -668,14 +704,26 @@ const overlaps = (a, b) =>
         const enVis = en.labels.filter((l) => l.visible);
         const frByPath = new Map(fr.labels.map((l) => [l.path, l]));
         const newOverlaps = [];
+        const crossLayer = [];
         for (let i = 0; i < enVis.length; ++i) {
             for (let j = i + 1; j < enVis.length; ++j) {
                 if (overlaps(enVis[i].rect, enVis[j].rect)) continue;
                 const a = frByPath.get(enVis[i].path), b = frByPath.get(enVis[j].path);
                 if (!a || !b || !a.visible || !b.visible) continue;
-                if (overlaps(a.rect, b.rect)) newOverlaps.push(`${enVis[i].key} x ${enVis[j].key}`);
+                if (!overlaps(a.rect, b.rect)) continue;
+                // Different PAINT LAYERS — an opaque floating panel over the
+                // page. Reported, never silently dropped.
+                if ((enVis[i].overlay || null) !== (enVis[j].overlay || null)) {
+                    crossLayer.push(`${enVis[i].key} x ${enVis[j].key}`);
+                    continue;
+                }
+                newOverlaps.push(`${enVis[i].key} x ${enVis[j].key}`);
             }
         }
+        if (crossLayer.length)
+            console.log(`   NOTE: [8] ${crossLayer.length} pair(s) intersect in French but sit in DIFFERENT `
+                + `paint layers — an opaque floating panel over the page, which cannot visually collide with `
+                + `what it covers: ${crossLayer.slice(0, 4).join(', ')}`);
         check(newOverlaps.length === 0,
             `[8] two labels disjoint in English do not intersect in French`
             + (newOverlaps.length ? ` — ${newOverlaps.length}: ${newOverlaps.slice(0, 4).join(', ')}` : ''));
