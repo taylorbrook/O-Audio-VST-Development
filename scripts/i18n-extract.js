@@ -702,6 +702,40 @@ function markupRows(html) {
     return out;
 }
 
+// Every i18n KEY declared inside markup a module INJECTS with innerHTML.
+//
+// check-i18n assertion 15's dead-key sweep collects references from three
+// places: attributes parsed out of index.html, plain-literal setLabel keys, and
+// plain-literal `.dataset.i18n* =` assignments. All three read the page as
+// AUTHORED. A module that builds a subtree from a markup template and keys the
+// captions inside it — which is how O-IntonationPad's tuning panel writes all
+// 37 of its captions — declares its keys in none of those three places, so
+// every one of them reported DEAD while being read on every language change.
+//
+// Same discovery path as the innerHTML branch of scanJsSource above, so the two
+// assertions agree by construction: a template assertion 12 parses for unkeyed
+// copy is the same template this reads keys out of. Comments are stripped, so a
+// commented-out template does not resurrect a key.
+function markupKeyRefs(code) {
+    const stripped = stripJsComments(code);
+    const keys = new Set();
+
+    for (const m of stripped.matchAll(/\.\s*innerHTML\s*(\+?=)(?!=)\s*/g)) {
+        const rhsAt = m.index + m[0].length;
+        const rhs   = readExpression(stripped, rhsAt, ';');
+        if (!rhs) continue;
+
+        for (const l of collectLiterals(rhs.text)) {
+            if (!looksLikeMarkup(l.value)) continue;
+            for (const el of scanHtml(l.value).elements)
+                for (const a of ['data-i18n', 'data-i18n-aria', 'data-i18n-placeholder', 'data-i18n-alt'])
+                    if (el.attrs[a] && el.attrs[a].value) keys.add(el.attrs[a].value);
+        }
+    }
+
+    return keys;
+}
+
 function scanJsSource(src, taken) {
     const rows = [];
     const code = stripJsComments(src.code);
@@ -1167,6 +1201,6 @@ if (require.main === module) {
 
 module.exports = {
     scanHtml, stripJsComments, classify, residue, suggestKey, extractPlugin,
-    looksLikeMarkup, markupRows,
+    looksLikeMarkup, markupRows, markupKeyRefs,
     decodeEntities, extractJsRows, readSetLabelCalls, readExpression, collectLiterals,
 };
