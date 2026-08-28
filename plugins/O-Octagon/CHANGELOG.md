@@ -1,10 +1,102 @@
 # O-Octagon Changelog
 
+## v1.10.1 (2026-08-27)
+
+**Info-tier sweep of `CODE_REVIEW.md` (v1.8.0 review) — 12 of 30 findings.** Every finding was
+re-verified against the v1.10.0 tree before anything was written; three were already fixed by
+v1.9.0 or by repo-wide gates, two had a stale premise, and the rest are batched below by KIND —
+comment-only, then the six behaviour-touching items that are each a few lines. PATCH: no parameter
+is added, renamed, re-ranged or re-ordered, and a session with a finite host clock and finite
+parameters renders bit-identically to v1.10.0.
+
+Every number written into a comment in this release was MEASURED, not copied from the review or
+from a neighbouring comment: 28 parameters (`GainStage.h` `static_assert (kCount == 28)`), 27
+native functions (`grep -o 'withNativeFunction *("[A-Za-z]*"' PluginEditor.cpp | wc -l`), relays
+25 slider + 1 toggle + 2 combo (PluginEditor.cpp constructor), `kSchemaVersion = 2`, one skewed
+range (`motionRate`), `kGainCeil = 4.0`.
+
+### Fixed — behaviour
+
+- **IN-01 — host clock now goes through the `isfinite` funnel.** `getBpm()` / `getPpqPosition()`
+  are copied only when finite (`PluginProcessor.cpp`); `cyclesAt` re-checks bpm itself
+  (`MotionClock.h`) because that header is JUCE-free and harness-fed. A NaN bpm already failed
+  `> 0.0`, but `+inf` passed it and `0 · inf = NaN` at the block start; a non-finite PPQ flowed
+  straight into the path evaluation. A rejected value takes the same branch as an absent one
+  (bpm → 120, PPQ → the no-PPQ rules). No real host emits either; this closes the one audio-thread
+  input that bypassed the P17/P29 doctrine.
+- **IN-08 — the two choice lists are asserted against their DSP tables.** The processor
+  constructor `jassert`s each `AudioParameterChoice::choices.size()` against `oo::motion::kNumPaths`
+  / `kNumSyncChoices` (Debug only). The literals stay inline in `createParameterLayout()` because
+  `ui_frontend_check` §15 parses them from source — the first draft hoisted them and that gate
+  failed, which is the gate working. The page binds by index, so a table edit without the string
+  edit used to re-label a lane silently. Seen to fail: with `"4 Bars"` dropped from the
+  sync list, a Debug render-harness build prints `JUCE Assertion failure in PluginProcessor.cpp:261`
+  at the first processor construction; restored, the same Debug build runs clean. (The Debug
+  harness needs `ulimit -s 65520` — its unoptimised stack frames overflow the 8 MB default at
+  `main.cpp:1115`; a pre-existing Debug-only property, noted for the next person.)
+- **IN-12 — `getMotionTrace` reads finite-or-default.** `readFiniteParam` is hoisted to file scope
+  and shared with `getFieldGrid` (which had the same lambda inline). A host-written NaN used to
+  produce 128 NaN points — not valid JSON on the page side, so the completion was lost and the
+  previous trace stayed.
+- **IN-16 (residual) — Seed/Phase visibility keys on the choice INDEX, not the label.** `app.js`
+  compared the display string `"Drift"`; a localised choice label would have broken it. Now
+  `getChoiceIndex() === DRIFT_PATH_INDEX` (3), with the C++ order pinned in the comment. The tests
+  still select Drift by option label, which is the page-side idiom and unaffected.
+- **IN-15 — the trace is re-fetched on every motion-on.** A `getMotionTrace` completion dropped
+  while the editor was hidden left the previous shape's loop (Orbit→Drift kept drawing the orbit)
+  with nothing but another shape echo to repair it. `renderOn` now calls `refreshTrace()` when
+  running becomes true; coalesced and sequence-guarded as before.
+- **IN-19 — degree readouts render `360°`, not `360 °`.** `formatValue` omits the space when the
+  unit is the degree sign. Keyed on the unit rather than a new FORMAT flag: `ui_frontend_check` §4
+  pins the table to `{unit, dp}` (the first draft added `tight:` and the gate failed).
+
+### Fixed — comments and text (no runtime change)
+
+- **IN-02** `MonitorFold.h`: "STRUCTURALLY IMPOSSIBLE to exceed the lane peak" was false — the
+  1/r distance term sits outside the Cauchy–Schwarz argument. The bound is `kGainCeil / √8 ≈ 1.41×`
+  (+3 dB), reached only by a speaker at ≤ ¼ of the mean radius carrying most of the energy.
+- **IN-06** `MonitorFold.h`: new "WHAT THIS IS NOT: A TIME-OF-FLIGHT MODEL" block — the fold has
+  1/r gain and ITD but no r/c propagation delay, and the lanes it reads already carry the hall's
+  alignment delays. Recorded as the deliberate trade of the post-write design.
+- **IN-07** `NOTES.md`: the missing v1.9.0 timeline entry; header at 1.10.1.
+- **IN-10** four stale comments: `PluginProcessor.cpp` "all 17 ranges linear" (motionRate is
+  skewed); `VenueModel.cpp` "version 1 is the only version" (schema 2 since v1.4.0);
+  `PluginProcessor.h` still described "Phase 2.2 … no WebView editor"; `PluginEditor.h/.cpp`
+  "18 parameters, all float, no toggle/combo, THIRTEEN / THREE native functions" → 28 params via
+  three relay lists, 27 functions, with the authoritative count pointed at `ui_frontend_check` §3.
+- **IN-21** `i18n.js` Motion-tab tip (EN + FR) promised "the trace before you hear it"; the trace
+  is gated on `motionOn` (`roomplan.js`). Reworded: switch Motion on and the map draws the trace.
+- **IN-29 (count literal)** `ui_layout_check.js` header said 28 sections, the summary said 31, and
+  33 `head()` calls existed. The summary now derives its count from a counter in `head()`.
+  Seen to move: a temporary extra `head()` printed 34.
+
+### Notes
+
+- **Already fixed before this release, dropped:** IN-16 (page localisation — v1.9.0 Stage G;
+  `check-i18n` and `check-ui-labels` green), IN-17 ("17 parameters" tip — v1.9.0 says 28), IN-18
+  (French tooltip overflow and the MONITOR banner ARE measured, by the repo-wide
+  `scripts/check-ui-labels.js` driven by `tests/i18n-states.json`).
+- **Stale premise, no action:** IN-05 (the first-engage ramp slides the read pointer across a
+  freshly zeroed line, not stale history — already documented at `GainStage.h` and CHANGELOG
+  v1.4.0); IN-09 (unrailed-at-load is deliberate and documented in `VenueModel.h`; the v1.4.0
+  entry does not claim otherwise).
+- **Deferred — design calls, each a real behaviour change:** IN-03 (Sync→Free phase re-base),
+  IN-04 (reset alignment lines and fold mix on a SAFE→REAL edge), IN-11 (torn live-puck triple),
+  IN-13 (zero `liveOffset` in bypass), IN-14 (trace-fetch debounce; the zero timeout is documented
+  as deliberate), IN-20 (drift tail length/clear policy), IN-22 (`uiPrefsGen`).
+- **Deferred — fail-first test work:** IN-23 (DF exact-count gate; an X/Y static-equivalence
+  probe), IN-24 (a real v1.7.0 preset fixture; a motion-ON session-restore probe), IN-25 (MP1
+  closure tautology), IN-26 (MP7 synced half; the no-PPQ branch), IN-27 (no-PPQ / tempo-jump
+  renders — `HarnessPlayHead::valid` is KEPT as the hook), IN-28 (`geometry-gated-on-generation`
+  is `check(true)`), IN-29 (stub-shared `fixtureEvaluate`; wall-clock `moved`), IN-30 (the seven
+  unprobed CHANGELOG claims).
+- Gates run for this release are listed in `NOTES.md` under the v1.10.1 timeline entry.
+
 ## v1.10.0 (2026-08-27)
 
 **Resolves the four Warnings of `CODE_REVIEW.md` (v1.8.0 review, 2026-08-27).** No Critical
 findings existed. Every fix below was verified against the working tree before it was written —
-all four defects were live at HEAD 99e7d206. The 30 Info findings are untouched
+all four defects were live at HEAD 99e7d206. The 30 Info findings were left for v1.10.1
 (`/improve-review-info O-Octagon`).
 
 MINOR, not PATCH: WR-01 changes what a stored `motionSync` index *means* and WR-02 re-sorts the AU

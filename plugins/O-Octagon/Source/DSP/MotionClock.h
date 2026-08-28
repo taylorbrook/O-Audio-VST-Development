@@ -19,6 +19,7 @@
 */
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 
@@ -132,7 +133,10 @@ inline double cyclesAt (std::uint64_t absoluteSample, double sr,
         return freeRunCycles (absoluteSample, sr, rateHz, st);
 
     const double mult = kSyncMultipliers[syncIndex];
-    const double bpm  = (clock != nullptr && clock->bpm > 0.0) ? clock->bpm : 120.0;
+    // isfinite here as well as at the processor's copy (IN-01): this header has no JUCE and can
+    // be fed by any harness; `> 0.0` alone admits +inf.
+    const double bpm  = (clock != nullptr && std::isfinite (clock->bpm) && clock->bpm > 0.0)
+                          ? clock->bpm : 120.0;
 
     if (clock != nullptr && clock->ppqValid)
     {

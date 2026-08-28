@@ -37,7 +37,9 @@ namespace
 {
     // Two-argument NormalisableRange<float>(min, max) yields interval 0, skew 1. The 4-argument
     // form with an explicit 1.0f skew is deliberately NOT used: it reads as though a skew were
-    // intended and invites a future "fix". All 17 ranges are linear by design (parameter-spec.md).
+    // intended and invites a future "fix". The 17 pre-v1.8.0 ranges are linear by design
+    // (parameter-spec.md); `motionRate` (v1.8.0) is the ONE skewed range — setSkewForCentre (0.3f)
+    // below — and it is built without this helper.
     juce::NormalisableRange<float> linearRange (float lo, float hi)
     {
         return juce::NormalisableRange<float> (lo, hi);
@@ -187,6 +189,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
     juce::NormalisableRange<float> rateRange (0.01f, 4.0f);
     rateRange.setSkewForCentre (0.3f);
 
+    // Both choice lists are TRANSCRIPTIONS of a DSP-side table — motion::Path's enum order and
+    // kSyncMultipliers' row order — and the page binds by INDEX. The literals stay INLINE here
+    // because ui_frontend_check §15 parses them out of this source; the count assert against the
+    // two constants lives in the constructor (IN-08, v1.10.1).
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "motion", "Motion", "|",
         makeBool   (kHintV1_8, "motionOn",     "Motion On",    false),
@@ -237,6 +243,24 @@ OOctagonProcessor::OOctagonProcessor()
         if (parameter != nullptr)
             paramDefaults[k] = parameter->convertFrom0to1 (parameter->getDefaultValue());
     }
+
+    // v1.10.1 (IN-08): the two choice lists in createParameterLayout() transcribe motion::Path's
+    // enum and kSyncMultipliers' rows, and the page binds by INDEX. A table edit without the
+    // matching string edit re-labels a lane silently ("1 Bar" runs at "2 Bars"; cyclesAt degrades
+    // to Free on an out-of-range index, so no crash — just a wrong, quiet lane). A count mismatch
+    // is now a Debug failure at construction; the ORDER is still by inspection, pinned by the
+    // comments on the two tables.
+   #if JUCE_DEBUG
+    {
+        const auto choiceCount = [this] (const char* id)
+        {
+            auto* p = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (id));
+            return p != nullptr ? p->choices.size() : -1;
+        };
+        jassert (choiceCount ("motionPath") == static_cast<int> (oo::motion::kNumPaths));
+        jassert (choiceCount ("motionSync") == oo::motion::kNumSyncChoices);
+    }
+   #endif
 
     // Give apvts.state a VENUE child from birth, on the message thread, so that:
     //   - a session saved before prepareToPlay() still carries a complete room;
@@ -782,13 +806,22 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     {
         if (const auto pos = playHead->getPosition())
         {
+            // v1.10.1 (IN-01): the host clock is an audio-thread INPUT and goes through the same
+            // isfinite funnel as every parameter. A NaN bpm already failed `> 0.0` in cyclesAt,
+            // but +inf passed it (0 · inf = NaN at the block start), and a non-finite PPQ flowed
+            // straight into the path evaluation. A rejected value takes the same branch as an
+            // absent one: bpm falls back to 120 in cyclesAt, PPQ to the no-PPQ rules.
             if (const auto bpm = pos->getBpm())
-                clock.bpm = *bpm;
+                if (std::isfinite (*bpm))
+                    clock.bpm = *bpm;
 
             if (const auto ppq = pos->getPpqPosition())
             {
-                clock.ppq      = *ppq;
-                clock.ppqValid = true;
+                if (std::isfinite (*ppq))
+                {
+                    clock.ppq      = *ppq;
+                    clock.ppqValid = true;
+                }
             }
 
             clock.playing = pos->getIsPlaying();
