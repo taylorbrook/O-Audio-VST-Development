@@ -423,6 +423,21 @@ juce::AudioProcessorEditor* OSimplePhysicalModelSynthAudioProcessor::createEdito
 //==============================================================================
 void OSimplePhysicalModelSynthAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    // v1.2.0: the interface LANGUAGE rides the same tree as a plain property on
+    // the ROOT — not a parameter, and not part of any preset. Written as a
+    // STRING ("en"/"fr") rather than the atomic's int index, so a hand-inspected
+    // session file says what it means, and because the ValueTree -> XML round
+    // trip rebuilds every property as a string var anyway
+    // (critical_valuetree_xml_roundtrip_loses_type). Storing the code means the
+    // value that comes back is the value that went in, with no type predicate to
+    // misfire on the way.
+    //
+    // It is set BEFORE getStateAsXml(), which begins with parameters.copyState():
+    // a property written after the copy would never reach the XML.
+    parameters.state.setProperty (kUiLanguageProp,
+                                  languageCode (uiLanguage.load (std::memory_order_acquire)),
+                                  nullptr);
+
     // Route through the preset manager so the current-preset name persists alongside
     // the APVTS tree (getStateAsXml falls back to plain APVTS Xml). Stage 3 / D4.
     if (auto xml = presetManager.getStateAsXml())
@@ -442,6 +457,21 @@ void OSimplePhysicalModelSynthAudioProcessor::setStateInformation (const void* d
         // damping/decay — kill it while the guard is still up (dtor does the same).
         cancelPendingUpdate();
         restoringState = false;
+
+        // v1.2.0. Read AFTER setStateFromXml, not before: it ends in
+        // AudioProcessorValueTreeState::replaceState(), which assigns the
+        // incoming tree wholesale (state = newState), so parameters.state is the
+        // OLD tree until it returns and the INCOMING one afterwards.
+        //
+        // A pre-1.2.0 session has no property, getProperty returns a VOID var,
+        // and the default (English) stands. isVoid() is the only correct gate —
+        // the value comes back as a STRING var, so a type predicate like isInt()
+        // would never fire. languageIndex() clamps anything that is not "fr" to
+        // 0, so a hand-edited value degrades to English rather than to a bad
+        // index.
+        const juce::var lang = parameters.state.getProperty (kUiLanguageProp);
+        if (! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
     }
 }
 

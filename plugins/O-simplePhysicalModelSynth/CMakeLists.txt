@@ -12,13 +12,22 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 #   D2: no preset-manager module — plain APVTS XML state round-trip.
 #   D3: percent params stored 0–100 (NOT O-simpleFM's 0–1 unitRange) — zero-drift contract.
 #   D4: no dsp::Oversampling; setLatencySamples(0).
+
+# Single source of truth for the version — the render harness derives its
+# JucePlugin_VersionString from this. A mismatched harness version rewrites the
+# user's real factory-preset directory (the .factory-version sentinel compares
+# against JucePlugin_VersionString). Introduced in v1.2.0: through v1.1.0 the
+# harness carried the literal "1.0.0" while the plugin shipped 1.1.0, so every
+# harness run stamped the real preset directory with a version two releases stale.
+set(OSIMPLEPHYSICALMODELSYNTH_VERSION "1.2.0")
+
 juce_add_plugin(O-simplePhysicalModelSynth
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OsPM
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simplePhysicalModelSynth${OUARICON_DEV_SUFFIX}"
-    VERSION "1.1.0"
+    VERSION "${OSIMPLEPHYSICALMODELSYNTH_VERSION}"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -80,6 +89,7 @@ juce_add_binary_data(O-simplePhysicalModelSynth_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js

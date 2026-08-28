@@ -145,6 +145,28 @@ public:
     // modal stems) from here. Written copy-only on the audio thread (PERF-01).
     VizTap& getVizTap() noexcept { return viz; }
 
+    //==========================================================================
+    // INTERFACE LANGUAGE (v1.2.0) — the WebView UI's own language preference.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and loading a preset must not be able to change which
+    // language somebody reads their interface in. It rides the APVTS tree as a
+    // plain PROPERTY on the ROOT, which is the shape this processor's persistence
+    // already has room for — OuariconPresetManager::getStateAsXml() starts from
+    // parameters.copyState(), so a root property is carried into the session XML
+    // for free, and loading a JSON preset never touches it (applyPresetJson sets
+    // parameters only).
+    //
+    // The RUNTIME form is an index; the PERSISTED form is the language code.
+    // The editor PULLS it once at page init; nothing pushes.
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     //==========================================================================
     juce::AudioProcessorValueTreeState parameters;
@@ -214,6 +236,9 @@ private:
     // On-screen-keyboard MIDI: thread-safe queue drained at the top of processBlock
     // (Stage 3 / D4 — absent in Stage 1). Not a WebView type → harness stays clean.
     juce::MidiMessageCollector midiCollector;
+
+    // v1.2.0 — the ROOT property name the interface language is persisted under.
+    static constexpr const char* kUiLanguageProp = "uiLanguage";
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OSimplePhysicalModelSynthAudioProcessor)
 };

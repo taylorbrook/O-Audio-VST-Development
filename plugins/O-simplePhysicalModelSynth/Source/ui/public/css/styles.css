@@ -125,6 +125,20 @@ body {
   color: var(--brown-frame);
   text-shadow: 1px 1px 2px var(--text-emboss);
 }
+/* v1.2.0 — flex: 1 1 0, NOT the default 0 1 auto. The header is a two-item
+   space-between row, so through v1.1.0 the title block's used width WAS its own
+   max-content: 520.7px in English and 640.5px in French, because the strapline
+   is 23% longer there. Two consequences, one visible and one not: the block and
+   the h1 inside it reported a 113.5px width change to the geometry diff, and —
+   worse — the block then had to SHRINK to the 634.2px the preset bar left it, so
+   the French strapline wrapped to a second line and pushed the entire page down
+   12px. A basis of 0 with grow 1 makes the used width the free space, identical
+   in both languages, and it costs English nothing: the h1 and the strapline are
+   left-aligned blocks inside a transparent box, so widening the box moves no
+   glyph. §7 of the batch notes: if a flex pin changes nothing, check the BASIS —
+   flex line-breaking runs on the hypothetical main size, which is max-content at
+   basis auto. */
+.title-block { flex: 1 1 0; min-width: 0; }
 .title-accent { color: var(--green-mid); font-style: italic; }
 .subtitle {
   font-size: 11px;
@@ -160,15 +174,40 @@ body {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.preset-act { height: 24px; padding: 0 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
+/* v1.2.0 — min-width pins the pair. SAVE 49.2 / ENREG. 61.4 and DELETE 63.4 /
+   SUPPR. 58.7: the two disagree about which language is longer, so the bar's net
+   width moved +7.5px in French and carried the whole preset bar, the fleuron and
+   the settings gear left with it. One shared 64px rather than two id rules (§8's
+   per-element advice) because these two are a visually symmetric pair and the
+   per-element widths would be 62 and 64 — two pixels saved on SAVE at the cost of
+   an asymmetric pair. English pays 14.8px on SAVE and 0.6px on DELETE, inside the
+   header's own slack. */
+.preset-act {
+  height: 24px;
+  min-width: 64px;
+  padding: 0 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
 
-/* ── "?" tooltip toggle (header, right of the preset bar) ─────────────────── */
-.tip-toggle {
+/* ── Settings gear + popover (v1.2.0, header — the slot the "?" chip held) ──
+   The gear KEEPS the "?" chip's 22px paper circle exactly, so the header
+   geometry is unchanged; only the glyph and the lit condition differ
+   (aria-expanded rather than aria-pressed, because the button now opens a panel
+   instead of carrying the preference itself). The panel wears the same aged
+   paper plate, brown frame, radius and drop shadow as .preset-dropdown two
+   elements to its left; the selector and the switch wear the preset-bar
+   button's border, radius and paper fill. Nothing here is a widget pasted in
+   from another plugin. */
+#settings-cluster { position: relative; flex: 0 0 auto; }
+
+.gear-btn {
   width: 22px;
   height: 22px;
   flex: 0 0 auto;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   color: var(--brown-text);
   background: var(--bg-paper-light);
@@ -177,8 +216,88 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.tip-toggle:hover { background: var(--green-light); color: #1f2b08; }
-.tip-toggle[aria-pressed="true"] { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.gear-btn:hover { background: var(--green-light); color: #1f2b08; }
+.gear-btn[aria-expanded="true"] { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.gear-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+
+.settings-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 232px;
+  padding: 8px 10px 10px;
+  background: rgba(250, 240, 230, 0.99);
+  border: 1.5px solid var(--brown-frame);
+  border-radius: 5px;
+  box-shadow: 2px 6px 16px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+}
+.settings-popover[hidden] { display: none; }
+.header:has(.settings-popover:not([hidden])) { z-index: 9999; position: relative; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+}
+.settings-row + .settings-row { border-top: 1px dotted rgba(139, 115, 85, 0.4); }
+
+/* No width pin here, deliberately. The row is space-between with a fixed-width
+   right-hand control, so the caption's own box positions nothing: "Language"
+   63.5px / "Langue" 47.1px and "Hover help" 72.0px / "Aide au survol" 96.0px all
+   leave the selector and the switch exactly where they were. A min-width was
+   written for it and its negative control PASSED, so it was removed rather than
+   kept and claimed. The widest French caption (96.0px) still clears the switch:
+   the row is 210px, the switch 78px and the gap 12px, leaving 120px. */
+.settings-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--brown-border);
+}
+
+.settings-select,
+.settings-toggle {
+  font-family: inherit;
+  font-size: 11px;
+  height: 24px;
+  padding: 0 8px;
+  color: var(--green-darkest);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.settings-select { flex: 0 0 auto; min-width: 104px; }
+.settings-select:hover { background: #fbf4e6; border-color: var(--brown-frame); }
+
+/* The hover-help switch. A DESIGN pin, not a geometry fix — its negative control
+   passes, because the switch is the last item of a space-between row and its own
+   box positions nothing. What it buys is that CLICKING it does not resize it:
+   the face goes "Activée" 65.0px -> "Désactivée" in French, a visible step on a
+   control the user is looking at when they press it. English never jumps (On
+   33.7 / Off is the same order), so this is a French-only nicety and the 78px
+   costs the popover nothing. Said plainly rather than counted as one of the two
+   measured geometry fixes. */
+.settings-toggle {
+  flex: 0 0 auto;
+  min-width: 78px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 10px;
+}
+.settings-toggle[aria-pressed="true"] {
+  background: var(--green-mid);
+  color: #f5f0e6;
+  border-color: var(--green-darkest);
+}
+.settings-select:focus-visible,
+.settings-toggle:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
 
 .preset-dropdown {
   display: none;

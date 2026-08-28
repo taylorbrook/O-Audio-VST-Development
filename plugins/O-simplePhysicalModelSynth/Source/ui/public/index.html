@@ -31,21 +31,81 @@
     <header class="header">
       <div class="title-block">
         <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">PhysicalModel</span></h1>
-        <p class="subtitle">Karplus&#8211;Strong String &amp; Modal Resonator Synthesizer &#183; A Field Guide</p>
+        <p class="subtitle" data-i18n="label.subtitle">Karplus&#8211;Strong String &amp; Modal Resonator Synthesizer &#183; A Field Guide</p>
       </div>
 
       <!-- Preset bar (factory + user JSON presets via OuariconPresetManager) -->
       <div class="preset-bar-container">
         <span class="preset-fleuron">&#10086;</span>
         <div class="preset-bar" id="presetBar">
-          <button class="preset-nav" id="presetPrev" type="button" title="Previous preset" aria-label="Previous preset">&#9664;</button>
-          <button class="preset-name" id="presetName" type="button" title="Browse presets" aria-haspopup="listbox" aria-expanded="false">Default</button>
-          <button class="preset-nav" id="presetNext" type="button" title="Next preset" aria-label="Next preset">&#9654;</button>
-          <button class="preset-act" id="presetSave" type="button" title="Save current settings as a user preset">Save</button>
-          <button class="preset-act" id="presetDelete" type="button" title="Delete the current user preset">Delete</button>
-          <div class="preset-dropdown" id="presetDropdown" role="listbox" aria-label="Presets"></div>
+          <button class="preset-nav" id="presetPrev" type="button"
+                  data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
+          <button class="preset-name" id="presetName" type="button"
+                  data-i18n-aria="aria.presetName" aria-label="Browse presets"
+                  aria-haspopup="listbox" aria-expanded="false">Default</button>
+          <button class="preset-nav" id="presetNext" type="button"
+                  data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
+          <button class="preset-act" id="presetSave" type="button"
+                  data-i18n-aria="aria.presetSave"
+                  aria-label="Save current settings as a user preset"><span
+                  data-i18n="label.presetSave">Save</span></button>
+          <button class="preset-act" id="presetDelete" type="button"
+                  data-i18n-aria="aria.presetDelete"
+                  aria-label="Delete the current user preset"><span
+                  data-i18n="label.presetDelete">Delete</span></button>
+          <div class="preset-dropdown" id="presetDropdown" role="listbox"
+               data-i18n-aria="aria.presetDropdown" aria-label="Presets"></div>
         </div>
-        <button class="tip-toggle" id="tipToggle" aria-pressed="true" aria-label="Toggle tooltips">?</button>
+
+        <!-- v1.2.0 - the settings gear, in the slot the "?" chip held through
+             v1.1.0. The page already had a hover-help preference backed by
+             localStorage under "opms.tipsEnabled"; it MOVED in here rather than
+             sitting beside a gear, because a plugin should not grow a second
+             settings surface and the two settings that decide what the hover
+             help says and whether it says it belong in one place. The storage
+             key is unchanged, so an existing preference survives the move. -->
+        <div id="settings-cluster">
+          <button type="button"
+                  class="gear-btn"
+                  id="gear-btn"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                  data-i18n-aria="gear-btn"
+                  aria-label="Settings">&#9881;</button>
+
+          <div class="settings-popover" id="settings-popover"
+               role="dialog" data-i18n-aria="gear-btn" aria-label="Settings" hidden>
+
+            <label class="settings-row" for="lang-select">
+              <span class="settings-label" data-i18n="lang-select">Language</span>
+              <!-- ENDONYMS. Never localized: a French speaker looking for their
+                   language looks for "Fran&ccedil;ais". -->
+              <select class="settings-select" id="lang-select"
+                      data-i18n-aria="aria.langSelect"
+                      aria-label="Interface language">
+                <option value="en">English</option>
+                <option value="fr">Fran&ccedil;ais</option>
+              </select>
+            </label>
+
+            <!-- The v1.1.0 "?" chip, moved. Its face is written from script
+                 through setLabel(), so the element becomes a [data-i18n] element
+                 and the language sweep owns it - two calls behind an if/else,
+                 never a ternary in the argument (check-i18n assertion 13).
+
+                 A div, not a label[for], because a button is a labelable element
+                 and a label wrapping one re-dispatches the click and toggles
+                 twice. -->
+            <div class="settings-row">
+              <span class="settings-label" data-i18n="help-toggle">Hover help</span>
+              <button type="button" class="settings-toggle" id="help-toggle"
+                      aria-pressed="true"
+                      data-i18n-aria="aria.helpToggle"
+                      aria-label="Toggle tooltips"
+                      data-i18n="ui.on">On</button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -55,9 +115,9 @@
            Karplus-Strong loop, dimming with loopEnergy as the note decays. Modal
            skin = 8 live stems (log-freq x, amp height). Skin toggles on resonatorType. -->
       <div class="viz-block viz-diagram">
-        <div class="viz-label">Signal Flow &#183; <span class="viz-hint">excitation &#8594; resonator loop &#8594; material &#8594; out</span></div>
+        <div class="viz-label"><span data-i18n="label.vizSignalFlow">Signal Flow &#183;</span> <span class="viz-hint" data-i18n="label.vizSignalFlowHint">excitation &#8594; resonator loop &#8594; material &#8594; out</span></div>
         <div class="diagram-wrap" id="loopDiagram">
-          <svg class="diagram-svg" id="loopSvg" viewBox="0 0 520 200" preserveAspectRatio="xMidYMid meet" aria-label="Excitation to resonator to material to output signal-flow diagram">
+          <svg class="diagram-svg" id="loopSvg" viewBox="0 0 520 200" preserveAspectRatio="xMidYMid meet" data-i18n-aria="aria.loopDiagram" aria-label="Excitation to resonator to material to output signal-flow diagram">
             <!-- connecting arrows (excite → resonator → material → out) -->
             <line class="route-line" x1="104" y1="100" x2="146" y2="100" />
             <polygon class="route-head" points="146,95 146,105 156,100" />
@@ -68,15 +128,15 @@
 
             <!-- EXCITATION box -->
             <g class="diagram-box">
-              <rect class="box-rect" data-tip="diagExcitation" x="8" y="70" width="96" height="60" rx="6" />
-              <text class="box-text" x="56" y="96" text-anchor="middle">EXCITE</text>
+              <rect class="box-rect" id="diagExciteBox" x="8" y="70" width="96" height="60" rx="6" />
+              <text class="box-text" x="56" y="96" text-anchor="middle" data-i18n="label.diagExcite">EXCITE</text>
               <text class="box-sub" x="56" y="112" text-anchor="middle">pluck&#183;strike&#183;bow</text>
             </g>
 
             <!-- RESONATOR box (holds the loop / stems) -->
             <g class="diagram-box">
-              <rect class="box-rect box-rect-res" data-tip="diagResonator" x="150" y="34" width="152" height="132" rx="7" />
-              <text class="box-text" x="226" y="50" text-anchor="middle">RESONATOR</text>
+              <rect class="box-rect box-rect-res" id="diagResonatorBox" x="150" y="34" width="152" height="132" rx="7" />
+              <text class="box-text" x="226" y="50" text-anchor="middle" data-i18n="label.diagResonator">RESONATOR</text>
               <text class="box-sub" id="resonatorMode" x="226" y="160" text-anchor="middle">string &#183; loop</text>
 
               <!-- String skin: circulating delay-loop pulse -->
@@ -99,14 +159,14 @@
 
             <!-- MATERIAL box -->
             <g class="diagram-box">
-              <rect class="box-rect" data-tip="diagMaterial" x="350" y="70" width="96" height="60" rx="6" />
-              <text class="box-text" x="398" y="96" text-anchor="middle">MATERIAL</text>
-              <text class="box-sub" x="398" y="112" text-anchor="middle">damp&#183;decay</text>
+              <rect class="box-rect" id="diagMaterialBox" x="350" y="70" width="96" height="60" rx="6" />
+              <text class="box-text" x="398" y="96" text-anchor="middle" data-i18n="label.diagMaterial">MATERIAL</text>
+              <text class="box-sub" x="398" y="112" text-anchor="middle" data-i18n="label.diagMaterialSub">damp&#183;decay</text>
             </g>
 
             <!-- OUTPUT box -->
             <g class="diagram-box">
-              <rect class="box-rect" data-tip="diagOut" x="476" y="78" width="40" height="44" rx="6" />
+              <rect class="box-rect" id="diagOutBox" x="476" y="78" width="40" height="44" rx="6" />
               <text class="box-text box-out" x="496" y="106" text-anchor="middle">&#9834;</text>
             </g>
           </svg>
@@ -114,12 +174,12 @@
       </div>
       <!-- Live spectrum (canvas, Phase 3.2) -->
       <div class="viz-block">
-        <div class="viz-label">Spectrum &#183; <span class="viz-hint">harmonic comb vs inharmonic modes</span></div>
+        <div class="viz-label"><span data-i18n="label.vizSpectrum">Spectrum &#183;</span> <span class="viz-hint" data-i18n="label.vizSpectrumHint">harmonic comb vs inharmonic modes</span></div>
         <div class="canvas-wrap"><canvas id="spectrumCanvas"></canvas></div>
       </div>
       <!-- Oscilloscope (canvas, Phase 3.2) -->
       <div class="viz-block">
-        <div class="viz-label">Waveform &#183; <span class="viz-hint">the ringing string / body, decaying</span></div>
+        <div class="viz-label"><span data-i18n="label.vizWaveform">Waveform &#183;</span> <span class="viz-hint" data-i18n="label.vizWaveformHint">the ringing string / body, decaying</span></div>
         <div class="canvas-wrap scope-wrap"><canvas id="scopeCanvas"></canvas></div>
       </div>
     </section>
@@ -129,25 +189,25 @@
 
       <!-- Column 1 · EXCITATION (how energy is injected) -->
       <section class="group flow-col">
-        <h2 class="group-title">1 &#183; Excitation</h2>
+        <h2 class="group-title" data-i18n="label.group1">1 &#183; Excitation</h2>
         <div class="col-body">
-          <div class="select-cell" data-tip="excitationType">
-            <select class="combo" id="combo-excitationType" aria-label="Excitation type"></select>
-            <div class="knob-label">Type</div>
+          <div class="select-cell" data-param="excitationType">
+            <select class="combo" id="combo-excitationType" data-i18n-aria="aria.comboExcitation" aria-label="Excitation type"></select>
+            <div class="knob-label" data-i18n="label.knobType">Type</div>
           </div>
-          <div class="knob-cell" data-tip="excitationPosition">
-            <div class="knob" id="knob-excitationPosition"><div class="knob-stem"></div></div>
-            <div class="knob-label">Position</div>
+          <div class="knob-cell" data-param="excitationPosition">
+            <div class="knob" id="knob-excitationPosition" data-i18n-aria="excitationPosition"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobPosition">Position</div>
             <div class="knob-value" id="val-excitationPosition">25%</div>
           </div>
-          <div class="knob-cell" data-tip="excitationColor">
-            <div class="knob" id="knob-excitationColor"><div class="knob-stem"></div></div>
-            <div class="knob-label">Color</div>
+          <div class="knob-cell" data-param="excitationColor">
+            <div class="knob" id="knob-excitationColor" data-i18n-aria="excitationColor"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobColor">Color</div>
             <div class="knob-value" id="val-excitationColor">60%</div>
           </div>
-          <div class="knob-cell" data-tip="bowForce">
-            <div class="knob" id="knob-bowForce"><div class="knob-stem"></div></div>
-            <div class="knob-label">Bow Force</div>
+          <div class="knob-cell" data-param="bowForce">
+            <div class="knob" id="knob-bowForce" data-i18n-aria="bowForce"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobBowForce">Bow Force</div>
             <div class="knob-value" id="val-bowForce">50%</div>
           </div>
         </div>
@@ -155,24 +215,24 @@
 
       <!-- Column 2 · RESONATOR (what carries the energy) -->
       <section class="group flow-col">
-        <h2 class="group-title">2 &#183; Resonator</h2>
+        <h2 class="group-title" data-i18n="label.group2">2 &#183; Resonator</h2>
         <div class="col-body">
-          <div class="select-cell" data-tip="resonatorType">
-            <select class="combo" id="combo-resonatorType" aria-label="Resonator type"></select>
-            <div class="knob-label">Engine</div>
+          <div class="select-cell" data-param="resonatorType">
+            <select class="combo" id="combo-resonatorType" data-i18n-aria="aria.comboResonator" aria-label="Resonator type"></select>
+            <div class="knob-label" data-i18n="label.knobEngine">Engine</div>
           </div>
-          <div class="select-cell" data-tip="stringModel">
-            <select class="combo" id="combo-stringModel" aria-label="String model"></select>
-            <div class="knob-label">String Model</div>
+          <div class="select-cell" data-param="stringModel">
+            <select class="combo" id="combo-stringModel" data-i18n-aria="aria.comboStringModel" aria-label="String model"></select>
+            <div class="knob-label" data-i18n="label.knobStringModel">String Model</div>
           </div>
-          <div class="knob-cell" data-tip="inharmonicity">
-            <div class="knob" id="knob-inharmonicity"><div class="knob-stem"></div></div>
-            <div class="knob-label">Inharmonicity</div>
+          <div class="knob-cell" data-param="inharmonicity">
+            <div class="knob" id="knob-inharmonicity" data-i18n-aria="inharmonicity"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobInharmonicity">Inharmonicity</div>
             <div class="knob-value" id="val-inharmonicity">0%</div>
           </div>
-          <div class="knob-cell" data-tip="modeBrightness">
-            <div class="knob" id="knob-modeBrightness"><div class="knob-stem"></div></div>
-            <div class="knob-label">Mode Bright</div>
+          <div class="knob-cell" data-param="modeBrightness">
+            <div class="knob" id="knob-modeBrightness" data-i18n-aria="modeBrightness"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobModeBright">Mode Bright</div>
             <div class="knob-value" id="val-modeBrightness">50%</div>
           </div>
         </div>
@@ -180,31 +240,31 @@
 
       <!-- Column 3 · MATERIAL + TUNING (how energy is lost · pitch) -->
       <section class="group flow-col">
-        <h2 class="group-title">3 &#183; Material &#183; Tuning</h2>
+        <h2 class="group-title" data-i18n="label.group3">3 &#183; Material &#183; Tuning</h2>
         <div class="col-body">
-          <div class="knob-cell" data-tip="material">
-            <div class="knob" id="knob-material"><div class="knob-stem"></div></div>
-            <div class="knob-label">Material</div>
+          <div class="knob-cell" data-param="material">
+            <div class="knob" id="knob-material" data-i18n-aria="material"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobMaterial">Material</div>
             <div class="knob-value" id="val-material">30%</div>
           </div>
-          <div class="knob-cell" data-tip="damping">
-            <div class="knob" id="knob-damping"><div class="knob-stem"></div></div>
-            <div class="knob-label">Damping</div>
+          <div class="knob-cell" data-param="damping">
+            <div class="knob" id="knob-damping" data-i18n-aria="damping"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobDamping">Damping</div>
             <div class="knob-value" id="val-damping">60%</div>
           </div>
-          <div class="knob-cell" data-tip="decay">
-            <div class="knob" id="knob-decay"><div class="knob-stem"></div></div>
-            <div class="knob-label">Decay</div>
+          <div class="knob-cell" data-param="decay">
+            <div class="knob" id="knob-decay" data-i18n-aria="decay"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobDecay">Decay</div>
             <div class="knob-value" id="val-decay">70%</div>
           </div>
-          <div class="knob-cell" data-tip="coarseTune">
-            <div class="knob knob-sm" id="knob-coarseTune"><div class="knob-stem"></div></div>
-            <div class="knob-label">Coarse</div>
+          <div class="knob-cell" data-param="coarseTune">
+            <div class="knob knob-sm" id="knob-coarseTune" data-i18n-aria="coarseTune"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobCoarse">Coarse</div>
             <div class="knob-value" id="val-coarseTune">0 st</div>
           </div>
-          <div class="knob-cell" data-tip="fineTune">
-            <div class="knob knob-sm" id="knob-fineTune"><div class="knob-stem"></div></div>
-            <div class="knob-label">Fine</div>
+          <div class="knob-cell" data-param="fineTune">
+            <div class="knob knob-sm" id="knob-fineTune" data-i18n-aria="fineTune"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobFine">Fine</div>
             <div class="knob-value" id="val-fineTune">0 c</div>
           </div>
         </div>
@@ -212,26 +272,26 @@
 
       <!-- Column 4 · AMP + OUTPUT -->
       <section class="group flow-col">
-        <h2 class="group-title">4 &#183; Amp &#183; Output</h2>
+        <h2 class="group-title" data-i18n="label.group4">4 &#183; Amp &#183; Output</h2>
         <div class="col-body">
-          <div class="knob-cell" data-tip="ampAttack">
-            <div class="knob knob-sm" id="knob-ampAttack"><div class="knob-stem"></div></div>
-            <div class="knob-label">Attack</div>
+          <div class="knob-cell" data-param="ampAttack">
+            <div class="knob knob-sm" id="knob-ampAttack" data-i18n-aria="ampAttack"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobAttack">Attack</div>
             <div class="knob-value" id="val-ampAttack">1 ms</div>
           </div>
-          <div class="knob-cell" data-tip="ampRelease">
-            <div class="knob knob-sm" id="knob-ampRelease"><div class="knob-stem"></div></div>
-            <div class="knob-label">Release</div>
+          <div class="knob-cell" data-param="ampRelease">
+            <div class="knob knob-sm" id="knob-ampRelease" data-i18n-aria="ampRelease"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobRelease">Release</div>
             <div class="knob-value" id="val-ampRelease">200 ms</div>
           </div>
-          <div class="knob-cell" data-tip="velToBrightness">
-            <div class="knob" id="knob-velToBrightness"><div class="knob-stem"></div></div>
-            <div class="knob-label">Vel&#8594;Bright</div>
+          <div class="knob-cell" data-param="velToBrightness">
+            <div class="knob" id="knob-velToBrightness" data-i18n-aria="velToBrightness"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobVelBright">Vel&#8594;Bright</div>
             <div class="knob-value" id="val-velToBrightness">60%</div>
           </div>
-          <div class="knob-cell" data-tip="outputLevel">
-            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label">Level</div>
+          <div class="knob-cell" data-param="outputLevel">
+            <div class="knob" id="knob-outputLevel" data-i18n-aria="outputLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobLevel">Level</div>
             <div class="knob-value" id="val-outputLevel">-6.0 dB</div>
           </div>
         </div>
@@ -240,8 +300,8 @@
 
     <!-- ─── On-screen keyboard (play without external MIDI) ─────── -->
     <section class="keyboard-panel">
-      <div class="keyboard-label">Play &#183; <span class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
-      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+      <div class="keyboard-label"><span data-i18n="label.keyboard">Play &#183;</span> <span class="kbd-hint" data-i18n="label.keyboardHint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" data-i18n-aria="aria.keyboard" aria-label="On-screen keyboard"></div>
     </section>
   </div>
 
