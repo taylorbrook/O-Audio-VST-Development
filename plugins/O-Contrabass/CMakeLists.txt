@@ -13,7 +13,7 @@ juce_add_plugin(O-Contrabass
     # silently ignores). Without it the bundle Info.plist reports JUCE's 1.0.0
     # default, so v1.0.0 was correct only by coincidence and any future bump
     # would never have reached the built artefact.
-    VERSION 1.7.2
+    VERSION 1.8.0
 
     # Synthesizer configuration (juce8-critical-patterns #22)
     IS_SYNTH TRUE
@@ -107,6 +107,11 @@ target_compile_definitions(O-Contrabass
 juce_add_binary_data(OContrabass_UIResources
     SOURCES
         Source/ui/public/index.html
+        # v1.8.0 — interface copy, English + French. Embedded here, served from
+        # the getResource() branch in PluginEditor.cpp, imported by the inline
+        # module in index.html. All three in one commit or the page 404s at
+        # runtime with nothing failing at build time.
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         # Stage 3 Tasks 8/9 — canonical shared-module JS/CSS embedded directly

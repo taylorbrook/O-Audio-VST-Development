@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover OPEN (the language row, the hover-help row and the unlit Off face)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help ON, popover still open (the ui.on face, which only setLabel ever writes)",
+    "click": "#help-toggle"
+  }
+]

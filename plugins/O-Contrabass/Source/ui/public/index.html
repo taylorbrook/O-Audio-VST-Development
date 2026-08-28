@@ -157,7 +157,18 @@ body {
 .preset-nav-btn:active, .preset-save-btn:active { background: rgba(237, 217, 190, 0.25); }
 
 .preset-name-display {
-    width: 300px;
+    /* v1.8.0 — 300 -> 200, and this corrects an ENGLISH bug that nothing was
+       measuring. .preset-bar's flex row has had NO slack since the tab strip
+       was added: .header-spacer renders 0 px wide, so this box was being
+       flex-shrunk to 250.2 px and had never once rendered at its authored 300.
+       French did not cause that; French exposed it, by needing 35.3 px more
+       for the tab pair and taking it out of this box, the two nav arrows, the
+       whale and the brand line. Pinned to 200 so the row has real slack in
+       BOTH languages and the spacer does the absorbing it was put there to do.
+       "Default — Arco Foundation" measures 152 px at 13px italic, so the
+       ellipsis this box already carries is not reached by any factory name. */
+    width: 180px;
+    flex: 0 0 180px;
     text-align: center;
     font-size: 13px;
     font-style: italic;
@@ -176,6 +187,12 @@ body {
 
 /* Preset dropdown (v1.6.0) — flat list in C++ order (matches ◀/▶ walk;
    grouping would desync them). Fixed-position, width pinned to the display. */
+/* v1.8.0 — the Save button is a keyed [data-i18n] element, so the label gate
+   excludes its own box; unpinned it still PUSHED the whole tab strip and the
+   right-hand cluster, because SAVE is 52.5 px and ENREG. is 64. Pinned to the
+   wider language. */
+.preset-save-btn { min-width: 66px; }
+
 .preset-menu {
     position: fixed;
     width: 300px;
@@ -246,6 +263,132 @@ body {
     border-color: var(--green-accent);
     color: var(--green-accent);
     opacity: 1;
+}
+
+/* ============ settings popover (v1.8.0) ============
+   The gear replaces the v1.7.0 "?" in the SAME header slot and carries
+   .help-toggle as well as .gear-btn, so it inherits the 26px circle, the
+   border, the hover and the lit state unchanged — the header silhouette does
+   not move. The toggle it replaced now lives inside the panel beside the
+   language selector.
+
+   The panel is written in the PRESET MENU's vocabulary, not in a foreign one:
+   the same #4A3226 -> #3E2A20 header gradient, the same
+   rgba(237,217,190,0.3) rule and the same 4px radius that .preset-menu already
+   uses two rules above. This header band is dark; a paper card here would read
+   as pasted in from another plugin.
+
+   .settings-cluster is the positioning anchor. position:relative with NO
+   z-index of its own, so it opens no stacking context and the panel's z-index
+   competes inside .preset-bar's — which is what keeps a tip raised over a
+   control INSIDE the panel painting on top of it. */
+.settings-cluster {
+    flex: 0 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Only the glyph metrics differ from .help-toggle: the gear sits lower in its
+   em box than "?" and reads heavy at 14px. */
+.gear-btn { font-size: 13px; }
+.gear-btn[aria-expanded="true"] {
+    background: rgba(150, 181, 122, 0.25);
+    border-color: var(--green-accent);
+    color: var(--green-accent);
+    opacity: 1;
+}
+
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    min-width: 206px;
+    padding: 9px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    text-align: left;
+    background: linear-gradient(#4A3226, #3E2A20);
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+.settings-popover[hidden] { display: none; }
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+/* The header's own caption hand: .brand-label's size, tracking and case. */
+.settings-label {
+    font-size: 9px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--bg-paper);
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+/* Sized for "Français" at 10px, which is the widest option either language
+   offers, so the control never re-deals the row it sits in. */
+.settings-select {
+    flex: 0 0 auto;
+    width: 92px;
+    height: 22px;
+    padding: 0 4px;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--bg-paper);
+    background: rgba(237, 217, 190, 0.1);
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    outline: none;
+}
+.settings-select:focus { border-color: var(--green-accent); }
+
+/* The moved hover-help toggle. Rectangular here rather than the old circle:
+   inside the panel it is a labelled row, so it reads as a setting instead of
+   as a second gear. Fixed 48px so "Marche" and "Off" occupy the same box and
+   neither face re-deals the row. Lit state is the page's ONE active
+   vocabulary, shared with .help-toggle.active and .tab-btn.active. */
+.settings-toggle {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 22px;
+    padding: 0;
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--bg-paper);
+    background: rgba(237, 217, 190, 0.1);
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: background 0.15s, opacity 0.15s;
+}
+.settings-toggle:hover { background: rgba(237, 217, 190, 0.2); opacity: 1; }
+.settings-toggle.active {
+    background: rgba(150, 181, 122, 0.25);
+    border-color: var(--green-accent);
+    color: var(--green-accent);
+    opacity: 1;
+}
+
+/* The Tuning tab's load-failure notice. Through v1.7.2 this was an inline
+   style on an innerHTML string; it is a keyed [data-i18n] element now, so the
+   presentation had to leave the JS with the copy. */
+.tuning-load-error {
+    padding: 20px;
+    color: var(--brown-text-lighter);
+    font-style: italic;
 }
 
 /* ============ hover help: the tooltip surface (v1.7.0) ============
@@ -347,7 +490,15 @@ body {
     align-items: baseline;
 }
 .panel-label .numeral { color: var(--green-dark); font-weight: bold; }
+/* v1.8.0 — the caption span was shrink-to-fit, so its BOX changed width with
+   every French caption even though space-between meant nothing visibly moved.
+   Given the remaining space instead, it is the same box in both languages; the
+   sublabel is pinned below so the space it leaves is constant too. Its text is
+   still left-aligned inside, so nothing on screen changes. */
+.panel-label > span:first-child { flex: 1 1 auto; }
 .panel-label .sublabel {
+    flex: 0 0 auto;
+    text-align: right;
     font-style: italic;
     text-transform: none;
     letter-spacing: 0.4px;
@@ -362,6 +513,13 @@ body {
     border-color: var(--brown-frame-light);
     transition: box-shadow 0.4s;
 }
+/* v1.8.0 — the two sublabels that grow in French, pinned to the wider language
+   so the caption span beside them keeps a constant box. Measured, not guessed:
+   resonator 87.7 -> resonateur 92.7, and vibrato/bow drift 81.7 -> 107.1.
+   text-align:right above keeps the text where it already sits. */
+.sec-body .sublabel       { min-width: 93px; }
+.sec-expression .sublabel { min-width: 108px; }
+
 .sec-drone .panel-label { color: var(--drone-label); border-bottom-color: rgba(104, 76, 57, 0.5); }
 .sec-drone.awake {
     box-shadow: 0 0 0 1px rgba(150, 181, 122, 0.55), 0 0 14px rgba(95, 129, 67, 0.35);
@@ -575,12 +733,20 @@ body {
 }
 .dropdown-select:focus { border-color: var(--green-mid); }
 .strip-field { display: flex; align-items: center; gap: 6px; }
+/* v1.8.0 — pinned to the wider language so the select, the .scl button and the
+   Note Expression toggle stop sliding: Tuning System 80.3 -> Systeme d'accord
+   97.5. Scoped to > so the Note Expression caption, which is identical in both
+   languages inside .toggle-field, is not widened for nothing. */
+.strip-field > .strip-field-label { min-width: 98px; }
 .strip-field-label {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
     color: var(--brown-text-light); white-space: nowrap;
 }
 
 .scl-btn {
+    /* Load .scl… 81.8 -> Charger .scl… 97.5. Unpinned it slides the Note
+       Expression toggle 15.7 px. */
+    min-width: 98px;
     height: 28px;
     white-space: nowrap;
     padding: 0 12px;
@@ -639,6 +805,11 @@ body {
     margin-left: 10px;
 }
 .tab-btn {
+    /* Sized for the wider language: MAIN is 64.3 px and PRINCIPAL is 98.2, and
+       an unpinned pair re-deals the whole header row when the selector fires.
+       D-04 sizes French rather than shrinking it, so the box the two languages
+       share is the wider one — which widens the English tabs too, deliberately. */
+    min-width: 100px;
     background: none;
     border: 1px solid rgba(237, 217, 190, 0.3);
     color: var(--bg-paper);
@@ -733,36 +904,78 @@ body {
             <path d="M 70,184 C 140,179 208,188 268,182"/>
         </g>
         <text x="230" y="199" text-anchor="middle" font-family="Georgia, serif" font-style="italic"
-              font-size="10" fill="#4A3226">Physeter macrocephalus — Plate VII</text>
+              font-size="10" fill="#4A3226" data-i18n="label.plate">Physeter macrocephalus — Plate VII</text>
     </svg>
 
     <!-- ==================== Header / preset bar ==================== -->
     <div class="preset-bar">
         <span class="plugin-name">O<span class="o-dash">-</span>Contrabass</span>
-        <button class="preset-nav-btn" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list.">&#9664;</button>
-        <div class="preset-name-display" id="preset-name" data-tip-title="Preset" data-tip="The preset currently loaded &mdash; click to browse the full list. Factory presets are read-only; saving under the same name writes a user copy.">Default &mdash; Arco Foundation</div>
-        <button class="preset-nav-btn" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list.">&#9654;</button>
-        <button class="preset-save-btn" id="preset-save" data-tip-title="Save" data-tip="Save the current settings as a user preset.">Save</button>
+        <button class="preset-nav-btn" id="preset-prev" data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
+        <div class="preset-name-display" id="preset-name">Default &mdash; Arco Foundation</div>
+        <button class="preset-nav-btn" id="preset-next" data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
+        <button class="preset-save-btn" id="preset-save" data-i18n="label.save">Save</button>
         <div class="preset-menu" id="preset-menu" hidden></div>
         <!-- Stage 3 Task 9 (D3) — Main/Tuning tab strip -->
         <nav class="tab-strip">
-            <button class="tab-btn active" data-tab="main" data-tip-title="Main" data-tip="The playing surface &mdash; bow, body, strings, expression, drone and output.">Main</button>
-            <button class="tab-btn" data-tab="tuning" data-tip-title="Tuning" data-tip="The full tuning panel &mdash; intervals table, scale library, generators, .scl/.kbm files.">Tuning</button>
+            <button class="tab-btn active" data-tab="main" data-i18n="label.tabMain">Main</button>
+            <button class="tab-btn" data-tab="tuning" data-i18n="label.tabTuning">Tuning</button>
         </nav>
         <div class="header-spacer"></div>
-        <!-- v1.7.0 — hover-help toggle. data-tip-always bypasses the enabled
-             gate so the one control that can turn help back on is never the
-             one control unable to explain itself. The "?" glyph is
-             HTML-authored and must never be written from JS
-             (pattern_js_state_updater_overwrites_html_labels). -->
-        <button type="button"
-                class="help-toggle"
-                id="help-toggle"
-                aria-pressed="false"
-                aria-label="Toggle hover help"
-                data-tip-always
-                data-tip-title="Hover help"
-                data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
+        <!-- v1.8.0 — the settings gear. It replaces the v1.7.0 "?" in the SAME
+             header slot and inherits every .help-toggle rule, so the header
+             silhouette is unchanged; only the glyph differs. The "?" toggle
+             MOVED inside the panel beside the language selector — it is not
+             duplicated. One place for the two things that decide what the
+             hover help says and whether it says it.
+
+             data-tip-always on the gear and on both controls inside: this
+             plugin's help layer ships OFF, so without it the three controls
+             that reach and restore the layer would be the three controls
+             unable to explain themselves. -->
+        <div class="settings-cluster">
+            <button type="button"
+                    class="help-toggle gear-btn"
+                    id="gear-btn"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    data-i18n-aria="aria.settings"
+                    aria-label="Settings"
+                    data-tip-always>&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+
+                <label class="settings-row" for="lang-select">
+                    <span class="settings-label" data-i18n="lang-select">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect"
+                            aria-label="Interface language" data-tip-always>
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+
+                <!-- The v1.7.0 toggle, moved. Its caption IS written from
+                     script — through setLabel(), so the element becomes a
+                     [data-i18n] element and the language sweep owns it. Two
+                     calls behind an if/else, never a ternary in the argument
+                     (check-i18n assertion 13).
+
+                     A <div>, not a <label for="help-toggle">: a button is a
+                     labelable element, so a label wrapping one re-dispatches
+                     the click and toggles twice. -->
+                <div class="settings-row">
+                    <span class="settings-label" data-i18n="help-toggle">Hover help</span>
+                    <button type="button" class="settings-toggle" id="help-toggle"
+                            aria-pressed="false"
+                            data-i18n-aria="aria.helpToggle"
+                            aria-label="Toggle hover help"
+                            data-i18n="ui.off" data-tip-always>Off</button>
+                </div>
+            </div>
+        </div>
         <svg class="header-whale" width="44" height="16" viewBox="0 0 44 16" xmlns="http://www.w3.org/2000/svg">
             <path d="M 6,9 C 12,4 24,3.4 33,4.4 C 37,5 40.5,6 42,8.2 C 40.5,10.4 36,11.6 30,11.6 C 21,11.6 12,11 6,9.6 Z
                      M 6.4,9.2 L 2.6,5.4 C 1.6,7 1.8,8.6 1.6,9.4 C 1.4,10.6 1,12 0.6,13 C 2,12.2 4,11 5,10.2 Z"
@@ -779,42 +992,42 @@ body {
 
             <!-- I · BOW -->
             <div class="panel sec-bow">
-                <div class="panel-label"><span><span class="numeral">I</span> &middot; Bow</span><span class="sublabel">arco</span></div>
+                <div class="panel-label"><span><span class="numeral">I</span><span class="panel-title" data-i18n="label.secBow"> &middot; Bow</span></span><span class="sublabel">arco</span></div>
                 <div class="param-row" style="margin-top: 22px;">
-                    <div class="knob-control" data-param="BOW_SPEED" data-tip-title="Bow speed" data-tip="How fast the bow travels, 0.02&ndash;1.5 m/s. Slow bows choke and darken; fast bows loosen and sing.">
+                    <div class="knob-control" data-param="BOW_SPEED">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Speed</div>
+                        <div class="knob-label" data-i18n="label.speed">Speed</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BOW_PRESSURE" data-tip-title="Bow pressure" data-tip="Bow force on the string, 0.05&ndash;8 N. Too light skates into surface sound, too heavy drives into raucous scratch &mdash; the Schelleng diagram shows where you are.">
+                    <div class="knob-control" data-param="BOW_PRESSURE">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Pressure</div>
+                        <div class="knob-label" data-i18n="label.pressure">Pressure</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BOW_POSITION" data-tip-title="Bow position" data-tip="Where the bow crosses the string, as fraction &beta; of its length. Near the bridge (low &beta;) is brighter but harder to speak; toward the fingerboard is warmer.">
+                    <div class="knob-control" data-param="BOW_POSITION">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Position</div>
+                        <div class="knob-label" data-i18n="label.position">Position</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="param-row" style="margin-top: 26px;">
-                    <div class="knob-control" data-param="ROSIN" data-tip-title="Rosin" data-tip="Bow grip &mdash; the strength of the stick-slip friction. More rosin bites harder and speaks faster.">
+                    <div class="knob-control" data-param="ROSIN">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Rosin</div>
+                        <div class="knob-label" data-i18n="label.rosin">Rosin</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BOW_NOISE" data-tip-title="Bow noise" data-tip="Level of the bow-hair noise bed &mdash; the breathy scratch riding under the tone.">
+                    <div class="knob-control" data-param="BOW_NOISE">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Noise</div>
+                        <div class="knob-label" data-i18n="label.noise">Noise</div>
                         <div class="knob-value"></div>
                     </div>
                     <!-- v1.3 — how fast the string decays once the bow lifts.
                          Occupies the row's existing third slot (the row is sized
                          for three, as the Speed/Pressure/Position row above it),
                          so no panel geometry changes. -->
-                    <div class="knob-control" data-param="RELEASE" data-tip-title="Release" data-tip="How long the string keeps ringing once the bow lifts, 0.05&ndash;20 s.">
+                    <div class="knob-control" data-param="RELEASE">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Release</div>
+                        <div class="knob-label" data-i18n="label.release">Release</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
@@ -822,37 +1035,37 @@ body {
 
             <!-- SCHELLENG DIAGRAM (adjacent to Bow knobs — LOCKED) -->
             <div class="panel sec-schelleng">
-                <div class="panel-label"><span>Schelleng Diagram</span><span class="sublabel">bow operating point</span></div>
-                <canvas class="viz-canvas" id="canvas-schelleng" data-tip-title="Schelleng diagram" data-tip="Where the current bow speed &times; pressure sits. The green band is the Helmholtz regime &mdash; the singing zone between surface sound and raucous; its wedge shifts with bow position &beta;."></canvas>
-                <div class="viz-caption">speed &times; pressure, log&ndash;log &middot; wedge shifts with &beta;</div>
+                <div class="panel-label"><span data-i18n="label.secSchelleng">Schelleng Diagram</span><span class="sublabel" data-i18n="label.subOperating">bow operating point</span></div>
+                <canvas class="viz-canvas" id="canvas-schelleng"></canvas>
+                <div class="viz-caption" data-i18n="label.vizCaption">speed &times; pressure, log&ndash;log &middot; wedge shifts with &beta;</div>
             </div>
 
             <!-- II · BODY -->
             <div class="panel sec-body">
-                <div class="panel-label"><span><span class="numeral">II</span> &middot; Body</span><span class="sublabel">resonator &middot; 8 modes</span></div>
+                <div class="panel-label"><span><span class="numeral">II</span><span class="panel-title" data-i18n="label.secBody"> &middot; Body</span></span><span class="sublabel" data-i18n="label.subResonator">resonator &middot; 8 modes</span></div>
                 <div class="param-row" style="margin-top: 2px;">
-                    <div class="knob-control" data-param="BODY_SIZE" data-tip-title="Body size" data-tip="Size of the modeled body resonator. Larger bodies shift the eight modes down &mdash; more chest, less bark.">
+                    <div class="knob-control" data-param="BODY_SIZE">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Size</div>
+                        <div class="knob-label" data-i18n="label.size">Size</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BODY_DAMPING" data-tip-title="Body damping" data-tip="How quickly the body modes ring out. High damping dries and tightens the resonance.">
+                    <div class="knob-control" data-param="BODY_DAMPING">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Damping</div>
+                        <div class="knob-label" data-i18n="label.damping">Damping</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BODY_MIX" data-tip-title="Body mix" data-tip="Balance of body resonance against the raw string signal.">
+                    <div class="knob-control" data-param="BODY_MIX">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Mix</div>
+                        <div class="knob-label" data-i18n="label.mix">Mix</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="BRIGHTNESS" data-tip-title="Brightness" data-tip="Master tone low-pass, 80 Hz&ndash;12 kHz. Below it the instrument darkens toward felt.">
+                    <div class="knob-control" data-param="BRIGHTNESS">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Brightness</div>
+                        <div class="knob-label" data-i18n="label.brightness">Brightness</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
-                <canvas class="viz-canvas" id="canvas-spectrum" style="margin-top: 6px;" data-tip-title="Body response" data-tip="The resonator's frequency response &mdash; the eight modal peaks the string drives. Moves with Size, Damping and Brightness."></canvas>
+                <canvas class="viz-canvas" id="canvas-spectrum" style="margin-top: 6px;"></canvas>
             </div>
         </div>
 
@@ -861,20 +1074,20 @@ body {
 
             <!-- III · STRINGS -->
             <div class="panel sec-strings">
-                <div class="panel-label"><span><span class="numeral">III</span> &middot; Strings</span><span class="sublabel">E1&ndash;G3</span></div>
+                <div class="panel-label"><span><span class="numeral">III</span><span class="panel-title" data-i18n="label.secStrings"> &middot; Strings</span></span><span class="sublabel">E1&ndash;G3</span></div>
                 <div class="strings-top">
-                    <div class="knob-control" data-param="STRING_TENSION" data-tip-title="Tension" data-tip="String tension. Tighter strings respond faster and sound more focused; slack strings growl and flex.">
+                    <div class="knob-control" data-param="STRING_TENSION">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Tension</div>
+                        <div class="knob-label" data-i18n="label.tension">Tension</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="STRING_STIFFNESS" data-tip-title="Stiffness" data-tip="String inharmonicity. Stiffer strings sharpen the upper partials &mdash; wound steel versus gut.">
+                    <div class="knob-control" data-param="STRING_STIFFNESS">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Stiffness</div>
+                        <div class="knob-label" data-i18n="label.stiffness">Stiffness</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="stepper-block" data-tip-title="Active strings" data-tip="How many of the four strings (E&ndash;A&ndash;D&ndash;G, low to high) are on the instrument. Notes land on the string that can reach them.">
-                        <div class="stepper-label">Active Strings</div>
+                    <div class="stepper-block">
+                        <div class="stepper-label" data-i18n="label.activeStrings">Active Strings</div>
                         <div class="segmented" data-param="ACTIVE_STRINGS">
                             <button data-val="1">1</button>
                             <button data-val="2">2</button>
@@ -885,24 +1098,24 @@ body {
                     </div>
                 </div>
                 <div class="finetuner-block">
-                    <div class="finetuner-title" data-tip-title="Fine tuners" data-tip="Per-string detune in cents, &plusmn;1200&cent;. Double-click a fader to return it to 0.">Fine Tuners &middot; cents</div>
+                    <div class="finetuner-title" data-i18n="label.fineTuners">Fine Tuners &middot; cents</div>
                     <div class="finetuner-row">
-                        <div class="finetuner" data-param="DETUNE_E" data-string="E" data-tip-title="E fine tuner" data-tip="Detune of the low E string in cents, &plusmn;1200&cent;.">
+                        <div class="finetuner" data-param="DETUNE_E" data-string="E">
                             <div class="string-name">E</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
                         </div>
-                        <div class="finetuner" data-param="DETUNE_A" data-string="A" data-tip-title="A fine tuner" data-tip="Detune of the A string in cents, &plusmn;1200&cent;.">
+                        <div class="finetuner" data-param="DETUNE_A" data-string="A">
                             <div class="string-name">A</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
                         </div>
-                        <div class="finetuner" data-param="DETUNE_D" data-string="D" data-tip-title="D fine tuner" data-tip="Detune of the D string in cents, &plusmn;1200&cent;.">
+                        <div class="finetuner" data-param="DETUNE_D" data-string="D">
                             <div class="string-name">D</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
                         </div>
-                        <div class="finetuner" data-param="DETUNE_G" data-string="G" data-tip-title="G fine tuner" data-tip="Detune of the high G string in cents, &plusmn;1200&cent;.">
+                        <div class="finetuner" data-param="DETUNE_G" data-string="G">
                             <div class="string-name">G</div>
                             <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
                             <div class="fader-value"></div>
@@ -913,40 +1126,40 @@ body {
 
             <!-- IV · EXPRESSION -->
             <div class="panel sec-expression">
-                <div class="panel-label"><span><span class="numeral">IV</span> &middot; Expression</span><span class="sublabel">vibrato &middot; bow drift</span></div>
+                <div class="panel-label"><span><span class="numeral">IV</span><span class="panel-title" data-i18n="label.secExpression"> &middot; Expression</span></span><span class="sublabel" data-i18n="label.subVibrato">vibrato &middot; bow drift</span></div>
                 <div style="display: flex; gap: 14px; margin-top: 6px;">
-                    <div class="knob-control macro-knob" data-param="EXPRESSION_MACRO" style="margin-top: 14px;" data-tip-title="Expression" data-tip="One-knob intensity macro &mdash; leans bow speed, pressure and vibrato together from restful to fervent.">
+                    <div class="knob-control macro-knob" data-param="EXPRESSION_MACRO" style="margin-top: 14px;">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Expression</div>
+                        <div class="knob-label" data-i18n="label.expression">Expression</div>
                         <div class="knob-value"></div>
                     </div>
                     <div style="flex: 1;">
                         <div class="param-row">
-                            <div class="knob-control" data-param="VIBRATO_RATE" data-tip-title="Vibrato rate" data-tip="Vibrato speed, 0.1&ndash;12 Hz.">
+                            <div class="knob-control" data-param="VIBRATO_RATE">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Vib Rate</div>
+                                <div class="knob-label" data-i18n="label.vibRate">Vib Rate</div>
                                 <div class="knob-value"></div>
                             </div>
-                            <div class="knob-control" data-param="VIBRATO_DEPTH" data-tip-title="Vibrato depth" data-tip="Vibrato width in cents, 0&ndash;50&cent;. At 0 the left hand holds still.">
+                            <div class="knob-control" data-param="VIBRATO_DEPTH">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Vib Depth</div>
+                                <div class="knob-label" data-i18n="label.vibDepth">Vib Depth</div>
                                 <div class="knob-value"></div>
                             </div>
-                            <div class="knob-control" data-param="VIBRATO_ONSET" data-tip-title="Vibrato onset" data-tip="Delay before vibrato blooms after a note starts, 0&ndash;3000 ms &mdash; the straight-tone attack of a real player.">
+                            <div class="knob-control" data-param="VIBRATO_ONSET">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Vib Onset</div>
+                                <div class="knob-label" data-i18n="label.vibOnset">Vib Onset</div>
                                 <div class="knob-value"></div>
                             </div>
                         </div>
                         <div class="param-row" style="margin-top: 10px;">
-                            <div class="knob-control" data-param="SLOW_LFO_RATE" data-tip-title="LFO rate" data-tip="Rate of the slow bow drift, 0.05&ndash;2 Hz &mdash; a once-per-phrase wander of the bowing.">
+                            <div class="knob-control" data-param="SLOW_LFO_RATE">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">LFO Rate</div>
+                                <div class="knob-label" data-i18n="label.lfoRate">LFO Rate</div>
                                 <div class="knob-value"></div>
                             </div>
-                            <div class="knob-control" data-param="SLOW_LFO_DEPTH" data-tip-title="LFO depth" data-tip="Depth of the slow bow drift. At 0 the bow holds perfectly steady.">
+                            <div class="knob-control" data-param="SLOW_LFO_DEPTH">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">LFO Depth</div>
+                                <div class="knob-label" data-i18n="label.lfoDepth">LFO Depth</div>
                                 <div class="knob-value"></div>
                             </div>
                         </div>
@@ -956,69 +1169,69 @@ body {
 
             <!-- V · DRONE (distinct panel) -->
             <div class="panel sec-drone" id="drone-panel">
-                <div class="panel-label"><span><span class="numeral">V</span> &middot; Drone</span></div>
+                <div class="panel-label"><span><span class="numeral">V</span><span class="panel-title" data-i18n="label.secDrone"> &middot; Drone</span></span></div>
                 <div class="param-row" style="margin-top: 4px;">
-                    <div class="knob-control" data-param="INFINITE_SUSTAIN" data-tip-title="Infinite sustain" data-tip="Bow-forever amount. Raise it and held notes stop decaying &mdash; the drone wakes.">
+                    <div class="knob-control" data-param="INFINITE_SUSTAIN">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Inf. Sustain</div>
+                        <div class="knob-label" data-i18n="label.infSustain">Inf. Sustain</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="param-row" style="margin-top: 10px;">
-                    <div class="knob-control" data-param="SUB_HARMONICS" data-tip-title="Sub-harmonics" data-tip="Level of the sub-harmonic layer beneath the played note &mdash; tectonic weight under the drone.">
+                    <div class="knob-control" data-param="SUB_HARMONICS">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Sub-Harm.</div>
+                        <div class="knob-label" data-i18n="label.subHarm">Sub-Harm.</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
-                <div class="drone-caption">silent at rest &mdash;<br>raise to wake</div>
+                <div class="drone-caption"><span data-i18n="label.silentAtRest">silent at rest &mdash;</span><br><span data-i18n="label.raiseToWake">raise to wake</span></div>
             </div>
 
             <!-- VI · OUTPUT -->
             <div class="panel sec-output">
-                <div class="panel-label"><span><span class="numeral">VI</span> &middot; Output</span></div>
+                <div class="panel-label"><span><span class="numeral">VI</span><span class="panel-title" data-i18n="label.secOutput"> &middot; Output</span></span></div>
                 <div class="param-row" style="margin-top: 2px;">
-                    <div class="knob-control" data-param="OUTPUT_GAIN" data-tip-title="Level" data-tip="Output level, &minus;60 to +12 dB.">
+                    <div class="knob-control" data-param="OUTPUT_GAIN">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Level</div>
+                        <div class="knob-label" data-i18n="label.level">Level</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="WIDTH" data-tip-title="Width" data-tip="Stereo width. 1.00&times; is the natural body image; 0 collapses to mono, 2&times; exaggerates.">
+                    <div class="knob-control" data-param="WIDTH">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Width</div>
+                        <div class="knob-label" data-i18n="label.width">Width</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="param-row" style="margin-top: 6px;">
-                    <div class="knob-control" data-param="MASTER_SAT_AMOUNT" data-tip-title="Saturate" data-tip="Master saturator blend &mdash; gentle harmonic warmth on the summed output.">
+                    <div class="knob-control" data-param="MASTER_SAT_AMOUNT">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Saturate</div>
+                        <div class="knob-label" data-i18n="label.saturate">Saturate</div>
                         <div class="knob-value"></div>
                     </div>
-                    <div class="knob-control" data-param="LIMITER_CEILING_DB" data-tip-title="Ceiling" data-tip="Limiter ceiling, &minus;6 to 0 dBFS. The output never crosses this.">
+                    <div class="knob-control" data-param="LIMITER_CEILING_DB">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Ceiling</div>
+                        <div class="knob-label" data-i18n="label.ceiling">Ceiling</div>
                         <div class="knob-value"></div>
                     </div>
                 </div>
                 <div class="vu-block">
-                    <canvas class="viz-canvas vu-face" id="canvas-vu" data-tip-title="VU meter" data-tip="Output level after the limiter, VU-ballistic. 0 VU = −18 dBFS RMS."></canvas>
+                    <canvas class="viz-canvas vu-face" id="canvas-vu"></canvas>
                 </div>
             </div>
         </div>
 
         <!-- ROW 3 — VII · MICROTONAL -->
         <div class="row-3 panel sec-microtonal">
-            <span class="strip-label"><span class="numeral">VII</span> &middot; Microtonal</span>
+            <span class="strip-label"><span class="numeral">VII</span><span class="panel-title" data-i18n="label.secMicrotonal"> &middot; Microtonal</span></span>
 
-            <div class="knob-control mini-knob" data-param="REFERENCE_PITCH" data-tip-title="Reference pitch" data-tip="Concert pitch for A4, 220&ndash;880 Hz. Everything tunes around it.">
+            <div class="knob-control mini-knob" data-param="REFERENCE_PITCH">
                 <div class="knob-wrapper"></div>
                 <div class="knob-label">A4</div>
                 <div class="knob-value"></div>
             </div>
 
-            <div class="strip-field" data-tip-title="Tuning system" data-tip="Where the tuning comes from &mdash; a loaded Scala scale, an MTS-ESP master, or plain 12-TET.">
-                <span class="strip-field-label">Tuning System</span>
+            <div class="strip-field">
+                <span class="strip-field-label" data-i18n="label.tuningSystem">Tuning System</span>
                 <select class="dropdown-select" id="tuning-system-select">
                     <!-- D1: label "Scala" (no TUN parser in TuningEngine 2.1.0;
                          .tun support = v1.1 backlog). Index mapping frozen. -->
@@ -1028,14 +1241,14 @@ body {
                 </select>
             </div>
 
-            <button class="scl-btn" id="scl-load-btn" data-tip-title="Load .scl" data-tip="Load a Scala tuning file (.scl) and switch the tuning system to it.">Load .scl&hellip;</button>
+            <button class="scl-btn" id="scl-load-btn" data-i18n="label.loadScl">Load .scl&hellip;</button>
 
-            <div class="toggle-field" id="note-expression-toggle" data-tip-title="Note expression" data-tip="Per-note VST3 pitch (Note Expression) for hosts like Cubase and Dorico &mdash; microtonal scores play in tune.">
+            <div class="toggle-field" id="note-expression-toggle">
                 <div class="toggle-track"><div class="toggle-thumb"></div></div>
-                <span class="strip-field-label">Note Expression</span>
+                <span class="strip-field-label" data-i18n="label.noteExpression">Note Expression</span>
             </div>
 
-            <span class="range-caption">E1&ndash;G3 &middot; monophonic</span>
+            <span class="range-caption" data-i18n="label.rangeCaption">E1&ndash;G3 &middot; monophonic</span>
         </div>
     </div>
 
@@ -1066,6 +1279,19 @@ body {
    ============================================================================ */
 import * as Juce from "./js/juce/index.js";
 
+/* v1.8.0 — interface copy, English + French. A HOISTED import; i18n.js exports
+   only and never self-executes, which matters more here than on most plugins:
+   this module has no init() function, so a throw out of module evaluation
+   takes the ENTIRE UI down (pattern_module_toplevel_init_tdz).
+
+   NOTE THE PATH. scripts/check-i18n.js assertion 6 requires the canonical
+   import line, and the canonical form is './i18n.js' because on most plugins
+   the controller lives at js/app.js. O-Contrabass's controller is inline in
+   index.html at the UI ROOT, one level up, so the same file is './js/i18n.js'
+   from here. The gate accepts the depth-adjusted form; the applyI18n/initI18n
+   BODY it byte-compares is identical either way. */
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
 /* ============================================================================
    Native application feel (REQUIRED)
    ============================================================================ */
@@ -1085,6 +1311,125 @@ let paramDefaults = {};
 getParameterDefaults()
     .then((d) => { paramDefaults = d || {}; })
     .catch((e) => console.warn("getParameterDefaults failed:", e));
+
+/* ============================================================================
+   i18n — canon v2 (scripts/i18n-canon.js). VERBATIM; check-i18n assertion 6
+   byte-compares this region against the canon after stripping comments.
+
+   IT SITS HERE, ABOVE EVERY BINDING, DELIBERATELY. Canon v1 only ever ran from
+   the initI18n() call further down, so its `let` bindings could sit anywhere
+   below. Canon v2 is reached from BINDING time as well: bindActiveStrings()
+   calls setLabel() for its "N of 4" readout, and every one of the bind* calls
+   runs at module top level because this module has no init() function. With
+   the block below them `uiLanguage` would be in its temporal dead zone and the
+   call would throw a ReferenceError (pattern_module_toplevel_init_tdz) — which
+   on this module, with no init() to isolate it, takes the ENTIRE UI down. That
+   is the trap Stage H hit on O-MultiBandCompressor and O-Bitrot; only
+   scripts/boot-all-uis.js sees it, because the throw is swallowed.
+
+   Nothing here can throw at module evaluation: three `let` initialisers with
+   literal values, function declarations, and two assignments to window. The
+   TABLES it reads are hoisted imports. applyI18n() is still called only from
+   initI18n(), and initI18n() only from the guarded call further down.
+
+   `grep -rn setVisible plugins/O-Contrabass/Source/` returns NOTHING, so the
+   web view is never hidden and the hidden-completion drop cannot fire
+   (critical_webview_completion_gated_on_isvisible) — which is what lets
+   initI18n's one-shot getUiLanguage() pull settle.
+   ============================================================================ */
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
 
 /* ============================================================================
    Display formatting ONLY — values ALWAYS come from SliderState.getScaledValue()
@@ -1109,7 +1454,11 @@ const FMT = {
     BRIGHTNESS:         v => v >= 1000 ? (v / 1000).toFixed(2) + " kHz" : Math.round(v) + " Hz",
     STRING_TENSION:     v => Math.round(v * 100) + "%",
     STRING_STIFFNESS:   v => Math.round(v * 100) + "%",
-    ACTIVE_STRINGS:     v => Math.round(v) + " of 4",
+    // ACTIVE_STRINGS is deliberately absent (v1.8.0). Its readout is
+    // "{n} of 4" — a number inside a CONNECTIVE, not a number with a unit
+    // symbol — so D-03 does not cover it and it goes through setLabel()
+    // with a var in bindActiveStrings() instead. Everything left in this
+    // table is number + unit symbol and stays English in both languages.
     DETUNE_E:           v => fmtSigned(Math.round(v), 0, " ¢"),
     DETUNE_A:           v => fmtSigned(Math.round(v), 0, " ¢"),
     DETUNE_D:           v => fmtSigned(Math.round(v), 0, " ¢"),
@@ -1334,13 +1683,16 @@ function bindActiveStrings() {
     const seg = document.querySelector('.segmented[data-param="ACTIVE_STRINGS"]');
     const buttons = [...seg.querySelectorAll("button")];
     const valueEl = document.getElementById("active-strings-value");
-    const fmt = FMT.ACTIVE_STRINGS;
     const state = Juce.getSliderState("ACTIVE_STRINGS");
 
     function refresh() {
         const v = Math.round(state.getScaledValue());
         buttons.forEach(b => b.classList.toggle("active", parseInt(b.dataset.val, 10) === v));
-        valueEl.textContent = fmt(v);
+        // NOT `valueEl.textContent = v + " of 4"`. The NUMBER stays a number
+        // and is substituted in as {n}; the connective is localized. setLabel()
+        // makes this a [data-i18n] element, so the language sweep re-renders it
+        // in place and it cannot be stranded in the previous language.
+        setLabel(valueEl, "readout.activeStrings", { n: v });
     }
     refresh();
     state.valueChangedEvent.addListener(refresh);
@@ -1888,8 +2240,16 @@ async function activateTuningPanel() {
         console.log("[tuning] panel initialized");
     } catch (err) {
         console.error("Failed to init tuning panel:", err);
-        document.getElementById("tuning-container").innerHTML =
-            '<div style="padding:20px;color:#7D6C5E;font-style:italic;">Tuning panel failed to load.</div>';
+        // createElement + setLabel, never an innerHTML string: the copy is a
+        // keyed [data-i18n] element, so it renders in the current language and
+        // the sweep owns it from here on. Its presentation moved to
+        // .tuning-load-error in the stylesheet along with it.
+        const failed = document.getElementById("tuning-container");
+        failed.textContent = "";
+        const notice = document.createElement("div");
+        notice.className = "tuning-load-error";
+        failed.appendChild(notice);
+        setLabel(notice, "label.tuningLoadFailed");
     }
 }
 
@@ -1904,6 +2264,53 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
             activateTuningPanel();
     });
 });
+
+/* ============================================================================
+   The settings gear (v1.8.0) — carries the language selector and the moved
+   hover-help toggle. All state lives in this closure, so nothing here can join
+   a TDZ chain.
+   ============================================================================ */
+function initSettingsPopover() {
+    const gearBtn = document.getElementById("gear-btn");
+    const popover = document.getElementById("settings-popover");
+
+    if (gearBtn === null || popover === null) {
+        console.warn("settings popover missing — language selector unavailable");
+        return;
+    }
+
+    const setOpen = (open) => {
+        popover.hidden = !open;
+        gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+
+    gearBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setOpen(popover.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+    // click, so the panel is gone before a drag on a knob underneath it begins
+    // — the knobs call preventDefault in their own mousedown handlers.
+    document.addEventListener("mousedown", (e) => {
+        if (popover.hidden) return;
+        if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+        setOpen(false);
+    });
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !popover.hidden) {
+            setOpen(false);
+            gearBtn.focus();
+        }
+    });
+}
+
+// Each inside its own try/catch. This module has no init() to isolate a
+// failure, so a translation-table typo must not be allowed to take the six
+// panels, the three canvases and the preset bar down with it.
+try { initSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+try { initI18n(); }           catch (e) { console.error("i18n init failed:", e); }
 
 // ================= hover help (v1.7.0) ======================================
 // Ported from O-Bitrot v1.12.0 (itself from O-Tapestop v1.4.0), which carries
@@ -2011,14 +2418,22 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         tipEl.setAttribute("aria-hidden", "false");
     };
 
-    // Class + aria only — the button's "?" glyph is HTML-authored and must
-    // never be written from here
-    // (pattern_js_state_updater_overwrites_html_labels).
+    // v1.8.0 — the toggle moved into the settings popover and now carries an
+    // On/Off CAPTION rather than a fixed "?" glyph, so this function does write
+    // its text. It writes it through setLabel(), which is the answer to
+    // pattern_js_state_updater_overwrites_html_labels rather than an exception
+    // to it: the element declares its own key, becomes a [data-i18n] element
+    // and the language sweep owns it, so the off face cannot be stranded in
+    // English the instant the selector fires.
     const applyTipsEnabled = (enabled) => {
         tipsEnabled = !!enabled;
         if (toggleEl) {
             toggleEl.classList.toggle("active", tipsEnabled);
             toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+            // TWO CALLS BEHIND AN if/else, never one call with a ternary in its
+            // argument — check-i18n assertion 13, contract §6.
+            if (tipsEnabled) setLabel(toggleEl, "ui.on");
+            else             setLabel(toggleEl, "ui.off");
         }
         if (!tipsEnabled) hideTip();
     };
