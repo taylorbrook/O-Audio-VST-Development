@@ -22,7 +22,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>O-Polystutter - UI v1.9.1</title>
+  <title>O-Polystutter - UI v1.14.0</title>
 
   <style>
     /* CRITICAL: WebView constraints - NO viewport units */
@@ -267,6 +267,14 @@
       flex-direction: column;
       align-items: center;
       gap: 2px;  /* Tight spacing */
+      /* v1.14.0: PINNED, not merely shrink-to-fit. The column already measured
+         42px in English — the 42px knob and the min-width: 42px readout under it
+         both reach that far — so this changes no English geometry. What it stops
+         is a longer caption WIDENING the column: HAUTEUR is 48.6px, and without
+         the pin the container grows and its own rect moves in French while every
+         absolutely-positioned sibling stays put. .mini-knob overrides it to 40px
+         below, and wins by coming later at equal specificity. */
+      width: 42px;
     }
 
     .knob-label {
@@ -342,6 +350,7 @@
       flex-direction: column;
       align-items: center;
       gap: 2px;
+      width: 42px;  /* v1.14.0: same pin as .knob-container, same reasoning */
     }
 
     .combo-label {
@@ -787,7 +796,17 @@
     }
 
     .preset-action-btn {
-      padding: 4px 10px;
+      /* v1.14.0: a WIDTH, not padding around the caption. .preset-bar is
+         `position: absolute; right: 20px` with `display: flex`, so a caption that
+         grows widens the bar LEFTWARDS and drags the preset name, both nav
+         arrows and the other button with it — five elements moved by one word.
+         64px holds the widest of the four faces (OUVRIR, 37.5px of text inside a
+         62px content box) with room for Windows font metrics, which no gate in
+         this repo can measure. The English bar widens once, from 325.3px to
+         358px, and stops depending on the language for good. */
+      width: 64px;
+      padding: 4px 0;
+      text-align: center;
       height: 24px;
       background: rgba(139, 115, 85, 0.7);
       border: 1px solid #8B7355;
@@ -805,52 +824,169 @@
       background: #6B8E4E;
     }
 
-    /* ========== v1.8.0: TOOLTIP SYSTEM ========== */
+    /* ==========================================================================
+       v1.14.0: THE SETTINGS POPOVER
 
-    /* Tooltip toggle button (?) - positioned bottom-right */
-    .tooltip-toggle {
+       The gear takes the exact place the floating "?" occupied through v1.13.0 —
+       bottom-right of the frame, over the tape section's empty corner — so
+       nothing on a fully-packed 1000 x 690 layout had to move to make room for
+       it. The hover-help switch moves inside, next to the language selector.
+       ========================================================================== */
+
+    .settings-cluster {
       position: absolute;
       bottom: 15px;
       right: 15px;
+      z-index: 200;
+    }
+
+    /* The same 22px circle, the same idle/engaged pair, as the "?" it replaces. */
+    .gear-btn {
       width: 22px;
       height: 22px;
+      padding: 0;
       border-radius: 50%;
       background: rgba(139, 115, 85, 0.5);
       border: 1px solid #8B7355;
       color: #3C2F2F;
-      font-size: 14px;
-      font-weight: bold;
+      font-size: 13px;
       font-family: 'Georgia', serif;
+      line-height: 1;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 150ms ease;
-      z-index: 100;
     }
 
-    .tooltip-toggle:hover {
+    .gear-btn:hover {
       background: rgba(107, 142, 78, 0.5);
       border-color: #6B8E4E;
     }
 
-    .tooltip-toggle.active {
+    .gear-btn[aria-expanded="true"] {
       background: #6B8E4E;
       color: #f5e6d3;
       border-color: #5a7a3e;
       box-shadow: 0 0 6px rgba(107, 142, 78, 0.5);
     }
 
-    /* Tooltip container (appears on hover when tooltips enabled) */
-    .tooltip {
+    .gear-btn:focus-visible {
+      outline: 2px solid #6B8E4E;
+      outline-offset: 2px;
+    }
+
+    /* Opens UPWARDS and to the left: the gear sits 15px off the bottom-right
+       corner, so a panel dropped below it would be outside the frame. */
+    .settings-popover {
       position: absolute;
+      bottom: calc(100% + 7px);
+      right: 0;
+      z-index: 1001;
+      min-width: 190px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      background: rgba(245, 230, 211, 0.98);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+
+    .settings-popover[hidden] {
+      display: none;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .settings-label {
+      font-family: inherit;
+      font-size: 11px;
+      color: #3C2F2F;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .settings-popover select {
+      flex: 0 0 auto;
+      padding: 2px 4px;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      background: #E8D5B7;
+      color: #3C2F2F;
+      font-family: inherit;
+      font-size: 11px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .settings-popover select:focus-visible {
+      outline: 2px solid #6B8E4E;
+      outline-offset: 1px;
+    }
+
+    /* A pill rather than a circle so the caption fits. min-width covers the
+       widest of the four faces across both languages — On / Off / Oui / Non — so
+       switching either the state or the language cannot resize the row. */
+    .settings-toggle {
+      min-width: 42px;
+      padding: 2px 8px;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      background: rgba(139, 115, 85, 0.3);
+      color: #3C2F2F;
+      font-family: inherit;
+      font-size: 11px;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .settings-toggle[aria-pressed="true"] {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #6B8E4E;
+    }
+
+    .settings-toggle:focus-visible {
+      outline: 2px solid #6B8E4E;
+      outline-offset: 2px;
+    }
+
+    /* ==========================================================================
+       THE TOOLTIP SURFACE — the ONE measure-then-pin renderer, ported from
+       O-ReverseDelay in v1.14.0.
+
+       position: FIXED, against the viewport, replacing v1.8.0's absolute box
+       resolved against .plugin-frame. The two coincide on this page (the
+       universal reset plus html,body at 100% and a 1000 x 690 editor make the
+       initial containing block the same rectangle), so nothing moves — but the
+       ported runtime clamps against window.innerWidth / window.innerHeight, and
+       a box whose containing block is not the viewport would have made that
+       arithmetic describe a different rectangle than the one the browser lays
+       out. That mismatch is exactly what the deleted positioner's hard-coded
+       660 and 1000 encoded.
+
+       max-width stays 220px — O-Polystutter's own value, carried across
+       unchanged rather than normalised to any other plugin's number.
+
+       The title/body split is new: v1.8.0 rendered one flat string.
+       ========================================================================== */
+    .tooltip {
+      position: fixed;
+      left: 0;
+      top: 0;
       background: rgba(60, 47, 47, 0.95);
       color: #f5e6d3;
       padding: 6px 10px;
       border-radius: 4px;
-      font-size: 11px;
       font-family: 'Garamond', 'Times New Roman', serif;
-      line-height: 1.4;
       max-width: 220px;
       z-index: 1000;
       pointer-events: none;
@@ -864,28 +1000,44 @@
       opacity: 1;
     }
 
-    /* Arrow for tooltip */
-    .tooltip::before {
-      content: '';
-      position: absolute;
-      top: -6px;
-      left: 50%;
-      transform: translateX(-50%);
-      border-width: 0 6px 6px 6px;
-      border-style: solid;
-      border-color: transparent transparent rgba(60, 47, 47, 0.95) transparent;
+    .tooltip-title {
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #A8C08A;
+      margin-bottom: 3px;
     }
 
-    /* Tooltip positioned above element */
-    .tooltip.tooltip-top::before {
-      top: auto;
-      bottom: -6px;
-      border-width: 6px 6px 0 6px;
-      border-color: rgba(60, 47, 47, 0.95) transparent transparent transparent;
+    .tooltip-body {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #f5e6d3;
+    }
+
+    /* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+       can be clamped to the viewport edge while the arrow still points at its
+       control. */
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      left: var(--arrow-x, 50%);
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+    }
+
+    .tooltip[data-placement="above"]::after {
+      top: 100%;
+      border-top-color: rgba(60, 47, 47, 0.95);
+    }
+
+    .tooltip[data-placement="below"]::after {
+      bottom: 100%;
+      border-bottom-color: rgba(60, 47, 47, 0.95);
     }
 
     /* Elements with tooltips get subtle indicator when tooltips enabled */
-    .tooltips-enabled [data-tooltip]:hover {
+    .tooltips-enabled [data-tip]:hover {
       outline: 1px dashed rgba(107, 142, 78, 0.4);
       outline-offset: 2px;
     }
@@ -1007,20 +1159,55 @@
   </style>
 </head>
 <body>
-  <div class="plugin-frame">
-    <!-- Title -->
+  <div class="plugin-frame" id="plugin-frame">
+    <!-- Title. NOT keyed: a product name is never translated, and this one is
+         also the plugin's registered PRODUCT_NAME. I18N_EXEMPT carries the
+         reason. -->
     <div class="plugin-title">O-Polystutter</div>
 
-    <!-- v1.8.0: Tooltip toggle button -->
-    <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+    <!-- v1.14.0: the settings popover, in the corner the floating "?" used to
+         occupy. The gear and the hover-help switch both carry data-tip-always:
+         the two controls that reach and restore the help layer have to keep
+         explaining themselves while help is off. -->
+    <div class="settings-cluster">
+      <div class="settings-popover" id="settings-popover"
+           role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+        <label class="settings-row" for="lang-select">
+          <!-- data-label so a shared state updater that writes textContent reads
+               the authored caption back instead of erasing it. -->
+          <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+          <!-- Endonyms. Never localized, never written by a state updater: a
+               French speaker looking for their language looks for "Fran&ccedil;ais". -->
+          <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
+            <option value="en">English</option>
+            <option value="fr">Fran&ccedil;ais</option>
+          </select>
+        </label>
 
-    <!-- Tooltip element (positioned dynamically by JS) -->
-    <div class="tooltip" id="tooltip"></div>
+        <!-- A div, not a <label for="tips-toggle">: a button is a labelable
+             element, so a label wrapping it can re-dispatch the click and toggle
+             twice. The button names itself with aria-label instead. -->
+        <div class="settings-row">
+          <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+          <button type="button" class="settings-toggle" id="tips-toggle"
+                  aria-pressed="false" data-i18n-aria="aria.helpToggle"
+                  aria-label="Toggle hover help"
+                  data-i18n="ui.off" data-tip-always>Off</button>
+        </div>
+      </div>
+
+      <button type="button" class="gear-btn" id="gear-btn"
+              aria-haspopup="dialog" aria-expanded="false"
+              data-i18n-aria="aria.settings" aria-label="Settings" data-tip-always>&#9881;</button>
+    </div>
+
+    <!-- Tooltip element (positioned dynamically by js/app.js) -->
+    <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
     <!-- v1.6.0: Preset Bar (top-right header area) -->
     <div class="preset-bar">
-      <button class="preset-nav-btn" id="preset-prev" title="Previous preset" data-tooltip="Previous: Navigate to the previous preset in the list.">&lt;</button>
-      <div class="preset-dropdown" data-tooltip="Preset: Click to browse and select presets. Factory presets are protected; user presets can be deleted.">
+      <button class="preset-nav-btn" id="preset-prev" data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&lt;</button>
+      <div class="preset-dropdown">
         <div class="preset-name-display" id="preset-name-display">
           <span id="preset-name-text">Default</span>
           <span class="preset-dropdown-arrow">▼</span>
@@ -1029,343 +1216,345 @@
           <!-- Populated dynamically by JS -->
         </div>
       </div>
-      <button class="preset-nav-btn" id="preset-next" title="Next preset" data-tooltip="Next: Navigate to the next preset in the list.">&gt;</button>
-      <button class="preset-action-btn" id="preset-save" title="Save preset" data-tooltip="Save: Save current settings as a new user preset.">Save</button>
-      <button class="preset-action-btn" id="preset-load" title="Load preset from file" data-tooltip="Load: Import a preset from an external file.">Load</button>
+      <button class="preset-nav-btn" id="preset-next" data-i18n-aria="aria.presetNext" aria-label="Next preset">&gt;</button>
+      <button class="preset-action-btn" id="preset-save" data-i18n="label.save" data-label="Save"
+              data-i18n-aria="aria.presetSave" aria-label="Save preset">Save</button>
+      <button class="preset-action-btn" id="preset-load" data-i18n="label.load" data-label="Load"
+              data-i18n-aria="aria.presetLoad" aria-label="Load preset from file">Load</button>
     </div>
 
     <!-- LANES SECTION (320px height) -->
     <div class="lanes-section">
       <!-- Lane 1 - v1.1.2: Improved spacing (75px row gap, wider column spread) -->
       <div class="lane-container lane1">
-        <div class="lane-header active" id="lane1_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 1</div>
+        <div class="lane-header active" id="lane1_enabled" data-i18n="label.lane" data-i18n-vars='{"n":"1"}' data-label="LANE 1">LANE 1</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane1_progress"></div></div>
+        <div class="progress-bar"><div class="progress-fill" id="lane1_progress"></div></div>
 
         <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
-        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
-          <div class="combo-label">SUBDIV</div>
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label" data-i18n="label.subdiv" data-label="SUBDIV">SUBDIV</div>
           <div class="combo-box" id="lane1_subdivision">1/16</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
-          <div class="knob-label">REPS</div>
+        <div class="knob-container" style="left: 68px; top: 55px;">
+          <div class="knob-label" data-i18n="label.reps" data-label="REPS">REPS</div>
           <div class="knob" id="lane1_repeats"></div>
           <div class="knob-value" id="lane1_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
-          <div class="knob-label">DECAY</div>
+        <div class="knob-container" style="left: 126px; top: 55px;">
+          <div class="knob-label" data-i18n="label.decay" data-label="DECAY">DECAY</div>
           <div class="knob" id="lane1_decay"></div>
           <div class="knob-value" id="lane1_decay_value">90%</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
-          <div class="knob-label">FILTR</div>
+        <div class="knob-container" style="left: 184px; top: 55px;">
+          <div class="knob-label" data-i18n="label.filtr" data-label="FILTR">FILTR</div>
           <div class="knob" id="lane1_filter"></div>
           <div class="knob-value" id="lane1_filter_value">0</div>
         </div>
 
         <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
-        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
-          <div class="knob-label">PROB</div>
+        <div class="knob-container" style="left: 10px; top: 130px;">
+          <div class="knob-label" data-i18n="label.prob" data-label="PROB">PROB</div>
           <div class="knob" id="lane1_probability"></div>
           <div class="knob-value" id="lane1_probability_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
-          <div class="knob-label">VOL</div>
+        <div class="knob-container" style="left: 68px; top: 130px;">
+          <div class="knob-label" data-i18n="label.vol" data-label="VOL">VOL</div>
           <div class="knob" id="lane1_volume"></div>
           <div class="knob-value" id="lane1_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
-          <div class="knob-label">PAN</div>
+        <div class="knob-container" style="left: 126px; top: 130px;">
+          <div class="knob-label" data-i18n="label.pan" data-label="PAN">PAN</div>
           <div class="knob" id="lane1_pan"></div>
           <div class="knob-value" id="lane1_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
-          <div class="knob-label">SWING</div>
+        <div class="knob-container" style="left: 184px; top: 130px;">
+          <div class="knob-label" data-i18n="label.swing" data-label="SWING">SWING</div>
           <div class="knob" id="lane1_swing"></div>
           <div class="knob-value" id="lane1_swing_value">0%</div>
         </div>
 
         <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
-        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
-          <div class="knob-label">PITCH</div>
+        <div class="knob-container" style="left: 10px; top: 205px;">
+          <div class="knob-label" data-i18n="label.pitch" data-label="PITCH">PITCH</div>
           <div class="knob" id="lane1_pitch"></div>
           <div class="knob-value" id="lane1_pitch_value">0st</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
-        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MIN</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.rnd" data-label="RND">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;">
+          <div class="knob-label" data-i18n="label.min" data-label="MIN">MIN</div>
           <div class="knob" id="lane1_pitch_rand_min"></div>
           <div class="knob-value" id="lane1_pitch_rand_min_value">0</div>
         </div>
-        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MAX</div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;">
+          <div class="knob-label" data-i18n="label.max" data-label="MAX">MAX</div>
           <div class="knob" id="lane1_pitch_rand_max"></div>
           <div class="knob-value" id="lane1_pitch_rand_max_value">0</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.st" data-label="ST">ST</div>
 
         <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane1_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
-          <div class="toggle-button" id="lane1_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
-          <div class="toggle-button" id="lane1_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane1_pingpong" data-i18n="label.ping" data-label="PING">PING</div>
+          <div class="toggle-button" id="lane1_reverse" data-i18n="label.rev" data-label="REV">REV</div>
+          <div class="toggle-button" id="lane1_manual" data-i18n="label.man" data-label="MAN">MAN</div>
 
         </div>
       </div>
 
       <!-- Lane 2 - v1.1.2: Improved spacing -->
       <div class="lane-container lane2">
-        <div class="lane-header active" id="lane2_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 2</div>
+        <div class="lane-header active" id="lane2_enabled" data-i18n="label.lane" data-i18n-vars='{"n":"2"}' data-label="LANE 2">LANE 2</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane2_progress"></div></div>
+        <div class="progress-bar"><div class="progress-fill" id="lane2_progress"></div></div>
 
         <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
-        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
-          <div class="combo-label">SUBDIV</div>
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label" data-i18n="label.subdiv" data-label="SUBDIV">SUBDIV</div>
           <div class="combo-box" id="lane2_subdivision">1/8</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
-          <div class="knob-label">REPS</div>
+        <div class="knob-container" style="left: 68px; top: 55px;">
+          <div class="knob-label" data-i18n="label.reps" data-label="REPS">REPS</div>
           <div class="knob" id="lane2_repeats"></div>
           <div class="knob-value" id="lane2_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
-          <div class="knob-label">DECAY</div>
+        <div class="knob-container" style="left: 126px; top: 55px;">
+          <div class="knob-label" data-i18n="label.decay" data-label="DECAY">DECAY</div>
           <div class="knob" id="lane2_decay"></div>
           <div class="knob-value" id="lane2_decay_value">90%</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
-          <div class="knob-label">FILTR</div>
+        <div class="knob-container" style="left: 184px; top: 55px;">
+          <div class="knob-label" data-i18n="label.filtr" data-label="FILTR">FILTR</div>
           <div class="knob" id="lane2_filter"></div>
           <div class="knob-value" id="lane2_filter_value">0</div>
         </div>
 
         <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
-        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
-          <div class="knob-label">PROB</div>
+        <div class="knob-container" style="left: 10px; top: 130px;">
+          <div class="knob-label" data-i18n="label.prob" data-label="PROB">PROB</div>
           <div class="knob" id="lane2_probability"></div>
           <div class="knob-value" id="lane2_probability_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
-          <div class="knob-label">VOL</div>
+        <div class="knob-container" style="left: 68px; top: 130px;">
+          <div class="knob-label" data-i18n="label.vol" data-label="VOL">VOL</div>
           <div class="knob" id="lane2_volume"></div>
           <div class="knob-value" id="lane2_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
-          <div class="knob-label">PAN</div>
+        <div class="knob-container" style="left: 126px; top: 130px;">
+          <div class="knob-label" data-i18n="label.pan" data-label="PAN">PAN</div>
           <div class="knob" id="lane2_pan"></div>
           <div class="knob-value" id="lane2_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
-          <div class="knob-label">SWING</div>
+        <div class="knob-container" style="left: 184px; top: 130px;">
+          <div class="knob-label" data-i18n="label.swing" data-label="SWING">SWING</div>
           <div class="knob" id="lane2_swing"></div>
           <div class="knob-value" id="lane2_swing_value">0%</div>
         </div>
 
         <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
-        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
-          <div class="knob-label">PITCH</div>
+        <div class="knob-container" style="left: 10px; top: 205px;">
+          <div class="knob-label" data-i18n="label.pitch" data-label="PITCH">PITCH</div>
           <div class="knob" id="lane2_pitch"></div>
           <div class="knob-value" id="lane2_pitch_value">0st</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
-        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MIN</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.rnd" data-label="RND">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;">
+          <div class="knob-label" data-i18n="label.min" data-label="MIN">MIN</div>
           <div class="knob" id="lane2_pitch_rand_min"></div>
           <div class="knob-value" id="lane2_pitch_rand_min_value">0</div>
         </div>
-        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MAX</div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;">
+          <div class="knob-label" data-i18n="label.max" data-label="MAX">MAX</div>
           <div class="knob" id="lane2_pitch_rand_max"></div>
           <div class="knob-value" id="lane2_pitch_rand_max_value">0</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.st" data-label="ST">ST</div>
 
         <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane2_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
-          <div class="toggle-button" id="lane2_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
-          <div class="toggle-button" id="lane2_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane2_pingpong" data-i18n="label.ping" data-label="PING">PING</div>
+          <div class="toggle-button" id="lane2_reverse" data-i18n="label.rev" data-label="REV">REV</div>
+          <div class="toggle-button" id="lane2_manual" data-i18n="label.man" data-label="MAN">MAN</div>
         </div>
       </div>
 
       <!-- Lane 3 - v1.7.0: 4-4-1 layout -->
       <div class="lane-container lane3">
-        <div class="lane-header" id="lane3_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 3</div>
+        <div class="lane-header" id="lane3_enabled" data-i18n="label.lane" data-i18n-vars='{"n":"3"}' data-label="LANE 3">LANE 3</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane3_progress"></div></div>
+        <div class="progress-bar"><div class="progress-fill" id="lane3_progress"></div></div>
 
         <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
-        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
-          <div class="combo-label">SUBDIV</div>
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label" data-i18n="label.subdiv" data-label="SUBDIV">SUBDIV</div>
           <div class="combo-box" id="lane3_subdivision">1/8T</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
-          <div class="knob-label">REPS</div>
+        <div class="knob-container" style="left: 68px; top: 55px;">
+          <div class="knob-label" data-i18n="label.reps" data-label="REPS">REPS</div>
           <div class="knob" id="lane3_repeats"></div>
           <div class="knob-value" id="lane3_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
-          <div class="knob-label">DECAY</div>
+        <div class="knob-container" style="left: 126px; top: 55px;">
+          <div class="knob-label" data-i18n="label.decay" data-label="DECAY">DECAY</div>
           <div class="knob" id="lane3_decay"></div>
           <div class="knob-value" id="lane3_decay_value">90%</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
-          <div class="knob-label">FILTR</div>
+        <div class="knob-container" style="left: 184px; top: 55px;">
+          <div class="knob-label" data-i18n="label.filtr" data-label="FILTR">FILTR</div>
           <div class="knob" id="lane3_filter"></div>
           <div class="knob-value" id="lane3_filter_value">0</div>
         </div>
 
         <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
-        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
-          <div class="knob-label">PROB</div>
+        <div class="knob-container" style="left: 10px; top: 130px;">
+          <div class="knob-label" data-i18n="label.prob" data-label="PROB">PROB</div>
           <div class="knob" id="lane3_probability"></div>
           <div class="knob-value" id="lane3_probability_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
-          <div class="knob-label">VOL</div>
+        <div class="knob-container" style="left: 68px; top: 130px;">
+          <div class="knob-label" data-i18n="label.vol" data-label="VOL">VOL</div>
           <div class="knob" id="lane3_volume"></div>
           <div class="knob-value" id="lane3_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
-          <div class="knob-label">PAN</div>
+        <div class="knob-container" style="left: 126px; top: 130px;">
+          <div class="knob-label" data-i18n="label.pan" data-label="PAN">PAN</div>
           <div class="knob" id="lane3_pan"></div>
           <div class="knob-value" id="lane3_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
-          <div class="knob-label">SWING</div>
+        <div class="knob-container" style="left: 184px; top: 130px;">
+          <div class="knob-label" data-i18n="label.swing" data-label="SWING">SWING</div>
           <div class="knob" id="lane3_swing"></div>
           <div class="knob-value" id="lane3_swing_value">0%</div>
         </div>
 
         <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
-        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
-          <div class="knob-label">PITCH</div>
+        <div class="knob-container" style="left: 10px; top: 205px;">
+          <div class="knob-label" data-i18n="label.pitch" data-label="PITCH">PITCH</div>
           <div class="knob" id="lane3_pitch"></div>
           <div class="knob-value" id="lane3_pitch_value">0st</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
-        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MIN</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.rnd" data-label="RND">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;">
+          <div class="knob-label" data-i18n="label.min" data-label="MIN">MIN</div>
           <div class="knob" id="lane3_pitch_rand_min"></div>
           <div class="knob-value" id="lane3_pitch_rand_min_value">0</div>
         </div>
-        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MAX</div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;">
+          <div class="knob-label" data-i18n="label.max" data-label="MAX">MAX</div>
           <div class="knob" id="lane3_pitch_rand_max"></div>
           <div class="knob-value" id="lane3_pitch_rand_max_value">0</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.st" data-label="ST">ST</div>
 
         <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane3_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
-          <div class="toggle-button" id="lane3_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
-          <div class="toggle-button" id="lane3_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane3_pingpong" data-i18n="label.ping" data-label="PING">PING</div>
+          <div class="toggle-button" id="lane3_reverse" data-i18n="label.rev" data-label="REV">REV</div>
+          <div class="toggle-button" id="lane3_manual" data-i18n="label.man" data-label="MAN">MAN</div>
         </div>
       </div>
 
       <!-- Lane 4 - v1.7.0: 4-4-1 layout -->
       <div class="lane-container lane4">
-        <div class="lane-header" id="lane4_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 4</div>
+        <div class="lane-header" id="lane4_enabled" data-i18n="label.lane" data-i18n-vars='{"n":"4"}' data-label="LANE 4">LANE 4</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane4_progress"></div></div>
+        <div class="progress-bar"><div class="progress-fill" id="lane4_progress"></div></div>
 
         <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
-        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
-          <div class="combo-label">SUBDIV</div>
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label" data-i18n="label.subdiv" data-label="SUBDIV">SUBDIV</div>
           <div class="combo-box" id="lane4_subdivision">1/32</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
-          <div class="knob-label">REPS</div>
+        <div class="knob-container" style="left: 68px; top: 55px;">
+          <div class="knob-label" data-i18n="label.reps" data-label="REPS">REPS</div>
           <div class="knob" id="lane4_repeats"></div>
           <div class="knob-value" id="lane4_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
-          <div class="knob-label">DECAY</div>
+        <div class="knob-container" style="left: 126px; top: 55px;">
+          <div class="knob-label" data-i18n="label.decay" data-label="DECAY">DECAY</div>
           <div class="knob" id="lane4_decay"></div>
           <div class="knob-value" id="lane4_decay_value">90%</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
-          <div class="knob-label">FILTR</div>
+        <div class="knob-container" style="left: 184px; top: 55px;">
+          <div class="knob-label" data-i18n="label.filtr" data-label="FILTR">FILTR</div>
           <div class="knob" id="lane4_filter"></div>
           <div class="knob-value" id="lane4_filter_value">0</div>
         </div>
 
         <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
-        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
-          <div class="knob-label">PROB</div>
+        <div class="knob-container" style="left: 10px; top: 130px;">
+          <div class="knob-label" data-i18n="label.prob" data-label="PROB">PROB</div>
           <div class="knob" id="lane4_probability"></div>
           <div class="knob-value" id="lane4_probability_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
-          <div class="knob-label">VOL</div>
+        <div class="knob-container" style="left: 68px; top: 130px;">
+          <div class="knob-label" data-i18n="label.vol" data-label="VOL">VOL</div>
           <div class="knob" id="lane4_volume"></div>
           <div class="knob-value" id="lane4_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
-          <div class="knob-label">PAN</div>
+        <div class="knob-container" style="left: 126px; top: 130px;">
+          <div class="knob-label" data-i18n="label.pan" data-label="PAN">PAN</div>
           <div class="knob" id="lane4_pan"></div>
           <div class="knob-value" id="lane4_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
-          <div class="knob-label">SWING</div>
+        <div class="knob-container" style="left: 184px; top: 130px;">
+          <div class="knob-label" data-i18n="label.swing" data-label="SWING">SWING</div>
           <div class="knob" id="lane4_swing"></div>
           <div class="knob-value" id="lane4_swing_value">0%</div>
         </div>
 
         <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
-        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
-          <div class="knob-label">PITCH</div>
+        <div class="knob-container" style="left: 10px; top: 205px;">
+          <div class="knob-label" data-i18n="label.pitch" data-label="PITCH">PITCH</div>
           <div class="knob" id="lane4_pitch"></div>
           <div class="knob-value" id="lane4_pitch_value">0st</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
-        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MIN</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.rnd" data-label="RND">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;">
+          <div class="knob-label" data-i18n="label.min" data-label="MIN">MIN</div>
           <div class="knob" id="lane4_pitch_rand_min"></div>
           <div class="knob-value" id="lane4_pitch_rand_min_value">0</div>
         </div>
-        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
-          <div class="knob-label">MAX</div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;">
+          <div class="knob-label" data-i18n="label.max" data-label="MAX">MAX</div>
           <div class="knob" id="lane4_pitch_rand_max"></div>
           <div class="knob-value" id="lane4_pitch_rand_max_value">0</div>
         </div>
-        <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+        <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-i18n="label.st" data-label="ST">ST</div>
 
         <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane4_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
-          <div class="toggle-button" id="lane4_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
-          <div class="toggle-button" id="lane4_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane4_pingpong" data-i18n="label.ping" data-label="PING">PING</div>
+          <div class="toggle-button" id="lane4_reverse" data-i18n="label.rev" data-label="REV">REV</div>
+          <div class="toggle-button" id="lane4_manual" data-i18n="label.man" data-label="MAN">MAN</div>
         </div>
       </div>
     </div>
 
     <!-- v1.5.5: SEQ toggle outside section (always clickable) -->
     <div class="seq-header">
-      <div class="seq-toggle-inline active" id="seq_toggle" data-tooltip="Sequencer: When ON, the 16-step pattern controls when each lane can trigger. When OFF, lanes trigger on every beat.">SEQ</div>
+      <div class="seq-toggle-inline active" id="seq_toggle" data-i18n="label.seq" data-label="SEQ">SEQ</div>
     </div>
 
     <!-- v1.10.0: PATTERN SEQUENCER with inline EUC controls -->
-    <div class="sequencer-section" data-tooltip="Pattern Sequencer: Click steps to enable (green) or disable (dim). Each row controls one lane. Active steps allow stutter triggers on that beat.">
+    <div class="sequencer-section" id="sequencer-section">
       <div class="pattern-container">
         <div class="pattern-grid">
           <!-- v1.12.0: Column headers above sequencer lanes -->
           <div class="euc-column-header-spacer"></div>
-          <div class="euc-column-headers"><span class="euc-column-header">PULSES</span><span class="euc-column-header">STEPS</span></div>
+          <div class="euc-column-headers"><span class="euc-column-header" data-i18n="label.pulses" data-label="PULSES">PULSES</span><span class="euc-column-header" data-i18n="label.steps" data-label="STEPS">STEPS</span></div>
           <div class="euc-column-header-spacer" style="grid-column: 3 / -1;"></div>
 
           <!-- Lane 1: EUC toggle + controls + label + 16 steps -->
-          <div class="seq-euc-toggle" id="lane1_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="seq-euc-toggle" id="lane1_euclidean_enabled" data-i18n="label.euc" data-label="EUC">EUC</div>
           <div class="euc-controls" id="lane1_euc_controls">
-            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane1_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
-            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane1_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
@@ -1391,15 +1580,15 @@
           <div class="step-button active" data-lane="1" data-step="16"></div>
 
           <!-- Lane 2: EUC toggle + controls + label + 16 steps -->
-          <div class="seq-euc-toggle" id="lane2_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="seq-euc-toggle" id="lane2_euclidean_enabled" data-i18n="label.euc" data-label="EUC">EUC</div>
           <div class="euc-controls" id="lane2_euc_controls">
-            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane2_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
-            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane2_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
@@ -1425,15 +1614,15 @@
           <div class="step-button active" data-lane="2" data-step="16"></div>
 
           <!-- Lane 3: EUC toggle + controls + label + 16 steps -->
-          <div class="seq-euc-toggle" id="lane3_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="seq-euc-toggle" id="lane3_euclidean_enabled" data-i18n="label.euc" data-label="EUC">EUC</div>
           <div class="euc-controls" id="lane3_euc_controls">
-            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane3_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
-            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane3_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
@@ -1459,15 +1648,15 @@
           <div class="step-button active" data-lane="3" data-step="16"></div>
 
           <!-- Lane 4: EUC toggle + controls + label + 16 steps -->
-          <div class="seq-euc-toggle" id="lane4_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="seq-euc-toggle" id="lane4_euclidean_enabled" data-i18n="label.euc" data-label="EUC">EUC</div>
           <div class="euc-controls" id="lane4_euc_controls">
-            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane4_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
-            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+            <div class="euc-dropdown-container">
 
               <select class="euc-dropdown" id="lane4_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
@@ -1497,40 +1686,40 @@
 
     <!-- TAPE DEGRADATION SECTION - v1.6.3: Now includes DRY/WET and MIDI/TRIG on right -->
     <div class="tape-section">
-      <div class="section-label">TAPE DEGRADATION</div>
+      <div class="section-label" data-i18n="label.tapeDegradation" data-label="TAPE DEGRADATION">TAPE DEGRADATION</div>
       <!-- v1.6.5: Bypass toggle left of tape knobs -->
       <div class="tape-bypass-toggle">
-        <div class="footer-toggle" id="tape_bypass" data-tooltip="Bypass: Skip all tape degradation processing for a clean signal comparison.">BYPASS</div>
+        <div class="footer-toggle" id="tape_bypass" data-i18n="label.bypass" data-label="BYPASS">BYPASS</div>
       </div>
       <!-- Left side: Tape knobs -->
       <div class="tape-knobs-row">
-        <div class="tape-knob-container" data-tooltip="Saturation: Adds warm tape-style harmonic distortion. Higher values = more grit.">
-          <div class="knob-label">SAT</div>
+        <div class="tape-knob-container">
+          <div class="knob-label" data-i18n="label.sat" data-label="SAT">SAT</div>
           <div class="knob" id="saturation" data-param="saturation"></div>
           <div class="knob-value" id="saturation_value">0%</div>
         </div>
-        <div class="tape-knob-container" data-tooltip="Wow: Slow pitch modulation that simulates tape speed variations. Creates a warbly, lo-fi feel.">
-          <div class="knob-label">WOW</div>
+        <div class="tape-knob-container">
+          <div class="knob-label" data-i18n="label.wow" data-label="WOW">WOW</div>
           <div class="knob" id="wow" data-param="wow"></div>
           <div class="knob-value" id="wow_value">0%</div>
         </div>
-        <div class="tape-knob-container" data-tooltip="Flutter: Fast pitch modulation for tape-like wobble. Adds instability and character.">
-          <div class="knob-label">FLUTTER</div>
+        <div class="tape-knob-container">
+          <div class="knob-label" data-i18n="label.flutter" data-label="FLUTTER">FLUTTER</div>
           <div class="knob" id="flutter" data-param="flutter"></div>
           <div class="knob-value" id="flutter_value">0%</div>
         </div>
-        <div class="tape-knob-container" data-tooltip="Hiss: Adds subtle tape noise for vintage character. Keep low for realistic results.">
-          <div class="knob-label">HISS</div>
+        <div class="tape-knob-container">
+          <div class="knob-label" data-i18n="label.hiss" data-label="HISS">HISS</div>
           <div class="knob" id="hiss" data-param="hiss"></div>
           <div class="knob-value" id="hiss_value">0%</div>
         </div>
-        <div class="tape-knob-container" data-tooltip="Rolloff: High-frequency attenuation mimicking tape head wear. Higher = darker, more muffled.">
-          <div class="knob-label">ROLLOFF</div>
+        <div class="tape-knob-container">
+          <div class="knob-label" data-i18n="label.rolloff" data-label="ROLLOFF">ROLLOFF</div>
           <div class="knob" id="rolloff" data-param="rolloff"></div>
           <div class="knob-value" id="rolloff_value">0%</div>
         </div>
-        <div class="tape-knob-container" data-tooltip="Dropout: Random momentary signal dropouts simulating worn tape. Use sparingly for subtle effect.">
-          <div class="knob-label">DROPOUT</div>
+        <div class="tape-knob-container">
+          <div class="knob-label" data-i18n="label.dropout" data-label="DROPOUT">DROPOUT</div>
           <div class="knob" id="dropout" data-param="dropout"></div>
           <div class="knob-value" id="dropout_value">0%</div>
         </div>
@@ -1538,224 +1727,38 @@
       <!-- v1.6.3: Right side: DRY/WET knobs + MIDI/TRIG toggles -->
       <div class="tape-right-controls">
         <div class="tape-mix-knobs">
-          <div class="tape-knob-container" data-tooltip="Dry: Level of the original unprocessed signal. Set to 0% for 100% wet stutters only.">
-            <div class="knob-label">DRY</div>
+          <div class="tape-knob-container">
+            <div class="knob-label" data-i18n="label.dry" data-label="DRY">DRY</div>
             <div class="knob" id="mix_dry" data-param="mix_dry"></div>
             <div class="knob-value" id="mix_dry_value">50%</div>
           </div>
-          <div class="tape-knob-container" data-tooltip="Wet: Level of the stutter effect. Controls how loud the repeats are in the mix.">
-            <div class="knob-label">WET</div>
+          <div class="tape-knob-container">
+            <div class="knob-label" data-i18n="label.wet" data-label="WET">WET</div>
             <div class="knob" id="mix_wet" data-param="mix_wet"></div>
             <div class="knob-value" id="mix_wet_value">100%</div>
           </div>
         </div>
         <div class="tape-toggles">
-          <div class="footer-toggle" id="midi_toggle" data-tooltip="MIDI: Enable MIDI note triggering. Notes C1-B1 trigger lanes 1-4, any other note triggers all enabled lanes.">MIDI</div>
-          <div class="footer-toggle" id="trig_toggle" data-tooltip="Trigger: Manually trigger all enabled lanes instantly. Use with MAN mode for one-shot effects.">TRIG</div>
+          <div class="footer-toggle" id="midi_toggle" data-i18n="label.midi" data-label="MIDI">MIDI</div>
+          <div class="footer-toggle" id="trig_toggle" data-i18n="label.trig" data-label="TRIG">TRIG</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- JUCE WebView Bridge - ES6 Module Import -->
-  <script type="module">
-    import * as Juce from "./js/juce/index.js";
-    window.Juce = Juce; // Make JUCE available globally for debugging
-  </script>
-
-  <!-- Phase 3.2: Parameter Bindings (JUCE ↔ UI sync) -->
+  <!-- Phase 3.2: Parameter Bindings (JUCE <-> UI sync). Untouched by v1.14.0:
+       it is the APVTS binding layer, not page chrome. -->
   <script type="module" src="js/parameter-bindings.js"></script>
 
-  <!-- v1.6.0: Preset Manager Module -->
-  <script type="module">
-    import { PresetManager } from './modules/preset-manager.js';
-    import { getNativeFunction } from './js/juce/index.js';
+  <!-- v1.14.0: the page controller. Everything that was four inline <script>
+       blocks through v1.13.0 - the JUCE namespace shim, the preset manager, the
+       context-menu suppressor and a 92-line tooltip positioner - now lives in
+       js/app.js, so this served tree has the same file shape as every other
+       canon-v2 plugin. The positioner is GONE, not moved: it is replaced by the
+       measure-then-pin renderer, and its four hard-coded literals (a 60px
+       approximate tip height, a 220px tip width, and the viewport numbers 660
+       and 1000) are deleted with it. -->
+  <script type="module" src="js/app.js"></script>
 
-    // Wait for DOM and JUCE to be ready
-    document.addEventListener('DOMContentLoaded', async () => {
-      // Get UI elements
-      const presetNameText = document.getElementById('preset-name-text');
-      const presetNameDisplay = document.getElementById('preset-name-display');
-      const presetDropdownMenu = document.getElementById('preset-dropdown-menu');
-      const prevButton = document.getElementById('preset-prev');
-      const nextButton = document.getElementById('preset-next');
-      const saveButton = document.getElementById('preset-save');
-      const loadButton = document.getElementById('preset-load');
-
-      // Initialize preset manager
-      const presets = new PresetManager({
-        displayElement: presetNameText,
-        prevButton: prevButton,
-        nextButton: nextButton,
-        saveButton: saveButton,
-        loadButton: loadButton,
-        getNativeFunction: getNativeFunction,
-        onPresetChanged: (name) => {
-          console.log('[PresetManager] Loaded preset:', name);
-          updateDropdownMenu();
-        },
-        onPresetListUpdated: (list) => {
-          console.log('[PresetManager] Preset list updated:', list.length, 'presets');
-          updateDropdownMenu();
-        }
-      });
-
-      // Toggle dropdown menu on click
-      presetNameDisplay.addEventListener('click', (e) => {
-        e.stopPropagation();
-        presetDropdownMenu.classList.toggle('open');
-      });
-
-      // Close dropdown when clicking elsewhere
-      document.addEventListener('click', () => {
-        presetDropdownMenu.classList.remove('open');
-      });
-
-      // Update dropdown menu content
-      async function updateDropdownMenu() {
-        const list = presets.getPresetList();
-        const currentName = presets.getCurrentPreset();
-
-        presetDropdownMenu.innerHTML = '';
-
-        for (const name of list) {
-          const isFactory = await presets.isFactoryPreset(name);
-          const isSelected = name === currentName;
-
-          const item = document.createElement('div');
-          item.className = 'preset-dropdown-item' + (isSelected ? ' selected' : '');
-          item.innerHTML = `
-            <span class="preset-item-name">${name}</span>
-            ${isFactory ? '<span class="factory-badge">Factory</span>' : '<span class="delete-btn" title="Delete preset">×</span>'}
-          `;
-
-          // Load preset on click
-          item.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-              e.stopPropagation();
-              if (confirm(`Delete preset "${name}"?`)) {
-                await presets.deletePreset(name);
-              }
-              return;
-            }
-            await presets.loadPreset(name);
-            presetDropdownMenu.classList.remove('open');
-          });
-
-          presetDropdownMenu.appendChild(item);
-        }
-      }
-
-      // Initialize
-      await presets.initialize();
-      updateDropdownMenu();
-
-      // Store reference for debugging
-      window.presetManager = presets;
-    });
-  </script>
-
-  <script>
-    // Disable context menu (REQUIRED for plugin)
-    document.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      return false;
-    });
-  </script>
-
-  <!-- v1.8.0: Tooltip System -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const tooltipToggle = document.getElementById('tooltip-toggle');
-      const tooltipElement = document.getElementById('tooltip');
-      const pluginFrame = document.querySelector('.plugin-frame');
-      let tooltipsEnabled = false;
-      let hideTimeout = null;
-
-      // Toggle tooltips on/off
-      tooltipToggle.addEventListener('click', () => {
-        tooltipsEnabled = !tooltipsEnabled;
-        tooltipToggle.classList.toggle('active', tooltipsEnabled);
-        pluginFrame.classList.toggle('tooltips-enabled', tooltipsEnabled);
-
-        // Hide tooltip when disabling
-        if (!tooltipsEnabled) {
-          tooltipElement.classList.remove('visible');
-        }
-
-        console.log('[v1.8.0] Tooltips:', tooltipsEnabled ? 'enabled' : 'disabled');
-      });
-
-      // Show tooltip on hover
-      pluginFrame.addEventListener('mouseover', (e) => {
-        if (!tooltipsEnabled) return;
-
-        // Find closest element with data-tooltip
-        const target = e.target.closest('[data-tooltip]');
-        if (!target) return;
-
-        // Clear any pending hide
-        if (hideTimeout) {
-          clearTimeout(hideTimeout);
-          hideTimeout = null;
-        }
-
-        const tooltipText = target.getAttribute('data-tooltip');
-        if (!tooltipText) return;
-
-        // Set content
-        tooltipElement.textContent = tooltipText;
-
-        // Position tooltip
-        const rect = target.getBoundingClientRect();
-        const frameRect = pluginFrame.getBoundingClientRect();
-
-        // Calculate position relative to plugin frame
-        let left = rect.left - frameRect.left + rect.width / 2;
-        let top = rect.bottom - frameRect.top + 8; // 8px below element
-
-        // Check if tooltip would go off the bottom
-        const tooltipHeight = 60; // Approximate max height
-        if (top + tooltipHeight > 660) {
-          // Position above instead
-          top = rect.top - frameRect.top - tooltipHeight - 8;
-          tooltipElement.classList.add('tooltip-top');
-        } else {
-          tooltipElement.classList.remove('tooltip-top');
-        }
-
-        // Check horizontal bounds
-        const tooltipWidth = 220; // max-width from CSS
-        if (left + tooltipWidth / 2 > 1000) {
-          left = 1000 - tooltipWidth / 2 - 10;
-        }
-        if (left - tooltipWidth / 2 < 0) {
-          left = tooltipWidth / 2 + 10;
-        }
-
-        tooltipElement.style.left = `${left}px`;
-        tooltipElement.style.top = `${top}px`;
-        tooltipElement.style.transform = 'translateX(-50%)';
-
-        // Show tooltip
-        tooltipElement.classList.add('visible');
-      });
-
-      // Hide tooltip on mouseout
-      pluginFrame.addEventListener('mouseout', (e) => {
-        if (!tooltipsEnabled) return;
-
-        const target = e.target.closest('[data-tooltip]');
-        if (!target) return;
-
-        // Small delay before hiding (prevents flicker)
-        hideTimeout = setTimeout(() => {
-          tooltipElement.classList.remove('visible');
-        }, 100);
-      });
-
-      console.log('[v1.8.0] Tooltip system initialized');
-    });
-  </script>
 </body>
 </html>

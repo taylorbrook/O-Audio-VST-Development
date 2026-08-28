@@ -8,7 +8,7 @@ juce_add_plugin(OPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter${OUARICON_DEV_SUFFIX}"
-    VERSION 1.13.0
+    VERSION 1.14.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -63,6 +63,8 @@ juce_add_binary_data(OPolystutter_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/parameter-bindings.js
         Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/paper-background.jpg

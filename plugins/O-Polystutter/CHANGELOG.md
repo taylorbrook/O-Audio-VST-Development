@@ -2,6 +2,131 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.14.0] - 2026-08-28
+
+### Added
+
+- **The PAGE speaks French, not only the hover help.** Every caption, section
+  heading, button face, column header and accessible name on the interface
+  switches with a language selector in a new gear popover: 105 tooltip anchors
+  from 43 keys, plus 48 label keys across 97 keyed elements. Value readouts, the
+  six subdivision choices (`1/4`, `1/8T`, …), the step numbers and preset names
+  stay English — D-03 keeps the number formatting and the unit symbols
+  language-neutral, D-01 keeps a value mirror agreeing with the host's
+  automation lane, and D-02 keeps a preset name resolvable, because the name IS
+  the JSON filename (`OuariconPresetManager.h:283-285`). 91 French entries (43
+  tooltip, 48 label), every one `reviewed: false`: they are machine drafts and no
+  native speaker has read them.
+- **A settings popover**, in the exact corner the floating "?" occupied — the
+  gear is the same 22px circle at the same 961,651 rectangle. It holds the
+  language selector and the hover-help switch, so the two things that decide what
+  the hover help says and whether it says it at all live in one place.
+- **The UI language persists with the session**, riding the APVTS state tree as a
+  plain `uiLanguage` property holding the language CODE (`"en"` / `"fr"`),
+  written before `getStateAsXml()` copies the tree and read after
+  `setStateFromXml()` replaces it. Restored behind an `isVoid()` guard and read
+  with `toString()`: `NamedValueSet::setFromXmlAttributes` rebuilds every
+  property as a `var` over the attribute STRING, so `isBool()` / `isInt()` type
+  predicates are false for every session ever saved. Deliberately NOT an
+  `AudioParameterChoice` — it must not appear in a DAW automation lane, and a
+  preset must not be able to change which language somebody reads their interface
+  in. A session saved before v1.14.0 has no such attribute and opens in English.
+
+### Changed
+
+- **The second tooltip renderer is DELETED, and this plugin is where it was
+  written.** v1.13.0's positioner never measured anything: it carried
+  `const tooltipHeight = 60; // Approximate max height`, `const tooltipWidth =
+  220; // max-width from CSS`, and the two viewport literals `660` and `1000`
+  against a frame that is 690 tall. All four are gone, not disabled — a grep for
+  `tooltipHeight`, `tooltipWidth` or `data-tooltip` over the served tree now
+  returns only comments. In its place is the measure-then-pin runtime already
+  shipping in O-ReverseDelay, O-MultiBandCompressor and O-FreqPulse: a
+  title/body pair rather than one flat string, a 120 ms dwell so a tip does not
+  fire on every crossing, a width RELEASED then MEASURED then PINNED before
+  `left` is applied, `position: fixed` so the clamp arithmetic and the box the
+  browser lays out are the same rectangle, an arrow offset recomputed AFTER the
+  horizontal clamp so a clamped tip still points at its control, and delegated
+  listeners on the document rather than on `.plugin-frame`. `.tooltip`'s
+  `max-width` stays **220px** — this plugin's own value, parsed from its own CSS,
+  never mirrored from another plugin's 230.
+- **The controller left the markup.** Through v1.13.0 it was four inline
+  `<script>` blocks in `index.html` — the JUCE namespace shim, the preset
+  manager, a context-menu suppressor and the 92-line positioner. They are now
+  `Source/ui/public/js/app.js`, so the served tree has the same file shape as
+  every other localized plugin in the suite. `js/parameter-bindings.js` is
+  untouched: it is the APVTS binding layer, not page chrome.
+- **The preset dropdown rows are built with `createElement`, not an `innerHTML`
+  template.** The template held two localizable strings — the `Factory` badge and
+  the delete button's native `title=` — and neither could have been exempted,
+  because an exemption lives in `js/i18n.js` where the gate forbids the opening
+  angle bracket outright. The delete confirmation is now composed from a
+  `{name}` token rather than concatenated, and authored around the inflection: no
+  count, so no plural to engineer.
+- **Two geometry pins, both measured rather than assumed.** `.knob-container` and
+  `.combo-container` gain `width: 42px` — they already measured 42px in English
+  (the 42px knob and the `min-width: 42px` readout under them both reach that
+  far), so no English geometry moves; the pin stops a longer caption widening the
+  column. `.preset-action-btn` gains `width: 64px` in place of horizontal
+  padding: `.preset-bar` is `position: absolute; right: 20px` with
+  `display: flex`, so a caption that grows widens the bar LEFTWARDS and drags the
+  preset name, both nav arrows and the other button with it. **This one does move
+  English:** the bar widens from 325.3px to 358px and its five children shift
+  32.66px left, once, and stop depending on the language for good.
+- **Five native `title=` attributes deleted.** On an element that also carries a
+  `data-tip` a native title renders a second, untranslated OS tooltip competing
+  with the measure-then-pin renderer. Where a title was an element's only
+  accessible name its text moved to `data-i18n-aria`; eight keyed accessible
+  names now switch language, including two the plugin never had.
+
+### Testing
+
+- `check-i18n.js --plugin O-Polystutter`: 36 assertions, exit 0, canon v2.
+  `check-i18n.js --strict-v2`: exit 0 across 16 canon-v2 plugins, 0 on canon v1.
+- `check-ui-labels.js --plugin O-Polystutter`: ALL CHECKS PASSED over four states
+  (default, preset dropdown open, settings popover open, hover help on) with
+  **ZERO non-label elements moved** between English and French at the fixed
+  1000 x 690 frame, 97 of 97 keyed elements measured and no coverage hole,
+  vacuity 59/97 labels (61%) plus 8/8 attributes, `dataset.label === textContent`
+  after init, after a language switch and after a state pass in both languages,
+  no page error and every resource served.
+- **Verified by rendering, not by inspection.** All 105 anchors — enumerated from
+  the DOM, not transcribed — hovered with a real pointer in both languages, 210
+  measurements: every tip visible with a non-empty title AND body, at or under the
+  220px cap, FULLY inside the 1000 x 690 frame, and its arrow still horizontally
+  inside its anchor. `serve-ui.js` picks port 0, so no concurrent session's files
+  can be served instead.
+- **English geometry against v1.13.0**, measured by swapping HEAD's five files in
+  and back out from an in-memory copy in a `finally` (never `git checkout --`,
+  which would have taken the uncommitted work with it): the preset bar and its
+  five children move 32.66px left, `#tooltip-toggle` is replaced by `#gear-btn`
+  at the identical 961,651 22x22 rectangle, and **nothing else moved at all**.
+  Scroll extent 1000 x 690 in both builds and both languages; no page error and
+  no 404 in either.
+- The **vertical clamp** ported in with the renderer is **not independently
+  reproducible here**, and that is recorded rather than dressed up: reverting its
+  two lines alone leaves the 210-hover sweep green. It fires only when
+  `anchor.top < h + 16` AND `anchor.bottom > 674 - h`, which at this page's
+  tallest French tip (102px) needs an anchor over 454px tall; the tallest anchor
+  here is `#sequencer-section` at 185px with 369px of clear room above it.
+- `build-and-install.sh` clean; `auval -v aumf OuPs OuDv` **AU VALIDATION
+  SUCCEEDED**. The build adds no new compiler warning — the 9 that remain are
+  pre-existing `AudioParameterFloat` deprecation warnings.
+
+### Not verified
+
+- The **C++ language round-trip** (pick Français, close the session, reopen,
+  confirm it held) has NOT been executed by hand. It is reasoned from the
+  `isVoid()` guard and the `getStateAsXml()` / `setStateFromXml()` ordering, not
+  measured.
+- All **91 French strings are machine drafts**, every one `reviewed: false`.
+- **Windows / WebView2 font metrics** remain the named hardware-blocked deferral.
+  The tightest margin a FRENCH string introduces is **4.2px** — `DÉCLIN` at
+  37.8px in the 42px knob column — followed by 4.23px on `CONTOUR` (53.8px in
+  the 58px bypass chip) and 5.05px on `Non`. Two boxes are tighter still and
+  neither is French: `SUBDIV` leaves 3.69px and `PULSES` leaves 2.77px, both
+  unchanged English strings this version inherited.
+
 ## [1.13.0] - 2026-08-14
 
 ### Added
