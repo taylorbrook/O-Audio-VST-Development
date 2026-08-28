@@ -3,6 +3,168 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] — 2026-08-28
+
+**The PAGE speaks French, not only the hover help** (Stage I batch I2, canon v2).
+Every caption, heading, button face, hint, readout key, status line and tooltip
+switches with a language selector in a new header gear. Value readouts and the
+two drop-down menus stay English by decision (D-03 / D-01). No parameter, DSP or
+audio change; the state format gains one optional property and stays backward
+compatible in both directions.
+
+### Added
+- **Interface language, English + French, with no reload.** A gear at the right
+  of the header opens a settings panel holding the language selector. 113 French
+  entries (37 tooltip, 76 label), all machine-drafted and flagged
+  `reviewed: false` — no native speaker has read them.
+- `Source/ui/public/js/i18n.js`: `LANGUAGES`, `I18N` (37 tooltip pairs),
+  `LABELS` (76 single strings), `I18N_EXEMPT` (4 reasoned exclusions),
+  `TIP_BINDINGS` (37 anchors) and `tr()`. Embedded as `UIBinaryData::i18n_js`
+  and served at `/js/i18n.js`.
+- C++ language pair `getUiLanguage` / `setUiLanguage` over a
+  `std::atomic<int> uiLanguage`, persisted as a plain `uiLanguage` property on
+  the APVTS root — the string `"en"`/`"fr"`, restored behind an `isVoid()` gate
+  because the ValueTree/XML round-trip rebuilds every property as a string var.
+  A pre-1.3.0 session has no property and stays English; a 1.3.0 session opened
+  by an older build ignores the property.
+- `tests/i18n-states.json` drives the three states the gate cannot reach on its
+  own: the popover open, the hover-help switch in its Off position, and a lesson
+  preset picked. Coverage went 50/53 to 53/53 labels measured.
+
+### Changed
+- **The hover-help "?" chip MOVED into the settings panel.** It was a lone chip
+  at the end of the preset bar; a plugin should not grow a second settings
+  surface, and the two settings that decide what the hover help says and whether
+  it says it belong together. Its storage is untouched — still `localStorage`
+  under `osg.tipsEnabled` — so a preference set before this version survives the
+  move. Its face is now written as "On"/"Off" through `setLabel()` behind an
+  if/else, never a ternary in the argument.
+- Tooltip copy moved out of `js/app.js`'s `TIPS` object into `js/i18n.js`; the
+  renderer reads the anchor's own `data-tip-title` / `data-tip`, which
+  `applyI18n` rewrites per language. All 34 entries plus the 8 lesson captions
+  and the 12 toast / status strings were compared back to v1.2.1 byte-for-byte
+  with entities decoded rather than re-typed — **141 English strings, 0
+  mismatches**.
+- The 34 markup anchors moved off `data-tip` (which now carries the tip BODY):
+  the 15 knob cells and 2 select cells to `data-param`, moved up from the inner
+  `.knob` div where nothing read it; the 2 toggles to a new `data-param`; the 4
+  visualization cells and the readout strip to an id; the 8 lesson buttons to
+  the `data-preset` they already carried. Tooltip listeners are delegated on the
+  document, because no anchor carries `data-tip` until the first sweep runs.
+- Tip bodies lost their `strong`/`em`/`code` emphasis tags. The words are
+  unchanged; the renderer builds with `createElement` + `textContent` now rather
+  than `innerHTML`.
+- The 8 lesson captions were a `LESSONS` table written with a raw `textContent`
+  assignment; they are table entries written through `setLabel()` now,
+  dispatched from the C++ preset name so every key is a plain string literal.
+- The toast and the source-status line were raw `textContent` writes of finished
+  English; each call site names its own key now, so both elements join the
+  language sweep instead of being stranded in whichever language raised them.
+- **The lesson caption is the header's own full-width row.** It always was a
+  `flex-basis:100%` row — it was just 100% of the 571px preset bar rather than
+  100% of the 846px header. Costs nothing and removes a narrow box that both
+  languages were fighting.
+- **The 8 concept-preset chips are a fixed 4x2 grid, not a wrapping flex row.**
+  See the geometry note below.
+
+### Fixed
+- **Pre-existing: 15 knobs and 2 combos carried `role="slider"` / `tabindex` (or
+  a focusable select) with an accessible name that only existed if the tooltip
+  loop happened to run.** They are named by `data-i18n-aria` now, resolving to
+  the control's own tooltip title — 26 keyed attributes, 25 of 26 confirmed
+  switching language by the gate (the 26th is `aria.langSelect`, whose English
+  and French differ but which the vacuity counter reads once).
+
+### Geometry (D-04) — six rules, each measured, each reverted alone
+Every rule below was reverted on its own from an in-memory copy and the gate
+re-run; all six re-break, so none is decoration. The two French copy
+shortenings are an OR rather than an AND and are labelled as such.
+
+1. `.title-block { flex: 1 1 0; min-width: 0 }` (was `flex-shrink: 0`). The
+   block shrink-wrapped its widest child, the strapline: French made it 73.8px
+   wider (275.0 -> 348.8) and, at 348.8 + the 481.7px preset bar + the 32px gear
+   cluster = 862.5 in an 846px header, **the gear wrapped onto a second row and
+   took 22px of header height with it** — pushing the workspace, the readout,
+   the rail and the keyboard down 22px in French only. 156 elements moved.
+   `flex: 1 1 auto` was the first attempt and changed nothing: flex line-breaking
+   runs on the hypothetical main size before any shrink is applied. At basis 0
+   the row measures 513.7 in both languages.
+2. `.subtitle { min-height: 2.2em }`. Pinned to 332.3px by rule 1, the English
+   strapline is one line and the French is two. Reserving the line is D-04's
+   "let it wrap where the row can afford the height"; a shorter French strapline
+   is the short-variant answer D-04 rules out.
+3. `.group-spray .knob-label { min-height: 2.2em }`. Two of the six Spray &
+   Scatter captions wrap in French and not in English ("Pos Spray" 1 line vs
+   "Dispersion position" 2; "Pan Spray" 1 vs "Dispersion stéréo" 2), each
+   pushing its own `#val-` readout down one line-height. Scoped to that group
+   rather than all seventeen knob labels; the group already carries two 2-line
+   captions in English, so the wrapped line they sit on costs nothing.
+4. `#toggle-freeze { min-width: 78px }`. **French is SHORTER here** — "Gel"
+   57.8px against "Freeze" 77.5px — so the button shrank 19.6px and the corner
+   fleuron moved with it. 78px is the English width rounded up: English moves
+   0.5px. Not applied to the other toggle, which reads "ADSR" in both languages.
+5. `.grain-readout .readout-key[data-i18n="label.readoutOverlap"]
+   { min-width: 91px }`. The three readout keys sit in one left-aligned strip,
+   so any key's width positions everything to its right: "OVERLAP" is 50.8px and
+   "RECOUVREMENT" is 90.1px, moving `#readoutOverlap`, the whole CPU item and
+   `#cpuBar` 39.3px right in French. **The cost is paid in English and is
+   visible**: a 40px gap opens between OVERLAP and its `×0.0`. The strip can
+   afford it — content ended at x=411 in a 532px box — and "recouvrement" is the
+   term the French granular literature uses, so shortening it would be the
+   short-variant answer D-04 rules out. The other two keys are `sameAsEn` and
+   need no pin.
+6. `.preset-bar-tour` is a fixed 4x2 grid. As a wrapping flex row the eight
+   chips shrink-wrapped their captions and **re-wrapped when the language
+   changed**: "Async Cloud" sat on row 1 in English and "Nuage async" fell to
+   row 2 in French, where the settings panel hanging from the gear above covered
+   it. Four equal columns give every chip the same box in both languages, so the
+   bar cannot reflow at all. The chips are 110.5px each now rather than 60–90px
+   of shrink-wrap; the block is the same 460px wide and the same two rows tall.
+
+**One French string was shortened rather than fitted, and is flagged for the
+reviewer.** `label.vizScope` + `label.vizScopeHint`: the scope caption box is
+261px, the English pair is one line (11.0px) and "Oscilloscope de sortie ·" +
+"la forme d'onde après gain" was two (22.0px), which shrank the scope canvas
+11px in French only and made the two spans' union rects intersect where they are
+disjoint in English. The other three visualization cells are two lines in BOTH
+languages already, so only this one flagged. It now reads "Oscilloscope ·" +
+"l'onde après le gain". Reverting either half alone still passes; reverting both
+fails. A reviewer may prefer the longer pair at a cost of 11px of scope canvas.
+
+**Frame cost: 0.2px.** The keyboard panel's bottom edge is 716.2px at v1.2.1 and
+716.4px at v1.3.0 inside the 754px client area, and identical in both languages;
+the frame does not scroll in either version or either language. The header is
+80.2px at v1.2.1 and 80.4px here — moving the lesson caption onto its own row
+paid for the reserved strapline line almost exactly. **The 900x760 frame is
+untouched.**
+
+### Testing
+- `check-i18n.js --plugin O-simpleGrain`: exit 0, all 15 assertions, canon v2.
+- `check-i18n.js --strict-v2`: exit 0 — 11 plugins on canon v2, 0 on v1.
+- `check-ui-labels.js --plugin O-simpleGrain`: **ALL CHECKS PASSED** across four
+  states with **zero** non-label elements moved between English and French;
+  vacuity 46/53 labels and 25/26 attributes confirmed switching;
+  `dataset.label === textContent` after init, after the switch and after a state
+  pass in both languages; 53/53 labels measured; no page error; every resource
+  served.
+- `boot-all-uis.js`: O-simpleGrain clean — 64 text, 26 aria, 0 title, 53 i18n.
+  (O-Bowed and O-Reed still fail repo-wide with `Unexpected token 'export'`;
+  pre-existing and out of scope.)
+- Render harness: **ALL PASS, 12 probes**, at both v1.2.1 and v1.3.0.
+  **The harness is NOT deterministic** — two consecutive runs of the same binary
+  give `makes-sound` rms 0.0119 and 0.0121, `stress-bounded` peakGrains 158 and
+  144, `uptranspose-stable` peak 2.187 and 2.084. Its printed numbers cannot be
+  compared digit-for-digit across versions; the comparable quantity is the
+  verdict, and that is 12/12 PASS in both. No DSP source was touched.
+- `auval -a` lists `aumu OsGr OuDv`.
+
+### Not verified
+- The C++ persistence round-trip has never been executed by hand on this plugin:
+  pick Français, save, quit the DAW, reopen, confirm the choice held, and confirm
+  a fresh instance opens in English.
+- Windows/WebView2 font metrics remain a named deferral — a French label measured
+  as fitting on macOS could clip there.
+
 ## [1.2.1] — 2026-08-25
 
 ### Fixed

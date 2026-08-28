@@ -71,6 +71,15 @@ OSimpleGrainAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/js/app.js")
         return makeBinaryResource (UIBinaryData::app_js, UIBinaryData::app_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.3.0 — the interface copy table (English + French). Served from the same
+    // provider as app.js, which imports it; a branch missing here is a BLANK page
+    // rather than an English one, because the import fails to resolve and module
+    // evaluation never starts. NOTE the namespace: the UI resources live in
+    // UIBinaryData (the O-simpleGrain_Samples target owns BinaryData:: for the
+    // four embedded .wav sources), so this is UIBinaryData::i18n_js.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (UIBinaryData::i18n_js, UIBinaryData::i18n_jsSize, "application/javascript; charset=utf-8");
+
     if (url == "/js/juce/index.js")
         return makeBinaryResource (UIBinaryData::index_js, UIBinaryData::index_jsSize, "application/javascript; charset=utf-8");
 
@@ -202,6 +211,32 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
                 processorRef.handleUiMidi ((int) args[0], (bool) args[1],
                                            args.size() >= 3 ? (float) args[2] : 0.8f);
             complete (juce::var());
+        })
+        // ── Interface-language pair (v1.3.0) ───────────────────────────────
+        // Plain withNativeFunction, no relay: the language is not a parameter
+        // and must not reach a DAW automation lane. PULLED once by the page at
+        // init; nothing pushes from here or from the 30 Hz viz timer, and
+        // applyFactoryPreset sets parameters only, so no preset path can change
+        // it behind the page's back.
+        //
+        // The WebView is never hidden in this editor (no setVisible anywhere in
+        // Source/), so these completions always settle
+        // (critical_webview_completion_gated_on_isvisible).
+        .withNativeFunction ("getUiLanguage", [this] (auto&, auto complete) {
+            complete (juce::var (OSimpleGrainAudioProcessor::languageCode (
+                                     processorRef.uiLanguage.load (std::memory_order_acquire))));
+        })
+        .withNativeFunction ("setUiLanguage", [this] (const juce::Array<juce::var>& args, auto complete) {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    OSimpleGrainAudioProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (OSimpleGrainAudioProcessor::languageCode (
+                                     processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
    #if JUCE_WINDOWS
