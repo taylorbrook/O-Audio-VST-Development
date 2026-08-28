@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover OPEN (the language row — a label that is invisible at rest)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "a lesson preset picked (label.captionAcid — the tour caption is chosen by a click and is never the resting string)",
+    "click": ".tour-btn[data-preset=\"Acid Bass\"]"
+  }
+]

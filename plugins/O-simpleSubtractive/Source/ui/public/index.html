@@ -18,6 +18,25 @@
   You should have received a copy of the GNU Affero General Public License
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
+<!--
+  v1.3.0 — INTERFACE LANGUAGE (canon v2).
+
+  The English below is the FALLBACK that renders if applyI18n never runs. It is
+  not decoration: a translation-table typo throws out of initI18n's try/catch and
+  the page must still read.
+
+  Two attribute conventions meet here and must not be confused:
+    data-i18n / data-i18n-aria  hold a KEY into js/i18n.js. Authored here.
+    data-tip / data-tip-title   hold the tip COPY. WRITTEN AT RUNTIME by
+                                applyI18n from TIP_BINDINGS. Never authored here
+                                — check-i18n assertion 3 requires zero of them
+                                in this file.
+
+  Through v1.2.5 the tip anchors carried the tip KEY in their own data-tip and
+  js/app.js looked the copy up in a TIPS object. The key and the copy would now
+  fight over one attribute, so every anchor moved to data-param (naming the
+  APVTS parameter it drives), an id, or the data-preset it already carried.
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -31,26 +50,60 @@
     <header class="header">
       <div class="title-block">
         <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Subtractive</span></h1>
-        <p class="subtitle">Subtractive Synthesizer &#183; Osc &#8594; Filter &#8594; Amp &#183; A Field Guide</p>
+        <p class="subtitle" data-i18n="label.subtitle">Subtractive Synthesizer &#183; Osc &#8594; Filter &#8594; Amp &#183; A Field Guide</p>
+      </div>
+
+      <!-- v1.3.0 — the settings gear. This plugin has no hover-help bridge and
+           never had a "?" toggle (not a C++ one, not a localStorage one): its
+           help layer is always on, so the panel holds the LANGUAGE SELECTOR
+           ALONE. A toggle row here would be a control for a preference that
+           does not exist. -->
+      <div id="settings-cluster">
+        <button type="button"
+                class="gear-btn"
+                id="gear-btn"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                data-i18n-aria="aria.settings"
+                aria-label="Settings">&#9881;</button>
+
+        <div class="settings-popover" id="settings-popover"
+             role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+          <label class="settings-row" for="lang-select">
+            <span class="settings-label" data-i18n="lang-select">Language</span>
+            <!-- ENDONYMS. Never localized: a French speaker looking for their
+                 language looks for "Fran&ccedil;ais". -->
+            <select class="settings-select" id="lang-select"
+                    data-i18n-aria="aria.langSelect"
+                    aria-label="Interface language">
+              <option value="en">English</option>
+              <option value="fr">Fran&ccedil;ais</option>
+            </select>
+          </label>
+        </div>
       </div>
     </header>
 
     <!-- ─── Visualization (headline: filter curve over spectrum) ── -->
     <section class="viz-panel">
       <div class="viz-block">
-        <div class="viz-label">Filter Response over Spectrum &#183;
-          <span class="viz-hint">the curve is the filter; the bars are what it lets through</span></div>
-        <div class="canvas-wrap" data-tip="headline" tabindex="0"><canvas id="headlineCanvas"></canvas></div>
+        <!-- The caption moved into its own span: applyLabel writes textContent,
+             which on the parent would delete the .viz-hint sibling. -->
+        <div class="viz-label"><span data-i18n="label.headline">Filter Response over Spectrum &#183;</span>
+          <span class="viz-hint" data-i18n="label.headlineHint">the curve is the filter; the bars are what it lets through</span></div>
+        <div class="canvas-wrap" id="headlineWrap" tabindex="0"
+             data-i18n-aria="headline" aria-label="Filter Response over Spectrum"><canvas id="headlineCanvas"></canvas></div>
       </div>
       <div class="viz-block viz-block-scope">
-        <div class="viz-label">Output Waveform &#183; <span class="viz-hint">morphs with cutoff / res / envelope</span></div>
-        <div class="canvas-wrap scope-wrap" data-tip="scope" tabindex="0"><canvas id="scopeCanvas"></canvas></div>
+        <div class="viz-label"><span data-i18n="label.scope">Output Waveform &#183;</span> <span class="viz-hint" data-i18n="label.scopeHint">morphs with cutoff / res / envelope</span></div>
+        <div class="canvas-wrap scope-wrap" id="scopeWrap" tabindex="0"
+             data-i18n-aria="scope" aria-label="Output Waveform"><canvas id="scopeCanvas"></canvas></div>
       </div>
     </section>
 
     <!-- ─── Signal-path diagram ────────────────────────────────── -->
-    <section class="routing-panel" data-tip="routing">
-      <div class="routing-label">Signal Path</div>
+    <section class="routing-panel" id="routingPanel">
+      <div class="routing-label" data-i18n="label.signalPath">Signal Path</div>
       <svg id="routingSvg" viewBox="0 0 430 128" preserveAspectRatio="xMidYMid meet">
         <!-- main chain arrows -->
         <line class="route-line" x1="80"  y1="46" x2="148" y2="46" />
@@ -65,25 +118,25 @@
         <polygon id="arrowFiltEnvHead" class="route-head route-head-env" points="175,80 185,80 180,72" />
         <line id="arrowAmpEnv" class="route-arc" x1="308" y1="104" x2="308" y2="76" />
         <polygon id="arrowAmpEnvHead" class="route-head route-head-env" points="303,80 313,80 308,72" />
-        <text class="env-route-label" x="180" y="118" text-anchor="middle">filter env &#8594; cutoff</text>
-        <text class="env-route-label" x="308" y="118" text-anchor="middle">amp env &#8594; level</text>
+        <text class="env-route-label" x="180" y="118" text-anchor="middle" data-i18n="label.routeFilterEnv">filter env &#8594; cutoff</text>
+        <text class="env-route-label" x="308" y="118" text-anchor="middle" data-i18n="label.routeAmpEnv">amp env &#8594; level</text>
 
         <!-- nodes -->
         <circle id="nodeOsc" class="path-node node-osc" cx="52" cy="46" r="26" />
-        <text class="node-text" x="52" y="44" text-anchor="middle">OSC</text>
+        <text class="node-text" x="52" y="44" text-anchor="middle" data-i18n="label.nodeOsc">OSC</text>
         <text id="oscModeText" class="node-sub" x="52" y="56" text-anchor="middle">Saw</text>
 
         <circle id="nodeFilter" class="path-node node-filter" cx="180" cy="46" r="26" />
-        <text class="node-text" x="180" y="44" text-anchor="middle">FILTER</text>
+        <text class="node-text" x="180" y="44" text-anchor="middle" data-i18n="label.nodeFilter">FILTER</text>
         <text id="filterModeText" class="node-sub" x="180" y="56" text-anchor="middle">24 dB LP</text>
 
         <circle id="nodeVca" class="path-node node-vca" cx="308" cy="46" r="26" />
-        <text class="node-text" x="308" y="49" text-anchor="middle">VCA</text>
+        <text class="node-text" x="308" y="49" text-anchor="middle" data-i18n="label.nodeVca">VCA</text>
 
         <text class="node-out" x="416" y="52" text-anchor="end">&#9834;</text>
       </svg>
       <div class="routing-readout-col">
-        <div class="routing-readout"><span id="readCutoff">2.0 kHz</span> &#183; Res&#8202;<span id="readRes">0.10</span></div>
+        <div class="routing-readout"><span id="readCutoff">2.0 kHz</span> &#183; <span data-i18n="label.res">Res</span>&#8202;<span id="readRes">0.10</span></div>
         <div class="routing-meta" id="routeMeta">low-pass &#183; 24 dB/oct</div>
       </div>
     </section>
@@ -92,20 +145,20 @@
     <main class="controls">
       <!-- OSC / MIX -->
       <section class="group group-osc">
-        <h2 class="group-title">Oscillator</h2>
-        <div class="select-cell" data-tip="oscWave">
-          <select class="combo" id="combo-oscWave" aria-label="Oscillator wave"></select>
-          <div class="knob-label">Wave</div>
+        <h2 class="group-title" data-i18n="label.groupOsc">Oscillator</h2>
+        <div class="select-cell" data-param="oscWave">
+          <select class="combo" id="combo-oscWave" data-i18n-aria="oscWave" aria-label="Oscillator wave"></select>
+          <div class="knob-label" data-i18n="label.wave">Wave</div>
         </div>
         <div class="knob-row">
-          <div class="knob-cell" data-tip="subLevel">
-            <div class="knob" id="knob-subLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label">Sub</div>
+          <div class="knob-cell" data-param="subLevel">
+            <div class="knob" id="knob-subLevel" data-i18n-aria="subLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.sub">Sub</div>
             <div class="knob-value" id="val-subLevel">0%</div>
           </div>
-          <div class="knob-cell" data-tip="noiseLevel">
-            <div class="knob" id="knob-noiseLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label">Noise</div>
+          <div class="knob-cell" data-param="noiseLevel">
+            <div class="knob" id="knob-noiseLevel" data-i18n-aria="noiseLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.noise">Noise</div>
             <div class="knob-value" id="val-noiseLevel">0%</div>
           </div>
         </div>
@@ -113,36 +166,36 @@
 
       <!-- FILTER -->
       <section class="group group-filter">
-        <h2 class="group-title">Filter</h2>
+        <h2 class="group-title" data-i18n="label.groupFilter">Filter</h2>
         <div class="select-row">
-          <div class="select-cell" data-tip="filterType">
-            <select class="combo combo-sm" id="combo-filterType" aria-label="Filter type"></select>
-            <div class="knob-label">Type</div>
+          <div class="select-cell" data-param="filterType">
+            <select class="combo combo-sm" id="combo-filterType" data-i18n-aria="filterType" aria-label="Filter type"></select>
+            <div class="knob-label" data-i18n="label.type">Type</div>
           </div>
-          <div class="select-cell" data-tip="filterSlope">
-            <select class="combo combo-sm" id="combo-filterSlope" aria-label="Filter slope"></select>
-            <div class="knob-label">Slope</div>
+          <div class="select-cell" data-param="filterSlope">
+            <select class="combo combo-sm" id="combo-filterSlope" data-i18n-aria="filterSlope" aria-label="Filter slope"></select>
+            <div class="knob-label" data-i18n="label.slope">Slope</div>
           </div>
         </div>
         <div class="knob-row">
-          <div class="knob-cell" data-tip="cutoff">
-            <div class="knob" id="knob-cutoff"><div class="knob-stem"></div></div>
-            <div class="knob-label">Cutoff</div>
+          <div class="knob-cell" data-param="cutoff">
+            <div class="knob" id="knob-cutoff" data-i18n-aria="cutoff"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.cutoff">Cutoff</div>
             <div class="knob-value" id="val-cutoff">2.0 kHz</div>
           </div>
-          <div class="knob-cell" data-tip="resonance">
-            <div class="knob" id="knob-resonance"><div class="knob-stem"></div></div>
-            <div class="knob-label">Resonance</div>
+          <div class="knob-cell" data-param="resonance">
+            <div class="knob" id="knob-resonance" data-i18n-aria="resonance"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.resonance">Resonance</div>
             <div class="knob-value" id="val-resonance">0%</div>
           </div>
-          <div class="knob-cell" data-tip="filterEnvAmount">
-            <div class="knob" id="knob-filterEnvAmount"><div class="knob-stem"></div></div>
-            <div class="knob-label">Env Amt</div>
+          <div class="knob-cell" data-param="filterEnvAmount">
+            <div class="knob" id="knob-filterEnvAmount" data-i18n-aria="filterEnvAmount"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.envAmt">Env Amt</div>
             <div class="knob-value" id="val-filterEnvAmount">0%</div>
           </div>
-          <div class="knob-cell" data-tip="keyTrack">
-            <div class="knob" id="knob-keyTrack"><div class="knob-stem"></div></div>
-            <div class="knob-label">Key Track</div>
+          <div class="knob-cell" data-param="keyTrack">
+            <div class="knob" id="knob-keyTrack" data-i18n-aria="keyTrack"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.keyTrack">Key Track</div>
             <div class="knob-value" id="val-keyTrack">0%</div>
           </div>
         </div>
@@ -150,27 +203,27 @@
 
       <!-- FILTER ADSR -->
       <section class="group group-env">
-        <h2 class="group-title">Filter Envelope <span class="group-route">&#8594; cutoff</span></h2>
-        <div class="adsr-canvas-wrap" data-tip="filterAdsr"><canvas id="filterAdsrCanvas"></canvas></div>
+        <h2 class="group-title"><span data-i18n="label.groupFilterEnv">Filter Envelope</span> <span class="group-route" data-i18n="label.routeToCutoff">&#8594; cutoff</span></h2>
+        <div class="adsr-canvas-wrap" id="filterAdsrWrap"><canvas id="filterAdsrCanvas"></canvas></div>
         <div class="knob-row">
-          <div class="knob-cell" data-tip="filterAttack">
-            <div class="knob knob-sm" id="knob-filterAttack"><div class="knob-stem"></div></div>
-            <div class="knob-label">Attack</div>
+          <div class="knob-cell" data-param="filterAttack">
+            <div class="knob knob-sm" id="knob-filterAttack" data-i18n-aria="filterAttack"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.attack">Attack</div>
             <div class="knob-value" id="val-filterAttack">5 ms</div>
           </div>
-          <div class="knob-cell" data-tip="filterDecay">
-            <div class="knob knob-sm" id="knob-filterDecay"><div class="knob-stem"></div></div>
-            <div class="knob-label">Decay</div>
+          <div class="knob-cell" data-param="filterDecay">
+            <div class="knob knob-sm" id="knob-filterDecay" data-i18n-aria="filterDecay"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.decay">Decay</div>
             <div class="knob-value" id="val-filterDecay">200 ms</div>
           </div>
-          <div class="knob-cell" data-tip="filterSustain">
-            <div class="knob knob-sm" id="knob-filterSustain"><div class="knob-stem"></div></div>
-            <div class="knob-label">Sustain</div>
+          <div class="knob-cell" data-param="filterSustain">
+            <div class="knob knob-sm" id="knob-filterSustain" data-i18n-aria="filterSustain"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.sustain">Sustain</div>
             <div class="knob-value" id="val-filterSustain">50%</div>
           </div>
-          <div class="knob-cell" data-tip="filterRelease">
-            <div class="knob knob-sm" id="knob-filterRelease"><div class="knob-stem"></div></div>
-            <div class="knob-label">Release</div>
+          <div class="knob-cell" data-param="filterRelease">
+            <div class="knob knob-sm" id="knob-filterRelease" data-i18n-aria="filterRelease"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.release">Release</div>
             <div class="knob-value" id="val-filterRelease">200 ms</div>
           </div>
         </div>
@@ -178,27 +231,27 @@
 
       <!-- AMP ADSR -->
       <section class="group group-env">
-        <h2 class="group-title">Amp Envelope <span class="group-route">&#8594; level</span></h2>
-        <div class="adsr-canvas-wrap" data-tip="ampAdsr"><canvas id="ampAdsrCanvas"></canvas></div>
+        <h2 class="group-title"><span data-i18n="label.groupAmpEnv">Amp Envelope</span> <span class="group-route" data-i18n="label.routeToLevel">&#8594; level</span></h2>
+        <div class="adsr-canvas-wrap" id="ampAdsrWrap"><canvas id="ampAdsrCanvas"></canvas></div>
         <div class="knob-row">
-          <div class="knob-cell" data-tip="ampAttack">
-            <div class="knob knob-sm" id="knob-ampAttack"><div class="knob-stem"></div></div>
-            <div class="knob-label">Attack</div>
+          <div class="knob-cell" data-param="ampAttack">
+            <div class="knob knob-sm" id="knob-ampAttack" data-i18n-aria="ampAttack"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.attack">Attack</div>
             <div class="knob-value" id="val-ampAttack">5 ms</div>
           </div>
-          <div class="knob-cell" data-tip="ampDecay">
-            <div class="knob knob-sm" id="knob-ampDecay"><div class="knob-stem"></div></div>
-            <div class="knob-label">Decay</div>
+          <div class="knob-cell" data-param="ampDecay">
+            <div class="knob knob-sm" id="knob-ampDecay" data-i18n-aria="ampDecay"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.decay">Decay</div>
             <div class="knob-value" id="val-ampDecay">200 ms</div>
           </div>
-          <div class="knob-cell" data-tip="ampSustain">
-            <div class="knob knob-sm" id="knob-ampSustain"><div class="knob-stem"></div></div>
-            <div class="knob-label">Sustain</div>
+          <div class="knob-cell" data-param="ampSustain">
+            <div class="knob knob-sm" id="knob-ampSustain" data-i18n-aria="ampSustain"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.sustain">Sustain</div>
             <div class="knob-value" id="val-ampSustain">80%</div>
           </div>
-          <div class="knob-cell" data-tip="ampRelease">
-            <div class="knob knob-sm" id="knob-ampRelease"><div class="knob-stem"></div></div>
-            <div class="knob-label">Release</div>
+          <div class="knob-cell" data-param="ampRelease">
+            <div class="knob knob-sm" id="knob-ampRelease" data-i18n-aria="ampRelease"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.release">Release</div>
             <div class="knob-value" id="val-ampRelease">300 ms</div>
           </div>
         </div>
@@ -206,20 +259,20 @@
 
       <!-- VOICE / OUT -->
       <section class="group group-output">
-        <h2 class="group-title">Voice / Output</h2>
-        <div class="select-cell" data-tip="voiceMode">
-          <select class="combo" id="combo-voiceMode" aria-label="Voice mode"></select>
-          <div class="knob-label">Mode</div>
+        <h2 class="group-title" data-i18n="label.groupOutput">Voice / Output</h2>
+        <div class="select-cell" data-param="voiceMode">
+          <select class="combo" id="combo-voiceMode" data-i18n-aria="voiceMode" aria-label="Voice mode"></select>
+          <div class="knob-label" data-i18n="label.mode">Mode</div>
         </div>
         <div class="knob-row">
-          <div class="knob-cell" data-tip="glide">
-            <div class="knob" id="knob-glide"><div class="knob-stem"></div></div>
-            <div class="knob-label">Glide</div>
+          <div class="knob-cell" data-param="glide">
+            <div class="knob" id="knob-glide" data-i18n-aria="glide"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.glide">Glide</div>
             <div class="knob-value" id="val-glide">0 ms</div>
           </div>
-          <div class="knob-cell" data-tip="outputLevel">
-            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
-            <div class="knob-label">Level</div>
+          <div class="knob-cell" data-param="outputLevel">
+            <div class="knob" id="knob-outputLevel" data-i18n-aria="outputLevel"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.level">Level</div>
             <div class="knob-value" id="val-outputLevel">0.0 dB</div>
           </div>
         </div>
@@ -228,24 +281,24 @@
 
     <!-- ─── Preset tour (hook now; content Stage 4) ────────────── -->
     <section class="preset-tour">
-      <div class="tour-label">Lesson Presets</div>
+      <div class="tour-label" data-i18n="label.tourLabel">Lesson Presets</div>
       <div class="tour-buttons">
-        <button class="tour-btn" data-preset="Saw Sweep" data-tip="lessonSawSweep">Saw Sweep</button>
-        <button class="tour-btn" data-preset="Pluck" data-tip="lessonPluck">Pluck</button>
-        <button class="tour-btn" data-preset="Brass Stab" data-tip="lessonBrass">Brass Stab</button>
-        <button class="tour-btn" data-preset="Sweep Pad" data-tip="lessonSweep">Sweep Pad</button>
-        <button class="tour-btn" data-preset="Acid Bass" data-tip="lessonAcid">Acid Bass</button>
-        <button class="tour-btn" data-preset="Square Bass" data-tip="lessonSquareBass">Square Bass</button>
-        <button class="tour-btn" data-preset="Noise Wind" data-tip="lessonNoiseWind">Noise Wind</button>
-        <button class="tour-btn" data-preset="Self-Oscillation" data-tip="lessonSelfOsc">Self-Oscillation</button>
+        <button class="tour-btn" data-preset="Saw Sweep" data-i18n="label.lessonSawSweep">Saw Sweep</button>
+        <button class="tour-btn" data-preset="Pluck" data-i18n="label.lessonPluck">Pluck</button>
+        <button class="tour-btn" data-preset="Brass Stab" data-i18n="label.lessonBrass">Brass Stab</button>
+        <button class="tour-btn" data-preset="Sweep Pad" data-i18n="label.lessonSweep">Sweep Pad</button>
+        <button class="tour-btn" data-preset="Acid Bass" data-i18n="label.lessonAcid">Acid Bass</button>
+        <button class="tour-btn" data-preset="Square Bass" data-i18n="label.lessonSquareBass">Square Bass</button>
+        <button class="tour-btn" data-preset="Noise Wind" data-i18n="label.lessonNoiseWind">Noise Wind</button>
+        <button class="tour-btn" data-preset="Self-Oscillation" data-i18n="label.lessonSelfOsc">Self-Oscillation</button>
       </div>
-      <div class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
+      <div class="tour-caption" id="tourCaption" data-i18n="label.captionDefault">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
     </section>
 
     <!-- ─── On-screen keyboard ─────────────────────────────────── -->
     <section class="keyboard-panel">
-      <div class="keyboard-label">Play &#183; <span class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
-      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+      <div class="keyboard-label"><span data-i18n="label.play">Play &#183;</span> <span class="kbd-hint" data-i18n="label.kbdHint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" data-i18n-aria="aria.keyboard" aria-label="On-screen keyboard"></div>
     </section>
   </div>
 

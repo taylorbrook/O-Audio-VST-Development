@@ -30,6 +30,119 @@
 
 import * as Juce from "./juce/index.js";
 
+// ════════════════════════════════════════════════════════════════════════════
+// INTERFACE LANGUAGE (v1.3.0) — canon v2, verbatim from scripts/i18n-canon.js.
+//
+// It sits HERE, directly under the import and above every other declaration in
+// this module, because `uiLanguage` is a module-level `let`: anything above it
+// that reached applyLabel() would touch it inside its temporal dead zone and
+// throw out of module evaluation, taking the twenty parameter bindings, the
+// four canvases and the keyboard with it (pattern_module_toplevel_init_tdz).
+// This file DOES have eager top-level work below — SLIDER_IDS, FORMAT, the
+// choice-name tables — so the ordering is load-bearing here, not merely
+// defensive. `node scripts/boot-all-uis.js` is the ONLY gate in the repo that
+// sees this class of failure.
+//
+// Do NOT edit the region between the import line and the close of initI18n():
+// check-i18n assertion 6 byte-compares it against scripts/i18n-canon.js.
+// ════════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+
 // ── Parameter inventory (must match OSimpleSubtractive::ParamIDs exactly) ───
 const SLIDER_IDS = [
   "subLevel", "noiseLevel",
@@ -60,43 +173,19 @@ const TYPE_LONG = ["low-pass", "high-pass", "band-pass", "notch"];
 const SLOPE_SHORT = ["6 dB", "12 dB", "24 dB"];
 const SLOPE_DBOCT = ["6", "12", "24"];
 
-// ── Tooltip copy (plain-language pedagogy, every control + readout) ─────────
-const TIPS = {
-  oscWave:        ["Oscillator Wave", "The raw tone the filter carves from. <strong>Saw</strong> is the brightest (all harmonics), <strong>Square</strong> is hollow (odd harmonics), <strong>Triangle</strong> is soft, <strong>Sine</strong> is pure — nothing for the filter to remove."],
-  subLevel:       ["Sub Oscillator", "Mixes in a square wave one octave below the note. Adds body and weight underneath the main oscillator — useful for basses."],
-  noiseLevel:     ["Noise", "Mixes in white noise — every frequency at once. Feed it through the filter to hear the filter's shape on its own, or add breath/air to a tone."],
-  filterType:     ["Filter Type", "Which side of the cutoff is kept. <strong>Low-pass</strong> keeps lows (the classic subtractive sound), <strong>High-pass</strong> keeps highs, <strong>Band-pass</strong> keeps a band around cutoff, <strong>Notch</strong> removes a band."],
-  filterSlope:    ["Filter Slope (poles)", "How sharply the filter cuts past the cutoff. <strong>6 dB/oct</strong> = 1 pole, gentle. <strong>24 dB/oct</strong> = 4 poles, steep and aggressive. Steeper = more of the spectrum removed just past the knee."],
-  cutoff:         ["Cutoff Frequency", "The corner where the filter starts working. Lower it and watch the spectrum bars above the curve fall away — that's harmonics being removed, the heart of subtractive synthesis."],
-  resonance:      ["Resonance", "Boosts a peak right at the cutoff. A little adds vocal emphasis; push it far and the filter rings, then <em>self-oscillates</em> into a pure sine whistle at the cutoff — the curve's peak grows into a spike."],
-  filterEnvAmount:["Filter Env Amount", "How far the filter envelope sweeps the cutoff, and in which direction. Positive opens the filter on each note (bright attack); negative closes it. Bipolar: zero means the envelope does nothing."],
-  keyTrack:       ["Key Tracking", "Makes the cutoff follow the note pitch — higher notes open the filter more. At 100% the filter tracks the keyboard so timbre stays consistent across the range."],
-  filterAttack:   ["Filter Attack", "Time for the filter envelope to rise after note-on — how fast the filter sweep opens."],
-  filterDecay:    ["Filter Decay", "Time for the filter envelope to fall from its peak to the sustain level — shapes the bright-to-dark motion of a pluck."],
-  filterSustain:  ["Filter Sustain", "The cutoff-sweep level held while the key stays down."],
-  filterRelease:  ["Filter Release", "Time for the filter sweep to fall back after the key is released."],
-  ampAttack:      ["Amp Attack", "Time for loudness to rise after note-on. Short = a percussive start; long = a slow swell."],
-  ampDecay:       ["Amp Decay", "Time for loudness to fall from its peak to the sustain level."],
-  ampSustain:     ["Amp Sustain", "Loudness held while the key stays down."],
-  ampRelease:     ["Amp Release", "Time for loudness to fade after the key is released — also sets how long the voice rings out."],
-  voiceMode:      ["Voice Mode", "<strong>Poly</strong> plays chords. <strong>Mono</strong> plays one note, retriggering the envelopes each time. <strong>Legato</strong> plays one note but slurs — overlapping notes glide without retriggering."],
-  glide:          ["Glide (portamento)", "Time to slide pitch from one note to the next. Most audible in Mono/Legato — zero is an instant jump."],
-  outputLevel:    ["Output Level", "Master output trim in decibels. -60 dB is silence."],
-  headline:       ["Filter Response over Spectrum", "The amber line is the filter's frequency response — the shape it imposes. The bars are the live output spectrum. Harmonics sitting above the curve's knee get pushed down: you are watching the filter remove sound."],
-  scope:          ["Output Waveform", "The post-filter signal in the time domain. Watch a bright saw round off into a smooth shape as you lower the cutoff, or ring as resonance climbs."],
-  filterAdsr:     ["Filter Envelope → cutoff", "The shape that sweeps the cutoff over time (Attack-Decay-Sustain-Release). The dashed marker shows the envelope's <em>live</em> output as you play — this scale drives brightness, not loudness."],
-  ampAdsr:        ["Amp Envelope → level", "The shape that controls loudness over time. The dashed marker shows its live output — an independent scale from the filter envelope, so brightness and volume can move separately."],
-  routing:        ["Signal Path", "Oscillator → Filter → Amplifier. The filter envelope routes up into the filter (sweeping cutoff); the amp envelope routes up into the VCA (shaping loudness). Two envelopes, two destinations."],
-  // Lesson presets — wired live (FUNC-06).
-  lessonSawSweep: ["Saw → LP Sweep · how it's built", "The headline move: a bright saw through a 24 dB low-pass with a slow filter envelope. Watch the upper harmonics fall away under the curve as the cutoff opens and closes — the literal subtraction the method is named for."],
-  lessonPluck:    ["Pluck · how it's built", "A fast filter envelope (short decay, low sustain) snaps the cutoff bright-then-dark, while a quick amp decay makes a percussive note. Filter env does the timbral work."],
-  lessonSweep:    ["Sweep Pad · how it's built", "Slow amp attack swells the level in; a long, deep filter envelope opens the cutoff gradually — you hear the spectrum brighten over seconds. Pads are about slow envelopes."],
-  lessonAcid:     ["Acid Bass · how it's built", "High resonance + a snappy filter envelope on a saw through a 24 dB low-pass — the squelchy, ringing peak that defines the acid sound. Mono with a touch of glide."],
-  lessonSelfOsc:  ["Self-Oscillation · how it's built", "Resonance pushed to the limit with the oscillators down: the filter rings on its own into a pure sine at the cutoff. The filter becomes the sound source."],
-  lessonBrass:    ["Brass Stab · how it's built", "Positive filter-env amount so the cutoff opens with the attack and holds — brightness tracks the note like a blown brass instrument. A short, firm amp envelope gives the stab."],
-  lessonSquareBass: ["Square Bass · how it's built", "A hollow square wave (odd harmonics only) plus the sub-oscillator an octave down for weight, through a 24 dB low-pass. Mono, so it plays as one solid bass voice — a polysynth is just several of these in parallel."],
-  lessonNoiseWind:  ["Filtered Noise · how it's built", "Push the noise source up and band-pass it: with no harmonic source the filter sculpts pitchless air into wind. Slow envelopes swell it in and out — how subtractive synthesis makes breath and percussion, not just notes."],
-};
+// ── Tooltip copy ───────────────────────────────────────────────────────────────
+// MOVED to js/i18n.js at v1.3.0. Through v1.2.5 the copy lived in a `TIPS`
+// object here and each anchor carried the KEY in its own data-tip attribute.
+// applyI18n now WRITES data-tip (the body) and data-tip-title on every anchor
+// named by TIP_BINDINGS, so the renderer below reads the attributes rather than
+// a table — one code path, and no way for a tip to be stranded in the previous
+// language after the selector fires.
+//
+// The bodies lost their strong/em emphasis tags on the way. The WORDS are
+// unchanged, and were compared back to v1.2.5 with entities decoded rather than
+// re-typed. check-i18n assertion 9 forbids an angle bracket in an i18n.js
+// string literal, and it is right to: the renderer writes textContent now, so a
+// tag would render as literal characters rather than as emphasis.
 
 // ── Knob geometry ──────────────────────────────────────────────────────────
 const KNOB_MIN_DEG = -135;   // 0.0 normalised
@@ -518,10 +607,26 @@ function setupTooltips() {
   if (!tip) return;
   let active = null;
 
-  const show = (key, x, y) => {
-    const entry = TIPS[key];
-    if (!entry) return;
-    tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
+  // The copy is read from the anchor's OWN attributes, which applyI18n rewrote
+  // in the current language. v1.2.5 looked it up in a TIPS object keyed by the
+  // anchor's data-tip; that table is gone, and with it the second code path
+  // that would have gone stale on a language switch.
+  //
+  // Built with createElement + textContent, not innerHTML. The tip text is now
+  // table-sourced rather than a fixed literal, and localized copy must never
+  // reach a markup path.
+  const show = (el, x, y) => {
+    const title = el.getAttribute("data-tip-title");
+    const body = el.getAttribute("data-tip");
+    if (!title && !body) return;
+    tip.textContent = "";
+    if (title) {
+      const t = document.createElement("span");
+      t.className = "tip-title";
+      t.textContent = title;
+      tip.appendChild(t);
+    }
+    if (body) tip.appendChild(document.createTextNode(body));
     tip.classList.add("show");
     tip.setAttribute("aria-hidden", "false");
     position(x, y);
@@ -535,21 +640,40 @@ function setupTooltips() {
     tip.style.top = `${Math.max(8, ny)}px`;
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
-  const showAtEl = (key, el) => {
-    const r = el.getBoundingClientRect();
-    active = key;
-    show(key, r.left + r.width / 2, r.bottom);
-  };
 
-  document.querySelectorAll("[data-tip]").forEach((el) => {
-    const key = el.getAttribute("data-tip");
-    el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
-    el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
-    el.addEventListener("pointerleave", hide);
-    el.addEventListener("pointerdown", hide);
-    el.addEventListener("focusin", (e) => { e.stopPropagation(); showAtEl(key, el); });
-    el.addEventListener("focusout", hide);
+  // DELEGATED on the document rather than attached per element. No anchor
+  // carries data-tip until applyI18n has run, so a querySelectorAll at setup
+  // time would bind nothing at all. Delegation has no ordering to get wrong.
+  // pointerover/pointerout and focusin/focusout are used because — unlike
+  // pointerenter/pointerleave and focus/blur — they bubble.
+  const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
+
+  document.addEventListener("pointerover", (e) => {
+    const el = anchorOf(e.target);
+    if (!el || el === active) return;
+    active = el;
+    show(el, e.clientX, e.clientY);
   });
+  document.addEventListener("pointermove", (e) => {
+    if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerout", (e) => {
+    if (!active) return;
+    // Ignore a move between two descendants of the SAME anchor: pointerout
+    // fires on every child boundary and would flicker the tip off and on.
+    if (anchorOf(e.relatedTarget) === active) return;
+    hide();
+  });
+  document.addEventListener("pointerdown", hide);
+
+  document.addEventListener("focusin", (e) => {
+    const el = anchorOf(e.target);
+    if (!el) return;
+    active = el;
+    const r = el.getBoundingClientRect();
+    show(el, r.left + r.width / 2, r.bottom);
+  });
+  document.addEventListener("focusout", hide);
 
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
 }
@@ -559,15 +683,33 @@ function setupTooltips() {
 // processor writes the whole APVTS via setValueNotifyingHost and the relays /
 // attachments sync every knob/combo back to the page (no DOM poking). The C++
 // snapshot bodies land in Stage 4 (FUNC-06) — Stage 3 ships the live bridge.
-const LESSONS = {
-  "Saw Sweep":        "Saw → LP Sweep — a bright saw through a 24 dB low-pass with a slow filter envelope. Watch the harmonics fall away under the curve: the subtraction the method is named for.",
-  "Pluck":            "Pluck — a fast filter envelope snaps bright-then-dark while the amp decays quickly; the filter envelope does the timbral work.",
-  "Brass Stab":       "Brass Stab — positive filter-env amount opens the cutoff with the attack and holds it, so brightness tracks the note like brass.",
-  "Sweep Pad":        "Sweep Pad — slow amp swell + a long, deep filter sweep open the spectrum gradually. Pads live in slow envelopes.",
-  "Acid Bass":        "Acid Bass — high resonance and a snappy filter envelope through a 24 dB low-pass make the squelchy, ringing acid sound. Mono with a touch of glide.",
-  "Square Bass":      "Square Bass — a hollow square plus the sub-oscillator for weight, played mono. The same voice as a polysynth, just one note at a time.",
-  "Noise Wind":       "Noise Wind — band-passed white noise with no harmonic source: the filter sculpts pitchless air into wind. Subtractive synthesis beyond notes.",
-  "Self-Oscillation": "Self-Oscillation — resonance at the limit: the filter rings into a pure sine that plays in tune across the keyboard. The filter becomes the source.",
+// Through v1.2.5 a LESSONS table here held each caption and applyLesson wrote
+// it with a raw `cap.textContent = LESSONS[name]`. Both the copy and the write
+// have moved: the eight captions are authored table entries in js/i18n.js, and
+// the write below goes through setLabel, which makes the caption a [data-i18n]
+// element from that moment on so the language sweep owns it. Written raw it
+// would be stranded in the language it was picked in the instant the selector
+// fires — and it is the one string on this page that is chosen by a click.
+//
+// What is left here is a dispatch from the C++ preset name (which is also the
+// button's data-preset, and is never localized) to a WRITER that names its
+// caption key as a plain string literal.
+//
+// A map of name -> key with `setLabel(cap, KEYS[name] || "label.captionDefault")`
+// reads more naturally and is what this was first written as. check-i18n
+// assertion 13 rejects it twice over, correctly: a computed key cannot be
+// checked against the table, and the `||` is the conditional-inside-a-localized-
+// string shape contract §6 forbids. Nine call sites, nine literals, and
+// assertion 15 can see that all nine keys are live.
+const LESSON_CAPTION_WRITERS = {
+  "Saw Sweep":        (el) => setLabel(el, "label.captionSawSweep"),
+  "Pluck":            (el) => setLabel(el, "label.captionPluck"),
+  "Brass Stab":       (el) => setLabel(el, "label.captionBrass"),
+  "Sweep Pad":        (el) => setLabel(el, "label.captionSweep"),
+  "Acid Bass":        (el) => setLabel(el, "label.captionAcid"),
+  "Square Bass":      (el) => setLabel(el, "label.captionSquareBass"),
+  "Noise Wind":       (el) => setLabel(el, "label.captionNoiseWind"),
+  "Self-Oscillation": (el) => setLabel(el, "label.captionSelfOsc"),
 };
 
 let applyPresetFn = null;
@@ -577,8 +719,14 @@ async function applyLesson(name) {
     try { await applyPresetFn(name); }
     catch (e) { console.error("[O-simpleSubtractive] applyFactoryPreset failed:", e); }
   }
+  // An unknown name falls back to the resting caption rather than to "", so a
+  // C++/JS name drift shows as the default text instead of a blank row.
   const cap = document.getElementById("tourCaption");
-  if (cap) cap.textContent = LESSONS[name] || "";
+  if (cap) {
+    const write = LESSON_CAPTION_WRITERS[name];
+    if (write) write(cap);
+    else setLabel(cap, "label.captionDefault");
+  }
   document.querySelectorAll(".tour-btn").forEach((b) =>
     b.classList.toggle("active", b.getAttribute("data-preset") === name));
 }
@@ -695,6 +843,55 @@ function setupKeyboard() {
   });
 }
 
+// ── Settings popover (v1.3.0) ───────────────────────────────────────────────
+// The gear panel holding the language selector. All state lives in this
+// closure, so nothing here can join a TDZ chain.
+//
+// The panel holds the selector ALONE: this plugin has no tooltips bridge and
+// never had a hover-help toggle — its help layer is always on — so a toggle row
+// would be a control for a preference that does not exist.
+//
+// Styled in O-simpleSubtractive's own aged-paper vocabulary in css/styles.css:
+// the panel wears the .group plate, the selector wears select.combo's border,
+// radius and inset shadow at panel scale, and the green is the same --green-mid
+// the .tour-btn:hover and the knob stem already use for a lit state. It is not
+// a widget pasted in unchanged from another plugin.
+function setupSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("Settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. pointerdown rather than
+  // click, so the panel is gone before a drag on a knob underneath it begins —
+  // bindKnob calls preventDefault in its own pointerdown handler.
+  document.addEventListener("pointerdown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
 // Pull the host sample rate for the headline's frequency-axis labels.
 async function fetchSampleRate() {
   try {
@@ -726,6 +923,16 @@ function boot() {
     const st = sliderState[id];
     if (st) { st.valueChangedEvent.addListener(drawDualAdsr); st.propertiesChangedEvent.addListener(drawDualAdsr); }
   });
+
+  // The popover and the language sweep go FIRST, EACH IN ITS OWN try/catch.
+  // applyI18n is what writes data-tip onto every anchor, and the delegated
+  // tooltip listeners below read that attribute — but delegation means the
+  // order between these two is free, and a translation-table typo must not be
+  // allowed to take the twenty parameter bindings, the four canvases and the
+  // keyboard down with it. That is the v1.4.0 TDZ failure this repo has already
+  // paid for once.
+  try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
 
   setupTooltips();
   setupPresets();

@@ -3,6 +3,141 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] — 2026-08-27
+
+**The page speaks French, not only the hover help.** Every caption, heading,
+button face, hint, routing label and tooltip switches with a language selector
+in a new header gear. Value readouts and the four drop-down menus stay in
+English. Third of the `O-simple*` family onto canon v2 (Stage I, batch I2).
+
+### Added
+- **Interface language, English + French.** A `⚙` gear in the header opens a
+  small panel holding the language selector. 93 French entries — 35 tooltip
+  pairs and 58 labels — every one flagged `reviewed: false`. No native speaker
+  has read them; `node scripts/check-i18n.js` prints the worklist.
+- **The gear panel holds the SELECTOR ALONE.** This plugin has no tooltips
+  bridge and never had a hover-help toggle — not a C++ one, not a localStorage
+  one — so its help layer is always on and a toggle row would be a control for a
+  preference that does not exist.
+- `Source/ui/public/js/i18n.js` — the copy table for both languages, added to
+  the `juce_add_binary_data` SOURCES block and served from a new
+  `getResource()` branch in the same commit. A branch missing there is a BLANK
+  page, not an English one: `app.js` imports the table, and an import that fails
+  to resolve takes the whole module down.
+- **`getUiLanguage` / `setUiLanguage` native functions.** Plain
+  `withNativeFunction`, no relay: the language is not a parameter and must not
+  reach a DAW automation lane, and a lesson preset must not be able to change
+  which language somebody reads their interface in. Pulled once by the page at
+  init; nothing pushes, and `applyFactoryPreset` sets parameters only.
+- **The choice persists with the session.** `uiLanguage` rides the APVTS tree as
+  a plain property, written as the STRING `"en"` / `"fr"` and restored behind an
+  `isVoid()` gate — the ValueTree→XML round-trip rebuilds every property as a
+  string var, so an `isInt()` predicate would never fire
+  (`critical_valuetree_xml_roundtrip_loses_type`). A pre-1.3.0 session has no
+  property and English stands.
+- `tests/i18n-states.json` — two states the label gate cannot reach on its own:
+  the gear panel open, and a lesson preset picked (the tour caption is chosen by
+  a click and is never the resting string).
+
+### Changed
+- **Tooltip copy MOVED out of `js/app.js`'s `TIPS` object into `js/i18n.js`.**
+  All 33 entries were extracted mechanically and compared back to v1.2.5
+  byte-for-byte with entities decoded, not re-typed. The renderer now reads the
+  anchor's own `data-tip-title` / `data-tip`, which `applyI18n` rewrites per
+  language — one code path, and no way for a tip to be stranded in the previous
+  language after the selector fires.
+- **The 33 markup anchors moved off `data-tip`.** `applyI18n` WRITES `data-tip`
+  as the tip BODY, so the key and the copy would have fought over one attribute.
+  The 20 parameter cells gained `data-param` naming the APVTS parameter they
+  drive; the three panels and two envelope canvases gained an id; the eight
+  lesson buttons are addressed by the `data-preset` they already carried.
+- **The tooltip listeners are DELEGATED on the document.** The old setup-time
+  `document.querySelectorAll("[data-tip]")` would now bind nothing at all — no
+  anchor carries `data-tip` until the first sweep runs. `pointerover` /
+  `pointerout` / `focusin` / `focusout` are used because, unlike
+  `pointerenter` / `pointerleave` and `focus` / `blur`, they bubble; a
+  `pointerout` whose `relatedTarget` is inside the same anchor is ignored or the
+  tip flickers on every child boundary.
+- **The tip bodies lost their `<strong>` / `<em>` emphasis tags.** The WORDS are
+  unchanged. The renderer builds the tip with `createElement` + `textContent`
+  now rather than `innerHTML`, because the copy is table-sourced and localized
+  rather than a fixed literal, and localized copy must never reach a markup
+  path. `check-i18n` assertion 9 rejects an angle bracket in an `i18n.js` string
+  literal for the same reason.
+- **The eight lesson captions are table entries, written through `setLabel`.**
+  Through v1.2.5 a `LESSONS` table in `app.js` held them and `applyLesson` wrote
+  one with a raw `cap.textContent =`. A string written that way is stranded in
+  the language it was picked in the instant the selector fires — and it is the
+  one string on this page chosen by a click. What is left in `app.js` is a
+  dispatch from the C++ preset name to a writer naming its key as a plain string
+  literal: a `KEYS[name] || "…"` map reads better and `check-i18n` assertion 13
+  rejects it twice over, correctly.
+- **Four text nodes were split into their own spans** so `applyLabel`'s
+  `textContent` write cannot delete a sibling: the two `.viz-label` captions
+  beside their hint spans, the two `.group-title` captions beside their
+  `.group-route` suffix, the `Play ·` caption beside the keyboard hint, and the
+  `Res` abbreviation between the two routing readouts.
+- The keyboard hint's HAIR SPACES (U+200A) are carried as `\u200a` escapes in
+  the table. `applyLabel` writes the table string over the authored markup, so a
+  plain space there would have silently widened the QWERTY key run in BOTH
+  languages — invisible to an English-vs-French geometry diff, and a change to
+  the shipped English nobody asked for.
+
+### Fixed
+- **16 knobs, 4 combos and 2 focusable canvases had `role="slider"` /
+  `tabindex="0"` and no accessible name at all** — pre-existing since the UI
+  shipped, and audible to a screen reader as an unnamed control. `data-i18n-aria`
+  on each one resolves through `trLabel`'s I18N fallback to the control's own
+  tooltip title, which fixes it in both languages for free. 26 keyed attributes
+  now, all 26 confirmed changing language by the gate.
+
+### Geometry — four fixes, each measured, each reverted ALONE to confirm the gate re-breaks
+D-04 forbids auto-shrink fonts and short-variant fallbacks; every move below is
+a widened container, a pinned box, or a reserved line.
+
+| Fix | Measured cause | Effect |
+|---|---|---|
+| `.title-block { flex: 1 1 auto; min-width: 0 }` | the block shrink-wrapped its widest child, the subtitle: **445.9 → 518.3px** in French | the block and the `<h1>` inside it stopped moving; the gear stays at x=1131 w=22 in both |
+| `.routing-label { flex: 0 0 77px }` (was `min-width: 70px`) | the caption's own max-content width, **76.1px** English vs **113.1px** French, is what positions `#routingSvg` — the whole diagram and its **eleven** children moved **37.0px** right | pinned; "CHAÎNE DU SIGNAL" wraps to two lines inside the box, which the row affords at zero cost (`.routing-panel` is 106px in both because `#routingSvg` is a fixed 92px and `align-items:center` re-centres) |
+| `.tour-label { flex: 0 0 99px }` + `.tour-buttons { flex: 1 1 auto; min-width: 0 }` | French is **SHORTER** here — 98.8px → 46.1px — so `.tour-buttons` started **52.7px further left** and shrink-wrapped **89.1px wider** around its French captions | both boxes pinned; 99px is the English caption's own measured width, so the English row is unchanged to within 0.2px |
+| `.group-filter .knob-label { min-height: 2.2em }` | exactly **one** caption of the twenty wraps: "KEY TRACK" is 59.0px on one line, "SUIVI CLAVIER" is 60.0px in a 60px cell, so that cell grew 10.4px and pushed `#val-keyTrack` down by one line-height | the line is reserved in both languages. SCOPED to the Filter group rather than all twenty cells — the whole-rack version would charge every group for one cell's wrap |
+
+**Frame cost: zero.** The scroll extent inside the 1180 x 820 editor is
+**1118px in an 814px client area — identical at v1.2.5 and v1.3.0, and
+identical in both languages.** The frame has scrolled since the UI shipped;
+nothing here made that worse. Row 1 of `.controls` is 281.9px and the keyboard
+bottom is 1100.8px in every combination measured.
+
+**The 1180 x 820 frame is a Locked Decision. Nothing here moves it.**
+
+### Testing
+- `check-i18n.js --plugin O-simpleSubtractive`: exit 0, on **canon v2**.
+- `check-i18n.js --strict-v2`: exit 0 repo-wide — **10 canon v2, 0 canon v1**.
+- `check-ui-labels.js --plugin O-simpleSubtractive`: **ALL CHECKS PASSED**
+  across three states (default, gear panel open, lesson preset picked) with
+  **ZERO** non-label elements moved between English and French; vacuity
+  48/52 labels (92%) and 26/26 attributes confirmed actually switching;
+  `dataset.label === textContent` holding after init, after the switch and
+  after a state pass in both languages; 53 of 52 `[data-i18n]` elements visible
+  in at least one state; no uncaught page error; every resource served.
+- Negative controls: each of the five CSS rules above reverted ALONE re-breaks
+  assertion 7 with the exact deltas tabled — none of them is decoration.
+- `boot-all-uis.js`: clean, 52 i18n elements, 0 native `title=`.
+- Render harness: **ALL PASS, 19 probes**, with v1.2.5's numbers unchanged
+  (`noteoff-click` preRms 0.1555 / tailRms 0.1058, `curve-vs-measured`
+  maxErrDb 0.00, `self-osc-in-tune` ratio 2.016).
+- `auval -a` lists `aumu OSiS OuDv`.
+
+### Not verified
+- **The C++ persistence round-trip has not been executed by hand on this
+  plugin.** That a language choice survives a session save/quit/reopen is
+  reasoned from `getStateAsXml()`/`setStateFromXml()` and the `isVoid()` guard,
+  not measured.
+- **Windows / WebView2.** WebView2 font metrics differ from WebKit's, so a
+  French label measured as fitting on macOS could clip on Windows. Carried as a
+  named deferral, blocked on hardware — the same one
+  `.github/workflows/ci-tests.yml` already records.
+
 ## [1.2.5] — 2026-08-25
 
 ### Fixed
