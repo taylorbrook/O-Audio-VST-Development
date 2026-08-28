@@ -701,6 +701,82 @@ int main()
                  + " paramsSurvive="       + (paramOk   ? "y" : "n"));
     }
 
+    // --- 11: interface-language state round-trip (1.4.0) ---------------------
+    // uiLanguage rides the SAME custom <UI> child as tipsEnabled, so it is
+    // invisible to auval and to every render test above for the same reason.
+    // Two failure modes are specific to it and both are asserted here.
+    //
+    // 1. It is persisted as the CODE ("en"/"fr"), not the runtime int, because
+    //    the ValueTree -> XML round-trip rebuilds every property as a string var
+    //    (critical_valuetree_xml_roundtrip_loses_type). A restore that gated on
+    //    isInt() would never fire and every session would come back English.
+    // 2. A pre-1.4.0 session HAS a <UI> child (1.3.0 wrote one for tipsEnabled)
+    //    but no uiLanguage attribute on it. That is the case a child-presence
+    //    check would get wrong: the child is valid, the property is VOID, and
+    //    only isVoid() distinguishes the two.
+    {
+        auto roundTrip = [&] (int lang)
+        {
+            proc.setUiLanguage (lang);
+            juce::MemoryBlock mb;
+            proc.getStateInformation (mb);
+
+            OSimpleSamplerAudioProcessor fresh;
+            fresh.setPlayConfigDetails (0, 2, fs, 512);
+            fresh.prepareToPlay (fs, 512);
+            fresh.setStateInformation (mb.getData(), (int) mb.getSize());
+            const int got = fresh.getUiLanguage();
+            fresh.releaseResources();
+            return got == lang;
+        };
+
+        const bool frOk = roundTrip (1);
+        const bool enOk = roundTrip (0);
+
+        bool defaultOk = false;
+        {
+            OSimpleSamplerAudioProcessor fresh;             // never restored
+            defaultOk = (fresh.getUiLanguage() == 0);       // must ship English
+        }
+
+        // Persisted as the CODE, and a 1.3.x tree (a <UI> child WITHOUT the
+        // attribute) must restore to English rather than to whatever this
+        // instance holds.
+        bool codeOk = false, legacyOk = false;
+        {
+            proc.setUiLanguage (1);                         // must NOT leak through
+            juce::MemoryBlock mb;
+            proc.getStateInformation (mb);
+
+            if (auto xml = juce::AudioProcessor::getXmlFromBinary (mb.getData(), (int) mb.getSize()))
+            {
+                if (auto* ui = xml->getChildByName ("UI"))
+                {
+                    codeOk = ui->getStringAttribute ("uiLanguage") == "fr";
+                    ui->removeAttribute ("uiLanguage");     // a 1.3.x <UI> child
+                }
+
+                juce::MemoryBlock legacy;
+                juce::AudioProcessor::copyXmlToBinary (*xml, legacy);
+
+                OSimpleSamplerAudioProcessor fresh;
+                fresh.setPlayConfigDetails (0, 2, fs, 512);
+                fresh.prepareToPlay (fs, 512);
+                fresh.setStateInformation (legacy.getData(), (int) legacy.getSize());
+                legacyOk = (fresh.getUiLanguage() == 0);
+                fresh.releaseResources();
+            }
+        }
+
+        check ("language-state-roundtrip",
+               frOk && enOk && defaultOk && codeOk && legacyOk,
+               String ("fr->fr=")             + (frOk      ? "y" : "n")
+                 + " en->en="                 + (enOk      ? "y" : "n")
+                 + " freshDefaultEn="         + (defaultOk ? "y" : "n")
+                 + " persistedAsCode="        + (codeOk    ? "y" : "n")
+                 + " legacyUiNoLangProp->en=" + (legacyOk  ? "y" : "n"));
+    }
+
     // --- no click on note-off (v1.3.1 regression probe) -----------------------
     // Amp sustain 0 + slow decay, note-off while the tail still rings. The
     // per-block ADSR param push used to zero the release rate (recalculateRates

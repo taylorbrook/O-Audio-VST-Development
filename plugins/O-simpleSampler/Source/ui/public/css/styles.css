@@ -123,6 +123,7 @@ body {
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .header {
   display: flex;
+  flex-wrap: wrap;              /* v1.4.0 — lets .tour-caption take its own row */
   align-items: flex-start;
   justify-content: space-between;
   border-bottom: 1px solid rgba(139, 115, 85, 0.4);
@@ -132,8 +133,19 @@ body {
    of the row. Without flex:0 0 auto it shrinks to the leftover width (207 px at
    980), and the hair spaces around the en-dash are break opportunities — so
    "O – simpleSampler" folded onto two lines and the subtitle onto two more.
-   Sizing it to its content plus nowrap pins both to one line each. */
-.title-block { flex: 0 0 auto; }
+   Sizing it plus nowrap pins both to one line each.
+
+   v1.4.0 — the width is now PINNED, to the WIDER of the two languages. Left at
+   auto the block is sized by whichever of the wordmark and the strapline is
+   longer, and the French strapline is 370.8 px against the English 246.2 — a
+   124.6 px widening that pushed the whole preset bar sideways.
+
+   372 px is the FRENCH measurement, not the English one, so neither language
+   wraps. Nothing moves in English as a result: .header is space-between and
+   .preset-bar-container packs its own contents to the right, so widening the
+   left item only moves the container's invisible left edge. Measured: the
+   chips sit at x=446.9 both before and after the pin. */
+.title-block { flex: 0 0 372px; }
 .title {
   font-size: 26px;
   font-weight: 400;
@@ -278,6 +290,16 @@ body {
   box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
 }
 
+/* SCOPED-DOWN NOTE (see .group-pitch .knob-label at the foot of this file).
+   min-height reserves TWO lines, v1.4.0. A .knob-label inside a
+   `flex-direction: column; align-items: center` cell shrink-wraps to its text,
+   so its own box is language-dependent — harmless, because the label is a
+   [data-i18n] element the geometry diff excludes. What is NOT harmless is the
+   WRAP: "Note de réf." takes two lines where "Root Key" takes one, and the
+   readout under it drops 10.5 px, taking the whole Pitch group and the two
+   rows below it with it. Five of this rack's cells already wrap in English
+   ("Loop Start", "Loop End", "Loop Mode"), so reserving the second line
+   everywhere costs height only on the rows where every caption is short. */
 .knob-label {
   font-size: 9.5px;
   text-transform: uppercase;
@@ -362,7 +384,13 @@ body {
   width: 100%;
   text-align: right;
   margin-top: 4px;
-  min-height: 1.2em;            /* reserve the line so the bar doesn't reflow */
+  flex-basis: 100%;             /* v1.4.0 — its own row across the whole header */
+  /* Still ONE reserved line. The caption row is 926px wide as of v1.4.0 instead
+     of the preset bar's 554px, and the longest French lesson caption measures
+     ~731px, so every one of the eight captions is a single line in both
+     languages. Reserving a second line here would have cost 13.2px of English
+     page height for a line neither language uses at this width. */
+  min-height: 1.2em;
   line-height: 1.2;
 }
 
@@ -498,20 +526,34 @@ body {
      space between the "?" button and the header edge. */
   justify-content: flex-end;
 }
-.preset-bar-container > .tour-caption { flex-basis: 100%; }  /* force caption onto a new row */
 .preset-fleuron { font-size: 18px; color: var(--fleuron-color); }
 
-/* ── Tooltip visibility toggle (the "?" chip, right end of the header row) ──
-   Pressed/green = explanations ON (the shipped default). Its OWN title is
-   authored in the HTML and is never managed by the tooltip layer, so the button
-   stays self-explanatory in the state where every other tip is switched off. */
-.tips-toggle {
-  font-family: inherit;
+/* ── Settings gear + popover (v1.4.0) ───────────────────────────────────────
+   The gear takes the SAME header slot the v1.3.x "?" chip occupied, at the same
+   21px, so the header silhouette is unchanged and only the glyph differs. The
+   "?" toggle moved INSIDE the panel beside the language selector rather than
+   being duplicated.
+
+   Written in this plugin's own aged-paper vocabulary, not pasted in from
+   another: the panel wears the .group plate (rgba(250,240,230,.45) over the
+   --brown-border rule at 5px radius) the seven rack groups already wear, the
+   selector is the .combo the two drop-downs wear at panel scale, and the lit
+   face is the same --green-mid the .tour-btn.active and the old "?" chip used.
+   ------------------------------------------------------------------------- */
+#settings-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.gear-btn {
+  font-family: var(--symbol-font);   /* Garamond has no U+2699 on Windows */
   font-size: 12px;
-  font-weight: 700;
   line-height: 1;
   width: 21px;
   height: 21px;
+  padding: 0;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -523,13 +565,98 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.tips-toggle:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
-.tips-toggle[aria-pressed="true"] {
+.gear-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
+.gear-btn[aria-expanded="true"] {
   background: var(--green-mid);
   color: #f5f0e6;
   border-color: var(--green-darkest);
 }
-.tips-toggle:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+.gear-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
+
+/* z-index sits BELOW .tooltip (50) on purpose: the gear, the selector and the
+   help toggle all carry hover help, and at the top of the frame their tips land
+   on this panel. A panel above the tip would hide the help for the three
+   controls that exist to reach the help. */
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 214px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px var(--shadow-medium);
+  text-align: left;
+}
+.settings-popover[hidden] { display: none; }
+
+/* space-between with a flex:1 caption, not a shrink-to-fit one: a caption that
+   shrink-wraps makes its own box language-dependent even where nothing visibly
+   moves, and the geometry diff flags the BOX, not the glyphs
+   (pattern_flex1_container_slack_invisible_to_row_sum). */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.settings-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--brown-text);
+}
+/* The .combo, at panel scale, with its width PINNED. Left to shrink-to-fit it
+   would step with the endonym the user picked, moving the caption beside it. */
+.settings-select {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 24px;
+  padding: 2px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--brown-text);
+  background: var(--bg-paper-light);
+  border: 1px solid var(--brown-border);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.12);
+}
+.settings-select:hover { background: #fbf4e6; border-color: var(--green-dark); }
+.settings-select:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+
+/* The moved "?" toggle. Width PINNED for the same reason as the selector: its
+   face is "On"/"Off" in English and "Oui"/"Non" in French, and an unpinned
+   shrink-to-fit button would drag the caption beside it with the language. */
+.settings-toggle {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 24px;
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 1px solid var(--btn-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.settings-toggle:hover { background: rgba(139, 168, 112, 0.45); }
+.settings-toggle[aria-pressed="true"] {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: #1f2b08;
+}
+.settings-toggle:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 /* ============================================================================
    SAMPLER-SPECIFIC RULES (O-simpleSampler) — appended to the cloned base.
@@ -545,12 +672,21 @@ body {
    nowrap + no cap means the row can never fold, whatever the platform font
    metrics: the editor is a fixed 980 px and the header has ~138 px of slack
    left over after the title (246), the chips (477) and the ? button. */
+/* v1.4.0 — min-width pinned to the WIDER language. The seven French chips
+   measure 441.9 px against the English 477.1: French getting SHORTER moves the
+   fleuron and the gear beside it exactly as loudly as French getting longer,
+   and the geometry diff flags both. min-width, NOT width: a cap is what
+   orphaned "Filtered" onto a second row at 460 px, and on a platform whose
+   Garamond metrics run wider the bar must still be allowed to grow rather than
+   clip. The failure mode of a min-width on such a platform is a geometry
+   difference the gate reports, not a row that folds. */
 .preset-bar-tour {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: nowrap;
   justify-content: flex-end;
+  min-width: 478px;
 }
 .preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 8px; white-space: nowrap; }
 
@@ -580,13 +716,27 @@ body {
 }
 .rack .knob-row { gap: 14px; }
 .rack .knob-cell { width: 54px; }
-.group-source  { flex: 1 1 240px; }
-.group-region  { flex: 2 1 360px; }
-.group-pitch   { flex: 1 1 220px; }
-.group-vintage { flex: 0 1 110px; }
-.group-filter  { flex: 1 1 180px; }
-.group-amp     { flex: 2 1 320px; }
-.group-output  { flex: 0 1 130px; }
+/* CHILD COMBINATOR, v1.4.0. These seven declarations are as authored, but they
+   were DEAD: `.rack .group { flex: 1 1 auto }` above scores (0,2,0) and a bare
+   `.group-source` scores (0,1,0), so the shorthand won on specificity whatever
+   the source order and every group has been sized by its own max-content since
+   the rack was written. `.rack > .group-x` also scores (0,2,0) and comes later,
+   so the authored bases finally apply.
+
+   That dead rule is what made the rack language-dependent: with an `auto`
+   basis, the French drop-zone sentence widened the Source group by 170.8 px and
+   the rack folded from two rows into three, growing 194.4 px and pushing the
+   Output group and the keyboard out of the 980x720 frame. An explicit basis
+   takes content out of the line-breaking decision entirely, so the same three-
+   then-four split holds in both languages by construction rather than by a
+   pinned measurement. */
+.rack > .group-source  { flex: 1 1 240px; }
+.rack > .group-region  { flex: 2 1 360px; }
+.rack > .group-pitch   { flex: 1 1 220px; }
+.rack > .group-vintage { flex: 0 1 110px; }
+.rack > .group-filter  { flex: 1 1 180px; }
+.rack > .group-amp     { flex: 2 1 320px; }
+.rack > .group-output  { flex: 0 1 130px; }
 
 /* Combo + toggle row inside REGION / PITCH groups. */
 .region-row {
@@ -597,6 +747,13 @@ body {
   flex-wrap: wrap;
 }
 .toggle-cell { display: flex; align-items: flex-end; }
+/* min-width pinned to the WIDER language, v1.4.0. "Reverse" measures 86.1 px
+   against "Inverse" at 83.8 — French getting 2.3 px SHORTER drags the button's
+   right edge and the fleuron pinned to it, and the geometry diff reports both.
+   The button itself is not a [data-i18n] element (the caption inside it is), so
+   its box is measured. min-width rather than width, so a platform with wider
+   metrics grows the button instead of clipping the word. */
+#toggle-reverse { min-width: 87px; }
 select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
 
 /* Repitch-vs-Stretch readout (UI-02) — bound to the pitchMode combo. */
@@ -725,3 +882,33 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
   pointer-events: none;
 }
 .toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+
+/* ── Pitch-group caption reservation (v1.4.0, geometry pin) ─────────────────
+   The ONE caption in this rack that wraps in French and not in English is Root
+   Key -> "Note de réf.". The Pitch group is also the tallest of the three
+   groups on the rack's first row, so that single extra line took the whole row
+   down 10.4 px and pushed the Output group and the keyboard further out of the
+   980x720 frame — the frame scrolls, but the gate measures the DELTA between
+   languages and it was 10.4 px of it.
+
+   Reserved on the Pitch group's KNOB CELLS alone rather than on every
+   .knob-label: the same rule applied to all seventeen cells costs 49 px of
+   English page height against this rule's 10.4, because the Vintage / Filter /
+   Amp / Output row has no two-line caption in either language and would gain a
+   reserved line it never uses; including the Pitch group's .select-cell caption
+   costs another 10.4 for a caption that wraps in neither language, because that
+   cell is as wide as its 132 px combo. Five Region captions already wrap in
+   English, so that group pays nothing either way.
+
+   The Region group is in the same rule for a different reason and at zero cost:
+   its Loop End -> "Fin boucle" and Loop XF -> "Fondu boucle" cells each gain a
+   line in French, which moves their own readouts down 10.4 px even though the
+   ROW height never changes — Loop Start already wraps in English and is taller
+   than either. A row that does not move can still contain two cells that do.
+
+   NEGATIVE CONTROL: reverting this rule alone puts assertion 7 back to
+   reporting the Pitch group's knob-row and everything below it as moved, plus
+   the two Region cells and their readouts.
+   ------------------------------------------------------------------------- */
+.group-region .knob-cell .knob-label,
+.group-pitch  .knob-cell .knob-label { min-height: 2.2em; }

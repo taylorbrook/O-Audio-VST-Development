@@ -1096,6 +1096,16 @@ void OSimpleSamplerAudioProcessor::getStateInformation (juce::MemoryBlock& destD
     uiChild.setProperty (juce::Identifier (kTipsProp),
                          tipsEnabled.load (std::memory_order_relaxed), nullptr);
 
+    // v1.4.0 — the interface LANGUAGE, beside the tooltip preference in the same
+    // <UI> child. Written as the CODE ("en"/"fr") rather than the atomic's int
+    // index, so a hand-inspected session file says what it means — and because
+    // the ValueTree -> XML round-trip rebuilds every property as a string var
+    // anyway (critical_valuetree_xml_roundtrip_loses_type). Storing the code
+    // means the value that comes back is the value that went in, with no type
+    // predicate to misfire on the way.
+    uiChild.setProperty (juce::Identifier (kLanguageProp),
+                         languageCode (uiLanguage.load (std::memory_order_relaxed)), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -1126,6 +1136,18 @@ void OSimpleSamplerAudioProcessor::setStateInformation (const void* data, int si
                            ? (bool) uiChild.getProperty (juce::Identifier (kTipsProp), true)
                            : true,
                        std::memory_order_relaxed);
+
+    // Restore the interface language. A pre-1.4.0 session has no property (and
+    // possibly no <UI> child at all), getProperty returns a VOID var, and the
+    // default — English — stands. isVoid() is the only correct gate: the value
+    // comes back as a STRING var, so a type predicate like isInt() would never
+    // fire. languageIndex() clamps anything that is not "fr" to 0, so a
+    // hand-edited value degrades to English rather than to a bad index.
+    const juce::var lang = uiChild.isValid()
+                             ? uiChild.getProperty (juce::Identifier (kLanguageProp))
+                             : juce::var();
+    uiLanguage.store (lang.isVoid() ? 0 : languageIndex (lang.toString()),
+                      std::memory_order_relaxed);
 
     // replaceState() fires the region/loop marker listeners (Phase 2.2a), each of
     // which queues an AsyncUpdater run. Those updates are deferred (they run AFTER
