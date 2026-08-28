@@ -13,7 +13,7 @@ juce_add_plugin(O-simpleSubtractive
     PLUGIN_CODE OSiS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleSubtractive${OUARICON_DEV_SUFFIX}"
-    VERSION "1.2.5"
+    VERSION "1.3.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -50,6 +50,7 @@ juce_add_binary_data(O-simpleSubtractive_UIResources
         Source/ui/public/index.html
         Source/ui/public/css/styles.css
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
 )
