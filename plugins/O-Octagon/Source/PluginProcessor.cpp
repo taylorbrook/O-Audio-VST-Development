@@ -366,6 +366,10 @@ void OOctagonProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
         const auto outSet = getBusesLayout().getMainOutputChannelSet();
 
         safeMode.store (! oo::rig::isRealRig (outSet), std::memory_order_release);
+
+        // v1.11.0 — the binaural arm's bus gate, derived HERE for the reason safeMode is.
+        stereoBusNegotiated.store (outSet == juce::AudioChannelSet::stereo(),
+                                   std::memory_order_release);
     }
 
     // FUNC-04. Its single initialisation site, beside the others, and it needs only the rate: both
@@ -791,6 +795,22 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     // Published for the banner: armed, but not folding. The operator is told WHY.
     monitorSuppressed.store (armed && ! monitorOn, std::memory_order_release);
 
+    // ══ v1.11.0 — THE STEREO-BUS BINAURAL ARM ════════════════════════════════════════════════
+    //
+    // Selected on the NEGOTIATED bus being stereo AND the REAL BUFFER WIDTH being 2 (numOut,
+    // never getTotalNumOutputChannels — the F3 rule), and on `mapped` being false, so it is
+    // exclusive with the 8-channel arm by construction. Both bus facts are needed: a 3-7 channel
+    // F3 buffer is a rig that has gone wrong, which the dry SAFE fold signposts and this must not
+    // paper over; and auval's (2,1) hands a MONO bus a 2-channel buffer whose second channel is
+    // not an output — width alone folded into it (probe AT, first run).
+    //
+    // NOT gated on isNonRealtime() — see the header: on a stereo bus the fold IS the output.
+    const bool binauralOn = ! mapped && numOut == 2
+                         && stereoBusNegotiated.load (std::memory_order_acquire)
+                         && stereoBinaural.load (std::memory_order_acquire);
+
+    binauralActive.store (binauralOn, std::memory_order_release);
+
     // ══ v1.8.0 — THE HOST CLOCK, READ ONCE PER BLOCK AND HANDED IN (P24) ════════════════════
     //
     // Exactly O-Orbit's read (PluginProcessor.cpp:561-574): getPosition() -> bpm, ppq, playing.
@@ -829,7 +849,7 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     }
 
     gainStage.process (buffer, numIn, numOut, mapped, snapshot, snapshotParameters(), &verifyPing,
-                       monitorOn, &clock);
+                       monitorOn, &clock, binauralOn);
 
     // ══ UI-03 — THE METERS. THE LAST STATEMENT IN processBlock, AND THAT IS THE POINT ═════════
     //
@@ -859,6 +879,29 @@ void OOctagonProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     //
     // getMagnitude resolves to FloatVectorOperations::findMinAndMax on a raw pointer — no
     // allocation, no lock. Probe CN re-runs AO with this loop live and still reads 0 allocations.
+    //
+    // ── v1.11.0 — THE BINAURAL ARM METERS ITS EIGHT PRE-FOLD LANES ───────────────────────────
+    // On a stereo bus the buffer holds only the folded pair, and a loop over it would light two
+    // indicators and leave six dark while the operator is working on exactly what those six
+    // show. GainStage max-merged the eight solved lanes BEFORE the fold (the same post-map,
+    // post-trim signal the 8-channel loop measures) and this exchanges them to zero — the meters
+    // then read as they would on the rig. The other two arms leave those peaks at zero.
+    if (binauralOn)
+    {
+        const auto lanes = gainStage.readAndZeroBinauralLanePeaks();
+
+        for (int i = 0; i < ochan::kNumSpeakers; ++i)
+        {
+            const auto k = static_cast<std::size_t> (i);
+            auto& slot = meterPeak[k];
+
+            if (lanes[k] > slot.load (std::memory_order_relaxed))
+                slot.store (lanes[k], std::memory_order_relaxed);
+        }
+
+        return;
+    }
+
     for (int i = 0; i < ochan::kNumSpeakers; ++i)
     {
         const int ch = mapped ? snapshot.speakerToBuffer[static_cast<std::size_t> (i)] : i;
@@ -1102,6 +1145,12 @@ void OOctagonProcessor::getStateInformation (juce::MemoryBlock& destData)
         // mean "French" if the codec ever gains a third entry.
         xml->setAttribute ("uiLanguage", languageCode (uiLanguage.load (std::memory_order_acquire)));
 
+        // v1.11.0 — the stereo-bus binaural preference rides the same root attribute idiom. It
+        // is persisted ON PURPOSE, and the block directly below is the contrast: this one can
+        // never reach an 8-channel render (processBlock selects it only on a 2-channel buffer),
+        // so the argument that keeps monitorArmed out of this function does not apply to it.
+        xml->setAttribute ("stereoBinaural", stereoBinaural.load (std::memory_order_acquire));
+
         // ── v1.7.0 — monitorArmed IS DELIBERATELY ABSENT FROM THIS FUNCTION ───────────────────
         //
         // GUARD 2 OF 4, and the only one that covers the case isNonRealtime() cannot: a REALTIME
@@ -1136,6 +1185,13 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (xml->hasAttribute ("tooltipsEnabled"))
             tooltipsEnabled.store (xml->getBoolAttribute ("tooltipsEnabled"),
                                    std::memory_order_release);
+
+        // v1.11.0 — pre-1.11.0 sessions have no attribute, so the default (ON) stands: a session
+        // saved on a stereo bus under v1.10.1 reopens audible as a spatialiser. Pulled by the
+        // page through getStatus on the 2 Hz poll, never pushed.
+        if (xml->hasAttribute ("stereoBinaural"))
+            stereoBinaural.store (xml->getBoolAttribute ("stereoBinaural"),
+                                  std::memory_order_release);
 
         // v1.6.0 — same shape for the language. Pre-1.6.0 sessions have no attribute, so the
         // default (English) stands. languageIndex() clamps anything that is not "fr" to 0, so a

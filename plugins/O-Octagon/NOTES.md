@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.10.1 (dev build installed; not released)
+- **Version:** 1.11.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -237,6 +237,13 @@
   `app.js` edit in ahead of `elevation.js`; v1.10.0 restores it (see CHANGELOG).
 
 ## Known Issues
+
+- **2026-08-27 (v1.11.0 — `/improve`, stereo-bus binaural by default):** a stereo output bus now
+  renders the eight solved feeds through `MonitorFold` to the pair instead of the dry SAFE
+  passthrough, so the panning can be worked on and heard on a stereo track / laptop with no
+  8-channel interface. Persisted preference (`stereoBinaural`, default ON) behind the existing
+  Headphones button; the eight meters read the pre-fold lanes. 8-channel rendering bit-identical
+  (probe DP clause d). Render-harness 75/75 (new DP; AT and DM now pin the preference OFF).
 
 **Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
 13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,

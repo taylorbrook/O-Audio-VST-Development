@@ -477,6 +477,13 @@ let status = {
   monitorArmed: false,
   monitorSuppressed: false,
   monitorAvailable: true,
+
+  // ── v1.11.0 — the stereo-bus binaural arm ──
+  // binauralActive is what the audio thread DID; in the stub it follows the
+  // preference whenever the bus is stereo, which is the C++ rule minus F3.
+  stereoBus: false,
+  binauralActive: false,
+  stereoBinaural: true,
 };
 
 // ── SliderState ────────────────────────────────────────────────────────────
@@ -1023,6 +1030,15 @@ const NATIVE_FNS = {
     status.monitorAvailable = available;
     if (status.monitorArmed) stopPing();
     return status.monitorArmed;
+  },
+
+  // ── v1.11.0 — the stereo-bus binaural preference ──
+  // Never refused, exactly as the C++ setter is not; the ACTIVE flag follows
+  // the preference only on a stereo bus, which is processBlock's rule.
+  setStereoBinaural: (want) => {
+    status.stereoBinaural = want === true;
+    status.binauralActive = status.stereoBinaural && status.stereoBus === true;
+    return status.stereoBinaural;
   },
 
   // ── Phase 3.3 ──

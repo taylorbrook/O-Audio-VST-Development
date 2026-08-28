@@ -29,6 +29,8 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include <array>
+#include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
@@ -232,10 +234,29 @@ public:
     /** @param clock  v1.8.0. The host transport as read ONCE per block by the processor (P24),
                       DEFAULTED so every existing call site compiles unchanged. Null means "no PPQ,
                       120 BPM" — Free mode never reads it. */
+    /** @param binauralOn  v1.11.0. The STEREO-BUS binaural arm. When true (and `mapped` is false,
+                           which the processor guarantees — the two are exclusive by construction),
+                           the REAL arm renders its eight solved feeds into an internal
+                           kControlBlock-sample scratch instead of the host buffer, MonitorFold
+                           folds them with slots {0, 1}, and the pair is copied to buffer channels
+                           0 and 1. DEFAULTED so every existing call site — the whole render
+                           harness included — compiles unchanged and renders exactly as before;
+                           PASSED IN because the "is this a stereo bus" rule lives on the
+                           processor beside isBusesLayoutSupported() (P24 / P43). */
     void process (juce::AudioBuffer<float>& buffer, int numIn, int numOut, bool mapped,
                   const VenueSnapshot& snapshot, const ParamSnapshot& p,
                   VerifyPing* ping = nullptr, bool monitorOn = false,
-                  const motion::HostClock* clock = nullptr) noexcept;
+                  const motion::HostClock* clock = nullptr, bool binauralOn = false) noexcept;
+
+    /** v1.11.0 — the eight PRE-FOLD lane peaks of the binaural arm since the last read, LINEAR,
+        and ZEROED BY THE READ. Message thread via the processor's meter read.
+
+        On a stereo bus the host buffer only ever carries the folded pair, so a meter loop over
+        the buffer would light two indicators and leave six dark while the operator is working on
+        exactly the thing those six would show. These are the solved feeds as they existed before
+        the fold — the same post-map, post-trim signal the 8-channel meters measure. Only the
+        binaural arm writes them; both other arms leave them at zero. */
+    std::array<float, kNumSpeakers> readAndZeroBinauralLanePeaks() noexcept;
 
     /** v1.8.0 — the offset the last control boundary applied, in anchor-relative metres, for the
         live puck on the venue map (rides the getMeters poll). Zero when motion is off. */
@@ -264,7 +285,7 @@ private:
                         Vec3 offset, bool motionOn) noexcept;
 
     void renderChunk (juce::AudioBuffer<float>& buffer, int start, int count,
-                      int numIn, int numOut, bool mapped,
+                      int numIn, int numOut, bool mapped, bool binauralOn,
                       const VenueSnapshot& snapshot, VerifyPing* ping) noexcept;
 
     //==========================================================================
@@ -368,6 +389,22 @@ private:
     // governs the seventeen smoothers, the eight delay ramps and the two decorrelation chains does
     // NOT extend to this, and must not be "made consistent" by a later reader.
     MonitorFold monitorFold;
+
+    // ── v1.11.0 — THE STEREO-BUS BINAURAL SCRATCH ─────────────────────────────────────────────
+    //
+    // Eight lanes of kControlBlock samples, and that bound is STRUCTURAL rather than chosen:
+    // renderChunk() is only ever called with count <= kControlBlock (process() splits every host
+    // block at the control grid), so a chunk can never outgrow this. A member rather than a
+    // per-chunk stack array so the hot loop's pointers are stable; a fixed array rather than a
+    // juce::AudioBuffer so nothing here can ever allocate (PERF-01) and a pluginval block larger
+    // than samplesPerBlock is handled by the chunk loop exactly as it is for the host buffer.
+    //
+    // out[] in the binaural arm points at these, and the sample loop indexes out[i][n - off]
+    // with off = start; in the 8-channel arm off is 0 and the expression is the v1.10.1 one.
+    std::array<std::array<float, static_cast<std::size_t> (kControlBlock)>, kNumSpeakers> binauralLanes {};
+
+    /// Pre-fold lane peaks, max-merged per chunk by the audio thread, exchanged to 0 by the read.
+    std::array<std::atomic<float>, kNumSpeakers> binauralLanePeak {};
 
     /** The dry -> decorrelated crossfade, 0 or 1, on the same 5 ms as everything else.
 

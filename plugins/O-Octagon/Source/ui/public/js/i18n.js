@@ -138,9 +138,9 @@ export const I18N = Object.freeze({
     },
     'monitor-toggle': {
         en: { t: 'Monitor on headphones',
-              b: 'Fold the eight speaker feeds to a stereo pair so the piece can be heard away from the venue. Position, distance and inter-aural delay come from the measured venue geometry. This is a listening aid — it cannot reach an offline render.' },
+              b: 'Fold the eight speaker feeds to a stereo pair so the piece can be heard away from the venue. Position, distance and inter-aural delay come from the measured venue geometry. On the 8‑channel rig this is a listening aid that cannot reach an offline render; on a stereo bus it is on by default, is remembered with the session, and is what the bus outputs.' },
         fr: { t: 'Écoute au casque',
-              b: 'Replie les huit sorties haut-parleurs en une paire stéréo pour écouter la pièce hors du lieu. La position, la distance et le retard interaural proviennent de la géométrie mesurée du lieu. C’est une aide à l’écoute — elle ne peut pas atteindre un export hors ligne.',
+              b: 'Replie les huit sorties haut-parleurs en une paire stéréo pour écouter la pièce hors du lieu. La position, la distance et le retard interaural proviennent de la géométrie mesurée du lieu. Sur le dispositif à 8‑canaux, c’est une aide à l’écoute qui ne peut pas atteindre un export hors ligne ; sur un bus stéréo, elle est active par défaut, conservée avec la session, et constitue la sortie du bus.',
               reviewed: false },
     },
 
@@ -656,6 +656,16 @@ export const LABELS = Object.freeze({
     'monitor.folding.rail':{ en: { t: 'folding to outputs 1–2' },
                              fr: { t: 'repli vers les sorties 1–2', reviewed: false } },
     'monitor.off':         { en: { t: 'off' }, fr: { t: 'désactivé', reviewed: false } },
+
+    // v1.11.0 — the stereo-bus binaural arm. The banner's copy half and the
+    // rail line, through the same renderMonitor() / setLabel() path.
+    // WIDTH, as monitor.suppressed: the header already carries the title, the tab pair and
+    // the gear, and check-ui-labels measured the long form ("Repli binaural du dispositif à
+    // 8 · canaux — bus stéréo", 358 px) crossing the 1100 px frame. Shortened ONCE, here.
+    'monitor.binaural':    { en: { t: 'Binaural fold — stereo bus, not the rig' },
+                             fr: { t: 'Repli binaural — bus stéréo, pas le dispositif', reviewed: false } },
+    'monitor.binaural.rail':{ en: { t: 'binaural on the stereo bus' },
+                             fr: { t: 'binaural sur le bus stéréo', reviewed: false } },
 
     // ── Room screen: the plan, the puck, the weights ────────────────────────
     'aria.puck':         { en: { t: 'Source position' },

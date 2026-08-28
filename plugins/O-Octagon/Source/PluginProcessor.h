@@ -255,6 +255,58 @@ public:
     }
 
     //==============================================================================
+    // ── v1.11.0 — THE STEREO-BUS BINAURAL ARM ───────────────────────────────────────────────────
+    //
+    // When the host negotiates a STEREO output — a stereo track, a laptop with no 8-channel
+    // interface — SAFE mode used to write the dry input at unity, and the spatialiser was
+    // un-auditionable until the session reached a rig. Now the same MonitorFold that serves the
+    // 8-channel monitor folds the eight SOLVED feeds to the stereo pair, so the panning can be
+    // worked on and heard anywhere. The eight feeds are rendered into a scratch by the REAL arm
+    // (GainStage.h), so what is heard is the actual rig feed, not a second panner.
+    //
+    // ── IT IS DELIBERATELY NOT THE MONITOR ARM, AND NONE OF ITS FOUR GUARDS APPLY ─────────────
+    //
+    // The monitor arm exists to keep a headphone fold OUT of an 8-channel delivery, and its guards
+    // (not a parameter, not persisted, suppressed offline, cleared on bypass) all serve that. On a
+    // STEREO bus there is no 8-channel delivery to protect: the alternative to the fold is the
+    // dry input, which is no more "the piece" than the fold is. So this one:
+    //
+    //   * IS persisted (a root XML attribute beside tooltipsEnabled — the SAME idiom, for the
+    //     same reason), defaulting ON so a fresh stereo insert is audible as a spatialiser;
+    //   * is NOT suppressed by isNonRealtime() — on a stereo bus what you hear is what you
+    //     bounce, which is the least surprising rule available;
+    //   * can never reach an 8-channel render: processBlock() selects it ONLY when the buffer is
+    //     exactly 2 channels and the map is unavailable, and GainStage jasserts the exclusion.
+    //
+    // Turned off, a stereo bus behaves exactly as v1.10.1's SAFE mode did.
+
+    /** Message thread. The persisted preference. */
+    void setStereoBinauralEnabled (bool shouldEnable) noexcept
+    {
+        stereoBinaural.store (shouldEnable, std::memory_order_release);
+    }
+
+    bool isStereoBinauralEnabled() const noexcept
+    {
+        return stereoBinaural.load (std::memory_order_acquire);
+    }
+
+    /** True when the LAST BLOCK actually took the binaural arm — a 2-channel buffer, an
+        unavailable map, and the preference on. Written by the audio thread; the banner reads it
+        so it reports what the plugin is DOING rather than what the page asked for. */
+    bool isBinauralActive() const noexcept
+    {
+        return binauralActive.load (std::memory_order_acquire);
+    }
+
+    /** True when the negotiated output is stereo — the one SAFE-mode layout the binaural arm
+        can serve. Mono and the F3 3-7 channel case stay on the dry SAFE fold. Message thread. */
+    bool isStereoBus() const noexcept
+    {
+        return stereoBusNegotiated.load (std::memory_order_acquire);
+    }
+
+    //==============================================================================
     // ── UI-03 — the eight meters (Phase 3.3) ────────────────────────────────────────────────────
 
     /** The eight peaks since the last read, LINEAR, and ZEROED BY THE READ. Message thread.
@@ -357,6 +409,14 @@ public:
 
     /// Written by the AUDIO thread each block: armed, but suppressed by an offline render.
     std::atomic<bool> monitorSuppressed { false };
+
+    /** v1.11.0 — the stereo-bus binaural preference. PERSISTED, unlike monitorArmed directly
+        above, and the header comment on setStereoBinauralEnabled() says why the contrast is the
+        right one. Default ON. */
+    std::atomic<bool> stereoBinaural { true };
+
+    /// Written by the AUDIO thread each block: the binaural arm was the one that rendered.
+    std::atomic<bool> binauralActive { false };
 
     /** v1.6.0 — the hover-help LANGUAGE. 0 = en, 1 = fr.
 
@@ -506,6 +566,13 @@ private:
         juce::String is a race — the name is resolved inside the native function, on the message
         thread, from the bus that owns it. */
     std::atomic<bool> safeMode { false };
+
+    /** v1.11.0. Written beside safeMode in prepareToPlay(), from the NEGOTIATED output set, and
+        read by the audio thread as the binaural arm's gate. The buffer width alone is not enough:
+        a stereo-in / mono-out negotiation — auval's (2,1) — hands processBlock a 2-channel buffer
+        whose second channel is not an output at all, and a width-only rule folded into it (probe
+        AT caught this on the first run). The bus must BE stereo, not merely be handed two. */
+    std::atomic<bool> stereoBusNegotiated { false };
 
     oo::VenueSnapshotPublisher venuePublisher;
 

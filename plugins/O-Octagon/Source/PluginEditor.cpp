@@ -589,6 +589,17 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             obj->setProperty ("monitorAvailable",  ! processorRef.isSafeMode()
                                                 && ! processorRef.isChannelMapInvalid());
 
+            // ── v1.11.0 — THE STEREO-BUS BINAURAL ARM ────────────────────────
+            // Same poll, same argument. stereoBus is what the page needs to know
+            // to make the Headphones button live on a stereo insert;
+            // binauralActive is what the AUDIO THREAD actually did last block,
+            // so the banner reports the fold that is happening rather than the
+            // preference that asked for it (an F3 3-7 channel buffer, or a
+            // mono bus, keeps the preference and takes the dry fold anyway).
+            obj->setProperty ("stereoBus",         processorRef.isStereoBus());
+            obj->setProperty ("binauralActive",    processorRef.isBinauralActive());
+            obj->setProperty ("stereoBinaural",    processorRef.isStereoBinauralEnabled());
+
             complete (juce::var (obj));
         });
 
@@ -1475,6 +1486,22 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             processorRef.setMonitorArmed (want);
 
             complete (juce::var (processorRef.isMonitorArmed()));
+        });
+
+    // v1.11.0 — the stereo-bus binaural preference. A plain setter, never
+    // refused: unlike the monitor arm it has no precondition to fail, because
+    // the audio thread decides per block whether the arm applies. The
+    // completion echoes the stored preference; whether the fold is ACTIVE
+    // arrives on the next getStatus poll as binauralActive, exactly as the
+    // monitor's armed state does.
+    options = options.withNativeFunction ("setStereoBinaural",
+        [this] (auto& args, auto complete)
+        {
+            const bool want = args.size() > 0 && static_cast<bool> (args[0]);
+
+            processorRef.setStereoBinauralEnabled (want);
+
+            complete (juce::var (processorRef.isStereoBinauralEnabled()));
         });
 
     // THERE IS DELIBERATELY NO getMonitorArmed. getStatus already carries

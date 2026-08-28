@@ -2315,6 +2315,11 @@ int main()
                 continue;
             }
 
+            // v1.11.0: the stereo-bus binaural arm is ON by default and would take the (1,2) and
+            // (2,2) configs. This probe is about the DRY SAFE fold, which is what the preference
+            // OFF restores; probe DP owns the arm itself, including that OFF is this exact fold.
+            proc.setStereoBinauralEnabled (false);
+
             // A non-default Output gain, so "not applied" is distinguishable from "applied at 0 dB".
             setParam (proc, "outputGain", -12.0f);
 
@@ -6957,6 +6962,7 @@ int main()
         for (auto* p : { &a, &b })
         {
             negotiate (*p, mono, juce::AudioChannelSet::stereo());
+            p->setStereoBinauralEnabled (false);   // v1.11.0: this probe is about the DRY fold (see AT)
             setParam (*p, "srcX", 0.3f);
             setParam (*p, "width", 4.0f);
         }
@@ -7063,6 +7069,185 @@ int main()
         check ("DO version-hints-monotone", seen == 28 && wrong == 0,
                juce::String (seen) + " parameters, " + juce::String (wrong) + " off-generation"
                    + (wrong > 0 ? ": " + detail : juce::String ("; originals 1, decorr 2, motion* 3")));
+    }
+
+
+    //==========================================================================
+    // DP — v1.11.0: THE STEREO-BUS BINAURAL ARM. Six clauses, each with the failure it names.
+    //
+    //   (a) A stereo negotiation, preference at its default, takes the arm: isBinauralActive()
+    //       is true after a block and the output is NOT the dry input (v1.10.1 wrote 0.25 back).
+    //   (b) POSITION-DEPENDENT, AND THE CONVENTION. Source hard left -> the LEFT ear is louder;
+    //       hard right -> the RIGHT ear. A mirrored fold or a fold of a constant would pass a
+    //       "not silent" check and fail here. Measured after the engage ramp and the delay ramps.
+    //   (c) Preference OFF is the v1.10.1 dry fold EXACTLY: output == input at unity.
+    //   (d) EXCLUSION with the 8-channel arm: a 7.1 negotiation with the preference ON never
+    //       reports the arm active, and renders BIT-IDENTICALLY to the preference OFF. This is
+    //       the clause that keeps v1.11.0 out of every 8-channel delivery.
+    //   (e) THE (2,1) TRAP: stereo-in / mono-out hands processBlock a 2-channel buffer on a MONO
+    //       bus. The arm must not take it (first run of AT caught a width-only rule doing so).
+    //   (f) The eight meters read the PRE-FOLD lanes: a wide source on the stereo bus lights more
+    //       than the two indicators the host buffer could ever account for.
+    {
+        const auto stereoOut = juce::AudioChannelSet::stereo();
+        bool         ok = true;
+        juce::String detail;
+
+        // (a)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, stereoOut);
+
+            juce::AudioBuffer<float> block (2, kBlockSize);
+            juce::MidiBuffer         midi;
+            bool finite = true;
+            float written = 0.0f;
+
+            for (int i = 0; i < 8; ++i)
+            {
+                block.clear();
+                for (int n = 0; n < kBlockSize; ++n) block.setSample (0, n, 0.25f);
+                proc.processBlock (block, midi);
+                finite = finite && allFinite (block);
+                written = block.getSample (0, kBlockSize - 1);
+            }
+
+            const bool active  = proc.isBinauralActive();
+            const bool notDry  = std::abs (written - 0.25f) > 1.0e-3f;
+            const bool live    = block.getMagnitude (0, 0, kBlockSize) > 1.0e-4f
+                              && block.getMagnitude (1, 0, kBlockSize) > 1.0e-4f;
+
+            ok = ok && active && notDry && live && finite;
+            detail << "(a) active " << (active ? "yes" : "NO") << ", ch0 wrote " << juce::String (written, 4)
+                   << (notDry ? " (not the dry 0.25)" : " — THE DRY INPUT")
+                   << (live ? ", both ears live" : " — AN EAR IS SILENT")
+                   << (finite ? "" : " — NaN/Inf") << "; ";
+        }
+
+        // (b)
+        {
+            constexpr int total = 4096 * 3;
+            constexpr int skip  = 4096;                                // engage + delay ramps
+            OOctagonProcessor left, right;
+            const auto range = OOctagonProcessor().getAPVTS().getParameterRange ("srcX");
+
+            negotiate (left,  mono, stereoOut);  setParam (left,  "srcX", range.start);
+            negotiate (right, mono, stereoOut);  setParam (right, "srcX", range.end);
+
+            juce::AudioBuffer<float> outL (2, total), outR (2, total);
+            renderInto (left,  outL, total, { 1, 7, 64, 333, 4096 }, {});
+            renderInto (right, outR, total, { 1, 7, 64, 333, 4096 }, {});
+
+            const float lL = outL.getRMSLevel (0, skip, total - skip), lR = outL.getRMSLevel (1, skip, total - skip);
+            const float rL = outR.getRMSLevel (0, skip, total - skip), rR = outR.getRMSLevel (1, skip, total - skip);
+
+            const bool leftIsLeft   = lL > lR * 1.2f;
+            const bool rightIsRight = rR > rL * 1.2f;
+            const bool differs      = ! bitIdentical (outL, outR);
+
+            ok = ok && leftIsLeft && rightIsRight && differs;
+            detail << "(b) src left L/R " << juce::String (lL, 4) << "/" << juce::String (lR, 4)
+                   << (leftIsLeft ? "" : " — LEFT EAR NOT LOUDER")
+                   << ", src right L/R " << juce::String (rL, 4) << "/" << juce::String (rR, 4)
+                   << (rightIsRight ? "" : " — RIGHT EAR NOT LOUDER")
+                   << (differs ? "" : " — POSITION-INDEPENDENT") << "; ";
+        }
+
+        // (c)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, stereoOut);
+            proc.setStereoBinauralEnabled (false);
+
+            juce::AudioBuffer<float> block (2, kBlockSize);
+            juce::MidiBuffer         midi;
+            bool dry = true;
+
+            for (int i = 0; i < 4; ++i)
+            {
+                block.clear();
+                for (int n = 0; n < kBlockSize; ++n) block.setSample (0, n, testSample (n));
+                proc.processBlock (block, midi);
+                for (int n = 0; n < kBlockSize; ++n)
+                    if (! juce::exactlyEqual (block.getSample (0, n), testSample (n))) dry = false;
+            }
+
+            const bool inactive = ! proc.isBinauralActive();
+            ok = ok && dry && inactive;
+            detail << "(c) OFF: " << (dry ? "bit-exact dry fold" : "NOT THE DRY FOLD")
+                   << (inactive ? "" : ", STILL REPORTS ACTIVE") << "; ";
+        }
+
+        // (d)
+        {
+            constexpr int total = 4096 * 2;
+            OOctagonProcessor on, off;
+            negotiate (on,  mono, set71);
+            negotiate (off, mono, set71);  off.setStereoBinauralEnabled (false);
+            setParam (on, "srcX", 0.4f);   setParam (off, "srcX", 0.4f);
+
+            juce::AudioBuffer<float> outOn (8, total), outOff (8, total);
+            renderInto (on,  outOn,  total, { 1, 7, 64, 333, 4096 }, {});
+            renderInto (off, outOff, total, { 1, 7, 64, 333, 4096 }, {});
+
+            const bool identical = bitIdentical (outOn, outOff);
+            const bool inactive  = ! on.isBinauralActive();
+            const bool live      = outOn.getMagnitude (0, total) > 1.0e-4f;
+
+            ok = ok && identical && inactive && live;
+            detail << "(d) 7.1 pref on vs off: " << (identical ? "bit-identical" : firstDifference (outOn, outOff))
+                   << (inactive ? "" : " — ARM REPORTED ACTIVE ON 8ch") << (live ? "" : " — SILENT") << "; ";
+        }
+
+        // (e)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, juce::AudioChannelSet::stereo(), juce::AudioChannelSet::mono());
+
+            juce::AudioBuffer<float> block (2, kBlockSize);      // max(totalIn, totalOut) = 2
+            juce::MidiBuffer         midi;
+            bool dry = true;
+
+            for (int i = 0; i < 4; ++i)
+            {
+                block.clear();
+                for (int n = 0; n < kBlockSize; ++n) { block.setSample (0, n, 0.25f); block.setSample (1, n, 0.25f); }
+                proc.processBlock (block, midi);
+                if (std::abs (block.getSample (0, kBlockSize - 1) - 0.25f) > 1.0e-6f) dry = false;
+            }
+
+            const bool inactive = ! proc.isBinauralActive();
+            ok = ok && dry && inactive;
+            detail << "(e) (2,1): " << (dry ? "dry" : "FOLDED ON A MONO BUS") << (inactive ? "" : ", REPORTS ACTIVE") << "; ";
+        }
+
+        // (f)
+        {
+            OOctagonProcessor proc;
+            negotiate (proc, mono, stereoOut);
+            setParam (proc, "width", proc.getAPVTS().getParameterRange ("width").end);
+            setParam (proc, "blur",  proc.getAPVTS().getParameterRange ("blur").end);
+
+            juce::AudioBuffer<float> block (2, kBlockSize);
+            juce::MidiBuffer         midi;
+            (void) proc.readAndZeroMeters();
+
+            for (int i = 0; i < 8; ++i)
+            {
+                block.clear();
+                for (int n = 0; n < kBlockSize; ++n) block.setSample (0, n, testSample (n));
+                proc.processBlock (block, midi);
+            }
+
+            const auto peaks = proc.readAndZeroMeters();
+            int lit = 0;
+            for (float v : peaks) if (v > 1.0e-4f) ++lit;
+
+            ok = ok && lit >= 3;
+            detail << "(f) meters lit on the stereo bus: " << lit << " of 8" << (lit >= 3 ? "" : " — ONLY THE HOST PAIR");
+        }
+
+        check ("DP stereo-bus-binaural-arm", ok, detail);
     }
 
     //==========================================================================

@@ -38,7 +38,7 @@
     ui_frontend_check, which asserts the page's control kind against the relay
     kind for every id.
 
-    ── NATIVE-FUNCTION SURFACE (PLAN-3.2 P65; 27 at v1.10.1) ────────────────
+    ── NATIVE-FUNCTION SURFACE (PLAN-3.2 P65; 28 at v1.11.0) ────────────────
     The list below is the 3.2-era THIRTEEN; the surface has since grown to 27
     (scenes, meters, field grid, motion trace, tooltips, language, monitor arm).
     The AUTHORITATIVE count is the ui_frontend_check section-3 grep-diff, not

@@ -1,5 +1,68 @@
 # O-Octagon Changelog
 
+## v1.11.0 (2026-08-27)
+
+**A stereo output bus now defaults to a binaural headphone fold of the rig.** Until v1.10.1 a
+stereo negotiation — a stereo track, a laptop with no 8-channel interface — took SAFE mode, which
+wrote the dry input back at unity: the spatialiser was inaudible until the session reached a rig.
+The same `MonitorFold` that serves the v1.7.0 8-channel monitor now folds the eight SOLVED feeds to
+the pair, so the panning can be worked on and heard anywhere. MINOR: no parameter is added, renamed,
+re-ranged or re-ordered; one root XML attribute is added to the session (`stereoBinaural`).
+
+### Added
+
+- **The stereo-bus binaural arm** (`GainStage::renderChunk`, third arm). When the negotiated
+  output is stereo, the buffer is exactly 2 channels and the map is unavailable, the REAL arm
+  renders its eight feeds — DBAP, weights, hull trim, air, decorrelator, alignment delays, trims,
+  output gain, the NaN guard — into an 8 × `kControlBlock` scratch (a member; nothing allocates,
+  PERF-01), `MonitorFold` folds it in place with slots {0, 1}, and the pair is copied to buffer
+  channels 0/1. It is the SAME render the hall hears, post-write, not a second panner
+  (`MonitorFold.h`'s design point, carried over). The verify ping never reaches the scratch.
+- **`stereoBinaural` preference**, default ON, persisted as a root XML attribute beside
+  `tooltipsEnabled` (pre-1.11.0 sessions have no attribute, so a stereo session saved under
+  v1.10.1 reopens audible). Native function `setStereoBinaural` (27 → 28); `getStatus` gains
+  `stereoBus`, `binauralActive` (what the audio thread DID last block) and `stereoBinaural`.
+- **The Headphones button is live on a stereo bus** and toggles the preference instead of the
+  monitor arm (`venue.js` reads `data-stereo-bus`, written by the poll). The MONITOR banner
+  carries "Binaural fold of the 8 · speaker rig — stereo bus" (EN + FR, `monitor.binaural`,
+  `monitor.binaural.rail`); the SAFE banner yields while the fold is active and returns when the
+  preference is switched off, which restores v1.10.1's dry fold exactly.
+- **The eight meters read the pre-fold lanes** on the stereo bus
+  (`GainStage::readAndZeroBinauralLanePeaks`), so all eight indicators show the solved feeds
+  rather than two showing the headphone pair.
+
+### Changed
+
+- `GainStage::process` takes a defaulted `binauralOn` (every existing call site and the whole
+  render harness compile and render unchanged); `renderChunk` indexes its lanes `out[i][n - off]`
+  with `off = 0` on the 8-channel arm — an integer index change, so that render is bit-identical.
+
+### Design notes
+
+- **Deliberately NOT the monitor arm, and none of its four guards apply.** Those guards keep a
+  headphone fold out of an 8-channel delivery. On a stereo bus there is no 8-channel delivery to
+  protect and the alternative is the dry input, so this preference IS persisted and is NOT
+  suppressed by `isNonRealtime()`: on a stereo bus what you hear is what you bounce. It can never
+  reach an 8-channel render — selection requires a 2-channel buffer and an unavailable map, and
+  `renderChunk` `jassert`s the exclusion.
+- **The (2,1) trap.** auval's stereo-in / mono-out config hands `processBlock` a 2-channel buffer
+  on a MONO bus. A width-only rule folded into it (probe AT, first run); the arm is gated on
+  `stereoBusNegotiated`, written in `prepareToPlay()` beside `safeMode`, as well as on the width.
+- Mono and F3 3-7 channel buffers stay on the dry SAFE fold — the latter is a rig that has gone
+  wrong, which SAFE signposts and this must not paper over.
+
+### Testing
+
+- Render harness 75/75 (was 74). **New probe DP**, six clauses: (a) default-ON stereo takes the
+  arm and is not the dry input; (b) source hard left → left ear louder, hard right → right ear,
+  by ≥ 1.2× RMS after the ramps (convention + position dependence); (c) preference OFF is
+  bit-exact v1.10.1 dry; (d) 7.1 with the preference ON vs OFF renders BIT-IDENTICALLY and never
+  reports the arm active; (e) (2,1) stays dry; (f) 8 of 8 meters light on the stereo bus. Probes
+  AT and DM now pin the preference OFF — they are about the dry fold, and both failed on the first
+  run with the arm live (AT: "(1,2) wrote 0.040979", "(2,1) wrote 0.040979" — the trap above).
+- `ui_frontend_check.js` 43/43 (native-function count 28); `check-i18n.js` O-Octagon all PASS.
+- `i18n-states.json` gains the BINAURAL banner state for the screenshot sweep.
+
 ## v1.10.1 (2026-08-27)
 
 **Info-tier sweep of `CODE_REVIEW.md` (v1.8.0 review) — 12 of 30 findings.** Every finding was

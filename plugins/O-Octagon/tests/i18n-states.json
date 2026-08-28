@@ -31,5 +31,9 @@
     "name": "Venue screen (table head, rail, 48 speaker fields, monitor state line)",
     "eval": "window.__OCTAGON_STUB__.setStatus({ safeMode: false, monitorArmed: false });",
     "click": "#tab-venue"
+  },
+  {
+    "name": "BINAURAL banner (v1.11.0 — stereo bus, fold active; SAFE yields). LAST: the stub status is not reset between states, so binauralActive must not leak into a banner state after it",
+    "eval": "window.__OCTAGON_STUB__.setMapInvalid('none', -1); window.__OCTAGON_STUB__.setStatus({ safeMode: true, stereoBus: true, binauralActive: true, stereoBinaural: true, monitorArmed: false });"
   }
 ]
