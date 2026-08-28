@@ -3,10 +3,60 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F, G, H]
-stages_remaining: [I, J, K, L, M]
-stopped_at: "End of Stage I BATCH I1, PARTIAL — 1 of the 9 plugins Stage I covers. O-Contrabass v1.8.0 is done and is the SIXTH plugin on canon v2; `check-i18n --strict-v2` reports 6 canon v2, 0 canon v1. O-Orbit, the other half of batch I1, was NOT dispatched to this agent — its scope was explicitly excluded because another session held plugins/O-Orbit at dispatch time. That blocker has since cleared: that session landed O-Orbit v1.1.1 as 3593213d and no O-Orbit file is dirty now, so O-Orbit is ready to run. The seven `O-simple*` plugins of batch I2 are untouched. Stage I therefore stays in stages_remaining. Checkpoints 4 AND 5 remain OUTSTANDING and are now outstanding on SIX plugins: the C++ language round-trip has still never been run by hand on any of them, and no human has seen the French UI. PREVIOUSLY, at end of Stage G (T11): all five originally-shipped plugins fully localized on canon v2, `check-i18n --strict-v2` green repo-wide for the first time, eight wrong-shaped gate assumptions found and fixed."
+stages_complete: [A, B, C, D, E, F, G, H, I]
+stages_remaining: [J, K, L, M]
+stopped_at: "STAGE I COMPLETE. Batch I2 shipped all seven `O-simple*` plugins, one path-scoped commit each: O-simpleAdditive v1.1.0 (`b1082fc0`), O-simpleSampler v1.4.0 (`2a2f68c4`), O-simpleSubtractive v1.3.0 (`5fc1ceb0`), O-simpleGrain v1.3.0 (`857dfa85`), O-simpleFM v1.3.0 (`2a5efef0`), O-simplePhysicalModelSynth v1.2.0 (`051e1a72`), O-simpleBeatmaker v1.1.0 (`665150c0`). `check-i18n --strict-v2` reports 14 canon v2, 0 canon v1 — EVERY `data-tip`-convention plugin in the repo is now localized, so Stage J starts from a green repo. TWO more repo-level gate fixes were unavoidable and each landed as its OWN commit ahead of its plugin: `08e7649b` (assertion 7 measured ANIMATED elements, so a SMIL `animateTransform` reported three phantom French failures per run in a SINGLE language — PROBE now freezes SMIL and Web Animations, deliberately NOT CSS transitions) and `816f2767` (assertion 8 compared labels across PAINT LAYERS, so an opaque z-index:40 popover drawn over the page on purpose read as a collision the moment the French string grew long enough to reach it). Those are the ELEVENTH and TWELFTH wrong-shaped gate assumptions in this task; both were regression-swept across every previously-shipped canon-v2 plugin. Checkpoints 4 AND 5 remain OUTSTANDING and are now outstanding on FOURTEEN plugins: the C++ language round-trip has still never been run by hand on any of them, and no human has seen the French UI. TWO items need a human decision, neither blocking Stage J: (1) O-simpleSampler's content grew 796 -> 835px inside its FIXED 980x720 frame, putting the on-screen keyboard entirely below the fold on a pedagogical plugin — a contained CSS/copy reversal if wanted; (2) O-simplePhysicalModelSynth's Delete-preset button deletes WITHOUT confirmation (it calls deletePreset() directly and passes no deleteButton, so the vendored module's confirm dialog is dead code) — reported, not fixed, because adding one is a design change. PREVIOUSLY, at end of Stage I batch I1: O-Contrabass v1.8.0 and O-Orbit v1.2.0 shipped, 7 canon v2."
+
 plugins_shipped:
+  - name: O-simpleBeatmaker
+    version: 1.1.0
+    commit: 665150c0      # v1.1.0, Stage I batch I2 — LAST of the batch, completing Stage I.
+                          # 14th on canon v2. Only RESIZABLE plugin in the batch
+                          # (860x640 min vs a 1060x900 setSize) — the gate only ever
+                          # measures setSize, so the minimum was hand-measured: nothing
+                          # clips, French 15px taller in an already-scrolling pane.
+                          # 48 of its 82 [data-i18n] elements are RUNTIME-GENERATED.
+                          # Preceded by gate fix 816f2767, committed separately.
+  - name: O-simplePhysicalModelSynth
+    version: 1.2.0
+    commit: 051e1a72      # v1.2.0, Stage I batch I2. FIXED 1040x860 window — no scroll
+                          # to absorb French growth. Harness version drift was LIVE:
+                          # .factory-version on disk read 1.0.0 against a shipping 1.1.0.
+                          # Preceded by gate fix 08e7649b, committed separately.
+  - name: O-simpleFM
+    version: 1.3.0
+    commit: 2a5efef0      # v1.3.0, Stage I batch I2. Narrowest frame in the batch (760x980).
+                          # Source of the `white-space: nowrap` result — removed 103 of 125
+                          # moved elements at ZERO English page cost.
+  - name: O-simpleGrain
+    version: 1.3.0
+    commit: 857dfa85      # v1.3.0, Stage I batch I2. Two CMake version variables
+                          # (OSIMPLEGRAIN_VERSION + _VERSION_CODE) moved together.
+                          # NOTE: another session landed v1.4.0 (4d6056bc, DSP) on top.
+  - name: O-simpleSubtractive
+    version: 1.3.0
+    commit: 5fc1ceb0      # v1.3.0, Stage I batch I2. Largest label count in the batch (58).
+                          # Scroll extent PROVEN unchanged at 1118px by swapping HEAD's
+                          # files in and out — the control that makes O-simpleSampler's
+                          # +39px a real signal rather than a cost of the work.
+  - name: O-simpleSampler
+    version: 1.4.0
+    commit: 2a2f68c4      # v1.4.0, Stage I batch I2. The ONLY one of the seven with a real
+                          # C++ tips bridge (named tipsEnabled, not tooltipsEnabled).
+                          # OPEN ITEM: content 796 -> 835px in a FIXED 980x720 frame put the
+                          # on-screen keyboard entirely below the fold.
+  - name: O-simpleAdditive
+    version: 1.1.0
+    commit: b1082fc0      # v1.1.0, Stage I batch I2 — FIRST of the batch, established the
+                          # family pattern: data-tip is the tip KEY here, not the body, so
+                          # every anchor moves to data-param and the listeners delegate.
+  - name: O-Orbit
+    version: 1.2.0
+    commit: 9d8e50d0      # v1.2.0, Stage I batch I1 — tooltips AND labels in ONE
+                          # release, completing batch I1. SEVENTH plugin on canon
+                          # v2. Bridge 25 -> 27. UI root Resources/ui, not
+                          # Source/ui/public. Preceded by the repo-level gate fix
+                          # f00e5d45, committed separately and never bundled.
   - name: O-Contrabass
     version: 1.8.0
     commit: 7035029a      # v1.8.0, Stage I batch I1 — tooltips AND labels in ONE
@@ -34,6 +84,9 @@ subsystem: webview-ui / i18n
 tags: [i18n, tooltips, webview, juce, apvts-persistence]
 key-files:
   created:
+    - plugins/O-Orbit/Resources/ui/js/i18n.js
+    - plugins/O-Orbit/tests/i18n-states.json
+    - plugins/O-Orbit/tests/ui-stub/generic-overrides.json
     - plugins/O-Contrabass/Source/ui/public/js/i18n.js
     - plugins/O-Contrabass/tests/i18n-states.json
     - scripts/serve-ui.js
@@ -52,6 +105,13 @@ key-files:
     - plugins/O-Bitrot/Source/ui/public/js/i18n.js
     - plugins/O-Tapestop/Source/ui/public/js/i18n.js
   modified:
+    - plugins/O-Orbit/Resources/ui/index.html
+    - plugins/O-Orbit/Resources/ui/css/styles.css
+    - plugins/O-Orbit/Resources/ui/js/app.js
+    - plugins/O-Orbit/Source/Plugin{Processor.h,Processor.cpp,Editor.cpp}
+    - plugins/O-Orbit/CMakeLists.txt
+    - plugins/O-Orbit/CHANGELOG.md
+    - scripts/check-ui-labels.js          # assertion 6 -> a DELTA (f00e5d45, its own commit)
     - plugins/O-Contrabass/Source/ui/public/index.html
     - plugins/O-Contrabass/Source/Plugin{Processor.h,Processor.cpp,Editor.cpp}
     - plugins/O-Contrabass/CMakeLists.txt
@@ -2492,3 +2552,596 @@ from the plan's content.
 - **Write a `tests/i18n-states.json` for every plugin.** Two states — the gear
   popover open, and the hover-help toggle lit — took measured coverage from 49/52
   to **52/52** here.
+
+---
+
+# Stage I (batch I1, second and final plugin) — T13: O-Orbit v1.2.0
+
+**Commits:** TWO, deliberately separate.
+
+- **`f00e5d45`** — `scripts/check-ui-labels.js` alone. A repo-level gate fix,
+  landed FIRST and never bundled into the plugin commit. Section below.
+- **`9d8e50d0`** — `plugins/O-Orbit` (11 files) + the single `PLUGINS.md` row.
+
+**Batch I1 is now COMPLETE** — O-Contrabass `7035029a` and O-Orbit `9d8e50d0`.
+**Stage I is not.** The seven `O-simple*` plugins of batch I2 are untouched.
+
+O-Orbit is the **seventh plugin on canon v2**. `check-i18n --strict-v2` reports
+**v2 7, v1 0**, and `check-ui-labels` exits 0 on all seven.
+
+Final shipped counts: **34 I18N entries** (32 moved + `gear-btn` + `lang-select`),
+**57 LABELS keys**, **34 TIP_BINDINGS**, **5 I18N_EXEMPT entries**, **56
+`[data-i18n]` elements**, **7 `data-i18n-aria`** + 1 `data-i18n-placeholder`,
+**91 French strings**. Bridge **25 → 27**.
+
+## THE HEADLINE: a repo-level gate fix was unavoidable, so it shipped alone
+
+The dispatch said to stop and report rather than bundle a `scripts/` change into
+the plugin commit. It was unavoidable, and the resolution was to land it as its
+**own commit ahead of the plugin**, which is what Stages F, G and H each did with
+their gate defects (`3f6b201d` is the precedent). It is reported here as the
+headline rather than buried in a deviation list.
+
+`check-ui-labels` assertion 6 asserted **absolutely** that no `[data-i18n]` rect
+may cross the shipping frame. **O-Orbit is the first plugin the gate has met with
+an intentionally scrolling pane.** `#controls-container` is `flex: 1` with
+`overflow-y: auto`, and its three parameter groups need 555px inside a 226px
+pane, so eleven labels sit below the 600px frame at rest.
+
+**Proven pre-existing, not caused by the retrofit.** The same probe run against
+the tree at `HEAD` before the retrofit and after it returns byte-identical
+numbers — `clientH 226, scrollH 555, overflow 329`, the Spatial heading at
+`y=616.8` in **English** both times.
+
+**Proven to contribute nothing in French.** The out-of-frame sets are the SAME
+eleven keys with the SAME overshoot **to the decimal** in both languages, and all
+eleven are inside the scrolling pane:
+
+| key | en overshoot | fr overshoot |
+|---|---|---|
+| label.groupSpatial | 33.8 | 33.8 |
+| label.speakerLayout | 54.8 | 54.8 |
+| ui.downmix | 103.8 | 103.8 |
+| label.distance / airAbsorption / attenCurve / centerDiverge | 54.8 | 54.8 |
+| label.groupSourceMix | 179.8 | 179.8 |
+| label.sourceMode / lrOffset / mix | 200.8 | 200.8 |
+
+So the absolute form produced **8 failures per run against a plugin whose French
+geometry is perfect** — the gate arguing with the design rather than reporting a
+French problem. That is precisely the reasoning already written into assertion
+5, which was made a DELTA for the same reason after Stage F met O-Tapestop's
+absolutely-positioned panel legends.
+
+Assertion 6 now fails on `overshoot(fr) > overshoot(en)` and **reports the
+English baseline** so it is never silent. The per-language document
+scroll-extent checks stay ABSOLUTE — a page whose own scroll extent exceeds its
+frame is a different and genuinely broken thing, and O-Orbit passes those.
+
+**Proven both ways.**
+- The delta form FIRES on an over-long French header caption:
+  `[6] label.viewMotion 0.0px -> 3.0px @404,-3 384x38` — out of the frame in
+  French only.
+- **COUNTER-PROOF:** restoring the old absolute form on the correct, unmutated
+  tree fails **8 times**, reporting **11 in EN and 11 in FR**, the identical
+  count.
+- **Regression:** all six plugins already on canon v2 still pass with zero
+  failures, and **not one of them emits the new English-baseline note** — so the
+  change is a strict no-op for every plugin the gate covered before today.
+
+That is the **tenth** wrong-shaped gate assumption in this task.
+
+### A control that did NOT reach its assertion, recorded as a miss
+
+My first attempt at the assertion-6 control lengthened a French **toolbar**
+string, expecting Import to leave the frame. It fired `[5]` and `[7]` but **not
+`[6]`** — `#editor-toolbar` is `overflow-x: auto`, so it clips internally and the
+rect never leaves the frame. A weakened assertion I could not demonstrate firing
+would have been decoration, so the control was replaced with the header one
+above rather than the result being written up as a pass.
+
+## The plan's numbers, and the counts that were checked rather than trusted
+
+| The plan said | Live at v1.1.1 |
+|---|---|
+| 32 tips | **32** — correct |
+| 57 text | **57** html-text nodes — correct |
+| **38 attrs** | **6.** Five `aria-label`s and one `placeholder`; zero `title=`, zero `alt`. The 38 is `32 data-tip-title` + `6` — it counted the tooltip TITLES again, exactly as the carried-forward note predicted. The real attribute-keying job was **6**. |
+| — | **12 `js-prose` rows**, the third-highest class of work here and the number the plan does not carry at all. Every one went through `setLabel`. |
+
+`UNSURE`/`READOUT` rows read by hand, as step 1 requires: the one `UNSURE`
+(`#preset-name` "Default") is a factory preset name written by
+`preset-manager.js` → `I18N_EXEMPT` under D-02, and must never become a
+`[data-i18n]` element or the sweep and the module would fight over one node. The
+one `READOUT` (`#speed-value` "1.0 Hz") is correctly exempt under D-03.
+
+**`grep -rn 'setVisible' plugins/O-Orbit/Source/` returns nothing** — no hidden
+WebView completion hazard. **`CMakeLists.txt` declares the version exactly once**
+(`VERSION 1.1.1`, line 20); no `set(<PLUGIN>_VERSION ...)`, no render harness,
+no second copy. Both checked before editing, per steps 2 and 3.
+
+## One ENGLISH bug French exposed
+
+The Stage F/H/G/I pattern held for a fifth stage running.
+
+**The view toggle has changed width on every click since v1.1.0.** `#view-toggle`
+is a shrink-to-fit box and its two English faces measure 93.1px ("Motion View")
+and 114.1px ("Speaker Editor"); `#header` is `justify-content: space-between`, so
+every view switch dragged the whole preset band 21px sideways. Nothing was
+measuring it, because no gate had ever rendered this page. Pinned to the widest
+of its **four** faces (169.3px, "Éditeur d'enceintes"), which now holds both
+languages *and* both views still.
+
+## Geometry — 16 moved before fixes, ZERO after
+
+Measured at the shipping 800 × 600 across **four** driven states.
+
+| Plugin | frame | labels | moved before | after |
+|---|---|---|---|---|
+| O-Tapestop (F) | 860 × 580 | 46 | 26–30 | 0 |
+| O-MultiBandCompressor (H) | 900 × 640 | 77 | 222 | 0 |
+| O-Bitrot (H) | 900 × 740 | 71 | 78 | 0 |
+| O-ReverseDelay (H) | 940 × 768 | 50 | 7 | 0 |
+| O-Octagon (G) | 1100 × 720 | 84 | 4 (12 with states) | 0 |
+| O-Contrabass (I) | 1000 × 650 | 52 | 21 | 0 |
+| **O-Orbit (I)** | **800 × 600** | **56** | **16** | **0** |
+
+| Fix | Measured cause |
+|---|---|
+| `#view-toggle { min-width: 170px }` | four faces spanning 93.1 → 151.3; the English bug above. 10 of the 16 rows |
+| `.preset-btn-hdr { min-width: 58px }` | Save 26.8 → Enreg. 38.8, Load 29.8 → Ouvrir 41.3, Del 21 → Suppr. 36.1 |
+| `.preset-btn[data-preset="6"/"7"] { min-width: 40px }` | Hex 22.1 → Hexa 29.8, Oct 21.5 → Octo 29.0 |
+| `#layout-select { width: 92px }` | Layouts… 42.2 → Dispositions… 60, sliding the layout library 23.5px |
+| `#layout-library button { min-width: 53px }` | Enreg. 38.8 / Suppr. 36.1 / Sûr ? 28.9 |
+| `#file-buttons button { min-width: 74px }` | Exporter 55.1, Importer 54.0 |
+| `.preset-btn { padding: 2px 4px }` | the budget — see below |
+
+**Three of these are worth reading twice.**
+
+**Six of the eight format chips needed nothing, and the measurement is why.**
+"Stereo" and "Stéréo" measure **identically** (40.8), as do "Quad"/"Quad" (30.9),
+and 5.1 through 7.1.4 are digits. Only Hexa and Octo grow. Pinning all eight
+uniformly to the widest would have cost 164px the toolbar does not have — the
+instinct to pin a whole class is what measuring per element prevented.
+
+**Pinning up alone made the toolbar overflow in BOTH languages.** `#editor-toolbar`
+is `space-between` over three groups inside 768px of usable width. French
+unpinned is 778.4 — already 10.4 over, which is why `label.import` sat at x=803
+in French. Pinning every worded control makes both languages **785.5**, i.e. it
+converts a French bug into a bug in both. The 32px had to come back from
+somewhere real: `.preset-btn` horizontal padding 6px → 4px returns exactly that
+to both languages, landing at 753.5 with 14.5px of slack.
+
+**`label.import` never appeared in the geometry diff that its own overflow
+caused** — it is a `[data-i18n]` element and assertion 7 excludes those by
+design. It surfaced in `[5]` and `[6]` instead. Stage I's "read the diff as a
+list of CONSEQUENCES" note generalises: also read the OTHER assertions, because
+the culprit shows up in whichever one is not excluding it.
+
+**One French string was SIZED**, recorded at its entry with the measurement:
+`Synchro tempo` measures **105.4px** and the Motion group's grid track is
+**100.3px** (`repeat(auto-fit, minmax(90px, 1fr))` over nine items resolves to
+seven 100.3px columns), so it wrapped to two lines and pushed the Tempo Sync
+dropdown down 13px. It ships as `Sync tempo` (79.2px). The full phrase survives
+as the tooltip title, which renders in a 230px box.
+
+**Only the Motion group constrains, and that was measured rather than assumed.**
+Its cells are 100.3px; Spatial's are **143.6** (the speaker-layout `<select>`'s
+widest option forces its own min-content width onto the track) and Source/Mix's
+are **244.7** (three items, `auto-fit` collapses the unused tracks). So
+"Courbe attén." at 97.3 and "Décalage G/D" at 93 have 46px and 152px of margin
+respectively, not the 3px and 7px a single assumed cell width would have implied
+— and two captions were nearly shortened for no reason.
+
+**French got SHORTER on four Spatial captions** — Speaker Layout 109.9 →
+Enceintes 68.9, Air Absorption 104.2 → Absorption 79.1, Center Diverge 107.8 →
+Divergence 80.3. Stage G's note, confirmed on a third plugin. Each was checked
+for a row-height change; none moved, because those cells are 143.6 wide and the
+English never wrapped there either.
+
+## The TDZ trap did NOT fire here, and that is the honest result
+
+Stage G's carried rule: *"expect to move the i18n block only where there is no
+`init()`-last discipline"*. **O-Orbit has that discipline** — every initializer
+runs from a `DOMContentLoaded` handler and nothing executes at module top level.
+
+**Tested, not assumed.** The canon block was physically relocated to the BOTTOM
+of `app.js`, below every other declaration, and `boot-all-uis` reports
+`BOOT O-Orbit ... clean: 1/1` with `check-ui-labels` and `check-i18n` both still
+green. So unlike O-Contrabass — where the same mutation produced
+`Cannot access 'uiLanguage' before initialization` — **the placement here is
+defensive, not load-bearing**, and the code comment says so rather than claiming
+a trap was averted. Stage G's rule is confirmed by a plugin on the other side of
+it.
+
+## Verification — every gate, individually
+
+| Gate | Result |
+|---|---|
+| `check-i18n.js --plugin O-Orbit` | **exit 0**, canon **v2**, assertions 10–15 all run. Passed on the FIRST run |
+| `check-i18n.js --strict-v2` repo-wide | **exit 0** — canon split **v2 7, v1 0** |
+| `check-ui-labels.js --plugin O-Orbit` | **exit 0** — **56** labels over **4** states, **ZERO** non-label geometry shifts, 49/56 (88%) of labels and **9/9** keyed attributes change language |
+| `check-ui-labels.js` on the other six | **exit 0 each**, zero failures — the gate change is a no-op for them |
+| `boot-all-uis.js` | **41/43 clean, unchanged.** O-Orbit: `text=62 aria=8 title=0 i18n=56`. The two failures are O-Bowed and O-Reed, pre-existing and unrelated |
+| `./scripts/build-and-install.sh O-Orbit` | clean, 27s, zero errors; VST3 + AU built and installed, AU cache cleared, dual-variant sweep ran |
+| `auval -v aufx OuOr OuDv` | **AU VALIDATION SUCCEEDED** |
+| bundle version | `CFBundleShortVersionString` **1.2.0** — the single `VERSION` declaration reached the artefact |
+| binary embedding | `i18n_jsSize` **38868** == `wc -c` — the retrofit really reached the binary |
+
+**O-Orbit has no `tests/` gates of its own** (it had no `tests/` directory at
+all before this commit), so unlike every plugin before it there was no
+plugin-local suite to re-run. The repo gates are the entire automated coverage.
+
+## Negative controls — 29 run, 29 fired
+
+Each mutation was applied to a **byte-exact backup** and restored **FROM THAT
+BACKUP**, never `git checkout --`, which would have wiped the uncommitted
+retrofit alongside it. Every mutation printed its substitution count and the
+harness **refused to run the gate on a zero-count mutation**. Every file was
+sha256-verified against the backup after every round.
+
+| Mutation | Assertion that fired |
+|---|---|
+| revert `#view-toggle` min-width | `[7]` geometry diff, 10 moved |
+| revert `.preset-btn-hdr` min-width | `[7]`, 7 moved |
+| revert the Hexa/Octo chip pins | `[7]`, 4 moved |
+| revert `#layout-select` fixed width | `[7]`, 3 moved |
+| revert `#layout-library button` min-width | `[7]`, 3 moved |
+| revert `#file-buttons button` min-width | `[7]`, 4 moved |
+| restore the over-long `Synchro tempo` caption | `[7]`, 1 moved (`#tempo_sync` dy=13) |
+| an over-long FRENCH header caption | **`[6]` delta**, `label.viewMotion 0.0 -> 3.0px` |
+| the OLD absolute `[6]` on the CORRECT tree | **8 failures, 11 EN / 11 FR — the counter-proof** |
+| stub `__setLanguage` to a no-op | `[2]` vacuity, `0/56 labels differ` |
+| clobber `textContent` after `applyLabel` | `[3]` in both languages |
+| remove one `data-i18n` from the markup | `[10]` |
+| reinstate a native `title=` | `[11]` |
+| a ternary inside a `setLabel` argument | `[13]` |
+| a raw prose literal written to `textContent` | `[12]`, with file:line |
+| drift ONE line of the canon block | `[6]` matches NEITHER canon |
+| a LABELS `fr` entry copied from `en` | `[4]` LABELS |
+| strip a LABELS `reviewed` flag | `[5]` LABELS |
+| empty an `I18N_EXEMPT` reason | `[14]` |
+| delete the `getResource()` branch for `js/i18n.js` | `[8]` |
+| remove `i18n.js` from the CMake SOURCES block | `[8]` |
+| a dangling `data-i18n` key | `[15]` dangling |
+| an unreferenced LABELS key | `[15]` dead |
+| restore a `data-tip=` copy literal in the markup | `[3]` |
+| a top-level statement in `i18n.js` | `[7]` self-execute ban |
+| **canon block relocated to the bottom of `app.js`** | **SILENT — see the TDZ section. The honest negative result.** |
+
+## English fidelity, checked mechanically
+
+Every `en` entry was extracted from `index.html` by script and **compared back
+byte-for-byte**: **32/32** tooltip titles and bodies, **0 drift**, with the
+entity decoder configured to **throw on any entity it did not know** so the set
+is known complete rather than assumed. Separately, the multiset of visible text
+nodes was diffed between the pre- and post-retrofit markup: **57 → 62 nodes,
+ZERO removed**, the five added being the new popover controls (`Language`,
+`English`, `Français`, `Hover help`, `Off`). And all **55** keyed elements were
+confirmed to carry a fallback string byte-identical to their `LABELS` `en`.
+
+**No English wording was changed anywhere.**
+
+## Commit discipline — HEAD moved under this work, again
+
+Another session was live in this checkout throughout. **HEAD moved mid-commit**:
+`77565bd5` (O-Octagon v1.11.0) landed between staging and committing. Their
+commit was properly path-scoped and did **not** sweep the staged
+`scripts/check-ui-labels.js`.
+
+`git show -- PLUGINS.md` was read after the commit, not `--stat`: **1 insertion,
+1 deletion**, the O-Orbit row only. Their O-Octagon row edit was already
+committed in `77565bd5`, so there was nothing of theirs in the working tree to
+sweep. The duplicate-row check (`uniq -d`) is clean and the commit deletes no
+files.
+
+**A new lesson, learned by breaking it.** Piping the negative-control harness
+through `head` killed it with SIGPIPE **mid-mutation** and left `index.html`
+with a `data-i18n` still stripped. It was caught by the harness's own
+post-restore sha256 comparison and restored from the backup. **Never pipe a
+mutate/restore harness into a truncating command** — capture to a file and read
+the file.
+
+## Deviations from the plan
+
+**[Rule 2 — Missing critical functionality] `check-ui-labels` assertion 6 was
+wrong-shaped.** Landed as its own commit `f00e5d45` ahead of the plugin, never
+bundled. Full reasoning, both proofs and the six-plugin regression are in the
+headline section above. This is the one thing on this dispatch that reached
+outside `plugins/O-Orbit/**`, and it is reported rather than absorbed.
+
+**[Rule 1 — Bug] The view toggle changed width on every click, in English.** Not
+part of the localization; found because the geometry diff named ten victims of
+it. Fixed inline.
+
+**[Rule 2] `plugins/O-Orbit/tests/ui-stub/generic-overrides.json` was added.**
+The generic stub answers `getDownmixStatus` with the STRING `'{}'`, on which the
+page's `status.active` is `undefined`, so the downmix badge never rendered and
+`ui.downmix` — the only composed label on the page — would have been a key the
+geometry gate never measured. The override supplies the shape
+`PluginEditor.cpp:152-158` really completes with (an object carrying
+`active` / `sourceChannels` / `targetChannels`), verified against that source
+rather than invented.
+
+## NOT VERIFIED — read this before batch I2
+
+1. **THE C++ LANGUAGE ROUND-TRIP HAS STILL NEVER BEEN RUN.** Checkpoint 4(b) has
+   been outstanding since Stage B and is now outstanding on **seven** plugins.
+   The claim that a language choice survives a session reload is REASONED from
+   source. O-Orbit stores it as a ValueTree PROPERTY (matching its own
+   `tooltipsEnabled` idiom) rather than the root XML attribute O-Contrabass
+   uses, so it genuinely round-trips through XML as a string var — which is why
+   it is stored as `"en"`/`"fr"` and gated on `isVoid()`. That is the correct
+   construction, and *correct by construction* is still not *measured*. This
+   remains the single highest-value outstanding check in the task.
+2. **No human has seen the French UI, on any plugin.** All geometry here is
+   headless Chromium at 800 × 600. `Oui`/`Non` for the elevation toggle's
+   On/Off faces, `Sync tempo`, and `Enceintes` for Speaker Layout are the three
+   this stage would challenge first. The `Oui`/`Non` pair was chosen under a
+   hard three-glyph budget (a 50px pill with an 18px thumb riding over it) and a
+   native speaker may well prefer `I`/`O`.
+3. **Nothing was tested in a DAW.** It builds, installs and `auval`s; it has not
+   been opened in Logic or Ableton.
+4. **The Standalone `.app` is stale.** `build-and-install.sh` builds VST3 + AU
+   only.
+5. **19 of the 56 keyed elements were NEVER MEASURED.** Every one is an
+   `<option>` inside a closed `<select>` — the path, tempo-sync, speaker-layout,
+   atten-curve, source-mode and layout dropdowns. A closed `<select>`'s options
+   have no box, and the popup is OS-rendered and outside the DOM viewport. **No
+   states file can reach them**, so this is a property of native select menus,
+   not a coverage gap a test could close. Their French is verified statically
+   (assertions 4, 5, 15) and never measured. If a French option is too wide for
+   a dropdown, nothing in this repo would catch it.
+6. **`ui.downmix` was measured only because a stub override was written for it.**
+   Without `generic-overrides.json` it renders in no state at all. Its real
+   geometry depends on channel counts the gate supplies, not the host.
+7. **The `#editor-toolbar` has 14.5px of slack in French at 800px.** That is the
+   whole margin. The editor is resizable (D4) and the toolbar is
+   `overflow-x: auto`, so it degrades to scrolling rather than breaking, but a
+   single further French string in that row will start it scrolling at the
+   default size.
+8. **All 91 French entries are machine drafts**, every one `reviewed: false`. No
+   native speaker has read any. Repo total is now **711 unreviewed** across
+   seven plugins.
+9. **Windows / WebView2 remains a named deferral, blocked on hardware.** Every
+   width in the fix tables was measured in Chromium on macOS. `Mode source`
+   (89.5 in a 244.7 cell) is comfortable, but `Sync tempo` at 79.2 in a 100.3
+   cell has 21px of margin and is the tightest caption on the page.
+10. **`i18n-extract.js` still does not decode `&beta;`** — carried unfixed from
+    Stage I's O-Contrabass run. It did not bite here (O-Orbit's copy uses only
+    `&#176;`, `&#8230;`, `&#9664;`, `&#9654;`, `&#9662;`, `&#9881;`, `&ccedil;`),
+    but it is still open and still belongs to whoever next touches that script.
+11. **The generated inventory artifacts** (`plugins/O-Orbit/.planning/i18n-*`)
+    are left UNCOMMITTED, as on the six before. They are regenerable.
+12. **No plugin-local gate exists for O-Orbit**, so a broken `TIP_BINDINGS`
+    SELECTOR is unguarded. `check-i18n` assertion 2 checks that every binding's
+    KEY resolves, but nothing checks that its selector still matches an element
+    — O-Contrabass has a `tests/ui_frontend_check.js` §7 for exactly this and
+    O-Orbit has nothing. `applyI18n` only `console.warn`s. A future markup edit
+    that renames `data-param="speed"` would silently drop that tooltip.
+
+## Carried into batch I2 (the seven `O-simple*` plugins)
+
+- **Assertion 6 is now a DELTA.** If an `O-simple*` plugin has a scrolling pane
+  it will report an English baseline note instead of failing. **Read that note** —
+  it is the only signal that part of the page is off-frame at rest.
+- **The plan's "attrs" column counts tooltip TITLES.** Confirmed a second time:
+  O-Orbit's "38" was really 6. The I2 figures (5, 5, 10, 6, 3, 1, 14) are small
+  enough to be genuine `aria-label` counts, but **check with `i18n-extract`
+  before sizing the work** — the plan's own numbers have now been wrong on the
+  attribute column for both batch-I1 plugins.
+- **All seven have a `tests/render-harness/`.** O-Orbit had none, so nothing
+  guarded the DSP here; on I2, `reproduce-goldens.sh` must be re-run because
+  `PluginProcessor.cpp` is edited by the language pair.
+- **MEASURE THE GRID TRACK BEFORE SHORTENING A CAPTION.** `auto-fit` +
+  `minmax()` gives different track widths per group in the SAME page — 100.3,
+  143.6 and 244.7 on this one — and a `<select>`'s widest option silently forces
+  its own track wider. Two captions here were nearly shortened for no reason.
+- **Measure every string; do not pin a whole class.** "Stereo"/"Stéréo" and
+  "Quad"/"Quad" measure identically. Six of eight chips needed nothing.
+- **Pinning up can convert a French bug into a both-language bug.** When a row
+  is already near its budget, find the width to give back before pinning.
+- **The culprit hides from assertion 7 but shows in 4, 5 or 6.** `[data-i18n]`
+  elements are excluded from the diff by design; read the other assertions.
+- **Never pipe the negative-control harness into `head`.** SIGPIPE leaves the
+  tree mutated. Capture to a file.
+- **Write a `tests/i18n-states.json` for every plugin** — three states here
+  (gear open, help lit, speaker-layout view) took measured coverage from **26/56
+  to 37/56**, measured by moving the states file aside and re-running. And write a `tests/ui-stub/generic-overrides.json` wherever a native
+  fn's real return SHAPE differs from the generic stub's guess; verify the shape
+  against `PluginEditor.cpp`, never invent it.
+- **`boot-all-uis.js` on every plugin.** Still the only gate that sees a TDZ
+  throw — and on a plugin with `init()`-last discipline it will stay silent, as
+  it correctly did here.
+
+---
+
+# Stage I (batch I2) — T13: the seven `O-simple*` plugins — STAGE I COMPLETE
+
+**Nine commits: seven plugins, plus two repo-level gate fixes each landed alone
+ahead of the plugin that needed it.**
+
+| # | Plugin | Version | Commit | Tips | Labels | FR | Scroll cost |
+|---|---|---|---|---|---|---|---|
+| 1 | O-simpleAdditive | 1.1.0 | `b1082fc0` | 42 | 42 | 84 | 0 |
+| 2 | O-simpleSampler | 1.4.0 | `2a2f68c4` | 36 | 73 | 109 | **+39px** |
+| 3 | O-simpleSubtractive | 1.3.0 | `5fc1ceb0` | 35 | 58 | 93 | 0 |
+| 4 | O-simpleGrain | 1.3.0 | `857dfa85` | 37 | 76 | 113 | +0.2px |
+| 5 | O-simpleFM | 1.3.0 | `2a5efef0` | 27 | 53 | 80 | 0 |
+| 6 | O-simplePhysicalModelSynth | 1.2.0 | `051e1a72` | 24 | 53 | 77 | 0 |
+| 7 | O-simpleBeatmaker | 1.1.0 | `665150c0` | 29 | 52 | 81 | 0 |
+
+Gate fixes: **`08e7649b`** (animation), **`816f2767`** (paint layers).
+
+`check-i18n --strict-v2`: **14 canon v2, 0 canon v1.** Every `data-tip`-convention
+plugin in the repo is localized. **639 new French strings**, all `reviewed: false`.
+
+## THE HEADLINE: the plan's read of this batch was wrong in three ways
+
+T13 called I2 "no tooltip gates, no bridge toggle ... the lowest-risk batch in
+the rollout". Two of those three claims did not survive contact.
+
+**1. `data-tip` here is the tip KEY, not the tip body.** Every `O-simple*`
+plugin carries `data-tip="someKey"` and looks it up in a `const TIPS = {}`
+object. Canon v2's `applyI18n` WRITES `data-tip` as the body, and assertion 3
+requires zero literal `data-tip=` in shipped markup. They cannot coexist. Every
+plugin needed its anchors moved to `data-param`/an id AND its listeners
+delegated on the document — `querySelectorAll("[data-tip]")` at setup time binds
+nothing once the anchors move, and generated cells do not exist yet anyway.
+This was invisible to the plan's inventory, which counted anchors without
+reading what they held.
+
+**2. "No bridge toggle" was true; "no toggle" was not.** Three of the seven
+already shipped a tips toggle — O-simpleSampler a real C++ bridge (named
+`tipsEnabled`, not `tooltipsEnabled`, which is why the pre-flight grep missed
+it), O-simpleGrain and O-simplePhysicalModelSynth a localStorage one. Each
+MOVED into the gear popover rather than leaving the plugin with two settings
+surfaces. O-simpleSampler's was the dangerous one: it cached `data-tip-title` to
+restore on re-enable, and `applyI18n` writes that attribute on every sweep, so
+keeping the restore would have put English back after a French switch. The whole
+layer was deleted rather than adapted, along with the native `title=` it served.
+
+**3. Roomy frames did not mean free geometry.** 31 geometry pins across seven
+plugins, every one reverted alone and confirmed to re-break the gate. Three were
+found to be DECORATION — their negative control passed — and were removed or
+re-labelled as design pins rather than claimed as fixes.
+
+## Two more wrong-shaped gate assumptions, both regression-swept
+
+Eleventh and twelfth in this task. Each landed as its own commit ahead of the
+plugin, per the `3f6b201d` / `f00e5d45` precedent.
+
+**`08e7649b` — assertion 7 reported ANIMATED elements as French failures.** It
+compares two rect sweeps ~180ms apart. O-simplePhysicalModelSynth's signal-flow
+diagram runs a SMIL `animateTransform` circling a pulse every 1.7s, so with the
+page in a SINGLE language it reported three phantom moved rows and a different
+answer every run. PROBE now pauses SMIL and Web Animations before measuring —
+and deliberately NOT `CSSTransition`, because the state pass drives every slider
+and this repo's knob stems transition their rotation, so pausing one mid-flight
+would invent exactly the diff being removed.
+
+**`816f2767` — assertion 8 compared labels across PAINT LAYERS.** A rectangle
+has no z. O-simpleBeatmaker's settings popover is an opaque `z-index: 40` panel
+drawn over the page on purpose; its caption overlaps the step-grid hint's tail
+in BOTH languages, and the gate only noticed once the French string grew long
+enough to reach x=935. PROBE now records each label's nearest opaque positioned
+ancestor and skips only cross-layer pairs, printing a NOTE for each.
+
+Both swept across every previously-shipped canon-v2 plugin: all still pass, and
+the paint-layer skip fires on that one page only.
+
+## What the gates still cannot see
+
+- **Assertion 12 does not see `textContent = someVariable`.** Only literal
+  right-hand sides produce an inventory row, so `showToast(msg)` /
+  `setSourceStatus(text)` ship English with the gate green. Caught by hand on
+  O-simpleGrain; the three plugins already committed before it were re-checked
+  and were clean (two have no status path; O-simpleSampler had already keyed
+  its toasts).
+- **Assertion 7 prints only the first 12 moved elements.** O-simpleSubtractive
+  reported "18 moved", listed 12, and the six withheld contained a second
+  independent bug.
+- **Assertion 8 only reports pairs disjoint in English**, so a `white-space:
+  nowrap` fix can introduce an English collision the gate will never catch.
+  O-simplePhysicalModelSynth did the adjacent-pair arithmetic and found one.
+- **`check-ui-labels` measures only at `setSize`.** O-simpleBeatmaker is
+  resizable to 860x640 — 200px narrower and 260px shorter than anything the gate
+  sees. Hand-measured: nothing clips, French 15px taller in an already-scrolling
+  pane. Every other plugin's minimum is unmeasured and unmeasurable by this gate.
+
+## Pre-existing bugs found and fixed, none caused by this work
+
+- **Dead flex bases lost to specificity, on four plugins.** A bare `.group-x`
+  (0,1,0) loses to `.rack .group` (0,2,0), so authored bases had never applied
+  and the racks had been sized by max-content — which is precisely what made
+  them language-dependent. The single largest geometry win available, and it
+  changes the ENGLISH layout, so each is called out under `### Fixed`.
+- **Roughly 120 controls across the batch had `role="slider"` + `tabindex` and
+  NO accessible name at all.** Fixed for free: `data-i18n-aria` resolves through
+  `trLabel`'s I18N fallback to each control's own tooltip title.
+- **Render-harness version drift on two plugins.** O-simplePhysicalModelSynth
+  hardcoded `JucePlugin_VersionString="1.0.0"` against a shipping 1.1.0, and it
+  was LIVE — `~/Library/O-simplePhysicalModelSynth/Presets/Factory/.factory-version`
+  on disk read `1.0.0`, because the sentinel compares against that string and a
+  mismatch rewrites the user's real factory-preset directory. O-simpleBeatmaker
+  had the same drift with no on-disk consequence (no preset manager, so no
+  sentinel). Both converted to the by-reference form the other five already use.
+- **`harmonicTip()` rendered "The 2th harmonic"** in every O-simpleAdditive
+  build since tooltips shipped.
+- **O-simpleBeatmaker's transport strip resized the header** whenever the host
+  started playing (`● synced` 44.9 vs `free-run` 52.7 at the right end of a
+  space-between row). Nothing had been measuring it.
+- **O-simpleFM's `bindKnob()` froze the accessible name in one language** — it
+  copied the caption's `textContent` once at bind time, which runs before
+  `initI18n()`. Same shape on O-simpleBeatmaker's 29 knobs.
+
+## Reported, deliberately NOT fixed
+
+- **O-simplePhysicalModelSynth's Delete-preset button deletes without
+  confirmation.** `setupPresetManager()` calls `deletePreset()` directly and
+  passes no `deleteButton`, so the vendored module's `promptDelete()` /
+  `onConfirmDelete` are dead code. Adding a dialog is a design change, not i18n
+  work.
+- **O-simpleSampler's on-screen keyboard is now entirely below the fold** — the
+  content grew 796 -> 835px inside a FIXED 980x720 frame. 17px is the rack
+  repair, 10px a reserved caption line, the rest a new header row. The
+  alternative was trimming eight French lesson captions to a character budget
+  that holds their English line count, rejected as copy any later edit
+  re-breaks. On a pedagogical plugin whose keyboard is a teaching surface this
+  is a real regression and a human should rule on it. O-simpleSubtractive proved
+  the cost is NOT inherent: its extent was measured identical before and after.
+
+## Carried into Stage J
+
+1. **A wrapper span around keyed fragments is a permanent assertion-7 failure.**
+   A wrapper is not `[data-i18n]`, so the diff measures its box — and its box IS
+   the French sentence, wider forever. Carry the class onto the fragments. All
+   seven Stage-J plugins have hint/legend spans of this shape.
+2. **Measure pinned keys AS RENDERED, not from a font probe.** `text-transform`
+   and `letter-spacing` are not in `getComputedStyle().font`; a probe read
+   LONGUEUR 12.6px narrow and the first pin landed UNDER the French.
+3. **`white-space: nowrap` beats a `min-height` reservation on a shrink-wrapping
+   caption** — the box is already text-width, so overflow is already the resting
+   behaviour and wrapping only buys height. Removed 103 of 125 moves at zero
+   English cost on O-simpleFM. But do the English adjacent-pair arithmetic
+   first (see assertion 8, above).
+4. **`flex: 1 1 auto` is not the fix; `flex: 1 1 0` is.** Flex line-breaking runs
+   on the hypothetical main size BEFORE shrink, so the "fixed" diff comes back
+   byte-identical to the broken one — which reads exactly like the fix not
+   working. Check the BASIS before the specificity.
+5. **`min-width` on the FIRST item of a flex row is not a pin.** Its used width
+   is still max-content, and being first it positions everything after it. One
+   caption produced 11 of 18 reported moves on O-simpleSubtractive.
+6. **Establish harness determinism by running it twice on the SAME binary before
+   comparing across versions.** O-simpleGrain's is unseeded (peakGrains 158 vs
+   144 on consecutive runs); O-simpleFM's, O-simplePhysicalModelSynth's and
+   O-simpleBeatmaker's are digit-stable. Earlier commits in this batch asserted
+   digit-stability that would have been false. The comparable quantity is the
+   VERDICT unless determinism is measured.
+7. **A dynamic anchor selector will not show up in a literal grep.**
+   O-simpleFM's was static; O-simplePhysicalModelSynth built its from a template
+   literal. Both broke SILENTLY — the controlled property was never set and no
+   page error fired.
+8. **A ternary-written prose string is not automatically `setLabel` work.** The
+   discriminator is: does it track a PARAMETER? If so it is a value mirror and
+   `I18N_EXEMPT` under D-01, which also makes the assertion-13 hoist moot. If it
+   tracks host or transport state, it is copy. O-simplePhysicalModelSynth's was
+   the former, O-simpleBeatmaker's `● synced` the latter — verified by grepping
+   the APVTS for a sync parameter and finding none.
+9. **Take a baseline by swapping HEAD's files in and out from an in-memory copy
+   in a `finally`** — never `git checkout --`, which wipes uncommitted edits.
+   That is what makes "scroll extent unchanged" an honest claim.
+10. **A per-element dynamic accessible name has no canon home.** Housing its
+    sentence shapes in `I18N` with an empty body is the only shape satisfying
+    assertions 13 and 15 together. O-Polystutter (102 tips) and
+    O-MicrotonalSampler will both hit this.
+
+## Not verified
+
+- **Checkpoints 4 and 5, now outstanding on all fourteen plugins.** The C++
+  language round-trip (pick Français, close the session, reopen, confirm it
+  held) has never been executed by hand on any of them — it is reasoned from the
+  `isVoid()` guard, not measured. No human has seen any of these French UIs.
+- **All 1,350 French strings repo-wide are machine drafts**, every one
+  `reviewed: false`. No native speaker has read them.
+- **Windows/WebView2 font metrics** remain the named hardware-blocked deferral.
+  The tightest French margin measured in this batch is 20.9px.
