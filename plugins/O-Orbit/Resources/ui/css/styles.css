@@ -70,12 +70,22 @@ body {
     gap: 8px;
 }
 
+/* min-width pins this button to the widest of its FOUR faces, measured in its
+   own computed font: Motion View 93.1, Vue mouvement 118.7, Speaker Editor
+   114.1, Editeur d'enceintes 151.3, plus 16px padding and 2px border = 169.3.
+
+   It fixes a French shift AND a pre-existing ENGLISH one. The button has always
+   changed width when the view is switched (Motion View -> Speaker Editor is
+   +21px), and because #header is justify-content: space-between that dragged
+   the whole preset band 21px left on every click. Nothing was measuring it. */
 #view-toggle {
     font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
     cursor: pointer;
     padding: 4px 8px;
+    min-width: 170px;
+    text-align: center;
     border: 1px solid #8B7355;
     background: rgba(139, 115, 85, 0.1);
 }
@@ -344,8 +354,14 @@ body {
     gap: 4px;
 }
 
+/* 4px rather than 6px of horizontal padding. The editor toolbar is
+   justify-content: space-between over three groups inside 768px of usable
+   width; pinning every worded control in it to its French width takes the
+   French row to 785.5 and pushes Import past the 800px frame. Trimming 2px a
+   side off the eight format chips returns 32px to BOTH languages, which is
+   where the budget comes from. */
 .preset-btn {
-    padding: 2px 6px;
+    padding: 2px 4px;
     font-family: Garamond, 'EB Garamond', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
@@ -354,6 +370,14 @@ body {
     border: 1px solid #8B7355;
     color: #3C2F2F;
     cursor: pointer;
+}
+
+/* Only two of the eight chips change width: Hex 22.1 -> Hexa 29.8 and
+   Oct 21.5 -> Octo 29.0. Stereo/Stereo and Quad/Quad measure IDENTICALLY
+   (40.8 and 30.9), and 5.1 through 7.1.4 are digits. 40 = 29.8 + 8 + 2. */
+.preset-btn[data-preset="6"],
+.preset-btn[data-preset="7"] {
+    min-width: 40px;
 }
 
 .preset-btn:hover {
@@ -369,8 +393,11 @@ body {
     gap: 4px;
 }
 
+/* 74 = Exporter 55.1 + 16px padding + 2px border, which also holds
+   Importer (72). */
 #file-buttons button {
     padding: 2px 8px;
+    min-width: 74px;
     font-family: Garamond, 'EB Garamond', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
@@ -426,8 +453,14 @@ body {
 }
 .preset-nav:hover:not(:disabled) { background: rgba(139, 115, 85, 0.3); }
 
+/* One pin for all three: Save 26.8 / Enreg. 38.8, Load 29.8 / Ouvrir 41.3,
+   Del 21 / Suppr. 36.1 (armed Sure? 32.5 / Sur ? 28.9), + 14px padding + 2px
+   border. The widest is Ouvrir at 57.3, so 58 holds every face of every
+   button in both languages and makes the three a uniform set. */
 .preset-btn-hdr {
     padding: 3px 7px;
+    min-width: 58px;
+    text-align: center;
     font-family: Garamond, 'EB Garamond', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
@@ -536,8 +569,24 @@ body {
     font-style: normal;
 }
 
-/* ============ Hover-help toggle (v1.1.0) ============ */
-#help-toggle {
+/* ============ Settings gear + popover (v1.2.0) ============
+   The gear occupies the SAME header slot the v1.1.0 "?" toggle occupied and
+   wears the same 20px sage circle, so the header silhouette is unchanged and
+   only the glyph differs. The "?" toggle itself moved INSIDE the panel, beside
+   the language selector — it is not duplicated.
+
+   The panel is written in this plugin's own paper vocabulary: the #F5E6D3
+   plate, the #8B7355 rule and the 2px shadow the .param-group panels already
+   use, with the sage #8BA870 reserved for the lit state exactly as it is on the
+   knob pointer and the .param-toggle. It is not the dark card O-Contrabass uses
+   — that plugin's header band is dark and this one's is paper. */
+#settings-cluster {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.gear-btn {
     width: 20px;
     height: 20px;
     padding: 0;
@@ -552,11 +601,92 @@ body {
     transition: background 0.2s, box-shadow 0.2s;
     box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.15);
 }
-#help-toggle:hover { background: rgba(139, 168, 112, 0.4); }
-#help-toggle.active {
+.gear-btn:hover { background: rgba(139, 168, 112, 0.4); }
+.gear-btn[aria-expanded="true"] {
     background: rgba(139, 168, 112, 0.65);
     border-color: #5C6E3E;
     box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* z-index sits ABOVE #botanical-overlay (1000) and BELOW .tooltip (1100).
+   Below the tooltip deliberately: the gear, the selector and the toggle all
+   carry data-tip-always, and at a 34px header there is no room above them, so
+   their tips flip BELOW and land on top of this panel. A panel above the tip
+   would hide the help for the three controls that exist to reach the help. */
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1050;
+    width: 208px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: #F5E6D3;
+    border: 1.5px solid #8B7355;
+    border-radius: 3px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    text-align: left;
+}
+.settings-popover[hidden] { display: none; }
+
+/* space-between with a flex:1 caption, not a shrink-to-fit one: a caption that
+   shrink-wraps makes its own box language-dependent even where nothing visibly
+   moves, and the geometry diff flags the BOX. */
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.settings-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: #3C2F2F;
+}
+
+.settings-select {
+    flex: 0 0 92px;
+    width: 92px;
+    padding: 2px 4px;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 11px;
+    background: #FFF8DC;
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    color: #3C2F2F;
+    cursor: pointer;
+}
+.settings-select:focus { outline: none; border-color: #8BA870; }
+
+/* Pinned to the wider of the two languages: "Off" 20.0 / "Non" 22.3,
+   "On" 16.5 / "Oui" 21.6. Without the pin the panel's right edge steps by
+   ~5px when the help is switched on, in French only. */
+.settings-toggle {
+    flex: 0 0 46px;
+    width: 46px;
+    padding: 2px 0;
+    font-family: Garamond, 'EB Garamond', serif;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: center;
+    color: #3C2F2F;
+    background: rgba(139, 115, 85, 0.15);
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.settings-toggle:hover { background: rgba(139, 115, 85, 0.3); }
+.settings-toggle.active {
+    background: #8BA870;
+    border-color: #5C6E3E;
+    color: #F5E6D3;
 }
 
 /* ============ Hover help: the tooltip surface (v1.1.0) ============
@@ -615,8 +745,12 @@ body {
     gap: 4px;
 }
 
+/* FIXED, not max-width: the select shrink-to-fits its widest option, so
+   "Layouts..." 42.2 and "Dispositions..." 60 gave it two different boxes and
+   slid the whole layout library 23.5px. 92 is the French box. */
 #layout-select {
-    max-width: 110px;
+    width: 92px;
+    max-width: 92px;
     padding: 2px 4px;
     font-family: Garamond, 'EB Garamond', serif;
     font-size: 10px;
@@ -636,8 +770,12 @@ body {
 }
 #layout-name:focus { outline: none; border-color: #8BA870; }
 
+/* 53 = Enreg. 38.8 + 12px padding + 2px border. It also holds Suppr. (50.1)
+   and the armed Sur ? (42.9), so neither of these two buttons changes width in
+   either language or in either arm of the two-click delete. */
 #layout-library button {
     padding: 2px 6px;
+    min-width: 53px;
     font-family: Garamond, 'EB Garamond', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
