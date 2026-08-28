@@ -137,6 +137,19 @@
             letter-spacing: 1px;
         }
 
+        /* v2.4.0 GEOMETRY RULE 1. .header is justify-content: space-between, so
+           the third item's LEFT edge moves whenever its own width changes -
+           "Voices:" renders 36.27px and "Voix :" 30.00px, and the whole readout
+           slid 6.3px right in French. min-width pins the caption to the wider of
+           the two AS RENDERED, at 10px with 1px letter-spacing and no
+           text-transform; inline-block because min-width does not apply to a
+           non-replaced inline box, which is also why assertion 4 could not
+           express itself about this element before. */
+        .voice-label {
+            display: inline-block;
+            min-width: 37px;
+        }
+
         /* ====================================================================
            v1.5.0: PRESET BAR - Matching Marimba's working implementation
            ==================================================================== */
@@ -256,7 +269,16 @@
         }
 
         /* v1.5.1: Preset action buttons (Save/Load) */
+        /* v2.4.0 GEOMETRY RULE 2. Save 42.34 / Enreg. 53.25 and Load 45.00 /
+           Ouvrir 55.52, measured AS RENDERED at 9px uppercase with 0.5px
+           letter-spacing - none of which is in getComputedStyle().font. Between
+           them the preset bar grew 21.43px in French, and because .header is
+           space-between that moved the bar AND everything in it. ONE min-width
+           covers all four faces, so the pair is also the same size as each
+           other, which they were not before. */
         .preset-action-btn {
+            min-width: 56px;
+            text-align: center;
             padding: 3px 8px;
             font-size: 9px;
             font-family: 'Garamond', 'Times New Roman', serif;
@@ -512,7 +534,13 @@
             flex-shrink: 0;
         }
 
+        /* v2.4.0 GEOMETRY RULE 3. Master 42.52 / Général 49.00 as rendered.
+           .master-volume is flex-shrink: 0 inside a space-between footer, so the
+           caption's 6.48px pushed the slider, the keyboard and every key in it.
+           inline-block for the same reason as .voice-label. */
         .master-label {
+            display: inline-block;
+            min-width: 49px;
             font-size: 9px;
             color: #3C2F2F;
             text-transform: uppercase;
@@ -686,7 +714,15 @@
             display: contents;
         }
 
+        /* v2.4.0 GEOMETRY RULE 10. Same auto-margin centring as rule 9, at the
+           other end of the row. CHORUS 53.06 (identical in both) / DELAY 42.50
+           vs DÉLAI 39.84 / REVERB 51.84 vs RÉVERBE 60.19 / EQ 17.91 (identical).
+           Two of the four differ, and each moved its whole knob row by half the
+           delta. One min-width covers the widest of the eight faces, and it also
+           lines the four section titles up with each other, which they were not
+           before. */
         .fx-title {
+            min-width: 61px;
             font-size: 11px;
             font-weight: bold;
             color: #2C3E10;
@@ -695,7 +731,16 @@
             margin-right: auto;
         }
 
+        /* v2.4.0 GEOMETRY RULE 9. .fx-section is a flex row whose title carries
+           margin-right: auto and whose bypass button carries margin-left: auto,
+           so the knob row between them is CENTRED by two auto margins and moves
+           half of any width change at either end. All four faces measured: On
+           29.00 / Off 30.34 / Oui 31.50 / Non 33.50. One min-width covers them,
+           which also stops the button resizing when the state changes — which it
+           did before, in English. */
         .fx-bypass-btn {
+            min-width: 34px;
+            text-align: center;
             padding: 2px 8px;
             background: rgba(107, 142, 35, 0.5);
             border: 1px solid #5C4033;
@@ -726,11 +771,23 @@
         }
 
         /* SVG Vine-Arc Knobs for Effects Tab */
+        /* v2.4.0 GEOMETRY RULE 8. The cell had NO width at all: it shrink-wrapped
+           to max(44px knob, caption), so English already produced five different
+           cell widths (44 / 46 / 48.5 / 49.75 / 54.02) and French produced its
+           own set, moving every knob in every row. A fixed 70px is the widest
+           caption in EITHER language plus a pixel — PROFONDEUR renders 68.5 —
+           and the captions are nowrap so none of them can buy height instead.
+           A single long word cannot be wrapped into a 44px box, which is why
+           reserving height rather than width was not available here.
+
+           The rows fit: reverb, the widest at six cells, becomes 6x70 + 5x10 =
+           470px inside 660px of tab content. */
         #effects-tab .knob-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 1px;
+            width: 70px;
         }
 
         #effects-tab .knob {
@@ -771,6 +828,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         #effects-tab .knob-value {
@@ -840,8 +898,17 @@
         }
 
         /* Interval List */
+        /* v2.4.0 GEOMETRY RULE 4. The header is the widest thing in this
+           column and it does not shrink: "INTERVALS (12 NOTES)" renders 95.88px
+           inside a 101px content box, and "INTERVALLES (12 NOTES)" does not fit,
+           wrapping to two lines and pushing the tonic selector and all twelve
+           interval rows down 11px. 130px gives 116px of content, which holds the
+           French header on one line at every scale size this list can show
+           (the count reaches two digits at 53-EDO and the string does not grow
+           further). The column had 65px of slack to its right before the
+           visualization container, so widening it moves nothing else. */
         .interval-list {
-            width: 115px;
+            width: 130px;
             max-height: 280px;
             background: rgba(235, 217, 199, 0.6);
             border: 1px solid #8B7355;
@@ -873,10 +940,18 @@
             border-radius: 3px;
         }
 
+        /* v2.4.0 GEOMETRY RULE 5. TONIC: renders 23.22px and TONIQUE : 31.03px
+           as rendered at 7px uppercase. .tonic-selector is a space-between flex
+           row, so a wider caption both squeezes its siblings and moves the note
+           readout between them. min-width pins the wider of the two, MEASURED
+           UNPINNED: the first attempt used 32px, read off the caption while it
+           was still being flex-shrunk inside an over-full row, and left a 0.9px
+           residual. Unshrunk, TONIQUE : is 34.67px. */
         .tonic-label {
             font-size: 7px;
             color: #5C4033;
             text-transform: uppercase;
+            min-width: 35px;
         }
 
         .tonic-value {
@@ -1219,12 +1294,16 @@
             gap: 8px;
         }
 
+        /* v2.4.0 GEOMETRY RULE 6. The authored 40px was already exactly
+           STRETCH's rendered width, so it was a coincidence rather than a pin:
+           ÉTIREMENT renders 49.83px and pushed the flex: 1 slider beside it
+           9.8px right. Raised to the wider of the two. */
         .octave-stretch-label {
             font-size: 8px;
             color: #5C4033;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            min-width: 40px;
+            min-width: 50px;
         }
 
         .octave-stretch-slider {
@@ -1348,6 +1427,29 @@
             transition: background 0.15s, color 0.15s;
         }
 
+        /* v2.4.0 GEOMETRY RULE 7. The five buttons sit in a fixed-gap flex row
+           centred on the tab, so ANY width change moves all five. Pinned PER
+           BUTTON to the wider of its own two faces rather than to one shared
+           number: a uniform 65px (English "TRUE KEYS", the widest single face)
+           would make the row 341px, and centred on calc(50% - 40px) that puts
+           its right edge at 480.5px — 5.5px INSIDE .tuning-controls-panel, which
+           starts at 475. Measured as rendered at 8px uppercase, 0.3px
+           letter-spacing.
+
+             circle    CIRCLE 48.25 / CERCLE 50.47
+             polar     POLAR  45.73 / POLAIRE 53.89
+             matrix    MATRIX 50.47 / MATRICE 55.22
+             truekeys  TRUE KEYS 64.48 / TOUCHES 56.86
+             rotation  ROTATION 59.77, identical in both
+
+           Total 302px against English's 284.7 — the row grows 17.3px and stays
+           clear of the controls panel by 14px. */
+        .viz-btn[data-mode="circle"]   { min-width: 51px; }
+        .viz-btn[data-mode="polar"]    { min-width: 54px; }
+        .viz-btn[data-mode="matrix"]   { min-width: 56px; }
+        .viz-btn[data-mode="truekeys"] { min-width: 65px; }
+        .viz-btn[data-mode="rotation"] { min-width: 60px; }
+
         .viz-btn:hover {
             background: rgba(139, 168, 112, 0.3);
         }
@@ -1426,7 +1528,6 @@
         .truekeys-view {
             width: 100%;
             height: 100%;
-            display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -1694,16 +1795,30 @@
         }
 
         /* ====================================================================
-           v1.18.0: TOOLTIP SYSTEM
+           v2.4.0: THE SETTINGS POPOVER
+
+           The gear that carries the language selector and the hover-help
+           switch. It occupies the EXACT slot the floating "?" occupied through
+           v2.3.3 - bottom: 50px, right: 15px inside .plugin-container - so the
+           new control contributes ZERO geometry delta to a 700x450 frame that
+           has none to spare. The header was the obvious alternative and was
+           rejected for the opposite reason: .header is a
+           justify-content: space-between row of three items, and a fourth would
+           have moved the title, the preset bar and the voice readout for a
+           control that belongs in a corner.
            ==================================================================== */
 
-        /* Tooltip toggle button (?) - positioned bottom-right */
-        .tooltip-toggle {
+        .settings-cluster {
             position: absolute;
             bottom: 50px;
             right: 15px;
+            z-index: 100;
+        }
+
+        .gear-btn {
             width: 20px;
             height: 20px;
+            padding: 0;
             border-radius: 50%;
             background: rgba(212, 196, 176, 0.7);
             border: 1px solid #8B7355;
@@ -1711,52 +1826,202 @@
             font-size: 12px;
             font-weight: bold;
             font-family: 'Georgia', serif;
+            line-height: 1;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 150ms ease;
-            z-index: 100;
         }
 
-        .tooltip-toggle:hover {
+        .gear-btn:hover {
             background: rgba(139, 168, 112, 0.5);
             border-color: #6B8E4E;
         }
 
-        .tooltip-toggle.active {
+        .gear-btn[aria-expanded="true"] {
             background: rgba(139, 168, 112, 0.7);
             color: #3C2F2F;
             border-color: #3C5C1A;
             box-shadow: 0 0 6px rgba(107, 142, 78, 0.4);
         }
 
-        /* Tooltip container (appears on hover when tooltips enabled) */
-        .tooltip {
+        .gear-btn:focus-visible {
+            outline: 2px solid #6B8E4E;
+            outline-offset: 2px;
+        }
+
+        /* Opens UPWARD. 50px from the bottom edge is not enough room to drop a
+           two-row panel downward. */
+        .settings-popover {
             position: absolute;
+            bottom: calc(100% + 7px);
+            right: 0;
+            z-index: 1001;
+            min-width: 178px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            background: rgba(245, 230, 211, 0.98);
+            border: 2px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .settings-popover[hidden] {
+            display: none;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .settings-label {
+            font-family: inherit;
+            font-size: 10px;
+            color: #5C4033;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .settings-popover select {
+            flex: 0 0 auto;
+            width: auto;
+            padding: 2px 4px;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            background: #E8D5B7;
+            color: #3C2F2F;
+            font-family: inherit;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-popover select:focus-visible {
+            outline: 2px solid #6B8E4E;
+            outline-offset: 1px;
+        }
+
+        /* min-width covers the widest of the four faces across both languages -
+           On / Off / Oui / Non - so switching either the state or the language
+           cannot resize the row. */
+        .settings-toggle {
+            min-width: 40px;
+            padding: 2px 8px;
+            flex: 0 0 auto;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            background: transparent;
+            color: #5C4033;
+            font-family: inherit;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .settings-toggle:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .settings-toggle[aria-pressed="true"] {
+            background: rgba(139, 168, 112, 0.7);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+        }
+
+        .settings-toggle:focus-visible {
+            outline: 2px solid #6B8E4E;
+            outline-offset: 2px;
+        }
+
+        /* ====================================================================
+           v2.4.0: THE TOOLTIP SURFACE - the ONE measure-then-pin renderer,
+           ported from O-ReverseDelay / O-FreqPulse.
+
+           position: FIXED, against the viewport, replacing v2.3.3's absolute
+           box resolved against .plugin-container. The two coincide on this page
+           - html,body at 100% with a border-box 700x450 container centred in a
+           700x450 web view make the initial containing block the same rectangle
+           - so nothing moves. But the ported runtime clamps against
+           window.innerWidth / innerHeight, and a box whose containing block is
+           not the viewport would have made that arithmetic describe a different
+           rectangle than the one the browser lays out.
+
+           transform is GONE with the old positioner. v2.3.3 centred the box with
+           translateX(-50%) after positioning its centre; the ported renderer
+           measures the width and places the LEFT edge, and leaving a stale
+           transform would have shifted every tip half its own width.
+
+           max-width stays 200px - O-Lyrica's OWN value, parsed from this file,
+           never mirrored from O-FreqPulse's 220 or O-Polystutter's 220.
+           ==================================================================== */
+
+        .tooltip {
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            max-width: 200px;
+            padding: 6px 10px;
             background: rgba(60, 47, 47, 0.95);
             color: #F5E6D3;
-            padding: 6px 10px;
             border: 1px solid rgba(139, 115, 85, 0.6);
             border-radius: 4px;
-            font-size: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             font-family: 'Garamond', 'Times New Roman', serif;
-            line-height: 1.4;
-            max-width: 200px;
-            z-index: 1000;
             pointer-events: none;
             opacity: 0;
             transition: opacity 150ms ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            white-space: normal;
         }
 
         .tooltip.visible {
             opacity: 1;
         }
 
+        .tooltip-title {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #A8C08C;
+            margin-bottom: 3px;
+        }
+
+        .tooltip-body {
+            font-size: 10px;
+            line-height: 1.4;
+            color: #F5E6D3;
+        }
+
+        /* Arrow - its horizontal offset tracks the anchor via --arrow-x, so the
+           tip can be clamped to the viewport edge while the arrow still points
+           at its control. */
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            left: var(--arrow-x, 50%);
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+        }
+
+        .tooltip[data-placement="above"]::after {
+            top: 100%;
+            border-top-color: rgba(139, 115, 85, 0.6);
+        }
+
+        .tooltip[data-placement="below"]::after {
+            bottom: 100%;
+            border-bottom-color: rgba(139, 115, 85, 0.6);
+        }
+
         /* Elements with tooltips get subtle indicator when tooltips enabled */
-        .tooltips-enabled [data-tooltip]:hover {
+        .tooltips-enabled [data-tip]:hover {
             outline: 1px dashed rgba(139, 168, 112, 0.4);
             outline-offset: 2px;
         }
@@ -1767,35 +2032,77 @@
         <!-- Botanical Overlay -->
         <img src="/images/fern_naturalistsmisc1Geor_0089.png" class="botanical-overlay" id="botanicalOverlay" alt="">
 
-        <!-- v1.18.0: Tooltip toggle button -->
-        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+        <!-- v2.4.0: the settings popover. It replaces the floating "?" that
+             sat in this exact corner and occupies its exact absolute slot, so
+             the new control adds no geometry delta to a 700x450 frame. Two
+             rows: the language selector and the hover-help switch that used to
+             BE the "?". -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <!-- data-label so a shared state updater that writes
+                         textContent reads the authored caption back instead of
+                         erasing it. -->
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- Endonyms. Never localized, never written by a state
+                         updater: a French speaker looking for their language
+                         looks for "Fran&ccedil;ais". -->
+                    <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+
+                <!-- A div, not a <label for="tips-toggle">: a button is a
+                     labelable element, so a label wrapping it can re-dispatch
+                     the click and toggle twice. The button names itself with
+                     aria-label instead. -->
+                <div class="settings-row">
+                    <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+                    <button type="button" class="settings-toggle" id="tips-toggle"
+                            aria-pressed="false" data-i18n-aria="aria.helpToggle"
+                            aria-label="Toggle hover help"
+                            data-i18n="ui.off" data-tip-always>Off</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Tooltip element (positioned dynamically by JS) -->
-        <div class="tooltip" id="tooltip"></div>
+        <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
         <!-- Header -->
         <div class="header">
             <span class="title">Ouaricon Lyrica</span>
             <!-- v1.5.1: Complete Preset Bar with Save/Load -->
             <div class="preset-browser">
-                <div class="preset-arrow" id="preset-prev" title="Previous preset">&#9664;</div>
+                <div class="preset-arrow" id="preset-prev"
+                     data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</div>
                 <div class="preset-name-wrapper">
-                    <div class="preset-name" id="preset-name-display">Default</div>
+                    <div class="preset-name" id="preset-name-display"
+                         data-i18n-aria="aria.presetName" aria-label="Click to see all presets">Default</div>
                     <div class="preset-dropdown" id="preset-dropdown"></div>
                 </div>
-                <div class="preset-arrow" id="preset-next" title="Next preset">&#9654;</div>
-                <div class="preset-action-btn" id="preset-save" title="Save preset">Save</div>
-                <div class="preset-action-btn" id="preset-load" title="Load preset">Load</div>
+                <div class="preset-arrow" id="preset-next"
+                     data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</div>
+                <div class="preset-action-btn" id="preset-save" data-i18n="label.save"
+                     data-i18n-aria="aria.presetSave" aria-label="Save preset">Save</div>
+                <div class="preset-action-btn" id="preset-load" data-i18n="label.load"
+                     data-i18n-aria="aria.presetLoad" aria-label="Load preset">Load</div>
             </div>
-            <span class="voice-display">Voices: <span id="voiceCount">0</span>/16</span>
+            <span class="voice-display"><span class="voice-label" data-i18n="label.voices">Voices:</span> <span id="voiceCount">0</span>/16</span>
         </div>
 
         <!-- Tab Bar -->
         <div class="tab-bar">
-            <div class="tab active" id="tab-sound">SOUND</div>
-            <div class="tab" id="tab-techniques">TECHNIQUES</div>
-            <div class="tab" id="tab-tuning">TUNING</div>
-            <div class="tab" id="tab-effects">EFFECTS</div>
+            <div class="tab active" id="tab-sound" data-i18n="label.tabSound">SOUND</div>
+            <div class="tab" id="tab-techniques" data-i18n="label.tabTechniques">TECHNIQUES</div>
+            <div class="tab" id="tab-tuning" data-i18n="label.tabTuning">TUNING</div>
+            <div class="tab" id="tab-effects" data-i18n="label.tabEffects">EFFECTS</div>
         </div>
 
         <!-- ================================================================
@@ -1804,38 +2111,38 @@
         <div id="sound-tab" class="tab-content active">
             <!-- MAIN Section -->
             <div class="section">
-                <div class="section-header">Main</div>
+                <div class="section-header" data-i18n="label.secMain">Main</div>
                 <div class="section-content">
-                    <div class="slider-group" data-tooltip="Brightness: Controls the high-frequency content of the string tone. Higher values produce a brighter, more brilliant sound.">
-                        <span class="slider-label">Brightness</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.brightness">Brightness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="brightness" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="brightnessValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Timbre: Adjusts the tonal warmth of the string. Lower values produce darker, warmer tones; higher values add brightness.">
-                        <span class="slider-label">Timbre</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.timbre">Timbre</span>
                         <div class="slider-wrapper">
                             <input type="range" id="timbre" min="0" max="1" step="0.001" value="0.7">
                             <span class="slider-value" id="timbreValue">70%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Decay Time: How long the string resonates after being plucked. Longer decay creates sustained, ethereal notes.">
-                        <span class="slider-label">Decay Time</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.decayTime">Decay Time</span>
                         <div class="slider-wrapper">
                             <input type="range" id="decayTime" min="0" max="1" step="0.001" value="0.247">
                             <span class="slider-value" id="decayTimeValue">5.0s</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Attack Noise: Amount of pluck transient noise. Higher values add scratchy, percussive attack character.">
-                        <span class="slider-label">Attack Noise</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.attackNoise">Attack Noise</span>
                         <div class="slider-wrapper">
                             <input type="range" id="attackNoise" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="attackNoiseValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Humanize: Adds natural per-note variation to pluck position, finger hardness, pitch, and attack noise. Creates realistic, organic performances where no two notes sound exactly alike.">
-                        <span class="slider-label">Humanize</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.humanize">Humanize</span>
                         <div class="slider-wrapper">
                             <input type="range" id="humanize" min="0" max="1" step="0.001" value="0">
                             <span class="slider-value" id="humanizeValue">0%</span>
@@ -1846,10 +2153,10 @@
 
             <!-- STRING Section -->
             <div class="section">
-                <div class="section-header">String</div>
+                <div class="section-header" data-i18n="label.secString">String</div>
                 <div class="section-content">
-                    <div class="dropdown-group" data-tooltip="Material: The string material affects tone, brightness, and sustain. Gut is warm and mellow; Wire is bright; Crystal has bell-like qualities.">
-                        <span class="dropdown-label">Material</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.material">Material</span>
                         <select id="stringMaterial">
                             <option value="0">Gut</option>
                             <option value="1">Nylon</option>
@@ -1861,29 +2168,29 @@
                             <option value="7">Energy</option>
                         </select>
                     </div>
-                    <div class="slider-group" data-tooltip="Tension: String tightness affects resonance and brightness. Higher tension creates a brighter, more resonant tone.">
-                        <span class="slider-label">Tension</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.tension">Tension</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringTension" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="stringTensionValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Gauge: String thickness affects damping. Thinner strings are brighter with quick decay; thicker strings are darker with more body.">
-                        <span class="slider-label">Gauge</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.gauge">Gauge</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringGauge" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="stringGaugeValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Length: Virtual string length affects decay character. Shorter strings have punchy decay; longer strings sustain with diffuse tails.">
-                        <span class="slider-label">Length</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.length">Length</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringLength" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="stringLengthValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Stiffness: Controls harmonic stretch (inharmonicity). Higher values create bell-like, slightly detuned overtones.">
-                        <span class="slider-label">Stiffness</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.stiffness">Stiffness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringStiffness" min="0" max="1" step="0.001" value="0.2">
                             <span class="slider-value" id="stringStiffnessValue">20%</span>
@@ -1894,24 +2201,24 @@
 
             <!-- BODY Section -->
             <div class="section">
-                <div class="section-header">Body</div>
+                <div class="section-header" data-i18n="label.secBody">Body</div>
                 <div class="section-content">
-                    <div class="slider-group" data-tooltip="Size: The soundboard size affects bass response and overall fullness. Larger bodies produce deeper, more resonant tones.">
-                        <span class="slider-label">Size</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.size">Size</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bodySize" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="bodySizeValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Resonance: Body resonance amount. Higher values add more sympathetic body vibration to the string sound.">
-                        <span class="slider-label">Resonance</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.resonance">Resonance</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bodyResonance" min="0" max="1" step="0.001" value="0.6">
                             <span class="slider-value" id="bodyResonanceValue">60%</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Wood Type: Soundboard wood affects tonal character. Spruce is balanced; Maple is bright; Exotic woods have unique timbres.">
-                        <span class="dropdown-label">Wood Type</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.woodType">Wood Type</span>
                         <select id="woodType">
                             <option value="0">Spruce</option>
                             <option value="1">Maple</option>
@@ -1919,15 +2226,15 @@
                             <option value="3">Synthetic</option>
                         </select>
                     </div>
-                    <div class="slider-group" data-tooltip="Mode Spread: Spreads body resonance modes across frequencies. Higher values create a more complex, diffuse resonance.">
-                        <span class="slider-label">Mode Spread</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.modeSpread">Mode Spread</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bodyModeSpread" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="bodyModeSpreadValue">0%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Bridge Brightness: Affects the transfer of high frequencies from string to body. Higher values add clarity and definition.">
-                        <span class="slider-label">Bridge Bright</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.bridgeBright">Bridge Bright</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bridgeBrightness" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="bridgeBrightnessValue">50%</span>
@@ -1938,29 +2245,29 @@
 
             <!-- EXCITATION Section -->
             <div class="section">
-                <div class="section-header">Excitation</div>
+                <div class="section-header" data-i18n="label.secExcitation">Excitation</div>
                 <div class="section-content">
-                    <div class="slider-group" data-tooltip="Pluck Position: Where the string is plucked. Near the soundhole (0%) has more bass; near the bridge (100%) has more brilliance.">
-                        <span class="slider-label">Pluck Position</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.pluckPosition">Pluck Position</span>
                         <div class="slider-wrapper">
                             <input type="range" id="pluckPosition" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="pluckPositionValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Finger Hardness: How firm the plucking finger is. Soft fingertips (0%) sound mellow; hard fingernails (100%) sound sharp.">
-                        <span class="slider-label">Finger Hardness</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.fingerHardness">Finger Hardness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="fingerHardness" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="fingerHardnessValue">50%</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Technique: Playing technique changes the excitation character. Harmonics produce bell-like tones; Muted creates percussive plucks.">
-                        <span class="dropdown-label">Technique</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.technique">Technique</span>
                         <select id="technique">
                             <option value="0">Normal</option>
                             <option value="1">Harmonic</option>
                             <option value="2">Muted</option>
-                            <option value="3">Pres de la table</option>
+                            <option value="3">Près de la table</option>
                         </select>
                     </div>
                 </div>
@@ -1968,17 +2275,17 @@
 
             <!-- SYMPATHETIC Section -->
             <div class="section">
-                <div class="section-header">Sympathetic</div>
+                <div class="section-header" data-i18n="label.secSympathetic">Sympathetic</div>
                 <div class="section-content">
-                    <div class="slider-group" data-tooltip="Amount: Sympathetic resonance intensity. How much unplayed strings vibrate in response to played notes. Creates richness.">
-                        <span class="slider-label">Amount</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.amount">Amount</span>
                         <div class="slider-wrapper">
                             <input type="range" id="sympatheticAmount" min="0" max="1" step="0.001" value="0.3">
                             <span class="slider-value" id="sympatheticAmountValue">30%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Sharpness (Q): The tuning sharpness of sympathetic filters. Higher Q values create more focused, ringing resonance.">
-                        <span class="slider-label">Sharpness (Q)</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.sharpnessQ">Sharpness (Q)</span>
                         <div class="slider-wrapper">
                             <input type="range" id="sympatheticQ" min="0" max="1" step="0.001" value="0.247">
                             <span class="slider-value" id="sympatheticQValue">Q 5.0</span>
@@ -1994,14 +2301,14 @@
         <div id="techniques-tab" class="tab-content">
             <!-- v1.30.0: Keyswitch Settings -->
             <div class="section">
-                <div class="section-header">Keyswitch Settings</div>
+                <div class="section-header" data-i18n="label.secKeyswitch">Keyswitch Settings</div>
                 <div class="section-content">
-                    <div class="dropdown-group" data-tooltip="Free KS: MIDI note that activates Free glissando while held. Keyswitch notes are filtered from playback.">
-                        <span class="dropdown-label">Free KS</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.freeKS">Free KS</span>
                         <select id="freeKeyswitchNote"></select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Scale KS: MIDI note that activates Scale-Locked glissando while held. Keyswitch notes are filtered from playback.">
-                        <span class="dropdown-label">Scale KS</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.scaleKS">Scale KS</span>
                         <select id="scaleKeyswitchNote"></select>
                     </div>
                 </div>
@@ -2010,12 +2317,12 @@
             <!-- v1.30.0: Free Glissando Section -->
             <div class="section">
                 <div class="section-header">
-                    Free Glissando
-                    <button class="gliss-toggle" id="freeToggleBtn">OFF</button>
+                    <span data-i18n="label.secFreeGliss">Free Glissando</span>
+                    <button class="gliss-toggle" id="freeToggleBtn" data-i18n="ui.offCaps">OFF</button>
                 </div>
                 <div class="section-content">
-                    <div class="dropdown-group" data-tooltip="Sync: Lock the Free glissando sweep time to host tempo. When set to a rhythmic value, the Time slider is replaced by the synced duration.">
-                        <span class="dropdown-label">Sync</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.sync">Sync</span>
                         <select id="freeTempoSync">
                             <option value="0">Off</option>
                             <option value="1">1/32</option>
@@ -2034,15 +2341,15 @@
                             <option value="14">4 Bars</option>
                         </select>
                     </div>
-                    <div class="slider-group" id="freeTimeGroup" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
-                        <span class="slider-label">Time</span>
+                    <div class="slider-group" id="freeTimeGroup">
+                        <span class="slider-label" data-i18n="label.time">Time</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoTime" min="0" max="1" step="0.001" value="0.082">
                             <span class="slider-value" id="glissandoTimeValue">50 ms</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Shape: Acceleration curve for the free glissando sweep.">
-                        <span class="dropdown-label">Shape</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                         <select id="freeShape">
                             <option value="0">Linear</option>
                             <option value="1">Accelerate</option>
@@ -2050,8 +2357,8 @@
                             <option value="3">S-Curve</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Interval: How far the free glissando sweeps in semitones.">
-                        <span class="dropdown-label">Interval</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.interval">Interval</span>
                         <select id="freeInterval">
                             <option value="0">Minor 2nd</option>
                             <option value="1">Major 2nd</option>
@@ -2072,15 +2379,15 @@
                             <option value="16">Custom</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Direction: Whether the free glissando sweeps up to the played note or down to it.">
-                        <span class="dropdown-label">Direction</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.direction">Direction</span>
                         <select id="freeDirection">
                             <option value="0">Up to Note</option>
                             <option value="1">Down to Note</option>
                         </select>
                     </div>
-                    <div class="slider-group" id="freeCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Exact semitone count (1-48) for the free glissando sweep distance.">
-                        <span class="slider-label">Semitones</span>
+                    <div class="slider-group" id="freeCustomSemitonesGroup" style="display:none;">
+                        <span class="slider-label" data-i18n="label.semitones">Semitones</span>
                         <div class="slider-wrapper">
                             <input type="range" id="freeCustomSemitones" min="0" max="1" step="0.001" value="0.234">
                             <span class="slider-value" id="freeCustomSemitonesValue">12 st</span>
@@ -2092,12 +2399,12 @@
             <!-- v1.30.0: Scale-Locked Glissando Section -->
             <div class="section">
                 <div class="section-header">
-                    Scale-Locked Glissando
-                    <button class="gliss-toggle" id="scaleToggleBtn">OFF</button>
+                    <span data-i18n="label.secScaleGliss">Scale-Locked Glissando</span>
+                    <button class="gliss-toggle" id="scaleToggleBtn" data-i18n="ui.offCaps">OFF</button>
                 </div>
                 <div class="section-content">
-                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor/Pentatonic are 12-note patterns; Custom uses toggle buttons to select individual degrees. Major/Minor/Pentatonic are disabled for non-12-note tunings.">
-                        <span class="dropdown-label">Scale</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.scale">Scale</span>
                         <select id="glissandoScale">
                             <option value="0">Major</option>
                             <option value="1">Minor</option>
@@ -2105,8 +2412,8 @@
                             <option value="3">Custom</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Tonic: Root note for the glissando scale. Independent from the tuning tab tonic. Determines which notes belong to the selected scale pattern.">
-                        <span class="dropdown-label">Key</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.key">Key</span>
                         <select id="glissandoTonic">
                             <option value="0">C</option>
                             <option value="1">C#</option>
@@ -2123,11 +2430,12 @@
                         </select>
                     </div>
                     <div id="customDegreeToggles" style="display:none; margin: 4px 0; padding: 4px 0;">
-                        <span class="dropdown-label" style="margin-bottom: 3px; display: block;">Degrees</span>
+                        <span class="dropdown-label" style="margin-bottom: 3px; display: block;"
+                              data-i18n="label.degrees">Degrees</span>
                         <div id="degreeButtonContainer" style="display: flex; flex-wrap: wrap; gap: 3px;"></div>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Sync: Lock the Scale-Locked glissando total duration to host tempo. When set to a rhythmic value, the Speed slider is replaced by tempo-synced timing.">
-                        <span class="dropdown-label">Sync</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.sync">Sync</span>
                         <select id="scaleTempoSync">
                             <option value="0">Off</option>
                             <option value="1">1/32</option>
@@ -2146,15 +2454,15 @@
                             <option value="14">4 Bars</option>
                         </select>
                     </div>
-                    <div class="slider-group" id="scaleSpeedGroup" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
-                        <span class="slider-label">Speed</span>
+                    <div class="slider-group" id="scaleSpeedGroup">
+                        <span class="slider-label" data-i18n="label.speed">Speed</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoSpeed" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="glissandoSpeedValue">12.0 n/s</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Shape: Acceleration curve for the scale-locked glissando sweep.">
-                        <span class="dropdown-label">Shape</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                         <select id="glissandoShape">
                             <option value="0">Linear</option>
                             <option value="1">Accelerate</option>
@@ -2162,8 +2470,8 @@
                             <option value="3">S-Curve</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Interval: How far the scale-locked glissando sweeps in semitones.">
-                        <span class="dropdown-label">Interval</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.interval">Interval</span>
                         <select id="glissandoInterval">
                             <option value="0">Minor 2nd</option>
                             <option value="1">Major 2nd</option>
@@ -2184,43 +2492,43 @@
                             <option value="16">Custom</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Direction: Whether the scale-locked glissando sweeps up to the played note or down to it.">
-                        <span class="dropdown-label">Direction</span>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.direction">Direction</span>
                         <select id="glissandoDirection">
                             <option value="0">Up to Note</option>
                             <option value="1">Down to Note</option>
                         </select>
                     </div>
-                    <div class="slider-group" id="glissandoCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Exact semitone count (1-48) for the scale-locked glissando sweep distance.">
-                        <span class="slider-label">Semitones</span>
+                    <div class="slider-group" id="glissandoCustomSemitonesGroup" style="display:none;">
+                        <span class="slider-label" data-i18n="label.semitones">Semitones</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoCustomSemitones" min="0" max="1" step="0.001" value="0.234">
                             <span class="slider-value" id="glissandoCustomSemitonesValue">12 st</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Gliss Softness: How much the excitation changes during glissando. 0% is a full deliberate pluck; 60% (default) is a realistic brush; 100% is a very light ethereal sweep.">
-                        <span class="slider-label">Softness</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.softness">Softness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoExcitation" min="0" max="1" step="0.001" value="0.6">
                             <span class="slider-value" id="glissandoExcitationValue">60%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Humanize: Adds natural timing jitter to each glissando step. Simulates the slight irregularity of a real harpist's arm sweep across strings.">
-                        <span class="slider-label">Humanize</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.humanize">Humanize</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoHumanize" min="0" max="1" step="0.001" value="0.3">
                             <span class="slider-value" id="glissandoHumanizeValue">30%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Dynamics Start: Velocity at the beginning of the glissando sweep. Lower values mean softer attack and more damping. Default 50% gives a subtle lead-in.">
-                        <span class="slider-label">Dynamics: Start</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.dynStart">Dynamics: Start</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoVelStart" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="glissandoVelStartValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group" data-tooltip="Dynamics End: Velocity at the end of the glissando sweep. Higher values mean brighter sustain. Default 70% gives a natural ascending crescendo.">
-                        <span class="slider-label">Dynamics: End</span>
+                    <div class="slider-group">
+                        <span class="slider-label" data-i18n="label.dynEnd">Dynamics: End</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoVelEnd" min="0" max="1" step="0.001" value="0.7">
                             <span class="slider-value" id="glissandoVelEndValue">70%</span>
@@ -2237,18 +2545,19 @@
             <!-- LEFT SIDE: Interval List -->
             <div class="tuning-viz-container">
                 <div class="interval-list" id="interval-list">
-                    <div class="interval-list-header">Intervals (12 notes)</div>
+                    <div class="interval-list-header" data-i18n="label.intervalsHeader"
+                         data-i18n-vars='{"n":12}'>Intervals (12 notes)</div>
                     <!-- Tonic selector + intervals populated by JS -->
                 </div>
             </div>
 
             <!-- v1.10.0: Visualization Mode Toggle -->
             <div class="viz-mode-toggle">
-                <button class="viz-btn active" data-mode="circle" onclick="window.setVizMode && window.setVizMode('circle')">Circle</button>
-                <button class="viz-btn" data-mode="polar" onclick="window.setVizMode && window.setVizMode('polar')">Polar</button>
-                <button class="viz-btn" data-mode="matrix" onclick="window.setVizMode && window.setVizMode('matrix')">Matrix</button>
-                <button class="viz-btn" data-mode="truekeys" onclick="window.setVizMode && window.setVizMode('truekeys')">True Keys</button>
-                <button class="viz-btn" data-mode="rotation" onclick="window.setVizMode && window.setVizMode('rotation')">Rotation</button>
+                <button class="viz-btn active" data-mode="circle" data-i18n="label.vizCircle" onclick="window.setVizMode && window.setVizMode('circle')">Circle</button>
+                <button class="viz-btn" data-mode="polar" data-i18n="label.vizPolar" onclick="window.setVizMode && window.setVizMode('polar')">Polar</button>
+                <button class="viz-btn" data-mode="matrix" data-i18n="label.vizMatrix" onclick="window.setVizMode && window.setVizMode('matrix')">Matrix</button>
+                <button class="viz-btn" data-mode="truekeys" data-i18n="label.vizTrueKeys" onclick="window.setVizMode && window.setVizMode('truekeys')">True Keys</button>
+                <button class="viz-btn" data-mode="rotation" data-i18n="label.vizRotation" onclick="window.setVizMode && window.setVizMode('rotation')">Rotation</button>
             </div>
 
             <!-- CENTER: Visualization Container - v1.10.0: Multi-mode support -->
@@ -2268,7 +2577,7 @@
                             <!-- Degree labels around the circle -->
                             <g id="degree-labels" font-size="9" fill="#5C4033"></g>
                         </svg>
-                        <div class="pitch-circle-label">Scale Intervals</div>
+                        <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
                     </div>
                 </div>
 
@@ -2284,7 +2593,7 @@
 
                 <!-- True Keys View -->
                 <div class="viz-view truekeys-view" id="truekeys-view">
-                    <div class="tk-hint">Hold 2+ notes to see intervals</div>
+                    <div class="tk-hint" data-i18n="label.tkHint">Hold 2+ notes to see intervals</div>
                 </div>
 
                 <!-- Modal Rotation View -->
@@ -2298,8 +2607,10 @@
                 <!-- v1.18.2: Tuning Library moved to top (was at bottom) -->
                 <!-- Dropdown and mode buttons removed - library is the primary interface -->
                 <div class="library-section library-section-top" id="library-section">
-                    <div class="library-header" onclick="window.toggleLibrary && window.toggleLibrary()">
-                        <span class="library-header-text">Tuning Library</span>
+                    <div class="library-header" data-i18n-aria="aria.libraryToggle"
+                         aria-label="Show or hide the tuning library"
+                         onclick="window.toggleLibrary && window.toggleLibrary()">
+                        <span class="library-header-text" data-i18n="label.tuningLibrary">Tuning Library</span>
                         <span class="library-toggle" id="library-toggle">▼</span>
                     </div>
                     <div class="library-content" id="library-content">
@@ -2320,13 +2631,13 @@
                 </div>
 
                 <!-- Reference Pitch Knob -->
-                <div class="tuning-ref-section" data-tooltip="A4 Reference: The concert pitch for A4. Standard is 440 Hz. Historical tunings may use 415 Hz (Baroque) or 432 Hz.">
+                <div class="tuning-ref-section">
                     <div class="ref-knob-container">
                         <div class="ref-knob" id="ref-pitch-knob">
                             <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
                         </div>
                     </div>
-                    <div class="ref-knob-label">A4 REF</div>
+                    <div class="ref-knob-label" data-i18n="label.a4Ref">A4 REF</div>
                     <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
                 </div>
 
@@ -2334,9 +2645,9 @@
                 <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
 
                 <!-- v1.9.0: Octave Stretch Slider -->
-                <div class="octave-stretch-section" data-tooltip="Octave Stretch: Stretches octaves slightly. Values >1.0 widen octaves (piano-like). Used for compensating string inharmonicity.">
+                <div class="octave-stretch-section">
                     <div class="octave-stretch-row">
-                        <span class="octave-stretch-label">Stretch</span>
+                        <span class="octave-stretch-label" data-i18n="label.stretch">Stretch</span>
                         <input type="range" id="octave-stretch" class="octave-stretch-slider"
                                min="0.95" max="1.25" step="0.01" value="1.0"
                                oninput="window.handleOctaveStretchChange && window.handleOctaveStretchChange(this.value)">
@@ -2348,40 +2659,42 @@
                 <!-- v1.16.0: Added Export HTML button -->
                 <div class="tuning-file-section" id="scala-buttons">
                     <div class="tuning-file-buttons">
-                        <button class="tuning-file-btn" id="btn-load-scl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
-                        <button class="tuning-file-btn" id="btn-load-kbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
-                        <button class="tuning-file-btn" id="btn-save-scl" onclick="window.handleSaveSCL && window.handleSaveSCL()">Save .SCL</button>
-                        <button class="tuning-file-btn" id="btn-save-kbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
-                        <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" onclick="window.handleExportHTML && window.handleExportHTML()">Export HTML</button>
+                        <button class="tuning-file-btn" id="btn-load-scl" data-i18n="label.loadScl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
+                        <button class="tuning-file-btn" id="btn-load-kbm" data-i18n="label.loadKbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
+                        <button class="tuning-file-btn" id="btn-save-scl" data-i18n="label.saveScl" onclick="window.handleSaveSCL && window.handleSaveSCL()">Save .SCL</button>
+                        <button class="tuning-file-btn" id="btn-save-kbm" data-i18n="label.saveKbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
+                        <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-i18n="label.exportHtml" onclick="window.handleExportHTML && window.handleExportHTML()">Export HTML</button>
                     </div>
                 </div>
 
                 <!-- v1.14.0: Scale Generator Section -->
                 <div class="generator-section" id="generator-section">
-                    <div class="generator-header" onclick="window.toggleGenerator && window.toggleGenerator()">
-                        <span class="generator-header-text">Generate Scale</span>
+                    <div class="generator-header" data-i18n-aria="aria.generatorToggle"
+                         aria-label="Show or hide the scale generator"
+                         onclick="window.toggleGenerator && window.toggleGenerator()">
+                        <span class="generator-header-text" data-i18n="label.generateScale">Generate Scale</span>
                         <span class="generator-toggle" id="generator-toggle">▼</span>
                     </div>
                     <div class="generator-content" id="generator-content">
                         <div class="generator-type-row">
                             <select id="generator-type" class="generator-type-select" onchange="window.handleGeneratorTypeChange && window.handleGeneratorTypeChange(this.value)">
-                                <option value="edo">EDO (Equal Division)</option>
-                                <option value="harmonic">Harmonic Series</option>
-                                <option value="rank2">Rank-2 Temperament</option>
+                                <option value="edo" data-i18n="label.genEdo">EDO (Equal Division)</option>
+                                <option value="harmonic" data-i18n="label.genHarmonic">Harmonic Series</option>
+                                <option value="rank2" data-i18n="label.genRank2">Rank-2 Temperament</option>
                             </select>
                         </div>
                         <div class="generator-inputs" id="generator-inputs">
                             <!-- EDO inputs (default) -->
                             <div class="gen-row">
-                                <label>Divisions</label>
+                                <label data-i18n="label.genDivisions">Divisions</label>
                                 <input type="number" id="gen-divisions" value="19" min="5" max="53">
                             </div>
                             <div class="gen-row">
-                                <label>Period (¢)</label>
+                                <label data-i18n="label.genPeriod">Period (¢)</label>
                                 <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
                             </div>
                         </div>
-                        <button class="generator-btn" onclick="window.handleGenerate && window.handleGenerate()">Generate</button>
+                        <button class="generator-btn" data-i18n="label.generate" onclick="window.handleGenerate && window.handleGenerate()">Generate</button>
                     </div>
                 </div>
 
@@ -2396,32 +2709,32 @@
         <div id="effects-tab" class="tab-content">
             <div class="fx-section" id="chorusSection">
                 <div class="fx-header">
-                    <span class="fx-title">Chorus</span>
-                    <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxChorus">Chorus</span>
+                    <button class="fx-bypass-btn" id="chorusBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="chorus-knobs"></div>
             </div>
 
             <div class="fx-section" id="delaySection">
                 <div class="fx-header">
-                    <span class="fx-title">Delay</span>
-                    <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxDelay">Delay</span>
+                    <button class="fx-bypass-btn" id="delayBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="delay-knobs"></div>
             </div>
 
             <div class="fx-section" id="reverbSection">
                 <div class="fx-header">
-                    <span class="fx-title">Reverb</span>
-                    <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxReverb">Reverb</span>
+                    <button class="fx-bypass-btn" id="reverbBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="reverb-knobs"></div>
             </div>
 
             <div class="fx-section" id="eqSection">
                 <div class="fx-header">
-                    <span class="fx-title">EQ</span>
-                    <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxEq">EQ</span>
+                    <button class="fx-bypass-btn" id="eqBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="eq-knobs"></div>
             </div>
@@ -2429,8 +2742,8 @@
 
         <!-- Footer - v1.18.1: Keyboard moved here from Tuning tab -->
         <div class="footer">
-            <div class="master-volume" data-tooltip="Master Volume: The final output level of the instrument. Shown in dB. 0 dB is unity gain (no change).">
-                <span class="master-label">Master</span>
+            <div class="master-volume">
+                <span class="master-label" data-i18n="label.master">Master</span>
                 <input type="range" id="masterVolume" class="master-slider" min="0" max="1" step="0.001" value="0.909">
                 <span class="master-value" id="masterVolumeValue">0.0 dB</span>
             </div>
@@ -2466,7 +2779,7 @@
                     <div class="black-key mapped" data-note="68" style="left: calc(100% / 14 * 12 - 7px);"></div>
                     <div class="black-key mapped" data-note="70" style="left: calc(100% / 14 * 13 - 7px);"></div>
                 </div>
-                <div class="footer-keyboard-help">Click to play</div>
+                <div class="footer-keyboard-help" data-i18n="label.clickToPlay">Click to play</div>
             </div>
             <span class="brand">Ouaricon Audio</span>
         </div>
@@ -2618,51 +2931,55 @@
             }
         };
 
+        // v2.4.0: createElement, not innerHTML. Each of the three forms wrote
+        // its captions as raw prose inside a template string — a write no
+        // language sweep could own, and check-i18n assertion 12 reports it.
+        // The caption is a real element written by window.__setLabel now, so it
+        // is a [data-i18n] element from that call on and the sweep owns it.
+        //
+        // window.__setLabel rather than a bare setLabel: this is a CLASSIC
+        // script, not the module, and the canon publishes exactly that global
+        // for a sibling that cannot import.
+        function genRow(inputsDiv, id, value, min, max, step) {
+            var row = document.createElement('div');
+            row.className = 'gen-row';
+
+            var label = document.createElement('label');
+            row.appendChild(label);
+
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.id = id;
+            input.value = value;
+            input.min = min;
+            input.max = max;
+            if (step !== undefined) input.step = step;
+            row.appendChild(input);
+
+            inputsDiv.appendChild(row);
+            return label;
+        }
+
         window.handleGeneratorTypeChange = function(type) {
             window.generatorType = type;
             var inputsDiv = document.getElementById('generator-inputs');
             if (!inputsDiv) return;
 
+            inputsDiv.textContent = '';
+
             switch (type) {
                 case 'edo':
-                    inputsDiv.innerHTML = `
-                        <div class="gen-row">
-                            <label>Divisions</label>
-                            <input type="number" id="gen-divisions" value="19" min="5" max="53">
-                        </div>
-                        <div class="gen-row">
-                            <label>Period (¢)</label>
-                            <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
-                        </div>
-                    `;
+                    window.__setLabel(genRow(inputsDiv, 'gen-divisions', 19, 5, 53), 'label.genDivisions');
+                    window.__setLabel(genRow(inputsDiv, 'gen-period', 1200, 100, 2400, 1), 'label.genPeriod');
                     break;
                 case 'harmonic':
-                    inputsDiv.innerHTML = `
-                        <div class="gen-row">
-                            <label>Start Harmonic</label>
-                            <input type="number" id="gen-start" value="8" min="1" max="32">
-                        </div>
-                        <div class="gen-row">
-                            <label>End Harmonic</label>
-                            <input type="number" id="gen-end" value="16" min="2" max="64">
-                        </div>
-                    `;
+                    window.__setLabel(genRow(inputsDiv, 'gen-start', 8, 1, 32), 'label.genStart');
+                    window.__setLabel(genRow(inputsDiv, 'gen-end', 16, 2, 64), 'label.genEnd');
                     break;
                 case 'rank2':
-                    inputsDiv.innerHTML = `
-                        <div class="gen-row">
-                            <label>Generator (¢)</label>
-                            <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
-                        </div>
-                        <div class="gen-row">
-                            <label>Period (¢)</label>
-                            <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
-                        </div>
-                        <div class="gen-row">
-                            <label>Notes</label>
-                            <input type="number" id="gen-count" value="12" min="3" max="31">
-                        </div>
-                    `;
+                    window.__setLabel(genRow(inputsDiv, 'gen-generator', 696.6, 1, 1199, 0.1), 'label.genGenerator');
+                    window.__setLabel(genRow(inputsDiv, 'gen-r2-period', 1200, 100, 2400), 'label.genPeriod');
+                    window.__setLabel(genRow(inputsDiv, 'gen-count', 12, 3, 31), 'label.genCount');
                     break;
             }
         };
@@ -2836,6 +3153,34 @@
         // v1.7.3: Expose JUCE API to global handlers (defined in non-module script above)
         window.JuceAPI = Juce;
         console.log('[Module] JUCE API exposed to global handlers');
+
+        // ====================================================================
+        // v2.4.0: re-applying the language sweep to runtime-built markup
+        // ====================================================================
+        //
+        // THE CANON BLOCK LIVES IN js/app.js, not here — check-i18n assertion 6
+        // byte-compares it in exactly one file, and this page has app.js. What
+        // that block publishes to a sibling module is two globals:
+        // window.__setLabel, and window.__setLanguage.
+        //
+        // This module rebuilds the interval list, the True Keys panel and the
+        // rotation matrix at runtime, and the elements it creates carry
+        // data-i18n-aria keys assigned in JS. Those attributes resolve inside
+        // applyI18n's sweep, so the sweep has to run again after an injection.
+        // __setLanguage IS applyI18n, and the language it should re-apply is the
+        // one the page is already painted in — which applyI18n itself writes
+        // onto #lang-select on every pass, so reading it back cannot drift.
+        //
+        // Guarded because this module evaluates BEFORE js/app.js on a cold load
+        // (a classic-then-module page runs deferred modules in document order,
+        // and the DOMContentLoaded handler that calls initI18n has not fired
+        // yet). Before the canon block exists, an injection simply paints its
+        // authored English and the first applyI18n('en') picks it up.
+        function reapplyI18n() {
+            if (typeof window.__setLanguage !== 'function') return;
+            const sel = document.getElementById('lang-select');
+            window.__setLanguage(sel ? sel.value : 'en');
+        }
 
         // ====================================================================
         // Tab Switching
@@ -3022,8 +3367,16 @@
                         setValue = (v) => state.setNormalisedValue(v ? 1.0 : 0.0);
                     }
 
+                    // KEYS through window.__setLabel, from an if/else — never a
+                    // ternary inside the call (check-i18n assertion 13) and never
+                    // a literal, which would strand the face in the previous
+                    // language the instant the selector fired. NOT value mirrors
+                    // under D-01: freeToggle and scaleToggle are
+                    // AudioParameterBool, so no automation lane ever prints
+                    // either word.
                     const updateBtn = (isOn) => {
-                        button.textContent = isOn ? 'ON' : 'OFF';
+                        if (isOn) window.__setLabel(button, 'ui.onCaps');
+                        else      window.__setLabel(button, 'ui.offCaps');
                         button.classList.toggle('active', isOn);
                     };
 
@@ -3319,7 +3672,7 @@
             if (presetList.length === 0) {
                 const emptyItem = document.createElement('div');
                 emptyItem.className = 'preset-dropdown-item';
-                emptyItem.textContent = 'No presets available';
+                window.__setLabel(emptyItem, 'label.noPresets');
                 emptyItem.style.fontStyle = 'italic';
                 emptyItem.style.opacity = '0.6';
                 presetDropdown.appendChild(emptyItem);
@@ -3327,10 +3680,13 @@
                 return;
             }
 
-            // All presets are factory presets for now
+            // All presets are factory presets for now. The GROUP HEADING is
+            // chrome and localizes; the preset NAMES under it do not — the name
+            // IS the JSON filename (OuariconPresetManager.h:283-285), so
+            // translating one breaks recall outright (D-02).
             const header = document.createElement('div');
             header.className = 'preset-dropdown-header';
-            header.textContent = 'Factory';
+            window.__setLabel(header, 'label.factory');
             presetDropdown.appendChild(header);
 
             presetList.forEach(presetName => {
@@ -3836,7 +4192,11 @@
             if (!container) return;
 
             if (heldNotes.length < 2) {
-                container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+                container.textContent = '';
+                const hint = document.createElement('div');
+                hint.className = 'tk-hint';
+                container.appendChild(hint);
+                window.__setLabel(hint, 'label.tkHint');
                 return;
             }
 
@@ -3883,7 +4243,7 @@
                 const totalCents = 1200 * Math.log2(highest.freq / lowest.freq);
                 html += `
                     <div class="tk-interval" style="border-color: #6B8E4E; margin-top: 6px;">
-                        <span><strong>Total span</strong></span>
+                        <span><strong id="tk-total-span">Total span</strong></span>
                         <span class="tk-cents">${totalCents.toFixed(1)}¢</span>
                     </div>
                 `;
@@ -3891,6 +4251,13 @@
 
             html += '</div>';
             container.innerHTML = html;
+
+            // The two prose strings this builder writes are inside `html +=`
+            // accumulations, which extractJsRows does NOT scan — it reads
+            // assignments to textContent / innerText / innerHTML. They are keyed
+            // here rather than left English because the gate's blind spot is not
+            // a licence; the blind spot itself is named in the CHANGELOG.
+            window.__setLabel(container.querySelector('#tk-total-span'), 'label.totalSpan');
         }
 
         // ====================================================================
@@ -3903,7 +4270,7 @@
 
             const total = currentIntervals.length;
 
-            let html = '<table class="rotation-table"><tr><th>Mode</th>';
+            let html = '<table class="rotation-table"><tr><th id="rotation-mode-th">Mode</th>';
             // Header: degree numbers 1 through total
             for (let i = 1; i <= total; i++) {
                 html += `<th>${i}</th>`;
@@ -3953,6 +4320,9 @@
 
             html += '</table>';
             container.innerHTML = html;
+
+            // Same `html +=` blind spot as the True Keys summary row above.
+            window.__setLabel(container.querySelector('#rotation-mode-th'), 'label.mode');
         }
 
         // Update interval list UI (with tonic selector)
@@ -3976,19 +4346,24 @@
             // v1.13.0: Show tonic selector for all scale sizes
             // Tonic transposes by 12-TET semitones (shifts anchor point)
             // v1.7.3: Using inline onclick for tonic arrows
-            const tooltipText = total === 12
-                ? 'Change tonic note (transposes instrument)'
-                : 'Transpose by semitones (shifts scale anchor point)';
+            // v2.4.0: the four native title= attributes this builder wrote are
+            // GONE, per contract §4 — a native title renders a second,
+            // untranslated OS tooltip competing with the measure-then-pin
+            // renderer. Each one's text was the element's only help, so it moves
+            // to data-i18n-aria; no new prose was invented. The keys are applied
+            // AFTER the injection, below, because a data-i18n attribute written
+            // into a template string is invisible to check-i18n's markup scan
+            // and would report as a dead key.
             const tonicHtml = `
-                <div class="tonic-selector" title="${tooltipText}">
-                    <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
-                    <span class="tonic-label">Tonic:</span>
+                <div class="tonic-selector" id="tonic-selector">
+                    <span class="tonic-arrow" id="tonic-down" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
+                    <span class="tonic-label" id="tonic-caption">Tonic:</span>
                     <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
-                    <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
+                    <span class="tonic-arrow" id="tonic-up" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
                 </div>
             `;
 
-            let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
+            let html = `<div class="interval-list-header" id="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
             // Show rows for actual number of intervals
             // v1.11.1: Allow editing in any mode - editing auto-switches to Custom mode via backend
@@ -4021,12 +4396,53 @@
                                ${isDisabled ? 'disabled' : ''}
                                ${onchangeAttr}
                                placeholder="${Math.round(equalCents)}">
-                        ${showDeviation ? `<span class="deviation ${devClass}" title="Deviation from equal temperament">${devSign}${deviation.toFixed(1)}</span>` : '<span class="deviation"></span>'}
+                        ${showDeviation ? `<span class="deviation ${devClass}">${devSign}${deviation.toFixed(1)}</span>` : '<span class="deviation"></span>'}
                     </div>
                 `;
             }
 
             intervalList.innerHTML = html;
+
+            // ── v2.4.0: key what was just injected ──────────────────────────
+            // The header carries a COUNT. Contract §6 authors around the
+            // inflection rather than building a plural engine: there is no
+            // ternary and no suffix rule, only a {n} token, because the
+            // reachable range of `total` starts at 3 (the rank-2 generator's own
+            // minimum) and both languages are plural at every value it can take.
+            window.__setLabel(document.getElementById('interval-list-header'),
+                              'label.intervalsHeader', { n: total });
+            window.__setLabel(document.getElementById('tonic-caption'), 'label.tonicPrefix');
+
+            // The tonic selector's accessible name has two faces, chosen by an
+            // if/else over two LITERAL keys — never a ternary, and never a
+            // computed key, which check-i18n assertion 15 could not count as a
+            // reference.
+            const tonicSelectorEl = document.getElementById('tonic-selector');
+            if (tonicSelectorEl) {
+                if (total === 12) tonicSelectorEl.dataset.i18nAria = 'aria.tonicSelector12';
+                else              tonicSelectorEl.dataset.i18nAria = 'aria.tonicSelectorN';
+            }
+            const tonicDownEl = document.getElementById('tonic-down');
+            if (tonicDownEl) tonicDownEl.dataset.i18nAria = 'aria.tonicPrev';
+            const tonicUpEl = document.getElementById('tonic-up');
+            if (tonicUpEl) tonicUpEl.dataset.i18nAria = 'aria.tonicNext';
+
+            // Only the POPULATED deviation cells: the empty placeholder span
+            // that stands in when a row has nothing to report carries no
+            // number, and naming an empty box for a screen reader is noise.
+            // Assigned in JS with a plain literal rather than written into the
+            // template above, because an attribute inside a script string is
+            // raw text to an HTML parser — check-i18n's markup scan never sees
+            // it, and the key reported DEAD while the code was obeying the rule.
+            for (const el of intervalList.querySelectorAll('.deviation.pure, .deviation.sharp, .deviation.flat'))
+                el.dataset.i18nAria = 'aria.deviation';
+
+            // Re-run the sweep so the attributes just assigned resolve in the
+            // CURRENT language. The canon publishes exactly one re-entry point,
+            // window.__setLanguage, and the current code is what the selector
+            // holds — applyI18n writes it there on every pass, so reading it
+            // back cannot drift from what the page is painted in.
+            reapplyI18n();
 
             // v1.12.3: Use event delegation instead of inline handlers (more reliable in WebView)
             intervalList.querySelectorAll('.interval-input').forEach(input => {
@@ -4389,92 +4805,23 @@
         };
 
         // ====================================================================
-        // v1.18.0: Tooltip System
+        // v2.4.0: THE SECOND TOOLTIP RENDERER IS DELETED, NOT DISABLED.
         // ====================================================================
-        (function initTooltipSystem() {
-            const tooltipToggle = document.getElementById('tooltip-toggle');
-            const tooltip = document.getElementById('tooltip');
-            const pluginContainer = document.querySelector('.plugin-container');
-            let tooltipsEnabled = false;
-
-            // Toggle tooltips on/off
-            tooltipToggle.addEventListener('click', function() {
-                tooltipsEnabled = !tooltipsEnabled;
-                tooltipToggle.classList.toggle('active', tooltipsEnabled);
-                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
-
-                // Hide tooltip when disabling
-                if (!tooltipsEnabled) {
-                    tooltip.classList.remove('visible');
-                }
-
-                // Save state via JUCE native function (if available)
-                if (window.JuceAPI && window.JuceAPI.getNativeFunction) {
-                    try {
-                        window.JuceAPI.getNativeFunction('setTooltipsEnabled')(tooltipsEnabled);
-                    } catch (e) {
-                        // Silently ignore if function not available
-                    }
-                }
-            });
-
-            // Show tooltip on hover over elements with data-tooltip
-            pluginContainer.addEventListener('mouseover', function(e) {
-                if (!tooltipsEnabled) return;
-
-                const target = e.target.closest('[data-tooltip]');
-                if (!target) return;
-
-                const text = target.getAttribute('data-tooltip');
-                if (!text) return;
-
-                tooltip.textContent = text;
-                tooltip.classList.add('visible');
-
-                // Position tooltip above the element
-                const rect = target.getBoundingClientRect();
-                const containerRect = pluginContainer.getBoundingClientRect();
-
-                // Calculate position relative to container
-                let left = rect.left - containerRect.left + rect.width / 2;
-                let top = rect.top - containerRect.top - 8;
-
-                // Constrain within container bounds
-                const tooltipWidth = tooltip.offsetWidth || 200;
-                const tooltipHeight = tooltip.offsetHeight || 40;
-
-                // Keep tooltip within horizontal bounds
-                if (left - tooltipWidth / 2 < 10) {
-                    left = tooltipWidth / 2 + 10;
-                } else if (left + tooltipWidth / 2 > containerRect.width - 10) {
-                    left = containerRect.width - tooltipWidth / 2 - 10;
-                }
-
-                // Check if tooltip would go above container - if so, show below
-                if (top - tooltipHeight < 0) {
-                    top = rect.bottom - containerRect.top + 8;
-                }
-
-                tooltip.style.left = left + 'px';
-                tooltip.style.top = top + 'px';
-                tooltip.style.transform = 'translateX(-50%)';
-            });
-
-            // Hide tooltip when mouse leaves element
-            pluginContainer.addEventListener('mouseout', function(e) {
-                const target = e.target.closest('[data-tooltip]');
-                if (target) {
-                    tooltip.classList.remove('visible');
-                }
-            });
-
-            // Restore tooltip state from JUCE (if available)
-            window.restoreTooltipState = function(enabled) {
-                tooltipsEnabled = !!enabled;
-                tooltipToggle.classList.toggle('active', tooltipsEnabled);
-                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
-            };
-        })();
+        //
+        // A 92-line initTooltipSystem() IIFE stood here through v2.3.3. It read
+        // one flat data-tooltip string, never measured the box it was placing,
+        // and carried four hard-coded literals — `tooltip.offsetWidth || 200`,
+        // `tooltip.offsetHeight || 40`, and two containerRect-relative 10px
+        // margins — whose fallbacks fired precisely on a first hover, when the
+        // box had not been laid out yet. It also owned the "?" toggle and the
+        // window.restoreTooltipState hook the editor pushed to.
+        //
+        // All of it is gone. js/app.js carries the measure-then-pin renderer
+        // ported from O-ReverseDelay, the "?" is now the settings gear, and both
+        // preferences are PULLED through native functions rather than pushed by
+        // a timer that fires before this page has evaluated. Leaving the old
+        // positioner alongside the new one is how two renderers came to exist in
+        // this repo in the first place.
 
         initializeTuning();
     </script>

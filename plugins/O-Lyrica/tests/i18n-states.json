@@ -1,0 +1,62 @@
+[
+  {
+    "name": "TECHNIQUES tab (the section headings, both keyswitch captions, and the Free / Scale-Locked glissando panels — 29 labels live behind a display:none tab-content and no resting state shows any of them)",
+    "click": "#tab-techniques"
+  },
+  {
+    "name": "the Free glissando toggle switched ON (ui.onCaps, the other face of a caption whose resting face is ui.offCaps; the C++ default is off, so nothing else reveals it)",
+    "click": "#freeToggleBtn"
+  },
+  {
+    "name": "BOTH Semitones groups revealed (freeInterval and glissandoInterval set to Custom, index 16, which is what un-hides #freeCustomSemitonesGroup and #glissandoCustomSemitonesGroup). Driven through the PLUGIN'S OWN combo states, not the DOM: setChoiceIndex fires the valueChangedEvent listener the page itself registered, so this is the state the plugin can actually produce.",
+    "eval": "window.__stubStates.combos.get('freeInterval').setChoiceIndex(16); window.__stubStates.combos.get('glissandoInterval').setChoiceIndex(16);"
+  },
+  {
+    "name": "the Degrees caption revealed (glissandoScale set to Custom, index 3, which is what un-hides #customDegreeToggles). Same mechanism and same reason as above.",
+    "eval": "window.__stubStates.combos.get('glissandoScale').setChoiceIndex(3);"
+  },
+  {
+    "name": "TUNING tab (the interval list header with its {n} token substituted, the tonic caption, the five visualization buttons, the library heading, A4 REF, Stretch, the five file buttons and the scale generator)",
+    "click": "#tab-tuning"
+  },
+  {
+    "name": "the scale generator expanded (Generate Scale's three type options, the EDO form's Divisions and Period captions and the Generate button all sit inside a collapsed .generator-content)",
+    "click": ".generator-header"
+  },
+  {
+    "name": "the generator switched to Harmonic Series (label.genStart and label.genEnd exist only in that form — handleGeneratorTypeChange REBUILDS #generator-inputs, so no single state can show all three forms at once)",
+    "eval": "window.handleGeneratorTypeChange('harmonic');"
+  },
+  {
+    "name": "the generator switched to Rank-2 Temperament (label.genGenerator and label.genCount, the last two captions of the third form)",
+    "eval": "window.handleGeneratorTypeChange('rank2');"
+  },
+  {
+    "name": "the generator switched BACK to EDO (handleGeneratorTypeChange REBUILDS #generator-inputs, so the Divisions and Period captions the resting markup carries are DESTROYED by the two states above and only exist again once the form is rebuilt — without this they report as never measured while being the form the plugin opens on)",
+    "eval": "window.handleGeneratorTypeChange('edo');"
+  },
+  {
+    "name": "the ROTATION visualization (label.mode is the rotation table's first column header, written into an `html +=` accumulation and keyed afterwards — the one view no resting state renders)",
+    "click": "button.viz-btn[data-mode=\"rotation\"]"
+  },
+  {
+    "name": "the TRUE KEYS visualization (label.tkHint is the empty-state line inside #truekeys-view, which is display:none in every other mode — as of v2.4.0, because .truekeys-view no longer overrides .viz-view's display and paint itself beside the pitch circle in all five modes)",
+    "click": "button.viz-btn[data-mode=\"truekeys\"]"
+  },
+  {
+    "name": "EFFECTS tab (the four section titles, the four bypass faces and all sixteen knob captions, every one of them written by setLabel from js/app.js rather than authored in the markup)",
+    "click": "#tab-effects"
+  },
+  {
+    "name": "the Chorus section BYPASSED (ui.off, the other face of the four bypass buttons — their resting face is ui.on)",
+    "click": "#chorusBypassBtn"
+  },
+  {
+    "name": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the switch are all inside a [hidden] panel, so no resting state measures them). LAST but one on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the switch below is clicked.",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help ON (the ui.on face of the settings switch, which no resting state shows — the C++ default is off). A real click on the real control, inside the popover the previous state opened, so the dismiss handler leaves the panel up.",
+    "click": "#tips-toggle"
+  }
+]

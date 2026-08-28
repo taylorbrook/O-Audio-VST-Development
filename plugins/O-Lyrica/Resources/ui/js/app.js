@@ -24,11 +24,27 @@
 
 // CRITICAL: Import JUCE functions from the embedded bridge
 import * as Juce from './juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('OuariconLyrica effects module loaded');
+
+    // v2.4.0: the effects tab BUILDS its sixteen knobs, so it runs first — a
+    // caption keyed by setLabel() before its element exists writes onto
+    // nothing, and the language sweep below only sees elements that are in the
+    // document when it runs.
     initializeEffects();
+
+    // v2.4.0: the settings popover and the language sweep, in that order and
+    // BOTH before initializeTooltips(). The gear and the hover-help switch are
+    // themselves data-tip anchors, and applyI18n() is what puts the copy on
+    // them: binding the renderer first would leave the two controls that reach
+    // and restore the help layer with nothing to say on the first hover.
+    try { initSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+    try { initI18n(); }           catch (e) { console.error('i18n init failed:', e); }
+
+    initializeTooltips();
 });
 
 /**
@@ -353,8 +369,22 @@ function bindToggle(paramId, buttonId) {
             setValue = (v) => state.setNormalisedValue(v ? 1.0 : 0.0);
         }
 
+        // KEYS through setLabel, from an if/else — never a ternary inside the
+        // call (check-i18n assertion 13), and never a literal, which would be
+        // stranded in the previous language the instant the selector fired.
+        //
+        // THIS FUNCTION IS NOT REACHED. See the CHANGELOG: app.js's
+        // initializeParameters / initializeMeters / bindSlider / bindChoice /
+        // bindToggle / bindKeyswitchChoice / setupCustomSemitonesVisibility
+        // have been dead since v1.35.1 moved the effects tab in here and left
+        // the inline module owning every other binding. It is localized rather
+        // than deleted because deleting ~350 lines of a physical-model synth's
+        // controller is not a language commit's business, and localizing it
+        // costs no new string: ui.onCaps / ui.offCaps are the same two keys the
+        // LIVE copy in the inline module uses.
         const updateButton = (isOn) => {
-            button.textContent = isOn ? 'ON' : 'OFF';
+            if (isOn) setLabel(button, 'ui.onCaps');
+            else      setLabel(button, 'ui.offCaps');
             button.classList.toggle('active', isOn);
         };
 
@@ -463,7 +493,21 @@ document.addEventListener('mouseup', () => {
 /**
  * Create an SVG vine-arc knob element for the effects tab
  */
-function makeFxKnob(id, label) {
+// v2.4.0: NO innerHTML, and NO caption argument.
+//
+// Through v2.3.3 this built the whole knob — the vine-arc SVG and the caption —
+// from one interpolated innerHTML string, so the caption was a raw prose write
+// no language sweep could ever own. It is createElement / createElementNS
+// throughout now, which also removes the last markup string in this file.
+//
+// THE CAPTION IS APPLIED BY THE CALLER, always with a PLAIN STRING LITERAL.
+// A {id, labelKey} table passed through a loop reads better and fails twice:
+// check-i18n assertion 13 rejects a computed setLabel key, and assertion 15
+// counts only a literal as a live reference, so all sixteen captions would have
+// reported DEAD while the gate simultaneously said the key was uncheckable.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function makeFxKnob(id) {
     const vb = 44;
     const c = 22;
     const r = 18;
@@ -471,18 +515,68 @@ function makeFxKnob(id, label) {
 
     const container = document.createElement('div');
     container.className = 'knob-container';
-    container.innerHTML =
-        `<div class="knob" id="${id}Knob">` +
-            `<div class="knob-visual">` +
-                `<svg viewBox="0 0 ${vb} ${vb}">` +
-                    `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
-                    `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
-                `</svg>` +
-            `</div>` +
-        `</div>` +
-        `<div class="knob-label">${label}</div>` +
-        `<div class="knob-value" id="${id}Value"></div>`;
+
+    const knob = document.createElement('div');
+    knob.className = 'knob';
+    knob.id = id + 'Knob';
+
+    const visual = document.createElement('div');
+    visual.className = 'knob-visual';
+
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${vb} ${vb}`);
+
+    const track = document.createElementNS(SVG_NS, 'circle');
+    track.setAttribute('class', 'knob-track');
+    track.setAttribute('cx', c);
+    track.setAttribute('cy', c);
+    track.setAttribute('r', r);
+
+    const vine = document.createElementNS(SVG_NS, 'circle');
+    vine.setAttribute('class', 'knob-vine');
+    vine.setAttribute('id', id + 'Vine');
+    vine.setAttribute('cx', c);
+    vine.setAttribute('cy', c);
+    vine.setAttribute('r', r);
+    vine.setAttribute('stroke-dasharray', da);
+    vine.setAttribute('stroke-dashoffset', da);
+
+    svg.appendChild(track);
+    svg.appendChild(vine);
+    visual.appendChild(svg);
+    knob.appendChild(visual);
+    container.appendChild(knob);
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'knob-label';
+    container.appendChild(labelEl);
+
+    const valueEl = document.createElement('div');
+    valueEl.className = 'knob-value';
+    valueEl.id = id + 'Value';
+    container.appendChild(valueEl);
+
     return container;
+}
+
+// The caption element of a knob built above, so a call site can write its
+// literal key onto it in one line.
+function fxCaption(container) {
+    return container.querySelector('.knob-label');
+}
+
+// Create a knob, append it, and hand its CAPTION back so the call site can
+// key it: `setLabel(addFxKnob('chorus-knobs', 'chorusRate'), 'label.knRate')`.
+// The key is then a plain string literal in setLabel's second argument, which
+// is the only shape assertion 13 accepts and the only one assertion 15 counts
+// as a live reference. Returns null when the row is missing; setLabel's own
+// first line already guards that.
+function addFxKnob(containerId, id) {
+    const row = document.getElementById(containerId);
+    if (!row) return null;
+    const knob = makeFxKnob(id);
+    row.appendChild(knob);
+    return fxCaption(knob);
 }
 
 /**
@@ -596,14 +690,10 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
     });
 }
 
-/**
- * Populate knobs into a container
- */
-function populateFxKnobs(containerId, knobs) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    knobs.forEach(k => container.appendChild(makeFxKnob(k.id, k.label)));
-}
+// v2.4.0: populateFxKnobs() is GONE. It took a table of {id, label} pairs and
+// applied them in a loop, which is precisely the shape that cannot carry a
+// literal i18n key — see makeFxKnob's note. Each knob is now created and
+// captioned at its own call site in initializeEffects().
 
 /**
  * Setup a bypass toggle button for an effects section
@@ -615,7 +705,13 @@ function setupFxBypassToggle(fxName, toggleState) {
 
     function updateVisual() {
         const bypassed = toggleState.getValue();
-        btn.textContent = bypassed ? 'Off' : 'On';
+        // Two literal keys from an if/else, per check-i18n assertion 13. NOT a
+        // value mirror under D-01: chorusBypass / delayBypass / eqBypass /
+        // reverbBypass are AudioParameterBool, so no automation lane ever
+        // prints either word and translating them cannot make the page and the
+        // host disagree.
+        if (bypassed) setLabel(btn, 'ui.off');
+        else          setLabel(btn, 'ui.on');
         btn.classList.toggle('bypassed', bypassed);
         section.classList.toggle('bypassed', bypassed);
     }
@@ -639,24 +735,25 @@ function initializeEffects() {
         // --- Populate knobs ---
 
         // Chorus
-        populateFxKnobs('chorus-knobs', [
-            { id: 'chorusRate', label: 'Rate' },
-            { id: 'chorusDepth', label: 'Depth' },
-            { id: 'chorusMix', label: 'Mix' },
-        ]);
+        // Every caption below is a PLAIN STRING LITERAL at its call site. See
+        // makeFxKnob: a loop over a {id, labelKey} table fails assertion 13 on
+        // the computed key and reports all sixteen keys dead in assertion 15.
+        setLabel(addFxKnob('chorus-knobs', 'chorusRate'),  'label.knRate');
+        setLabel(addFxKnob('chorus-knobs', 'chorusDepth'), 'label.knDepth');
+        setLabel(addFxKnob('chorus-knobs', 'chorusMix'),   'label.knMix');
 
         // Delay - knobs + mode dropdown
         const delayRow = document.getElementById('delay-knobs');
         if (delayRow) {
-            delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
-            delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+            setLabel(addFxKnob('delay-knobs', 'delayTime'),     'label.time');
+            setLabel(addFxKnob('delay-knobs', 'delayFeedback'), 'label.knFeedback');
 
             // Mode dropdown
             const modeWrap = document.createElement('div');
             modeWrap.className = 'fx-dropdown-container';
             const modeLbl = document.createElement('div');
             modeLbl.className = 'knob-label';
-            modeLbl.textContent = 'Mode';
+            setLabel(modeLbl, 'label.mode');
             const modeSel = document.createElement('select');
             modeSel.className = 'fx-dropdown';
             modeSel.id = 'delayModeSelect';
@@ -670,26 +767,22 @@ function initializeEffects() {
             modeWrap.appendChild(modeSel);
             delayRow.appendChild(modeWrap);
 
-            delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+            setLabel(addFxKnob('delay-knobs', 'delayMix'), 'label.knMix');
         }
 
         // EQ
-        populateFxKnobs('eq-knobs', [
-            { id: 'eqLowGain', label: 'Low' },
-            { id: 'eqMidGain', label: 'Mid' },
-            { id: 'eqMidFreq', label: 'Mid Freq' },
-            { id: 'eqHighGain', label: 'High' },
-        ]);
+        setLabel(addFxKnob('eq-knobs', 'eqLowGain'),  'label.knLow');
+        setLabel(addFxKnob('eq-knobs', 'eqMidGain'),  'label.knMid');
+        setLabel(addFxKnob('eq-knobs', 'eqMidFreq'),  'label.knMidFreq');
+        setLabel(addFxKnob('eq-knobs', 'eqHighGain'), 'label.knHigh');
 
         // Reverb (v2.1.0: FDN plate reverb with mod + shimmer)
-        populateFxKnobs('reverb-knobs', [
-            { id: 'reverbSize', label: 'Size' },
-            { id: 'reverbDamp', label: 'Damp' },
-            { id: 'reverbPredelay', label: 'Pre-dly' },
-            { id: 'reverbMod', label: 'Mod' },
-            { id: 'reverbShimmer', label: 'Shimmer' },
-            { id: 'reverbMix', label: 'Mix' },
-        ]);
+        setLabel(addFxKnob('reverb-knobs', 'reverbSize'),     'label.size');
+        setLabel(addFxKnob('reverb-knobs', 'reverbDamp'),     'label.knDamp');
+        setLabel(addFxKnob('reverb-knobs', 'reverbPredelay'), 'label.knPredelay');
+        setLabel(addFxKnob('reverb-knobs', 'reverbMod'),      'label.knMod');
+        setLabel(addFxKnob('reverb-knobs', 'reverbShimmer'),  'label.knShimmer');
+        setLabel(addFxKnob('reverb-knobs', 'reverbMix'),      'label.knMix');
 
         // --- Get JUCE states ---
         const chorusRateState     = Juce.getSliderState('chorusRate');
@@ -757,3 +850,450 @@ function initializeEffects() {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Interface language (v2.4.0)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// THIS BLOCK IS REPLICATED VERBATIM ACROSS EVERY LOCALIZED PLUGIN and is
+// byte-compared (comments stripped, whitespace collapsed) against
+// scripts/i18n-canon.js by scripts/check-i18n.js assertion 6. This repo has no
+// shared UI module and deliberately does not gain one, so 43 hand-copies are
+// only safe because a drifted copy fails a gate. Do not "tidy" it.
+//
+// One PULL at page init, no push, no timer, no poll().then(poll), no revision
+// counter. The language is not preset content: OuariconPresetManager::loadPreset
+// walks preset["parameters"] and never touches a state-tree property, so no
+// preset path can change it. The pull is safe here because
+// `grep -rn setVisible plugins/O-Lyrica/Source/` returns NOTHING — the web view
+// is never hidden, so the hidden-completion drop cannot fire
+// (critical_webview_completion_gated_on_isvisible).
+//
+// IT ALSO REPLACES A PUSH THAT WAS ALREADY HERE. v2.3.3 restored the tooltip
+// preference by having the editor's timerCallback fire ONE evaluateJavascript
+// at `window.restoreTooltipState` and never retry — the racy shape WR-01
+// documented on O-FreqPulse, which loses the stored value outright on a cold
+// WebView start where the page has not evaluated yet. Both preferences are
+// PULLED now, and that hook and its timer branch are deleted.
+//
+// Declared here at module level, ABOVE every reader. The only statements
+// executed at module-evaluation time are the two window.__ assignments, which
+// touch hoisted function declarations and cannot enter a TDZ chain
+// (pattern_module_toplevel_init_tdz). initI18n() itself is called from INSIDE
+// the DOMContentLoaded handler, after initializeEffects().
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// The settings popover (v2.4.0)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The gear that carries the language selector and the hover-help switch. Two
+// rows: this plugin HAS the setTooltipsEnabled bridge, so its toggle moves in
+// here from the floating "?" rather than sitting beside a second control for the
+// same state.
+//
+// IT SITS EXACTLY WHERE THE "?" SAT — bottom: 50px, right: 15px inside
+// .plugin-container, the same absolute slot, so the new control adds ZERO
+// geometry delta to a 700x450 frame that has none to spare. The header was the
+// obvious alternative and was rejected for the opposite reason: .header is a
+// justify-content: space-between row of three items, and a fourth would have
+// moved the title, the preset bar and the voice readout for a control that
+// belongs in a corner.
+//
+// The panel opens UPWARD (bottom-anchored), because 50px from the bottom edge
+// is not enough room to drop a two-row panel downward.
+//
+// All state lives in this closure, so nothing here can join a TDZ chain.
+
+let settingsPopoverEl = null;
+let gearBtnEl = null;
+
+function setSettingsPopoverOpen(open) {
+    if (!settingsPopoverEl || !gearBtnEl) return;
+
+    settingsPopoverEl.hidden = !open;
+    gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initSettingsPopover() {
+    gearBtnEl = document.getElementById('gear-btn');
+    settingsPopoverEl = document.getElementById('settings-popover');
+
+    if (!gearBtnEl || !settingsPopoverEl) {
+        console.warn('settings popover missing — language selector unavailable');
+        return;
+    }
+
+    gearBtnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSettingsPopoverOpen(settingsPopoverEl.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. mousedown rather than
+    // click, so the panel is gone before a drag on a slider or a knob
+    // underneath it begins — the effects knobs call preventDefault in their own
+    // mousedown handlers. Matches how the preset dropdown already behaves.
+    document.addEventListener('mousedown', (e) => {
+        if (settingsPopoverEl.hidden) return;
+        if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+        setSettingsPopoverOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+            setSettingsPopoverOpen(false);
+            gearBtnEl.focus();
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tooltips — the measure-then-pin renderer (v2.4.0)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// PORTED from O-ReverseDelay / O-FreqPulse, replacing this plugin's own second
+// positioner ENTIRELY. There is now ONE tooltip renderer repo-wide.
+//
+// What the port brings that v2.3.3's positioner did not have: a title/body pair
+// built from data-tip-title + data-tip rather than one flat string, a dwell
+// delay so a tip does not fire on every crossing, a width that is MEASURED and
+// PINNED before `left` is applied rather than a hard-coded 200px fallback, an
+// arrow whose offset is recomputed AFTER the horizontal clamp so a clamped tip
+// still points at its control, delegated listeners on the DOCUMENT rather than
+// on .plugin-container, and viewport-relative arithmetic that matches the
+// fixed-position box the browser actually lays out.
+//
+// The four literals it deletes were: `tooltip.offsetWidth || 200`,
+// `tooltip.offsetHeight || 40`, and the two containerRect-relative 10px
+// margins. The fallbacks fired whenever the box had not been laid out yet,
+// which on a first hover is exactly when they were read.
+//
+// The renderer never sees a KEY. applyI18n() writes both attributes from
+// js/i18n.js and rewrites them on every language change; this function reads
+// only what is on the anchor.
+
+const TOOLTIP_DELAY_MS = 120;
+const TOOLTIP_MARGIN = 8;   // gap between a tip and its control / the viewport edge
+
+let tooltipEl = null;
+let tooltipTimer = null;
+let tooltipTarget = null;
+let tooltipSuppressed = false;
+
+// v1.18.0: master on/off for the hover-help layer, persisted C++-side.
+// v2.4.0 moved its control out of the floating "?" and into the settings
+// popover, next to the language selector.
+//
+// Starts FALSE, matching the C++ default (PluginProcessor.h: tooltipsEnabled),
+// so the very first hover behaves the same whether or not the stored value has
+// arrived yet — the native call below is a promise.
+let tooltipsEnabled = false;
+let helpToggleEl = null;
+let setTooltipsEnabledNative = null;
+
+function initializeTooltips() {
+    tooltipEl = document.getElementById('tooltip');
+    if (!tooltipEl) { console.warn('Tooltip element not found — tooltips disabled'); return; }
+
+    initializeHelpToggle();
+
+    document.addEventListener('mouseover', handleTooltipOver);
+    document.addEventListener('mouseout', handleTooltipOut);
+
+    // Any press begins a click or a drag: get the tip out of the way and keep it
+    // away until release, so it cannot hang over a slider or a knob mid-drag.
+    // Capture phase, because the effects knobs call preventDefault in their own
+    // mousedown handlers.
+    document.addEventListener('pointerdown', () => {
+        tooltipSuppressed = true;
+        hideTooltip();
+    }, true);
+
+    document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
+
+    console.log('Tooltips initialized');
+}
+
+function initializeHelpToggle() {
+    helpToggleEl = document.getElementById('tips-toggle');
+    if (!helpToggleEl) { console.warn('Help toggle not found — hover help stays off'); return; }
+
+    helpToggleEl.addEventListener('click', () => setTooltipsEnabled(!tooltipsEnabled, true));
+
+    // Bridge to the processor. Guarded because the same page is opened in a
+    // plain browser for UI checks, where native integration does not exist —
+    // there the toggle still works, it just does not persist.
+    //
+    // getTooltipsEnabled was REMOVED from PluginEditor.cpp in v2.2.0 as
+    // finding IN-14, on the grounds that the JS never called it: the state was
+    // pushed instead, by one evaluateJavascript from timerCallback. That push
+    // is the racy shape, so the getter is back and the push is gone.
+    let getTooltipsEnabledNative = null;
+
+    try {
+        getTooltipsEnabledNative = Juce.getNativeFunction('getTooltipsEnabled');
+        setTooltipsEnabledNative = Juce.getNativeFunction('setTooltipsEnabled');
+    } catch (e) {
+        console.warn('Tooltip preference not available, session-only:', e);
+    }
+
+    // Paint the current (default) state first so the button is never blank while
+    // the native call is in flight.
+    setTooltipsEnabled(tooltipsEnabled, false);
+
+    if (getTooltipsEnabledNative) {
+        getTooltipsEnabledNative()
+            .then((stored) => setTooltipsEnabled(!!stored, false))
+            .catch((e) => console.warn('Could not read tooltip preference:', e));
+    }
+}
+
+// `persist` is false for the start-up push, so reading the stored value does not
+// immediately write it back.
+function setTooltipsEnabled(enabled, persist) {
+    tooltipsEnabled = !!enabled;
+
+    if (!tooltipsEnabled) hideTooltip();
+
+    const pluginContainer = document.querySelector('.plugin-container');
+    if (pluginContainer) pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+
+    if (helpToggleEl) {
+        // The two faces are KEYS through setLabel(), not literals. A literal
+        // holds one string, so switching to French mid-session would have
+        // restored an English "On". if/else, not a ternary inside the call —
+        // check-i18n assertion 13.
+        helpToggleEl.setAttribute('aria-pressed', tooltipsEnabled ? 'true' : 'false');
+        if (tooltipsEnabled) setLabel(helpToggleEl, 'ui.on');
+        else                 setLabel(helpToggleEl, 'ui.off');
+    }
+
+    if (persist && setTooltipsEnabledNative) {
+        setTooltipsEnabledNative(tooltipsEnabled)
+            .catch((e) => console.warn('Could not save tooltip preference:', e));
+    }
+}
+
+// The gear and the toggle inside the popover both carry data-tip-always: the two
+// controls that reach and restore the help layer have to keep explaining
+// themselves while help is off.
+function tipAllowed(target) {
+    return tooltipsEnabled || target.hasAttribute('data-tip-always');
+}
+
+function handleTooltipOver(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target || target === tooltipTarget) return;
+    if (!tipAllowed(target)) return;
+
+    tooltipTarget = target;
+    clearTimeout(tooltipTimer);
+
+    if (tooltipSuppressed) return;
+    tooltipTimer = setTimeout(() => showTooltip(target), TOOLTIP_DELAY_MS);
+}
+
+function handleTooltipOut(e) {
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target) return;
+
+    // Moving between children of the same control is not a real exit. Every
+    // .slider-group here wraps a caption, a slider and a value readout, and
+    // crossing between those children previously flickered the surface off and
+    // back on.
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+    hideTooltip();
+}
+
+function showTooltip(target) {
+    // The pointer may have moved on or gone down during the delay, and help may
+    // have been switched off between the hover and the timer firing.
+    if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
+    if (!tipAllowed(target)) return;
+
+    const title = target.getAttribute('data-tip-title');
+    const body  = target.getAttribute('data-tip');
+
+    // textContent, not innerHTML — the copy stays inert.
+    tooltipEl.textContent = '';
+
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'tooltip-title';
+        titleEl.textContent = title;
+        tooltipEl.appendChild(titleEl);
+    }
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'tooltip-body';
+    bodyEl.textContent = body;
+    tooltipEl.appendChild(bodyEl);
+
+    const anchor = target.getBoundingClientRect();
+
+    // MEASURE-THEN-PIN. A fixed-position box with `left` set and `width:auto`
+    // shrinks to fit whatever space remains to its right, so measuring at the
+    // PREVIOUS offset under-reports the width, and applying a near-edge `left`
+    // afterwards re-wraps a 200 px tip into a narrow ribbon — and the squeezed
+    // width then resolves `left` straight back against the right edge, so it
+    // never recovers on later hovers. Release the width, measure from the left
+    // edge, pin the result in px, and only then place.
+    //
+    // The pinned width is the FRACTIONAL getBoundingClientRect().width, not the
+    // integer offsetWidth: 188.48 rounds to 188, and pinning that makes the box
+    // 0.48 px narrower than its own shrink-to-fit, pushing the last word onto a
+    // second line. Height is only stable once the width is definite, so it is
+    // read after (pattern_fixed_tooltip_shrink_to_fit_edge).
+    tooltipEl.style.width = '';
+    tooltipEl.style.left  = '0px';
+    tooltipEl.style.top   = '0px';
+
+    const width = tooltipEl.getBoundingClientRect().width;
+    tooltipEl.style.width = `${width}px`;
+
+    const height = tooltipEl.getBoundingClientRect().height;
+
+    // Prefer above; flip below only when there is no room at the top.
+    let top = anchor.top - height - TOOLTIP_MARGIN;
+    let placement = 'above';
+
+    if (top < TOOLTIP_MARGIN) {
+        top = anchor.bottom + TOOLTIP_MARGIN;
+        placement = 'below';
+    }
+
+    // THE VERTICAL CLAMP the ported renderer does not carry. O-ReverseDelay's
+    // anchors are all knob-sized, so `below` always fits there and the omission
+    // is invisible; O-FreqPulse reproduced a real 15px overhang on a 376px
+    // anchor and added this line.
+    //
+    // ON THIS PAGE IT IS NOT INDEPENDENTLY REPRODUCIBLE, and that is said rather
+    // than dressed up: the tallest tip anchor here is .master-volume at 24px,
+    // every one of the 46 fits `above` or `below` inside 450px, and reverting
+    // this line alone leaves every gate green in both languages. It is ported
+    // anyway because the point of this stage is ONE runtime repo-wide, and a
+    // copy that silently differs from the others is the drift the canon exists
+    // to stop.
+    const maxTop = window.innerHeight - height - TOOLTIP_MARGIN;
+    if (top > maxTop) top = Math.max(TOOLTIP_MARGIN, maxTop);
+
+    const anchorCentreX = anchor.left + anchor.width / 2;
+    const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+    const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, anchorCentreX - width / 2));
+
+    tooltipEl.style.left = `${left}px`;
+    tooltipEl.style.top  = `${top}px`;
+    tooltipEl.dataset.placement = placement;
+
+    // The tip is clamped to the viewport, but the arrow still points at the
+    // control — held clear of the rounded corners. Recomputed AFTER the clamp,
+    // which is the whole reason the clamp can be this aggressive.
+    const arrowX = Math.max(10, Math.min(width - 10, anchorCentreX - left));
+    tooltipEl.style.setProperty('--arrow-x', `${arrowX}px`);
+
+    tooltipEl.classList.add('visible');
+    tooltipEl.setAttribute('aria-hidden', 'false');
+}
+
+function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    tooltipTarget = null;
+
+    if (!tooltipEl) return;
+    tooltipEl.classList.remove('visible');
+    tooltipEl.setAttribute('aria-hidden', 'true');
+}

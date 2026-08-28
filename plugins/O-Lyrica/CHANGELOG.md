@@ -2,6 +2,165 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.4.0] - 2026-08-28
+
+### Added
+
+- **The page speaks French, not only the hover help.** A language selector in a new settings
+  gear switches every caption, section heading, tab name, button face, panel title, accessible
+  name and tooltip between English and French. 166 French entries — 46 tooltip pairs and 120
+  labels — all machine-drafted and flagged `reviewed: false`; no native speaker has read them.
+  `node scripts/check-i18n.js` prints the worklist.
+- **`Resources/ui/js/i18n.js`**, the string table, added to the EXISTING `OLyricaBinaryData`
+  target. That `juce_add_binary_data` call carries **no `NAMESPACE` argument**, so it takes the
+  default `BinaryData` namespace and works only because it is the only such target in this
+  plugin; a second target would have collided on that namespace and broken the build in a way
+  that reads like something else entirely. Four places, one commit: the file on disk, the
+  existing `SOURCES` list, a `getResource()` branch, and the `import` in `js/app.js`.
+- **`getUiLanguage` / `setUiLanguage`** native functions. The language rides the state XML as a
+  plain `uiLanguage` attribute (the string `"en"` / `"fr"`), beside `directTonic`,
+  `tooltipsEnabled` and `glissCustomDegrees`. Deliberately not an `AudioParameterChoice`: it must
+  not appear in a DAW automation lane, and a preset must not be able to change which language
+  somebody reads their interface in.
+- **`plugins/O-Lyrica/tests/i18n-states.json`** — fifteen states that drive all four tabs, both
+  glissando toggles, both Semitones groups, the Degrees panel, all three scale-generator forms,
+  the Rotation and True Keys visualizations, the settings popover and the hover-help switch. 113
+  of 113 `[data-i18n]` elements are measured by the label gate; without it, 78 were never looked at.
+
+### Changed
+
+- **THE SECOND TOOLTIP RENDERER IS DELETED, NOT DISABLED.** A 92-line `initTooltipSystem()` IIFE
+  in `index.html` read one flat `data-tooltip` string, never measured the box it was placing, and
+  carried four hard-coded literals — `tooltip.offsetWidth || 200`, `tooltip.offsetHeight || 40`,
+  and two `containerRect`-relative 10px margins — whose fallbacks fired precisely on a first
+  hover, when the box had not been laid out yet. `js/app.js` now carries the measure-then-pin
+  renderer ported from O-ReverseDelay / O-FreqPulse: a title/body pair, a 120 ms dwell, a width
+  released-measured-PINNED before `left` is applied, a vertical flip, a horizontal clamp, an arrow
+  offset recomputed AFTER the clamp, and delegated listeners on the document.
+  `grep -rn 'tooltipHeight|tooltipWidth|data-tooltip'` over the shipped tree returns nothing
+  outside two comments describing what was removed.
+- `.tooltip` is `position: fixed` against the viewport, replacing an absolute box resolved against
+  `.plugin-container`. The two rectangles coincide here, so nothing moves — but the ported runtime
+  clamps against `window.innerWidth` / `innerHeight`, and a box whose containing block is not the
+  viewport would have made that arithmetic describe a different rectangle than the one the browser
+  lays out. The old `translateX(-50%)` centring is gone with the positioner that needed it.
+  **`max-width` stays 200px** — this plugin's own value, parsed from its own CSS, never mirrored
+  from O-FreqPulse's 220.
+- **The hover-help toggle moves into the gear popover** and both preferences are now PULLED. The
+  floating "?" is replaced by a gear in its exact absolute slot (`bottom: 50px; right: 15px`), so
+  the new control adds no geometry delta. `getTooltipsEnabled`, removed in v2.2.0 as finding IN-14
+  on the grounds that the JS never called it, is back: the state was being PUSHED instead, by one
+  `evaluateJavascript` from `timerCallback` that fires before the page module has evaluated on a
+  cold WebView start and never retries. That push and `window.restoreTooltipState` are deleted.
+- **All 43 tooltips split cleanly on their first `": "`. There is no hand-split on this plugin** —
+  measured, not assumed: the longest surviving title is `Bridge Brightness` at 17 characters and no
+  body begins before its own colon. Both halves are byte-identical to v2.3.3 either side of the
+  separator. Three controls carry new English copy — the gear, the language selector and the
+  hover-help switch; the first two did not exist and the third had only a native `title=`.
+  Authoring hover help for controls that have none is a separate job and is not done here.
+- **Eleven native `title=` attributes deleted** — five in the markup, six written from the
+  interval-list builder. On an element that also has a `data-tip` a native title renders a second,
+  untranslated OS tooltip competing with the measure-then-pin renderer. Where a title was an
+  element's only help its text moved to `data-i18n-aria`; no new prose was invented.
+- `makeFxKnob` builds with `createElement` / `createElementNS` rather than one interpolated
+  `innerHTML` string, and the three scale-generator forms do the same. In both cases the caption
+  was a raw prose write no language sweep could own. `populateFxKnobs` is gone: it applied a table
+  of `{id, label}` pairs in a loop, which is exactly the shape that cannot carry a literal i18n
+  key, and each of the sixteen knobs is now created and captioned at its own call site.
+- `technique` option 4 reads **`Près de la table`**, matching `createParameterLayout`. The markup
+  spelled it without the accent while the parameter has always carried one, so the page and the
+  host automation lane disagreed about the name of a setting.
+
+### Fixed
+
+- **The True Keys hint was painted beside the pitch circle in every visualization mode.**
+  `.truekeys-view` declared `display: flex` unconditionally, at the same specificity as
+  `.viz-view { display: none }` but later in the sheet, so it won. "Hold 2+ notes to see intervals"
+  sat to the right of the circle at all times and overflowed `.viz-container` by 2.9px in English
+  before French made it 6.9. Pre-existing and English-only; the French sweep is what surfaced it.
+
+### Geometry — ten rules, each measured AS RENDERED
+
+`text-transform` and `letter-spacing` are not in `getComputedStyle().font`, so every number below
+is a rendered `getBoundingClientRect()`, never a font probe. **84 non-label elements moved between
+the two languages before these rules; ZERO after**, across all fifteen states.
+
+| # | Rule | Measured |
+|---|---|---|
+| 1 | `.voice-label` `min-width: 37px`, `inline-block` | `Voices:` 36.27 / `Voix :` 30.00 — `.header` is space-between, so the third item's LEFT edge moved 6.3px |
+| 2 | `.preset-action-btn` `min-width: 56px`, centred | `Save` 42.34 / `Enreg.` 53.25, `Load` 45.00 / `Ouvrir` 55.52 — the bar grew 21.43px and took the whole header with it |
+| 3 | `.master-label` `min-width: 49px`, `inline-block` | `Master` 42.52 / `Général` 49.00 — pushed the slider, the keyboard and all 24 keys |
+| 4 | `.interval-list` `115px` → `130px` | `INTERVALS (12 NOTES)` 95.88 in a 101px box; the French wrapped and pushed the tonic selector and all twelve rows down 11px. The column had 65px of slack to its right |
+| 5 | `.tonic-label` `min-width: 35px` | `TONIC:` 23.22 / `TONIQUE :` 34.67. The first attempt used 32px, read off the caption while it was still being flex-shrunk, and left a 0.9px residual |
+| 6 | `.octave-stretch-label` `min-width: 40px` → `50px` | `STRETCH` 40.00 / `ÉTIREMENT` 49.83. The authored 40 was exactly the English width — a coincidence, not a pin |
+| 7 | `.viz-btn` pinned PER BUTTON | 51 / 54 / 56 / 65 / 60. A uniform 65px (English `TRUE KEYS`, the widest single face) would make the row 341px and put its right edge 5.5px INSIDE `.tuning-controls-panel` |
+| 8 | `#effects-tab .knob-container` `width: 70px`, caption `nowrap` | The cell had no width at all and shrink-wrapped: English alone produced five different widths (44 / 46 / 48.5 / 49.75 / 54.02). `PROFONDEUR` is 68.5 |
+| 9 | `.fx-bypass-btn` `min-width: 34px`, centred | `On` 29.00 / `Off` 30.34 / `Oui` 31.50 / `Non` 33.50 — two auto margins centre the knob row between the title and this button, so it moved half of every delta |
+| 10 | `.fx-title` `min-width: 61px` | `DELAY` 42.50 / `DÉLAI` 39.84 and `REVERB` 51.84 / `RÉVERBE` 60.19 — same auto-margin centring, other end of the row |
+
+`Fréq. médium` is abbreviated to `Fréq. méd.`: at 75px it was the only French caption that would
+have set the knob cell width by itself, and English abbreviates the same caption for the same
+reason. There is exactly ONE French string per key — no auto-shrink font and no short-variant
+chosen at runtime (D-04). French colons carry a NO-BREAK space, which is both correct French
+typography and the reason `TONIQUE :` no longer breaks across two lines in a 7px flex cell.
+
+### English geometry against v2.3.3
+
+Measured by swapping HEAD's five files in and back out from an in-memory copy in a `finally` —
+never `git checkout --`, which would have wiped the uncommitted work alongside the mutation. The
+scroll extent is 700x450 in both builds and both languages, and neither build logs a page error.
+Tip anchors 43 → 46.
+
+| Tab | Moved | New | Gone |
+|---|---|---|---|
+| SOUND | 51 | 3 | 1 |
+| TECHNIQUES | 52 | 5 | 1 |
+| TUNING | 132 | 6 | 6 |
+| EFFECTS | 194 | 3 | 1 |
+
+The header accounts for most of SOUND and TECHNIQUES (the preset bar widens 24.66px and, being
+centred, moves itself and everything in it 12.71px left). TUNING is the 15px-wider interval list
+plus the per-button `.viz-btn` pins. EFFECTS is rule 8: pinning sixteen shrink-wrapped knob cells
+to one width moves every knob in every row, which is what "the cell had no width at all" costs to
+fix.
+
+### Verified by rendering, not inspection
+
+All **46** tip anchors — enumerated from the DOM, not transcribed — hovered with a real pointer in
+both languages, **92 measurements**: every tip visible with a non-empty title AND body, at or
+under the 200px cap, fully inside the 700x450 frame, arrow still horizontally inside its anchor
+even where the tip is clamped to the window edge. `serve-ui.js` picks port 0, so no concurrent
+session's files can be served instead.
+
+**The vertical clamp is NOT independently reproducible on this plugin.** Removing it and re-running
+all 92 hovers leaves every one of them green: the tallest tip anchor here is `.master-volume` at
+24px, and every tip fits `above` or `below` inside 450px. It is ported anyway because the point of
+this stage is ONE runtime repo-wide. The harness that says so is not blind — removing the
+HORIZONTAL clamp instead makes it report seven off-frame tips, four of them past `x = 550`.
+
+### Known gaps, stated rather than left to be found
+
+- `js/app.js`'s `initializeParameters`, `initializeMeters`, `bindSlider`, `bindChoice`,
+  `bindToggle`, `bindKeyswitchChoice` and `setupCustomSemitonesVisibility` **have been dead since
+  v1.35.1** moved the effects tab into `app.js` and left the inline module owning every other
+  binding. They are localized rather than deleted — removing ~350 lines of a physical-model synth's
+  controller is not a language commit's business — and they cost no new string, because the keys
+  are the two the live copy already uses.
+- `extractJsRows` scans assignments to `textContent` / `innerText` / `innerHTML`; it does **not**
+  scan an `html +=` accumulation. Two real prose strings live in one — the rotation matrix's `Mode`
+  column header and the True Keys `Total span` row. Both are keyed anyway, by a `__setLabel` call
+  on the injected node.
+- The **embedded tuning library** (names, categories and descriptions from `getEmbeddedTuningList`)
+  stays English, and so do the six category options in the filter beside it. The data is owned by
+  C++, outside the WebView-only boundary, and the filter and the items it filters have to spell a
+  category the same way or the dropdown filters on words the list never shows.
+- Runtime-generated numeric `title=` attributes on the interval-matrix and rotation-matrix cells
+  (`123.4¢`) are left alone: language-neutral under D-03, and on elements that carry no `data-tip`.
+- **The C++ language round-trip has not been executed by hand.** Pick Français, close the session,
+  reopen: it is reasoned from the `hasAttribute` guard, not measured. No human has seen this
+  French UI in a DAW.
+- Windows / WebView2 font metrics remain the named hardware-blocked deferral.
+
 ## [2.3.3] - 2026-08-02
 
 ### Changed

@@ -9,7 +9,7 @@ juce_add_plugin(OLyrica
     PLUGIN_CODE OLyr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Lyrica${OUARICON_DEV_SUFFIX}"
-    VERSION "2.3.3"
+    VERSION "2.4.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -85,10 +85,17 @@ ouaricon_add_module(OLyrica note-expression)
 # v1.4.0: Added Ouaricon Naturalist aesthetic images
 # v2.1.6: Removed Resources/ui/css/styles.css — CSS is inlined in index.html,
 #         never referenced by the resource provider (dead binary data).
+# v2.4.0: js/i18n.js is added to THIS EXISTING TARGET, deliberately. This
+# juce_add_binary_data call carries NO NAMESPACE argument, so it takes the
+# default BinaryData namespace and works only because it is the only such target
+# in this plugin — a second target here would collide on that namespace and
+# break the build in a way that reads like something else entirely
+# (critical_dual_binary_data_namespace_collision).
 juce_add_binary_data(OLyricaBinaryData
     SOURCES
         Resources/ui/index.html
         Resources/ui/js/app.js
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/images/paper1.jpg

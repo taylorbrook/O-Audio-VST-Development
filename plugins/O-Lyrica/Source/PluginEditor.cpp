@@ -784,8 +784,42 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 processorRef.setTooltipsEnabled(enabled);
                 complete(juce::var(true));
             })
-            // IN-14: "getTooltipsEnabled" was registered but never called by the JS
-            // (tooltip state is restored via evaluateJavascript) — removed.
+            // v2.4.0: getTooltipsEnabled is BACK. IN-14 removed it in v2.2.0 on
+            // the grounds that the JS never called it — true at the time,
+            // because the state was PUSHED instead, by one evaluateJavascript
+            // from timerCallback. That push fires before the page module has
+            // evaluated on a cold WebView start and never retries, so the
+            // stored preference silently never arrives; it is the same WR-01
+            // shape O-FreqPulse recorded. The page PULLS both preferences now
+            // and the push is deleted.
+            .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&,
+                                                              std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getTooltipsEnabled()));
+            })
+            // ─────────────────────────────────────────────────────────────────
+            // UI LANGUAGE (v2.4.0)
+            // ─────────────────────────────────────────────────────────────────
+            // PULLED once by the page at init, never pushed — for the reason
+            // directly above. No revision counter and no poll: the language is
+            // not preset content, and OuariconPresetManager::loadPreset walks
+            // only preset["parameters"], so nothing but this page can change it.
+            .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+                complete(juce::var(OLyricaAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
+            .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args,
+                                                         std::function<void(juce::var)> complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument degrades to English rather than being
+                // stored unvalidated.
+                if (! args.isEmpty())
+                    processorRef.setUiLanguageIndex(
+                        OLyricaAudioProcessor::languageIndex(args[0].toString()));
+
+                complete(juce::var(OLyricaAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
             // ─────────────────────────────────────────────────────────────────
             // NOTE TRIGGERING (v1.7.4)
             // ─────────────────────────────────────────────────────────────────
@@ -1132,16 +1166,10 @@ void OLyricaAudioProcessorEditor::timerCallback()
         webView->evaluateJavascript(js, nullptr);
     }
 
-    // v1.18.0: Sync tooltip state from processor to WebView (once, on first callback)
-    static bool tooltipStateSynced = false;
-    if (!tooltipStateSynced)
-    {
-        tooltipStateSynced = true;
-        bool enabled = processorRef.getTooltipsEnabled();
-        juce::String js = "if (typeof window.restoreTooltipState === 'function') window.restoreTooltipState("
-            + juce::String(enabled ? "true" : "false") + ");";
-        webView->evaluateJavascript(js, nullptr);
-    }
+    // v2.4.0: the one-shot tooltip-state push that stood here is DELETED, not
+    // disabled. It fired on the first timer callback whether or not the page
+    // module had evaluated, and never retried; the page pulls the preference
+    // through getTooltipsEnabled now, alongside getUiLanguage.
 
     // v1.30.0: Sync scale degree count to WebView (for custom degree toggles)
     static int lastScaleDegreeCount = -1;
@@ -1244,6 +1272,15 @@ OLyricaAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/app.js")
         return makeResource(BinaryData::app_js,
                            BinaryData::app_jsSize,
+                           "text/javascript");
+
+    // v2.4.0: the i18n table. Embedded in CMakeLists.txt's EXISTING
+    // juce_add_binary_data SOURCES block, served here, and imported by
+    // js/app.js — all four places or the page 404s at runtime and presents as a
+    // dead panel with no other symptom (check-i18n assertion 8).
+    if (url == "/js/i18n.js")
+        return makeResource(BinaryData::i18n_js,
+                           BinaryData::i18n_jsSize,
                            "text/javascript");
 
     // v1.4.0: Images for Naturalist aesthetic
