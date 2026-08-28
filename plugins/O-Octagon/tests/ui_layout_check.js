@@ -23,9 +23,12 @@
     ui_layout_check.js
     O-Octagon — both screens, MEASURED on the rendered page at 1100 x 720.
 
-    TWENTY-EIGHT sections. 1-10 are the Room plan (3.1); 11-18 are the Venue
-    screen (3.2); 19-27 are scenes, meters, the field and the elevation (3.3);
-    28 is Q5's in-flight guard deadline (4.2).
+    Sections 1-10 are the Room plan (3.1); 11-18 are the Venue screen (3.2);
+    19-27 are scenes, meters, the field and the elevation (3.3); 28 is Q5's
+    in-flight guard deadline (4.2); 29-32 arrived with v1.4-v1.10. The section
+    COUNT is not written here: the summary line derives it from head() calls
+    (v1.10.1, IN-29 — this header said 28, the summary said 31, and 33 heads
+    existed).
     This file is the SOLE evidence for UI-02 criteria 1, 3, 4 and 5 and
     for UI-01 criteria 1 and 2, and it runs TWICE per phase: once against the
     ui-stub before that phase's C++ exists, and again afterwards, to prove the
@@ -89,9 +92,11 @@ const MIME = {
 
 let failed = 0;
 let section = '';
+let sectionCount = 0;
 
 function head(n, title) {
     section = `${n}`;
+    ++sectionCount;
     console.log(`\n-- section ${n}: ${title}`);
 }
 
@@ -2289,7 +2294,7 @@ async function nudge(page, id) {
     server.close();
     fs.rmSync(root, { recursive: true, force: true });
 
-    console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — 31 sections`);
+    console.log(`\n${failed === 0 ? 'ALL SECTIONS PASS' : `${failed} FAILED`} — ${sectionCount} sections`);
     process.exit(failed);
 })().catch(err => {
     console.error('\nui_layout_check crashed:', err);

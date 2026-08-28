@@ -312,9 +312,10 @@ void VenueModel::readFromState (const juce::ValueTree& parentState)
     rakeFrontM = readFloat  (venue, propRakeFront, rakeFrontM);
     rakeRearM  = readFloat  (venue, propRakeRear,  rakeRearM);
 
-    // @schemaVersion is read but not branched on: version 1 is the only version that exists. It is
-    // written so a future migration has something to key off, and a future build reading a NEWER
-    // version still gets a usable venue through the per-attribute fallbacks above.
+    // @schemaVersion is read but not branched on. The schema is at kSchemaVersion = 2 (v1.4.0 added
+    // the per-speaker delay and the rake heights); a version-1 file simply lacks those attributes
+    // and the per-attribute fallbacks above default them. It is written so a future migration has
+    // something to key off, and a future build reading a NEWER version still gets a usable venue.
 
     for (int i = 0; i < kNumSpeakers; ++i)
     {

@@ -22,8 +22,10 @@
 
     O-Octagon — Plugin Editor (implementation)
 
-    18 WebSliderRelay bindings, THREE native functions, one WebBrowserComponent
-    at a fixed 1100 x 720.
+    28 parameter bindings (25 WebSliderRelay + 1 WebToggleButtonRelay +
+    2 WebComboBoxRelay), 27 native functions (the count is gated by
+    ui_frontend_check §3, not by this comment), one WebBrowserComponent at a
+    fixed 1100 x 720.
 
     ── MSVC HABITS ARE WRITTEN NOW, NOT FIXED AT PORT TIME ──────────────────
     Neither hazard has a call site in this file — the FileChooser work is 3.2 —
@@ -64,6 +66,28 @@
 
 namespace
 {
+    // ── Finite-or-default parameter read (v1.10.1, IN-12) ───────────────────
+    // ONE shape for every message-thread read that feeds a generator or a JSON
+    // payload: getFieldGrid and getMotionTrace both go through it. The fallback
+    // is the parameter's own default, so a host-written NaN degrades to the
+    // default rather than to 0 (which is off-range for some ids) or to NaN
+    // (which is not valid JSON and loses the completion).
+    float readFiniteParam (juce::AudioProcessorValueTreeState& apvts, const char* id)
+    {
+        auto* param       = apvts.getParameter (id);
+        auto* atomicValue = apvts.getRawParameterValue (id);
+
+        const float fallback = param != nullptr
+                                 ? param->convertFrom0to1 (param->getDefaultValue())
+                                 : 0.0f;
+
+        if (atomicValue == nullptr)
+            return fallback;
+
+        const float raw = atomicValue->load (std::memory_order_relaxed);
+        return std::isfinite (raw) ? raw : fallback;
+    }
+
     // ── The room envelope (ARCHITECTURE section 6.2 / AD-14) ────────────────
     // DERIVED, not stored: speaker bounding box + 15 % margin per axis, with a
     // 1.0 m floor. That was an explicit decision not to add two more values to
@@ -1156,10 +1180,12 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     options = options.withNativeFunction ("getMotionTrace",
         [this] (auto&, auto complete)
         {
+            // v1.10.1 (IN-12): the same finite-or-default read getFieldGrid uses. A host-written
+            // NaN used to produce 128 NaN points, which is not valid JSON on the page side — the
+            // completion was lost and the previous trace stayed.
             const auto read = [this] (const char* id)
             {
-                const auto* v = processorRef.getAPVTS().getRawParameterValue (id);
-                return v != nullptr ? v->load() : 0.0f;
+                return readFiniteParam (processorRef.getAPVTS(), id);
             };
 
             const oo::motion::MotionParams mp { static_cast<int> (read ("motionPath")),
@@ -1352,21 +1378,7 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             // The fallback is unreachable in practice: getRawParameterValue is non-null for every
             // valid id and the atomic is only non-finite if the host writes NaN. This is therefore
             // a correction on a dead path, not a behaviour change on a live one.
-            const auto readParam = [&apvts] (const char* id)
-            {
-                auto* param       = apvts.getParameter (id);
-                auto* atomicValue = apvts.getRawParameterValue (id);
-
-                const float fallback = param != nullptr
-                                         ? param->convertFrom0to1 (param->getDefaultValue())
-                                         : 0.0f;
-
-                if (atomicValue == nullptr)
-                    return fallback;
-
-                const float raw = atomicValue->load (std::memory_order_relaxed);
-                return std::isfinite (raw) ? raw : fallback;
-            };
+            const auto readParam = [&apvts] (const char* id) { return readFiniteParam (apvts, id); };
 
             const float rolloff   = readParam (oo::params::id (oo::params::rolloff));
             const float blur      = readParam (oo::params::id (oo::params::blur));

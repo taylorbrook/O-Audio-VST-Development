@@ -76,6 +76,15 @@ namespace oo
     azimuth 180 produce the same inter-aural cues. The rear darkening below is a cheap standing-in
     for the pinna cue and gives a usable, not a convincing, front/back distinction. This is stated
     here so the limitation is a documented design point rather than a bug report.
+
+    ── WHAT THIS IS NOT: A TIME-OF-FLIGHT MODEL (IN-06, v1.10.1) ────────────────────────────────
+    Distance is modelled as 1/r GAIN only; the only per-lane delay is the Woodworth ITD. There is
+    no r/c propagation delay. The lanes this fold reads already carry the per-speaker ALIGNMENT
+    delays whose purpose in the hall is to cancel r/c at the audience centroid — so on headphones
+    the listener hears the alignment pattern, not the hall's propagation pattern (arithmetically,
+    the negative of it). That is the trade the post-write design makes on purpose: "what you hear
+    is the actual rig feed". Adding r/c here would either double-count against the alignment or
+    require a second geometry solve, and the rig feed is the thing worth monitoring.
 */
 class MonitorFold
 {
@@ -101,8 +110,15 @@ public:
         The solver normalises the gain vector to Σvᵢ² = 1, and the pan below is constant power
         (gLᵢ² + gRᵢ² = 1). The worst case for one ear is every speaker panned hard to it and every
         lane coherent, giving Σvᵢ — which Cauchy-Schwarz bounds at √8·√(Σvᵢ²) = √8. Trimming by
-        1/√8 therefore makes it STRUCTURALLY IMPOSSIBLE for the fold to exceed the peak of the
-        material that fed it, at any position, in any venue.
+        1/√8 therefore bounds the PAN-AND-WEIGHT part of the fold at the peak of the material that
+        fed it, at any position, in any venue.
+
+        v1.10.1 (IN-02): that is NOT the whole fold. The 1/r distance term — `dist = jlimit
+        (kGainFloor, kGainCeil, refR / radius)` in MonitorFold.cpp — multiplies AFTER the Σvᵢ² = 1
+        argument and is not covered by it. The true ceiling is kGainCeil / √8 = 4 / 2.83 ≈ 1.41×,
+        +3 dB over the lane peak, reached only by a speaker at ≤ ¼ of the mean radius carrying most
+        of the energy. No clip is added: that case is a venue authoring error, and probe DB measures
+        the level the typical case actually lands at.
 
         It is a CEILING argument, so the typical case — energy across two or three speakers — lands
         quieter than unity and the operator makes it up on the headphone amp. That is the correct

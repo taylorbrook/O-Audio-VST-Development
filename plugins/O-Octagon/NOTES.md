@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.10.0 (dev build installed; not released)
+- **Version:** 1.10.1 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -210,6 +210,22 @@
   three parameters (linear ranges, no skew): `rolloff` 4.0f and `hullAtten` 1.0f are unchanged
   to the bit and only `blur` moves. Gates: `ui_frontend_check` 42, `ui_layout_check` 31,
   geometry 46/0, zero compiler warnings, `auval` registers.
+- **2026-08-27 (v1.9.0 — Stage G page localisation, canon v2, commit 99e7d206):** the PAGE speaks
+  French, not only the hover help — every visible caption, banner and table heading carries a
+  `data-i18n` key resolved by `i18n.js` (canon v2 `applyI18nAttributes()`); the `lang-select`
+  choice re-labels the whole page live. Gated by the repo-wide `scripts/check-i18n.js` (strict v2)
+  and `scripts/check-ui-labels.js` (85/85 keys visible, French overflow measured on the rendered
+  page via `tests/i18n-states.json`). Internally inconsistent at HEAD — see the v1.10.0 note.
+- **2026-08-27 (v1.10.1 — `/improve-review-info`, IN-tier sweep of the v1.8.0 CODE_REVIEW):**
+  12 of 30 Info findings; the rest are triaged in the CHANGELOG (3 already fixed, 2 stale premise,
+  13 deferred as design calls or fail-first test work). Behaviour: host-clock `isfinite` funnel
+  (IN-01), choice-list count asserts (IN-08), finite `getMotionTrace` (IN-12), Drift by index
+  (IN-16), trace re-fetch on motion-on (IN-15), `360°` readouts (IN-19). Comments: kFoldTrim bound
+  corrected to `kGainCeil/√8` (IN-02), time-of-flight limitation recorded (IN-06), four stale
+  headers (IN-10), Motion-tab tip (IN-21), layout-check section count derived (IN-29).
+  Gates: render 74/0, geometry 58/0, monitor-fold 20/0, `ui_frontend_check` 43/43,
+  `ui_layout_check` 33/33 (count now derived; seen to move to 34 with a temporary `head()`),
+  `check-i18n` strict-v2 pass, `check-ui-labels` 85/85, zero compiler warnings, auval PASS.
 - **2026-08-27 (v1.10.0 — `/improve-review`, WR-01..04 of the v1.8.0 CODE_REVIEW):** Sync table
   rewritten to true cycles-per-beat (was 4× slow; 1/16D≡1/8T, 1/8D≡1/4T) with MP9 + DD re-fixtured;
   AU version hints made monotone by generation (1 / 2 `decorr` / 3 `motion*`) with render probe DO;
@@ -222,11 +238,11 @@
 
 ## Known Issues
 
-**Open from the v1.8.0 CODE_REVIEW (2026-08-27):** IN-01 … IN-30 are untouched — `/improve-review`
-resolves Critical and Warning only. Of note for the next release: IN-01 (host-clock `isfinite`
-funnel, three lines), IN-07 (this NOTES history, now caught up), IN-22 (`geometry-gated-on-generation`
-is `check(..., true, ...)`), IN-23 (DF's `motionSolves > 0` liveness gate is over-claimed), and the
-IN-25/26/28/29 tautological probes. `/improve-review-info O-Octagon` sweeps them.
+**Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
+13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,
+`geometry-gated-on-generation` = `check(true)`, the MP1/MP7 tautologies, no no-PPQ render, the seven
+unprobed CHANGELOG claims). Each is a real behaviour change or a test that must be seen to fail, so
+they were kept out of a PATCH sweep. See CHANGELOG v1.10.1 Notes.
 
 **No test observes `scenesGeneration` (found 2026-08-26, v1.3.4).** Deleting `++scenesGeneration`
 from `commitScenes()` leaves all 51 render-harness probes and all 46 geometry probes green. CK and

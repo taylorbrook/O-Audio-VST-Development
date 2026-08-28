@@ -31,19 +31,18 @@
 
 //==============================================================================
 /**
-    O-Octagon — Stage 2 Phase 2.2 (DBAP Solve + Gain Application).
+    O-Octagon — the processor.
 
     An 8-channel DBAP spatialiser for an irregular, non-flat concert array.
 
-    Phase 2.1 gave the plugin the ROOM — the 42-value VENUE tree, the derived geometry, the convex
-    hull and the speaker→buffer channel map — while every output still carried the same mono sum.
-    PHASE 2.2 IS WHERE THE EIGHT LANES BECOME DIFFERENT: the DBAP solver, the 64-sample
-    absolute-sample-aligned control grid, the 17 smoothed gains and the per-sample inner loop, all
-    written through speakerToBuffer.
-
-    Still absent, by plan: the hull gain trim and the air-absorption LPF (§5 step 6), the FUNC-07
-    venue-trim fold, any read of `width` — all Phase 2.3, each marked by a greppable marker token in
-    GainStage.cpp. Also absent: VerifyPing, metering, any WebView editor.
+    Shape at v1.10.x: 28 APVTS parameters (oo::params, GainStage.h — the static_assert there is
+    the count's home, not this comment); the VENUE tree (schema 2: geometry, per-speaker trim and
+    alignment delay, rake heights) published to the audio thread as one snapshot; GainStage — the
+    DBAP solver on a 64-sample absolute-sample-aligned control grid, hull trim, air LPF, the
+    decorrelator, eight alignment delay lines, the MonitorFold headphone fold and the v1.8.0
+    motion engine; VerifyPing; per-lane metering; scenes and presets; and a WebView editor
+    (PluginEditor.h). The header history below (Phase 2.x notes) is kept where it still explains
+    a decision.
 
     Deliberately NOT an AsyncUpdater. The one thing that could have needed deferral —
     setStateInformation() arriving before prepareToPlay() — is handled by a plain `preparedYet` flag

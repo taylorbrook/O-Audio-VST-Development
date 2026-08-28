@@ -245,7 +245,11 @@ function formatValue(id, scaled) {
   const f = FORMAT[id];
   if (f === undefined) return String(scaled);
   const text = Number(scaled).toFixed(f.dp);
-  return f.unit === "" ? text : `${text} ${f.unit}`;
+  if (f.unit === "") return text;
+  // The degree sign sits on the digit ("360°"), every other unit takes a space ("6.0 m").
+  // Keyed on the unit rather than a FORMAT flag: section 4 of ui_frontend_check pins the table
+  // to {unit, dp} so nothing range-shaped can creep in. v1.10.1 (IN-19).
+  return f.unit === "\u00B0" ? `${text}${f.unit}` : `${text} ${f.unit}`;
 }
 
 // ── Parameter binding ──────────────────────────────────────────────────────
@@ -457,6 +461,8 @@ function bindGroupTabs() {
   for (const t of tabs) t.addEventListener("click", () => select(t));
 }
 
+const DRIFT_PATH_INDEX = 3;
+
 function bindSeedVisibility() {
   const path = sliders.get("motionPath");
   const seedCell = document.getElementById("cell-motionSeed");
@@ -464,7 +470,11 @@ function bindSeedVisibility() {
   if (path === undefined || seedCell === null || phaseCell === null) return;
 
   const render = () => {
-    const isDrift = String(path.state.properties.choices?.[path.state.getChoiceIndex()]) === "Drift";
+    // Bound by INDEX, not by display name (v1.10.1, IN-16): the choice strings
+    // arrive verbatim from the C++ StringArray and a localised label must never
+    // be the lookup key. Drift is index 3 in PluginProcessor.cpp's pathChoices
+    // ({Orbit, Figure-8, Sweep, Drift, Pendulum, Spiral}) and MotionPath.h's enum.
+    const isDrift = path.state.getChoiceIndex() === DRIFT_PATH_INDEX;
     seedCell.hidden = !isDrift;
     phaseCell.hidden = isDrift;
   };
@@ -516,6 +526,11 @@ function bindMotionView() {
     const running = on !== undefined && on.state.getValue() === true;
     if (roomPlan !== null) roomPlan.setMotionOn(running);
     if (dot !== null) dot.classList.toggle("is-running", running);
+    // v1.10.1 (IN-15): re-fetch on every motion-on. A completion dropped while the
+    // editor was hidden (a Path echo landing on a closed window) left the previous
+    // shape's trace with nothing but another shape echo to repair it; now the next
+    // motion-on repairs it too. Coalesced and sequence-guarded like every other call.
+    if (running) refreshTrace();
   };
 
   if (on !== undefined) on.state.valueChangedEvent.addListener(renderOn);

@@ -24,18 +24,25 @@
 
     The performance surface. A WebView editor replaces the Stage-1 generic one:
     two screens (Room built, Venue a placeholder until 3.2), the Room plan drawn
-    from the plugin's own geometry, and all 18 musical parameters bound two-way.
+    from the plugin's own geometry, and all 28 parameters bound two-way.
 
-    ── ONE RELAY LIST ────────────────────────────────────────────────────────
-    All 18 parameters are juce::AudioParameterFloat (RESEARCH-3.1 F1, and v1.5.0's
-    decorr was made a float to keep it so), so there
-    is one relay vector and one attachment vector, and no combo or toggle
-    machinery at all. The relay-TYPE split that bit O-ReverseDelay three
-    separate times — grainShape, freeze, sourceMode, each a relay that attaches
-    without error and then produces a control that never updates — is
-    STRUCTURALLY ABSENT here and stays absent while the set stays all-float.
+    ── THREE RELAY LISTS, SPLIT BY PARAMETER TYPE ────────────────────────────
+    Through v1.7.0 every parameter was a juce::AudioParameterFloat (RESEARCH-3.1
+    F1; v1.5.0's decorr was made a float to keep it so) and there was ONE relay
+    vector. v1.8.0's motion engine added a bool (motionOn) and two choices
+    (motionPath, motionSync), so the relays are now 25 WebSliderRelay +
+    1 WebToggleButtonRelay + 2 WebComboBoxRelay, selected by parameter type in
+    the constructor. The relay-TYPE split that bit O-ReverseDelay three separate
+    times — grainShape, freeze, sourceMode, each a relay that attaches without
+    error and then produces a control that never updates — is guarded here by
+    ui_frontend_check, which asserts the page's control kind against the relay
+    kind for every id.
 
-    ── NATIVE-FUNCTION SURFACE IS EXACTLY THIRTEEN (PLAN-3.2 P65) ───────────
+    ── NATIVE-FUNCTION SURFACE (PLAN-3.2 P65; 27 at v1.10.1) ────────────────
+    The list below is the 3.2-era THIRTEEN; the surface has since grown to 27
+    (scenes, meters, field grid, motion trace, tooltips, language, monitor arm).
+    The AUTHORITATIVE count is the ui_frontend_check section-3 grep-diff, not
+    this comment — see THE COUNT IS LOAD-BEARING below.
       read:
         getParameterDefaults   once at init          (dblclick reset)
         getVenueGeometry       init, then on venueGen change. ONE call, and at

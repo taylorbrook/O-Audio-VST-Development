@@ -203,9 +203,9 @@ export const I18N = Object.freeze({
     },
     'gtab-motion': {
         en: { t: 'Motion',
-              b: 'Generative trajectories around the anchor — orbits, figure-8s, sweeps, a seeded random walk — drawn in venue metres and locked to the host tempo. The map shows the trace before you hear it. The dot lights while motion runs.' },
+              b: 'Generative trajectories around the anchor — orbits, figure-8s, sweeps, a seeded random walk — drawn in venue metres and locked to the host tempo. Switch Motion on and the map draws the trace the source will follow. The dot lights while motion runs.' },
         fr: { t: 'Mouvement',
-              b: 'Trajectoires génératives autour de l’ancrage — orbites, huit, balayages, marche aléatoire à graine — tracées en mètres de salle et calées sur le tempo de l’hôte. Le plan montre la trace avant que vous ne l’entendiez. Le point s’allume quand le mouvement tourne.',
+              b: 'Trajectoires génératives autour de l’ancrage — orbites, huit, balayages, marche aléatoire à graine — tracées en mètres de salle et calées sur le tempo de l’hôte. Activez le mouvement et le plan trace le chemin que suivra la source. Le point s’allume quand le mouvement tourne.',
               reviewed: false },
     },
     'motionOn': {
