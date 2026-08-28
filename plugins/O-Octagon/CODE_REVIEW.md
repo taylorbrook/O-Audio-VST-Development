@@ -220,12 +220,12 @@ Opt-in via `/improve-review-info O-Octagon`. Grouped by subsystem.
 
 ### DSP / audio thread
 
-### IN-01 — Host clock is the one audio-thread input with no `isfinite` funnel (transient NaN, not a latch)
+### IN-01 — Host clock is the one audio-thread input with no `isfinite` funnel (transient NaN, not a latch) **Resolved in v1.10.1**
 **File:** `Source/PluginProcessor.cpp:767-782`, `Source/DSP/MotionClock.h:129-136`
 `getBpm()`/`getPpqPosition()` are copied raw; `bpm > 0.0` rejects NaN but admits `+inf` (→ `0 · inf = NaN` at `samplesSinceBlockStart == 0`), and a NaN/±inf PPQ flows `cyclesAt → evaluate → updateControl → dbap::solve → setTargetValue(NaN)`. Verifier probed JUCE 8.0.14 `SmoothedValue`: a NaN target is flushed 240 samples after the next finite target, and motion-off re-solves at the finite anchor, so the worst case is NaN/garbage output for the duration of the bad clock + 5 ms, not permanent silence. No real host emits non-finite tempo/PPQ. Filed because the codebase's own doctrine (P17/P29) is "single funnel, structurally impossible to bypass" for every audio-thread input, and this is a third input that bypasses it.
 **Fix:** `if (bpm && std::isfinite(*bpm) && *bpm > 0.0)` / `ppqValid = ppq && std::isfinite(*ppq)`; optionally `std::isfinite(clock->bpm)` in `MotionClock.h:129` and a unit probe "non-finite clock → finite cycles".
 
-### IN-02 — `kFoldTrim`'s "structurally impossible to exceed the lane peak" is false once `kGainCeil = 4` is in the product
+### IN-02 — `kFoldTrim`'s "structurally impossible to exceed the lane peak" is false once `kGainCeil = 4` is in the product **Resolved in v1.10.1**
 **File:** `Source/DSP/MonitorFold.h:99-113, 147-148`, `MonitorFold.cpp:218-221`
 Cauchy–Schwarz covers Σv² = 1, but per-speaker gain is `gL · dist · kFoldTrim` with `dist = jlimit(0.05, 4.0, refR/radius)`. A speaker at ≤ ¼ of the mean radius carrying most of the energy folds at up to 4 · 0.354 = 1.41 → +3 dB over the lane. No clip; doc claim is wrong.
 **Fix:** Doc: "bounded by kGainCeil · (1/√8) · lane peak".
@@ -240,32 +240,32 @@ The PPQ branch never touches `lastRate`/`phaseBase`, so returning to Free re-bas
 F3 flips REAL → SAFE → REAL without `prepareToPlay()`: `delayEngaged` stays true, ramps advance but lines are not clocked; the first REAL chunk pops up to 50 ms of pre-SAFE audio. `monitorFold.mix` similarly completes only on return. Rare (device channel-count change mid-session).
 **Fix:** reset the eight lines on the SAFE→REAL edge (`wasMapped` bool), or document beside the F3 note.
 
-### IN-05 — First engage of an alignment delay > 5 ms reads past the line's history for the ramp length
+### IN-05 — First engage of an alignment delay > 5 ms reads past the line's history for the ramp length **Closed in v1.10.1 sweep** (stale premise — ramp reads a freshly zeroed line; already documented)
 **File:** `Source/DSP/GainStage.cpp:664-672, 687-691`
 false→true edge resets the line, then `delaySamples` ramps 0 → d over 240 samples; for d > 240 the read position exceeds history, so that lane reads zeros (a dropout) until the ramp lands. Setup-time only; documented as "the one cold start".
 
-### IN-06 — Headphone fold carries the hall's alignment delays but not the propagation delays they compensate
+### IN-06 — Headphone fold carries the hall's alignment delays but not the propagation delays they compensate **Resolved in v1.10.1**
 **File:** `Source/DSP/MonitorFold.cpp:218, 227-237`, `GainStage.cpp:925-938`
 The fold models 1/r gain and ITD but no r/c distance delay, while the lanes it reads already carry per-speaker alignment delays whose purpose is to cancel r/c in the hall — so headphones hear the NEGATIVE of the hall's delay pattern. Stated design ("what you hear is the actual rig feed"); recorded as a known trade-off.
 
 ### Processor state / parameters / presets
 
-### IN-07 — Version stamps: NOTES.md still says 1.7.0 and its history stops at v1.5.0; no `backups/O-Octagon/v1.8.0/` snapshot exists
+### IN-07 — Version stamps: NOTES.md still says 1.7.0 and its history stops at v1.5.0; no `backups/O-Octagon/v1.8.0/` snapshot exists **Resolved in v1.10.1**
 **File:** `NOTES.md:6`, `NOTES.md:39-85`; `backups/O-Octagon/` (v1.0.0 … v1.7.0 present, each stamped with its own version)
 CMakeLists 1.8.0 / CHANGELOG v1.8.0 / PLUGINS.md 1.8.0-dev / installed AU+VST3 CFBundleShortVersionString 1.8.0 all agree; NOTES.md is the outlier, and the per-version backup convention (post-change snapshot named by resulting version) was not followed for v1.8.0.
 **Fix:** bump the NOTES header, add v1.6.0/v1.7.0/v1.8.0 history bullets, write the v1.8.0 backup.
 
-### IN-08 — Choice-string arrays are transcribed over `motion::kNumPaths` / `kNumSyncChoices` with no assert
+### IN-08 — Choice-string arrays are transcribed over `motion::kNumPaths` / `kNumSyncChoices` with no assert **Resolved in v1.10.1**
 **File:** `Source/PluginProcessor.cpp:179-184`; `Source/DSP/MotionPath.h:62-71`; `Source/DSP/MotionClock.h:78`
 Counts match today (6 / 15). A future table edit without the StringArray edit silently shifts what a lane labelled "1 Bar" does (`cyclesAt` degrades to Free on OOB, so no crash). No probe compares `getAllValueStrings().size()` to the constants.
 **Fix:** constructor `jassert` + harness probe for both choices.
 
-### IN-09 — Stored alignment delay is unrailed on the model; the table can show a value the audio thread does not honour
+### IN-09 — Stored alignment delay is unrailed on the model; the table can show a value the audio thread does not honour **Closed in v1.10.1 sweep** (stale premise — deliberate and documented; v1.4.0 CHANGELOG makes no load-rail claim)
 **File:** `Source/Data/VenueModel.cpp:421-432`, `Source/PluginEditor.cpp:412`, `Source/PluginProcessor.cpp:525-526`
 A hand-edited `.venue` with `delayMs="-5"` or `"1e6"` passes `readFloat` (finite), displays as typed, and runs 0 / 50 ms. `VenueModel.h:132` declares this deliberate (matches trim); the v1.4.0 CHANGELOG reads as though the range is validated at load.
 **Fix (optional):** rail in the `getVenueGeometry` payload, or state "stored and displayed unrailed" in the CHANGELOG.
 
-### IN-10 — Stale comments contradicted by v1.4–v1.8
+### IN-10 — Stale comments contradicted by v1.4–v1.8 **Resolved in v1.10.1**
 `PluginProcessor.cpp:38-40` "All 17 ranges are linear by design" (motionRate is skewed, `:173-174`); `VenueModel.cpp:315-317` "version 1 is the only version that exists" (schema 2 since v1.4.0); `PluginProcessor.h:34-46` still describes "Phase 2.2 … 17 smoothed gains … no WebView editor"; `PluginEditor.h:27,38` / `PluginEditor.cpp:25,304` "18 parameters" / "EXACTLY THIRTEEN" / "THREE native functions" (28 / 27 — IN-18 class from the previous review, drifted further).
 
 ### Editor / WebView bridge
@@ -275,7 +275,7 @@ A hand-edited `.venue` with `delayMs="-5"` or `"1e6"` passes `readFloat` (finite
 A 64-sample boundary can land between the x and y loads of the 30 Hz poll; at Orbit 4 Hz / 24 m that is up to ~0.4 m disagreement for one frame. Audio never reads these.
 **Fix (optional):** seqlock generation around the three stores, or pack x,y into one `atomic<uint64_t>`.
 
-### IN-12 — `getMotionTrace` reads raw APVTS floats with no finite guard, unlike `getFieldGrid` and `snapshotParameters`
+### IN-12 — `getMotionTrace` reads raw APVTS floats with no finite guard, unlike `getFieldGrid` and `snapshotParameters` **Resolved in v1.10.1**
 **File:** `Source/PluginEditor.cpp:1159-1168` vs `:1355-1369`
 A host-written NaN motion param yields 128 NaN points; `var(NaN)` is not valid JSON on the page side, the completion is lost and the previous trace stays. Audio is protected by `snapshotParameters()`.
 **Fix:** reuse the `readParam` finite-or-default shape.
@@ -292,25 +292,25 @@ A host-written NaN motion param yields 128 NaN points; `var(NaN)` is not valid J
 Measured on the HEAD export: 20 key steps → 20 fetches; 30 synthetic echoes 16 ms apart → 30 fetches. The `setTimeout(0)` coalesces per task turn and each echo is its own task. A host automation ramp on any of the six shape ids does one native round trip (128 evaluations + 384-number JSON + 128-point `d` rebuild) per tick. Contrast the field recompute's dirty-flag-on-2 Hz-tick discipline (`app.js:800-808`).
 **Fix:** mark dirty on echo and spend it on the 30 Hz meters tick, or a trailing 50–100 ms timeout; keep the seq guard.
 
-### IN-15 — A dropped `getMotionTrace` completion leaves a stale trace with no retry; Path→Drift then keeps drawing the previous path's loop instead of the tail
+### IN-15 — A dropped `getMotionTrace` completion leaves a stale trace with no retry; Path→Drift then keeps drawing the previous path's loop instead of the tail **Resolved in v1.10.1**
 **File:** `Source/ui/public/js/app.js:474-475, 487-491`; `roomplan.js:521, 552, 858`
 Hidden-editor drop exactly on the Orbit→Drift echo: `trace.cyclic` stays true, the tail never appears, and nothing but another shape echo repairs it. Hidden-editor only.
 **Fix:** re-issue `refreshTrace()` from `setMotionOn(true)` or on the first `getMeters` tick after a visibility return.
 
-### IN-16 — i18n scope at HEAD: only hover help is localised; every JS-written status string and all page chrome is English (Stage G inventory)
+### IN-16 — i18n scope at HEAD: only hover help is localised; every JS-written status string and all page chrome is English (Stage G inventory) **Partially resolved in v1.10.1** (index compare only; localisation itself landed in v1.9.0)
 **File:** `app.js:372, 408, 457, 557, 606-610, 629-631, 666-668, 685-689`; `venue.js:593, 634, 683, 703-705`; `i18n.js:94-100`
 Documented scope (the `lang-select` tip says so) and the in-flight uncommitted Stage G edit is addressing it. Two constraints for that work, both verified at HEAD: (a) choice display names arrive from the C++ `StringArray` and the page binds by **index** — a localised display name must never be used as the lookup key (`app.js:457` compares the string `"Drift"` today; that comparison must move to index 5); (b) `data-label` holders must not be written by any shared state updater (the repo's textContent-erases-labels trap). Note the dirty tree currently fails `ui_frontend_check §6` ("Delay" `<th>`) and `check-i18n [15]` (dead keys `oo.direct`, `oo.roles`).
 
-### IN-17 — `preset-list` tip still says "17 parameters" — the count is 28
+### IN-17 — `preset-list` tip still says "17 parameters" — the count is 28 **Dropped in v1.10.1 sweep** (already fixed in v1.9.0)
 **File:** `Source/ui/public/js/i18n.js:452, 454` (EN + FR)
 **Fix:** "the 28 parameters", or drop the number.
 
-### IN-18 — No committed O-Octagon gate drives the French tooltips or measures French-length overflow of the v1.8.0 anchors
+### IN-18 — No committed O-Octagon gate drives the French tooltips or measures French-length overflow of the v1.8.0 anchors **Dropped in v1.10.1 sweep** (already covered by `scripts/check-ui-labels.js` + `tests/i18n-states.json`)
 **File:** `tests/ui_layout_check.js`, `tests/ui_frontend_check.js` (`grep __setLanguage` empty)
 Measured here on the HEAD export, both languages, all 12 motion anchors: every tip inside 1100 × 720 with the 8 px margin, French tallest 135.9 px, `motionSize` flips above→below in French, three right-column anchors clamp to `right = 1092`. Nothing to fix on the page — the claim is not gated. The MONITOR banner likewise has no rendered-geometry assertion.
 **Fix:** a `ui_layout_check` section that loops `TIP_BINDINGS` in `en` and `fr` via `window.__setLanguage` with the Motion panel and Seed cell revealed as `nudge()` does; a §9-style banner section driven by the stub's `monitorArmed`/`monitorSuppressed`.
 
-### IN-19 — Degree readouts render as "360 °" with a space before the sign
+### IN-19 — Degree readouts render as "360 °" with a space before the sign **Resolved in v1.10.1**
 **File:** `Source/ui/public/js/app.js:171, 173, 248`
 **Fix:** `tight: true` on the two entries, or special-case `°` in `formatValue`.
 
@@ -319,7 +319,7 @@ Measured here on the HEAD export, both languages, all 12 motion anchors: every t
 *Wander* (0.05 Hz) leaves a tail covering ~1/12 of a cycle; a Size automation ramp clears it per echo. Bounded memory (verified 48 points).
 **Fix:** length in seconds (~8 s = 240 points), clear only when `cyclic` changes.
 
-### IN-21 — The trace is invisible while motion is off, although the Motion tab's tip promises "The map shows the trace before you hear it"
+### IN-21 — The trace is invisible while motion is off, although the Motion tab's tip promises "The map shows the trace before you hear it" **Resolved in v1.10.1**
 **File:** `Source/ui/public/js/roomplan.js:521`; `i18n.js:206`
 **Fix:** draw the trace at lower opacity while off, or reword the tip.
 
@@ -360,7 +360,7 @@ The header's documented "no PPQ → free-run" and "PPQ withdrawn after rolling �
 Proves only that two calls did not crash; the README lists it as guarding "re-derive on a venue publish and NOT on a source move".
 **Fix:** fold an impulse before/after `updateGeometry(moved)` (same generation) and assert bit-identical; after `updateGeometry(published)` assert different.
 
-### IN-29 — ui_layout §32 "puck ON the trace" is tautological w.r.t. the stub, and its `moved` clause is wall-clock driven
+### IN-29 — ui_layout §32 "puck ON the trace" is tautological w.r.t. the stub, and its `moved` clause is wall-clock driven **Partially resolved in v1.10.1** (section-count literal only; stub sharing and wall-clock `moved` deferred)
 **File:** `tests/ui-stub/juce-stub.js:674-690`; `tests/ui_layout_check.js:1360-1383`
 The stub's `motionOffset()` and `motionTrace()` share `fixtureEvaluate`, so the 1.5 px test proves one projection, never C++ agreement (which §41 covers statically). `moved` samples `Date.now()` over 8 ticks — can false-FAIL on a slow runner. Also the summary literal says 31 sections while 32 headings exist.
 **Fix:** drive the stub's cycles from a poll counter.
@@ -426,3 +426,11 @@ The five reviewers rejected 95 candidates. The ones most likely to be re-raised:
 - Every new render probe carries a liveness clause and resets `instr` counters; cross-version anchors (CU v1.4.0, DC v1.7.0) are literals with the capture commit named; DE asserts the EXACT boundary count; §15 parses `createParameterLayout()` from source and diffs the stub's ranges and choices against it; §11 extends the relay declaration-order rule to toggle/combo relays; §30's `reset()` ledger is itemised.
 - CV (decorrelator) measured against analytic expectations; CS/CT (alignment) bit-exact shift + silent head + one lane moved, memcmp 512 vs 4096; `HarnessPlayHead` derives PPQ from `samplesElapsed`, never accumulating.
 - WebView2 static-linking define and user-data folder present; every UI asset embedded and served with `charset=utf-8`; no new canvas, no new module-level executable statement, `init();` still last.
+
+## Resolved
+
+- **v1.10.1 — commit 0cc48afb (2026-08-27), `/improve-review-info` sweep.** Resolved: IN-01, 02, 06,
+  07, 08, 10, 12, 15, 19, 21. Partially: IN-16 (Drift-by-index residual), IN-29 (count literal).
+  Dropped as already fixed: IN-17, IN-18. Closed as stale premise: IN-05, IN-09. Still open —
+  design calls: IN-03, 04, 11, 13, 14, 20, 22; fail-first test work: IN-23, 24, 25, 26, 27, 28,
+  29 (stub/wall-clock parts), 30. Triage detail in CHANGELOG v1.10.1 Notes.
