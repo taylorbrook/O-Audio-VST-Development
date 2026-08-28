@@ -64,6 +64,13 @@ OSimpleBeatmakerAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/js/app.js")
         return makeBinaryResource (BinaryData::app_js, BinaryData::app_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.1.0 — the interface copy table (English + French). Served from the same
+    // provider as app.js, which imports it; a branch missing here is a BLANK page
+    // rather than an English one, because the import fails to resolve and module
+    // evaluation never starts. check-i18n assertion 8 checks both halves.
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (BinaryData::i18n_js, BinaryData::i18n_jsSize, "application/javascript; charset=utf-8");
+
     if (url == "/js/juce/index.js")
         return makeBinaryResource (BinaryData::index_js, BinaryData::index_jsSize, "application/javascript; charset=utf-8");
 
@@ -156,6 +163,32 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
                 if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p))
                     obj->setProperty (rp->paramID, rp->getDefaultValue());
             complete (juce::var (obj));
+        })
+        // ── Interface-language pair (v1.1.0) ───────────────────────────────
+        // Plain withNativeFunction, no relay: the language is not a parameter
+        // and must not reach a DAW automation lane. PULLED once by the page at
+        // init; nothing pushes from here or from the 60 Hz frame timer, and
+        // applyConceptPreset() sets parameters and grid cells only, so no lesson
+        // preset can change it behind the page's back.
+        //
+        // The WebView is never hidden in this editor (no setVisible anywhere in
+        // Source/), so these completions always settle
+        // (critical_webview_completion_gated_on_isvisible).
+        .withNativeFunction ("getUiLanguage", [this] (auto&, auto complete) {
+            complete (juce::var (OSimpleBeatmakerAudioProcessor::languageCode (
+                                     processorRef.uiLanguage.load (std::memory_order_acquire))));
+        })
+        .withNativeFunction ("setUiLanguage", [this] (const juce::Array<juce::var>& args, auto complete) {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    OSimpleBeatmakerAudioProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (OSimpleBeatmakerAudioProcessor::languageCode (
+                                     processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
    #if JUCE_WINDOWS

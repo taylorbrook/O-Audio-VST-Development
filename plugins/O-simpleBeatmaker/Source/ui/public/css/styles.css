@@ -114,6 +114,14 @@ body {
   border-bottom: 2px solid var(--brown-border);
   padding-bottom: 8px;
 }
+/* flex: 1 1 0, not the default 0 1 auto. The header is a TWO-item space-between
+   row, so at basis auto the title block's used width IS its own max-content —
+   which is the strapline's, and therefore language-dependent: 625.6px English
+   against 640px French (the max-width cap, wrapped). At basis 0 it is 706.4px in
+   both. Costs English nothing: the h1 and the strapline are left-aligned blocks
+   inside a transparent box. min-width: 0 so the basis is not floored by the
+   strapline's min-content. */
+.title-block { flex: 1 1 0; min-width: 0; }
 .title {
   font-size: 27px;
   font-weight: 700;
@@ -128,7 +136,20 @@ body {
   color: var(--brown-soft);
   opacity: 0.85;
   margin-top: 1px;
-  max-width: 640px;
+  /* 640px through v1.0.3, where the English 625.6px cleared it by 14.4px and any
+     longer string wrapped. Raised to the space the title block actually has now
+     that its basis is pinned; the English strapline is unchanged at 625.6px and
+     one line, and the French is 690px and one line. */
+  max-width: 700px;
+}
+/* The transport strip and the gear share one right-hand cluster so .header
+   stays a TWO-item space-between row. A third top-level item would have
+   re-spread the strip toward the centre in English as well as French. */
+.header-right {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex: 0 0 auto;
 }
 .transport-readout {
   display: flex;
@@ -137,11 +158,102 @@ body {
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* ── Settings gear + language popover (v1.1.0) ──────────────────────────── */
+/* The gear wears the .tour-btn chip's paper fill and brown border rounded to a
+   circle; the panel wears the .group plate; the selector wears select.combo's
+   border, radius and hand-drawn caret at panel scale. */
+#settings-cluster { position: relative; flex: 0 0 auto; }
+.gear-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: var(--symbol-font);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--brown-soft);
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.gear-btn:hover { background: var(--bg-paper-mid); border-color: var(--green-mid); }
+.gear-btn.open  { background: var(--btn-active); border-color: var(--btn-border-active); color: #fff8dc; }
+.gear-btn:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
+
+.settings-popover {
+  position: absolute;
+  top: 27px;
+  right: 0;
+  z-index: 40;
+  min-width: 210px;
+  background: var(--bg-paper-light);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 7px;
+  padding: 9px 11px;
+  box-shadow: 0 6px 18px var(--shadow-medium);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.settings-popover[hidden] { display: none; }
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.settings-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--brown-text);
+}
+/* select.combo's caret and paper, at popover scale. min-width, never width, so
+   a platform with wider font metrics grows the box instead of clipping it. */
+.settings-select {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--brown-text);
+  background: var(--bg-paper);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 4px;
+  padding: 3px 22px 3px 8px;
+  min-width: 96px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--brown-soft) 50%),
+    linear-gradient(135deg, var(--brown-soft) 50%, transparent 50%);
+  background-position: calc(100% - 12px) center, calc(100% - 8px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.settings-select:focus { outline: none; border-color: var(--green-mid); }
 .tr-item { color: var(--brown-text); }
+/* Three pins, per ELEMENT rather than per class (batch I2 lesson 8): the strip
+   sits at the right-hand end of a space-between header, so every pixel it loses
+   in French moves its own left edge — and with it the title block's basis — and
+   every pixel it gains pushes the other way. "tempo" is the same word in both
+   languages and is deliberately NOT pinned; pinning the shared .tr-label class
+   would have paid 12.6px on it for nothing.
+   Measured AS RENDERED, not from a probe: .tr-label is uppercased and letter-
+   spaced by CSS, so a probe that copies only the font reads LENGTH 12.6px too
+   narrow and lands the pin under the French.
+     LENGTH   43.3 / LONGUEUR 60.0  ->  60px
+     steps    21.0 / pas      14.0  ->  21px
+     free-run 52.7 / libre    34.0  ->  53px, which also covers the two SYNCED
+              faces (44.9 / 50.7), so the strip no longer resizes when the host
+              transport starts either — a pre-existing twitch, fixed for free.
+   The cost lands in ENGLISH as a 16.7px gap after LENGTH, and in French as
+   trailing space after "pas" and "libre". */
+.tr-key-length { display: inline-block; min-width: 60px; }
+.tr-unit-steps { display: inline-block; min-width: 21px; }
 .tr-label { font-style: italic; opacity: 0.6; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 .tr-unit { opacity: 0.6; font-size: 10.5px; }
 .tr-item span[id] { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tr-state #readTransport { color: var(--brown-soft); font-weight: 600; }
+.tr-state #readTransport { color: var(--brown-soft); font-weight: 600; display: inline-block; min-width: 53px; }
 .tr-state #readTransport.synced { color: var(--green-dark); }
 
 /* ── Step grid (headline) ───────────────────────────────────────────────── */
@@ -301,6 +413,11 @@ body {
   flex-direction: column-reverse;  /* newest at the bottom edge, scroll up */
 }
 .midi-row { white-space: nowrap; opacity: 0.9; }
+/* Through v1.0.3 "SEQ " padded itself to MIDI's width with a trailing space in
+   the string. A localized string must not carry layout — "SÉQ" and any future
+   translation would each need their own invisible padding — so the column is a
+   CSS min-width and both faces are the bare word. */
+.midi-row .src-seq, .midi-row .src-midi { display: inline-block; min-width: 34px; }
 .midi-row .src-seq  { color: var(--amber); }
 .midi-row .src-midi { color: var(--green-light); }
 .midi-row .mr-note { color: #f5e6d3; font-weight: 600; }
@@ -498,6 +615,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   pointer-events: none;
 }
 .tooltip.show { opacity: 1; visibility: visible; }
-.tooltip strong { color: var(--amber); }
-.tooltip em { color: var(--green-light); font-style: italic; }
+/* v1.0.3 also styled `.tooltip strong` and `.tooltip em`. Both are gone: the tip
+   is built with createElement + textContent now, so a tip body can never contain
+   an element for them to match. */
 .tt-title { display: block; font-weight: 700; margin-bottom: 3px; color: #fff8dc; }

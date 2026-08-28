@@ -31,20 +31,61 @@
     <header class="header">
       <div class="title-block">
         <h1 class="title">O&#8202;&#8211;&#8202;simple<span class="title-accent">Beatmaker</span></h1>
-        <p class="subtitle">Step-Sequencer Drum Machine &#183; program a beat, then watch velocity, swing, quantize &amp; humanize reshape it &#183; A Field Guide</p>
+        <p class="subtitle" data-i18n="label.subtitle">Step-Sequencer Drum Machine &#183; program a beat, then watch velocity, swing, quantize &amp; humanize reshape it &#183; A Field Guide</p>
       </div>
-      <div class="transport-readout">
-        <span class="tr-item"><span class="tr-label">tempo</span> <span id="readTempo">120</span> <span class="tr-unit">BPM</span></span>
-        <span class="tr-item"><span class="tr-label">length</span> <span id="readLength">16</span> <span class="tr-unit">steps</span></span>
-        <span class="tr-item tr-state"><span id="readTransport">&#9679; free-run</span></span>
+      <!-- The right-hand header cluster. The transport strip and the gear are
+           wrapped together so the header stays a TWO-item space-between row: a
+           third top-level item would have re-spread the strip to the centre in
+           English as well as French. -->
+      <div class="header-right">
+        <div class="transport-readout">
+          <span class="tr-item"><span class="tr-label" data-i18n="label.trTempo">tempo</span> <span id="readTempo">120</span> <span class="tr-unit">BPM</span></span>
+          <span class="tr-item"><span class="tr-label tr-key-length" data-i18n="label.trLength">length</span> <span id="readLength">16</span> <span class="tr-unit tr-unit-steps" data-i18n="label.trSteps">steps</span></span>
+          <span class="tr-item tr-state"><span id="readTransport" data-i18n="label.freeRun">&#9679; free-run</span></span>
+        </div>
+
+        <!-- v1.1.0 - the settings gear. This plugin has never had a hover-help
+             switch and does not gain one here, so the panel holds the language
+             selector alone. -->
+        <div id="settings-cluster">
+          <button type="button"
+                  class="gear-btn"
+                  id="gear-btn"
+                  aria-haspopup="dialog"
+                  aria-expanded="false"
+                  data-i18n-aria="gear-btn"
+                  aria-label="Settings">&#9881;</button>
+
+          <div class="settings-popover" id="settings-popover"
+               role="dialog" data-i18n-aria="gear-btn" aria-label="Settings" hidden>
+            <label class="settings-row" for="lang-select">
+              <span class="settings-label" data-i18n="lang-select">Language</span>
+              <!-- ENDONYMS. Never localized: a French speaker looking for their
+                   language looks for "Fran&ccedil;ais". -->
+              <select class="settings-select" id="lang-select"
+                      data-i18n-aria="aria.langSelect"
+                      aria-label="Interface language">
+                <option value="en">English</option>
+                <option value="fr">Fran&ccedil;ais</option>
+              </select>
+            </label>
+          </div>
+        </div>
       </div>
     </header>
 
     <!-- ─── Step grid (headline: rows = voices, cols = 16ths, + playhead) ── -->
-    <section class="grid-panel" data-tip="grid">
-      <div class="grid-label">Step Grid &#183;
-        <span class="grid-hint">click a cell to light a step; click again to cycle <em>normal &#8594; accent &#8594; ghost</em>; right-click (or <kbd>Del</kbd>) to clear &#183; the bar sweeping across is the playhead</span>
-        <button id="clearGridBtn" class="clear-btn" type="button" data-tip="clearGrid">Clear all</button>
+    <section class="grid-panel" id="gridPanel">
+      <div class="grid-label"><span data-i18n="label.gridCaption">Step Grid &#183;</span>
+        <!-- FIVE keyed fragments, and NO wrapper span around them. A wrapper is
+             not a [data-i18n] element, so its box is measured by the label
+             gate's geometry diff — and its box IS the French sentence's width,
+             which is 142.9px wider than the English one and can never be
+             anything else. Carrying .grid-hint on each fragment instead puts the
+             whole hint inside elements the diff excludes by design, and renders
+             identically. -->
+        <span class="grid-hint" data-i18n="label.gridHintA">click a cell to light a step; click again to cycle</span> <em class="grid-hint" data-i18n="label.gridHintEm">normal &#8594; accent &#8594; ghost</em><span class="grid-hint" data-i18n="label.gridHintB">; right-click (or</span> <kbd class="grid-hint" data-i18n="label.gridHintKbd">Del</kbd><span class="grid-hint" data-i18n="label.gridHintC">) to clear &#183; the bar sweeping across is the playhead</span>
+        <button id="clearGridBtn" class="clear-btn" type="button" data-i18n="label.clearAll">Clear all</button>
       </div>
       <div class="grid-scroll">
         <div id="gridRows" class="grid-rows"><!-- rows built by app.js --></div>
@@ -52,23 +93,27 @@
     </section>
 
     <!-- ─── Timing / groove lane (the standout teaching visual, QUAL-02) ── -->
-    <section class="lane-panel" data-tip="lane">
-      <div class="lane-label">Timing / Groove Lane &#183;
-        <span class="lane-hint">each hit's <em>actual</em> offset from its grid line &#8212; left of the line = early, right = late. This is the Δt baked into the audio, not a guess.</span>
+    <section class="lane-panel" id="lanePanel">
+      <div class="lane-label"><span data-i18n="label.laneCaption">Timing / Groove Lane &#183;</span>
+        <!-- ONE key, and the italic on "actual" is gone: French moves both the
+             possessive and the adjective, so a fragment reading "each hit's"
+             has no translation. The step-grid hint above keeps its emphasis
+             because its fragments are whole clauses. -->
+        <span class="lane-hint" data-i18n="label.laneHint">each hit's actual offset from its grid line &#8212; left of the line = early, right = late. This is the Δt baked into the audio, not a guess.</span>
       </div>
       <div class="canvas-wrap lane-wrap" tabindex="0"><canvas id="laneCanvas"></canvas></div>
       <div class="lane-legend">
-        <span class="lk lk-grid">&#9474; grid line (nominal step)</span>
-        <span class="lk lk-swing">swing &#8594; steady lateness on off-beats</span>
-        <span class="lk lk-human">humanize &#8594; random scatter</span>
-        <span class="lk lk-quant">quantize &#8594; pulls scatter back</span>
+        <span class="lk lk-grid" data-i18n="label.lkGrid">&#9474; grid line (nominal step)</span>
+        <span class="lk lk-swing" data-i18n="label.lkSwing">swing &#8594; steady lateness on off-beats</span>
+        <span class="lk lk-human" data-i18n="label.lkHuman">humanize &#8594; random scatter</span>
+        <span class="lk lk-quant" data-i18n="label.lkQuant">quantize &#8594; pulls scatter back</span>
       </div>
     </section>
 
     <!-- ─── Live MIDI readout ("the sequencer emits MIDI" made visible) ── -->
-    <section class="midi-panel" data-tip="midi">
-      <div class="midi-label">Live MIDI Readout &#183;
-        <span class="midi-hint">note-on messages as steps fire &#8212; the grid and this list are two views of one MIDI stream</span>
+    <section class="midi-panel" id="midiPanel">
+      <div class="midi-label"><span data-i18n="label.midiCaption">Live MIDI Readout &#183;</span>
+        <span class="midi-hint" data-i18n="label.midiHint">note-on messages as steps fire &#8212; the grid and this list are two views of one MIDI stream</span>
       </div>
       <div id="midiReadout" class="midi-readout" role="log" aria-live="off"></div>
     </section>
@@ -76,64 +121,65 @@
     <!-- ─── Global timing-feel controls ────────────────────────── -->
     <main class="controls">
       <section class="group group-timing">
-        <h2 class="group-title">Timing Feel</h2>
+        <h2 class="group-title" data-i18n="label.groupTiming">Timing Feel</h2>
         <div class="knob-row">
-          <div class="knob-cell" data-tip="swing">
-            <div class="knob" id="knob-swing"><div class="knob-stem"></div></div>
-            <div class="knob-label">Swing</div>
+          <div class="knob-cell" data-param="swing">
+            <div class="knob" id="knob-swing" data-i18n-aria="swing"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobSwing">Swing</div>
             <div class="knob-value" id="val-swing">0%</div>
           </div>
-          <div class="knob-cell" data-tip="humanize">
-            <div class="knob" id="knob-humanize"><div class="knob-stem"></div></div>
-            <div class="knob-label">Humanize</div>
+          <div class="knob-cell" data-param="humanize">
+            <div class="knob" id="knob-humanize" data-i18n-aria="humanize"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobHumanize">Humanize</div>
             <div class="knob-value" id="val-humanize">0%</div>
           </div>
-          <div class="knob-cell" data-tip="quantizeStrength">
-            <div class="knob" id="knob-quantizeStrength"><div class="knob-stem"></div></div>
-            <div class="knob-label">Quantize</div>
+          <div class="knob-cell" data-param="quantizeStrength">
+            <div class="knob" id="knob-quantizeStrength" data-i18n-aria="quantizeStrength"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobQuantize">Quantize</div>
             <div class="knob-value" id="val-quantizeStrength">100%</div>
           </div>
-          <div class="knob-cell" data-tip="tempo">
-            <div class="knob" id="knob-tempo"><div class="knob-stem"></div></div>
-            <div class="knob-label">Tempo</div>
+          <div class="knob-cell" data-param="tempo">
+            <div class="knob" id="knob-tempo" data-i18n-aria="tempo"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.knobTempo">Tempo</div>
             <div class="knob-value" id="val-tempo">120 BPM</div>
           </div>
         </div>
-        <div class="select-cell select-length" data-tip="patternLength">
-          <select class="combo" id="combo-patternLength" aria-label="Pattern length"></select>
-          <div class="knob-label">Pattern Length</div>
+        <div class="select-cell select-length" data-param="patternLength">
+          <select class="combo" id="combo-patternLength"
+                  data-i18n-aria="patternLength" aria-label="Pattern length"></select>
+          <div class="knob-label" data-i18n="label.knobPatternLength">Pattern Length</div>
         </div>
       </section>
 
       <!-- Per-voice strips (built by app.js to stay in lock-step with the IDs) -->
       <section class="group group-voices">
-        <h2 class="group-title">Drum Voices <span class="group-route">tune &#183; decay &#183; tone &#183; level &#183; mute / solo</span></h2>
+        <h2 class="group-title"><span data-i18n="label.groupVoices">Drum Voices</span> <span class="group-route" data-i18n="label.groupRoute">tune &#183; decay &#183; tone &#183; level &#183; mute / solo</span></h2>
         <div id="voiceStrips" class="voice-strips"><!-- built by app.js --></div>
       </section>
 
       <!-- Master -->
       <section class="group group-master">
-        <h2 class="group-title">Master</h2>
-        <div class="knob-cell" data-tip="outputLevel">
-          <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
-          <div class="knob-label">Output</div>
+        <h2 class="group-title" data-i18n="label.groupMaster">Master</h2>
+        <div class="knob-cell" data-param="outputLevel">
+          <div class="knob" id="knob-outputLevel" data-i18n-aria="outputLevel"><div class="knob-stem"></div></div>
+          <div class="knob-label" data-i18n="label.knobOutput">Output</div>
           <div class="knob-value" id="val-outputLevel">0.0 dB</div>
         </div>
       </section>
     </main>
 
     <!-- ─── Preset tour (concept-isolating factory presets — FUNC-05) ─── -->
-    <section class="preset-tour" data-tip="presets">
-      <div class="tour-label">Lesson Presets <span class="tour-soon">(click one &#8212; each isolates a single idea)</span></div>
+    <section class="preset-tour" id="presetTour">
+      <div class="tour-label"><span data-i18n="label.tourHeading">Lesson Presets</span> <span class="tour-soon" data-i18n="label.tourSoon">(click one &#8212; each isolates a single idea)</span></div>
       <div class="tour-buttons">
-        <button class="tour-btn" data-preset="Straight" data-tip="lessonStraight">Straight</button>
-        <button class="tour-btn" data-preset="Backbeat + Accents" data-tip="lessonAccents">Backbeat + Accents</button>
-        <button class="tour-btn" data-preset="Ghost Notes" data-tip="lessonGhost">Ghost Notes</button>
-        <button class="tour-btn" data-preset="Triplet Swing" data-tip="lessonSwing">Triplet Swing</button>
-        <button class="tour-btn" data-preset="Humanized" data-tip="lessonHumanized">Humanized</button>
-        <button class="tour-btn" data-preset="Quantize Demo" data-tip="lessonQuantize">Quantize Demo</button>
+        <button class="tour-btn" data-preset="Straight">Straight</button>
+        <button class="tour-btn" data-preset="Backbeat + Accents">Backbeat + Accents</button>
+        <button class="tour-btn" data-preset="Ghost Notes">Ghost Notes</button>
+        <button class="tour-btn" data-preset="Triplet Swing">Triplet Swing</button>
+        <button class="tour-btn" data-preset="Humanized">Humanized</button>
+        <button class="tour-btn" data-preset="Quantize Demo">Quantize Demo</button>
       </div>
-      <div class="tour-caption" id="tourCaption">Hover any control for a plain-language explanation &#183; click a lesson preset to load it, then tweak a knob.</div>
+      <div class="tour-caption" id="tourCaption" data-i18n="label.tourCaption">Hover any control for a plain-language explanation &#183; click a lesson preset to load it, then tweak a knob.</div>
     </section>
   </div>
 

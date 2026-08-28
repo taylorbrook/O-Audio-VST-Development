@@ -579,6 +579,22 @@ void OSimpleBeatmakerAudioProcessor::getStateInformation (juce::MemoryBlock& des
     // copyState() returns a COPY; mutating it never touches the live APVTS tree.
     auto state = parameters.copyState();
 
+    // v1.1.0: the interface LANGUAGE rides the same tree as a plain property on
+    // the ROOT — not a parameter, and not part of any lesson preset. Written as
+    // a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means, and because the ValueTree
+    // -> XML round trip rebuilds every property as a string var anyway
+    // (critical_valuetree_xml_roundtrip_loses_type). Storing the code means the
+    // value that comes back is the value that went in, with no type predicate to
+    // misfire on the way.
+    //
+    // It is set on the COPY, after copyState() rather than before it: this
+    // processor writes its own XML from `state` directly, so there is no later
+    // copy for the property to miss.
+    state.setProperty (kUiLanguageProp,
+                       languageCode (uiLanguage.load (std::memory_order_acquire)),
+                       nullptr);
+
     // Defensive: never let a stale PATTERN child accumulate across save cycles.
     state.removeChild (state.getChildWithName ("PATTERN"), nullptr);
     state.appendChild (buildPatternTree(), nullptr);
@@ -594,6 +610,21 @@ void OSimpleBeatmakerAudioProcessor::setStateInformation (const void* data, int 
         if (xml->hasTagName (parameters.state.getType()))
         {
             auto tree = juce::ValueTree::fromXml (*xml);
+
+            // v1.1.0. Read from the INCOMING tree, before replaceState() below:
+            // AudioProcessorValueTreeState::replaceState() assigns the tree
+            // wholesale (state = newState), so parameters.state is the OLD tree
+            // until it returns. Reading `tree` sidesteps the ordering entirely.
+            //
+            // A pre-1.1.0 session has no property, getProperty returns a VOID
+            // var, and the default (English) stands. isVoid() is the only
+            // correct gate — the value comes back as a STRING var, so a type
+            // predicate like isInt() would never fire. languageIndex() clamps
+            // anything that is not "fr" to 0, so a hand-edited value degrades to
+            // English rather than to a bad index.
+            const juce::var lang = tree.getProperty (kUiLanguageProp);
+            if (! lang.isVoid())
+                uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
             restorePatternTree (tree.getChildWithName ("PATTERN"));
 
