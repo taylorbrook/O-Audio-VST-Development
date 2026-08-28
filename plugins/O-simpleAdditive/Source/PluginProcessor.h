@@ -161,6 +161,27 @@ public:
     // thread). Queued via a MidiMessageCollector and merged into processBlock.
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
 
+    //==========================================================================
+    // INTERFACE LANGUAGE (v1.1.0) — the WebView UI's own language preference.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a lesson preset must not be able to change which
+    // language somebody reads their interface in. It rides the APVTS tree as a
+    // plain PROPERTY, which is the same shape the rest of the suite uses for
+    // non-parameter state. applyFactoryPreset() sets parameters only, so no
+    // preset path can touch it behind the page's back.
+    //
+    // The RUNTIME form is an index; the PERSISTED form is the language code.
+    // The editor PULLS it once at page init; nothing pushes.
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
+    //==========================================================================
     // Lesson preset tour (Stage 3): apply a full APVTS snapshot by name. Sets every
     // parameter via setValueNotifyingHost, so the relays/attachments propagate the
     // change back to the WebView controls automatically. Persistent user-preset

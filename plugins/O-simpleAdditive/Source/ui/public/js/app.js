@@ -30,6 +30,119 @@
 
 import * as Juce from "./juce/index.js";
 
+// ═══════════════════════════════════════════════════════════════════════════
+// INTERFACE LANGUAGE (v1.1.0) — canon v2, verbatim from scripts/i18n-canon.js.
+//
+// It sits HERE, directly under the import and above every other declaration in
+// this module, because `uiLanguage` is a module-level `let`: anything above it
+// that reached applyLabel() would touch it inside its temporal dead zone and
+// throw out of module evaluation, taking the drawbars, the knobs, the scope and
+// the keyboard with it (pattern_module_toplevel_init_tdz). This file DOES have
+// eager top-level work below — DRAWBAR_IDS, FORMAT, the LESSON tables — so the
+// ordering is load-bearing here, not merely defensive.
+// `node scripts/boot-all-uis.js` is the ONLY gate in the repo that sees this
+// class of failure.
+//
+// Do NOT edit the region between the import line and the close of initI18n():
+// check-i18n assertion 6 byte-compares it against scripts/i18n-canon.js.
+// ═══════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+
 // ── Parameter inventory (must match OSimpleAdditive::ParamIDs exactly) ───────
 const NUM_PARTIALS = 16;
 const DRAWBAR_IDS = Array.from({ length: NUM_PARTIALS }, (_, i) => `partial${i + 1}`);
@@ -59,40 +172,19 @@ const FORMAT = {
   outputLevel: (v) => `${v.toFixed(1)} dB`,
 };
 
-// ── Tooltip copy (plain-language, every control) ────────────────────────────
-const TIPS = {
-  drawbars:     ["Harmonic Drawbars", "Each bar sets one overtone's level — together they ARE the additive spectrum. The brass shows what you set; the green glow shows what's actually sounding (after morph &amp; spectral decay)."],
-  frameBSource: ["Frame B Source", "The target spectrum the Scan morphs toward (Sine, Saw, Square, or Odd). Scan at 0% = your drawbars; 100% = this shape."],
-  scanPosition: ["Scan", "Morphs the spectrum from your drawbars (0%) toward Frame B (100%). Watch the waveform change shape as you scan."],
-  scanLfoRate:  ["Scan LFO Rate", "Speed of the sine LFO that sweeps Scan automatically. One global LFO — all held notes morph together, in phase."],
-  scanLfoDepth: ["Scan LFO Depth", "How far the LFO sweeps Scan around its set position. 0% = no automatic morph."],
-  scanEnvAmount:["Env → Scan", "How much the Modulation Envelope pushes Scan over each note (bipolar −/+). Makes the timbre evolve after the key is struck."],
-  spectralDecay:["Spectral Decay", "Over each note, makes higher partials fade faster than lower ones — the tone darkens as it rings, like a plucked string. 0% = steady balance."],
-  bitDepth:     ["Bit Depth", "Quantizes the output to N bits of amplitude resolution for early-digital grit. 'Off' = clean; fewer bits = more crunch."],
-  velToDecay:   ["Velocity → Decay", "Lets how hard you play add to Spectral Decay. (Velocity always sets loudness; this adds timbral response — harder = darker decay.)"],
-  ampAttack:    ["Amp Attack", "Time for loudness to rise after note-on."],
-  ampDecay:     ["Amp Decay", "Time for loudness to fall from peak to the sustain level."],
-  ampSustain:   ["Amp Sustain", "Held loudness while the key stays down."],
-  ampRelease:   ["Amp Release", "Time for loudness to fade after the key is released — also how long the voice rings out."],
-  modAttack:    ["Mod Attack", "Attack of the modulation envelope, which drives Scan via Env → Scan."],
-  modDecay:     ["Mod Decay", "Decay of the modulation envelope toward its sustain level."],
-  modSustain:   ["Mod Sustain", "Held level of the modulation envelope while the key is down."],
-  modRelease:   ["Mod Release", "Release of the modulation envelope after key-up."],
-  outputLevel:  ["Output Level", "Master output trim in decibels."],
-  // Lesson-preset tooltips (lessonSine … lessonLofi) are DERIVED from LESSONS
-  // below — the caption copy lives in exactly one place (single source of truth).
-};
-
-// Per-partial harmonic tooltips (generated).
-function harmonicTip(k) {
-  if (k === 1) return ["Partial 1 · Fundamental", "The fundamental — the pitch you hear. On its own it's a pure sine; it's the 1st harmonic of the overtone series."];
-  const parity = (k % 2 === 1) ? "odd" : "even";
-  const note = (k % 2 === 1)
-    ? "Odd harmonics give hollow, reedy color — a square wave is built from these alone."
-    : "Even harmonics reinforce octave-ish color and add body/warmth.";
-  return [`Partial ${k} · ${parity} harmonic`, `The ${k}th harmonic — ${k}× the fundamental frequency. ${note}`];
-}
-for (let k = 1; k <= NUM_PARTIALS; k++) TIPS[`partial${k}`] = harmonicTip(k);
+// ── Tooltip copy ────────────────────────────────────────────────────────────
+// MOVED to js/i18n.js at v1.1.0. Through v1.0.7 the copy lived in a `TIPS`
+// object here and each anchor carried the KEY in its own data-tip attribute.
+// applyI18n now WRITES data-tip (the body) and data-tip-title on every anchor
+// named by TIP_BINDINGS, so the renderer below reads the attributes rather than
+// a table — one code path, and no way for a tip to be stranded in the previous
+// language after the selector fires.
+//
+// The sixteen per-partial tips were GENERATED here by a harmonicTip(k) helper.
+// They are sixteen written-out entries in js/i18n.js now: a generated string is
+// invisible to the translator reviewing that file. The generator also built its
+// ordinal as `${k}th` with no special-casing and so shipped "The 2th harmonic"
+// and "The 3th harmonic"; the table reads "2nd" and "3rd".
 
 // ── Knob geometry ────────────────────────────────────────────────────────────
 const KNOB_MIN_DEG = -135;   // 0.0 normalised
@@ -151,7 +243,11 @@ function bindKnob(id) {
 
   knob.setAttribute("tabindex", "0");
   knob.setAttribute("role", "slider");
-  knob.setAttribute("aria-label", (TIPS[id] && TIPS[id][0]) || id);
+  // The accessible name is NOT set here any more. Each knob carries
+  // data-i18n-aria="<paramId>" in the markup and applyI18n's attribute sweep
+  // resolves it through trLabel, which falls back from LABELS to I18N and so
+  // returns the control's tooltip TITLE. A setAttribute here would write the
+  // English once and be stranded in it the moment the selector fires.
   knob.addEventListener("keydown", (e) => {
     let delta = 0;
     if (e.key === "ArrowUp" || e.key === "ArrowRight") delta = 0.02;
@@ -206,14 +302,42 @@ function buildDrawbars() {
     const id = `partial${k}`;
     const cell = document.createElement("div");
     cell.className = "drawbar-cell " + (k === 1 ? "db-fundamental" : (k % 2 === 1 ? "db-odd" : "db-even"));
-    cell.setAttribute("data-tip", id);
-    cell.innerHTML =
-      `<div class="drawbar" id="drawbar-${id}" role="slider" tabindex="0" aria-label="Partial ${k} level">` +
-        `<div class="drawbar-fill" id="fill-${id}"></div>` +
-        `<div class="drawbar-live" id="live-${id}"></div>` +
-      `</div>` +
-      `<div class="drawbar-num">${k}</div>` +
-      `<div class="drawbar-val" id="val-${id}">0</div>`;
+    // data-param, not data-tip: applyI18n writes data-tip as the tip BODY, so a
+    // key parked there would be overwritten by the copy meant for it.
+    cell.setAttribute("data-param", id);
+
+    // Built node by node rather than by innerHTML. The accessible name was
+    // "Partial 3 level", interpolated into that markup string; it is now
+    // data-i18n-aria, resolved by the attribute sweep through I18N.partial3 to
+    // the same title the hover help shows. Interpolating a localized name into
+    // a markup string would put prose back on an innerHTML path.
+    const track = document.createElement("div");
+    track.className = "drawbar";
+    track.id = `drawbar-${id}`;
+    track.setAttribute("role", "slider");
+    track.setAttribute("tabindex", "0");
+    track.dataset.i18nAria = id;
+
+    const fill = document.createElement("div");
+    fill.className = "drawbar-fill";
+    fill.id = `fill-${id}`;
+
+    const live = document.createElement("div");
+    live.className = "drawbar-live";
+    live.id = `live-${id}`;
+
+    track.append(fill, live);
+
+    const num = document.createElement("div");
+    num.className = "drawbar-num";
+    num.textContent = String(k);              // the harmonic number — a readout (D-03)
+
+    const val = document.createElement("div");
+    val.className = "drawbar-val";
+    val.id = `val-${id}`;
+    val.textContent = "0";                    // a readout (D-03)
+
+    cell.append(track, num, val);
     bay.appendChild(cell);
     drawbarCells[id] = cell;
   }
@@ -415,10 +539,26 @@ function setupTooltips() {
   const tip = document.getElementById("tooltip");
   let active = null;
 
-  const show = (key, x, y) => {
-    const entry = TIPS[key];
-    if (!entry) return;
-    tip.innerHTML = `<span class="tip-title">${entry[0]}</span>${entry[1]}`;
+  // The copy is read from the anchor's OWN attributes, which applyI18n rewrote
+  // in the current language. v1.0.7 looked it up in a TIPS object keyed by the
+  // anchor's data-tip; that table is gone, and with it the second code path
+  // that would have gone stale on a language switch.
+  //
+  // Built with createElement + textContent, not innerHTML. The tip text is now
+  // table-sourced rather than a fixed literal, and localized copy must never
+  // reach a markup path.
+  const show = (el, x, y) => {
+    const title = el.getAttribute("data-tip-title");
+    const body = el.getAttribute("data-tip");
+    if (!title && !body) return;
+    tip.textContent = "";
+    if (title) {
+      const t = document.createElement("span");
+      t.className = "tip-title";
+      t.textContent = title;
+      tip.appendChild(t);
+    }
+    if (body) tip.appendChild(document.createTextNode(body));
     tip.classList.add("show");
     tip.setAttribute("aria-hidden", "false");
     position(x, y);
@@ -432,21 +572,41 @@ function setupTooltips() {
     tip.style.top = `${Math.max(8, ny)}px`;
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
-  const showAtEl = (key, el) => {
-    const r = el.getBoundingClientRect();
-    active = key;
-    show(key, r.left + r.width / 2, r.bottom);
-  };
 
-  document.querySelectorAll("[data-tip]").forEach((el) => {
-    const key = el.getAttribute("data-tip");
-    el.addEventListener("pointerenter", (e) => { active = key; show(key, e.clientX, e.clientY); });
-    el.addEventListener("pointermove", (e) => { if (active === key) position(e.clientX, e.clientY); });
-    el.addEventListener("pointerleave", hide);
-    el.addEventListener("pointerdown", hide);
-    el.addEventListener("focusin", (e) => { e.stopPropagation(); showAtEl(key, el); });
-    el.addEventListener("focusout", hide);
+  // DELEGATED on the document rather than attached per element. The anchors do
+  // not carry data-tip until applyI18n has run and the sixteen drawbar cells do
+  // not exist until buildDrawbars has run, so a querySelectorAll at setup time
+  // would bind whatever happened to exist at that instant. Delegation has no
+  // ordering to get wrong. pointerover/pointerout and focusin/focusout are used
+  // because — unlike pointerenter/pointerleave and focus/blur — they bubble.
+  const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
+
+  document.addEventListener("pointerover", (e) => {
+    const el = anchorOf(e.target);
+    if (!el || el === active) return;
+    active = el;
+    show(el, e.clientX, e.clientY);
   });
+  document.addEventListener("pointermove", (e) => {
+    if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerout", (e) => {
+    if (!active) return;
+    // Ignore a move between two descendants of the SAME anchor: pointerout
+    // fires on every child boundary and would flicker the tip off and on.
+    if (anchorOf(e.relatedTarget) === active) return;
+    hide();
+  });
+  document.addEventListener("pointerdown", hide);
+
+  document.addEventListener("focusin", (e) => {
+    const el = anchorOf(e.target);
+    if (!el) return;
+    active = el;
+    const r = el.getBoundingClientRect();
+    show(el, r.left + r.width / 2, r.bottom);
+  });
+  document.addEventListener("focusout", hide);
 
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
 }
@@ -455,39 +615,48 @@ function setupTooltips() {
 // The lessons are applied in C++ (applyFactoryPreset native fn) as full APVTS
 // snapshots; the relays/attachments sync every knob, drawbar, and combo here.
 //
-// SINGLE SOURCE OF TRUTH for lesson copy: each caption "Name — description" lives
-// here once. The tour caption shows it verbatim; the per-button hover tooltips
-// (TIPS.lessonSine … TIPS.lessonLofi) are DERIVED below by splitting on the first
-// em-dash into [title, body]. Keyed by the C++ preset name (matches
-// applyFactoryPreset and the buttons' data-preset).
-const LESSONS = {
-  "Pure Sine":   "Pure Sine — only the fundamental (H1). One drawbar, one sine: the atom of additive synthesis.",
-  "Sawtooth":    "Sawtooth — every harmonic at 1/k. All overtones falling by 1/k → a bright, buzzy ramp.",
-  "Square":      "Square — odd harmonics only, at 1/k. Dropping the even partials gives the hollow, reedy tone.",
-  "Organ":       "Organ — a Hammond-style drawbar registration: a few low harmonics, instant attack, full sustain.",
-  "Morph Pad":   "Morph Pad — the scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe.",
-  "Lo-Fi Bells": "Lo-Fi Bells — a spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit.",
+// Through v1.0.7 a LESSONS table here held each caption as one "Name — body"
+// string and the six button tooltips were DERIVED from it by splitting on the
+// first em-dash. Both halves are authored table entries in js/i18n.js now:
+// a derived string is invisible to the translator reviewing that file, and once
+// the page has two languages the table is the single source of truth rather
+// than the caption.
+//
+// What is left here is a dispatch from the C++ preset name (which is also the
+// button's data-preset, and is never localized) to a WRITER that names its
+// caption key as a plain string literal.
+//
+// A map of name -> key with `setLabel(cap, KEYS[name] || "label.captionDefault")`
+// reads more naturally and is what this was first written as. check-i18n
+// assertion 13 rejects it twice over, correctly: a computed key cannot be
+// checked against the table, and the `||` is the conditional-inside-a-localized
+// -string shape contract §6 forbids. Seven call sites, seven literals, and
+// assertion 15 can see that all seven keys are live.
+const LESSON_CAPTION_WRITERS = {
+  "Pure Sine":   (el) => setLabel(el, "label.captionSine"),
+  "Sawtooth":    (el) => setLabel(el, "label.captionSaw"),
+  "Square":      (el) => setLabel(el, "label.captionSquare"),
+  "Organ":       (el) => setLabel(el, "label.captionOrgan"),
+  "Morph Pad":   (el) => setLabel(el, "label.captionMorph"),
+  "Lo-Fi Bells": (el) => setLabel(el, "label.captionLofi"),
 };
-
-// Derive the lesson-button tooltips from LESSONS (data-tip key → preset name) so
-// the caption wording is never duplicated. Each caption "Name — body" splits into
-// [title, body] on the first " — " (em-dash).
-const LESSON_TIP_KEYS = {
-  lessonSine: "Pure Sine",  lessonSaw: "Sawtooth",    lessonSquare: "Square",
-  lessonOrgan: "Organ",     lessonMorph: "Morph Pad", lessonLofi: "Lo-Fi Bells",
-};
-for (const [tipKey, preset] of Object.entries(LESSON_TIP_KEYS)) {
-  const caption = LESSONS[preset] || "";
-  const i = caption.indexOf(" — ");
-  TIPS[tipKey] = i >= 0 ? [caption.slice(0, i), caption.slice(i + 3)] : [preset, caption];
-}
 
 let applyPresetFn = null;
 
 async function applyLesson(name) {
   if (applyPresetFn) { try { await applyPresetFn(name); } catch (e) { /* ignore */ } }
   const cap = document.getElementById("tourCaption");
-  if (cap) cap.textContent = LESSONS[name] || "";
+  // setLabel, not textContent: the caption becomes a [data-i18n] element from
+  // this moment on, so the language sweep owns it. Written as a raw string it
+  // would be stranded in the language it was picked in the instant the selector
+  // fires — and it is the one string on this page that is chosen by a click.
+  // An unknown name falls back to the resting caption rather than to "", so a
+  // C++/JS name drift shows as the default text instead of a blank row.
+  if (cap) {
+    const write = LESSON_CAPTION_WRITERS[name];
+    if (write) write(cap);
+    else setLabel(cap, "label.captionDefault");
+  }
   document.querySelectorAll(".tour-btn").forEach((b) =>
     b.classList.toggle("active", b.getAttribute("data-preset") === name));
 }
@@ -607,11 +776,70 @@ function setupKeyboard() {
   });
 }
 
+// ── Settings popover (v1.1.0) ───────────────────────────────────────────────
+// The gear panel holding the language selector. All state lives in this
+// closure, so nothing here can join a TDZ chain.
+//
+// The panel holds the selector ALONE: this plugin has no tooltips bridge and
+// never had a hover-help toggle — its help layer is always on — so a toggle row
+// would be a control for a preference that does not exist.
+//
+// Styled in O-simpleAdditive's own aged-paper vocabulary in css/styles.css: the
+// same .combo border, radius and inset shadow the two drop-downs already wear,
+// with the green reserved for the lit state exactly as .tour-btn.active uses
+// it. It is not a widget pasted in unchanged from another plugin.
+function setupSettingsPopover() {
+  const gearBtn = document.getElementById("gear-btn");
+  const popover = document.getElementById("settings-popover");
+
+  if (gearBtn === null || popover === null) {
+    console.warn("Settings popover missing — language selector unavailable");
+    return;
+  }
+
+  const setOpen = (open) => {
+    popover.hidden = !open;
+    gearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  gearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(popover.hidden);
+  });
+
+  // Dismiss on a press anywhere else, and on Escape. pointerdown rather than
+  // click, so the panel is gone before a drag on a knob or drawbar underneath
+  // it begins — both call preventDefault in their own pointerdown handlers.
+  document.addEventListener("pointerdown", (e) => {
+    if (popover.hidden) return;
+    if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popover.hidden) {
+      setOpen(false);
+      gearBtn.focus();
+    }
+  });
+}
+
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
   scope = makeCanvas("scopeCanvas");
 
+  // buildDrawbars FIRST: the sixteen cells it creates carry data-param and
+  // data-i18n-aria, and initI18n's sweep can only reach elements that exist.
+  // A cell built after the sweep would have no tip and no accessible name.
   buildDrawbars();
+
+  // The popover and the language sweep go next, EACH IN ITS OWN try/catch. A
+  // translation-table typo must not be allowed to take the 33 parameter
+  // bindings, the scope and the keyboard down with it — that is the v1.4.0 TDZ
+  // failure this repo has already paid for once.
+  try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
+  try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
+
   DRAWBAR_IDS.forEach(bindDrawbar);
   KNOB_IDS.forEach(bindKnob);
   COMBO_IDS.forEach(bindCombo);

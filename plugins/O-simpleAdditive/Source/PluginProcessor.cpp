@@ -473,15 +473,41 @@ juce::AudioProcessorEditor* OSimpleAdditiveAudioProcessor::createEditor()
 void OSimpleAdditiveAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     // Plain APVTS XML (no preset-manager wrapper at Foundation; Stage 4 adds it).
-    if (auto xml = parameters.copyState().createXml())
+    auto state = parameters.copyState();
+
+    // v1.1.0: the interface LANGUAGE rides the same tree as a plain property,
+    // not a parameter. Written as a STRING ("en"/"fr") rather than the atomic's
+    // int index, so a hand-inspected session file says what it means — and
+    // because the ValueTree -> XML round-trip rebuilds every property as a
+    // string var anyway (critical_valuetree_xml_roundtrip_loses_type). Storing
+    // the code means the value that comes back is the value that went in, with
+    // no type predicate to misfire on the way.
+    state.setProperty ("uiLanguage",
+                       languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+
+    if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
 
 void OSimpleAdditiveAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
+    {
         if (xml->hasTagName (parameters.state.getType()))
+        {
             parameters.replaceState (juce::ValueTree::fromXml (*xml));
+
+            // v1.1.0. A pre-1.1.0 session has no property, getProperty returns
+            // a VOID var, and the default (English) stands. isVoid() is the
+            // only correct gate — the value comes back as a STRING var, so a
+            // type predicate like isInt() would never fire. languageIndex()
+            // clamps anything that is not "fr" to 0, so a hand-edited value
+            // degrades to English rather than to a bad index.
+            const juce::var lang = parameters.state.getProperty ("uiLanguage");
+            if (! lang.isVoid())
+                uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+        }
+    }
 }
 
 //==============================================================================
