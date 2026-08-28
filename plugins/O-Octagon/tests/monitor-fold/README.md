@@ -25,9 +25,9 @@ into `JuceLibraryCode`. This harness has no such target.
 
 | Check | Guards against |
 |---|---|
-| `woodworth-zero-at-front` / `-at-rear` | A source directly behind must have **zero** ITD. A naive clamp at ±90° gets this wrong by the full 0.66 ms. |
-| `woodworth-max-at-90` | The model's own maximum, asserted against `kMaxItdSeconds` rather than a transcribed millisecond count. |
-| `woodworth-continuous-at-90` | The piecewise seam. A discontinuity here is a click on every venue edit that moves a speaker across the lateral axis. |
+| `woodworth-formula-*` (5) | **Documentation of the model, not class coverage.** These assert properties of a lambda transcribed in the test; `MonitorFold` is not constructed. v1.10.0 (WR-04) renamed them after a mutation pass showed θ-only, 0.5×, 2×, a 45° clamp and a naive 90° clamp all pass them. |
+| `itd-class-45deg` / `-90deg-seam` / `-135deg-rear` / `-180deg-zero` | **The class's ITD magnitude**, measured as the far-ear onset lag of an impulse from a speaker at a known azimuth, against the *published* Woodworth formula (r/c · (θ + sin θ), c = 343) with ±2 samples of interpolation slack — never against `kMaxItdSeconds`. 90° is the maximum and the seam; 180° must be **zero** (a naive clamp reads 31.5); 135° exercises the (π − θ) branch. Every mutation that passed the formula checks fails at least one of these. |
+| `itd-class-mirror-symmetric` | Hard-left and hard-right speakers produce equal and opposite lags through the class. |
 | `bypass-disengaged-not-running` | **The bit-identity contract.** If `isRunning()` were true while disengaged, `GainStage` would clock the fold and pre-v1.6.0 sessions would stop rendering identically. |
 | `fold-six-lanes-hard-zero` | The rig lanes must be *silent*, not merely quiet, or a monitor fold leaks into the hall. |
 | `itd-right-source-reaches-right-ear-first` | The `atan2 (dx, -dy)` convention. A mirrored fold is inaudible without a reference. **This check caught the ILD-ceiling bug** — see below. |

@@ -73,26 +73,32 @@ struct MotionClockState
     bool   haveHeld    { false };
 };
 
-/// Sync choices, in MENU ORDER: index 0 is Free; 1..14 are O-Orbit's fourteen divisions, in
-/// CYCLES PER BEAT (Hz = bpm/60 · mult). "1/4" is one cycle per 4 beats — one bar at 4/4.
+/// Sync choices, in MENU ORDER: index 0 is Free; 1..14 are the fourteen note divisions O-Orbit
+/// also offers, in CYCLES PER BEAT (Hz = bpm/60 · mult). A division names the DURATION of one
+/// cycle: "1/4" is one cycle per quarter note — one cycle per BEAT — and "1 Bar" is one cycle
+/// per four beats. The bar entries assume 4/4; the plugin reads no time signature.
+///
+/// v1.10.0 (WR-01): the v1.8.0 table was 4× slower than every label ("1/4" = 0.25, "1 Bar" =
+/// 0.0625 = one cycle per SIXTEEN beats) and used 4/3 for triplets, so "1/16D" and "1/8T" were
+/// bit-identical. A triplet is 3/2 the rate of its parent; a dotted note is 2/3.
 inline constexpr int kNumSyncChoices = 15;
 
 inline constexpr double kSyncMultipliers[kNumSyncChoices] = {
     0.0,          // Free (unused — the Free branch never reads it)
-    4.0 / 3.0,    // 1/16T
-    1.0,          // 1/16
-    2.0 / 3.0,    // 1/16D
-    2.0 / 3.0,    // 1/8T
-    0.5,          // 1/8
-    1.0 / 3.0,    // 1/8D
-    1.0 / 3.0,    // 1/4T
-    0.25,         // 1/4
-    1.0 / 6.0,    // 1/4D
-    0.125,        // 1/2
-    1.0 / 12.0,   // 1/2D
-    0.0625,       // 1 Bar
-    0.03125,      // 2 Bars
-    0.015625      // 4 Bars
+    6.0,          // 1/16T
+    4.0,          // 1/16
+    8.0 / 3.0,    // 1/16D
+    3.0,          // 1/8T
+    2.0,          // 1/8
+    4.0 / 3.0,    // 1/8D
+    1.5,          // 1/4T
+    1.0,          // 1/4
+    2.0 / 3.0,    // 1/4D
+    0.5,          // 1/2
+    1.0 / 3.0,    // 1/2D
+    0.25,         // 1 Bar
+    0.125,        // 2 Bars
+    0.0625        // 4 Bars
 };
 
 /** The free-running branch, shared by Free mode and the no-PPQ fallback. `rate` in Hz. */

@@ -1265,6 +1265,34 @@ async function nudge(page, id) {
     check(/^-?\d+\.\d\d m$/.test(readings.ear) && /^-?\d+\.\d\d m$/.test(readings.src),
         `both readings are shown — ear "${readings.ear}", source "${readings.src}"`);
 
+    // ── v1.10.0 (WR-03) — THE LIVE MARKER IS AT THE LIVE DEPTH ─────────────
+    // The DSP shapes the source at anchor.y + offset.y and evaluates ear height
+    // THERE. On a raked venue with motion running, "Ear" must therefore change
+    // across a cycle and the marker's x must sweep. v1.8.0 forwarded only
+    // offset.z, so both stayed put — and this section could not see it because
+    // the stub's rake is flat. Rake the rear, run an Orbit, sample 12 ticks.
+    await page.evaluate(() => window.__OCTAGON_STUB__.setRake(0, 4.0));
+    await page.evaluate(() => { const e = document.getElementById('ctl-motionOn'); if (!e.checked) e.click(); });
+    await page.waitForFunction(() => !document.getElementById('puck-live').hidden, null, { timeout: SETTLE_MS }).catch(() => {});
+    const liveSamples = [];
+    for (let i = 0; i < 12; ++i) {
+        await page.waitForTimeout(60);
+        liveSamples.push(await page.evaluate(() => ({
+            ear: document.getElementById('elev-ear').textContent.trim(),
+            cx: Number(document.getElementById('elev-marker-dot').getAttribute('cx')),
+        })));
+    }
+    const earValues = new Set(liveSamples.map(s => s.ear));
+    const cxSpan = Math.max(...liveSamples.map(s => s.cx)) - Math.min(...liveSamples.map(s => s.cx));
+    check(earValues.size >= 2,
+        `[raked + motion] "Ear" CHANGES across a cycle — ${earValues.size} distinct readings of 12 (${[...earValues].slice(0, 3).join(', ')})`);
+    check(cxSpan > 2,
+        `[raked + motion] the section marker SWEEPS front-to-back — cx span ${cxSpan.toFixed(1)} px over 12 ticks`);
+    await page.evaluate(() => { const e = document.getElementById('ctl-motionOn'); if (e.checked) e.click(); });
+    await page.evaluate(() => window.__OCTAGON_STUB__.setRake(0, 0));
+    await page.waitForFunction(() => document.getElementById('puck-live').hidden, null, { timeout: SETTLE_MS }).catch(() => {});
+    await page.waitForTimeout(80);
+
     // srcZ to its maximum. The absolute source height leaves a 7 m axis, so the
     // MARKER clamps with a chevron and the NUMBER does not (P76 rule 3).
     await page.evaluate(() => {

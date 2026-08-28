@@ -43,7 +43,14 @@ namespace
         return juce::NormalisableRange<float> (lo, hi);
     }
 
-    std::unique_ptr<juce::AudioParameterFloat> makeFloat (const juce::String& id,
+    // Hint generations. NEVER renumber — append a new constant for the next release that adds a
+    // parameter. The render harness's DN probe holds every id to its generation.
+    constexpr int kHintV1_0 = 1;   // the 17 originals (v1.0.0 – v1.4.0)
+    constexpr int kHintV1_5 = 2;   // decorr
+    constexpr int kHintV1_8 = 3;   // the ten motion* parameters
+
+    std::unique_ptr<juce::AudioParameterFloat> makeFloat (int versionHint,
+                                                          const juce::String& id,
                                                           const juce::String& name,
                                                           juce::NormalisableRange<float> range,
                                                           float defaultValue,
@@ -54,8 +61,13 @@ namespace
         if (label.isNotEmpty())
             attributes = attributes.withLabel (label);
 
-        // The version hint (second ParameterID argument) is mandatory in JUCE 8.
-        return std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { id, 1 },
+        // The version hint (second ParameterID argument) is mandatory in JUCE 8 — and it is NOT a
+        // formality. The AU wrapper sorts the parameter list by masked ID hash and then STABLE-sorts
+        // by version hint; Logic keys automation lanes by INDEX in that list. Every parameter added
+        // after a release MUST carry a hint HIGHER than everything that shipped before it, or the
+        // new hashes interleave with the old and every lane past the first collision retargets.
+        // (v1.10.0 / WR-02: v1.5–v1.8 shipped all-1, which moved outputGain -> motionHeight.)
+        return std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { id, versionHint },
                                                             name,
                                                             range,
                                                             defaultValue,
@@ -65,20 +77,22 @@ namespace
     // v1.8.0 — THE FIRST NON-FLOAT PARAMETERS. A Bool and two Choices, because `motionPath` in a
     // host automation lane must read "Figure-8", not 0.2. Choice strings are ASCII: juce::String's
     // const char* constructor is ASCII-only (critical_juce_string_char_ctor_is_ascii_only).
-    std::unique_ptr<juce::AudioParameterBool> makeBool (const juce::String& id,
+    std::unique_ptr<juce::AudioParameterBool> makeBool (int versionHint,
+                                                        const juce::String& id,
                                                         const juce::String& name,
                                                         bool defaultValue)
     {
-        return std::make_unique<juce::AudioParameterBool> (juce::ParameterID { id, 1 },
+        return std::make_unique<juce::AudioParameterBool> (juce::ParameterID { id, versionHint },
                                                            name, defaultValue);
     }
 
-    std::unique_ptr<juce::AudioParameterChoice> makeChoice (const juce::String& id,
+    std::unique_ptr<juce::AudioParameterChoice> makeChoice (int versionHint,
+                                                            const juce::String& id,
                                                             const juce::String& name,
                                                             const juce::StringArray& choices,
                                                             int defaultIndex)
     {
-        return std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { id, 1 },
+        return std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { id, versionHint },
                                                              name, choices, defaultIndex);
     }
 }
@@ -99,14 +113,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
     // (pattern_webview_knob_readout_scaled_value). Do not add a this-capturing lambda here.
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "position", "Position", "|",
-        makeFloat ("srcX",  "Source X", linearRange (0.0f, 1.0f), 0.5f),
-        makeFloat ("srcY",  "Source Y", linearRange (0.0f, 1.0f), 0.5f),
-        makeFloat ("srcZ",  "Source Z", linearRange (-2.0f, 8.0f), 0.0f, "m"),
+        makeFloat (kHintV1_0, "srcX",  "Source X", linearRange (0.0f, 1.0f), 0.5f),
+        makeFloat (kHintV1_0, "srcY",  "Source Y", linearRange (0.0f, 1.0f), 0.5f),
+        makeFloat (kHintV1_0, "srcZ",  "Source Z", linearRange (-2.0f, 8.0f), 0.0f, "m"),
         // v1.3.0: width max 6 → 12 m. At 6 m the two sub-points' gain vectors differed by ≤ 2.5 dB
         // per channel in the geometrically flat default field — barely audible. 12 m puts them near
         // opposite walls of the default room at full width. Presets saved under < 1.3.0 carry the
         // old normalised encoding and are re-mapped (÷2) by the editor's migration hook.
-        makeFloat ("width", "Width",    linearRange (0.0f, 12.0f), 0.0f, "m"),
+        makeFloat (kHintV1_0, "width", "Width",    linearRange (0.0f, 12.0f), 0.0f, "m"),
         // v1.5.0. THE 18th PARAMETER, AND IT DEFAULTS TO 0 FOR A COMPATIBILITY REASON, NOT A
         // TASTE ONE: at 0 GainStage bypasses the decorrelation network entirely, so every session
         // and every preset written before v1.5.0 renders bit-identically. Probe CU holds that
@@ -119,7 +133,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         // IN "Position" AND NOT "Space" BECAUSE IT IS PART OF WIDTH. It is gated on wEff and does
         // nothing without it — a user who widens a mono stem, hears combing, and goes looking for
         // the cure should find it in the group they are already in.
-        makeFloat ("decorr", "Decorrelate", linearRange (0.0f, 1.0f), 0.0f)));
+        makeFloat (kHintV1_5, "decorr", "Decorrelate", linearRange (0.0f, 1.0f), 0.0f)));
 
     // ── Solve ───────────────────────────────────────────────────────────────────
     // "dB/2x" rather than "dB/doubling": Logic truncates the unit field hard and the prose form
@@ -131,12 +145,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         // spread only reached ~13 dB at R = 6. R = 12 (a ≈ 2) reaches ~25 dB: a real focus
         // control. Default 4.0 unchanged; < 1.3.0 presets re-mapped (÷3 in normalised terms) by
         // the editor's migration hook.
-        makeFloat ("rolloff", "Rolloff", linearRange (3.0f, 12.0f), 4.0f, "dB/2x"),
+        makeFloat (kHintV1_0, "rolloff", "Rolloff", linearRange (3.0f, 12.0f), 4.0f, "dB/2x"),
         // v1.3.0: default 0.10 → 0.03. kBlurScale tripled (0.5 → 1.5, DbapSolver.h) so blur = 1 is
         // a true wash; 0.03 keeps the shipped default radius at ~0.36 m (was 0.40 m) — audibly the
         // same starting point. Concert Default (PresetPolicy.h) moves with it: that preset must
         // stay exactly the shipped defaults.
-        makeFloat ("blur",    "Blur",    linearRange (0.0f, 1.0f), 0.03f)));
+        makeFloat (kHintV1_0, "blur",    "Blur",    linearRange (0.0f, 1.0f), 0.03f)));
 
     // ── Weights ─────────────────────────────────────────────────────────────────
     // No label, deliberately: these are DBAP weights, not percentages of anything. Inventing
@@ -144,7 +158,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
     auto weights = std::make_unique<juce::AudioProcessorParameterGroup> ("weights", "Weights", "|");
 
     for (int i = 1; i <= ochan::kNumSpeakers; ++i)
-        weights->addChild (makeFloat ("w" + juce::String (i),
+        weights->addChild (makeFloat (kHintV1_0, "w" + juce::String (i),
                                       "Weight " + juce::String (i),
                                       linearRange (0.0f, 1.0f),
                                       1.0f));
@@ -154,13 +168,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
     // ── Space ───────────────────────────────────────────────────────────────────
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "space", "Space", "|",
-        makeFloat ("hullAtten", "Hull Atten", linearRange (0.0f, 3.0f), 1.0f, "dB/m"),
-        makeFloat ("airAmount", "Air",        linearRange (0.0f, 1.0f), 0.35f)));
+        makeFloat (kHintV1_0, "hullAtten", "Hull Atten", linearRange (0.0f, 3.0f), 1.0f, "dB/m"),
+        makeFloat (kHintV1_0, "airAmount", "Air",        linearRange (0.0f, 1.0f), 0.35f)));
 
     // ── Output ──────────────────────────────────────────────────────────────────
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "output", "Output", "|",
-        makeFloat ("outputGain", "Output", linearRange (-24.0f, 12.0f), 0.0f, "dB")));
+        makeFloat (kHintV1_0, "outputGain", "Output", linearRange (-24.0f, 12.0f), 0.0f, "dB")));
 
     // ── Motion (v1.8.0) ──────────────────────────────────────────────────────────
     // Ten parameters. motionOn defaults OFF for the same reason decorr defaults 0: at 0 GainStage
@@ -175,20 +189,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
 
     layout.add (std::make_unique<juce::AudioProcessorParameterGroup> (
         "motion", "Motion", "|",
-        makeBool   ("motionOn",     "Motion On",    false),
-        makeChoice ("motionPath",   "Motion Path",
+        makeBool   (kHintV1_8, "motionOn",     "Motion On",    false),
+        makeChoice (kHintV1_8, "motionPath",   "Motion Path",
                     juce::StringArray { "Orbit", "Figure-8", "Sweep", "Drift", "Pendulum", "Spiral" }, 0),
-        makeChoice ("motionSync",   "Motion Sync",
+        makeChoice (kHintV1_8, "motionSync",   "Motion Sync",
                     juce::StringArray { "Free", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D",
                                         "1/4T", "1/4", "1/4D", "1/2", "1/2D", "1 Bar", "2 Bars",
                                         "4 Bars" }, 0),
-        makeFloat  ("motionRate",   "Motion Rate",   rateRange,                          0.1f, "Hz"),
-        makeFloat  ("motionSize",   "Motion Size",   linearRange (0.0f, 24.0f),          6.0f, "m"),
-        makeFloat  ("motionRatio",  "Motion Ratio",  linearRange (0.0f, 1.0f),           1.0f),
-        makeFloat  ("motionAngle",  "Motion Angle",  linearRange (0.0f, 360.0f),         0.0f, "deg"),
-        makeFloat  ("motionHeight", "Motion Height", linearRange (0.0f, 8.0f),           0.0f, "m"),
-        makeFloat  ("motionPhase",  "Motion Phase",  linearRange (0.0f, 360.0f),         0.0f, "deg"),
-        makeFloat  ("motionSeed",   "Motion Seed",   juce::NormalisableRange<float> (1.0f, 64.0f, 1.0f), 1.0f)));
+        makeFloat  (kHintV1_8, "motionRate",   "Motion Rate",   rateRange,                          0.1f, "Hz"),
+        makeFloat  (kHintV1_8, "motionSize",   "Motion Size",   linearRange (0.0f, 24.0f),          6.0f, "m"),
+        makeFloat  (kHintV1_8, "motionRatio",  "Motion Ratio",  linearRange (0.0f, 1.0f),           1.0f),
+        makeFloat  (kHintV1_8, "motionAngle",  "Motion Angle",  linearRange (0.0f, 360.0f),         0.0f, "deg"),
+        makeFloat  (kHintV1_8, "motionHeight", "Motion Height", linearRange (0.0f, 8.0f),           0.0f, "m"),
+        makeFloat  (kHintV1_8, "motionPhase",  "Motion Phase",  linearRange (0.0f, 360.0f),         0.0f, "deg"),
+        makeFloat  (kHintV1_8, "motionSeed",   "Motion Seed",   juce::NormalisableRange<float> (1.0f, 64.0f, 1.0f), 1.0f)));
 
     return layout;
 }

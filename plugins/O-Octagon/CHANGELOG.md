@@ -1,5 +1,112 @@
 # O-Octagon Changelog
 
+## v1.10.0 (2026-08-27)
+
+**Resolves the four Warnings of `CODE_REVIEW.md` (v1.8.0 review, 2026-08-27).** No Critical
+findings existed. Every fix below was verified against the working tree before it was written —
+all four defects were live at HEAD 99e7d206. The 30 Info findings are untouched
+(`/improve-review-info O-Octagon`).
+
+MINOR, not PATCH: WR-01 changes what a stored `motionSync` index *means* and WR-02 re-sorts the AU
+parameter list once more. Both are user-visible on unreleased features; neither renames, removes
+or re-ranges a parameter, so nothing breaks — but a dev session is not bit-identical across this
+version and that is worth a minor number.
+
+### Fixed
+
+- **WR-01 — the Sync table ran 4× slower than its labels, and two menu pairs were bit-identical.**
+  `kSyncMultipliers` (`MotionClock.h`) is cycles per beat and `cyclesAt` applies it with no hidden
+  factor — Hz is exactly `bpm/60 · mult`. The v1.8.0 table had `1/4 = 0.25`, glossed in the header
+  and both hover-help strings as "one cycle per bar at 4/4" — a defensible convention on its own,
+  except that the same menu carried `1 Bar = 0.0625` (one cycle per **sixteen** beats) and
+  `4 Bars = 1/64`. *Slow Orbit* ("4 Bars") orbited once every 32 s at 120 BPM. Separately the
+  triplet entries used 4/3 instead of 3/2, so `1/16D ≡ 1/8T` and `1/8D ≡ 1/4T` to the bit.
+  **Root cause:** the table was byte-copied from O-Orbit, whose table has the same two defects and
+  no gloss at all; the gloss was written to fit the numbers rather than the numbers to the labels.
+  **Fix:** the table is now written from the musical definitions — a division names the DURATION
+  of one cycle, so `1/4` is one cycle per beat (1.0), `1 Bar` one per four beats (0.25), a triplet
+  is 3/2 its parent's rate and a dotted note 2/3 of it. Header gloss and both hover-help strings
+  (EN/FR) now say "1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed)".
+  **Consequence for saved state:** a `motionSync` index keeps its *label* and gains its label's
+  *meaning* — every synced session from v1.8.0/v1.9.0 now moves 4× faster than it did, which is
+  what its menu always said it would do. *Slow Orbit* ("4 Bars") is unchanged as a preset and now
+  orbits once every 8 s at 120 BPM.
+  **Gate:** new geometry probe **MP9 `sync-table-musical-semantics`** asserts, from the
+  definitions and not from the table, `1/4 = 1.0`, the three bar entries, the three (T, plain, D)
+  triples, `1/2D`, and that no two entries are equal. Render probe **DD** was re-fixtured (verifier
+  finding): its companion clause relied on index 8 being 0.25 to land at `sin t = 1`; it now uses
+  index 12 ("1 Bar") at PPQ 1 and still holds bit-identity across both Z consumers.
+  **Mirrored into O-Orbit v1.1.1** (same table, same fix, tooltip made explicit).
+
+- **WR-02 — all 11 post-v1.4 parameters carried version hint 1, so the AU parameter list
+  re-sorted and Logic automation lanes recorded on ≤v1.4 retargeted.** JUCE's AU wrapper sorts
+  parameters by masked ID hash then stable-sorts by version hint; Logic keys lanes by index in
+  that list. With every hint at 1 the eleven new hashes interleaved with the seventeen originals:
+  `outputGain → motionHeight`, `hullAtten → decorr`, `airAmount → outputGain`, `rolloff →
+  hullAtten` (indices 0–12 — the weights, position, width, blur — never moved). VST3 identifies
+  by hash and was never affected.
+  **Root cause:** `makeFloat`/`makeBool`/`makeChoice` hard-coded `ParameterID { id, 1 }`; the
+  comment beside it ("mandatory in JUCE 8") and `GainStage.h`'s "APPENDED so every pre-existing
+  index is untouched" both reason about the APVTS index, which the AU order does not use.
+  **Fix:** the three factories take a leading `versionHint`; three named generations
+  (`kHintV1_0 = 1` for the 17 originals, `kHintV1_5 = 2` for `decorr`, `kHintV1_8 = 3` for the ten
+  `motion*`). This restores the ≤v1.4 AU order exactly and gives every future addition a monotone
+  baseline. **Cost, stated plainly:** any v1.5–v1.9 *dev* Logic session with lanes on the nine
+  parameters that had moved retargets once more. Nothing has shipped; after the first public
+  release this becomes irreversible, which is why it lands now.
+  **Gate:** new render probe **DO `version-hints-monotone`** walks the LIVE parameter objects and
+  holds every id to its generation (28 seen, 0 off-generation); an id it does not know fails it.
+  `ui_frontend_check` §15/§16's six layout-parsing regexes accept the new leading argument.
+
+- **WR-03 — the elevation strip drew the live source at the ANCHOR's depth.** The audio thread
+  shapes the source at `anchor.y + offset.y` and evaluates ear height there
+  (`GainStage.cpp` / `SourceShaper.cpp heightAt`); the strip added only `offset.z` at the anchor's
+  `srcY`. On any raked venue the "Source" readout was wrong by rake × offset.y (up to ~0.5 m on
+  the default rig), "Ear" read a constant, and the section marker never swept front-to-back — the
+  one thing a section view exists to show. `app.js` forwarded `offset[2]` alone.
+  **Fix:** `elevation.setMotionZ(z)` → `setMotion(offset, running)`; the strip keeps `motionY` and
+  `motionZ` and evaluates `earHeight(anchorDepth + motionY)`. **Gate:** `ui_layout_check` §22
+  rakes the rear 4 m, runs an Orbit, and samples 12 ticks: "Ear" must take ≥ 2 distinct values
+  and the marker's `cx` must span > 2 px — measured 12 distinct readings (1.51 → 1.61 m) and a
+  64 px sweep. The previous gate could not see this: the stub's rake is flat.
+
+- **WR-04 — five of the fifteen monitor-fold checks asserted a local Woodworth transcription,
+  never `MonitorFold`; the class's ITD magnitude was asserted nowhere.** The v1.7.0 CHANGELOG's
+  "31 smp vs 31.5 model max" was printed, not asserted, and `kMaxItdSeconds` is the class's own
+  constant. The verifier proved it by mutation: θ-only, 0.5×, 2×, a 45° clamp and a naive 90°
+  clamp all passed 15/15.
+  **Fix:** the five lambda checks are renamed `woodworth-formula-*` and documented as model
+  documentation, not class coverage. New section **1b** drives the class with an impulse from
+  octagon speakers at 45°, 90° (the maximum AND the seam), 135° (the (π − θ) branch) and 180°
+  (must be ZERO — a naive clamp reads 31.5) and asserts the far-ear onset lag in samples against
+  the *published* formula `r/c · (θ + sin θ)` with c = 343 written in the test, ±2 samples for
+  linear interpolation; plus a hard-left/hard-right mirror check. 20 checks, 0 failures.
+  **Negative control, re-run this session:** 0.5× Woodworth fails 3 of the new checks (9/15/9
+  smp), the naive 90° clamp fails 2 (31 smp at 135° and at 180°), θ-only fails 2 (9/19 smp) —
+  while all five formula checks stay green under every mutation, which is exactly the point.
+  `README.md` updated.
+
+### A note on HEAD 99e7d206 (v1.9.0)
+
+The v1.9.0 Stage-G commit was made by a concurrent session from the shared index while this work
+was in flight, and it swept two of this version's edits into it: `app.js` (the
+`elevation.setMotion` call) and the two `i18n.js` Sync hover-help strings. At 99e7d206 `app.js`
+therefore calls a method `elevation.js` did not yet have — a `TypeError` on every meter poll. This
+commit restores consistency; do not check out v1.9.0 on its own expecting a working elevation
+strip. (`pattern_shared_checkout_index_race_between_sessions`.)
+
+### Testing
+
+- Backups: `backups/O-Octagon/v1.8.0/` (from HEAD 2ba236a1 — filled the gap IN-07 reported) and
+  `backups/O-Octagon/v1.9.0/` (working tree before this session's edits). Both verified.
+- monitor-fold standalone: **20/0** (was 15) · mutation control: 3 wrong models each fail ≥ 2.
+- geometry harness: **58/0** (MP9 added) · render harness: **74/0** (DO added, DD re-fixtured; the
+  v1.7.0 digest anchor DC and every bit-identity probe unchanged).
+- `ui_layout_check` **31 sections, all pass** (2 new §22 checks) · `ui_frontend_check` **43/43** ·
+  `check-i18n --strict-v2` repo-wide pass.
+- `./scripts/build-and-install.sh O-Octagon` → `auval -v aufx OuOc OuDv` **PASSED**; installed
+  `O-Octagon-dev.component` reports 1.10.0.
+
 ## v1.9.0 (2026-08-27)
 
 **The PAGE speaks French, not only the hover help.** O-Octagon has offered a French/English

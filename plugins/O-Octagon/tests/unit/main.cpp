@@ -3714,6 +3714,37 @@ int main()
                    "synced " + juce::String (a, 6) + " -> " + juce::String (b, 6) + " (hold); free "
                    + juce::String (c, 6) + " -> " + juce::String (d, 6) + " (moves)");
         }
+        // MP9 — THE SYNC TABLE MEANS WHAT ITS LABELS SAY (v1.10.0 / WR-01). Cycles per beat: a
+        // quarter note is one cycle per beat, a bar is four beats, a triplet is 3/2 its parent's
+        // rate and a dotted note 2/3 of it. No two menu entries may be the same number — the
+        // v1.8.0 table had 1/16D == 1/8T and 1/8D == 1/4T. Written from the musical definitions,
+        // not read back from the table.
+        {
+            using namespace oo::motion;
+            const double q = kSyncMultipliers[8];                       // 1/4
+            bool ok = std::abs (q - 1.0) < 1.0e-12;                     // one cycle per BEAT
+            ok = ok && std::abs (kSyncMultipliers[12] - q / 4.0)  < 1.0e-12;   // 1 Bar  = 4 beats
+            ok = ok && std::abs (kSyncMultipliers[13] - q / 8.0)  < 1.0e-12;   // 2 Bars
+            ok = ok && std::abs (kSyncMultipliers[14] - q / 16.0) < 1.0e-12;   // 4 Bars
+            ok = ok && std::abs (kSyncMultipliers[2]  - q * 4.0)  < 1.0e-12;   // 1/16
+            ok = ok && std::abs (kSyncMultipliers[5]  - q * 2.0)  < 1.0e-12;   // 1/8
+            ok = ok && std::abs (kSyncMultipliers[10] - q / 2.0)  < 1.0e-12;   // 1/2
+            // Triplet = parent * 3/2, dotted = parent * 2/3, for each (T, plain, D) triple.
+            const int plain[] = { 2, 5, 8 };
+            for (int i : plain)
+            {
+                ok = ok && std::abs (kSyncMultipliers[i - 1] - kSyncMultipliers[i] * 1.5)       < 1.0e-12;
+                ok = ok && std::abs (kSyncMultipliers[i + 1] - kSyncMultipliers[i] * 2.0 / 3.0) < 1.0e-12;
+            }
+            ok = ok && std::abs (kSyncMultipliers[11] - kSyncMultipliers[10] * 2.0 / 3.0) < 1.0e-12;  // 1/2D
+            int duplicates = 0;
+            for (int i = 1; i < kNumSyncChoices; ++i)
+                for (int j = i + 1; j < kNumSyncChoices; ++j)
+                    if (std::abs (kSyncMultipliers[i] - kSyncMultipliers[j]) < 1.0e-12) ++duplicates;
+            check ("MP9 sync-table-musical-semantics", ok && duplicates == 0,
+                   "1/4 = " + juce::String (q, 4) + " cycles/beat, 1 Bar = " + juce::String (kSyncMultipliers[12], 4)
+                   + ", 4 Bars = " + juce::String (kSyncMultipliers[14], 6) + "; duplicate pairs: " + juce::String (duplicates));
+        }
     }
 
     scratchDir.deleteRecursively();

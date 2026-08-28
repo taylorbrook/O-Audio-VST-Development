@@ -45,7 +45,7 @@ Ouaricon Plugins:
 | O-SpectralShaper | 📦 Installed | 1.6.2 | Audio Effect (Spectral Transient Shaper) | 2026-08-20 |
 | O-GrainScatter | 📦 Installed | 2.4.4 | Audio Effect (Granular Stutter Engine) | 2026-08-19 |
 | O-Chorus | 📦 Installed | 1.2.3 | Audio Effect (Chorus) | 2026-06-30 |
-| O-Orbit | 📦 Installed | 1.1.0 | Audio Effect (Spatial Orbiter) | 2026-08-19 |
+| O-Orbit | 📦 Installed | 1.1.1-dev | Audio Effect (Spatial Orbiter) | 2026-08-27 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.2 | Instrument/Effect (Neural Texture Synth) | 2026-07-15 |
 | O-Prism | 📦 Installed | 1.20.0 | Synth (Microtonal Wavetable) | 2026-08-20 |
@@ -65,7 +65,7 @@ Ouaricon Plugins:
 | O-simpleBeatmaker | 📦 Installed | 1.0.3 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-08-09 |
 | O-simplePhysicalModelSynth | 📦 Installed | 1.1.0 | Synth (Pedagogical Physical Modeling) | 2026-08-09 |
 | O-ReverseDelay | 📦 Installed | 1.10.0 | Audio Effect (Granular Reverse Delay) | 2026-08-27 |
-| O-Octagon | 📦 Installed | 1.9.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-27 |
+| O-Octagon | 📦 Installed | 1.10.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-27 |
 | O-Bitrot | 📦 Installed | 1.15.0 | Audio Effect (Broken-Media Degradation) | 2026-08-27 |
 | O-Tapestop | 📦 Installed | 1.6.0 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-08-27 |
 | O-Emulator | 📦 Installed | 1.0.1 | Audio Effect (Retro Console Emulation) | 2026-08-21 |
