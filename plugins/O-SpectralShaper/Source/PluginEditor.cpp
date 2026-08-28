@@ -89,6 +89,27 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
             .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&, auto complete) {
                 complete(juce::var(processorRef.getTooltipsEnabled()));
             })
+            // UI language (v1.7.0). PULLED once by the page at init, never
+            // pushed — the same shape as the tooltip preference directly above
+            // and for the same reason: a push races the WebView load. No
+            // revision counter and no poll, because the language is not preset
+            // content — OuariconPresetManager::loadPreset walks only
+            // preset["parameters"], so nothing but this page can change it.
+            .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(juce::var(OSpectralShaperAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
+            .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument degrades to English rather than being
+                // stored unvalidated.
+                if (! args.isEmpty())
+                    processorRef.setUiLanguageIndex(
+                        OSpectralShaperAudioProcessor::languageIndex(args[0].toString()));
+
+                complete(juce::var(OSpectralShaperAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
             // Preset Manager native functions
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
@@ -372,6 +393,13 @@ OSpectralShaperAudioProcessorEditor::getResource(const juce::String& url)
     }
 
     // JavaScript modules
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String { "application/javascript" }
+        };
+    }
+
     if (url == "/js/app.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::app_js, BinaryData::app_jsSize),

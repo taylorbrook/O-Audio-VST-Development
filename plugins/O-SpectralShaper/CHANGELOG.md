@@ -1,5 +1,46 @@
 # O-SpectralShaper Changelog
 
+## [1.7.0] - 2026-08-28
+
+### Added
+- **The interface speaks French.** A settings gear in the header opens a popover holding a language selector (English / Français) and the hover-help switch. Every label on the page, every tooltip, and every accessible name is localized; the choice persists with the host session. 45 strings — 24 tooltip entries and 21 label entries — live in the new `Resources/ui/js/i18n.js`. **All French is machine-drafted and flagged `reviewed: false`; no native speaker has read it.** `node scripts/check-i18n.js` prints the worklist.
+- **The hover-help switch moved into the settings popover.** It was the wax-seal "?" in the same header slot through 1.6.2. The gear occupies that slot's exact 18×18 footprint in the same `.header-right` flex row, so the new control contributes **zero** geometry delta. The gear and the switch carry `data-tip-always`, so the two controls that reach and restore the help layer keep explaining themselves while help is off.
+- **`getUiLanguage` / `setUiLanguage` native functions**, joining the existing `setTooltipsEnabled` / `getTooltipsEnabled` pair — 15 native functions become 17. The language rides the session XML as a plain attribute beside `tooltipsEnabled`, written as the language **code** rather than the index: a non-parameter value on a state tree comes back from XML as a `var` over the attribute *string*, so an index would have to be re-parsed anyway (`critical_valuetree_xml_roundtrip_loses_type`). It is deliberately not an `AudioParameterChoice` — it must not appear in a DAW automation lane, and a preset must not be able to change which language somebody reads their interface in.
+
+### Changed
+- **The tooltip renderer is replaced by the repo's measure-then-pin runtime, and the old positioner is deleted.** This plugin was the only one of the seven ported in this stage that already *measured* its surface — but it positioned against `#app`, not the viewport:
+  ```
+  const containerRect = container.getBoundingClientRect();
+  let left = rect.left - containerRect.left + rect.width / 2 - width / 2;
+  const maxLeft = containerRect.width - width - EDGE_MARGIN;
+  ```
+  `#app` carries `padding: 12px` inside a 700×500 body, so its content box is inset and its clamp rails were **24px narrower than the window** — every tip was held 12px further from each edge than it needed to be, and the vertical rail was computed against `containerRect.height` rather than `window.innerHeight`. That is a small enough error to read as a styling choice rather than a wrong reference frame, which is exactly why it was replaced outright rather than adapted: `.tooltip` moves to `position: fixed` in the same commit, and adapting in place would have left `absolute` positioning being fed viewport coordinates.
+- **What the port brings that 1.6.2 did not have:** a title/body pair built from `data-tip-title` + `data-tip` rather than one flat string; a 120 ms dwell delay so a tip does not fire on every crossing; a `pointerdown` suppression so a tip cannot hang over a knob or a curve canvas mid-drag; a width measured as the **fractional** `getBoundingClientRect().width` rather than the integer `offsetWidth` 1.6.2 pinned (188.48 rounds to 188, and pinning that pushes the last word onto a second line); an arrow whose offset is recomputed **after** the horizontal clamp so a clamped tip still points at its control; and delegated listeners on the document rather than on `#app`.
+- **English hover-help copy was moved, not rewritten.** 1.6.2 authored its 25 `data-tooltip` attributes as single `"Label: sentence."` strings. All 21 unique strings split cleanly on their first `": "` into the title/body pair the ported renderer wants — **there is no hand-split on this plugin**, and that is measured rather than assumed: the longest surviving title is "Previous Preset" at 15 characters and no body reaches its own colon before the separator. Four tips are worn by two controls each (Spectrum, Undo, Redo, Draw Mode), which is the reuse 1.6.2 authored by hand; Reset is not among them, because its two bodies name different curves.
+
+### Fixed
+- **The header version string read `v1.6.1` on a 1.6.2 build.** It was hard-coded in the markup and not bumped with the release. It now reads `v1.7.0`.
+
+### Notes — the two D-04 geometry rules, and what each was measured against
+Every width below was measured **as rendered**, in the real element with the real CSS — never from `getComputedStyle().font`, which carries neither the `text-transform: uppercase` nor the `letter-spacing` these controls have and so reads them narrower than they paint.
+
+1. **`.knob-wrapper` and `.toggle-container` get `width: 100%`.** Both were sized by their widest *child*, and on the Sensitivity knob that child is the caption — so the container's box tracked the caption's language (`dw = -16.1px` between English and French). Filling the grid cell they already sat centred in makes both language-independent. Applying this to all seven containers moves **zero of their 20 children**: `align-items: center` already centred the knob, the caption and the readout on the cell's centre line, and that centre does not move when the box around it grows. It also freed the two captions to take the natural French word rather than an abbreviation — "Sensibilité" (70.45px) is in fact *narrower* than the English "Sensitivity" (72.11px).
+2. **The five captioned buttons of `.preset-bar` and `.curve-controls` are pinned per-element to their English rendered widths** — 43.55 / 46.20 / 75.92 / 53.52 / 76.41 px. These are flex rows whose width is the *sum* of their items, so a caption that changes width moves every sibling and the row itself; `Save`→`Enreg.` and `Load`→`Ouvrir` alone shifted `‹`, the preset readout and `›` left by 11.3px. Pinned **per-element and not uniformly**: one pin wide enough for `.curve-mode-toggle` would have added 23px to `.curve-reset-btn` and pushed the row off its plate. `min-width` rather than `width`, so a wider font on another platform can still grow rather than clip.
+
+   The mode toggle's pin covers all four of its faces, so the row no longer jumps 26px when the draw mode is switched — which it did in **English** through 1.6.2.
+
+Five French captions were then sized to fit those pins. D-04 forbids an auto-shrink font and forbids a runtime short-variant fallback, so the string itself is sized — exactly one French form per key: `Enreg.` (55.06px) → **`Enr.`** (41.45), `Ouvrir` (57.31) → **`Ouv.`** (41.80), `Réinit.` (58.69) → **`Init.`** (45.58), `Main levée` (84.75) → **`Libre`** (52), and `Node` → **`Points`** (58.31).
+
+### Notes — verification
+- **`node scripts/check-i18n.js --strict-v2`** passes; the plugin is on canon v2 and the repo total is 18 canon-v2 plugins, 0 on v1.
+- **`node scripts/check-ui-labels.js --plugin O-SpectralShaper`** passes with **21 of 21** `[data-i18n]` elements measured — no coverage hole. A new `tests/i18n-states.json` drives the three states no resting page shows: the Node face of the draw-mode toggle, the settings popover open, and the hover-help switch on.
+- **Geometry, English 1.6.2 → English 1.7.0:** zero visible elements moved. The only differences are the seven invisible container boxes widened by rule 1 above, and the `#tooltip-toggle` → `#gear-btn` swap in the same 18×18 slot.
+- **Geometry, English 1.7.0 → French 1.7.0:** nine elements change size and **every one of them is a `[data-i18n]` label**. Zero non-label movement — the assertion the whole gate exists for.
+- **The hover sweep: 28 anchors × 2 languages = 56 hovers, every tip fully inside the 700×500 window, zero page errors.**
+- **The vertical clamp is NOT independently reproducible on this plugin**, and that is reported rather than dressed up. In French the *smallest* slack between a tip's bottom edge and the frame is **111px**, and deleting that line alone leaves all 56 hovers inside the window. The two shapes that could have produced an overhang both miss: the tallest anchor is `.spectrogram-container` at 202px, but it sits at y=70 and flips `below` to 386.7; the deepest anchors are the sustain plate's five buttons at y=397, and those all fit `above`. It is ported anyway because the point of this stage is one runtime repo-wide.
+- **That negative result is a measurement, not a probe that passes either way.** Removing the **horizontal** clamp instead, in the same harness, reports **14 off-frame tips out to 120px** across both languages. The sweep can see an off-frame tip; it simply does not find one when the vertical clamp is gone.
+- No DSP, no parameter, no preset-format and no state-format change beyond the additive `uiLanguage` attribute. Sessions saved before 1.7.0 restore with the language defaulting to English; `languageIndex()` maps anything that is not `"fr"` to English, so a hand-edited attribute degrades rather than being stored unvalidated. `tests/ui_preset_menu_check.js` passes unchanged, 32/32.
+
 ## [1.6.2] - 2026-08-20
 
 ### Fixed

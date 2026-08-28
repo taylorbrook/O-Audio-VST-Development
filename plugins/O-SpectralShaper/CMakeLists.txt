@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SpectralShaper
-    VERSION 1.6.2
+    VERSION 1.7.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OSpS
@@ -59,6 +59,7 @@ juce_add_binary_data(O-SpectralShaper_UIResources
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/js/app.js
+        Resources/ui/js/i18n.js
         Resources/ui/js/components/RotaryKnob.js
         Resources/ui/js/components/CurveEditor.js
         Resources/ui/js/components/FreehandCurve.js
