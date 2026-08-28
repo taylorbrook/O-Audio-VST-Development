@@ -2,6 +2,63 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.18.0] - 2026-08-28
+
+MINOR: the PAGE speaks French, not only the hover help — and this plugin's second tooltip renderer is deleted, not disabled. No audio-path, parameter, or DSP changes. One new non-parameter state-tree property (`uiLanguage`).
+
+### Added
+
+- **A language selector, in a new gear popover at the top-right of the header.** English and French. The hover-help on/off switch **moves into the same popover** from the floating `?` that sat over the grid's bottom-right corner — one place for the two things that decide what the help says and whether it says it. The gear and the switch both carry `data-tip-always`, so the two controls that reach and restore the help layer keep explaining themselves while help is off.
+- **`Resources/ui/js/i18n.js`** — 33 hover-help entries and 34 label entries, English and French. Landed in ONE commit across all four places the file has to exist or the page 404s at runtime with no other symptom: on disk under the **served** root (`Resources/ui`, not `Source/ui/public`), in `CMakeLists.txt`'s `juce_add_binary_data SOURCES`, in a `getResource()` branch, and in `js/app.js`'s import.
+- **The language persists with the session**, as a plain `uiLanguage` property (the string `"en"` / `"fr"`) on the APVTS state tree — never an `AudioParameterChoice`, so it cannot appear in a DAW automation lane and a preset cannot change which language somebody reads their interface in. Restored behind an `isVoid()` gate: `NamedValueSet::setFromXmlAttributes` rebuilds every property as a `var` over the attribute STRING, so `isBool()`/`isInt()`/`isString()` are false for every session ever saved. A session written before v1.18.0 has no such attribute and simply stays English.
+- **Accessible names on the five runtime-built glyph controls** — Mute (M), Solo (S), Clear, Randomize and Expand — plus the panel close button. They are keyed and switch with the language; previously four of them had an English `title` and two had nothing.
+
+### Changed
+
+- **ONE tooltip renderer.** The measure-then-pin runtime from O-ReverseDelay / O-MultiBandCompressor replaces this plugin's own positioner **entirely**; there is no second code path left. What the port brings that v1.17.0 did not have: a **title/body pair** built from `data-tip-title` + `data-tip` instead of one flat string, a **120 ms dwell delay**, an **arrow whose offset is recomputed AFTER the horizontal clamp** so a clamped tip still points at its control, **delegated listeners on the document** so the 36 runtime-built anchors need no re-binding, and viewport-relative arithmetic matching the `position: fixed` box the browser actually lays out. `.tooltip` moves from `position: absolute` to `fixed`; the two rectangles coincide on this page, so nothing moved.
+- **Every tooltip string was SPLIT, not rewritten.** v1.17.0 authored its help as a single `data-tooltip` string shaped `"Label: sentence."`; each is now the `t`/`b` pair the renderer wants, byte-identical either side of the first `": "`. **Exactly one did not split cleanly** and was hand-split: the step-sequencer grid tip carried no colon at all, so its title `Step Grid` is the one new English string in the tooltip half of the table.
+- **Three controls carry new English copy** — the gear, the language selector and the hover-help switch. Two did not exist before and the third had only a native `title`. Authoring hover help for controls that have none is a separate job and is not done here.
+- **Band captions are localized**: SUB / LOW / MID / HIGH become SUB / GRAVE / MÉDIUM / AIGU. **The same four keys are the `{band}` token** substituted into all seven per-band tips, so one static binding per band renders correctly in both languages — storing a localized name in the bindings table would have frozen it at whichever language loaded the module.
+- **Every native `title=` is gone**, ten of them: six in the markup and four written from `createBandRow`. On an element that also has a `data-tip` a native title renders a second, untranslated OS tooltip competing with the renderer. Where a title was an element's only accessible name its text moved to `data-i18n-aria`; no new prose was invented.
+- The preset dropdown's empty row is built with `createElement` + a keyed label instead of an `innerHTML` fragment.
+
+### Fixed
+
+- **A tall tip on a tall anchor fell off the bottom of the window.** The ported renderer prefers *above*, flips *below*, and — as written in O-ReverseDelay — stops there, because every anchor on that page is knob-sized. This page has `#grid-area`, 376 px tall, where neither placement fits: the French grid tip is 97 px and landed at `top` 468 in a 550 px frame, **15 px off-screen**. v1.17.0's own positioner clamped here, so porting without it would have re-broken something this plugin had already fixed. **The same gap is latent in every other copy of this renderer** and is reported rather than swept, because this release is scoped to one plugin.
+- **The two 16 px band buttons could be squashed by a longer caption.** They are flex items with no `flex-shrink: 0`, so at the old 80 px column the label gate measured Solo at **8.5 px instead of 16 px** in French. `flex: 0 0 auto` now. Stated plainly: **this rule is not independently gated at the shipped 100 px column** — reverting it alone leaves the gate green, because the widened column already keeps the caption clear. It is kept as a Windows/WebView2 guard, where no gate runs and font metrics are this work's named hardware-blocked deferral.
+- **`.control-group label`'s authored `width: 80px` was a basis, not a pin.** All five band-panel labels were shrinking to 53.3 px to make room for the slider, and `Impulsions` (59.9 px min-content) could not shrink that far and pushed its slider 6.6 px right in French alone.
+
+### Geometry — 13 non-label elements moved before fixes, ZERO after
+
+Measured by `scripts/check-ui-labels.js` across six states (default, band panel on SUB, band panel on MID, a band in Euclidean mode, popover open, hover help on), at the parsed 850 × 550 frame, in both languages. **30 of 30 keyed elements were visible in at least one state — no coverage hole.**
+
+| Rule | Was | Now | Why, measured | Moved when reverted |
+|---|---|---|---|---|
+| `.preset-action-btn` `min-width` | none | 50 px | `.header-top` is `justify-content: center`, so a wider preset bar moves the bar AND the h1 by half the delta. Load 40.2 → Ouvrir 48.3, Save 38.5 → Enreg. 48.2 | **5** |
+| `.band-row` column 1 | 80 px | 100 px | The caption shares its row with two 16 px buttons and two 3 px gaps inside 8 px of padding: 80 px left 34.0 px, enough for HIGH at 30.8 and 14.8 short of MÉDIUM at 48.8. 100 px gives 54.0 px — 5.2 px of clearance | **1** (assertion 5, `bandName.mid` spilling 4.8 px) |
+| `.band-row` column 5 + `.band-mix label` | 60 px, unpinned | 68 px, `min-width: 26px` | Mix 13.8 → Mixage 25.8 pushed the slider 12.0 px right in all four bands | **4** |
+| `.control-group label` | `width: 80px` | `flex: 0 0 80px` | see Fixed, above | **1** |
+| `.crossover-divider`, `.freq-boundary` width | 80 px | 100 px | tracks column 1 — these are flex rows, not grid cells, so the two numbers must change together or the crossover handles stop lining up under the captions | *alignment only; not independently gated* |
+| `.ms-btn` `flex: 0 0 auto` | — | added | see Fixed, above | *0 at 100 px — stated rather than claimed* |
+
+Each rule was reverted **alone** and the gate re-run, restoring from an in-memory copy in a `finally` rather than `git checkout --`, which would have wiped the uncommitted work alongside the mutation. Four of the six re-broke the gate; the two that did not are named as such above rather than presented as fixes.
+
+**English geometry against v1.17.0**, measured the same way by swapping HEAD's six files in and back out: the header shifts left 10.67 px (the preset-button pin widens the bar 21.3 px) and the 32-cell step lane loses 28 px — **0.88 px per cell**. Nothing else in the page moved, the document's scroll extent is 850 × 550 in both builds and both languages, and neither build logs a page error.
+
+### Verification
+
+- `node scripts/check-i18n.js --plugin O-FreqPulse` — 37 assertions, all pass, on canon v2.
+- `node scripts/check-i18n.js --strict-v2` — exit 0 across **15** localized plugins, 0 on canon v1.
+- `node scripts/check-ui-labels.js --plugin O-FreqPulse` — ALL CHECKS PASSED. Vacuity 27/30 labels (90 %) and 34/34 attributes actually change language; `dataset.label === textContent` after init, after the switch and after a real state pass in both languages, driven through the stub's slider states; zero non-label elements moved; no page error; every requested resource served.
+- **The port was verified by RENDERING, not by inspection.** All **56** tip anchors — enumerated from the DOM, not transcribed — were hovered with a real pointer in both languages, **112 measurements**: every tip visible, with a non-empty title and body, at or under the 220 px cap, **fully inside the 850 × 550 frame**, and with its arrow still horizontally inside its anchor even where the tip is clamped to the window edge. Removing the new bottom clamp alone reproduces exactly one failure — the French grid tip, 15 px off the bottom — and no English one.
+- `auval -a` lists `aufx OFPu OuDv`. The build adds no new compiler warning; the 135 that remain are pre-existing sign-conversion warnings in the relay and attachment loops.
+
+### Notes
+
+- **Value readouts, note divisions and preset names stay English.** None of the `toFixed`/`Math.round` sites is touched, the ten `rate` and eleven per-band-rate `<option>` texts are `AudioParameterChoice` entries and therefore the host automation contract, and a preset name IS its JSON filename. `Global` is exempt for both reasons at once: it is the per-band-steps value mirror **and** a choice entry, so translating the readout alone would make this page and the automation lane disagree.
+- **All 67 French strings are machine drafts, every one `reviewed: false`.** No native speaker has read them. `node scripts/check-i18n.js` prints the worklist.
+- **Not verified:** the C++ language round-trip (pick Français, close the session, reopen, confirm it held) has not been executed by hand — it is reasoned from the `isVoid()` guard, not measured. Windows/WebView2 font metrics remain the named hardware-blocked deferral; the tightest French margin measured here is **5.2 px**, on MÉDIUM in the band caption cell.
+
 ## [1.17.0] - 2026-08-13
 
 MINOR: tooltip surfaces now render at their intended size and sit clear of the control they describe. No audio-path, parameter, or state changes.

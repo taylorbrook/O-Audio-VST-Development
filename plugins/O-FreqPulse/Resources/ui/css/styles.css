@@ -145,11 +145,19 @@ html, body {
     background: rgba(232, 213, 183, 1.0);
 }
 
+/* v1.18.0: min-width pins the pair against a CENTRED header row.
+   .header-top is `justify-content: center`, so anything that widens .preset-bar
+   moves BOTH the bar and the h1 by half the delta — Load 40.2 -> Ouvrir 48.3 and
+   Save 38.5 -> Enreg. 48.2 shifted five header elements by 8.9px each. 50px
+   covers the widest of the four faces in both languages with 1.7px to spare, so
+   the bar's width no longer depends on the language at all. */
 .preset-action-btn {
     background: var(--border-accent);
     color: var(--bg-paper);
     border: none;
     border-radius: 3px;
+    min-width: 50px;
+    text-align: center;
     padding: 3px 8px;
     font-size: 10px;
     font-family: inherit;
@@ -224,12 +232,16 @@ html, body {
     gap: 2px;
 }
 
-/* Crossover Dividers (between band lanes) */
+/* Crossover Dividers (between band lanes).
+   v1.18.0: width tracks the band-label grid column above — these are separate
+   flex rows in a column-reverse container, not grid cells, so the two numbers
+   have to be changed together or the crossover handles stop lining up under the
+   band captions. */
 .crossover-divider, .freq-boundary {
     flex: 0 0 12px;
     display: flex;
     align-items: center;
-    width: 80px;
+    width: 100px;
     padding: 0 4px 0 8px;
 }
 
@@ -279,10 +291,20 @@ html, body {
     cursor: grab;
 }
 
+/* v1.18.0: column 1 80 -> 100px and column 5 60 -> 68px, both measured.
+   Column 1 holds the band caption beside two 16px buttons and 2 x 3px of gap
+   inside an 8px right padding, so 80px left the caption 34.0px — enough for HIGH
+   at 30.8 and 3.2px short of GRAVE at 38.5, with MEDIUM at 48.8 fourteen over.
+   100px gives the caption 54.0px: 5.2px of clearance on the longest French word,
+   which is the margin Windows/WebView2 font metrics are a named deferral about.
+   Column 5 holds the per-band Mix caption plus its 36px slider and a 3px gap;
+   the caption is pinned at 26px below (Mix 13.8 / Mixage 25.8), so the cell needs
+   65px. Both widths come out of the 1fr step lane, which loses 28px across 32
+   cells — 0.9px per cell. */
 .band-row {
     flex: 1;
     display: grid;
-    grid-template-columns: 80px 1fr 60px 56px 60px 80px 40px;
+    grid-template-columns: 100px 1fr 60px 56px 68px 80px 40px;
     gap: 8px;
     align-items: center;
 }
@@ -294,7 +316,13 @@ html, body {
     gap: 3px;
 }
 
+/* v1.18.0: pinned at 26px, the wider of Mix 13.8 and Mixage 25.8. Unpinned, the
+   French caption pushed the slider 12.0px right in all four bands. flex-basis
+   rather than min-width would work equally here, but min-width is what makes the
+   intent — a floor, never a cap — legible next to the nowrap. */
 .band-mix label {
+    flex: 0 0 auto;
+    min-width: 26px;
     font-size: 8px;
     color: var(--text-secondary);
     white-space: nowrap;
@@ -394,7 +422,20 @@ html, body {
     margin-bottom: 1px;
 }
 
+/* v1.18.0: flex: 0 0 auto. These are flex items in .band-label-top, and their
+   automatic minimum size let a longer caption SQUASH them rather than overflow —
+   at the old 80px column the gate measured solo-2 at 8.5px instead of 16px in
+   French, with both buttons sliding as the caption grew.
+
+   IT IS NOT INDEPENDENTLY GATED AT THE SHIPPED 100px COLUMN, and saying so is
+   the point: reverting this rule ALONE now leaves check-ui-labels green,
+   because the widened column already stops the caption reaching the buttons.
+   It is kept as a Windows/WebView2 guard — WebView2 font metrics are this
+   task's named hardware-blocked deferral, no gate runs there, and a caption
+   that renders wider than the 48.8px measured here would squash a 16px button
+   silently. A 16px button is 16px in every language and on every backend. */
 .ms-btn {
+    flex: 0 0 auto;
     width: 16px;
     height: 14px;
     border: 1px solid rgba(139, 115, 85, 0.5);
@@ -621,7 +662,14 @@ html, body {
     gap: 12px;
 }
 
+/* v1.18.0: flex-shrink 0. The authored `width: 80px` was a BASIS, not a pin —
+   .control-group is a flex row, so all five labels were shrinking to 53.3px to
+   make room for the slider, and "Impulsions" (59.9px min-content) could not
+   shrink that far and pushed #euc-pulses 6.6px right in French alone. Honouring
+   the 80px the author wrote makes all five columns identical in both languages
+   and leaves 20px of clearance on the longest French caption. */
 .control-group label {
+    flex: 0 0 80px;
     width: 80px;
     font-size: 12px;
     color: var(--text-secondary);
@@ -733,61 +781,226 @@ html, body {
     text-align: center;
 }
 
-/* v1.5.0: Tooltip System */
-.tooltip-toggle {
+/* ============================================================================
+   v1.18.0: the settings popover — the gear that carries the language selector
+   and the hover-help switch. It replaces the floating "?" that sat over the
+   grid's bottom-right corner: one place for the two things that decide what the
+   hover help says and whether it says it.
+
+   position: absolute inside .header (which already sets position: relative for
+   the preset dropdown) rather than a third item in .header-top, which is a
+   CENTRED flex row — adding to it would have shifted the title and the preset
+   bar sideways for a control that belongs in the corner.
+   ============================================================================ */
+.settings-cluster {
     position: absolute;
-    bottom: 50px;
-    right: 15px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: rgba(212, 196, 176, 0.7);
-    border: 1px solid var(--border-accent);
-    color: var(--text-primary);
-    font-size: 12px;
-    font-weight: bold;
-    font-family: 'Georgia', serif;
-    cursor: pointer;
+    top: 12px;
+    right: 14px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 150ms ease;
-    z-index: 100;
 }
 
-.tooltip-toggle:hover {
-    background: rgba(90, 122, 106, 0.5);
+/* Quiet brown outline at rest, filled green while the panel is open — the same
+   engaged/idle language the band mode caption and the M/S buttons use. */
+.gear-btn {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    flex: 0 0 auto;
+    border: 1px solid var(--border-accent);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: background 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.gear-btn:hover {
+    opacity: 1;
+}
+
+.gear-btn[aria-expanded="true"] {
+    background: var(--step-on);
     border-color: var(--step-on);
-}
-
-.tooltip-toggle.active {
-    background: rgba(90, 122, 106, 0.7);
     color: #F5E6D3;
-    border-color: #3C5C1A;
-    box-shadow: 0 0 6px rgba(90, 122, 106, 0.4);
+    opacity: 1;
 }
 
-.tooltip {
+.gear-btn:focus-visible {
+    outline: 2px solid var(--step-on);
+    outline-offset: 2px;
+}
+
+/* Right-aligned under the gear. */
+.settings-popover {
     position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    z-index: 9999;
+    min-width: 186px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: rgba(245, 230, 211, 0.98);
+    border: 2px solid var(--border-accent);
+    border-radius: 4px;
+    box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.settings-popover[hidden] {
+    display: none;
+}
+
+/* The same tie-break the preset dropdown above already needs, for the same
+   reason: .header and .grid-area are siblings and the grid comes later in the
+   DOM, so it wins a z-index tie and would swallow the panel's pointer events. */
+.header:has(.settings-popover:not([hidden])) {
+    z-index: 9999;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.settings-label {
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.settings-popover select {
+    flex: 0 0 auto;
+    padding: 2px 4px;
+    border: 1px solid var(--border-accent);
+    border-radius: 3px;
+    background: #E8D5B7;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.settings-popover select:focus-visible {
+    outline: 2px solid var(--step-on);
+    outline-offset: 1px;
+}
+
+/* Same engaged/idle pair as the gear, in a pill rather than a circle so the
+   On/Off caption fits. min-width covers the widest of the four faces across both
+   languages — On / Off / Oui / Non — so switching either the state or the
+   language cannot resize the row. */
+.settings-toggle {
+    min-width: 40px;
+    padding: 2px 8px;
+    flex: 0 0 auto;
+    border: 1px solid var(--border-accent);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1.2;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: background 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.settings-toggle:hover {
+    opacity: 1;
+}
+
+.settings-toggle[aria-pressed="true"] {
+    background: var(--step-on);
+    border-color: var(--step-on);
+    color: #F5E6D3;
+    opacity: 1;
+}
+
+.settings-toggle:focus-visible {
+    outline: 2px solid var(--step-on);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
+   The tooltip surface — the ONE measure-then-pin renderer, ported from
+   O-ReverseDelay in v1.18.0.
+
+   position: FIXED, against the viewport, replacing v1.17.0's absolute box
+   resolved against #plugin-container. The two coincide on this page (the
+   universal reset plus html,body at 100% make the initial containing block the
+   same rectangle), so nothing moves — but the ported runtime clamps against
+   window.innerWidth, and a box whose containing block is not the viewport would
+   have made that arithmetic describe a different rectangle than the one the
+   browser lays out.
+
+   max-width stays 220px — O-FreqPulse's own value, carried across unchanged
+   rather than normalised to any other plugin's number.
+   ============================================================================ */
+.tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    max-width: 220px;
+    padding: 6px 10px;
     background: rgba(60, 47, 47, 0.95);
     color: #F5E6D3;
-    padding: 6px 10px;
     border: 1px solid rgba(139, 115, 85, 0.6);
     border-radius: 4px;
-    font-size: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     font-family: 'Georgia', 'Times New Roman', serif;
-    line-height: 1.4;
-    max-width: 220px;
-    z-index: 1000;
     pointer-events: none;
     opacity: 0;
     transition: opacity 150ms ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    white-space: normal;
 }
 
-.tooltip.visible {
-    opacity: 1;
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+    font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--playhead);
+    margin-bottom: 3px;
+}
+
+.tooltip-body {
+    font-size: 10px;
+    line-height: 1.4;
+    color: #F5E6D3;
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip can
+   be clamped to the viewport edge while the arrow still points at its control. */
+.tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+
+.tooltip[data-placement="above"]::after {
+    top: 100%;
+    border-top-color: rgba(139, 115, 85, 0.6);
+}
+
+.tooltip[data-placement="below"]::after {
+    bottom: 100%;
+    border-bottom-color: rgba(139, 115, 85, 0.6);
 }
 
 /* Version Label */
@@ -801,7 +1014,7 @@ html, body {
     letter-spacing: 0.5px;
 }
 
-.tooltips-enabled [data-tooltip]:hover {
+.tooltips-enabled [data-tip]:hover {
     outline: 1px dashed rgba(90, 122, 106, 0.4);
     outline-offset: 2px;
 }
