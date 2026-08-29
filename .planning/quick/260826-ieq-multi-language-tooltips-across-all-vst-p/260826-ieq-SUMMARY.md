@@ -4,11 +4,11 @@ type: execute
 mode: quick
 status: incomplete
 stages_complete: [A, B, C, D, E, F, G, H, I, J]
-stage_k_batches_complete: [K1]
-stage_k_batches_remaining: [K2, K3, K4]
+stage_k_batches_complete: [K1, K2, K3]
+stage_k_batches_remaining: [K4]
 stages_remaining: [K, L, M]
 i18n_exempt_contract: RESOLVED — scoped entries landed between K1 and K2
-stopped_at: "STAGE K BATCH K1 COMPLETE — 7 of 21 plugins. O-AnalogSaturation v1.2.0 (`7e8cd024`), O-Texture v0.2.0 (`3b307140`), O-Freeze v2.1.0 (`e235e33c`), O-Detune v1.6.0 (`6437d0de`), O-Bassoon v1.1.0 (`b8c1d9a1`), O-Emulator v1.1.0 (`fab53677`), O-TextureForge v1.1.0 (`6c595b70`). `check-i18n --strict-v2` reports **28 canon v2, 0 canon v1**. NEXT: batch K2, the five TIGHT FRAMES — O-Chorus (700x125), O-DigiDelay (700x196), O-AnalogEQ (920x220, 3 nowrap + 1 ellipsis), O-Bass (420x320), O-SimpleReverb (500x350). **K2 is SERIAL by plan instruction** — one plugin at a time, report each geometry diff before the next, and STOP and raise it if two of the five need layout changes, because that is a pattern rather than an incident and it changes what K3/K4 cost. Then K3 (O-Comp, O-Tremolo, O-Bowed, O-Reed, O-GrainScatter) and K4 (O-Wind, O-Bells, O-Formant, then O-MicrotonalSampler ALONE) can run parallel again. FIVE OF SEVEN K1 PLUGINS RAN CONCURRENTLY and the PARALLEL DISPATCH PROTOCOL at the end of `260826-ieq-STAGE-K-BRIEF.md` is what made it safe: build/ behind a mkdir mutex, PLUGINS.md and scripts/ owned by the orchestrator, and per-plugin scratchpad subdirs. SIX repo-level gate fixes landed, each ALONE ahead of its plugin: `e80288eb`, `fbdb6930`, `e6c159e0`, `64b3d53d`, `3be873eb`, `a32039c7` — the eighteenth through twenty-first wrong-shaped gate assumptions in this task. Every one was found by a control that FAILED TO FIRE or by holding a variable constant that should have produced no result; none by reading code. TWO of those fixes had a first draft that was WRONG and the pre-commit repo sweep caught it, and ONE proposed fix (reorder assertion 10s guards) was verified a NO-OP before being written. THE SHARED SCRATCHPAD SILENTLY SWAPS PLUGINS — three executors got another plugin's measurements back; all three detected it and re-took every number in a namespaced subdir. FOUR CONTROLLER SHAPES in seven plugins, none of them the shape the plan assumes. Seven items need a human decision, none blocking K2 — chief among them the I18N_EXEMPT contract (text-matched exemptions can hide a missed label; five ambiguous strings today) and O-Bassoon's registry row now reading `Stage 0 | 1.1.0`."
+stopped_at: "STAGE K BATCH K3 COMPLETE — 17 of 21 plugins. O-Comp v1.6.0 (`ec8a4c88`), O-Tremolo v1.7.0 (`af3610dd`), O-GrainScatter v2.5.0 (`1791397b`), O-Bowed v1.5.0 (`9ff19bf4`), O-Reed v1.2.0 (`819a6113`), rows in `8ba0b8b8`. `check-i18n --strict-v2` reports **38 canon v2, 0 canon v1**; `boot-all-uis` **43/43 clean, 0 warn, 0 failed**. ALL FIVE RAN CONCURRENTLY and **ZERO repo-level gate fixes were needed** — the first batch in the whole task with none, after six in K1 and two in K2. No executor was blocked; none edited `scripts/`. NEXT: batch K4 — O-Wind (61), O-Bells (79), O-Formant (94, 21 READOUT rows, the most in the stage), then **O-MicrotonalSampler ALONE** (146 LABEL, 19 UNSURE, 36 JS strings — harder than the plan says by a wide margin). K4 is concurrent for the first three. **THE ONE THING K4 NEEDS DECIDED FIRST: canvas `ctx.fillText` prose.** Three of five K3 executors hit it independently and the batch shipped TWO DIFFERENT ANSWERS — O-Comp localized its three strings, O-GrainScatter exempted its one with a reason. O-Bowed reported 15 and ran the control that settles the mechanism: a `trLabel()` call inside a `fillText` **fails assertion 15 as a dead key**, because 15 collects markup attributes, literal `setLabel` keys and `.dataset.i18n*` writes and a `trLabel()` call is in none of them. **O-Comp’s shape is the one that works inside the contract as written** — house canvas strings in `I18N` with empty bodies, never in `LABELS`. 16 files repo-wide paint text to canvas and `plugins/O-Formant/Source/ui/public/js/main.js` is one of them, so K4 meets this whichever way it is decided. A SECOND INDIRECTION SHAPE is equally invisible: O-Tremolo’s `header.textContent = headerText`, where the English literals sit one frame away at the call site — assertion 12 scans for literals and a variable defeats it. Both shapes ship English inside a French UI with every gate green. **A PRE-EXISTING SHIPPED `SyntaxError` was found in TWO plugins**: O-Bowed and O-Reed each loaded `js/juce/index.js` as a classic `<script src>` AND as an ES module, throwing `Unexpected token 'export'` on every load at HEAD in the shipping plugin. Found independently by both, fixed by both, zero survivors repo-wide. The **`PLUGIN_VERSION` human-decision item is CORRECTED by measurement**: seven plugins mention it, only **two** lack a real `VERSION` keyword and therefore actually ship 1.0.0 to the host — **O-Reed and O-Marimba**, confirmed with PlistBuddy against the installed bundles. **O-MicrotonalSampler was on the standing list and is NOT affected** (its bundle reports 1.23.9). Three more pre-existing ENGLISH defects were exposed by keying and fixed with negative controls. Executors’ own geometry predictions were wrong three times and the negative control caught all three."
 
 plugins_shipped:
   - name: O-Gain
@@ -3976,3 +3976,268 @@ to fall; where they meet centred shrink-to-fit rows, expect it to rise.
 - O-FreqPulse returned one `rc=1` during a repo-wide sweep with **zero** `[8b]`
   failures — a different assertion, and it did not reproduce in three consecutive
   re-runs. Recorded, not chased.
+
+---
+
+# STAGE K — BATCH K3 (the five medium plugins, CONCURRENT)
+
+Five executors at once in one checkout. **Zero repo-level gate fixes were
+needed** — the first batch in this task with none, after six in K1 and two in
+K2. No executor was blocked, and none edited `scripts/`.
+
+| Plugin | Version | Commit | Files | LABEL: plan / inventory / measured |
+|---|---|---|---|---|
+| O-Comp | 1.6.0 | `ec8a4c88` | 8 | 19 / 22 / **22** |
+| O-Tremolo | 1.7.0 | `af3610dd` | 8 | 19 / 23 / **23** |
+| O-GrainScatter | 2.5.0 | `1791397b` | 9 | 73 / 70 / **70** |
+| O-Bowed | 1.5.0 | `9ff19bf4` | 8 | 50 / 48 / **48** |
+| O-Reed | 1.2.0 | `819a6113` | 8 | 58 / 52 / **52** |
+
+Rows in `8ba0b8b8`, duplicate check clean. `check-i18n --strict-v2`: **38 canon
+v2, 0 canon v1**. `boot-all-uis`: **43/43 clean, 0 warn, 0 failed**.
+
+**The measured inventory matched in every column on all five, and the plan was
+wrong on all five.** That is 15 of 15 across K2 and K3. The inventory is the
+authority; the plan's text counts are not.
+
+## The finding that decides how K4 runs: canvas `ctx.fillText`
+
+**Three of the five executors hit this independently, and the batch shipped TWO
+DIFFERENT ANSWERS.**
+
+- **O-Comp** localized its three strings (`Envelope`, `Gain Reduction`, the live
+  `GR:` prefix), housing them in **`I18N` with empty bodies** rather than
+  `LABELS`, and verified them with a `fillText`-recording probe, en→fr→en, plus
+  its own negative control.
+- **O-GrainScatter** exempted its one (`"<n> grains"`) with a reason, citing the
+  suite's existing position — O-Orbit, O-MultiBandCompressor and O-simpleSampler
+  already ship canvas strings in English — and carried it to Stage M.
+- **O-Bowed** found **15** of them across three visualisation canvases, reported
+  them, and ran the control that settles the mechanism.
+
+**The mechanism, proven rather than reasoned.** Adding a key to `LABELS` and
+calling `trLabel()` from inside a `fillText` **fails assertion 15 as a dead
+key**: 15's `referenced` set collects markup attributes, literal `setLabel`
+keys, literal `.dataset.i18n* =` writes and innerHTML-injected keys, and a
+`trLabel()` call is in none of them. O-Bowed read that as needing an
+orchestrator-owned change. It does not — **O-Comp's `I18N`-with-empty-bodies
+shape already works inside the contract as written**, and the two findings
+together prove it from both directions.
+
+Neither gate can see any of this: assertion 10 walks TEXT NODES, assertion 12
+scans `textContent`/`innerText` writes, and `fillText` is neither. **Leaving
+every one of these strings in English passes green.**
+
+**16 files repo-wide paint text to a canvas**, and
+`plugins/O-Formant/Source/ui/public/js/main.js` is one of them — so **K4 meets
+this whichever way it is decided.**
+
+## A second indirection shape, equally invisible
+
+O-Tremolo's dropdown section headers are written as
+`header.textContent = headerText`, with the English literals `'Factory'` and
+`'User'` sitting **one frame away at the `addSection()` call site**. The
+extractor sees a variable; **assertion 12 is blind to the identical shape for
+the identical reason.** Both would have shipped English inside a French UI with
+every gate green. All three strings now route through `setLabel()`.
+
+**Two distinct indirection blind spots in one batch.** The reusable check for
+K4 is mechanical: grep for `textContent =` with a non-literal right-hand side,
+and grep for canvas text — do not wait for a gate to raise either.
+
+## A pre-existing shipped `SyntaxError`, in TWO plugins
+
+O-Bowed and O-Reed each loaded `js/juce/index.js` as a classic `<script src>`
+**and** as an ES module import, throwing `SyntaxError: Unexpected token
+'export'` on **every page load, in the shipping plugin, at HEAD**. Found
+independently by both executors, fixed by both, negative-controlled by O-Bowed
+(restore the tag alone → the plugin goes red by name). Zero survivors repo-wide.
+
+**An orchestrator lesson worth more than the bug.** The first executor to
+finish reported `boot-all-uis` at 41/43 with these two failing, and the
+orchestrator called it expected transient state from batch-mates mid-retrofit —
+without checking. It was a real defect that had been shipping. **A red sweep
+during a concurrent batch is not automatically batch-mate noise. Check the
+pre-image before explaining it away.**
+
+## `PLUGIN_VERSION` — the standing human-decision item, CORRECTED by measurement
+
+Seven plugins mention `PLUGIN_VERSION`. Only **two** lack a real `VERSION`
+keyword beside it and therefore actually ship `1.0.0` to the host, confirmed
+with `PlistBuddy` against the installed bundles rather than reasoned:
+
+| Plugin | Registry row | Bundle reports |
+|---|---|---|
+| **O-Reed** | 1.2.0 | **1.0.0** |
+| **O-Marimba** | 1.13.0 | **1.0.0** (shipped in Stage J) |
+
+**O-MicrotonalSampler was on the standing list and is NOT affected** — it
+carries a real `VERSION` keyword and its bundle reports 1.23.9. The other four
+(O-Contrabass, O-Octagon, O-ReverseDelay, O-Tapestop) carry a dead
+`PLUGIN_VERSION` line beside a working one: harmless clutter, not a defect.
+
+The item is therefore **two plugins, not seven**, and one of them is already
+shipped.
+
+## Geometry — the plan's model of where French pushes is wrong, in two reusable ways
+
+**Every plugin: zero non-label elements moved EN→FR.** Every page held still
+between 180ms and 1.7s, so no transition contaminated any number.
+
+**French SHRANK on a large fraction everywhere** — O-Comp 3 of 7, O-Bowed 12 of
+26, O-Reed 12 of 27, O-GrainScatter 13 of 32. **A clip-only check certifies all
+four pages.**
+
+Two mechanisms that make a caption harmless, both measured after a plant
+disproved the executor's model:
+
+1. **An explicit `width` caps a flex item's automatic minimum** (Flexbox §4.5).
+   O-GrainScatter planned around a push cliff at its 62px `.knob-container` —
+   made worse by a spatial row summing to *exactly* 846.00px in an 846.00px
+   container — and the first plant disproved it: a 66.53px caption overflows
+   symmetrically and pushes nothing. **The whole 900x800 page has only two
+   shrink-wrapping push sites.**
+2. **`repeat(4, 1fr)` is `minmax(auto, 1fr)`.** O-Bowed's tracks were
+   content-sized 38/44/41/38 summing to 164 in a 162px box, and `width: 100%` on
+   the column **alone changed nothing** — 100% of a content-sized track *is* the
+   content size. The first draft did exactly that and the gate still reported 45
+   moved. The fix is `minmax(0, 1fr)` on the grid.
+
+**Executors' own predictions were wrong three times; the negative control caught
+all three.** O-Tremolo twice — the knob it predicted would shift 2.03px does not
+move at all (two centrings cancel; the pin is load-bearing on `dw`, not `dx`),
+and a popover delta it predicted at 1.55px is really **16.44px**, because a
+`width: 100%` select contributes nothing to a shrink-to-fit parent's intrinsic
+size. O-GrainScatter once, above. **`dx` alone mislabels a pin as decoration —
+now confirmed four times across two batches.**
+
+Two pins were shipped honestly labelled as **design guards** rather than fixes,
+because their negative control passes: O-Tremolo's and O-GrainScatter's
+`.settings-label { white-space: nowrap }`.
+
+## Three more pre-existing ENGLISH defects, exposed by keying and fixed
+
+| Plugin | Defect | Since |
+|---|---|---|
+| O-Comp | `.preset-action-btn` carried the UA default `1px 6px`, leaving an **18px content box holding an 18.5px "Load"** — clearing assertion 4 by exactly the 0.5px tolerance | pre-v1.5.0 |
+| O-Bowed | `Rev. Friction` **silently ellipsised** — 63.0px caption in a 62px cap | v1.4.1 |
+| O-Reed | `Embouchure` (61.44) and `Double Reed` (60.58) **silently ellipsised** in a 60px `text-overflow: ellipsis` box | v1.0.0 |
+
+All three are invisible to every layout check, because **a clip pushes
+nothing**. Each was negative-controlled to re-fail in English before any French
+existed. This is the fifth batch running in which keying exposed a pre-existing
+English defect — treat it as expected, not as a surprise.
+
+## Method traps found this batch
+
+1. **`HEAD~1` is NOT your commit's parent in a shared checkout.** Another
+   executor committed on top of O-Tremolo between its commit and its
+   verification, so `git show HEAD~1:file` read **its own commit** as the
+   pre-image and hid a whole-file CRLF→LF conversion. Use `<sha>^`, never
+   `HEAD~1`, while other executors are committing.
+2. **`git checkout -- <file>` to revert a plant wipes the UNCOMMITTED fix too.**
+   O-GrainScatter lost its entire v2.5.0 edit to `PluginEditor.cpp` this way and
+   caught it by re-grepping. **Restore plants from a namespaced scratchpad copy
+   while the fix is uncommitted.**
+3. **`nth-child` path keys turn a pure INSERTION into phantom MOVED rows.**
+   O-Comp's first geometry diff reported 26 movers that read exactly like a
+   regression; inserting `.settings-cluster` had renumbered every following
+   sibling. Re-keyed on class-ordinal paths and re-taken. Same *silent wrong
+   number* hazard as the shared scratchpad, from a different direction.
+4. **A `grep -a` probe can miss on its own punctuation.** O-Tremolo's binary
+   probe returned 0 for `Langue de l'interface` — a straight apostrophe against
+   the source's U+2019. Caught only because a known-present control was checked
+   first.
+
+## Gate observations — no defect, two blindnesses worth recording
+
+- **`boot-all-uis` is blind to the C++ half of assertion 8**, by design: delete
+  the `getResource()` branch and it still reports clean, because it serves from
+  the copied file tree rather than through `getResource()`. `check-i18n [8]`
+  catches it statically, and both halves were controlled independently. Nothing
+  to fix; stated so a later dispatch does not read `boot-all-uis` as covering it.
+- **`[8b]` compares rectangles without accounting for an ancestor's
+  `overflow: hidden` clip.** `.section-content { max-height: 0; overflow:
+  hidden }` does not remove a collapsed section's children from layout — they
+  keep full rectangles and are clipped only from *painting* — so `[8b]` reports
+  collisions a user can never see. **Over-strict, not a hole**: it produces
+  false failures, never false passes, so nothing is at risk. It did cost real
+  translation quality on three O-Reed captions (`Visualisation de la perce` →
+  `Coupe de la perce`, `Conception sonore` → `Design sonore`, `Ouverture` →
+  `Ouvert.`), each verified to pass in the all-expanded state and fail only in
+  the default one.
+
+## Controller shape, again
+
+**Four of the five are an inline `<script type="module">` in `index.html`**, not
+the O-Tapestop `js/app.js` shape the plan assumes; only O-GrainScatter has an
+`app.js`. The plan has now been wrong about controller shape in the large
+majority of plugins in this stage. **Verify it; never assume it.**
+
+## `I18N_EXEMPT` and the D-01 arms
+
+- **O-Comp: D-01 arm 1 exempts NOTHING** — the plugin has no
+  `AudioParameterChoice` at all.
+- **O-Bowed: arm 1 exempts nothing either.** The dispatch predicted
+  technique/articulation options; O-Bowed has exactly one Choice param
+  (`tuningSystem`) and none of its options appears in the served markup.
+- **O-Reed carries the one arm-1 collision the brief predicted**: `"Breath"` is
+  a `vibratoSource` option **and** the `breathPressure` knob caption. Caption
+  keyed → `Souffle`; option carried as a **SCOPED** exempt entry, because an
+  unscoped one would silence the caption and leave the gate green over bare
+  English. That is O-Detune's hole, avoided by the §7 third field.
+- **O-GrainScatter has the other scoped entry**: `Trajectory` is a
+  `spatial_mode` option and the trajectory dropdown's caption.
+- **Arm 3 was never overruled anywhere in this batch.**
+
+## NEEDS A HUMAN DECISION
+
+1. **Canvas `ctx.fillText` policy** — the batch shipped two answers. Recommended:
+   adopt O-Comp's `I18N`-with-empty-bodies shape as the standard, and treat the
+   standing English canvas strings (O-Bowed's 15, O-GrainScatter's 1, plus
+   O-Orbit, O-MultiBandCompressor, O-simpleSampler) as a named Stage-M backlog.
+   **K4's O-Formant needs this decided.**
+2. **O-Reed and O-Marimba ship `1.0.0` to the host.** Correcting
+   `PLUGIN_VERSION` → `VERSION` is a host-visible change. Two plugins, not seven.
+3. **O-Reed's fifteen XY-pad instrument markers stay English.** Three are
+   byte-identical Choice options and the set is one Choice's abbreviations
+   sitting 30px from a host-owned dropdown naming the same fifteen in English —
+   localizing the other twelve would put two languages in one 15-item set. **A
+   French user reads `Oboe` and `E.Hrn`.**
+4. **`plugins/O-Bowed/tests/render-harness/CMakeLists.txt` hard-codes
+   `JucePlugin_VersionString="1.3.0"`** — a second version copy, already drifted
+   before this batch and now two behind. There is no variable to bump, so which
+   copy is canonical is a human call.
+5. **O-Reed's `.effects-placeholder` fix moves ENGLISH visibly** — "Coming Soon"
+   goes from x=0 to the middle of the FX tab (h2 85.3 → 378.2). Correct, but a
+   visible English change.
+6. **O-Comp's `Relâche`** was chosen over the fuller `Relâchement`, which widens
+   a shrink-wrapped knob column by 10.92px and slides the knob. If a native
+   speaker rejects the abbreviation, the fix is the row's layout, not a longer
+   string.
+7. **O-Tremolo's `index.html` was the LAST CRLF `index.html` in the repo** and
+   this commit converted it to LF (verified: all 43 are now LF). Review its real
+   change with `git diff -w af3610dd^ af3610dd` — 986/19, not the 2251/1284 the
+   stat shows.
+8. Items from K1 and K2 still stand.
+
+## Not verified
+
+- **Checkpoint 5 outstanding on all 38.** No human has seen any French UI.
+- **All French repo-wide is machine drafts**, every entry `reviewed: false`.
+- **Checkpoint 4 is reasoned on all five** — from the `isVoid()` guard and the
+  build. No host session was saved and reopened for any K3 plugin.
+- **The Standalone `.app` is stale on every K3 plugin** —
+  `build-and-install.sh` builds VST3+AU only.
+- **Windows/WebView2 font metrics** — the standing hardware-blocked deferral.
+  K3's margins are far roomier than K2's 1.2–1.9px band. Tightest shipped:
+  O-Bowed **ACCORD 2.87px** and **ENR. 2.91px**; O-GrainScatter
+  **PROBABILITÉ 2.98px**, where exceeding the box overflows harmlessly rather
+  than clipping because the container cannot grow; O-Comp **Sauver 5.0px**;
+  O-Reed **Ouvert. 5.30px**. O-Tremolo's tightest margins are **English**, not
+  French — `LOAD` 0.22px and `SAVE` 0.17px inside their own pins.
+- O-Reed's Tuning tab was not driven as a state, so `label.tuningLoadFailed` is
+  referenced but never rendered by the gate.
+- O-GrainScatter's `#pitch-hint` is measured only via a states-file `eval` that
+  adds the `.visible` class its controller sets; the real reveal path was not
+  driven.
