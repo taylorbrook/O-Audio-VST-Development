@@ -2,6 +2,30 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.6.0] - 2026-08-29
+
+### Added
+
+- **The page speaks French.** Nineteen keys in a new `Source/ui/public/js/i18n.js` — eleven visible captions and eight accessible names — plus a settings popover in the bottom-left page margin carrying the language selector, a `getUiLanguage` / `setUiLanguage` native-function pair, and session persistence through a non-parameter `uiLanguage` property on the APVTS state tree. All French is machine-drafted and flagged `reviewed: false`; no native speaker has read it.
+- **No hover-help was authored.** v1.5.7 carried no `data-tip` anywhere, so `I18N` and `TIP_BINDINGS` are both empty — this plugin's correct state, which `check-i18n` assertion 2 reports as "0 tip(s) bound". Tooltip copy is a later stage's job.
+
+### Changed
+
+- **Four native `title=` attributes DELETED, not localized.** `Previous preset`, `Next preset`, `Save preset` and `Load preset` moved verbatim into `data-i18n-aria` accessible names; a native `title` renders a second, untranslated OS tooltip. The plugin's own wording was kept rather than harmonised with its siblings'. `#preset-display` gets no accessible name, because v1.5.7 gave it no `title` and inventing one is not this change's job.
+- **Both `alt` attributes keyed** through `data-i18n-alt` rather than emptied.
+- **The low-cut ON/OFF toggle is now a localized label.** `#LPFREQ-value` carries the readout class but never holds a number and is a clickable control, so D-01 arm 3 was overruled with reasons recorded in `js/i18n.js`. It reads `ACT.` / `DÉS.` in French; `MARCHE` was rejected on measurement (it would move the whole low-cut knob 4.40 px).
+- **Three geometry pins, all load-bearing.** `#preset-save` 41 px and `#preset-load` 44 px (the header is `space-between` with 163.58 + 290.42 = 454.00 px of content and therefore ZERO slack; the French captions SHRINK and would re-centre the whole bar), and `#CHARACTER-knob > .knob-label` 62 px (the only caption on the page past the 52 px knob floor in English). Each was removed alone and re-broke the gate. `.settings-label { white-space: nowrap }` ships as a declared GUARD, not a pin: its negative control passes.
+
+### Geometry
+
+- English v1.5.7 → v1.6.0: **zero of 96 elements moved** at the 0.5 px gate tolerance; at 0.01 px, ten moved by at most 0.39 px, every one attributable to a named pin, and nothing moved vertically. Document scroll extent unchanged at 500 x 350.
+- French vs English at v1.6.0: **zero non-label elements moved** — in the default state, with the settings popover open, and with the preset dropdown open. The only boxes that differ are the five keyed captions that changed width.
+- **No layout change was needed and French caused nothing.** Six of eleven French strings are the same width or narrower than their English.
+
+### Known
+
+- The footer wordmark is a hard-coded `Ouaricon Audio v1.5.5` and is STALE against this version. Deliberately not repaired here: it is a user-visible change unrelated to localization, and the right fix is the runtime-filled `id="versionLabel"` span two sibling plugins already use.
+
 ## [1.5.7] - 2026-08-02
 
 ### Changed
