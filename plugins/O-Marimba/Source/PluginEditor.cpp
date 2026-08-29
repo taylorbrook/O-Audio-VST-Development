@@ -121,6 +121,36 @@ OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcesso
             .withOptionsFrom(*compAttackRelay)
             .withOptionsFrom(*compReleaseRelay)
             .withOptionsFrom(*compAutogainRelay)  // v1.9.1
+            // ── v1.13.0: the UI language pair ────────────────────────────
+            //
+            // THE PLAN LISTS THIS PLUGIN AS HAVING THE TOOLTIPS-TOGGLE BRIDGE.
+            // It does not: grep this file for setTooltipsEnabled and there is
+            // nothing, and v1.12.1's page called it through `window.JuceAPI`,
+            // a global that has never existed here, inside a try/catch that
+            // swallowed the throw. So this pair is NEW rather than joining an
+            // existing one, and it is the plugin's only language surface.
+            //
+            // A missing native function fails SILENTLY —
+            // Juce.getNativeFunction() returns a callable that never settles,
+            // no page error fires, and the selector appears to work until the
+            // session is reopened. Both names below are grep-matched against
+            // js/app.js's getNativeFunction calls; there are exactly two, and
+            // these are they.
+            .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(juce::var(OMarimbaAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
+            .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument degrades to English rather than being
+                // stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.setUiLanguageIndex(
+                        OMarimbaAudioProcessor::languageIndex(args[0].toString()));
+
+                complete(juce::var(OMarimbaAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
             .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
                 complete(sendMidiNote(args));
             })
@@ -417,6 +447,24 @@ OMarimbaAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
             juce::String("text/html")
+        };
+    }
+
+    // v1.13.0: the page controller, EXTRACTED from index.html's inline module.
+    if (url == "/js/app.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.13.0: the EN/FR copy table. FOUR PLACES, ONE COMMIT — the file on
+    // disk, the CMakeLists SOURCES entry, this branch, and the import in
+    // js/app.js. Miss one and the page 404s and presents as a dead panel.
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("text/javascript")
         };
     }
 
