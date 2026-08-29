@@ -7,6 +7,7 @@ stages_complete: [A, B, C, D, E, F, G, H, I, J]
 stage_k_batches_complete: [K1]
 stage_k_batches_remaining: [K2, K3, K4]
 stages_remaining: [K, L, M]
+i18n_exempt_contract: RESOLVED — scoped entries landed between K1 and K2
 stopped_at: "STAGE K BATCH K1 COMPLETE — 7 of 21 plugins. O-AnalogSaturation v1.2.0 (`7e8cd024`), O-Texture v0.2.0 (`3b307140`), O-Freeze v2.1.0 (`e235e33c`), O-Detune v1.6.0 (`6437d0de`), O-Bassoon v1.1.0 (`b8c1d9a1`), O-Emulator v1.1.0 (`fab53677`), O-TextureForge v1.1.0 (`6c595b70`). `check-i18n --strict-v2` reports **28 canon v2, 0 canon v1**. NEXT: batch K2, the five TIGHT FRAMES — O-Chorus (700x125), O-DigiDelay (700x196), O-AnalogEQ (920x220, 3 nowrap + 1 ellipsis), O-Bass (420x320), O-SimpleReverb (500x350). **K2 is SERIAL by plan instruction** — one plugin at a time, report each geometry diff before the next, and STOP and raise it if two of the five need layout changes, because that is a pattern rather than an incident and it changes what K3/K4 cost. Then K3 (O-Comp, O-Tremolo, O-Bowed, O-Reed, O-GrainScatter) and K4 (O-Wind, O-Bells, O-Formant, then O-MicrotonalSampler ALONE) can run parallel again. FIVE OF SEVEN K1 PLUGINS RAN CONCURRENTLY and the PARALLEL DISPATCH PROTOCOL at the end of `260826-ieq-STAGE-K-BRIEF.md` is what made it safe: build/ behind a mkdir mutex, PLUGINS.md and scripts/ owned by the orchestrator, and per-plugin scratchpad subdirs. SIX repo-level gate fixes landed, each ALONE ahead of its plugin: `e80288eb`, `fbdb6930`, `e6c159e0`, `64b3d53d`, `3be873eb`, `a32039c7` — the eighteenth through twenty-first wrong-shaped gate assumptions in this task. Every one was found by a control that FAILED TO FIRE or by holding a variable constant that should have produced no result; none by reading code. TWO of those fixes had a first draft that was WRONG and the pre-commit repo sweep caught it, and ONE proposed fix (reorder assertion 10s guards) was verified a NO-OP before being written. THE SHARED SCRATCHPAD SILENTLY SWAPS PLUGINS — three executors got another plugin's measurements back; all three detected it and re-took every number in a namespaced subdir. FOUR CONTROLLER SHAPES in seven plugins, none of them the shape the plan assumes. Seven items need a human decision, none blocking K2 — chief among them the I18N_EXEMPT contract (text-matched exemptions can hide a missed label; five ambiguous strings today) and O-Bassoon's registry row now reading `Stage 0 | 1.1.0`."
 
 plugins_shipped:
@@ -3605,12 +3606,7 @@ A clip-only check would have certified every one of those pages.
 
 ## NEEDS A HUMAN DECISION — none blocking K2
 
-1. **The `I18N_EXEMPT` contract.** Element-scoped exemptions would close the
-   hole `a32039c7` only makes visible. Suggested shape: an optional third field
-   carrying a selector, backwards compatible so the 28 shipped plugins keep
-   working and the remaining 15 can use it. **Five ambiguous strings today:**
-   O-MultiBandCompressor `Off` (8 nodes), O-Lyrica `Off` (2), O-Detune `Random`
-   (2), O-ReverseDelay `Delay` (1), O-simpleGrain `Grain` (1).
+1. ~~**The `I18N_EXEMPT` contract.**~~ **RESOLVED — see the section below.**
 2. **O-Bassoon's registry row now reads `🚧 Stage 0 | 1.1.0`**, which is
    internally odd. Built, installed, `auval`-clean — but its executor declined
    to assert the `🚧 → 📦` flip as beyond a localization dispatch, and that
@@ -3646,3 +3642,84 @@ A clip-only check would have certified every one of those pages.
   (rejected `Car. attaque`, shipped `Caractère` at 5.2px), O-Detune 6.91px.
 - **The Standalone `.app` is stale on every K1 plugin** — `build-and-install.sh`
   builds VST3+AU only.
+
+
+---
+
+# Stage K — the `I18N_EXEMPT` contract, RESOLVED
+
+Decided and landed between batches K1 and K2, before the remaining 14 plugins
+could add more entries under the old rule.
+
+## The contract
+
+An entry is **`[text, reason]`** or **`[text, reason, scope]`**. A scope is a
+comma-separated list of **`tag`**, **`.class`** or **`#id`**, matched against
+the text node's own parent and its ancestors.
+
+**Unscoped entries stay legal, deliberately.** Most exemptions are not
+ambiguous — a product name or `Hz` says the same thing everywhere it appears —
+and demanding a scope there is noise that teaches people to write one without
+thinking.
+
+**A scope is REQUIRED in exactly one situation: a string that is exempt AND
+keyed on the same page.** That is the one state in which the gate cannot tell a
+deliberate skip from a label somebody forgot, because both look identical to a
+text match. `check-i18n` assertion 14 enforces that and nothing more.
+
+## Why three forms and no more
+
+The scope language was chosen **after** looking at the data, not before. The
+five ambiguous strings in the repo needed exactly three shapes between them:
+`option`, `.knob-value`, `.title-accent`. `scanHtml` already gives every node
+its parent chain, `id`, `tag` and `classes`, so those three cost nothing. A
+full CSS engine would be a second parser to keep in step with the first.
+
+## What was scoped, so the repo never went red
+
+| Plugin | String | Scope |
+|---|---|---|
+| O-Detune | `Random` | `option` |
+| O-Lyrica | `Off` | `option` |
+| O-MultiBandCompressor | `Off` | `.knob-value` |
+| O-ReverseDelay | `Delay` | `.title-accent` |
+| O-simpleGrain | `Grain` | `.title-accent` |
+
+All five landed in the SAME commit as the assertion, so contract §8 — a gate is
+never red for a whole rollout — holds. `--strict-v2`: 28 plugins, ALL CHECKS
+PASS. `check-ui-labels` exits 0 on all five.
+
+**Two of those five reasons already carried a hand-written WARNING** saying the
+entry also silences some other element. Those warnings are now ENFORCED rather
+than advisory. The brief tells the remaining dispatches: **if you catch
+yourself writing that warning, write a scope instead.**
+
+## No version bumps, and why
+
+`I18N_EXEMPT` has **no runtime consumer**. The canon imports `LANGUAGES`,
+`I18N`, `LABELS`, `TIP_BINDINGS` and `tr`; the three controllers that mention
+`I18N_EXEMPT` mention it only in comments. The rendered UI is unchanged, so
+bumping five shipped plugins would be a user-visible version change for no
+user-visible reason. The embedded copies differ from source by an unused array
+field until each plugin's next build.
+
+## The controls that make this real
+
+1. O-Detune with `label.random`'s key stripped and bare English left on the
+   page — **the exact case that PASSED before** — now FAILS
+   `[10] 1 uncovered: Random @span`.
+2. A scope pointed at a class that exists nowhere stops exempting: the two
+   legitimate `<option>` nodes go uncovered. **The scope is really evaluated,
+   not decoration.**
+3. Removing the scope from an ambiguous entry FAILS assertion 14 by name.
+4. The same missed-label case on a different scope shape — O-ReverseDelay,
+   `.title-accent` — FAILS `[10] Delay @div`.
+
+All restores checksum-verified.
+
+## The one thing this does NOT close
+
+**A scope cannot be evaluated for a JS-written string**, because a row from
+`extractJsRows` has no element to match against. Assertion 12 therefore still
+matches exemptions by text alone. No plugin needs it today; it is named here so
+it is not rediscovered as a surprise.
