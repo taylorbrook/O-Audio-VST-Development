@@ -152,7 +152,27 @@
             background: rgba(255, 248, 220, 0.8);
         }
 
+        /* v1.7.0: WIDTH PIN, LOAD-BEARING. .header is `justify-content:
+           space-between`, so .preset-bar is anchored to the RIGHT and every
+           child of it slides when the bar's width changes. These two buttons
+           are the only shrink-to-fit boxes in the bar, and BOTH French captions
+           are SHORTER than their English (SAVE 26.83 -> ENR 21.50, LOAD 29.78
+           -> LIRE 24.22): unpinned, the bar CONTRACTS by 10.89 px and
+           #prevPreset, #presetName and #nextPreset all move 10.89 px right.
+           Four of twelve findings in one earlier stage were shrink rather than
+           growth, and this is one of them.
+
+           Each pin is its own English BORDER box rounded up — 44.83 -> 45 and
+           47.78 -> 48 — so English grows 0.17 px and 0.22 px, and the header's
+           114.06 px of slack absorbs the 0.39 px without reflowing the title.
+           box-sizing is border-box globally, so the content boxes are 27 px and
+           30 px and both French captions sit inside them with 5.50 px and
+           5.78 px to spare.
+
+           NEGATIVE CONTROL RUN: removed alone, assertion 7 fails by name on
+           #prevPreset, #presetName and #nextPreset. */
         .preset-save-btn {
+            width: 45px;
             padding: 3px 8px;
             background: rgba(107, 142, 35, 0.3);
             border: 1px solid #3C5C1A;
@@ -225,7 +245,10 @@
         }
 
         /* Load button style */
+        /* v1.7.0: WIDTH PIN, LOAD-BEARING — see .preset-save-btn above for the
+           measurement and the negative control. 47.78 -> 48. */
         .preset-load-btn {
+            width: 48px;
             padding: 3px 8px;
             background: rgba(107, 142, 35, 0.3);
             border: 1px solid #3C5C1A;
@@ -329,11 +352,34 @@
             gap: 15px;
         }
 
+        /* v1.7.0: WIDTH PIN, LOAD-BEARING — and load-bearing on its WIDTH, not
+           on anything's position. The column is shrink-to-fit, so a caption
+           wider than the 60 px knob widens the column: PROFONDEUR is 64.05 px
+           against VITESSE's 38.52, so the depth column alone grows 4.00 px and
+           its box slides 2.00 px left as .knobs-row re-centres it.
+
+           #depthKnob ITSELF DOES NOT MOVE, and that was measured rather than
+           assumed — the first draft of this comment claimed it shifted 2.03 px
+           and the negative control disproved it. The knob is centred in the
+           column and the column is centred in the row, so the two centrings
+           cancel and the knob stays at x 83.00 either way. The pin is still
+           required: judged on its FULL delta rather than on dx, dw = 4.00 px on
+           the box the caption owns is four times the 0.5 px tolerance.
+
+           60 px is a NO-OP IN ENGLISH: the column already measures exactly
+           60.00, because the knob is 60 px and both English captions are
+           narrower. In French the caption overhangs the column symmetrically
+           and stays centred on the knob, which is where it is centred in
+           English too.
+
+           NEGATIVE CONTROL RUN: removed alone, assertion 7 fails by name on
+           div.knob-container.depth-knob-container, dx=-2.0 dw=4.0. */
         .knob-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
+            width: 60px;
         }
 
         .depth-knob-container {
@@ -618,22 +664,206 @@
             font-size: 8px;
             letter-spacing: 1px;
         }
+
+        /* ── v1.7.0: the settings cluster ────────────────────────────────────
+           PLACEMENT IS THE BOTTOM-RIGHT CORNER, chosen against the v1.6.0 rect
+           sweep so that NOT ONE existing element moves to make room: the
+           cluster is position:absolute and out of flow, and it sits in the
+           144 px of unused flex space to the right of .right-panel.
+
+           .controls-section is 554 px wide and hands out 180 + 30 + 200 = 410,
+           so x 433..577 carries no laid-out control at any height. The gear
+           occupies x 571..591, y 374..394; the nearest real content is
+           #smoothingSlider, which ends at x 397.50, and .footer-brand's text
+           span, which ends at x 317.80. The only things crossing the strip are
+           the paper background and the botanical overlay — the overlay is
+           pointer-events:none and ends at y 340.36, above the gear entirely.
+
+           BOTTOM-LEFT WAS MEASURED AND REJECTED. The popover opens upward, and
+           from the left corner it would land on x 4..174, y 332..366 — straight
+           over #depthKnob (x 83..143, y 293..353). The right corner has the
+           room; the left one only looks like it does.
+
+           The plugin's own visual system, not a pasted-in widget: Garamond,
+           #5C4033 borders, the olive rgba(139,168,112) of .toggle-button and
+           the cream rgba(255,248,220) of .preset-dropdown. */
+        .settings-cluster {
+            position: absolute;
+            right: 6px;
+            bottom: 6px;
+            z-index: 60;
+        }
+
+        .gear-btn {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #5C4033;
+            border-radius: 50%;
+            color: #3C2F2F;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .gear-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .gear-btn[aria-expanded="true"] {
+            background: rgba(139, 168, 112, 0.6);
+        }
+
+        .gear-btn:focus-visible {
+            outline: 2px solid #8BA870;
+            outline-offset: 2px;
+        }
+
+        /* Opens UPWARDS and to the LEFT. The gear sits 6 px from the BOTTOM of
+           a 400 px frame and 6 px from the right edge, so a panel below or to
+           the right of it would leave the frame; up-and-left it occupies
+           x 475..591, y 313..363 — inside the frame and clear of every laid-out
+           control. The only thing under it is .botanical-overlay, which is
+           decorative and pointer-events: none, so the opaque panel simply draws
+           over the illustration for as long as it is open.
+
+           THE ROW IS STACKED, NOT SIDE BY SIDE, and that is a measured decision
+           rather than a style preference. The side-by-side form this batch uses
+           elsewhere needs LANGUAGE (63.55) + 8 gap + the select (62.00) =
+           133.55 px of row, which forces the panel to 156 px minimum; at
+           156 px the row has 0.45 px of slack, and any panel wide enough to
+           carry real slack (170 px, the batch's number) reaches x 421 and
+           overlaps #waveformCanvas, which ends at x 433. The FIRST draft here
+           was a 150 px side-by-side panel and it FAILED: the English row
+           overflowed its own 128 px box, so `space-between` had nothing to
+           distribute, and the shorter French pulled #lang-select 5.5 px LEFT.
+           Stacking removes the competition entirely — the caption and the
+           select no longer share a line, so neither one's width can move the
+           other.
+
+           WIDTH IS PINNED, and this pin is LOAD-BEARING. .settings-popover is
+           not a [data-i18n] element, so assertion 7 measures its box in both
+           languages, and unpinned it is shrink-to-fit over the CAPTION ALONE:
+           the select is `width: 100%`, and a percentage width contributes
+           nothing to a shrink-to-fit parent's intrinsic size, so it cannot
+           floor the panel. LANGUAGE 63.55 -> LANGUE 47.11 therefore contracts
+           the panel, its row AND the stretched select by the caption's whole
+           16.44 px. The hard 116 px makes the rectangle language-invariant by
+           construction and leaves the 94 px row 30.45 px clear of the English
+           caption.
+
+           NEGATIVE CONTROL RUN: removed alone, assertion 7 fails by name on
+           #settings-popover, .settings-row and #lang-select, each
+           dx=16.4 dw=-16.4 — measured, not the 1.55 px this comment's first
+           draft predicted from a select that turned out not to count. */
+        .settings-popover {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            right: 0;
+            z-index: 61;
+            width: 116px;
+            padding: 7px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(255, 248, 220, 0.98);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .settings-popover[hidden] {
+            display: none;
+        }
+
+        .settings-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
+        }
+
+        /* nowrap because a caption that wrapped would grow the row's height and
+           push the select below it down — and the panel is height-FREE, so the
+           growth lands on whatever the panel is drawn over rather than
+           spilling or pushing anything.
+
+           A GUARD, NOT A PIN, and labelled as such: removed alone on the
+           shipped strings the gate is still green (LANGUAGE is 63.55 in a 94 px
+           row and LANGUE 47.11), so its negative control PASSES and it is not
+           claimed as a fix. It was still PLANTED, because this popover is the
+           page's one absolutely-positioned, width-pinned, height-FREE box — the
+           mechanism assertion 8b exists for. The plant result is in the
+           report. */
+        .settings-label {
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* Stretched to the row rather than shrink-to-fit, so the select's own
+           box is pinned by .settings-popover's width and cannot follow the
+           caption's length in either language. */
+        .settings-select {
+            width: 100%;
+            padding: 1px 3px;
+            background: rgba(255, 248, 220, 0.6);
+            border: 1px solid #5C4033;
+            border-radius: 2px;
+            color: #3C2F2F;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-select:focus-visible {
+            outline: 2px solid #8BA870;
+            outline-offset: 1px;
+        }
     </style>
 </head>
 <body>
     <div class="plugin-container">
-        <img src="img/paper.jpg" alt="Background" class="background">
-        <img src="img/carrot.png" alt="Botanical" class="botanical-overlay">
+        <img src="img/paper.jpg" data-i18n-alt="alt.background" alt="Background" class="background">
+        <img src="img/carrot.png" data-i18n-alt="alt.botanical" alt="Botanical" class="botanical-overlay">
 
         <div class="content">
             <div class="header">
+                <!-- NOT a [data-i18n] element: a product name is never
+                     translated. Declared in I18N_EXEMPT with that reason, so a
+                     genuinely missed label cannot hide here as a deliberate
+                     one. -->
                 <h1 class="title">O-Tremolo</h1>
                 <div class="preset-bar">
-                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
-                    <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
-                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&gt;</button>
-                    <button class="preset-load-btn" id="loadPreset" title="Load preset from file">Load</button>
-                    <button class="preset-save-btn" id="savePreset" title="Save current settings">Save</button>
+                    <!-- v1.7.0: the five native title= attributes that stood
+                         here are DELETED, not localized (contract §4). Their
+                         existing English moved verbatim into data-i18n-aria;
+                         no new prose was invented, and this plugin's own
+                         wording ("Load preset from file" / "Save current
+                         settings") was kept rather than harmonised with a
+                         sibling's shorter form. -->
+                    <button class="preset-nav-btn" id="prevPreset"
+                            data-i18n-aria="aria.prevPreset" aria-label="Previous preset">&lt;</button>
+                    <span class="preset-name" id="presetName"
+                          data-i18n-aria="aria.presetList" aria-label="Click to see all presets">Default</span>
+                    <button class="preset-nav-btn" id="nextPreset"
+                            data-i18n-aria="aria.nextPreset" aria-label="Next preset">&gt;</button>
+                    <button class="preset-load-btn" id="loadPreset"
+                            data-i18n="label.load" data-label="Load"
+                            data-i18n-aria="aria.loadPreset" aria-label="Load preset from file">Load</button>
+                    <button class="preset-save-btn" id="savePreset"
+                            data-i18n="label.save" data-label="Save"
+                            data-i18n-aria="aria.savePreset" aria-label="Save current settings">Save</button>
                     <div class="preset-dropdown" id="presetDropdown"></div>
                 </div>
             </div>
@@ -641,8 +871,10 @@
             <div class="controls-section">
                 <div class="left-panel">
                     <div class="buttons-row">
-                        <button class="toggle-button" id="panButton">Pan Sync</button>
-                        <button class="toggle-button" id="tempoButton">Tempo Sync</button>
+                        <button class="toggle-button" id="panButton"
+                                data-i18n="label.panSync" data-label="Pan Sync">Pan Sync</button>
+                        <button class="toggle-button" id="tempoButton"
+                                data-i18n="label.tempoSync" data-label="Tempo Sync">Tempo Sync</button>
                     </div>
 
                     <div class="knobs-row">
@@ -650,14 +882,14 @@
                             <div class="knob" id="speedKnob">
                                 <div class="knob-indicator" id="speedIndicator"></div>
                             </div>
-                            <div class="knob-label">Speed</div>
+                            <div class="knob-label" data-i18n="label.speed" data-label="Speed">Speed</div>
                             <div class="knob-value" id="speedValue">4.5 Hz</div>
                         </div>
                         <div class="knob-container depth-knob-container">
                             <div class="knob" id="depthKnob">
                                 <div class="knob-indicator" id="depthIndicator"></div>
                             </div>
-                            <div class="knob-label">Depth</div>
+                            <div class="knob-label" data-i18n="label.depth" data-label="Depth">Depth</div>
                             <div class="knob-value" id="depthValue">75%</div>
                         </div>
                     </div>
@@ -665,7 +897,7 @@
 
                 <div class="right-panel">
                     <div class="waveform-section">
-                        <label class="section-label">Waveform</label>
+                        <label class="section-label" data-i18n="label.waveform" data-label="Waveform">Waveform</label>
                         <select class="waveform-selector" id="waveformSelect">
                             <option value="0">Sine</option>
                             <option value="1">Triangle</option>
@@ -681,16 +913,44 @@
                     </div>
 
                     <div class="slider-container">
-                        <label class="section-label">Smoothing</label>
+                        <label class="section-label" data-i18n="label.smoothing" data-label="Smoothing">Smoothing</label>
                         <input type="range" min="0" max="100" value="30" class="slider" id="smoothingSlider">
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- NOT a [data-i18n] element: a company name is never translated, and
+             #versionLabel is filled at runtime with a version number, which is
+             a readout (D-03). Both are declared in I18N_EXEMPT with reasons. -->
         <div class="footer-brand">
             <span>Ouaricon Audio</span>
             <span class="version" id="versionLabel"></span>
+        </div>
+
+        <!-- v1.7.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to toggle — authoring that copy is Stage M's job and
+             this commit does not invent it. Positioned absolutely in the empty
+             144 px strip to the right of .right-panel so that no existing
+             element moves to make room. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
         </div>
     </div>
 
@@ -698,7 +958,177 @@
     <script type="module" src="js/juce/check_native_interop.js"></script>
     <script type="module">
         import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
+        // The JUCE 8 frontend NAMESPACE, imported alongside the four named
+        // bindings this page already used. Juce.getNativeFunction is the only
+        // correct way to reach a withNativeFunction registration —
+        // window.__JUCE__ is the raw postMessage transport and does not carry
+        // the promise contract
+        // (critical_juce_webview_namespace_vs_postmessage). Two import
+        // statements from one specifier is legal ES and leaves every existing
+        // call site below untouched.
+        import * as Juce from './js/juce/index.js';
         import { PresetManager } from './modules/preset-manager.js';
+
+        // ====================================================================
+        // v1.7.0 — the i18n runtime, canon v2 (scripts/i18n-canon.js).
+        //
+        // The import specifier is './js/i18n.js' rather than './i18n.js':
+        // this controller is an INLINE module living at the UI root, not a file
+        // in js/. check-i18n assertion 6 accepts that re-rooted form for an
+        // inline module and only that form.
+        //
+        // PLACED AT THE TOP OF THE MODULE, not the bottom. Nothing here reaches
+        // forward into anything declared below, and putting the definitions
+        // first means a future top-level read of trLabel() during module
+        // evaluation cannot hit the temporal dead zone — the ReferenceError
+        // that takes an ENTIRE inline-module UI with it rather than one panel
+        // (pattern_module_toplevel_init_tdz).
+        //
+        // Only DEFINITIONS live here. initI18n() is still CALLED at the very
+        // bottom of the DOMContentLoaded handler, after every parameter
+        // binding, so an i18n failure leaves an English plugin that still works
+        // rather than a dead page.
+        // ====================================================================
+        import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // ====================================================================
+        // v1.7.0 — the settings popover. Open/close only; the language <select>
+        // inside it is wired by initI18n() above, which is the canon's job and
+        // not this function's.
+        //
+        // The popover opens UPWARDS and to the LEFT: the gear is 6 px from the
+        // bottom-right corner of a 600 x 400 frame.
+        // ====================================================================
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover: markup missing');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsOpen(settingsPopoverEl.hidden);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
+        }
 
         // JUCE Parameter States
         let speedState, depthState, waveformState, smoothingState, panSyncState, tempoSyncState, syncDivisionState;
@@ -816,7 +1246,12 @@
                 if (presets.length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'preset-dropdown-item';
-                    empty.textContent = 'No presets available';
+                    // v1.7.0: setLabel(), not textContent. The element becomes a
+                    // [data-i18n] element the moment it is written, so the
+                    // language sweep owns it from then on and it cannot be
+                    // stranded in the previous language when the selector fires
+                    // (contract §3).
+                    setLabel(empty, 'label.noPresets');
                     empty.style.fontStyle = 'italic';
                     empty.style.color = '#888';
                     presetDropdown.appendChild(empty);
@@ -838,11 +1273,30 @@
 
                 const current = presetManager.getCurrentPreset();
 
-                const addSection = (headerText, names, isFactory) => {
+                // v1.7.0: the section header takes a WRITER, not a string. The
+                // caller used to pass the English literal 'Factory' / 'User'
+                // straight through to textContent; each call site now writes
+                // its own header with a setLabel() key, so the two headers
+                // re-render in the right language when the selector fires.
+                //
+                // WHY A CALLBACK RATHER THAN A KEY ARGUMENT. Threading the key
+                // through the helper would make the setLabel key a VARIABLE at
+                // the single call site inside it, and check-i18n assertion 13
+                // rejects a computed setLabel key on purpose: a key it cannot
+                // read statically is a key it cannot prove resolves, and a raw
+                // English copy string passed there would ship untranslated
+                // while every gate stayed green. The literal belongs where the
+                // caller can see it.
+                //
+                // The PRESET NAMES below stay a plain textContent write: a
+                // preset name IS the JSON filename on disk (D-02), so
+                // localizing one would rename presets in one language and
+                // orphan the files saved under the other.
+                const addSection = (writeHeader, names, isFactory) => {
                     if (names.length === 0) return;
                     const header = document.createElement('div');
                     header.className = 'preset-dropdown-header';
-                    header.textContent = headerText;
+                    writeHeader(header);
                     presetDropdown.appendChild(header);
 
                     names.forEach(presetName => {
@@ -860,8 +1314,8 @@
                     });
                 };
 
-                addSection('Factory', factoryNames, true);
-                addSection('User', userNames, false);
+                addSection((el) => setLabel(el, 'label.factory'), factoryNames, true);
+                addSection((el) => setLabel(el, 'label.user'), userNames, false);
 
                 presetDropdown.classList.add('show');
             }
@@ -886,6 +1340,13 @@
                     hidePresetDropdown();
                 }
             });
+
+            // v1.7.0: the settings popover, then the language runtime — BOTH
+            // LAST, after every parameter binding above. An i18n failure here
+            // therefore leaves an English plugin that still works rather than a
+            // dead page.
+            initSettingsPopover();
+            initI18n();
         });
 
         // Knob setup with JUCE binding (Pattern #16: Relative drag, Pattern #15: No callback params)

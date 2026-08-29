@@ -69,6 +69,27 @@ public:
     // Returns the last-seen host BPM, or the 120.0 default if the host never reported one.
     double getHostBpm() const { return hostBpm.load(); }
 
+    // ------------------------------------------------------------------------
+    // v1.7.0: THE UI LANGUAGE.
+    //
+    // Held as an atomic int because the editor's native functions read and write
+    // it from the message thread while getStateInformation may run from another;
+    // the PERSISTED form stays a readable language code ("en"/"fr") through the
+    // two-function codec below.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their plugin in. It rides the APVTS state tree as a
+    // non-parameter property instead.
+    // ------------------------------------------------------------------------
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
