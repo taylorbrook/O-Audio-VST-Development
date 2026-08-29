@@ -246,6 +246,64 @@
             text-align: center;
         }
 
+        /* ===== GEOMETRY PIN B (v1.6.0) — the engine knobs =====
+
+           A .knob is shrink-to-fit: its width is max(knob face 52, knob-value
+           min-width 50, caption). DÉSACCORD, ÉTALEMENT and ALÉATOIRE all render
+           about 61 px, so in French the .knob box grows past the 52 px face and,
+           because .knob-container centres it, the FACE slides left inside its
+           91 px grid cell. The face is not a label, so assertion 7 reads that as
+           a French geometry failure.
+
+           width: 100% hands the .knob the whole grid cell instead. align-items:
+           center still centres the face, and (91 - 52) / 2 is the same offset the
+           shrink-to-fit box produced, so ENGLISH MOVES ZERO CHILDREN — probed,
+           not assumed. Any caption up to 91 px now fits without touching a face.
+
+           Scoped to .engine-controls: the blend, output and mix knobs live in
+           differently sized boxes and are pinned, or not, on their own terms.
+
+           IT IS NOT DECORATION. Reverted alone, assertion 7 reports the detune,
+           spread and random knob faces and their SVGs moved in French. */
+        .engine-controls .knob {
+            width: 100%;
+        }
+
+        /* ===== GEOMETRY PIN C (v1.6.0) — the feedback caption =====
+
+           The output row is `1fr auto auto auto 1fr`, so the width of any auto
+           column moves both 1fr columns and everything in them. #feedback_knob is
+           the one knob whose caption is wider than its own face and readout
+           (Feedback 54.3 > 50), so the caption alone sizes that column.
+
+           RETOUR is 41 px — THIRTEEN PIXELS NARROWER. A French string that
+           SHRINKS slides the row exactly as one that grows does, and a clip check
+           cannot see it. Pinning the caption to the English box keeps the column
+           at 55 px in both languages.
+
+           IT IS NOT DECORATION. Reverted alone, assertion 7 reports #feedback_knob
+           and its face, plus the slider container and the width readout, moved in
+           French. */
+        #feedback_knob .knob-label {
+            width: 55px;
+            text-align: center;
+        }
+
+        /* ===== GEOMETRY PIN D (v1.6.0) — the mono-safe caption =====
+
+           Same mechanism as pin C, in the neighbouring auto column: the
+           .toggle-container is 44 px of toggle + 8 px gap + the caption, so the
+           caption sizes the column. MONO-SÛR is narrower than MONO-SAFE.
+
+           Scoped to .output-row so the vertical Sync toggle, whose 36 px face is
+           wider than either caption, is left alone.
+
+           IT IS NOT DECORATION. Reverted alone, assertion 7 reports the mono-safe
+           toggle, its knob and the surrounding row moved in French. */
+        .output-row .toggle-container > .toggle-label {
+            width: 59px;
+        }
+
         /* Dropdown - Naturalist style */
         .dropdown-container {
             display: flex;
@@ -307,14 +365,41 @@
             gap: 6px;
         }
 
+        /* ===== GEOMETRY PIN E (v1.6.0) — the width caption and its readout =====
+
+           Contract section 5 split this node into a caption and a readout. The
+           two were laid out INLINE, left-packed, so the readout's x was the
+           caption's width: LARGEUR : is 16 px wider than WIDTH:, and
+           #width_value — which is not a label — slid 16 px right in French.
+           Assertion 7 reported it by name.
+
+           space-between anchors the readout to the RIGHT edge of the 87 px
+           slider column instead, which makes its position depend on its own
+           digits and on nothing else. Language-invariant by construction rather
+           than by a magic width, and the caption is then free to be as long as
+           French needs up to 87 px minus the readout.
+
+           IT IS NOT DECORATION. Reverted alone, assertion 7 reports
+           #width_value dx=16.0 in French.
+
+           The cost is 30 px of English: the readout moves from x = 78 to the
+           right edge of the column it already belonged to. */
         .slider-label {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
             font-size: 9px;
             letter-spacing: 0.8px;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
 
-        .slider-label span {
+        /* Narrowed from `.slider-label span` in v1.6.0. Contract section 5 split
+           the shared caption/readout node into two spans, and the old selector
+           would have restyled the CAPTION as a readout — muted, 10 px. There is
+           exactly one .slider-label on this page and exactly one readout inside
+           it, so naming the readout is what the rule always meant. */
+        .slider-label #width_value {
             color: var(--text-muted);
             font-size: 10px;
         }
@@ -496,7 +581,12 @@
         }
 
         .preset-action-btn {
-            padding: 2px 8px;
+            /* 6 px sides rather than 8. box-sizing is border-box globally and the
+               width below is pinned, so this changes NO outer rectangle - it only
+               widens the content box the caption sits in, from 42 to 46 px. It was
+               2.91 px of spare on OUVRIR before, the tightest margin on this page
+               and tight enough to matter under different font metrics. */
+            padding: 2px 6px;
             background: rgba(90, 122, 106, 0.2);
             border: 1px solid var(--panel-border);
             border-radius: 3px;
@@ -512,6 +602,30 @@
         .preset-action-btn:hover {
             background: rgba(90, 122, 106, 0.4);
             color: var(--text-primary);
+        }
+
+        /* ===== GEOMETRY PIN A (v1.6.0) — the preset action buttons =====
+
+           .header is `justify-content: space-between` with the logo pinned left
+           and .preset-bar pinned right, so every pixel LOAD or SAVE gains pushes
+           #prevPreset, #presetName and #nextPreset LEFTWARD. None of those three
+           is a [data-i18n] element, so check-ui-labels assertion 7 measures all
+           three and reports the shift as a French geometry failure.
+
+           A fixed width makes the row language-invariant by construction. 60 px
+           border-box leaves a 46 px content box (2 x 6 px padding, 2 x 1 px
+           border): LOAD 26.9, SAVE 25.0, OUVRIR 38.6, SAUVER 39.1 - so the
+           tightest French margin on this page is 6.9 px.
+
+           IT IS NOT DECORATION. Reverted alone, assertion 7 reports
+           #prevPreset / #presetName / #nextPreset moved by 31.9 px in French.
+
+           The cost is 32 px of English: the bar widens from 252 to 284 and its
+           left edge moves 328 -> 296, leaving a 14 px gap to the logo. That is a
+           deliberate space reservation, not a shift the French caused. */
+        .preset-action-btn {
+            width: 60px;
+            text-align: center;
         }
 
         .preset-dropdown {
@@ -557,6 +671,132 @@
             font-style: italic;
         }
 
+        /* ===== SETTINGS POPOVER (v1.6.0) =====
+
+           Styled in THIS page's vocabulary rather than pasted in: the
+           rgba(90,122,106,...) sage fill and --panel-border hairline of
+           .preset-nav-btn, the --paper-bg / --border-walnut panel of
+           .preset-dropdown, Georgia, 9 px uppercase with 0.5 px tracking.
+
+           BOTTOM-LEFT, ABSOLUTE, mirroring .version-label at bottom-right. The
+           container's flex column leaves 56 px of unused space below the output
+           panel (which ends at y = 408), so this strip is empty. Absolute
+           positioning inside #app means the cluster contributes NOTHING to any
+           flow box: the English before/after diff reports zero moved elements
+           and only the added ones.
+
+           The header was the other candidate and was rejected: it has 46 px of
+           slack between the logo and the preset bar, and pin A above already
+           spends 32 px of it. */
+        .settings-cluster {
+            position: absolute;
+            bottom: 6px;
+            left: 10px;
+            z-index: 60;
+        }
+
+        .gear-btn {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(90, 122, 106, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            color: var(--text-primary);
+            font-family: 'Georgia', serif;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            opacity: 0.6;
+        }
+
+        .gear-btn:hover {
+            background: rgba(90, 122, 106, 0.5);
+            opacity: 1;
+        }
+
+        .gear-btn[aria-expanded="true"] {
+            background: rgba(90, 122, 106, 0.55);
+            border-color: var(--accent-green-dark);
+            opacity: 1;
+        }
+
+        .gear-btn:focus-visible {
+            outline: 2px solid var(--accent-green);
+            outline-offset: 2px;
+        }
+
+        /* Opens UPWARDS: the gear sits 6 px from the bottom of a 480 px frame,
+           so a panel below it would leave the frame entirely.
+
+           WIDTH IS PINNED, not min-width. .settings-popover is not a [data-i18n]
+           element, so assertion 7 measures its box in BOTH languages and any
+           language-driven resize is a reported failure. A hard width makes the
+           panel's rect language-invariant by construction. 176 px holds the
+           English row (LANGUAGE + English) and the French one (LANGUE +
+           Fran&ccedil;ais) with room to spare, measured as rendered rather than
+           from a font probe: text-transform and letter-spacing are not in
+           getComputedStyle().font. */
+        .settings-popover {
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 0;
+            z-index: 61;
+            width: 176px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            background: var(--paper-bg);
+            border: 1px solid var(--border-walnut);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .settings-popover[hidden] {
+            display: none;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the control beside it. */
+        .settings-label {
+            font-size: 9px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 2px 4px;
+            background: rgba(245, 230, 211, 0.8);
+            border: 1px solid var(--border-walnut);
+            border-radius: 3px;
+            color: var(--text-primary);
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .settings-select:focus-visible {
+            outline: 2px solid var(--accent-green);
+            outline-offset: 1px;
+        }
+
         .version-label {
             position: absolute;
             bottom: 6px;
@@ -577,17 +817,65 @@
             <img src="assets/slug.png" alt="">
         </div>
 
-        <span class="version-label">v1.5.4</span>
+        <!-- v1.6.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to switch on or off - v1.5.4 carried no data-tip anywhere
+             and authoring that copy is Stage M's job, so the popover holds the
+             language selector alone. Bottom-left, mirroring the version label,
+             and the panel opens UPWARDS because the gear is 6 px from the bottom
+             of a 480 px frame. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <!-- data-label so a state updater that writes textContent reads
+                         the authored caption back instead of erasing it
+                         (pattern_js_state_updater_overwrites_html_labels). -->
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <span class="version-label">v1.6.0</span>
         <div class="container">
             <!-- Header -->
             <div class="header">
-                <div class="logo">Ouaricon <span>Detune</span></div>
+                <!-- The product name. "Ouaricon" is an I18N_EXEMPT entry (brand, unique on
+                     this page); "Detune" is KEYED with sameAsEn rather than exempted,
+                     because a text-matched exemption would also silence the unison
+                     detune knob caption, which does translate. -->
+                <div class="logo">Ouaricon <span data-i18n="label.productName" data-label="Detune">Detune</span></div>
+                <!-- v1.6.0: every native title= on this bar is DELETED per contract
+                     section 4. Each was the only help its element had, so each text
+                     moved verbatim to data-i18n-aria and was then translated. No new
+                     prose was invented here.
+
+                     #presetName keeps NO data-i18n: its text is a preset NAME, which
+                     is the JSON filename the preset manager reads back (D-02). It
+                     carries the accessible name only. -->
                 <div class="preset-bar">
-                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&#8249;</button>
-                    <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
-                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&#8250;</button>
-                    <button class="preset-action-btn" id="loadPreset" title="Load preset from file">Load</button>
-                    <button class="preset-action-btn" id="savePreset" title="Save current settings">Save</button>
+                    <button class="preset-nav-btn" id="prevPreset"
+                            data-i18n-aria="aria.prevPreset" aria-label="Previous preset">&#8249;</button>
+                    <span class="preset-name" id="presetName"
+                          data-i18n-aria="aria.presetList" aria-label="Click to see all presets">Default</span>
+                    <button class="preset-nav-btn" id="nextPreset"
+                            data-i18n-aria="aria.nextPreset" aria-label="Next preset">&#8250;</button>
+                    <button class="preset-action-btn" id="loadPreset"
+                            data-i18n="label.load" data-label="Load"
+                            data-i18n-aria="aria.loadPreset" aria-label="Load preset from file">Load</button>
+                    <button class="preset-action-btn" id="savePreset"
+                            data-i18n="label.save" data-label="Save"
+                            data-i18n-aria="aria.savePreset" aria-label="Save current settings">Save</button>
                     <div class="preset-dropdown" id="presetDropdown"></div>
                 </div>
             </div>
@@ -596,10 +884,12 @@
             <div class="engines-row">
                 <!-- Wobble Engine -->
                 <div class="panel engine-panel" id="wobble_panel">
-                    <div class="panel-label">Wobble</div>
+                    <div class="panel-label" data-i18n="label.wobble" data-label="Wobble">Wobble</div>
                     <div class="engine-controls">
                         <div class="dropdown-container">
-                            <span class="dropdown-label">Era</span>
+                            <span class="dropdown-label" data-i18n="label.era" data-label="Era">Era</span>
+                            <!-- The three captions are the wobble_era AudioParameterChoice
+                                 option strings VERBATIM — EXEMPT under D-01 arm 1. -->
                             <select class="dropdown" id="wobble_era">
                                 <option value="0">60s</option>
                                 <option value="1" selected>70s</option>
@@ -607,7 +897,8 @@
                             </select>
                         </div>
                         <div class="dropdown-container">
-                            <span class="dropdown-label">Shape</span>
+                            <span class="dropdown-label" data-i18n="label.shape" data-label="Shape">Shape</span>
+                            <!-- wobble_shape option strings VERBATIM — D-01 arm 1. -->
                             <select class="dropdown" id="wobble_shape">
                                 <option value="0" selected>Sine</option>
                                 <option value="1">Triangle</option>
@@ -623,14 +914,14 @@
                                             stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Rate</span>
+                                <span class="knob-label" data-i18n="label.rate" data-label="Rate">Rate</span>
                                 <span class="knob-value" id="wobble_rate_value">2.0 Hz</span>
                             </div>
                             <div class="toggle-container vertical">
                                 <div class="toggle" id="wobble_sync">
                                     <div class="toggle-knob"></div>
                                 </div>
-                                <span class="toggle-label">Sync</span>
+                                <span class="toggle-label" data-i18n="label.sync" data-label="Sync">Sync</span>
                             </div>
                         </div>
                         <div class="knob-container">
@@ -642,7 +933,7 @@
                                             stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Depth</span>
+                                <span class="knob-label" data-i18n="label.depth" data-label="Depth">Depth</span>
                                 <span class="knob-value" id="wobble_depth_value">25 ct</span>
                             </div>
                         </div>
@@ -651,7 +942,7 @@
 
                 <!-- Blend Control -->
                 <div class="blend-section">
-                    <span class="blend-label">Blend</span>
+                    <span class="blend-label" data-i18n="label.blend" data-label="Blend">Blend</span>
                     <div class="knob" id="blend_knob">
                         <div class="knob-visual large">
                             <svg viewBox="0 0 64 64">
@@ -666,10 +957,11 @@
 
                 <!-- Unison Engine -->
                 <div class="panel engine-panel" id="unison_panel">
-                    <div class="panel-label">Unison</div>
+                    <div class="panel-label" data-i18n="label.unison" data-label="Unison">Unison</div>
                     <div class="engine-controls">
                         <div class="dropdown-container">
-                            <span class="dropdown-label">Voices</span>
+                            <span class="dropdown-label" data-i18n="label.voices" data-label="Voices">Voices</span>
+                            <!-- unison_voices option strings VERBATIM (digits) — D-01 arm 1. -->
                             <select class="dropdown" id="unison_voices">
                                 <option value="0">2</option>
                                 <option value="1" selected>3</option>
@@ -679,7 +971,10 @@
                             </select>
                         </div>
                         <div class="dropdown-container">
-                            <span class="dropdown-label">Dist</span>
+                            <span class="dropdown-label" data-i18n="label.dist" data-label="Dist">Dist</span>
+                            <!-- unison_dist option strings VERBATIM — D-01 arm 1. The
+                                 "Random" here is an option; the Random KNOB caption below
+                                 is not, and is keyed. -->
                             <select class="dropdown" id="unison_dist">
                                 <option value="0" selected>Linear</option>
                                 <option value="1">Exp</option>
@@ -695,7 +990,7 @@
                                             stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Detune</span>
+                                <span class="knob-label" data-i18n="label.detune" data-label="Detune">Detune</span>
                                 <span class="knob-value" id="unison_detune_value">15 ct</span>
                             </div>
                         </div>
@@ -708,7 +1003,7 @@
                                             stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Spread</span>
+                                <span class="knob-label" data-i18n="label.spread" data-label="Spread">Spread</span>
                                 <span class="knob-value" id="unison_spread_value">75%</span>
                             </div>
                         </div>
@@ -722,7 +1017,7 @@
                                             stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Random</span>
+                                <span class="knob-label" data-i18n="label.random" data-label="Random">Random</span>
                                 <span class="knob-value" id="random_amt_value">15%</span>
                             </div>
                         </div>
@@ -734,7 +1029,12 @@
             <div class="panel">
                 <div class="output-row">
                     <div class="slider-container">
-                        <span class="slider-label">Width: <span id="width_value">100%</span></span>
+                        <!-- Contract section 5: the caption and the readout shared one node, so
+                             they are SPLIT and only the caption span carries a key.
+                             The colon rides inside the key because French sets a
+                             space before it and English does not. -->
+                        <span class="slider-label"><span class="slider-caption"
+                              data-i18n="label.width" data-label="Width:">Width:</span> <span id="width_value">100%</span></span>
                         <input type="range" class="slider" id="width" min="0" max="200" value="100">
                     </div>
 
@@ -748,7 +1048,7 @@
                                             stroke-dasharray="113.1" stroke-dashoffset="113.1"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Pre-Dly</span>
+                                <span class="knob-label" data-i18n="label.preDelay" data-label="Pre-Dly">Pre-Dly</span>
                                 <span class="knob-value" id="delay_value">0 ms</span>
                             </div>
                         </div>
@@ -761,7 +1061,7 @@
                                             stroke-dasharray="113.1" stroke-dashoffset="113.1"/>
                                     </svg>
                                 </div>
-                                <span class="knob-label">Feedback</span>
+                                <span class="knob-label" data-i18n="label.feedback" data-label="Feedback">Feedback</span>
                                 <span class="knob-value" id="feedback_value">0%</span>
                             </div>
                         </div>
@@ -771,7 +1071,7 @@
                         <div class="toggle large active" id="mono_safe">
                             <div class="toggle-knob"></div>
                         </div>
-                        <span class="toggle-label">Mono-Safe</span>
+                        <span class="toggle-label" data-i18n="label.monoSafe" data-label="Mono-Safe">Mono-Safe</span>
                     </div>
 
                     <div class="knob-container" style="align-items: flex-end;">
@@ -783,7 +1083,7 @@
                                         stroke-dasharray="169.65" stroke-dashoffset="84.82"/>
                                 </svg>
                             </div>
-                            <span class="knob-label">Mix</span>
+                            <span class="knob-label" data-i18n="label.mix" data-label="Mix">Mix</span>
                             <span class="knob-value" id="mix_value">50%</span>
                         </div>
                     </div>
@@ -794,7 +1094,23 @@
 
     <script type="module">
         import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from '/js/juce/index.js';
+        // The JUCE 8 frontend NAMESPACE, imported alongside the named bindings this
+        // page already used. Juce.getNativeFunction is the only correct way to reach
+        // a withNativeFunction registration - window.__JUCE__ is the raw postMessage
+        // transport and does not carry the promise contract
+        // (critical_juce_webview_namespace_vs_postmessage). Two import statements
+        // from one specifier is legal ES and leaves the call sites below untouched.
+        import * as Juce from '/js/juce/index.js';
         import { PresetManager } from '/modules/preset-manager.js';
+
+        // v1.6.0: the label table. The canonical import line, re-rooted from
+        // './i18n.js' to './js/i18n.js' because this plugin's controller is an
+        // inline <script type="module"> at the UI root rather than a js/app.js.
+        // check-i18n assertion 6 accepts exactly that one substitution and nothing
+        // else. I18N and TIP_BINDINGS are both EMPTY here (this page has no
+        // hover-help) and are imported anyway so the canon block below stays
+        // byte-identical to the other forty-two copies.
+        import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
         // Get slider states from JUCE
         const sliderStates = {
@@ -1244,6 +1560,170 @@
                 presetDropdown.appendChild(item);
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // Byte-compared by check-i18n assertion 6 after comment stripping and
+        // whitespace normalisation. Do not edit it here; edit the canon and
+        // every copy together, which is the whole point of holding it as data.
+        //
+        // It sits at the END of the module, below every existing initializer,
+        // and is REACHED only through the guarded initI18n() call further down.
+        // A top-level statement up here that touched a lower `let` would be a
+        // TDZ throw taking every later initializer with it, and on this plugin
+        // "every later initializer" is the entire UI — the controller is one
+        // inline module, not a file that can fail in isolation
+        // (pattern_module_toplevel_init_tdz).
+
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // The settings popover (v1.6.0)
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // ONE row: this plugin has no hover-help to switch on or off, and
+        // authoring that copy is Stage M's job. The panel opens UPWARDS because
+        // the gear is 6 px from the bottom of a 480 px frame.
+
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsPopoverOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initializeSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover missing - language selector unavailable');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsPopoverOpen(settingsPopoverEl.hidden);
+            });
+
+            // Dismiss on a press anywhere else, and on Escape. mousedown rather
+            // than click, so the panel is gone before a knob drag underneath it
+            // begins — this page starts a knob drag on mousedown.
+            document.addEventListener('mousedown', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsPopoverOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsPopoverOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
+        }
+
+        // Guarded, and LAST. Every parameter binding and the preset manager above
+        // have already run, so an i18n failure leaves an English plugin that still
+        // works rather than a dead page.
+        initializeSettingsPopover();
+        try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
     </script>
 </body>
 </html>
