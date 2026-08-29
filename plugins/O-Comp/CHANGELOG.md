@@ -2,6 +2,55 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.6.0] - 2026-08-29
+
+The page speaks French. Stage K batch K3 of the repo-wide i18n rollout, canon v2.
+
+### Added
+
+- **A French UI, selectable from a gear popover at the top of the frame.** 22 label
+  strings, 7 accessible names and the 3 canvas-painted captions. `Source/ui/public/js/i18n.js`
+  holds both languages; the canon v2 runtime block in `index.html` is byte-identical to
+  `scripts/i18n-canon.js` and gated by `check-i18n` assertion 6.
+- **The language choice persists with the session.** `getUiLanguage` / `setUiLanguage`
+  native functions, and a non-parameter `uiLanguage` property on the APVTS state tree —
+  read back with `isVoid()`, never `isBool()`, because the XML round-trip rebuilds every
+  property as a string `var` (`critical_valuetree_xml_roundtrip_loses_type`). Deliberately
+  not an `AudioParameterChoice`: it must not appear in an automation lane, and a preset
+  must not be able to change which language somebody reads their plugin in.
+- **The three strings painted into `#envelopeCanvas` are localized too** — `Envelope`,
+  `Gain Reduction` and the live `GR:` readout. A canvas string has no element, so it is
+  invisible to both gates: `check-i18n` walks text nodes and `textContent` writes and
+  reaches `fillText` through neither. They are housed in `I18N` with an empty body (the
+  O-Polystutter shape for a homeless string) and read through `trLabel()` inside the render
+  loop, so they follow the selector on the next animation frame.
+
+### Changed
+
+- **`.preset-action-btn` now declares `padding: 0`.** These are `<button>`s with no padding
+  declared, so they inherited the UA default `1px 6px`; under the universal
+  `box-sizing: border-box` that left an **18px content box inside a 32px button**, and the
+  English caption "Load" renders 18.5px of text. The shipped v1.5.0 button was already over
+  its own content box in English. Nothing moves: border-box with a pinned width, and the
+  caption is centred by `justify-content` rather than by the padding.
+- The five native `title=` attributes on the preset bar are **deleted**, per the i18n
+  contract §4 — a native title renders a second, untranslated OS tooltip. Their text moved
+  to `data-i18n-aria`; no new prose was invented. Label-in-name (WCAG 2.5.3) now holds in
+  both languages: "Ouvrir" inside "Ouvrir un préréglage", "Sauver" inside "Sauver un
+  préréglage".
+- The console banner said `v1.4.0` on a v1.5.0 build. It now says v1.6.0.
+
+### Notes
+
+- **All French is a machine draft; every entry is flagged `reviewed: false`.** No native
+  speaker has read it. `label.release` in particular ships as "Relâche" rather than the
+  fuller "Relâchement", because the latter measures 62.92px into a 52px knob column and
+  slides that knob 5.45px out of line with the other five — proven by reverting to it and
+  watching `check-ui-labels` assertion 7 name the knob, the vine arc and the value readout.
+- Geometry: **zero existing elements moved** between v1.5.0 English and v1.6.0 English, and
+  **zero non-label elements moved** between English and French. French SHRANK on three of
+  the seven knob captions.
+
 ## [1.5.0] - 2026-07-01
 
 Bundled resolution of code-review findings CR-01 and WR-01/02/03 (see `.planning/REVIEW.md`).

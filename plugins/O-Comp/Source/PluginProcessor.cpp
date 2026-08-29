@@ -313,6 +313,15 @@ juce::AudioProcessorEditor* OCompAudioProcessor::createEditor()
 
 void OCompAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
+    // v1.6.0: the UI language rides the same tree as one more plain property.
+    // Written BEFORE getStateAsXml(), because that method serialises
+    // parameters.copyState() and would otherwise take a snapshot without it.
+    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means.
+    parameters.state.setProperty("uiLanguage",
+                                 languageCode(uiLanguage.load(std::memory_order_acquire)),
+                                 nullptr);
+
     // Use preset manager for complete state (includes current preset name)
     auto xml = presetManager.getStateAsXml();
     if (xml != nullptr)
@@ -325,6 +334,26 @@ void OCompAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 
     if (xmlState != nullptr)
         presetManager.setStateFromXml(xmlState.get());
+
+    // v1.6.0: the UI language. Read AFTER setStateFromXml, which calls
+    // parameters.replaceState() and therefore rebuilds the whole tree.
+    //
+    // isVoid() is the ONLY correct guard and toString() the only correct read.
+    // getStateInformation writes a STRING var, but even a bool or int written
+    // there would not survive: the XML round-trip does not preserve the type,
+    // because NamedValueSet::setFromXmlAttributes rebuilds every property as
+    // `var (value)` over the attribute STRING
+    // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.6.0 session has no
+    // such property at all and the default (English) stands. languageIndex()
+    // clamps anything that is not "fr" to 0, so a hand-edited value degrades to
+    // English rather than to a bad index.
+    //
+    // The editor PULLS this through the getUiLanguage native fn at page init
+    // rather than being pushed from here — a push would race the WebView's load.
+    const juce::var lang = parameters.state.getProperty("uiLanguage");
+
+    if (! lang.isVoid())
+        uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
 }
 
 // DSP Helper Methods
