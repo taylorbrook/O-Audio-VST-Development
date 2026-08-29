@@ -438,6 +438,130 @@
         }
         .about-link:hover { color: var(--green-mid); }
 
+        /* ====================================================================
+           Settings Popover (v1.1.0)
+
+           Styled in THIS page's naturalist vocabulary rather than pasted in
+           from another plugin: the header strip's own --brown-frame ground, the
+           --bg-paper ink it already prints on, EB Garamond, uppercase, 1.2px
+           tracking — the same four rules .header-subtitle and .section-label
+           are already built from.
+
+           The cluster is the LAST flex item in .header-bar, after the subtitle,
+           which is the only place on this page a global control belongs: the
+           tab bar under it is three flex:1 buttons and the tab panels below
+           scroll. The subtitle keeps its `margin-left: auto` and therefore
+           slides left by the cluster's width plus the bar's 10px gap; that is
+           the ONLY element the v1.0.0 -> v1.1.0 English diff moves.
+           ==================================================================== */
+        .settings-cluster {
+            position: relative;
+            display: flex;
+            align-items: center;
+            z-index: 20;
+        }
+
+        .gear-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid var(--brown-frame-light);
+            border-radius: 50%;
+            color: var(--bg-paper);
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .gear-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+        .gear-btn[aria-expanded="true"] {
+            background: var(--green-mid);
+            border-color: var(--green-light);
+        }
+
+        .gear-btn:focus-visible {
+            outline: 2px solid var(--green-light);
+            outline-offset: 2px;
+        }
+
+        /* Opens DOWNWARDS and to the left. The gear sits inside a 36px header
+           strip at the top of a 600px frame, so a panel above it would leave
+           the frame entirely.
+
+           WIDTH IS PINNED, not min-width. .settings-popover is not a
+           [data-i18n] element, so check-ui-labels assertion 7 measures its box
+           in BOTH languages and any language-driven resize is a reported
+           failure. A hard width makes the panel's rect language-invariant by
+           construction, and 190px holds LANGUAGE + English and LANGUE +
+           Français with room to spare — measured as rendered, because
+           text-transform and letter-spacing are not in
+           getComputedStyle().font. */
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 21;
+            width: 190px;
+            padding: 9px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg-paper);
+            border: 1px solid var(--brown-border);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px var(--shadow-hard);
+        }
+
+        .settings-popover[hidden] { display: none; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the control beside it. */
+        .settings-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--brown-text-light);
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 2px 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--brown-border);
+            border-radius: 3px;
+            color: var(--brown-text);
+            font-family: inherit;
+            font-size: 10.5px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-select:focus-visible {
+            outline: 2px solid var(--green-mid);
+            outline-offset: 1px;
+        }
+
+        /* The About card's version row, split into a caption and a number in
+           v1.1.0 so the shipping version never sits inside a translated string
+           (contract §5). Inline-block on the two spans keeps them on one line
+           with a single authored space between them. */
+        .about-version-number { font-variant-numeric: tabular-nums; }
+
     </style>
 </head>
 <body>
@@ -449,17 +573,50 @@
          Header
          ================================================================ -->
     <div class="header-bar">
+        <!-- NOT a [data-i18n] element: a product name is never translated. It
+             is declared in I18N_EXEMPT with that reason, so a genuinely missed
+             label cannot hide here as a deliberate one. -->
         <span class="header-title">O-Bassoon</span>
-        <span class="header-subtitle">Ouaricon &middot; Modal Synthesis Bassoon</span>
+        <span class="header-subtitle" data-i18n="label.subtitle"
+              data-label="Ouaricon &middot; Modal Synthesis Bassoon">Ouaricon &middot; Modal Synthesis Bassoon</span>
+
+        <!-- v1.1.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to switch on or off — v1.0.0 carried no data-tip
+             anywhere — and authoring that copy is Stage M's job. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <!-- data-label so a state updater that writes textContent
+                         reads the authored caption back instead of erasing it
+                         (pattern_js_state_updater_overwrites_html_labels). -->
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
+        </div>
     </div>
 
     <!-- ================================================================
          Tab Bar
          ================================================================ -->
     <div class="tab-bar">
-        <button class="tab-btn active" data-tab="sound">Sound</button>
-        <button class="tab-btn" data-tab="tuning">Tuning</button>
-        <button class="tab-btn" data-tab="about">About</button>
+        <button class="tab-btn active" data-tab="sound"
+                data-i18n="label.tab.sound" data-label="Sound">Sound</button>
+        <button class="tab-btn" data-tab="tuning"
+                data-i18n="label.tab.tuning" data-label="Tuning">Tuning</button>
+        <button class="tab-btn" data-tab="about"
+                data-i18n="label.tab.about" data-label="About">About</button>
     </div>
 
     <!-- ================================================================
@@ -475,26 +632,37 @@
 
                 <!-- Vibrato (3 knobs + pulsing dot) -->
                 <div class="section-box">
+                    <!-- The heading text is keyed in its OWN span: applyLabel
+                         writes textContent, which would delete the pulsing-dot
+                         wrapper beside it if the key sat on the flex row. -->
                     <div class="section-label">
-                        Vibrato
+                        <span data-i18n="label.section.vibrato" data-label="Vibrato">Vibrato</span>
                         <div class="vibrato-dot-wrapper">
-                            <div class="vibrato-dot" id="vibrato-dot" title="Vibrato envelope"></div>
+                            <!-- v1.0.0's native title= is DELETED per contract
+                                 §4. It was this element's only help, so its
+                                 text moved to data-i18n-aria unchanged. -->
+                            <div class="vibrato-dot" id="vibrato-dot"
+                                 data-i18n-aria="aria.vibratoDot" aria-label="Vibrato envelope"></div>
                         </div>
                     </div>
                     <div class="param-row">
                         <div class="knob-control" data-param="vibrato_rate">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Rate</div>
+                            <div class="knob-label" data-i18n="label.knob.rate" data-label="Rate">Rate</div>
+                            <!-- .knob-value is a READOUT and is never keyed:
+                                 formatValue() overwrites it on every drag, and a
+                                 keyed element that enters and leaves the sweep
+                                 as the knob turns is D-01 arm 3. -->
                             <div class="knob-value">5.00 Hz</div>
                         </div>
                         <div class="knob-control" data-param="vibrato_depth">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Depth</div>
+                            <div class="knob-label" data-i18n="label.knob.depth" data-label="Depth">Depth</div>
                             <div class="knob-value">15.0 c</div>
                         </div>
                         <div class="knob-control" data-param="vibrato_onset">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Onset</div>
+                            <div class="knob-label" data-i18n="label.knob.onset" data-label="Onset">Onset</div>
                             <div class="knob-value">400 ms</div>
                         </div>
                     </div>
@@ -502,29 +670,33 @@
 
                 <!-- Expression (3 knobs + breath meter) -->
                 <div class="section-box">
-                    <div class="section-label">Expression</div>
+                    <div class="section-label"><span data-i18n="label.section.expression" data-label="Expression">Expression</span></div>
                     <div class="param-row">
                         <div class="knob-control" data-param="breath">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Breath</div>
+                            <div class="knob-label" data-i18n="label.knob.breath" data-label="Breath">Breath</div>
                             <div class="knob-value">0.70</div>
                         </div>
                         <div class="knob-control" data-param="tone">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Tone</div>
+                            <div class="knob-label" data-i18n="label.knob.tone" data-label="Tone">Tone</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="attack_character">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Attack Char</div>
+                            <div class="knob-label" data-i18n="label.knob.attackChar" data-label="Attack Char">Attack Char</div>
                             <div class="knob-value">0.00</div>
                             <div class="knob-endlabels">
-                                <span>Soft</span>
-                                <span>Tongued</span>
+                                <span data-i18n="label.end.soft" data-label="Soft">Soft</span>
+                                <span data-i18n="label.end.tongued" data-label="Tongued">Tongued</span>
                             </div>
                         </div>
                     </div>
-                    <div class="breath-meter" title="Effective breath (UI breath x CC2)">
+                    <!-- title= DELETED per contract §4; its text is the
+                         data-i18n-aria below, unchanged apart from the "x"
+                         becoming the multiplication sign it always meant. -->
+                    <div class="breath-meter" data-i18n-aria="aria.breathMeter"
+                         aria-label="Effective breath (UI breath &times; CC2)">
                         <div class="breath-meter-fill"></div>
                     </div>
                 </div>
@@ -536,16 +708,16 @@
 
                 <!-- Envelope (2 knobs) -->
                 <div class="section-box">
-                    <div class="section-label">Envelope</div>
+                    <div class="section-label"><span data-i18n="label.section.envelope" data-label="Envelope">Envelope</span></div>
                     <div class="param-row">
                         <div class="knob-control" data-param="attack_time">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Attack</div>
+                            <div class="knob-label" data-i18n="label.knob.attack" data-label="Attack">Attack</div>
                             <div class="knob-value">300 ms</div>
                         </div>
                         <div class="knob-control" data-param="release_time">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Release</div>
+                            <div class="knob-label" data-i18n="label.knob.release" data-label="Release">Release</div>
                             <div class="knob-value">800 ms</div>
                         </div>
                     </div>
@@ -553,20 +725,22 @@
 
                 <!-- Voicing & Output (2 knobs + voice dots) -->
                 <div class="section-box">
-                    <div class="section-label">Voicing &amp; Output</div>
+                    <div class="section-label"><span data-i18n="label.section.voicing" data-label="Voicing &amp; Output">Voicing &amp; Output</span></div>
                     <div class="param-row">
                         <div class="knob-control" data-param="voice_count">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Voices</div>
+                            <div class="knob-label" data-i18n="label.knob.voices" data-label="Voices">Voices</div>
                             <div class="knob-value">8</div>
                         </div>
                         <div class="knob-control" data-param="output_gain">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Output</div>
+                            <div class="knob-label" data-i18n="label.knob.output" data-label="Output">Output</div>
                             <div class="knob-value">0.0 dB</div>
                         </div>
                     </div>
-                    <div class="voice-dots" id="voice-dots" title="Live active voice count"></div>
+                    <!-- title= DELETED per contract §4; text moved verbatim. -->
+                    <div class="voice-dots" id="voice-dots"
+                         data-i18n-aria="aria.voiceDots" aria-label="Live active voice count"></div>
                 </div>
 
             </div>
@@ -581,19 +755,32 @@
         <!-- ================== ABOUT TAB ================== -->
         <div class="tab-panel" id="tab-about">
             <div class="about-card">
+                <!-- Product name: exempt, see I18N_EXEMPT. -->
                 <div class="about-title">O-Bassoon</div>
-                <div class="about-version">Version 1.0.0</div>
-                <p class="about-tagline">
+                <!-- SPLIT in v1.1.0 (contract §5): the caption is keyed, the
+                     version number is not. A version string is not copy, and
+                     inside a translated string it would be a shipping fact
+                     nobody re-checks after the French is reviewed. -->
+                <div class="about-version"><span data-i18n="label.about.version" data-label="Version">Version</span> <span class="about-version-number">1.1.0</span></div>
+                <p class="about-tagline" data-i18n="label.about.tagline"
+                   data-label="Modal-synthesis bassoon for sustained microtonal long tones.">
                     Modal-synthesis bassoon for sustained microtonal long tones.
                 </p>
-                <p class="about-blurb">
+                <p class="about-blurb" data-i18n="label.about.blurb"
+                   data-label="Polyphonic 1&ndash;16 voices, VST3 Note Expression + MPE for Dorico microtonal playback, breath/CC2 expression, vibrato, and the Ouaricon tuning-system family. Built on JUCE 8.">
                     Polyphonic 1&ndash;16 voices, VST3 Note Expression + MPE for Dorico
                     microtonal playback, breath/CC2 expression, vibrato, and the
                     Ouaricon tuning-system family. Built on JUCE 8.
                 </p>
                 <div class="about-meta">
-                    Made by
-                    <a class="about-link" href="https://ouaricon.com" target="_blank" rel="noopener noreferrer">Ouaricon</a>
+                    <!-- BOTH halves of this centred line are keyed. "Made by"
+                         localizes; the company name never does and carries
+                         sameAsEn: true. Keying it is the geometry statement, not
+                         a translation one — see the note on label.about.company
+                         in js/i18n.js. -->
+                    <span data-i18n="label.about.madeBy" data-label="Made by">Made by</span>
+                    <a class="about-link" href="https://ouaricon.com" target="_blank" rel="noopener noreferrer"
+                       data-i18n="label.about.company" data-label="Ouaricon">Ouaricon</a>
                 </div>
             </div>
         </div>
@@ -605,6 +792,15 @@
          ================================================================ -->
     <script type="module">
         import * as Juce from '/js/juce/index.js';
+
+        // v1.1.0: the label table. The canonical import line, re-rooted from
+        // './i18n.js' to './js/i18n.js' because this plugin's controller is an
+        // inline <script type="module"> at the UI root rather than a js/app.js.
+        // check-i18n assertion 6 accepts exactly that one substitution and
+        // nothing else. I18N and TIP_BINDINGS are both EMPTY here (this page
+        // has no hover-help) and are imported anyway so the canon block below
+        // stays byte-identical to the other forty-two copies.
+        import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
         // ====================================================================
         // Parameter Definitions (display ranges for value formatting)
@@ -845,8 +1041,23 @@
                 console.log('[Tuning] Panel initialized successfully');
             } catch (err) {
                 console.error('Failed to init tuning panel:', err);
-                document.getElementById('tuning-container').innerHTML =
-                    '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+
+                // v1.1.0: built with createElement + setLabel rather than the
+                // innerHTML string this was. Two reasons, both load-bearing.
+                // The notice DECLARES ITS OWN KEY through setLabel and becomes
+                // a [data-i18n] element from that moment on, so the language
+                // sweep owns it — a failure notice stranded in the previous
+                // language is the exact bug contract §3 exists to prevent. And
+                // an innerHTML sink is a markup path that machine-drafted
+                // French must never be able to reach (check-i18n assertion 9).
+                const container = document.getElementById('tuning-container');
+                container.textContent = '';
+                const notice = document.createElement('div');
+                notice.style.padding = '20px';
+                notice.style.color = '#8B7355';
+                notice.style.fontStyle = 'italic';
+                setLabel(notice, 'label.tuningLoadFailed');
+                container.appendChild(notice);
             }
         }
 
@@ -926,6 +1137,175 @@
                 renderVoiceDots(voiceDotsContainer.querySelectorAll('.voice-dot.active').length);
             });
         }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // Byte-compared by check-i18n assertion 6 after comment stripping and
+        // whitespace normalisation. Do not edit it here; edit the canon and
+        // every copy together, which is the whole point of holding it as data.
+        //
+        // It sits at the END of the module, below every existing initializer,
+        // and is REACHED only through the guarded initI18n() call further down.
+        // A top-level statement up here touching a lower `let` would be a TDZ
+        // throw taking every later initializer with it, and on this plugin
+        // "every later initializer" is the ENTIRE UI — the controller is one
+        // inline module, not a file that can fail in isolation
+        // (pattern_module_toplevel_init_tdz).
+
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // The settings popover (v1.1.0)
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // ONE row. This plugin has no hover-help to switch on or off — v1.0.0
+        // carried no data-tip anywhere, only three native title= attributes
+        // that contract §4 deletes — and authoring that copy is Stage M's job,
+        // so the popover holds the language selector alone.
+        //
+        // The panel opens DOWNWARDS: the gear lives in a 36px header strip at
+        // the top of a 600px frame, so a panel above it would leave the frame.
+
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsPopoverOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initializeSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover missing - language selector unavailable');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsPopoverOpen(settingsPopoverEl.hidden);
+            });
+
+            // Dismiss on a press anywhere else, and on Escape. mousedown rather
+            // than click, so the panel is gone before a knob drag underneath it
+            // begins — bindSliderParam() starts its drag on mousedown.
+            document.addEventListener('mousedown', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsPopoverOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsPopoverOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
+        }
+
+        // Guarded, and LAST. All ten parameter bindings, the tab navigation and
+        // every push-channel subscription above have already run, so an i18n
+        // failure leaves an English plugin that still works rather than a dead
+        // page.
+        initializeSettingsPopover();
+        try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
 
     </script>
 </body>
