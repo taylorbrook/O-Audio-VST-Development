@@ -198,3 +198,79 @@ A compact report, not a transcript:
 - `I18N_EXEMPT` entries and the arm of the D-01 test each rests on
 - anything found and deliberately NOT fixed, with the reason
 - what is NOT verified
+
+---
+
+# PARALLEL DISPATCH PROTOCOL
+
+Batches K1, K3 and K4 run several executors at once in the SAME checkout.
+(K2 — the five tight frames — stays serial by plan instruction, because its
+stop condition depends on seeing each geometry diff before the next plugin.)
+
+Three resources are shared and would corrupt or lose work under concurrency.
+Each has a rule.
+
+## 1. `build/` — SERIALIZED BY A MUTEX
+
+`build-and-install.sh` hard-codes ONE build directory for every plugin
+(`scripts/build-and-install.sh:308,443`) and ninja does not lock. Two
+concurrent invocations share `.ninja_deps` and `.ninja_log`.
+
+Wrap **the build and everything that touches the AU cache** — which is also
+global, `killall -9 AudioComponentRegistrar` plus a wipe of
+`~/Library/Caches/AudioUnitCache` — in this mutex:
+
+```bash
+LOCK=/tmp/claude-501/stagek-build.lock
+# wait for the lock, breaking it if a dead executor left it held >25 min
+while ! mkdir "$LOCK" 2>/dev/null; do
+    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +25 2>/dev/null)" ]; then
+        echo "breaking a stale build lock"; rmdir "$LOCK" 2>/dev/null
+    fi
+    sleep 15
+done
+
+./scripts/build-and-install.sh <Name>        # and auval, and any DAW-facing check
+
+rmdir "$LOCK"                                 # RELEASE IMMEDIATELY. Do not hold
+                                              # it across authoring or gates.
+```
+
+**Release the lock the moment the build and `auval` are done.** If you abort
+for any reason, release it first. Everything else — reading, authoring French,
+`check-i18n`, `check-ui-labels`, `boot-all-uis` — runs OUTSIDE the lock.
+`serve-ui.js` picks port 0, so the browser gates are already concurrency-safe.
+
+## 2. `PLUGINS.md` — THE ORCHESTRATOR OWNS IT
+
+**Do not edit `PLUGINS.md`.** Every plugin commit used to carry its own row,
+but two concurrent read-modify-writes lose one of them silently, and this file
+is exactly one row per plugin with no merge help inside a single working tree.
+
+Report your new version number and the row content you would have written. The
+orchestrator updates every row for the batch in one commit after the batch
+lands, then runs the duplicate check.
+
+## 3. `scripts/` — THE ORCHESTRATOR OWNS IT
+
+**Do not edit anything under `scripts/`.** Gate defects are frequent in this
+task — four in Stage J, three already in Stage K — so two executors editing
+`check-i18n.js` at once is a live hazard rather than a theoretical one.
+
+When you find a gate defect: **stop, and report it** with the shape of the
+wrong assumption, the negative control that proves it, and whether your plugin
+is blocked by it. The orchestrator lands the fix as its own commit ahead of
+your plugin, per the standing precedent, and tells you to resume.
+
+If the defect BLOCKS you, say so plainly and stop rather than working around
+it. A workaround in one plugin is the thing that hides a repo-wide gate hole.
+
+## Commits under concurrency
+
+`git commit -- <exact paths>` is safe while another executor stages files: a
+pathspec commit takes only the paths you name, whatever else sits in the index.
+Keep naming the exact file set, never the directory.
+
+The one transient failure you may see is `Unable to create '.git/index.lock'`
+— another executor's git call, holding it for a moment. **Wait a few seconds
+and retry.** Do not delete the lock file; it is not stale, it is in use.
