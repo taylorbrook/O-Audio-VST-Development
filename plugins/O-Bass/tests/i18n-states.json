@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover open (the language row and the endonym select)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "preset dropdown open (label.factory / label.noPresets, written by setLabel)",
+    "click": "#presetName"
+  }
+]
