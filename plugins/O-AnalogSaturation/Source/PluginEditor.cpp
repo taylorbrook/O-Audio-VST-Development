@@ -39,9 +39,10 @@ OAnalogSaturationAudioProcessorEditor::OAnalogSaturationAudioProcessorEditor(OAn
     qualityRelay = std::make_unique<juce::WebSliderRelay>("QUALITY");
     autogainRelay = std::make_unique<juce::WebToggleButtonRelay>("AUTOGAIN");
 
-    // Create WebView with native integration and resource provider
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
+    // WebView options. Split out of the single chained expression it was
+    // through v1.1.6 so v1.2.0's two native functions can be appended without
+    // reformatting the relay chain above them.
+    auto options = juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
@@ -52,8 +53,38 @@ OAnalogSaturationAudioProcessorEditor::OAnalogSaturationAudioProcessorEditor(OAn
             .withOptionsFrom(*intensityRelay)
             .withOptionsFrom(*modelRelay)
             .withOptionsFrom(*qualityRelay)
-            .withOptionsFrom(*autogainRelay)
-    );
+            .withOptionsFrom(*autogainRelay);
+
+    // ── v1.2.0: the UI LANGUAGE pair ───────────────────────────────────────
+    //
+    // Plain withNativeFunction, no relay. The page PULLS once at init; there is
+    // no push from this constructor, no timer and no revision counter, because
+    // the language is not preset content and no preset path can change it
+    // behind the page's back. A push from here would race the WebView's load.
+    options = options.withNativeFunction("getUiLanguage",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(OAnalogSaturationAudioProcessor::languageCode(
+                                   processorRef.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction("setUiLanguage",
+        [this](auto& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store(
+                    OAnalogSaturationAudioProcessor::languageIndex(args[0].toString()),
+                    std::memory_order_release);
+
+            complete(juce::var(OAnalogSaturationAudioProcessor::languageCode(
+                                   processorRef.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    // Create WebView with native integration and resource provider
+    webView = std::make_unique<juce::WebBrowserComponent>(std::move(options));
 
     // Create parameter attachments (must be after WebView)
     intensityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -114,6 +145,13 @@ OAnalogSaturationAudioProcessorEditor::getResource(const juce::String& url)
         return makeResource(BinaryData::index_html, BinaryData::index_htmlSize, "text/html");
 
     // JavaScript
+    // v1.2.0: the label table. EMBEDDED in CMakeLists.txt AND served here, in
+    // the same commit. A file embedded but not served, or served but not
+    // embedded, is a 404 that presents as a page stuck in English and nothing
+    // else — check-i18n assertion 8 exists for exactly this pair.
+    if (url == "/js/i18n.js")
+        return makeResource(BinaryData::i18n_js, BinaryData::i18n_jsSize, "text/javascript");
+
     if (url == "/js/juce/index.js")
         return makeResource(BinaryData::index_js, BinaryData::index_jsSize, "text/javascript");
 

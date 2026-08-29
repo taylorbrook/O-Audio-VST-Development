@@ -342,6 +342,15 @@ juce::AudioProcessorEditor* OAnalogSaturationAudioProcessor::createEditor()
 void OAnalogSaturationAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+
+    // v1.2.0: the UI language rides the same tree as one more plain property.
+    // Not a parameter (see PluginProcessor.h), so it is saved and restored here
+    // rather than by the APVTS parameter round-trip. Written as a STRING
+    // ("en"/"fr") rather than the atomic's int index, so a hand-inspected
+    // session file says what it means.
+    state.setProperty("uiLanguage",
+                      languageCode(uiLanguage.load(std::memory_order_acquire)), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -351,7 +360,28 @@ void OAnalogSaturationAudioProcessor::setStateInformation(const void* data, int 
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
+    {
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+
+        // v1.2.0: the UI language. isVoid() is the ONLY correct guard and
+        // toString() the only correct read. getStateInformation writes a STRING
+        // var, but even a bool or int written there would not survive: the XML
+        // round-trip does not preserve the type, because
+        // NamedValueSet::setFromXmlAttributes rebuilds every property as
+        // `var (value)` over the attribute STRING
+        // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.2.0 session has
+        // no such property at all and the default (English) stands.
+        // languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited value degrades to English rather than to a bad index.
+        //
+        // The editor PULLS this through the getUiLanguage native fn at page
+        // init rather than being pushed from here — a push would race the
+        // WebView's load.
+        const juce::var lang = parameters.state.getProperty("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+    }
 }
 
 // ============================================================================
