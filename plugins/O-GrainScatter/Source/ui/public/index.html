@@ -264,6 +264,22 @@
             background: rgba(107,142,35,0.5);
             border-color: #2C3E10;
         }
+
+        /* A LOAD-BEARING WIDTH PIN, not decoration. #stutter-gate-btn is a
+           [data-i18n] element, so assertion 7 does not measure IT — but its
+           parent, the inline-styled flex wrapper beside REPEATS, is not keyed
+           and shrink-wraps the button. French "Porte bég." is 16.87 px narrower
+           than "Stutter Gate", so an unpinned button CONTRACTS the wrapper in
+           French and the diff reports it as moved.
+
+           110px is the ENGLISH border box (109.95) rounded up, so English moves
+           by 0.05 px — an order of magnitude inside the gate's 0.5 px
+           tolerance — while the rectangle becomes language-invariant. It also
+           caps what a future French edit may spend here: "Porte bégaiement"
+           (138.58) would overflow it visibly instead of pushing silently. */
+        #stutter-gate-btn {
+            width: 110px;
+        }
         /* ── Pitch gate dimming ── */
         .dropdown-container {
             transition: opacity 0.3s;
@@ -332,6 +348,113 @@
         .spatial-hint.visible {
             opacity: 1;
         }
+
+        /* ── Settings cluster (v2.5.0) ──────────────────────────────────────
+           The gear and its popover are NEW UI. They are positioned absolutely
+           in the header's empty right margin so that NOT ONE existing element
+           moves to make room for them — the page is a fixed 900x800 with
+           overflow:hidden and a spatial row that has exactly zero px of slack,
+           so an in-flow insertion anywhere would have to be paid for somewhere.
+
+           Styled in this plugin's own visual system rather than pasted in: the
+           Garamond of the body, the #8B7355 rules and #FFF8DC cream of the
+           knobs, and the olive rgba(107,142,78) the freeze toggle already uses
+           for its active state. */
+        .settings-cluster {
+            position: absolute;
+            top: 11px;
+            right: 24px;
+            z-index: 60;
+        }
+
+        .gear-btn {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(107,142,78,0.22);
+            border: 1px solid #8B7355;
+            border-radius: 50%;
+            color: #5C4033;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .gear-btn:hover { background: rgba(107,142,78,0.4); }
+        .gear-btn[aria-expanded="true"] { background: rgba(107,142,78,0.55); }
+        .gear-btn:focus-visible { outline: 2px solid #6B8E4E; outline-offset: 2px; }
+
+        /* Opens DOWNWARDS. The gear sits 11 px from the TOP of an 800 px frame,
+           so there is no reason to open upward the way the short-framed plugins
+           in this rollout had to.
+
+           WIDTH IS PINNED, and the pin is load-bearing for the same reason it
+           is on O-DigiDelay, O-AnalogEQ, O-Bass and O-SimpleReverb:
+           .settings-popover is NOT a [data-i18n] element, so assertion 7
+           measures its box in both languages, and French SHRINKS the caption
+           inside it (LANGUAGE -> LANGUE). An auto-width panel would therefore
+           CONTRACT in French and be reported as moved. A hard width makes the
+           rectangle language-invariant by construction. */
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 61;
+            width: 170px;
+            padding: 7px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(255,248,220,0.98);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(60,47,47,0.35);
+        }
+
+        .settings-popover[hidden] { display: none; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the select beside it.
+
+           A GUARD, NOT A PIN, and labelled as such — its negative control is
+           reported in the commit message rather than claimed as a fix. It ships
+           declared because it converts the next French edit on this caption
+           from a silent push into a loud failure. */
+        .settings-label {
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #5C4033;
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 1px 3px;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 2px;
+            color: #3C2F2F;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-select:focus { outline: 1px solid #6B8E4E; }
     </style>
 </head>
 <body>
@@ -339,24 +462,47 @@
     <!-- Header -->
     <div class="header">
         <h1>O-GrainScatter</h1>
-        <span class="tagline">Harmonic Stutter Engine</span>
+        <span class="tagline" data-i18n="label.tagline">Harmonic Stutter Engine</span>
+    </div>
+
+    <!-- The language selector. NEW UI in v2.5.0, and the only control this
+         commit adds. Absolutely positioned in the header's empty right margin
+         so that no existing element moves to make room for it. -->
+    <div class="settings-cluster">
+        <button type="button" class="gear-btn" id="gear-btn"
+                aria-haspopup="dialog" aria-expanded="false"
+                data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+        <div class="settings-popover" id="settings-popover"
+             role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+            <label class="settings-row" for="lang-select">
+                <span class="settings-label" data-i18n="label.language">Language</span>
+                <!-- ENDONYMS. Never localized: a French speaker looking for
+                     their language looks for "Fran&ccedil;ais". -->
+                <select class="settings-select" id="lang-select"
+                        data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                    <option value="en">English</option>
+                    <option value="fr">Fran&ccedil;ais</option>
+                </select>
+            </label>
+        </div>
     </div>
 
     <!-- Visualization -->
     <div class="viz-area">
         <div class="viz-panel grain-viz">
-            <span class="viz-label">Grain Scatter</span>
+            <span class="viz-label" data-i18n="label.vizGrain">Grain Scatter</span>
             <canvas id="grain-canvas"></canvas>
         </div>
         <div class="viz-panel euclidean-viz">
-            <span class="viz-label">Euclidean</span>
+            <span class="viz-label" data-i18n="label.vizEuclidean">Euclidean</span>
             <canvas id="euclidean-canvas"></canvas>
         </div>
     </div>
 
     <!-- Freeze bar -->
     <div class="freeze-bar">
-        <button class="toggle freeze-toggle" data-param="freeze">Freeze</button>
+        <button class="toggle freeze-toggle" data-param="freeze" data-i18n="label.freeze">Freeze</button>
     </div>
 
     <div class="fleuron">&#10087;</div>
@@ -365,55 +511,55 @@
     <div class="controls-area">
         <!-- Group 1: Core Engine -->
         <div class="group">
-            <div class="group-label">Core Engine</div>
+            <div class="group-label" data-i18n="label.coreEngine">Core Engine</div>
             <div class="group-controls">
                 <div class="knob-container">
-                    <span class="knob-name">Grain Size</span>
+                    <span class="knob-name" data-i18n="label.grainSize">Grain Size</span>
                     <div class="knob" data-param="grain_size"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="grain_size">100 ms</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Density</span>
+                    <span class="knob-name" data-i18n="label.density">Density</span>
                     <div class="knob" data-param="density"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="density">50%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Scan</span>
+                    <span class="knob-name" data-i18n="label.scan">Scan</span>
                     <div class="knob" data-param="scan_position"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="scan_position">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Spread</span>
+                    <span class="knob-name" data-i18n="label.spread">Spread</span>
                     <div class="knob" data-param="spread"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="spread">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Reverse</span>
+                    <span class="knob-name" data-i18n="label.reverse">Reverse</span>
                     <div class="knob" data-param="reverse"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="reverse">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Feedback</span>
+                    <span class="knob-name" data-i18n="label.feedback">Feedback</span>
                     <div class="knob" data-param="feedback"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="feedback">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Dry/Wet</span>
+                    <span class="knob-name" data-i18n="label.dryWet">Dry/Wet</span>
                     <div class="knob" data-param="dry_wet"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="dry_wet">50%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Size Rnd</span>
+                    <span class="knob-name" data-i18n="label.sizeRnd">Size Rnd</span>
                     <div class="knob" data-param="size_random"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="size_random">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Amp Rnd</span>
+                    <span class="knob-name" data-i18n="label.ampRnd">Amp Rnd</span>
                     <div class="knob" data-param="amp_random"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="amp_random">0%</span>
                 </div>
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Shape</span>
+                    <span class="dropdown-name" data-i18n="label.shape">Shape</span>
                     <select class="dropdown" data-param="grain_shape">
                         <option>Hann</option>
                         <option>Triangle</option>
@@ -428,20 +574,20 @@
 
         <!-- Group 2: Pitch & Scale -->
         <div class="group">
-            <div class="group-label">Pitch &amp; Scale</div>
+            <div class="group-label" data-i18n="label.pitchScale">Pitch &amp; Scale</div>
             <div class="group-controls">
                 <div class="knob-container">
-                    <span class="knob-name">Pitch Rnd</span>
+                    <span class="knob-name" data-i18n="label.pitchRnd">Pitch Rnd</span>
                     <div class="knob" data-param="pitch_random"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="pitch_random">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Pan Rnd</span>
+                    <span class="knob-name" data-i18n="label.panRnd">Pan Rnd</span>
                     <div class="knob" data-param="pan_random"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="pan_random">0%</span>
                 </div>
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Scale</span>
+                    <span class="dropdown-name" data-i18n="label.scale">Scale</span>
                     <select class="dropdown" data-param="scale">
                         <option>Chromatic</option>
                         <option>Major</option>
@@ -451,7 +597,7 @@
                     </select>
                 </div>
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Root Note</span>
+                    <span class="dropdown-name" data-i18n="label.rootNote">Root Note</span>
                     <select class="dropdown" data-param="root_note">
                         <option>C</option><option>C#</option><option>D</option><option>D#</option>
                         <option>E</option><option>F</option><option>F#</option><option>G</option>
@@ -459,7 +605,7 @@
                     </select>
                 </div>
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Pitch Mode</span>
+                    <span class="dropdown-name" data-i18n="label.pitchMode">Pitch Mode</span>
                     <select class="dropdown" data-param="pitch_mode">
                         <option>Random</option>
                         <option>Ladder Up</option>
@@ -467,16 +613,17 @@
                         <option>Pendulum</option>
                     </select>
                 </div>
-                <div class="pitch-hint" id="pitch-hint">Increase Pitch Rnd to activate</div>
+                <div class="pitch-hint" id="pitch-hint" data-i18n="label.pitchHint"
+                     data-i18n-vars='{"n":"label.pitchRnd"}'>Increase Pitch Rnd to activate</div>
             </div>
         </div>
 
         <!-- Group 3: Beat Sync -->
         <div class="group">
-            <div class="group-label">Beat Sync</div>
+            <div class="group-label" data-i18n="label.beatSync">Beat Sync</div>
             <div class="group-controls">
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Sync Mode</span>
+                    <span class="dropdown-name" data-i18n="label.syncMode">Sync Mode</span>
                     <select class="dropdown" data-param="sync_mode">
                         <option>Free</option>
                         <option>1/4</option><option>1/8</option><option>1/16</option>
@@ -484,42 +631,43 @@
                     </select>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Probability</span>
+                    <span class="knob-name" data-i18n="label.probability">Probability</span>
                     <div class="knob" data-param="probability"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="probability">100%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Repeats</span>
+                    <span class="knob-name" data-i18n="label.repeats">Repeats</span>
                     <div class="knob" data-param="repeats"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="repeats">4</span>
                 </div>
                 <div style="display:flex;align-items:flex-end;padding-bottom:4px;">
-                    <button class="toggle" data-param="stutter_gate">Stutter Gate</button>
+                    <button class="toggle" id="stutter-gate-btn" data-param="stutter_gate"
+                            data-i18n="label.stutterGate">Stutter Gate</button>
                 </div>
             </div>
         </div>
 
         <!-- Group 4: Euclidean -->
         <div class="group">
-            <div class="group-label">Euclidean Rhythm</div>
+            <div class="group-label" data-i18n="label.euclideanRhythm">Euclidean Rhythm</div>
             <div class="group-controls">
                 <div class="knob-container">
-                    <span class="knob-name">Pulses</span>
+                    <span class="knob-name" data-i18n="label.pulses">Pulses</span>
                     <div class="knob" data-param="euclidean_pulses"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="euclidean_pulses">4</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Steps</span>
+                    <span class="knob-name" data-i18n="label.steps">Steps</span>
                     <div class="knob" data-param="euclidean_steps"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="euclidean_steps">8</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Rotation</span>
+                    <span class="knob-name" data-i18n="label.rotation">Rotation</span>
                     <div class="knob" data-param="euclidean_rotation"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="euclidean_rotation">0</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Swing</span>
+                    <span class="knob-name" data-i18n="label.swing">Swing</span>
                     <div class="knob" data-param="euclidean_swing"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="euclidean_swing">50%</span>
                 </div>
@@ -530,10 +678,10 @@
     <!-- Spatial Audio Section -->
     <div class="spatial-section">
         <div class="group" id="spatial-group">
-            <div class="group-label">Spatial Audio</div>
+            <div class="group-label" data-i18n="label.spatialAudio">Spatial Audio</div>
             <div class="spatial-controls-row">
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Mode</span>
+                    <span class="dropdown-name" data-i18n="label.mode">Mode</span>
                     <select class="dropdown" data-param="spatial_mode">
                         <option>Off</option>
                         <option>Scatter</option>
@@ -541,37 +689,37 @@
                     </select>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Azimuth</span>
+                    <span class="knob-name" data-i18n="label.azimuth">Azimuth</span>
                     <div class="knob" data-param="azimuth"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="azimuth">0&deg;</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Elevation</span>
+                    <span class="knob-name" data-i18n="label.elevation">Elevation</span>
                     <div class="knob" data-param="elevation"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="elevation">0&deg;</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Az Spread</span>
+                    <span class="knob-name" data-i18n="label.azSpread">Az Spread</span>
                     <div class="knob" data-param="az_spread"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="az_spread">90&deg;</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">El Spread</span>
+                    <span class="knob-name" data-i18n="label.elSpread">El Spread</span>
                     <div class="knob" data-param="el_spread"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="el_spread">45&deg;</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Distance</span>
+                    <span class="knob-name" data-i18n="label.distance">Distance</span>
                     <div class="knob" data-param="distance"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="distance">50%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Width</span>
+                    <span class="knob-name" data-i18n="label.width">Width</span>
                     <div class="knob" data-param="spatial_width"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="spatial_width">50%</span>
                 </div>
                 <div class="dropdown-container">
-                    <span class="dropdown-name">Trajectory</span>
+                    <span class="dropdown-name" data-i18n="label.trajectory">Trajectory</span>
                     <select class="dropdown" data-param="trajectory">
                         <option>Static</option>
                         <option>Orbital</option>
@@ -580,27 +728,27 @@
                     </select>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Traj Speed</span>
+                    <span class="knob-name" data-i18n="label.trajSpeed">Traj Speed</span>
                     <div class="knob" data-param="traj_speed"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="traj_speed">100%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Dist LPF</span>
+                    <span class="knob-name" data-i18n="label.distLpf">Dist LPF</span>
                     <div class="knob" data-param="dist_lpf"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="dist_lpf">100%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Doppler</span>
+                    <span class="knob-name" data-i18n="label.doppler">Doppler</span>
                     <div class="knob" data-param="doppler"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="doppler">0%</span>
                 </div>
                 <div class="knob-container">
-                    <span class="knob-name">Smoothing</span>
+                    <span class="knob-name" data-i18n="label.smoothing">Smoothing</span>
                     <div class="knob" data-param="spatial_smooth"><div class="knob-indicator"></div></div>
                     <span class="knob-value" data-value="spatial_smooth">5 ms</span>
                 </div>
             </div>
-            <div class="spatial-hint" id="spatial-hint">Set Mode to Scatter or Trajectory to enable</div>
+            <div class="spatial-hint" id="spatial-hint" data-i18n="label.spatialHint">Set Mode to Scatter or Trajectory to enable</div>
         </div>
     </div>
 </div>

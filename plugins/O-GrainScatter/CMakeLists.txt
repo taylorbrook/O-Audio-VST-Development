@@ -8,7 +8,7 @@ juce_add_plugin(OuariconGrainScatter
     PLUGIN_CODE OuGS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-GrainScatter${OUARICON_DEV_SUFFIX}"
-    VERSION 2.4.4
+    VERSION 2.5.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -52,6 +52,7 @@ juce_add_binary_data(OuariconGrainScatter_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
 )

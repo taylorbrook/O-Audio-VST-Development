@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover open (label.language and the endonym select — the only label this page hides behind a control)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "pitch gate closed (label.pitchHint — invisible at rest because the harness stub seeds pitch_random above the 0.01 gate, so the only way to measure this caption is to put the class its own controller sets)",
+    "eval": "document.getElementById('pitch-hint').classList.add('visible');"
+  }
+]

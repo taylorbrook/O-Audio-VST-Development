@@ -847,6 +847,16 @@ void GrainScatterProcessor::changeProgramName(int, const juce::String&) {}
 
 void GrainScatterProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
+    // v2.5.0: the UI language rides the same tree as one more plain property.
+    // Written BEFORE copyState(), which takes the snapshot that is serialised
+    // and would otherwise not carry it.
+    //
+    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means.
+    parameters.state.setProperty("uiLanguage",
+                                 languageCode(uiLanguage.load(std::memory_order_acquire)),
+                                 nullptr);
+
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
@@ -857,6 +867,26 @@ void GrainScatterProcessor::setStateInformation(const void* data, int sizeInByte
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
         parameters.replaceState(juce::ValueTree::fromXml(*xml));
+
+    // v2.5.0: the UI language. Read AFTER replaceState(), which rebuilds the
+    // whole tree.
+    //
+    // isVoid() is the ONLY correct guard and toString() the only correct read.
+    // getStateInformation writes a STRING var, but even a bool or int written
+    // there would not survive: the XML round-trip does not preserve the type,
+    // because NamedValueSet::setFromXmlAttributes rebuilds every property as
+    // `var (value)` over the attribute STRING
+    // (critical_valuetree_xml_roundtrip_loses_type). A pre-2.5.0 session has no
+    // such property at all and the default (English) stands. languageIndex()
+    // clamps anything that is not "fr" to 0, so a hand-edited value degrades to
+    // English rather than to a bad index.
+    //
+    // The editor PULLS this through the getUiLanguage native fn at page init
+    // rather than being pushed from here - a push would race the WebView's load.
+    const juce::var lang = parameters.state.getProperty("uiLanguage");
+
+    if (! lang.isVoid())
+        uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

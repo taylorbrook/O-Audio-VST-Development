@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.5.0] - 2026-08-29
+
+The PAGE speaks French. Every visible caption on the UI is now localized, English or French, chosen from a gear popover and remembered with the session. No hover-help copy was authored — this plugin has none, and inventing it is a separate job.
+
+### Added
+- **`Source/ui/public/js/i18n.js`** — 49 keys: 47 visible captions and 2 accessible names. `I18N` and `TIP_BINDINGS` are both **empty**, which is this plugin's correct state: v2.4.4 carried zero `title=`, zero `aria-label`, zero `placeholder` and zero `data-tip` anywhere in `index.html`. `check-i18n` assertion 2 reports that as "0 tip(s) bound" rather than passing silently.
+- **A settings popover carrying the language selector**, absolutely positioned in the header's empty right margin so that not one existing element moves to make room for it. Styled in this plugin's own visual system — Garamond, the `#8B7355` rules and `#FFF8DC` cream of the knobs, and the olive `rgba(107,142,78)` the freeze toggle already uses.
+- **`getUiLanguage` / `setUiLanguage`** native functions and session persistence. `uiLanguage` is a `std::atomic<int>` behind a two-function string codec, written onto the APVTS state tree as a plain non-parameter property so it never appears in a DAW automation lane and no preset can change which language somebody reads their plugin in.
+- **`plugins/O-GrainScatter/tests/i18n-states.json`** — two states for the label render gate, so all 47 captions are measured rather than 46.
+
+### Changed
+- **Canon v2 i18n runtime in `js/app.js`**, placed at the TOP of the module rather than the bottom. `init()` is the last statement in this file and is the page's only reader of `trLabel()`; a block placed below it would be a TDZ `ReferenceError` that takes the whole UI (`pattern_module_toplevel_init_tdz`). `initI18n()` is still called last, inside `init()`, guarded by try/catch so a throw there cannot cost the page a knob.
+- **`#stutter-gate-btn { width: 110px }`** — a load-bearing pin, not decoration. The button is a `[data-i18n]` element so the geometry gate does not measure it, but its parent flex wrapper is not keyed and shrink-wraps it. 110 px is the English border box (109.95) rounded up: English moves 0.05 px, and the rectangle becomes language-invariant. Removed alone, the gate reports the wrapper at `dw=-16.9`.
+- **`.settings-popover { width: 170px }`** — the same pin for the same reason, on the new panel: LANGUAGE → LANGUE *shrinks*, so an auto-width panel would contract in French. Removed alone, 2 elements move at `dx=14.6 dw=-14.6`.
+
+### Testing
+- `check-i18n --strict-v2`: 39 assertions, canon v2, ALL CHECKS PASS.
+- `check-ui-labels`: all assertions pass in three states (default, settings popover open, pitch gate closed); 47 of 47 keyed elements measured; no page error; every resource served.
+- `boot-all-uis`: 43 / 43 clean, 0 warn, 0 failed. O-GrainScatter reads text 72 → 75, aria 0 → 3, title 0 → 0, i18n 0 → 47.
+- **English v2.4.4 → v2.5.0: zero of 192 elements moved** at the gate's 0.5 px tolerance. At 0.01 px exactly one moved, by `dw=+0.05`, and it is the stutter-gate wrapper taking the named pin. Nothing moved vertically; document scroll extent stays 900 x 800.
+- **French vs English at v2.5.0: zero non-label elements moved.** Measured independently of the gate at 0.01 px over all 195 boxes — the only 32 rectangles that differ in the whole document are keyed captions whose own width changed, and 13 of those 32 are *narrower* in French.
+- **The page holds still**: zero of 193 elements differ between a 180 ms and a 1.7 s settle, in either language, before or after the change, despite two `requestAnimationFrame` canvas loops. Canvas drawing does not enter `getBoundingClientRect`.
+- Three geometry cliffs found by planting, each caught by an assertion blind to the other two: a caption overflowing its knob box into a neighbour (74 px, caught by `[8b]` only), one overflowing the 900 px frame from the last spatial knob (116 px, caught by `[5][6][8][8b]`), and one wrapping to a third line out of the fixed 18 px caption box (caught by `[4]` only, with zero `[7]`).
+- Every pin was reverted alone and confirmed to re-break the gate. The one guard whose control passes — `.settings-label { white-space: nowrap }` — is labelled a guard, not claimed as a fix.
+- No parameter IDs, ranges, types, defaults, presets or DSP behaviour changed.
+
+### Notes
+- **The 62 px knob container does NOT grow.** `.knob-container` carries an explicit `width: 62px`, so its automatic minimum size is clamped to that specified size and a caption wider than 62 px simply overflows it symmetrically, pushing nothing. This page therefore has only two shrink-wrapping push sites — the stutter-gate wrapper and the settings popover — and both are pinned.
+- **`GrainScatterViz.draw()` paints `"<n> grains"` with `ctx.fillText`, and it stays English.** A 2D-context string is not a DOM node: the canon sweep cannot reach it and neither gate can see it. Recorded as a reasoned `I18N_EXEMPT` entry, matching O-Orbit, O-MultiBandCompressor and O-simpleSampler. Carried to Stage M.
+- All 49 French strings are machine drafts, every entry `reviewed: false`. No native speaker has read them.
+
 ## [2.4.4] - 2026-08-19
 
 UI layout fix. The Spatial Audio section was clipped by the bottom edge of the editor window; the control grid is now content-sized and the window is 50 px shorter.
