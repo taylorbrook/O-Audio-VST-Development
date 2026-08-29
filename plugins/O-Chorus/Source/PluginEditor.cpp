@@ -54,8 +54,11 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
     driveRelay = std::make_unique<juce::WebSliderRelay>("drive");
 
     // 2️⃣ Create WebView with relay options (depends on relays)
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
+    //
+    // v1.3.0: split out of the single chained expression it was through v1.2.3
+    // so the two UI-language native functions can be appended without
+    // reformatting the eleven preset functions above them.
+    auto options = juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
@@ -177,8 +180,37 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
                     complete(juce::var(result));
                 }
             );
-        })
-    );
+        });
+
+    // ── v1.3.0: the UI LANGUAGE pair ───────────────────────────────────────
+    //
+    // Plain withNativeFunction, no relay. The page PULLS once at init; there is
+    // no push from this constructor, no timer and no revision counter, because
+    // the language is not preset content and no preset path can change it
+    // behind the page's back. A push from here would race the WebView's load.
+    options = options.withNativeFunction("getUiLanguage",
+        [this](const juce::Array<juce::var>&, std::function<void(juce::var)> complete)
+        {
+            complete(juce::var(OChorusAudioProcessor::languageCode(
+                                   audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction("setUiLanguage",
+        [this](const juce::Array<juce::var>& args, std::function<void(juce::var)> complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                audioProcessor.uiLanguage.store(
+                    OChorusAudioProcessor::languageIndex(args[0].toString()),
+                    std::memory_order_release);
+
+            complete(juce::var(OChorusAudioProcessor::languageCode(
+                                   audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    webView = std::make_unique<juce::WebBrowserComponent>(std::move(options));
 
     addAndMakeVisible(*webView);
 
@@ -252,6 +284,17 @@ OChorusAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
             juce::String("text/html")
+        };
+    }
+
+    // v1.3.0: the label table. EMBEDDED in CMakeLists.txt AND served here, in
+    // the same commit. A file embedded but not served, or served but not
+    // embedded, is a 404 that presents as a page stuck in English and nothing
+    // else — check-i18n assertion 8 exists for exactly this pair.
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("application/javascript")
         };
     }
 
