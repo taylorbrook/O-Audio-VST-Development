@@ -2,6 +2,186 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0] - 2026-08-28
+
+The page speaks French, not only the hover help — and the tooltip renderer is
+replaced rather than translated. Stage J of the repo-wide i18n task (canon v2).
+MINOR: no parameter IDs, ranges or state format changed; existing sessions and
+presets load unchanged, and a session saved before this version simply opens in
+English.
+
+### Added
+- **English + French across every visible string on the page.** 51 label keys
+  and 18 tooltip keys in a new `Source/ui/public/js/i18n.js`. Labels, tab
+  captions, knob captions, button faces, the MTS status line, the interval
+  header, the preset-dropdown group headings and eleven accessible names all
+  switch language with no reload and no English survivor.
+- **A settings popover with the language selector**, in the exact absolute slot
+  the floating "?" occupied through v1.12.1 (`bottom: 50px; right: 15px`), so
+  nothing on a packed 600 x 400 layout had to move to make room for it. The
+  hover-help switch moves inside it. Every colour, border, radius and transition
+  on the gear is the "?" button's own, carried across unchanged.
+- **`getUiLanguage` / `setUiLanguage` native functions and session
+  persistence.** The choice rides the session XML as a plain `uiLanguage`
+  attribute — deliberately NOT an `AudioParameterChoice`, so it never appears in
+  a host automation lane and no preset can change which language somebody reads
+  their interface in. The JSON preset path is untouched.
+
+### Changed
+- **The tooltip renderer is the measure-then-pin one, ported from
+  O-ReverseDelay. There is now ONE renderer repo-wide.** v1.12.1's positioner
+  never measured: it fell back to `tooltip.offsetWidth || 200` and
+  `tooltip.offsetHeight || 40` on every first hover and clamped against
+  `.plugin-container` rather than the viewport. The port brings a title/body
+  pair, a 120 ms dwell delay, a width RELEASED then MEASURED then PINNED before
+  `left` is applied, a vertical flip, a horizontal clamp, and an arrow offset
+  recomputed AFTER the clamp so a clamped tip still points at its control.
+  The old positioner and its two hard-coded literals are DELETED, not disabled —
+  `grep -rn 'tooltipHeight\|tooltipWidth\|data-tooltip' Source/ui/public/`
+  returns nothing outside comments.
+- **The 1,247-line inline `<script type="module">` is extracted to
+  `js/app.js`.** Behaviour moved, not rewritten: the same listeners in the same
+  order. Only the import specifiers changed, and only because the module's depth
+  did — `./js/juce/index.js` became `./juce/index.js` and `./modules/…` became
+  `../modules/…`.
+- **`Intervals (12 notes)` is now `Intervals: 12`.** The old form inflected a
+  noun on a count, and `total` is `currentIntervals.length`, which a degenerate
+  one-line `.scl` makes 1. French pluralises one AND zero as singular where
+  English pluralises only one, so the two languages disagree at n = 0. The noun
+  is dropped rather than a plural engine built. The English loses the word
+  "notes"; that is the visible cost and it is recorded rather than hidden.
+- **The three tuning-mode buttons are now three EQUAL columns** (`flex: 1 1 0`
+  with `min-width: 0`, in a `width: 100%` row). CUSTOM measures 78.31 px and
+  PERSO 67.13 px, and it is the MIDDLE button, so its width moved 12-TET and
+  MTS-ESP in opposite directions. A width pin on `#btn-scala` alone did not fix
+  it — the row is a flex item floored by its own min-content and the three used
+  widths came out 53.27 / 78.31 / 59.25 in English against 58.17 / 67.13 / 65.53
+  in French. Side effect: the row now FITS its 200 px panel, where it previously
+  overhung it by 10.83 px in English.
+- **The four Scala file buttons lose 6 px of horizontal padding each side**
+  (`.btn.btn-small` 10px -> 4px), uniformly in both languages. Their row measured
+  212.78 px in a 200 px panel in English — already overflowing before this work —
+  and 247.91 px in French. It is now 164.78 px and 199.91 px, so both fit and the
+  pre-existing English overflow is gone too.
+
+### Fixed
+- **The hover-help toggle's persistence call had never worked.** v1.12.1 called
+  `window.JuceAPI.getNativeFunction('setTooltipsEnabled')(...)` inside a
+  try/catch. `window.JuceAPI` has never existed on this page — the bridge
+  namespace is the imported `Juce` module and the global is `window.__JUCE__` —
+  and there is no `setTooltipsEnabled` native function in `PluginEditor.cpp` to
+  reach. The call threw on every toggle and the catch swallowed it. The dead call
+  is REMOVED rather than repaired: adding a real tooltips bridge is a
+  processor-state change that does not belong in a commit about language, and
+  repairing it in place would have shipped a new persisted preference under cover
+  of a rename. The toggle stays session-only, which is v1.12.1's observable
+  behaviour unchanged.
+- **Eight native `title=` attributes are gone** (contract §4): five authored in
+  `index.html` and three injected by the tonic selector. A native title renders a
+  second, untranslated OS tooltip competing with the measure-then-pin renderer.
+  Each one's text moved to a keyed `data-i18n-aria`; no new prose was invented.
+
+### The counts, parsed rather than grepped
+Rendered headless through `scripts/serve-ui.js` and walked with a TreeWalker:
+
+| | |
+|---|---|
+| `data-tooltip` live anchors | **15** (unique strings: **15**) |
+| `index.html` text nodes | 39 |
+| text nodes the page injects | 2 |
+| text nodes from the two SHARED FX modules | 20 |
+| **rendered text nodes** | **61** |
+| native `title=` | 8 (5 authored, 3 injected) |
+| `aria-label` / `alt` / `placeholder` | 0 / 1 / 12 (all 12 numeric) |
+| `[data-i18n]` elements after the retrofit | **36**, all 36 measured by the gate |
+
+The plan's "15 tips" is the first figure in this task to survive being parsed.
+Its "~40 static text nodes" did not: 61 render, and the 20-node difference is the
+Effects tab, built by two shared registry modules this commit does not edit.
+
+### The tooltip split: 15 clean, 0 hand-split
+The plan expects copy authored as `"Label: sentence."` and warns the shape
+usually does not hold — on O-IntonationPad it held on 14 of 77. Here it holds on
+ALL FIFTEEN. Every string contains exactly one `": "` and in every case it is the
+title separator, so the split is mechanical and the bodies are byte-identical to
+v1.12.1's attribute values.
+
+### The seven JS-written "mode names" all stay English — `I18N_EXEMPT`
+The plan says they are mode names needing `setLabel`. Parsed, they are
+`Edge`, `Center`, `Shimmer`, `Focused`, `Warm`, `Bright` and `MTS-ESP (stub)`,
+and none is a caption. `STRIKE_POSITION`, `OVERTONE_DAMPING` and `TONE` are all
+`AudioParameterFloat` in `createParameterLayout()`, so the plan's
+choice-parameter test says "localize" — but the test has a third arm it does not
+name: the six words are written into a `.knob-sublabel` whose id ends in
+`-value`, the SAME node that shows `Math.round(v * 100) + "%"` everywhere else in
+its range. They are the knob's READOUT wearing a word instead of a number at the
+ends of its travel, and contract §5 is explicit that a readout is never a
+`[data-i18n]` element. Keying one would also make the element enter and leave the
+sweep as the knob turns, so a later language change would repaint "Chaud" over
+"62%". The seventh is written to `#scale-name`, which also receives
+`getActiveTuningName()` and a loaded preset's `scaleName` — a data mirror.
+Reasons are recorded per entry in `I18N_EXEMPT`.
+
+`12-TET` and `MTS-ESP` are exempt for the plan's own reason: they are the
+`TUNING_MODE` `AudioParameterChoice` option strings VERBATIM. `CUSTOM` is not
+(the option is `Scala`), so it is a plain caption and it localizes.
+
+### The two shared Effects-tab modules are deliberately NOT localized
+`modules/effects/analog-eq-unit` (1.2.0) and `modules/effects/compressor-unit`
+(1.2.1) are registry-tracked and embedded from `${CMAKE_SOURCE_DIR}`. Localizing
+them is a cross-plugin change that does not belong in a per-plugin commit, and a
+local edit would be silently reverted by `/module-upgrade`. Of their 20 rendered
+text nodes the genuinely English words are ANALOG, Thresh, Attack and Release;
+the rest are acronyms or spelled identically in French. Recorded in
+`I18N_EXEMPT` rather than left silent: a French user sees those four in English
+on the Effects tab.
+
+### Verification
+- `node scripts/check-i18n.js --strict-v2` — all checks pass, 20 localized plugins.
+- `node scripts/check-ui-labels.js --plugin O-Marimba` — ALL CHECKS PASSED across
+  four states (default, tuning tab, Custom mode, settings popover), 36 of 36
+  `[data-i18n]` elements visible in at least one state. `tests/i18n-states.json`
+  is added to drive the three non-default states.
+- **Tooltip sweep, both tabs and both languages, 26 rendered tips: none leaves
+  the 600 x 400 frame.** The vertical clamp is carried in from O-FreqPulse but is
+  **NOT independently reproducible here** — deleting it puts nothing off-frame,
+  same as O-Polystutter, O-Lyrica and O-SpectralShaper. The sweep is not blind:
+  re-run with the HORIZONTAL clamp deleted instead, it reports ten off-frame tips
+  in both languages, worst `#gear-btn` at 72.0 px past the right edge.
+- **The language round-trip is MEASURED on both halves, not reasoned.**
+  A compiled JUCE probe drives the exact three code paths added here and asserts
+  the `uiLanguage` attribute survives the XML round-trip, comes back a STRING
+  `var` (`critical_valuetree_xml_roundtrip_loses_type`), is absent on a
+  pre-v1.13.0 session so English stands, and that an unknown code degrades to
+  English. In the headless page, picking Français in the gear popover sends
+  `setUiLanguage('fr')`, and a reloaded page calls only `getUiLanguage`, receives
+  `fr` and paints French (SOUND -> SON, MALLET/HARDNESS -> DURETÉ/MAILLET) with
+  no English survivor. `auval -v aumu OuMa OuDv` passes, including VERIFYING
+  CLASS INFO, which exercises `get/setStateInformation` with the new attribute.
+
+### Not verified
+- **No human has seen this French UI in a DAW.** The round-trip is measured in a
+  probe and in the headless harness, not by a person picking Français in a host,
+  closing the session and reopening it.
+- **All 69 French strings are machine drafts, every one `reviewed: false`.**
+  No native speaker has read them.
+- **Windows / WebView2 font metrics** remain the named hardware-blocked
+  deferral. The tightest French margin measured here is 1.69 px, on CUSTOM inside
+  its 48 px content box.
+
+### Known pre-existing issue, deliberately NOT fixed here
+`CMakeLists.txt:8` declares `PLUGIN_VERSION 1.13.0` inside `juce_add_plugin`.
+**`PLUGIN_VERSION` is not a JUCE keyword** — JUCE reads `VERSION` — so the
+unrecognised keyword is silently ignored and the plugin ships reporting **1.0.0**
+to the host, whatever that line says
+(`critical_plugin_version_keyword_ignored_by_juce`). The line already read
+`PLUGIN_VERSION 1.12.1` before this work; the bump preserves the file's existing
+pattern rather than changing host-visible behaviour inside a language commit.
+Repo-wide it affects seven plugins — O-Contrabass, O-Marimba, O-Octagon, O-Reed,
+O-ReverseDelay, O-MicrotonalSampler, O-Tapestop — and correcting it moves the
+host-visible version from 1.0.0 to the real number, which is a session- and
+host-compatibility change and the user's call across all seven at once.
+
 ## [1.12.1] - 2026-07-08
 
 Resolves all 13 Critical + Warning findings from the v1.12.0 deep code review

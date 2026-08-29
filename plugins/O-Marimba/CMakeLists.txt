@@ -5,7 +5,7 @@ juce_add_plugin(OMarimba
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuMa
-    PLUGIN_VERSION 1.12.1
+    PLUGIN_VERSION 1.13.0
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Marimba${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
@@ -71,6 +71,8 @@ target_compile_definitions(OMarimba
 juce_add_binary_data(OMarimba_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg

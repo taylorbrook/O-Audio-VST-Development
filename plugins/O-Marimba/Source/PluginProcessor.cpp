@@ -360,8 +360,22 @@ void OMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     // v1.3.0: Use PresetManager to save complete state including tuning
     auto xml = presetManager.getStateAsXml();
+
     if (xml != nullptr)
+    {
+        // v1.13.0: the UI language rides the session XML as a plain attribute.
+        //
+        // Written on the XmlElement PresetManager already built, not on
+        // parameters.state: getStateAsXml() calls parameters.copyState() and
+        // createXml() internally, so by this line the tree has already been
+        // snapshotted and a setProperty on the live APVTS tree would never reach
+        // the bytes serialised below. Setting the attribute here is exactly
+        // equivalent — a ValueTree property IS an XML attribute — and leaves
+        // PresetManager, and therefore the JSON preset path, untouched.
+        xml->setAttribute("uiLanguage", languageCode(uiLanguage.load(std::memory_order_acquire)));
+
         copyXmlToBinary(*xml, destData);
+    }
 }
 
 void OMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
@@ -370,7 +384,23 @@ void OMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInByt
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
+    {
         presetManager.setStateFromXml(xmlState.get());
+
+        // v1.13.0: read the language back from the RESTORED XML.
+        //
+        // hasAttribute() is the guard, and getStringAttribute() the read.
+        // NamedValueSet::setFromXmlAttributes rebuilds every property as a var
+        // over the attribute STRING, so a type predicate such as isInt() is
+        // false for every session ever saved
+        // (critical_valuetree_xml_roundtrip_loses_type) — and here the value
+        // never leaves string form at all. A session written before v1.13.0 has
+        // no such attribute and simply leaves the language where it is: English
+        // on a fresh instance.
+        if (xmlState->hasAttribute("uiLanguage"))
+            uiLanguage.store(languageIndex(xmlState->getStringAttribute("uiLanguage")),
+                             std::memory_order_release);
+    }
 }
 
 // UI keyboard MIDI injection (called from UI thread)
