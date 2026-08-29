@@ -22,6 +22,114 @@
 
 import * as Juce from './juce/index.js';
 
+// ════════════════════════════════════════════════════════════════════════════
+// i18n — CANON V2, verbatim. scripts/check-i18n.js assertion 6 strips comments,
+// normalises whitespace and byte-compares this region against
+// scripts/i18n-canon.js. Do not edit it here; edit the canon.
+//
+// PLACED AT THE TOP, ABOVE EVERY OTHER DECLARATION, and placed by where the
+// page first READS trLabel() rather than by convention. `let uiLanguage` is a
+// lexical binding: an initializer that ran ABOVE this block and reached into it
+// would be a TDZ ReferenceError that takes the whole UI with it, and every
+// later initializer on the page with it (pattern_module_toplevel_init_tdz).
+// This module's only reader is init(), which is still called LAST.
+// ════════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
     // WR-11: skew-correct reset defaults come from C++ (the real NormalisableRange), fetched
     // async at startup and ready long before any double-click. No hand-coded JS defaults.
     const getParameterDefaults = Juce.getNativeFunction('getParameterDefaults');
@@ -524,6 +632,45 @@ import * as Juce from './juce/index.js';
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // Settings popover — the language selector (v2.5.0)
+    // ════════════════════════════════════════════════════════════════════
+
+    function initSettingsPopover() {
+        const gearBtn  = document.getElementById('gear-btn');
+        const popover  = document.getElementById('settings-popover');
+        if (!gearBtn || !popover) {
+            console.warn('settings popover missing \u2014 language selector unavailable');
+            return;
+        }
+
+        const setOpen = (open) => {
+            popover.hidden = !open;
+            gearBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        gearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setOpen(popover.hidden);
+        });
+
+        // Dismiss on a press anywhere else, and on Escape. mousedown rather
+        // than click, so the panel is gone before a drag on a knob underneath
+        // it begins \u2014 setupKnob starts a drag on mousedown.
+        document.addEventListener('mousedown', (e) => {
+            if (popover.hidden) return;
+            if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+            setOpen(false);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !popover.hidden) {
+                setOpen(false);
+                gearBtn.focus();
+            }
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // Initialization
     // ════════════════════════════════════════════════════════════════════
 
@@ -575,6 +722,13 @@ import * as Juce from './juce/index.js';
             if (grainViz) grainViz.resize();
             if (euclideanViz) euclideanViz.resize();
         });
+
+        // ── i18n, GUARDED AND LAST ──────────────────────────────────────
+        // Every binding above has already run, so a throw in here cannot cost
+        // the page a knob, a dropdown or a visualization. The page then reads
+        // English on its own authored markup, which is the correct degradation.
+        initSettingsPopover();
+        try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
     }
 
 // ES modules are deferred — DOM is ready when this runs

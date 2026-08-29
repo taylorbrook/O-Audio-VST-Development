@@ -86,6 +86,37 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
                             obj->setProperty(ranged->getParameterID(), ranged->getDefaultValue());
                     completion(juce::var(obj.get()));
                 })
+            // v2.5.0: the UI LANGUAGE pair.
+            //
+            // Plain withNativeFunction, no relay. The page PULLS once at init;
+            // there is no push from this constructor, no use of the 30 Hz timer
+            // and no revision counter, because the language is not preset
+            // content and no preset path can change it behind the page's back.
+            // A push from here would race the WebView's load.
+            .withNativeFunction(
+                juce::Identifier("getUiLanguage"),
+                [this](const juce::Array<juce::var>& /*args*/,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    completion(juce::var(GrainScatterProcessor::languageCode(
+                                             audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+                })
+            .withNativeFunction(
+                juce::Identifier("setUiLanguage"),
+                [this](const juce::Array<juce::var>& args,
+                       juce::WebBrowserComponent::NativeFunctionCompletion completion)
+                {
+                    // languageIndex() maps anything that is not "fr" to 0, so an
+                    // unexpected argument from the page degrades to English
+                    // rather than being stored unvalidated.
+                    if (args.size() > 0)
+                        audioProcessor.uiLanguage.store(
+                            GrainScatterProcessor::languageIndex(args[0].toString()),
+                            std::memory_order_release);
+
+                    completion(juce::var(GrainScatterProcessor::languageCode(
+                                             audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+                })
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](const auto& url) { return getResource(url); })
 #endif
@@ -309,6 +340,17 @@ GrainScatterEditor::getResource(const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String("application/javascript")};
+    }
+
+    // v2.5.0: the label table. EMBEDDED in CMakeLists.txt AND served here, in
+    // the same commit. A file embedded but not served, or served but not
+    // embedded, is a 404 that presents as a page stuck in English and nothing
+    // else - check-i18n assertion 8 exists for exactly this pair.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String("application/javascript")};
     }
 
