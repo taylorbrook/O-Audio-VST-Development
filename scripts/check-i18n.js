@@ -32,7 +32,10 @@
     whole rollout teaches the team to ignore gates:
 
       1  en and fr key sets in I18N are identical, and every entry has t + b.
-      2  every key referenced by TIP_BINDINGS exists in I18N.
+      2  every key referenced by TIP_BINDINGS exists in I18N, and the bound
+         COUNT is reported. Zero bindings is legitimate — a plugin with no
+         hover-help — but only when no I18N entry carries a body; an emptied
+         TIP_BINDINGS over a bodied table is orphaned copy and fails.
       3  index.html carries ZERO data-tip / data-tip-title / data-tooltip
          literals — the copy has fully left the markup.
       4  no French entry is a straight passthrough of the English unless it
@@ -445,7 +448,15 @@ function checkPlugin(p) {
         `[1] LANGUAGES is exactly ['en','fr'] — got ${JSON.stringify(LANGUAGES)}`);
 
     const keys = I18N && typeof I18N === 'object' ? Object.keys(I18N) : [];
-    check(keys.length > 0, `[1] I18N has entries — got ${keys.length}`);
+
+    // A plugin with NO hover-help has an EMPTY I18N and a populated LABELS: it
+    // is a page that speaks French with nothing to hover. `keys.length > 0`
+    // would fail every one of those, so the requirement is that the TABLE
+    // carries copy — in either half — and both counts are reported either way.
+    const labelKeysEarly = (mod.LABELS && typeof mod.LABELS === 'object')
+        ? Object.keys(mod.LABELS) : [];
+    check(keys.length + labelKeysEarly.length > 0,
+        `[1] the table carries copy — ${keys.length} I18N + ${labelKeysEarly.length} LABELS`);
 
     // ── 1. en/fr key sets identical, every entry has t + b ───────────────
     const missingLang = [];
@@ -467,7 +478,32 @@ function checkPlugin(p) {
 
     // ── 2. TIP_BINDINGS keys resolve ─────────────────────────────────────
     const bindings = Array.isArray(TIP_BINDINGS) ? TIP_BINDINGS : [];
-    check(bindings.length > 0, `[2] TIP_BINDINGS has entries — got ${bindings.length}`);
+
+    // `bindings.length > 0` was right while every localized plugin had hover-
+    // help. It is wrong for a plugin that has none: zero bindings is that
+    // plugin's CORRECT state, not a defect.
+    //
+    // Dropping the assertion outright would go vacuous the other way — a
+    // shipped tooltip plugin whose TIP_BINDINGS was emptied by an edit would
+    // pass with 40 orphaned tooltip bodies in its table and nothing on screen.
+    //
+    // The discriminator is the TABLE, not the count: a tooltip entry is the one
+    // that carries a non-empty body `b`. (A LABEL lives in LABELS; a composed
+    // string housed in I18N carries an EMPTY body — O-Polystutter v1.14.0 —
+    // and correctly does not demand a binding.) So: bindings may be empty ONLY
+    // if no I18N entry has a body. Either way the count is REPORTED, so "0 tips
+    // bound" is a line in the log rather than a silent pass.
+    const tipBodied = keys.filter((k) => {
+        const e = I18N[k] || {};
+        return ['en', 'fr'].some((l) => e[l] && typeof e[l].b === 'string' && e[l].b.trim() !== '');
+    });
+    check(bindings.length > 0 || tipBodied.length === 0,
+        `[2] ${bindings.length} tip(s) bound`
+        + (bindings.length > 0 ? ''
+           : tipBodied.length === 0
+             ? ' — this plugin has no hover-help, which is a state, not a gap'
+             : ` — ORPHANED: ${tipBodied.length} I18N entries carry a body that nothing binds`
+               + `: ${tipBodied.slice(0, 6).join(', ')}`));
 
     const unresolved = bindings.filter(b => !Array.isArray(b) || !(b[1] in (I18N || {})))
                                .map(b => (Array.isArray(b) ? b[1] : String(b)));
