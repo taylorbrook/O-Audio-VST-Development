@@ -889,17 +889,50 @@ function checkPlugin(p) {
     // WITHOUT THIS a plugin passes at 100% tooltip coverage with every label
     // still hard-coded English.
     const uncovered = [];
+    // AN EXEMPTION IS MATCHED BY TEXT, SO IT SILENCES EVERY NODE WITH THAT TEXT.
+    // That is the shape of the hole: a string exempt for one element — a choice
+    // option, a unit, a product name — also silences a DIFFERENT element that
+    // happens to say the same thing and was simply never keyed. O-Detune is the
+    // first live collision: `Random` is a wobble_shape option, a unison_dist
+    // option, AND a caption that must translate. Its executor's control is the
+    // proof — delete `label.random` and its `data-i18n`, leaving bare English,
+    // and the gate stays green; the identical deletion on `Spread`, whose text
+    // is not exempt, fails assertion 10 by name.
+    //
+    // Reordering these two guards does NOT fix it, though it is the obvious
+    // suggestion and two executors made it independently: both branches are
+    // `continue`, so the node is skipped either way and the control still
+    // passes. A real fix scopes each exemption to the element that earned it,
+    // which changes the I18N_EXEMPT contract across every localized plugin —
+    // too big to take mid-rollout, and a decision rather than a repair.
+    //
+    // What IS free is refusing to let it stay invisible. Each exemption reports
+    // how many unkeyed LABEL nodes it silenced, and any string that is BOTH
+    // exempt and keyed on the same page is named: that is the ambiguous case,
+    // where the gate cannot tell a deliberate exemption from a missed label.
+    const silenced = new Map();
     for (const t of texts) {
         const el = t.parent;
         if (!el || el.tag === 'script' || el.tag === 'style' || el.tag === 'title') continue;
         if (EXTRACT.classify(t.text).cls !== 'LABEL') continue;
-        if (exemptSet.has(t.text)) continue;
+        if (exemptSet.has(t.text)) {
+            if (!keyedAncestor(el)) silenced.set(t.text, (silenced.get(t.text) || 0) + 1);
+            continue;
+        }
         if (keyedAncestor(el)) continue;
         uncovered.push(`${t.text.slice(0, 34)} @${el.id ? '#' + el.id : el.tag}`);
     }
     check(uncovered.length === 0,
         `[10] every LABEL text node sits inside a [data-i18n] element, or is I18N_EXEMPT`
         + (uncovered.length ? ` — ${uncovered.length} uncovered: ${uncovered.slice(0, 5).join(' | ')}` : ''));
+
+    const keyedTexts = new Set(texts.filter((t) => t.parent && keyedAncestor(t.parent)).map((t) => t.text));
+    const ambiguous = [...silenced.keys()].filter((txt) => keyedTexts.has(txt));
+    if (ambiguous.length)
+        console.log(`   NOTE: [10] ${ambiguous.length} string(s) are BOTH I18N_EXEMPT and keyed on this `
+            + 'page, so the exemption cannot tell a deliberate skip from a missed label — confirm each '
+            + `unkeyed occurrence is intended: ${ambiguous.slice(0, 5).map((txt) =>
+                `"${txt.slice(0, 20)}" silenced ${silenced.get(txt)}`).join(', ')}`);
 
     // ── 11. attribute coverage, and ZERO native title= ───────────────────
     const DATASET_FOR = { 'aria-label': 'data-i18n-aria', placeholder: 'data-i18n-placeholder', alt: 'data-i18n-alt' };
