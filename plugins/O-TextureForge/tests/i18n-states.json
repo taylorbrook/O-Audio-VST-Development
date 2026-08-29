@@ -1,0 +1,6 @@
+[
+  {
+    "name": "settings popover open",
+    "click": "#gear-btn"
+  }
+]

@@ -144,6 +144,19 @@ body::after {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    /* v1.1.0 GEOMETRY PIN — WIDTH, not min-width.
+       This box is absolutely positioned and centred with translate(-50%), so
+       it SHRINK-WRAPS its text: a longer caption both widens it and moves its
+       left edge. It is not a [data-i18n] element (its child span is), so
+       check-ui-labels assertion 7 measures it in both languages, and it MOVED
+       — 202.8 -> 152.41 x, 183.06 -> 283.84 w — on the French
+       "Déposez un fichier audio pour commencer".
+       A hard width makes the rect language-invariant by construction. 320 px
+       holds the widest of the three messages this element carries, measured as
+       rendered: the French drop-to-begin invitation at 283.84 px, with 36 px of
+       slack. NEGATIVE CONTROL: removing this one declaration re-breaks
+       assertion 7 on .scatter-placeholder and its .fleuron child. */
+    width: 320px;
     text-align: center;
     color: var(--text-secondary);
     font-size: 13px;
@@ -159,6 +172,25 @@ body::after {
     opacity: 0.3;
     display: block;
     margin-bottom: 6px;
+}
+
+/* v1.1.0: the placeholder's TEXT, split out of the container so applyLabel can
+   write textContent without deleting the fleuron beside it (contract section 5,
+   D-01 arm 3).
+
+   pre-line is load-bearing for ONE of the three messages this span carries:
+   'File not found: {path}' used to be joined to 'Drop a new file to continue.'
+   with a <br>, and a markup tag inside a localized string needs innerHTML — the
+   path check-i18n assertion 9 forbids for machine-drafted French. The break is
+   now a \n in the table and this declaration is what renders it. */
+.scatter-placeholder .placeholder-text {
+    display: block;
+    white-space: pre-line;
+    /* The fileNotFound message interpolates a filesystem PATH, which has no
+       spaces to break at. pre-line wraps at \n and at spaces only, so without
+       this a long path would run straight out of the 320 px box the pin above
+       fixes. Introduced with that pin, not before it. */
+    overflow-wrap: anywhere;
 }
 
 /* ===== MACRO KNOBS PANEL ===== */
@@ -257,9 +289,29 @@ body::after {
     gap: 6px;
 }
 
+/* v1.1.0 GEOMETRY — LANGUAGE-INVARIANT BY CONSTRUCTION, not by a magic number.
+   Through v1.0.2 this was `display: flex; justify-content: space-around`, which
+   divides the free space around five SHRINK-WRAPPED columns. That makes every
+   group's position a function of every caption's rendered width, in BOTH
+   directions: "Grain Size" -> "Taille grain" widens its group 50.61 -> 62.28
+   and "Crossfade" -> "Fondu" narrows its group 51.56 -> 38, and each one shoves
+   the rest of the row. A .bottom-knob-group is not a label and not inside one,
+   so all of that is check-ui-labels assertion 7, which reported 12 moved
+   elements across three groups, their knobs, their indicators and one readout.
+
+   A five-column grid at 1fr each gives every group the same 173.6 px whatever
+   it contains, so no caption in either language can move anything. Preferred
+   over pinning five widths because there is no number to re-derive when a
+   caption changes, and preferred over one uniform width pin for the same
+   reason. The English row does shift — the knobs move to their column centres,
+   by at most 20 px — and the result is an evenly spaced row where space-around
+   had made the spacing a function of caption length.
+
+   NEGATIVE CONTROL: restoring `display: flex; justify-content: space-around`
+   re-breaks assertion 7 with those same 12 elements. */
 .bottom-knobs {
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     align-items: center;
 }
 
@@ -402,4 +454,132 @@ body::after {
     height: 11px;
     top: 4px;
     transform-origin: center 15px;
+}
+
+
+/* ===== SETTINGS POPOVER (v1.1.0) =====
+   Written in THIS page's vocabulary rather than pasted in from another plugin:
+   the aged-paper fills, the --knob-border rule the .midi-mode-select already
+   uses, the --active-green focus state that select carries, Garamond, and the
+   uppercase letter-spaced caption every small label here wears.
+
+   The cluster is an IN-FLOW flex item beside the h1, inside .header-left. It is
+   not absolutely positioned and needs no magic offset: .header is space-between
+   with two children, so putting the gear in the LEFT one leaves .tagline exactly
+   where it was. Measured before/after at 900 x 600 — see the commit message. */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-cluster {
+    /* positioned so .settings-popover can hang off it, and so z-index applies.
+       #cursor-overlay below carries z-index: 10 inside a position: relative
+       parent with z-index auto, so it participates in the ROOT stacking context
+       and is later in DOM order — without a stacking order here the panel would
+       open underneath the scatter overlay. */
+    position: relative;
+    display: flex;
+    align-items: center;
+    z-index: 60;
+}
+
+.gear-btn {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: rgba(255,248,220,0.6);
+    color: var(--text-secondary);
+    border: 1px solid var(--knob-border);
+    border-radius: 50%;
+    font-family: var(--font-primary);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.gear-btn:hover {
+    background: var(--paper-deep);
+    color: var(--text-primary);
+}
+
+.gear-btn[aria-expanded="true"] {
+    background: var(--active-green);
+    color: var(--paper-bg);
+    border-color: var(--active-green-dark);
+}
+
+.gear-btn:focus-visible {
+    outline: 2px solid var(--active-green-dark);
+    outline-offset: 2px;
+}
+
+/* Opens DOWNWARDS and left-aligned to the gear. The gear sits 8 px from the top
+   of a 600 px frame, so a panel above it would leave the frame; below it there
+   are 560 px of room and the panel is 36 px tall.
+
+   WIDTH IS PINNED, not min-width. .settings-popover is not a [data-i18n]
+   element, so check-ui-labels assertion 7 measures its box in BOTH languages and
+   any language-driven resize is a reported failure. A hard width makes the
+   panel's rect language-invariant by construction. The value holds the English
+   row (Language + English) and the French one (Langue + Fran\00e7ais), measured
+   as rendered rather than guessed from a font probe. */
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 61;
+    width: 190px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: var(--paper-bg);
+    border: 1px solid var(--knob-border);
+    border-radius: 4px;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.25);
+}
+
+.settings-popover[hidden] {
+    display: none;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* nowrap because the row is space-between: a caption that wrapped would grow the
+   row's height and move the control beside it, which is an assertion-7 element. */
+.settings-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.settings-select {
+    flex: 0 0 auto;
+    font-family: var(--font-primary);
+    font-size: 9px;
+    color: var(--text-primary);
+    background: rgba(255,248,220,0.6);
+    border: 1px solid var(--knob-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    outline: none;
+}
+
+.settings-select:focus-visible {
+    outline: 2px solid var(--active-green-dark);
+    outline-offset: 1px;
 }

@@ -190,6 +190,33 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
                     });
                 complete({});
             })
+            // ── v1.1.0: the UI LANGUAGE pair ───────────────────────────────
+            //
+            // Plain withNativeFunction, no relay. The page PULLS once at init;
+            // there is no push from this constructor, no timer and no revision
+            // counter, because the language is not preset content and no preset
+            // path can change it behind the page's back. A push from here would
+            // race the WebView's load.
+            .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>& /*args*/,
+                                                         juce::WebBrowserComponent::NativeFunctionCompletion complete)
+            {
+                complete(juce::var(TextureForgeProcessor::languageCode(
+                                       processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+            .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args,
+                                                         juce::WebBrowserComponent::NativeFunctionCompletion complete)
+            {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument from the page degrades to English rather
+                // than being stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.uiLanguage.store(
+                        TextureForgeProcessor::languageIndex(args[0].toString()),
+                        std::memory_order_release);
+
+                complete(juce::var(TextureForgeProcessor::languageCode(
+                                       processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
     );
 
     addAndMakeVisible(*webView);
@@ -347,6 +374,25 @@ TextureForgeEditor::getResource(const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("application/javascript")};
+    }
+
+    // JavaScript — the label table and the language runtime (v1.1.0). BOTH are
+    // embedded in CMakeLists.txt AND served here, in the same commit. A file
+    // embedded but not served, or served but not embedded, is a 404 that
+    // presents as a page stuck in English and nothing else — check-i18n
+    // assertion 8 exists for this pair.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("application/javascript")};
+    }
+
+    if (url == "/js/i18n_init.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_init_js, BinaryData::i18n_init_jsSize),
             juce::String("application/javascript")};
     }
 
