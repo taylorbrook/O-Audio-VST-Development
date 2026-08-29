@@ -137,6 +137,26 @@
       color: #3a5c4a;
     }
 
+    /* WIDTH IS PINNED (v1.3.0), and this pin is LOAD-BEARING rather than
+       decorative — its negative control fires. .preset-bar is a shrink-to-fit
+       flex row flush against the header's right edge, so an unpinned button
+       that grows in French drags the WHOLE row left and takes #preset-prev,
+       #preset-display and #preset-next with it. None of those three is a
+       [data-i18n] element, so check-ui-labels assertion 7 reports four moved
+       rectangles. Removing this line alone reproduces exactly that.
+
+       62 px, border-box, holds both captions in both languages:
+           Load 39.00 -> CHARGER 58.52   3.48 px spare
+           Save 36.34 -> SAUVER  51.02  10.98 px spare
+       A pinned width makes the row's geometry language-invariant BY
+       CONSTRUCTION, which is the same move the settings popover below makes
+       for the same reason.
+
+       It does move ENGLISH: the two buttons widen by 23 and 25.66 px, so the
+       preset cluster starts 48.66 px further left in a header that has ~290 px
+       of empty middle. Pinning to the English box instead would clip: the
+       shortest defensible French for "Load" needs 48.77 px against Load's
+       39.00, so there is no value that holds French and leaves English alone. */
     .preset-action {
       background: none;
       border: 1px solid rgba(74, 59, 42, 0.4);
@@ -147,6 +167,7 @@
       color: #3C2F2F;
       cursor: pointer;
       padding: 1px 5px;
+      width: 62px;
       opacity: 0.95;
       text-transform: uppercase;
       transition: opacity 0.15s, border-color 0.15s;
@@ -315,6 +336,130 @@
       min-width: 50px;
       height: 13px;
     }
+
+    /* ===== SETTINGS POPOVER (v1.3.0) =====
+       Styled in THIS page's vocabulary rather than pasted in from another
+       plugin: the cream #F5E6D3 fill, the rgba(139,115,85,0.4) hairline the
+       preset dropdown already uses, the #3a5c4a green hover the preset bar
+       already uses, Garamond, uppercase, letter-spacing.
+
+       PLACEMENT IS THE BOTTOM-LEFT CORNER, and it is chosen so that NOT ONE
+       existing element moves to make room for it. The header is a two-child
+       space-between flex row; a third child there would reflow it. .controls
+       is centred, and its left group starts at x = 29.5, so the strip
+       x 0..29.5 by y 28..125 is empty paper in both languages. A 20 px gear at
+       left: 5px is 5..25 — clear by 4.5 px, measured rather than eyeballed. */
+    .settings-cluster {
+      position: absolute;
+      left: 5px;
+      bottom: 5px;
+      z-index: 60;
+    }
+
+    .gear-btn {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      background: none;
+      border: 1px solid rgba(74, 59, 42, 0.4);
+      border-radius: 50%;
+      color: #3C2F2F;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.95;
+      transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .gear-btn:hover {
+      opacity: 1;
+      border-color: rgba(58, 92, 74, 0.5);
+      color: #3a5c4a;
+    }
+
+    .gear-btn[aria-expanded="true"] {
+      border-color: rgba(58, 92, 74, 0.6);
+      color: #3a5c4a;
+    }
+
+    .gear-btn:focus-visible {
+      outline: 1px solid #3a5c4a;
+      outline-offset: 2px;
+    }
+
+    /* Opens UPWARDS. The gear sits 5 px from the BOTTOM of a 125 px frame, so
+       a panel below it would leave the frame entirely; upward it occupies
+       y 59..99, well inside.
+
+       WIDTH IS PINNED, not min-width, and this pin is load-bearing too:
+       .settings-popover is not a [data-i18n] element, so assertion 7 measures
+       its box in both languages, and French SHRINKS the caption here
+       (LANGUAGE 55.31 -> LANGUE 41.08). An auto-width panel would therefore
+       contract in French and be reported as moved — the shrink half of the
+       problem that a clip check cannot see at all. A hard width makes the
+       panel's rectangle language-invariant by construction. 170 px holds the
+       English row and the French one with room to spare, measured as rendered
+       rather than from a font probe: text-transform and letter-spacing are not
+       in getComputedStyle().font. */
+    .settings-popover {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 0;
+      z-index: 61;
+      width: 170px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(245, 230, 211, 0.97);
+      border: 1px solid rgba(139, 115, 85, 0.4);
+      border-radius: 3px;
+      box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .settings-popover[hidden] {
+      display: none;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* nowrap because the row is space-between: a caption that wrapped would
+       grow the row's height and move the control beside it. */
+    .settings-label {
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      white-space: nowrap;
+    }
+
+    .settings-select {
+      flex: 0 0 auto;
+      padding: 1px 3px;
+      background: none;
+      border: 1px solid rgba(74, 59, 42, 0.4);
+      border-radius: 2px;
+      color: #3C2F2F;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .settings-select:focus-visible {
+      outline: 1px solid #3a5c4a;
+      outline-offset: 1px;
+    }
   </style>
 </head>
 <body>
@@ -323,13 +468,32 @@
     <div class="insects-background"><img src="img/insects.png" alt=""></div>
 
     <div class="header">
+      <!-- NOT a [data-i18n] element: a product name is never translated.
+           Declared in I18N_EXEMPT with that reason, so a genuinely missed
+           label cannot hide here as a deliberate one. -->
       <div class="title">Ouaricon Chorus</div>
+      <!-- v1.3.0: the four native title= attributes this bar carried are
+           DELETED, not localized (contract §4 — a native title renders a
+           second, untranslated OS tooltip). Their EXISTING English text moved
+           verbatim into data-i18n-aria; no new prose was authored. -->
       <div class="preset-bar">
-        <button class="preset-nav" id="preset-prev" title="Previous preset">&#x25C0;</button>
+        <button class="preset-nav" id="preset-prev"
+                data-i18n-aria="aria.prevPreset" aria-label="Previous preset">&#x25C0;</button>
+        <!-- The preset NAME, written here at runtime by the vendored
+             modules/preset-manager.js. Exempt under D-02: the name IS the JSON
+             filename on disk. -->
         <span class="preset-name" id="preset-display">Default</span>
-        <button class="preset-nav" id="preset-next" title="Next preset">&#x25B6;</button>
-        <button class="preset-action" id="preset-load" title="Load preset from file">Load</button>
-        <button class="preset-action" id="preset-save" title="Save preset">Save</button>
+        <button class="preset-nav" id="preset-next"
+                data-i18n-aria="aria.nextPreset" aria-label="Next preset">&#x25B6;</button>
+        <!-- data-label so a state updater that writes textContent reads the
+             authored caption back instead of erasing it
+             (pattern_js_state_updater_overwrites_html_labels). -->
+        <button class="preset-action" id="preset-load"
+                data-i18n="label.load" data-label="Load"
+                data-i18n-aria="aria.loadPreset" aria-label="Load preset from file">Load</button>
+        <button class="preset-action" id="preset-save"
+                data-i18n="label.save" data-label="Save"
+                data-i18n-aria="aria.savePreset" aria-label="Save preset">Save</button>
         <div class="preset-dropdown" id="preset-dropdown"></div>
       </div>
     </div>
@@ -346,7 +510,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Rate</span>
+            <span class="knob-label" data-i18n="label.rate" data-label="Rate">Rate</span>
             <span class="knob-value" data-value="rate">1.00 Hz</span>
           </div>
         </div>
@@ -359,7 +523,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Depth</span>
+            <span class="knob-label" data-i18n="label.depth" data-label="Depth">Depth</span>
             <span class="knob-value" data-value="depth">50%</span>
           </div>
         </div>
@@ -372,7 +536,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Voices</span>
+            <span class="knob-label" data-i18n="label.voices" data-label="Voices">Voices</span>
             <span class="knob-value" data-value="voices">4</span>
           </div>
         </div>
@@ -385,7 +549,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Spread</span>
+            <span class="knob-label" data-i18n="label.spread" data-label="Spread">Spread</span>
             <span class="knob-value" data-value="spread">0%</span>
           </div>
         </div>
@@ -393,7 +557,7 @@
 
       <!-- Center: LFO Ring -->
       <div class="lfo-ring-container">
-        <div class="lfo-ring-label">LFO</div>
+        <div class="lfo-ring-label" data-i18n="label.lfo" data-label="LFO">LFO</div>
         <div class="lfo-ring">
           <svg viewBox="0 0 90 90">
             <circle cx="45" cy="45" r="36" fill="none" stroke="#5a7a6a" stroke-width="2.5"/>
@@ -413,7 +577,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Width</span>
+            <span class="knob-label" data-i18n="label.width" data-label="Width">Width</span>
             <span class="knob-value" data-value="width">70%</span>
           </div>
         </div>
@@ -426,7 +590,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Tone</span>
+            <span class="knob-label" data-i18n="label.tone" data-label="Tone">Tone</span>
             <span class="knob-value" data-value="tone">0%</span>
           </div>
         </div>
@@ -439,7 +603,7 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Mix</span>
+            <span class="knob-label" data-i18n="label.mix" data-label="Mix">Mix</span>
             <span class="knob-value" data-value="mix">50%</span>
           </div>
         </div>
@@ -452,10 +616,34 @@
                   stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
               </svg>
             </div>
-            <span class="knob-label">Drive</span>
+            <span class="knob-label" data-i18n="label.drive" data-label="Drive">Drive</span>
             <span class="knob-value" data-value="drive">30%</span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- v1.3.0: the settings cluster. ONE row, because this plugin has no
+         hover-help to toggle — authoring that copy is Stage M's job and this
+         commit does not invent it. Positioned absolutely in the empty
+         bottom-left margin so that no existing element moves to make room. -->
+    <div class="settings-cluster">
+      <button type="button" class="gear-btn" id="gear-btn"
+              aria-haspopup="dialog" aria-expanded="false"
+              data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+      <div class="settings-popover" id="settings-popover"
+           role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+        <label class="settings-row" for="lang-select">
+          <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+          <!-- ENDONYMS. Never localized: a French speaker looking for their
+               language looks for "Fran&ccedil;ais". -->
+          <select class="settings-select" id="lang-select"
+                  data-i18n-aria="aria.langSelect" aria-label="Interface language">
+            <option value="en">English</option>
+            <option value="fr">Fran&ccedil;ais</option>
+          </select>
+        </label>
       </div>
     </div>
   </div>
@@ -463,7 +651,24 @@
   <script type="module" src="./js/juce/index.js"></script>
   <script type="module">
     import { getSliderState, getNativeFunction } from './js/juce/index.js';
+    // The JUCE 8 frontend NAMESPACE, imported alongside the two named bindings
+    // this page already used. Juce.getNativeFunction is the only correct way to
+    // reach a withNativeFunction registration — window.__JUCE__ is the raw
+    // postMessage transport and does not carry the promise contract
+    // (critical_juce_webview_namespace_vs_postmessage). Two import statements
+    // from one specifier is legal ES and leaves the existing call sites below
+    // untouched.
+    import * as Juce from './js/juce/index.js';
     import { PresetManager } from './modules/preset-manager.js';
+
+    // v1.3.0: the label table. The canonical import line, re-rooted from
+    // './i18n.js' to './js/i18n.js' because this plugin's controller is an
+    // inline <script type="module"> at the UI root rather than a js/app.js.
+    // check-i18n assertion 6 accepts exactly that one substitution and nothing
+    // else. I18N and TIP_BINDINGS are both EMPTY here (this page has no
+    // hover-help) and are imported anyway so the canon block below stays
+    // byte-identical to the other forty-two copies.
+    import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -685,6 +890,171 @@
         }
       });
     });
+
+    // ════════════════════════════════════════════════════════════════════════
+    // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // Byte-compared by check-i18n assertion 6 after comment stripping and
+    // whitespace normalisation. Do not edit it here; edit the canon and every
+    // copy together, which is the whole point of holding it as data.
+    //
+    // It sits at the END of the module, below every existing initializer, and
+    // is REACHED only through the guarded initI18n() call further down. A
+    // top-level statement up here that touched a lower `let` would be a TDZ
+    // throw taking every later initializer with it, and on this plugin
+    // "every later initializer" is the entire UI — the controller is one
+    // inline module, not a file that can fail in isolation
+    // (pattern_module_toplevel_init_tdz).
+
+    let uiLanguage = 'en';
+    let getUiLanguageNative = null;
+    let setUiLanguageNative = null;
+
+    // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+    // its label carries one key, not two copies of the same string.
+    function trLabel(key, lang, vars) {
+        const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+        if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+        const s = entry[lang] || entry.en;
+        const resolve = (v) => {
+            const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+            return nested ? String((nested[lang] || nested.en).t) : String(v);
+        };
+        return vars
+            ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+            : String(s.t);
+    }
+
+    function applyLabel(el) {
+        const key = el.dataset.i18n;
+        if (!key) return;
+        let vars = null;
+        try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+        catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+        const s = trLabel(key, uiLanguage, vars);
+        el.dataset.label = s;
+        el.textContent   = s;
+    }
+
+    function applyI18nAttributes(el) {
+        const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+        for (const [prop, attr] of pairs) {
+            const key = el.dataset[prop];
+            if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+        }
+    }
+
+    function setLabel(el, key, vars) {
+        if (!el) return;
+        el.dataset.i18n = key;
+        if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+        applyLabel(el);
+    }
+
+    function applyI18n(lang) {
+        uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+        for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+            const el = document.querySelector(selector);
+            if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+            const target = wrapper ? (el.closest(wrapper) || el) : el;
+            const s = tr(key, uiLanguage, vars);
+            target.setAttribute('data-tip-title', s.t);
+            target.setAttribute('data-tip', s.b);
+        }
+        for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+        for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+            applyI18nAttributes(el);
+        const sel = document.getElementById('lang-select');
+        if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+    }
+
+    // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+    // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+    window.__setLanguage = applyI18n;
+    // Exposed for the same reason, and so a sibling module can write a localized
+    // label without app.js having to export anything — O-Bitrot's controller is an
+    // inline <script type="module">, where an export declaration has nowhere to go.
+    window.__setLabel = setLabel;
+
+    function initI18n() {
+        try {
+            getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+            setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+        } catch (e) {
+            console.warn('Language preference not available, session-only:', e);
+        }
+
+        // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+        try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+        if (getUiLanguageNative) {
+            getUiLanguageNative()
+                .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                .catch((e) => console.warn('Could not read language preference:', e));
+        }
+
+        const sel = document.getElementById('lang-select');
+        if (sel) sel.addEventListener('change', (e) => {
+            applyI18n(e.target.value);
+            if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // The settings popover (v1.3.0)
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // ONE row. This plugin has no hover-help to switch on or off — v1.2.3
+    // carried no data-tip anywhere — and authoring that copy is Stage M's job,
+    // so the popover holds the language selector alone. The panel opens
+    // UPWARDS: the gear is 5 px from the BOTTOM of a 125 px frame.
+
+    let settingsPopoverEl = null;
+    let gearBtnEl = null;
+
+    function setSettingsPopoverOpen(open) {
+        if (!settingsPopoverEl || !gearBtnEl) return;
+        settingsPopoverEl.hidden = !open;
+        gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function initializeSettingsPopover() {
+        gearBtnEl = document.getElementById('gear-btn');
+        settingsPopoverEl = document.getElementById('settings-popover');
+
+        if (!gearBtnEl || !settingsPopoverEl) {
+            console.warn('settings popover missing - language selector unavailable');
+            return;
+        }
+
+        gearBtnEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setSettingsPopoverOpen(settingsPopoverEl.hidden);
+        });
+
+        // Dismiss on a press anywhere else, and on Escape. mousedown rather
+        // than click, so the panel is gone before a drag on a knob underneath
+        // it begins — this page starts a knob drag on mousedown.
+        document.addEventListener('mousedown', (e) => {
+            if (settingsPopoverEl.hidden) return;
+            if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+            setSettingsPopoverOpen(false);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                setSettingsPopoverOpen(false);
+                gearBtnEl.focus();
+            }
+        });
+    }
+
+    // Guarded, and LAST. Every parameter binding above has already been
+    // registered, so an i18n failure leaves an English plugin that still works
+    // rather than a dead page.
+    initializeSettingsPopover();
+    try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
   </script>
 </body>
 </html>

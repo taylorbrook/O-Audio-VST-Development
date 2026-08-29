@@ -1,5 +1,43 @@
 # O-Chorus Changelog
 
+## v1.3.0 (2026-08-29)
+
+### Added
+
+- **The page speaks French.** Every visible caption on the UI is now keyed and
+  carries an English and a French string: the eight knob captions, the LFO ring
+  heading, the two preset buttons and the new language caption. A settings gear
+  in the bottom-left corner opens a popover holding the language selector, and
+  the choice is persisted with the session as a non-parameter property on the
+  APVTS state tree (`uiLanguage`, read back through an `isVoid()` guard — the
+  XML round-trip rebuilds every property as a `var` over the attribute STRING,
+  so `isBool()`/`isInt()` would be false for every saved session).
+- New `Source/ui/public/js/i18n.js`, embedded in `juce_add_binary_data` SOURCES
+  **and** served from a `getResource()` branch, in the same change. A file
+  embedded but not served — or served but not embedded — is a 404 that presents
+  as a page stuck in English and nothing else.
+- Two native functions, `getUiLanguage` / `setUiLanguage`. The page PULLS once
+  at init; nothing is pushed from the editor constructor, which would race the
+  WebView's load.
+
+### Changed
+
+- **The four native `title=` attributes on the preset bar are DELETED, not
+  localized.** A native `title` renders a second, untranslated OS tooltip. Their
+  existing English text moved verbatim into `data-i18n-aria` accessible names —
+  no hover-help prose was invented, and this plugin still has none.
+- **`.preset-action` is pinned to 62 px.** The preset bar is a shrink-to-fit
+  flex row flush against the header's right edge, so an unpinned button that
+  grows in French drags the arrows and the preset name with it. The pin makes
+  the row's geometry language-invariant; it widens the two buttons in English
+  by 23 and 25.66 px, moving the preset cluster 48.66 px left inside a header
+  that has ~290 px of empty middle. Nothing else on the page moved.
+
+### Not changed
+
+- No parameter IDs, ranges, types, defaults or DSP behaviour. All French is
+  machine-drafted and flagged `reviewed: false`; no native speaker has read it.
+
 ## v1.2.3 (2026-06-30)
 
 ### Changed
