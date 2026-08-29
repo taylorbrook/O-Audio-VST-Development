@@ -39,14 +39,14 @@ Ouaricon Plugins:
 | O-MultiBandCompressor | 📦 Installed | 1.11.0 | Audio Effect (Dynamics) | 2026-08-27 |
 | O-Bass | 📦 Installed | 1.3.3 | Audio Effect (Bass Enhancer) | 2026-07-08 |
 | O-IntonationPad | 📦 Installed | 2.9.0 | Synth (Wavetable Pad) | 2026-08-28 |
-| O-Detune | 📦 Installed | 1.5.4 | Audio Effect (Detuning) | 2026-08-02 |
-| O-Freeze | 📦 Installed | 2.0.1 | Audio Effect (Granular Freeze) | 2026-07-01 |
+| O-Detune | 📦 Installed | 1.6.0 | Audio Effect (Detuning) | 2026-08-28 |
+| O-Freeze | 📦 Installed | 2.1.0 | Audio Effect (Granular Freeze) | 2026-08-28 |
 | O-FreqPulse | 📦 Installed | 1.18.0 | Audio Effect (Spectral Sequencer) | 2026-08-28 |
 | O-SpectralShaper | 📦 Installed | 1.7.0 | Audio Effect (Spectral Transient Shaper) | 2026-08-28 |
 | O-GrainScatter | 📦 Installed | 2.4.4 | Audio Effect (Granular Stutter Engine) | 2026-08-19 |
 | O-Chorus | 📦 Installed | 1.2.3 | Audio Effect (Chorus) | 2026-06-30 |
 | O-Orbit | 📦 Installed | 1.2.0-dev | Audio Effect (Spatial Orbiter) | 2026-08-28 |
-| O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
+| O-TextureForge | 📦 Installed | 1.1.0 | Instrument (Concatenative Synth) | 2026-08-28 |
 | O-Texture | 📦 Installed | 0.2.0 | Instrument/Effect (Neural Texture Synth) | 2026-08-28 |
 | O-Prism | 📦 Installed | 1.20.0 | Synth (Microtonal Wavetable) | 2026-08-20 |
 | O-Gain | 📦 Installed | 1.3.0 | Audio Effect (Gain Staging Utility) | 2026-08-28 |
@@ -55,7 +55,7 @@ Ouaricon Plugins:
 | O-Reed | 📦 Installed | 1.1.0 | Synth (Physical Modeling Reed Wind) | 2026-04-26 |
 | O-Wind | 📦 Installed | 1.16.3 | Synth (Physical Model Flute) | 2026-07-10 |
 | O-Contrabass | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed Bass) | 2026-08-27 |
-| O-Bassoon | 🚧 Stage 0 | - | Synth (Physical Model Bassoon) | 2026-04-27 |
+| O-Bassoon | 🚧 Stage 0 | 1.1.0 | Synth (Physical Model Bassoon) | 2026-08-28 |
 | O-MicrotonalSampler | 📦 Installed | 1.23.10 | Synth (Microtonal Sampler) | 2026-08-08 |
 | O-simpleFM | 📦 Installed | 1.3.0 | Synth (Pedagogical 2-Op FM) | 2026-08-28 |
 | O-simpleAdditive | ✅ Working | 1.1.0 | Synth (Pedagogical Additive + Wavetable) | 2026-08-27 |
@@ -68,7 +68,7 @@ Ouaricon Plugins:
 | O-Octagon | 📦 Installed | 1.11.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-27 |
 | O-Bitrot | 📦 Installed | 1.15.0 | Audio Effect (Broken-Media Degradation) | 2026-08-27 |
 | O-Tapestop | 📦 Installed | 1.6.0 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-08-27 |
-| O-Emulator | 📦 Installed | 1.0.1 | Audio Effect (Retro Console Emulation) | 2026-08-21 |
+| O-Emulator | 📦 Installed | 1.1.0 | Audio Effect (Retro Console Emulation) | 2026-08-28 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`
