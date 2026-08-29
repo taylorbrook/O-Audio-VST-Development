@@ -66,8 +66,14 @@
      13  NO INFLECTION LOGIC inside a localized string (v2). A ternary or a
          conditional plural suffix inside a setLabel argument fails, and a
          setLabel key that is not a plain string literal fails (contract §6).
-     14  Every I18N_EXEMPT entry carries a non-empty reason. A bare skip list
-         hides a missed label as a deliberate one.
+     14  Every I18N_EXEMPT entry carries a non-empty reason, and no UNSCOPED
+         entry collides with a key that is live on the same page. A bare skip
+         list hides a missed label as a deliberate one; an entry is
+         [text, reason] or [text, reason, scope], where scope is a
+         comma-separated list of `tag`, `.class` or `#id` matched against the
+         node's own parent and its ancestors. Unscoped stays legal — most
+         exemptions are not ambiguous — but a string that is exempt AND keyed
+         on the same page must say WHERE it is exempt.
      15  KEYS RESOLVE (v2). Every data-i18n value in the markup and every
          setLabel key exists in LABELS or I18N, and every LABELS key is
          referenced by at least one element or setLabel call — a dead key is a
@@ -856,8 +862,13 @@ function checkPlugin(p) {
     if (I18N_EXEMPT != null) {
         const bad = (Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : []).filter(
             (e) => !Array.isArray(e) || typeof e[0] !== 'string' || typeof e[1] !== 'string' || e[1].trim() === '');
+        const badScope = (Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : []).filter(
+            (e) => Array.isArray(e) && e.length > 2 && (typeof e[2] !== 'string' || e[2].trim() === ''));
         check(Array.isArray(I18N_EXEMPT),
-            `[14] I18N_EXEMPT is an array of [string, reason] pairs`);
+            `[14] I18N_EXEMPT is an array of [string, reason] or [string, reason, scope] entries`);
+        check(badScope.length === 0,
+            `[14] every I18N_EXEMPT scope is a non-empty string`
+            + (badScope.length ? ` — ${badScope.length} malformed: ${badScope.slice(0, 4).map((e) => JSON.stringify(e[0])).join(', ')}` : ''));
         check(bad.length === 0,
             `[14] every I18N_EXEMPT entry carries a non-empty reason`
             + (bad.length ? ` — ${bad.length} without one: ${bad.slice(0, 4).map((e) => JSON.stringify(Array.isArray(e) ? e[0] : e)).join(', ')}` : ''));
@@ -871,8 +882,52 @@ function checkPlugin(p) {
                  tipKeys: keys.length, labelKeys: labelsCount, canon: canonVersion };
     }
 
-    const exemptSet = new Set((Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : [])
-        .filter((e) => Array.isArray(e) && typeof e[0] === 'string').map((e) => e[0]));
+    // ── I18N_EXEMPT, AND THE SCOPE THAT MAKES AN EXEMPTION HONEST ────────
+    //
+    // An entry is [text, reason] or [text, reason, scope].
+    //
+    // WITHOUT A SCOPE AN EXEMPTION IS MATCHED BY TEXT ALONE, so it silences
+    // assertion 10 for EVERY node with that text. A string exempt for one
+    // element — a choice option, a readout, a wordmark fragment — also silences
+    // a DIFFERENT element that says the same thing and was simply never keyed,
+    // and a missed label hides as a deliberate one. O-Detune is the case that
+    // proved it: `Random` is a wobble_shape option, a unison_dist option, AND a
+    // caption that must translate. Delete `label.random` and its data-i18n and
+    // the gate stayed GREEN.
+    //
+    // A scope is a comma-separated list of `tag`, `.class` or `#id`, matched
+    // against the text node's own parent and its ancestors. That is the whole
+    // language, and it is enough: the five ambiguous strings in the repo when
+    // this landed needed exactly three shapes — `option`, `.knob-value` and
+    // `.title-accent`. A full CSS engine would be a second parser to keep in
+    // step with the first.
+    //
+    // Unscoped entries REMAIN LEGAL, because most exemptions are not ambiguous:
+    // a product name or `Hz` says the same thing everywhere it appears, and
+    // demanding a scope there is noise that teaches people to write one without
+    // thinking. The scope is required only where the ambiguity is real — see
+    // the assertion below assertion 10.
+    const exemptEntries = (Array.isArray(I18N_EXEMPT) ? I18N_EXEMPT : [])
+        .filter((e) => Array.isArray(e) && typeof e[0] === 'string')
+        .map((e) => ({ text: e[0], reason: e[1], scope: typeof e[2] === 'string' && e[2].trim() ? e[2] : null }));
+    const exemptSet = new Set(exemptEntries.map((e) => e.text));
+
+    const scopeMatches = (scope, el) => {
+        const sels = scope.split(',').map((x) => x.trim()).filter(Boolean);
+        for (let a = el; a; a = a.parent) {
+            for (const sel of sels) {
+                if (sel.startsWith('#')) { if (a.id === sel.slice(1)) return true; }
+                else if (sel.startsWith('.')) { if (a.classes.includes(sel.slice(1))) return true; }
+                else if (a.tag === sel.toLowerCase()) return true;
+            }
+        }
+        return false;
+    };
+
+    // An element is exempt if ANY entry for its text either carries no scope or
+    // carries one this element sits inside.
+    const exemptForEl = (text, el) => exemptEntries.some(
+        (e) => e.text === text && (e.scope === null || (el && scopeMatches(e.scope, el))));
     const known = new Set([...Object.keys(I18N || {}),
                            ...Object.keys(LABELS && typeof LABELS === 'object' ? LABELS : {})]);
 
@@ -910,13 +965,17 @@ function checkPlugin(p) {
     // how many unkeyed LABEL nodes it silenced, and any string that is BOTH
     // exempt and keyed on the same page is named: that is the ambiguous case,
     // where the gate cannot tell a deliberate exemption from a missed label.
-    const silenced = new Map();
+    const silencedUnscoped = new Map();
     for (const t of texts) {
         const el = t.parent;
         if (!el || el.tag === 'script' || el.tag === 'style' || el.tag === 'title') continue;
         if (EXTRACT.classify(t.text).cls !== 'LABEL') continue;
-        if (exemptSet.has(t.text)) {
-            if (!keyedAncestor(el)) silenced.set(t.text, (silenced.get(t.text) || 0) + 1);
+        if (exemptForEl(t.text, el)) {
+            // Only an UNSCOPED entry can hide a missed label; a scoped one that
+            // matched this element said exactly where it applies.
+            const byUnscoped = exemptEntries.some((e) => e.text === t.text && e.scope === null);
+            if (byUnscoped && !keyedAncestor(el))
+                silencedUnscoped.set(t.text, (silencedUnscoped.get(t.text) || 0) + 1);
             continue;
         }
         if (keyedAncestor(el)) continue;
@@ -926,13 +985,20 @@ function checkPlugin(p) {
         `[10] every LABEL text node sits inside a [data-i18n] element, or is I18N_EXEMPT`
         + (uncovered.length ? ` — ${uncovered.length} uncovered: ${uncovered.slice(0, 5).join(' | ')}` : ''));
 
+    // ── 14. AN AMBIGUOUS EXEMPTION MUST BE SCOPED ────────────────────────
+    // The precise hazard is not "a string is exempt". It is "a string is exempt
+    // AND the same string is keyed on the same page" — that is the state in
+    // which the gate cannot tell a deliberate skip from a label somebody forgot,
+    // because both look identical to a text match. Anywhere else an unscoped
+    // exemption is fine and demanding a scope would be noise.
     const keyedTexts = new Set(texts.filter((t) => t.parent && keyedAncestor(t.parent)).map((t) => t.text));
-    const ambiguous = [...silenced.keys()].filter((txt) => keyedTexts.has(txt));
-    if (ambiguous.length)
-        console.log(`   NOTE: [10] ${ambiguous.length} string(s) are BOTH I18N_EXEMPT and keyed on this `
-            + 'page, so the exemption cannot tell a deliberate skip from a missed label — confirm each '
-            + `unkeyed occurrence is intended: ${ambiguous.slice(0, 5).map((txt) =>
-                `"${txt.slice(0, 20)}" silenced ${silenced.get(txt)}`).join(', ')}`);
+    const ambiguous = [...silencedUnscoped.keys()].filter((txt) => keyedTexts.has(txt));
+    check(ambiguous.length === 0,
+        `[14] no UNSCOPED I18N_EXEMPT entry is also keyed on the page — an exemption that `
+        + 'collides with a live key cannot distinguish a deliberate skip from a missed label, '
+        + 'so it must carry a scope (a tag, .class or #id its occurrences sit inside)'
+        + (ambiguous.length ? ` — ${ambiguous.length}: ${ambiguous.slice(0, 5).map((txt) =>
+            `"${txt.slice(0, 20)}" silences ${silencedUnscoped.get(txt)} unkeyed node(s)`).join(', ')}` : ''));
 
     // ── 11. attribute coverage, and ZERO native title= ───────────────────
     const DATASET_FOR = { 'aria-label': 'data-i18n-aria', placeholder: 'data-i18n-placeholder', alt: 'data-i18n-alt' };
@@ -947,7 +1013,7 @@ function checkPlugin(p) {
             if (!rec) continue;
             const text = EXTRACT.decodeEntities(rec.value).trim();
             if (EXTRACT.classify(text).cls !== 'LABEL') continue;
-            if (exemptSet.has(text)) continue;
+            if (exemptForEl(text, el)) continue;
             if (el.attrs[dataAttr]) continue;
             unkeyedAttrs.push(`${el.id ? '#' + el.id : el.tag}@${attr}="${text.slice(0, 24)}"`);
         }

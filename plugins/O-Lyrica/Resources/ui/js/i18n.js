@@ -793,7 +793,7 @@ export const I18N_EXEMPT = [
     // freeTempoSync / scaleTempoSync — the note divisions. "Off" here is the
     // first CHOICE of a tempo-sync parameter, not the button face: the button
     // faces are ui.off / ui.offCaps and do localize.
-    ['Off', EXEMPT_REASONS.choiceMirror],
+    ['Off', EXEMPT_REASONS.choiceMirror, 'option'],
     ['1 Bar', EXEMPT_REASONS.choiceMirror], ['2 Bars', EXEMPT_REASONS.choiceMirror], ['4 Bars', EXEMPT_REASONS.choiceMirror],
 
     // ── Tuning identifiers ──────────────────────────────────────────────────

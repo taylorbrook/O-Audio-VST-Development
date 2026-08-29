@@ -511,7 +511,8 @@ export const I18N_EXEMPT = [
     // label.msOff — so nothing is left English by this entry; it only means the
     // gate would not have caught it if they were not. That is the residual risk
     // and it is stated rather than hidden.
-    ['Off', 'the two sidechain-filter value readouts read "Off" at 0 Hz and are EDITABLE — parseFreq() maps a typed "off" back to 0, and D-03 forbids touching an editable readout parser'],
+    ['Off', 'the sidechain-filter value readouts read "Off" at 0 Hz and are EDITABLE — parseFreq() maps a typed "off" back to 0, and D-03 forbids touching an editable readout parser. SCOPED to .knob-value so it exempts the readouts only, and cannot silence a caption elsewhere that happens to say Off',
+     '.knob-value'],
 ];
 
 // [selector, key] or [selector, key, wrapperSelector] or
