@@ -3,11 +3,68 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F, G, H, I]
-stages_remaining: [J, K, L, M]
-stopped_at: "STAGE I COMPLETE. Batch I2 shipped all seven `O-simple*` plugins, one path-scoped commit each: O-simpleAdditive v1.1.0 (`b1082fc0`), O-simpleSampler v1.4.0 (`2a2f68c4`), O-simpleSubtractive v1.3.0 (`5fc1ceb0`), O-simpleGrain v1.3.0 (`857dfa85`), O-simpleFM v1.3.0 (`2a5efef0`), O-simplePhysicalModelSynth v1.2.0 (`051e1a72`), O-simpleBeatmaker v1.1.0 (`665150c0`). `check-i18n --strict-v2` reports 14 canon v2, 0 canon v1 — EVERY `data-tip`-convention plugin in the repo is now localized, so Stage J starts from a green repo. TWO more repo-level gate fixes were unavoidable and each landed as its OWN commit ahead of its plugin: `08e7649b` (assertion 7 measured ANIMATED elements, so a SMIL `animateTransform` reported three phantom French failures per run in a SINGLE language — PROBE now freezes SMIL and Web Animations, deliberately NOT CSS transitions) and `816f2767` (assertion 8 compared labels across PAINT LAYERS, so an opaque z-index:40 popover drawn over the page on purpose read as a collision the moment the French string grew long enough to reach it). Those are the ELEVENTH and TWELFTH wrong-shaped gate assumptions in this task; both were regression-swept across every previously-shipped canon-v2 plugin. Checkpoints 4 AND 5 remain OUTSTANDING and are now outstanding on FOURTEEN plugins: the C++ language round-trip has still never been run by hand on any of them, and no human has seen the French UI. TWO items need a human decision, neither blocking Stage J: (1) O-simpleSampler's content grew 796 -> 835px inside its FIXED 980x720 frame, putting the on-screen keyboard entirely below the fold on a pedagogical plugin — a contained CSS/copy reversal if wanted; (2) O-simplePhysicalModelSynth's Delete-preset button deletes WITHOUT confirmation (it calls deletePreset() directly and passes no deleteButton, so the vendored module's confirm dialog is dead code) — reported, not fixed, because adding one is a design change. PREVIOUSLY, at end of Stage I batch I1: O-Contrabass v1.8.0 and O-Orbit v1.2.0 shipped, 7 canon v2."
+stages_complete: [A, B, C, D, E, F, G, H, I, J]
+stages_remaining: [K, L, M]
+stopped_at: "STAGE J COMPLETE. All seven second-renderer plugins ported AND localized, one path-scoped commit each: O-FreqPulse v1.18.0 (`37602894`), O-Polystutter v1.14.0 (`66456f1e`), O-Lyrica v2.4.0 (`09bdbb61`), O-SpectralShaper v1.7.0 (`5b509e8c`), O-IntonationPad v2.9.0 (`bb275ae1`), O-Marimba v1.13.0 (`5406f419`), O-Gain v1.3.0 (`f571a78e`). **THERE IS NOW ONE TOOLTIP RENDERER REPO-WIDE** — the third stop point named in the plan. The T14 done-criteria are met and were verified by the orchestrator independently of the executors: `grep -rn tooltipHeight` over every served UI root returns **0**, and every surviving `data-tooltip` occurrence is a COMMENT documenting the deleted design. `check-i18n --strict-v2` reports **21 canon v2, 0 canon v1**. FOUR repo-level gate fixes landed, each as its OWN commit ahead of its plugin: `b0ce697e` (scan EVERY inline script, not just the canon target), `1151de07` (assertion 12 PARSES injected markup instead of grepping it), `435957a7` (assertion 15 counts keys declared in injected markup), `91d81cf7` (i18n-extract finds injected keys in an ACCUMULATED template). Those are the THIRTEENTH through SIXTEENTH wrong-shaped gate assumptions in this task, and all four are the SAME shape found four ways: the gate grepped source text where it needed to parse what the page actually renders. A SEVENTEENTH was found on O-Gain (assertion 12 reads the whole RHS of a `.textContent =`, so a literal in CALL-ARGUMENT position — `formatParam('trim', norm)` — is reported as unkeyed copy) and was deliberately NOT fixed: it occurs at exactly two sites repo-wide, and narrowing a COVERAGE assertion on n=2 trades a cheap over-report for a costly under-report. Named in `O-Gain/js/app.js:591-608` instead. TWO CHECKPOINT-4 ROUND-TRIPS WERE FINALLY MEASURED rather than reasoned — O-IntonationPad (six ways, including a real Standalone launch-and-quit writing `<Parameters uiLanguage=\"en\">`, a stored `fr` surviving quit/relaunch/quit, and three negative controls) and O-Marimba (a compiled JUCE probe plus a four-state JS drive through the real gear popover). The other NINETEEN plugins remain reasoned-not-measured. Checkpoint 5 is outstanding on all 21: no human has seen any French UI. FOUR ITEMS NEED A HUMAN DECISION, none blocking Stage K: (1) `PLUGIN_VERSION` is not a JUCE keyword and is silently ignored, so SEVEN plugins ship reporting 1.0.0 to the host — O-Contrabass, O-Marimba, O-Octagon, O-Reed, O-ReverseDelay, O-MicrotonalSampler, O-Tapestop; flipping it to `VERSION` is a host-visible behavioural change across all seven at once; (2) the ported renderer's VERTICAL CLAMP is latent in all 21 copies — independently reproducible on only O-FreqPulse and O-IntonationPad, but every copy now carries it; (3) `O-IntonationPad/js/tuning-panel.js` is a DIVERGED local copy at module v2.0.0 against `scala-tuning-engine` v3.0.1, the release that fixes the scrambled tuning tab; (4) O-Gain and O-Lyrica both still ship the watermarked \"Adobe Stock\" `paper1.jpg`, and both shipped a new version in this stage."
 
 plugins_shipped:
+  - name: O-Gain
+    version: 1.3.0
+    commit: f571a78e      # v1.3.0, Stage J — LAST of the stage. NARROWEST frame in the repo
+                          # (350x500). The plan's structural claim was FALSE: O-Gain had no
+                          # tooltip JS at all — a pure-CSS [data-tooltip]::after with three
+                          # hand-picked direction classes. 23 of its tips were IN-FLOW boxes
+                          # inflating the doc's own scroll extent to 435x540 inside a 350x500
+                          # window, in ENGLISH, at rest. Port fixes that: now exactly 350x500.
+                          # NO D-04 stop was needed — 41 French labels DO fit.
+                          # 23 of 23 tooltips hand-split (zero clean).
+  - name: O-Marimba
+    version: 1.13.0
+    commit: 5406f419      # v1.13.0, Stage J. Produced the READOUT THIRD ARM to the D-01 test:
+                          # six timbre words backed by AudioParameterFloat still exempt, because
+                          # they are written into the KNOB READOUT node (contract 5). Also proved
+                          # the byte-identity discriminator against Choice option strings.
+                          # Plan claimed it had the tooltips bridge; it did NOT (window.JuceAPI
+                          # has never existed there). Preceded by gate fix 91d81cf7.
+  - name: O-IntonationPad
+    version: 2.9.0
+    commit: bb275ae1      # v2.9.0, Stage J. FIRST plugin whose C++ round-trip was MEASURED, six
+                          # ways, incl. a real Standalone launch-and-quit and three negative
+                          # controls. Built the language bridge FROM SCRATCH. 77 live anchors /
+                          # 74 unique vs the plan's "~37". Hand-splits 63 of 77. Found a DEAD
+                          # tooltip (TOOLTIPS.voicingMode, applied to a knob that never existed).
+                          # Preceded by gate fixes 1151de07 and 435957a7.
+  - name: O-SpectralShaper
+    version: 1.7.0
+    commit: 5b509e8c      # v1.7.0, Stage J. The #app-relative positioner replaced, not adapted:
+                          # #app's padding:12px made the old rails 24px NARROWER than the window
+                          # and the vertical rail read containerRect.height. Zero visible English
+                          # elements moved v1.6.2 -> v1.7.0. Its committed tests/ui-stub taught
+                          # both language names. Caught a hard-coded v1.6.1 header on a v1.6.2 build.
+  - name: O-Lyrica
+    version: 2.4.0
+    commit: 09bdbb61      # v2.4.0, Stage J. Heaviest text load in the stage (181 nodes / 700x450).
+                          # 56 I18N_EXEMPT entries, 46 of them AudioParameterChoice options.
+                          # 12-TET Standard stays English as a tuning IDENTIFIER; Factory -> Usine
+                          # as a preset-group heading; Custom exempt TWICE OVER. i18n.js joined the
+                          # EXISTING no-NAMESPACE binary-data target. Preceded by gate fix b0ce697e,
+                          # which its own sweep then proved LATENT across all 16 prior plugins.
+  - name: O-Polystutter
+    version: 1.14.0
+    commit: 66456f1e      # v1.14.0, Stage J. THE SOURCE of the four hard-coded literals, all now
+                          # deleted: tooltipHeight=60, tooltipWidth=220, >660, >1000. Inline
+                          # renderer extracted from index.html to js/app.js (596 lines). Housed a
+                          # homeless composed string (the delete-preset confirm, {name} token) in
+                          # I18N with an EMPTY BODY — carried item 10, but not where Stage I predicted.
+                          # Tightest boxes on the page are ENGLISH (SUBDIV 3.69px), not French.
+  - name: O-FreqPulse
+    version: 1.18.0
+    commit: 37602894      # v1.18.0, Stage J — FIRST of the stage. FOUND THE VERTICAL CLAMP GAP:
+                          # the O-ReverseDelay renderer prefers above, flips below, and STOPS,
+                          # which strands a tip off-window on a tall anchor (376px #grid-area put
+                          # a French tip 15px below the frame). Clamp added and proven by reverting
+                          # it alone; then ported into all six remaining Stage-J plugins.
+                          # 36 of its 56 tip anchors GENERATED from BAND_IDS so bands cannot drift.
   - name: O-simpleBeatmaker
     version: 1.1.0
     commit: 665150c0      # v1.1.0, Stage I batch I2 — LAST of the batch, completing Stage I.
@@ -3145,3 +3202,219 @@ the paint-layer skip fires on that one page only.
   `reviewed: false`. No native speaker has read them.
 - **Windows/WebView2 font metrics** remain the named hardware-blocked deferral.
   The tightest French margin measured in this batch is 20.9px.
+
+---
+
+# Stage J — T14: the seven second-renderer plugins — STAGE J COMPLETE
+
+**ONE TOOLTIP RENDERER REPO-WIDE.** The third stop point named in the plan is reached.
+
+| # | Plugin | Version | Commit | Root | Frame |
+|---|---|---|---|---|---|
+| 1 | O-FreqPulse | 1.18.0 | `37602894` | `Resources/ui` | 850x550 |
+| 2 | O-Polystutter | 1.14.0 | `66456f1e` | `Source/ui/public` | 1000x690 |
+| 3 | O-Lyrica | 2.4.0 | `09bdbb61` | `Resources/ui` | 700x450 |
+| 4 | O-SpectralShaper | 1.7.0 | `5b509e8c` | `Resources/ui` | 700x500 |
+| 5 | O-IntonationPad | 2.9.0 | `bb275ae1` | `Source/ui/public` | 800x500 |
+| 6 | O-Marimba | 1.13.0 | `5406f419` | `Source/ui/public` | 600x400 |
+| 7 | O-Gain | 1.3.0 | `f571a78e` | `Source/ui/public` | **350x500** |
+
+Plus four gate fixes, each committed ALONE ahead of its plugin: `b0ce697e`, `1151de07`,
+`435957a7`, `91d81cf7`.
+
+## Done-criteria, verified by the ORCHESTRATOR independently of the executors
+
+- `grep -rn 'tooltipHeight'` over every served UI root → **0**.
+- Every surviving `data-tooltip` occurrence is a **comment** documenting the deleted design.
+- `check-i18n.js --strict-v2` → **21 canon v2, 0 canon v1, 0 none**.
+
+## THE HEADLINE: the plan's model of these seven plugins was wrong in four ways
+
+1. **O-Gain had no tooltip JavaScript AT ALL.** The plan says all seven carry the
+   never-measures positioner. O-Gain's help was a pure-CSS `[data-tooltip]::after` with
+   `content: attr(data-tooltip)` and three hand-picked direction-override classes an author
+   chose per anchor — unmeasurable, unflippable, unclampable. Worse than the positioner, not
+   better. And because 23 of those boxes were **in-flow**, they inflated the document's own
+   scroll extent to **435x540 inside a 350x500 window, in ENGLISH, at rest**. The port fixed
+   a pre-existing English defect nobody had measured.
+2. **O-Marimba does NOT have the tooltips bridge** the plan credits it with. v1.12.1 called
+   `window.JuceAPI.getNativeFunction('setTooltipsEnabled')` inside a try/catch; `window.JuceAPI`
+   has never existed there and no such native function is registered. A dead call, removed
+   rather than repaired.
+3. **Every tip count in the plan is a grep artifact, and they are wrong in BOTH directions.**
+   O-Lyrica's "48" was 43 (the token also matches a CSS selector and four JS references);
+   O-IntonationPad's "~37" was **77 live anchors / 74 unique** once `makeKnob`-applied and
+   injected-template tips were counted. Only O-Marimba's and O-Gain's survived parsing.
+   Text-node counts fared worse — O-Marimba's "~40" was 61, the 20-node gap being two shared
+   FX modules.
+4. **The `"Label: sentence."` shape mostly does NOT hold.** The plan expects "a handful" of
+   hand-splits. Actual: O-Lyrica 0 of 43, O-SpectralShaper 0 of 21, O-Marimba 0 of 15 — but
+   O-IntonationPad **63 of 77** and O-Gain **23 of 23**. The rule that worked, and should be
+   the default in Stage K: **the title is the control's own existing English caption — reuse
+   it, never author new prose** — with every body verified byte-identical against `HEAD`.
+
+## The vertical clamp — found on plugin 1, latent in all 21
+
+The renderer as written in O-ReverseDelay prefers *above*, flips *below*, and **stops there**,
+because every anchor on that page is knob-sized. Given a tall anchor NEITHER placement fits
+and the tip lands off-window. O-FreqPulse's 376px `#grid-area` put a 97px French tip 15px
+below the bottom.
+
+Independently reproducible on **O-FreqPulse** and **O-IntonationPad** (which stranded two
+French tuning-tab tips by 53px and 67px). NOT reproducible on O-Polystutter, O-Lyrica,
+O-SpectralShaper, O-Marimba or O-Gain — measured each time by deleting the two lines and
+re-sweeping, not assumed. Ported into all seven regardless, because one runtime repo-wide is
+the point of the stage.
+
+**Every "not reproducible" verdict is backed by a harness-blindness check**: delete the
+HORIZONTAL clamp instead and confirm the sweep still reports failures. It always did —
+O-SpectralShaper 14 off-frame tips, O-IntonationPad 26, O-Marimba 10, O-Gain 26. Without that
+control, "no failures" would be indistinguishable from a sweep that cannot see failures.
+
+## The D-01 test needs a THIRD ARM — the most reusable finding of the stage
+
+The plan's discriminator is binary: is the string an `AudioParameterChoice` option? If yes,
+exempt (page and host automation lane must agree); if no, localize.
+
+**O-Marimba proved that incomplete.** Its six timbre words — `Edge`, `Center`, `Shimmer`,
+`Focused`, `Warm`, `Bright` — are backed by `AudioParameterFloat`, so the binary test says
+localize. But they are written into `#strike-value` / `#damping-value` / `#tone-value`: the
+knob's **readout**, wearing a word instead of a number at the ends of its travel. Contract §5
+is explicit that a readout is never a `[data-i18n]` element. Keying one makes the element
+enter and leave the sweep as the knob turns, so a later language change repaints `Chaud` over
+`62%`; and its French face exists only at a knob extreme, which no committed gate state can
+reach, making D-04 undischargeable.
+
+**The third arm: what ELEMENT receives the string.** Readout node → exempt regardless of
+parameter type.
+
+**And the clean discriminator for the choice arm is BYTE-IDENTITY against the option strings.**
+`12-TET` and `MTS-ESP` match `TUNING_MODE`'s options verbatim → exempt. `CUSTOM` does not (the
+option is `Scala`) → a plain caption, localizes to `PERSO`. O-Gain ran the same test on one
+page and landed on both sides: `Peak`/`RMS`/`VU`/`LUFS` match verbatim → exempt;
+`M/S OFF`/`ENC`/`DEC` match none of `Off`/`Encode`/`Decode` → page-invented, they localize.
+
+O-Gain then **overruled the third arm with reasons**, correctly: `LOW`/`MED`/`HIGH` in
+`#learn-confidence` is copy, because that node never holds a number (the `0` branch writes
+language-neutral `--`), `learnConfidence` is not a parameter at all, and a committed gate
+state drives all three French faces so D-04 IS dischargeable.
+
+## Checkpoint 4 — MEASURED at last, on two of twenty-one
+
+The C++ language round-trip had been reasoned from the `isVoid()` guard on all nineteen prior
+plugins and never executed. Two runs in this stage measured it:
+
+**O-IntonationPad**, six ways: symmetric `comm -3` grep-diff of 31 `getNativeFunction` names
+against 31 `withNativeFunction` registrations, empty on both sides; both symbols plus the
+French table present in the shipped VST3 binary; a real Standalone launch-and-quit producing
+`<Parameters uiLanguage="en">` in the decoded settings blob; a stored `fr` surviving
+quit→relaunch→quit; three negative controls (`"zz"` → `en`, a pre-v2.9.0 session with no
+attribute → `en` without crashing, then `fr` again to prove the first two were not the default
+sticking); and the JS half driven separately with the backend holding `fr` before page load.
+
+**O-Marimba**, both halves: a compiled JUCE probe over the three added code paths (confirming
+the attribute comes back a **STRING** `var`, per the known ValueTree XML round-trip type loss),
+`auval` VERIFYING CLASS INFO, and a four-state JS drive through the real gear popover — fresh
+install → picked Français → session reopened → English reopened, with the native-fn call log
+at each step.
+
+**A trap worth carrying:** `build-and-install.sh` builds VST3+AU only. O-IntonationPad's first
+round-trip read `uiLanguage` as ABSENT because it was testing a **stale July Standalone**. It
+checked the binary with `strings` rather than trusting the run, then built
+`O-IntonationPad_Standalone` explicitly.
+
+## The seventeenth gate-shape finding — deliberately NOT fixed
+
+`check-i18n` assertion 12 reads the **whole RHS** of a `.textContent =` and flags every
+two-letter literal. Right for `on ? "On" : "Off"`; wrong for a literal in **call-argument
+position** — `formatParam('trim', norm)` renders `"+0.0 dB"` and `'trim'` is a parameter ID
+that never reaches the screen.
+
+Not fixed, by choice. The shape occurs at exactly two sites repo-wide and both were these.
+Narrowing a **coverage** assertion on n=2 buys nothing, and the error is asymmetric: an
+over-report costs one glance, an under-report ships English. The two call sites now pass the
+branch's own `paramId` variable instead of re-typing its value, and the gate's shape is named
+in `O-Gain/js/app.js:591-608`.
+
+The O-Marimba run made the same call in the mirror image: broadening `scanJsSource()` to match
+its `markupKeyRefs()` fix would have reported five violations on shipped **O-Lyrica v2.4.0**,
+which keys those nodes by id AFTER injection via `window.__setLabel(document.getElementById(…))`
+— legal canon. Tried, reverted, named in the code.
+
+## Pre-existing ENGLISH defects the French sweep exposed
+
+- **O-Gain**: the whole `[data-tooltip]::after` layer overflowed the window at rest (above).
+  Separately, `.learn-section` was an intrinsic-width button + `flex: 1` group, so the Target
+  readout slid up to 40px sideways whenever Learn ran, in English.
+- **O-Marimba**: the tuning-mode row overhung its 200px panel by 10.83px and the Scala row by
+  12.78px — both now fit.
+- **O-SpectralShaper**: the header read `v1.6.1` on a v1.6.2 build, hard-coded and never bumped.
+- **O-Lyrica**: `.truekeys-view` was `display: flex` unconditionally, painting "Hold 2+ notes
+  to see intervals" beside the pitch circle in EVERY visualization mode; and `technique`
+  option 4 lacked the accent `createParameterLayout` has always carried.
+- **O-IntonationPad**: `TOOLTIPS.voicingMode` was applied by `makeKnob()` to a voicingMode knob
+  that has never existed.
+
+## Carried into Stage K
+
+1. **`git commit -- <paths>` TAKES ONLY TRACKED FILES.** O-Marimba's first commit silently
+   omitted three new untracked files and left HEAD with a gutted `index.html` and no
+   controller. It was caught only by reading `git show --stat` and amending. **`git add` the
+   exact new paths, commit, then `git show --stat` and confirm.** Every plugin in Stage K adds
+   new files too.
+2. **Do not trust the plan's structural claims about a plugin** — bridges, tip counts, text
+   counts and positioner shape were each wrong at least once in this stage. Verify against the
+   code before planning work around a number.
+3. **The title of a split tooltip is the control's own English caption.** Reuse, never author.
+4. **`flex: 1 1 0` WITH `min-width: 0`.** A width pin on one flex button just redistributes to
+   the same row total — flex items are floored by min-content and carry `min-width: auto`.
+   Verify any timing-sensitive measurement at two settle times (180ms and 1.7s) to rule out a
+   transition mid-flight.
+5. **Try `width: 100%` on a wrapper first, and probe it moves zero children.** It freed the
+   natural French on O-SpectralShaper — where "Sensibilité" is NARROWER than "Sensitivity" —
+   but does nothing for a shrink-wrapping box (O-IntonationPad). Pin **per-element**, never
+   uniformly, and pin to the **English** box rounded up so English barely moves.
+6. **Strings owned by shared registry modules under `${CMAKE_SOURCE_DIR}/modules/` are exempt** —
+   localizing them is cross-plugin and a local edit is reverted by `/module-upgrade`. O-Marimba's
+   Effects tab therefore stays English for a French user (`ANALOG`, `Thresh`, `Attack`, `Release`).
+7. **A `screencapture` is never the verification.** One run grabbed the user's entire desktop,
+   including an unrelated private document, while trying to see a reopened plugin. Deleted
+   immediately; verified by the orchestrator as not retained. Use the headless harness and DOM
+   reads.
+8. **`serve-ui.js` picks port 0 deliberately** — a server on a taken port silently serves
+   another session's files.
+
+## NEEDS A HUMAN DECISION — none blocking Stage K
+
+1. **`PLUGIN_VERSION` is not a JUCE keyword.** JUCE reads `VERSION`; the unrecognised keyword
+   is silently ignored, so the plugin ships reporting **1.0.0** to the host whatever the line
+   says. Affects **seven** plugins: O-Contrabass, O-Marimba, O-Octagon, O-Reed, O-ReverseDelay,
+   O-MicrotonalSampler, O-Tapestop. Three are already-shipped canon-v2 plugins. Correcting it
+   is a host-visible behavioural change across all seven at once — decide before the next
+   `/publish`.
+2. **The vertical clamp now ships in all 21 renderer copies** though it was independently
+   reproducible on only two. Uniformity was chosen over minimal change; worth confirming.
+3. **`O-IntonationPad/js/tuning-panel.js` is a DIVERGED local copy** — header says module
+   v2.0.0, `modules/tuning/scala-tuning-engine` is at v3.0.1, and `dependencies.json` lists
+   `ouariconModules: []`. v3.0.1 is the release that fixes the scrambled tuning tab.
+4. **O-Gain and O-Lyrica still ship the watermarked "Adobe Stock" `paper1.jpg`**, and both
+   shipped a new version in this stage.
+5. **O-IntonationPad's tuning panel already overflows its 800px frame in ENGLISH** — the 220px
+   controls column sits partly outside. The French was sized to the English budget rather than
+   re-laying out the panel; the layout itself is a design decision.
+6. **O-Gain's seven-button utility row is 344.8px of min-content in a 334px row in ENGLISH** —
+   PH L, PH R and M/S OFF each render on two lines at v1.2.1 and still do. Every French caption
+   was chosen so its widest word matches its English counterpart's, so the row keeps two lines
+   and its 32px height.
+
+## Not verified
+
+- **Checkpoint 5 is outstanding on all 21 plugins.** No human has seen any French UI.
+- **Checkpoint 4 is measured on two of 21** (O-IntonationPad, O-Marimba). The other nineteen
+  are reasoned from the guard, not executed — and the DAW reopen, as opposed to the Standalone
+  one, is unexecuted everywhere.
+- **All French strings repo-wide are machine drafts**, every one `reviewed: false`. No native
+  speaker has read them.
+- **Windows/WebView2 font metrics** remain the named hardware-blocked deferral. The tightest
+  French margins measured in this stage: O-Marimba **1.69px** (CUSTOM in a 48px box),
+  O-Polystutter 4.2px (DÉCLIN), O-FreqPulse 5.2px (MÉDIUM).
