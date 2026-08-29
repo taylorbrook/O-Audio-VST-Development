@@ -275,6 +275,39 @@ const PROBE = () => {
                 return rng.getBoundingClientRect().width;
             })(),
             contentWidth: el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+            // THE VERTICAL TWIN. The width pair above is blind to the other way
+            // a French caption escapes: it WRAPS. A longer string in a box with
+            // a constrained height wraps to two, three, four lines and spills
+            // DOWNWARD, and every width measurement stays green because each
+            // line is narrow enough. Found on O-AnalogSaturation v1.2.0 as a
+            // negative control that failed to fire: a 43-char wrappable caption
+            // in a 28px-high button rendered 44px of text in plain sight with
+            // the whole gate passing. The same Range spans every line box, so
+            // its HEIGHT is the wrapped height, which is exactly the number
+            // clientHeight cannot give on an overflow:visible leaf.
+            //
+            // Measured with the LINE COUNT beside it, because height alone
+            // over-reports. A leaf styled with a line-height TIGHTER than its
+            // font's natural line box renders a 14px line box inside a 13px
+            // content box and overhangs by 1px on a four-letter English word
+            // that cannot wrap at all — O-simpleBeatmaker's six voice captions
+            // do exactly this, in ENGLISH, and calling that a spill would put a
+            // shipped plugin red over a deliberate typographic choice. Wrapping
+            // is what this assertion is for, and wrapping IS more than one line
+            // box: a Range over a leaf's contents yields one rect per line.
+            textHeight: (() => {
+                if (el.children.length) return null;
+                const rng = document.createRange();
+                rng.selectNodeContents(el);
+                return rng.getBoundingClientRect().height;
+            })(),
+            textLines: (() => {
+                if (el.children.length) return null;
+                const rng = document.createRange();
+                rng.selectNodeContents(el);
+                return rng.getClientRects().length;
+            })(),
+            contentHeight: el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom),
             // clientWidth is DEFINED as 0 for a non-replaced inline element —
             // an inline box has no content box of its own, it is a run of line
             // boxes. Comparing a Range width against it therefore reports every
@@ -566,6 +599,31 @@ const overlaps = (a, b) =>
                 + `(the case overflow:visible hides from scrollWidth)`
                 + (spilling.length ? ` — ${spilling.length}: ${spilling.slice(0, 4).map((l) =>
                     `${l.key} "${l.text.slice(0, 14)}" ${l.textWidth.toFixed(1)}>${l.contentWidth.toFixed(1)}`).join(', ')}` : ''));
+
+            // ── the OTHER half the clip check cannot see: the wrap ─────────
+            // A caption that is too long does not always overrun sideways. Give
+            // it a space to break at and it wraps instead, stacking line boxes
+            // downward out of a fixed-height control while every width stays
+            // inside its box. Same skip list as the width check, and for the
+            // same reason: an inline box has no content box of its own.
+            const wrapping = spillable.filter((l) =>
+                l.textHeight != null && l.textLines > 1 && l.textHeight > l.contentHeight + 0.5);
+
+            // The single-line overhang is NOT a failure — but it is not hidden
+            // either, or this assertion would be the silent kind it exists to
+            // replace. It is reported once, in English, with its numbers.
+            const overhang = spillable.filter((l) =>
+                l.textHeight != null && l.textLines <= 1 && l.textHeight > l.contentHeight + 0.5);
+            if (lang === 'en' && overhang.length)
+                console.log(`   NOTE: [4] ${overhang.length} single-line label(s) have a line box taller `
+                    + 'than their content box. That is a tight line-height, not a wrap, so it is not a '
+                    + `failure: ${overhang.slice(0, 5).map((l) =>
+                        `${l.key} ${l.textHeight.toFixed(1)}>${l.contentHeight.toFixed(1)}`).join(', ')}`);
+            check(wrapping.length === 0,
+                `[4][${lang}] no leaf label's TEXT is taller than its own content box `
+                + `(the caption that WRAPS out of a fixed-height control)`
+                + (wrapping.length ? ` — ${wrapping.length}: ${wrapping.slice(0, 4).map((l) =>
+                    `${l.key} "${l.text.slice(0, 14)}" ${l.textHeight.toFixed(1)}>${l.contentHeight.toFixed(1)}`).join(', ')}` : ''));
         }
 
         // ── 5. no label spills its offsetParent MORE in French ─────────────
