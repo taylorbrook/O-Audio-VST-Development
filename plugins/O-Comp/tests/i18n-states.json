@@ -1,0 +1,14 @@
+[
+  {
+    "name": "settings popover OPEN (reveals label.language, which is display:none until the gear is pressed)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "preset dropdown OPEN (reveals label.presets / label.noPresets — both are created by buildDropdownMenu() at runtime and do not exist in the markup at all until the name field is clicked)",
+    "click": "#preset-name"
+  },
+  {
+    "name": "auto-gain ARMED (reveals label.autoGainOn — #auto-gain-toggle renders label.autoGainOff at rest, so the ON face is never measured in the default state)",
+    "click": "#auto-gain-toggle"
+  }
+]

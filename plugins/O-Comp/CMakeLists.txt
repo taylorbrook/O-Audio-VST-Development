@@ -8,7 +8,7 @@ juce_add_plugin(O-Comp
     PLUGIN_CODE OuCp
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Comp${OUARICON_DEV_SUFFIX}"
-    VERSION 1.5.0
+    VERSION 1.6.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -55,6 +55,10 @@ juce_generate_juce_header(O-Comp)
 juce_add_binary_data(O-Comp_UIResources
     SOURCES
         Source/ui/public/index.html
+        # v1.6.0: the label table. EMBEDDED here AND served from a
+        # getResource() branch in PluginEditor.cpp, in the same commit.
+        # check-i18n assertion 8 exists for exactly that pair.
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/paper-bg.jpg

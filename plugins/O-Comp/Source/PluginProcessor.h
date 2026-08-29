@@ -65,6 +65,28 @@ public:
     // Preset management
     OuariconPresetManager presetManager;
 
+    // ------------------------------------------------------------------------
+    // v1.6.0: the UI language. Stored as an INDEX rather than a juce::String,
+    // because an atomic<juce::String> does not compile (juce::String is not
+    // trivially copyable), so the audio-safe form is an index behind the
+    // two-function codec below while the PERSISTED form stays a readable
+    // language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a PRESET must not be able to change which language
+    // somebody reads their plugin in. It rides the APVTS state tree as a
+    // non-parameter property instead, which is also why a preset cannot carry
+    // it — OuariconPresetManager::createPresetJson serialises the PARAMETERS
+    // and this plugin registers no custom-state callback.
+    // ------------------------------------------------------------------------
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
