@@ -8,7 +8,7 @@ juce_add_plugin(O-Gain
     PLUGIN_CODE OGan
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Gain${OUARICON_DEV_SUFFIX}"
-    VERSION 1.2.1
+    VERSION 1.3.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -52,9 +52,19 @@ target_link_libraries(O-Gain
 juce_generate_juce_header(O-Gain)
 
 # WebView UI Resources
+# NO NAMESPACE ARGUMENT — this target takes the default BinaryData namespace
+# and works only because it is the only juce_add_binary_data target in this
+# plugin. v1.3.0 added js/app.js and js/i18n.js to this EXISTING list; a second
+# target would collide on the BinaryData namespace and fail in a way that reads
+# like something else entirely (critical_dual_binary_data_namespace_collision).
+#
+# Filenames carry no hyphen: juce_add_binary_data STRIPS hyphens rather than
+# converting them to underscores (critical_binary_data_strips_hyphens).
 juce_add_binary_data(O-Gain_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/app.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg

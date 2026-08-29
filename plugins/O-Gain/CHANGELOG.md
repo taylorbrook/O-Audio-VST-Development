@@ -2,6 +2,118 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.3.0] - 2026-08-28
+
+The page speaks French, not only the hover help — and the tooltip layer is
+replaced rather than translated. Stage J of the repo-wide i18n task (canon v2),
+plugin 7 of 7, on the narrowest frame in the suite. MINOR: no parameter IDs,
+ranges, types or state format changed; existing sessions and presets load
+unchanged, and a session saved before this version simply opens in English.
+
+### Added
+
+- **English + French across every visible string on the page.** 37 label keys
+  and 26 tooltip keys in a new `Source/ui/public/js/i18n.js`. Meter captions,
+  the gain-offset caption, knob captions, mode-selector captions, the whole
+  Learn Analysis panel, the seven utility buttons, the Learn button's four
+  faces, the confidence verdict and three accessible names all switch language
+  with no reload and no English survivor. Counts parsed out of the RENDERED
+  DOM, not grepped: 23 live tooltip anchors (23 unique strings) and 40 text
+  nodes, against a plan figure of 23 / 41 and a raw grep of 34 attribute-token
+  hits.
+- **A settings popover with the language selector**, in the exact absolute slot
+  the "?" help button occupied through v1.2.1 (`right: 8px; top: 0` inside the
+  22 px header), so nothing on a 350 x 500 layout had to move to make room for
+  it. The hover-help switch moves inside it. Every colour, border, radius and
+  transition on the gear is the "?" button's own, carried across unchanged.
+- **`getUiLanguage` / `setUiLanguage` native functions and session
+  persistence.** This plugin had no bridge beyond `toggleLearn`, so the pair is
+  new. The choice rides the session XML as a plain `uiLanguage` attribute —
+  deliberately NOT an `AudioParameterChoice`, so it never appears in a host
+  automation lane and no preset can change which language somebody reads their
+  interface in. Read back with `isVoid()` and `toString()`, because a
+  ValueTree property restored from XML is a string `var` whatever it was
+  written as.
+- `tests/i18n-states.json`, driving the settings popover and four Learn states
+  so all 28 keyed elements — including the three confidence verdicts and all
+  four Learn-button faces — are measured at 350 x 500 rather than shipped
+  unmeasured.
+
+### Changed
+
+- **The hover help is the measure-then-pin renderer, ported from
+  O-ReverseDelay. There is now ONE tooltip renderer repo-wide.** v1.2.1 had no
+  tooltip JavaScript at all: its help was a pure-CSS `[data-tooltip]::after`
+  pseudo-element with `content: attr(data-tooltip)` and three hand-picked
+  direction override classes. It could not be measured, flipped, clamped or
+  re-aimed. The port brings a title/body pair, a 120 ms dwell delay, a width
+  RELEASED then MEASURED then PINNED before `left` is applied, an automatic
+  vertical flip, a horizontal clamp, and an arrow offset recomputed AFTER the
+  clamp so a clamped tip still points at its control. The old layer is DELETED,
+  not disabled — `grep -rn 'tooltipHeight\|tooltipWidth\|data-tooltip'
+  Source/ui/public/` returns nothing outside comments.
+- **The 447-line inline `<script type="module">` is extracted to `js/app.js`.**
+  Behaviour moved, not rewritten: the same listeners in the same order. Only
+  the import specifier changed, and only because the module's depth did —
+  `./js/juce/index.js` became `./juce/index.js`.
+- **The Learn button's width is pinned to 121 px and the Target block to
+  91 px.** `.learn-section` is 220 px of intrinsic-width button plus a `flex: 1`
+  target group, so the button's own text positioned everything to its right.
+  That was already a defect in English: the four faces measure LEARN 80.8,
+  LEARNING... 120.7, DONE 73.4 and TOO QUIET 109.9 px, so the Target caption
+  and its readout slid up to 40 px sideways every time Learn ran or finished.
+  121 px is the widest ENGLISH face rounded up, so no English face re-wraps.
+  Visible cost, stated rather than hidden: the resting LEARN pill is 40.2 px
+  wider than in v1.2.1 and the Target block sits 40.2 px further right. That is
+  the ONLY English-at-rest geometry change in this release, measured HEAD vs
+  working tree over all 84 rendered boxes.
+- `.meter-label` gains `white-space: nowrap`. The column is a hard 44 px and
+  ENTRÉE renders 42.4 px inside it. Without nowrap a caption one glyph wider
+  does not clip, it takes a second line and shoves the meter bars down. Costs
+  English nothing (INPUT 33.3 px, OUTPUT 42.9 px).
+
+### Fixed
+
+- **The page no longer overflows its own frame.** v1.2.1's twenty-three in-flow
+  `[data-tooltip]::after` boxes inflated the document's scroll extent to
+  435 x 540 inside a 350 x 500 window, in English, at rest. The replacement
+  surface is a single `position: fixed` element that is out of flow, so the
+  scroll extent is now exactly 350 x 500 in both languages.
+
+### Notes
+
+- **All 63 French strings are machine drafts, every one flagged
+  `reviewed: false`.** No native speaker has read them.
+  `node scripts/check-i18n.js` prints the worklist.
+- **All 23 tooltips were HAND-SPLIT; none split on a `": "`.** O-Gain's copy is
+  bare sentences with no title prefix, so every tooltip title is the control's
+  own existing English caption reused verbatim. Four strings DO contain a
+  `": "` — the two `Range: ` tips, `Sum to mono: ` and the DEC `Note: ` — and a
+  mechanical split on the first one would have made most of the sentence into
+  the title. All 23 bodies are byte-identical to v1.2.1's attribute values.
+- **The M/S captions localize and the meter/measure captions do not**, on the
+  byte-identity test against the `AudioParameterChoice` option strings. `Peak`,
+  `RMS`, `VU` and `LUFS` match `meter_mode` and `measurement_mode` verbatim and
+  are `I18N_EXEMPT` under D-01 — translating them would make the page and the
+  host automation lane disagree. `M/S OFF`, `ENC` and `DEC` match none of
+  `ms_mode`'s `Off` / `Encode` / `Decode`, so they are page-invented captions
+  and they translate.
+- The seven-button utility row already renders PH L, PH R and M/S OFF on two
+  lines in ENGLISH at this frame — 344.8 px of min-content in a 334 px row.
+  That is pre-existing and untouched; every French caption was chosen so its
+  widest word matches its English counterpart's, so the row keeps exactly two
+  lines and its 32 px height.
+- The vertical tooltip clamp is carried in from O-FreqPulse but is **not
+  independently reproducible on this page** — measured, with the clamp deleted,
+  over 52 tips with the Learn panel open and 40 with it closed: none left the
+  frame. The same sweep with the HORIZONTAL clamp deleted instead reports 26
+  off-frame tips, worst 89.3 px, so the probe is not blind.
+- The hover-help switch is still SESSION-ONLY, exactly as v1.2.1's "?" was.
+  This plugin has no `setTooltipsEnabled` bridge and this release does not add
+  one.
+- The DAW round-trip (pick Français, close the session, reopen) has not been
+  executed by hand. It is reasoned from the `isVoid()` guard, not measured.
+
 ## [1.2.1] - 2026-07-21
 
 Learn-mode safety fix. No parameter IDs, ranges, types, or state format changed —

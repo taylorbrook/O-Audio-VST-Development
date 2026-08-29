@@ -1,0 +1,22 @@
+[
+  {
+    "name": "settings popover open",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "learn running, LOW confidence",
+    "eval": "window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"momentaryLUFS\": -18.2, \"shortTermLUFS\": -19.4, \"integratedLUFS\": -20.1, \"samplePeakDBFS\": -3.4, \"learnElapsedSeconds\": 18.5, \"learnState\": 1, \"learnConfidence\": 1});"
+  },
+  {
+    "name": "learn complete, MED confidence",
+    "eval": "window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"momentaryLUFS\": -18.2, \"shortTermLUFS\": -19.4, \"integratedLUFS\": -20.1, \"samplePeakDBFS\": -3.4, \"learnElapsedSeconds\": 18.5, \"learnState\": 2, \"learnConfidence\": 2});"
+  },
+  {
+    "name": "learn refused as TOO QUIET",
+    "eval": "window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"momentaryLUFS\": -18.2, \"shortTermLUFS\": -19.4, \"integratedLUFS\": -20.1, \"samplePeakDBFS\": -3.4, \"learnElapsedSeconds\": 18.5, \"learnState\": 0, \"learnConfidence\": 0}); window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"momentaryLUFS\": -18.2, \"shortTermLUFS\": -19.4, \"integratedLUFS\": -20.1, \"samplePeakDBFS\": -3.4, \"learnElapsedSeconds\": 18.5, \"learnState\": 2, \"learnConfidence\": 0});"
+  },
+  {
+    "name": "learn running, HIGH confidence",
+    "eval": "window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"momentaryLUFS\": -18.2, \"shortTermLUFS\": -19.4, \"integratedLUFS\": -20.1, \"samplePeakDBFS\": -3.4, \"learnElapsedSeconds\": 18.5, \"learnState\": 0, \"learnConfidence\": 0}); window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"momentaryLUFS\": -18.2, \"shortTermLUFS\": -19.4, \"integratedLUFS\": -20.1, \"samplePeakDBFS\": -3.4, \"learnElapsedSeconds\": 18.5, \"learnState\": 1, \"learnConfidence\": 3});"
+  }
+]
