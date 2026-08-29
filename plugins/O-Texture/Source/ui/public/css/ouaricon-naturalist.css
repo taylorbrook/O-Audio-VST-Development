@@ -145,6 +145,35 @@ body::after {
     display: flex;
     gap: 12px;
     flex: 1;
+
+    /* v0.2.0 - THE LOAD-BEARING DECLARATION ON THIS PAGE. Without it the
+       layout GROWS WITHOUT BOUND and the plugin does not fit its own frame.
+
+       #xy-pad is a CANVAS: a replaced element whose INTRINSIC size is its
+       width/height ATTRIBUTES, which js/main.js resizeCanvas() writes from
+       clientWidth/clientHeight. .main-area is a flex item and therefore carries
+       min-height: auto, whose content-based minimum is floored by that
+       intrinsic height. So each ResizeObserver delivery wrote an attribute that
+       raised .main-area's own floor, which raised the canvas's client box by
+       the 2 px borders on .xy-pad, which the next delivery wrote back 4 px
+       larger - a self-feeding loop, not a settling one. MEASURED at the
+       shipping 800 x 600: .main-area 362 px at 100 ms, 894 at 1.2 s, 5414 at
+       6 s, still climbing, with body.scrollHeight tracking it. The XY pad, the
+       source row and the whole bottom strip were pushed off the bottom of the
+       frame within the first second, and html { overflow: hidden } meant they
+       were simply not reachable.
+
+       min-height: 0 removes the floor, so the canvas attribute follows the
+       layout instead of driving it. .main-area then resolves to the 306 px the
+       design intends (600 - 12 - 43 - 12 - 12 - 68 - 12 - 123 - 12) and holds
+       it at every settle time from 100 ms to 6 s.
+
+       Pinned HERE and nowhere else: the same declaration on .xy-pad-container
+       was tried, reverted alone, and the page stayed correct without it - it is
+       decoration, so it is not in this file (flex 1 1 0 WITH min-* 0, the
+       vertical form of the rule this repo already carries for min-width). */
+    min-height: 0;
+
     margin-bottom: 12px;
 }
 
@@ -406,4 +435,128 @@ body::after {
     color: var(--ink-light);
     letter-spacing: 0.05em;
     text-transform: uppercase;
+}
+
+
+/* ===== SETTINGS POPOVER (v0.2.0) =====
+   Written in THIS page's vocabulary rather than pasted in from another plugin:
+   the aged-paper fills, the single 1 px --ink-brown rule that .mode-toggle
+   button already uses, the --botanical-green active state that .source-button
+   and .freeze-button use, Garamond, and the 0.05em tracking every small caption
+   here carries.
+
+   The cluster is an IN-FLOW flex item beside the h1, inside .header-left. It is
+   not absolutely positioned and it needs no magic offset: .header is
+   space-between with two children, so putting the gear in the LEFT one leaves
+   .mode-toggle exactly where it was. Measured before/after at 800 x 600: zero
+   existing elements moved. */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-cluster {
+    /* positioned so .settings-popover can hang off it, and so z-index applies.
+       #xy-pad below is position: relative and later in DOM order, so without a
+       stacking order the panel would open UNDERNEATH the XY pad. */
+    position: relative;
+    display: flex;
+    align-items: center;
+    z-index: 60;
+}
+
+.gear-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: var(--paper-medium);
+    color: var(--ink-light);
+    border: 1px solid var(--ink-brown);
+    border-radius: 50%;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.gear-btn:hover {
+    background: var(--paper-dark);
+}
+
+.gear-btn[aria-expanded="true"] {
+    background: var(--botanical-green);
+    color: var(--paper-light);
+    border-color: var(--botanical-green-dark);
+}
+
+.gear-btn:focus-visible {
+    outline: 2px solid var(--botanical-green-dark);
+    outline-offset: 2px;
+}
+
+/* Opens DOWNWARDS and left-aligned to the gear. The gear sits 21 px from the
+   top of a 600 px frame, so a panel above it would leave the frame; below it
+   there are 550 px of room and the panel is 40 px tall.
+
+   WIDTH IS PINNED, not min-width. .settings-popover is not a [data-i18n]
+   element, so check-ui-labels assertion 7 measures its box in BOTH languages
+   and any language-driven resize is a reported failure. A hard width makes the
+   panel's rect language-invariant by construction. 196 px holds the English row
+   (Language + English) and the French one (Langue + Fran&ccedil;ais), measured
+   as rendered rather than from a font probe. */
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 61;
+    width: 196px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: var(--paper-light);
+    border: 1px solid var(--ink-brown);
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.settings-popover[hidden] {
+    display: none;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* nowrap because the row is space-between: a caption that wrapped would grow
+   the row's height and move the control beside it. */
+.settings-label {
+    font-size: 11px;
+    color: var(--ink-light);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.settings-select {
+    flex: 0 0 auto;
+    padding: 2px 4px;
+    background: var(--paper-medium);
+    color: var(--ink-brown);
+    border: 1px solid var(--ink-brown);
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 11px;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.settings-select:focus-visible {
+    outline: 2px solid var(--botanical-green-dark);
+    outline-offset: 1px;
 }

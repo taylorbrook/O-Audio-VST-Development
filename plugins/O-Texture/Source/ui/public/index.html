@@ -27,13 +27,60 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header: Plugin name + Mode toggle -->
+        <!-- Header: Plugin name + settings + Mode toggle -->
         <div class="header">
-            <h1>O-TEXTURE</h1>
+            <!-- v0.2.0: h1 and the gear share the LEFT slot of the
+                 space-between header, so .mode-toggle keeps the right edge it
+                 already had and nothing on the page moves to make room. -->
+            <div class="header-left">
+                <!-- NOT a [data-i18n] element: a product name is never
+                     translated. Declared in I18N_EXEMPT with that reason, so a
+                     genuinely missed label cannot hide here as a deliberate
+                     one. -->
+                <h1>O-TEXTURE</h1>
+
+                <!-- v0.2.0: the settings cluster. ONE row, because this plugin
+                     has no hover-help to switch on or off - authoring that copy
+                     is Stage M's job and this commit does not invent it. -->
+                <div class="settings-cluster">
+                    <button type="button" class="gear-btn" id="gear-btn"
+                            aria-haspopup="dialog" aria-expanded="false"
+                            data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+                    <div class="settings-popover" id="settings-popover"
+                         role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                        <label class="settings-row" for="lang-select">
+                            <!-- data-label so a state updater that writes
+                                 textContent reads the authored caption back
+                                 instead of erasing it. -->
+                            <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                            <!-- ENDONYMS. Never localized: a French speaker
+                                 looking for their language looks for
+                                 "Fran&ccedil;ais". -->
+                            <select class="settings-select" id="lang-select"
+                                    data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                                <option value="en">English</option>
+                                <option value="fr">Fran&ccedil;ais</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The two captions are the MODE AudioParameterChoice option
+                 strings VERBATIM (PluginProcessor.cpp:339), so they are EXEMPT
+                 under D-01 arm 1 and carry no key: the page and the host
+                 automation lane have to agree about the same setting.
+                 v0.2.0: the native title= is DELETED per contract 4. Its text
+                 moves into the accessible NAME rather than replacing it -
+                 aria-label alone would have erased the caption "Transform" that
+                 a screen reader announces today. -->
             <div class="mode-toggle">
                 <button>Generate</button>
                 <!-- Transform mode is not implemented in v0.1.x -->
-                <button disabled title="Coming soon">Transform</button>
+                <button disabled
+                        data-i18n-aria="aria.soon.transform"
+                        aria-label="Transform &#8212; coming soon">Transform</button>
             </div>
         </div>
 
@@ -46,7 +93,7 @@
             <div class="vertical-sliders">
                 <!-- Character A -->
                 <div id="slider-charA" class="vertical-slider">
-                    <div class="label">Char A</div>
+                    <div class="label" data-i18n="label.charA" data-label="Char A">Char A</div>
                     <div class="slider-track">
                         <div class="slider-thumb"></div>
                     </div>
@@ -55,7 +102,7 @@
 
                 <!-- Character B -->
                 <div id="slider-charB" class="vertical-slider">
-                    <div class="label">Char B</div>
+                    <div class="label" data-i18n="label.charB" data-label="Char B">Char B</div>
                     <div class="slider-track">
                         <div class="slider-thumb"></div>
                     </div>
@@ -64,7 +111,7 @@
 
                 <!-- Evolve -->
                 <div id="slider-evolve" class="vertical-slider">
-                    <div class="label">Evolve</div>
+                    <div class="label" data-i18n="label.evolve" data-label="Evolve">Evolve</div>
                     <div class="slider-track">
                         <div class="slider-thumb"></div>
                     </div>
@@ -74,7 +121,20 @@
         </div>
 
         <!-- Source selector: only Rain has a trained model in v0.1.x; the
-             other sources are disabled until their models ship -->
+             other sources are disabled until their models ship.
+
+             The six captions are the SOURCE AudioParameterChoice option strings
+             VERBATIM (PluginProcessor.cpp:335) - EXEMPT under D-01 arm 1, like
+             the mode row above.
+
+             v0.2.0: the five native title="Coming soon" attributes are DELETED
+             per contract 4. Each one's text moves into that button's accessible
+             NAME, keeping the visible caption in it: a bare
+             data-i18n-aria="Coming soon" would have REPLACED "Metal" as the
+             accessible name, losing the label-in-name a screen reader relies on
+             to match what the user sees. No new prose is invented - each name
+             is the button's own caption plus the status text the title already
+             carried. -->
         <div class="source-selector">
             <!-- Rain -->
             <button class="source-button">
@@ -85,7 +145,9 @@
             </button>
 
             <!-- Metal -->
-            <button class="source-button" disabled title="Coming soon">
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.metal"
+                    aria-label="Metal &#8212; coming soon">
                 <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="7"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -95,7 +157,9 @@
             </button>
 
             <!-- Wind -->
-            <button class="source-button" disabled title="Coming soon">
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.wind"
+                    aria-label="Wind &#8212; coming soon">
                 <svg viewBox="0 0 24 24">
                     <path d="M3 8 Q8 6, 14 8 T20 8 M3 12 Q10 10, 16 12 T21 12 M3 16 Q7 14, 12 16 T19 16"/>
                 </svg>
@@ -103,7 +167,9 @@
             </button>
 
             <!-- Crowd -->
-            <button class="source-button" disabled title="Coming soon">
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.crowd"
+                    aria-label="Crowd &#8212; coming soon">
                 <svg viewBox="0 0 24 24">
                     <circle cx="8" cy="7" r="2"/>
                     <circle cx="16" cy="7" r="2"/>
@@ -114,7 +180,9 @@
             </button>
 
             <!-- Synth -->
-            <button class="source-button" disabled title="Coming soon">
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.synth"
+                    aria-label="Synth &#8212; coming soon">
                 <svg viewBox="0 0 24 24">
                     <path d="M4 12 L8 6 L12 16 L16 8 L20 12" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -122,7 +190,9 @@
             </button>
 
             <!-- Organic -->
-            <button class="source-button" disabled title="Coming soon">
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.organic"
+                    aria-label="Organic &#8212; coming soon">
                 <svg viewBox="0 0 24 24">
                     <path d="M12 4 Q8 8, 12 12 T12 20 M12 12 Q16 10, 18 12"/>
                 </svg>
@@ -138,7 +208,7 @@
                     <div class="knob-bg"></div>
                     <div class="knob-indicator"></div>
                 </div>
-                <div class="knob-label">Brightness</div>
+                <div class="knob-label" data-i18n="label.brightness" data-label="Brightness">Brightness</div>
                 <div class="knob-value">0.00</div>
             </div>
 
@@ -148,7 +218,7 @@
                     <div class="knob-bg"></div>
                     <div class="knob-indicator"></div>
                 </div>
-                <div class="knob-label">Mix</div>
+                <div class="knob-label" data-i18n="label.mix" data-label="Mix">Mix</div>
                 <div class="knob-value">1.00</div>
             </div>
 
@@ -159,7 +229,7 @@
                         <path d="M12 2 L12 22 M2 12 L22 12 M6 6 L18 18 M18 6 L6 18"/>
                     </svg>
                 </button>
-                <div class="freeze-label">Freeze</div>
+                <div class="freeze-label" data-i18n="label.freeze" data-label="Freeze">Freeze</div>
             </div>
         </div>
     </div>
