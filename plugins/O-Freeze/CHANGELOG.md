@@ -2,6 +2,45 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.1.0] - 2026-08-28
+
+The PAGE speaks French. Stage K batch 1 of the repo-wide i18n rollout, canon v2.
+
+### Added
+- **English/French UI.** Fifteen `[data-i18n]` label elements and three keyed
+  `aria-label` attributes resolve through a new `Source/ui/public/js/i18n.js`.
+  A settings popover in the header's top-right carries the language selector.
+- **Language persistence.** `getUiLanguage` / `setUiLanguage` native functions and
+  a `uiLanguage` property on the APVTS state tree, saved with the session. It is
+  deliberately NOT a parameter: it must not appear in a DAW automation lane, and a
+  preset must not change which language somebody reads their plugin in. Read back
+  through an `isVoid()` guard, because the ValueTree XML round-trip rebuilds every
+  property as a `var` over the attribute STRING.
+
+### Not changed
+- **No hover-help.** v2.0.1 carried no `data-tip` and no native `title=` anywhere,
+  and none is invented here — authoring that copy is a later stage. `TIP_BINDINGS`
+  and `I18N` are both empty, which the gate reports as "0 tip(s) bound" rather than
+  passing silently.
+- **No parameter IDs, ranges, types, defaults or DSP behaviour.** Presets and
+  automation from 2.0.1 load unchanged.
+
+### Deliberately English
+Three visible strings stay English, each an `I18N_EXEMPT` entry with its reason:
+`Manual` and `Threshold` are the MODE `AudioParameterChoice` option strings byte
+for byte, and the `Threshold` knob caption names the same setting as the button
+beside it. The header is a product name.
+
+### Geometry
+Six knobs share a 530 px `space-around` row whose items are floored at 60 px by
+`.knob-value`'s `min-width`, so every French caption was chosen against a measured
+60.00 px budget: `DÉSACCORD` (70.1 px) moves 37 boxes and `PROFONDEUR` (87.3 px)
+moves 10, both verified by reverting the choice and re-running the gate. Two
+per-element pins hold a French string that renders NARROWER than its English
+original — `#reverse-toggle` and the third LFO shape option — and each was reverted
+alone and confirmed to re-break the geometry diff. English before/after: 0 of 89
+elements moved, 2 added.
+
 ## [2.0.1] - 2026-07-01
 
 Resolves five findings from the 2026-07-01 deep code review (`.planning/CODE-REVIEW.md`).

@@ -3,7 +3,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Freeze
-    VERSION 2.0.1
+    VERSION 2.1.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFCR
@@ -55,6 +55,7 @@ juce_generate_juce_header(O-Freeze)
 juce_add_binary_data(O-Freeze_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/assets/paper1.jpg
