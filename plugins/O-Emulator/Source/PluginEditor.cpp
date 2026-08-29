@@ -199,6 +199,38 @@ OEmulatorAudioProcessorEditor::OEmulatorAudioProcessorEditor(OEmulatorAudioProce
                 complete(juce::var(false));
         });
 
+    // ── v1.1.0: the UI LANGUAGE pair ────────────────────────────────────────
+    //
+    // Plain withNativeFunction, no relay. The page PULLS once at init; there is
+    // no push from this constructor, no timer and no revision counter, because
+    // the language is not preset content and no preset path can change it
+    // behind the page's back. A push from here would race the WebView's load.
+    //
+    // Both capture `this` and complete SYNCHRONOUSLY, like the eight
+    // synchronous preset functions above — the completion never outlives the
+    // call, so neither needs the SafePointer dance the two dialog functions do.
+    options = options.withNativeFunction("getUiLanguage",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(OEmulatorAudioProcessor::languageCode(
+                                   audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction("setUiLanguage",
+        [this](const juce::Array<juce::var>& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                audioProcessor.uiLanguage.store(
+                    OEmulatorAudioProcessor::languageIndex(args[0].toString()),
+                    std::memory_order_release);
+
+            complete(juce::var(OEmulatorAudioProcessor::languageCode(
+                                   audioProcessor.uiLanguage.load(std::memory_order_acquire))));
+        });
+
     webView = std::make_unique<juce::WebBrowserComponent>(options);
 
     addAndMakeVisible(*webView);
@@ -251,6 +283,17 @@ OEmulatorAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
             juce::String("text/html")};
+    }
+
+    // v1.1.0: the label table. EMBEDDED in CMakeLists.txt AND served here, in
+    // the same commit. A file embedded but not served, or served but not
+    // embedded, is a 404 that presents as a page stuck in English and nothing
+    // else — check-i18n assertion 8 exists for exactly this pair.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("application/javascript")};
     }
 
     if (url == "/js/juce/index.js")

@@ -259,6 +259,17 @@ void OEmulatorAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         // re-added here (as an XML attribute; the pre-Stage-4 code carried it
         // as a ValueTree property, which lands in the same place).
         xml->setAttribute("pluginVersion", JucePlugin_VersionString);
+
+        // v1.1.0: the UI language rides the session as one more plain
+        // attribute, exactly as pluginVersion above does. Written on the XML
+        // rather than on apvts.state because getStateAsXml() has ALREADY taken
+        // its copyState() snapshot by the time it returns — a property set on
+        // the live tree afterwards would not be in this document. Stamping the
+        // XML also keeps it out of savePreset()'s parameter sweep entirely, so
+        // no preset can carry a language.
+        xml->setAttribute("uiLanguage",
+                          languageCode(uiLanguage.load(std::memory_order_acquire)));
+
         copyXmlToBinary(*xml, destData);
     }
 }
@@ -268,7 +279,29 @@ void OEmulatorAudioProcessor::setStateInformation(const void* data, int sizeInBy
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(apvts.state.getType()))
+    {
         presetManager.setStateFromXml(xmlState.get());
+
+        // v1.1.0: the UI language. setStateFromXml() has just called
+        // replaceState(ValueTree::fromXml(...)), so every XML attribute is now
+        // a property on the tree and the one stamped above reads back here.
+        //
+        // isVoid() is the ONLY correct guard and toString() the only correct
+        // read. Even a bool or an int written into that document would not
+        // survive as one: NamedValueSet::setFromXmlAttributes rebuilds every
+        // property as `var (value)` over the attribute STRING, so isBool() and
+        // isInt() are false for every saved session
+        // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.1.0 session
+        // has no such property at all and the default (English) stands.
+        //
+        // The editor PULLS this through the getUiLanguage native function at
+        // page init rather than being pushed from here — a push would race the
+        // WebView's load.
+        const juce::var lang = apvts.state.getProperty("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+    }
 }
 
 // Factory function

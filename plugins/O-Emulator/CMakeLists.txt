@@ -12,7 +12,7 @@ juce_add_plugin(OEmulator
     PLUGIN_CODE OEmu
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Emulator${OUARICON_DEV_SUFFIX}"
-    VERSION 1.0.1
+    VERSION 1.1.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_WEB_BROWSER TRUE
@@ -73,6 +73,7 @@ ouaricon_add_module(OEmulator preset-manager)
 juce_add_binary_data(OEmulator_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
