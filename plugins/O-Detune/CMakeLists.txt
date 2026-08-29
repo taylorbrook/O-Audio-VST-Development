@@ -13,7 +13,7 @@ juce_add_plugin(O-Detune
     PLUGIN_CODE OuDt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Detune${OUARICON_DEV_SUFFIX}"
-    VERSION 1.5.4
+    VERSION 1.6.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -72,6 +72,7 @@ target_compile_definitions(O-Detune
 juce_add_binary_data(O-Detune_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js

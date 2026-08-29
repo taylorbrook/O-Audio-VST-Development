@@ -1,5 +1,45 @@
 # O-Detune Changelog
 
+## [1.6.0] - 2026-08-28
+
+### Added
+
+- **The whole page speaks French, not just a tooltip.** 22 keyed elements and 8
+  keyed accessible names in a new `Source/ui/public/js/i18n.js`, driven by the
+  repo's canonical i18n runtime (canon v2, byte-compared against
+  `scripts/i18n-canon.js`). Every French string is a machine draft flagged
+  `reviewed: false` — no native speaker has read them yet.
+- **A settings popover, bottom-left, carrying the language selector.** Styled in
+  this plugin's own naturalist vocabulary and positioned absolutely inside
+  `#app`, so it contributes nothing to any flow box. It opens upwards; the gear
+  is 6 px from the bottom of a 480 px frame.
+- **The language choice persists with the session.** `getUiLanguage` /
+  `setUiLanguage` native functions and a non-parameter `uiLanguage` property on
+  the APVTS state tree. It is deliberately NOT an `AudioParameterChoice`: it
+  must not appear in a DAW automation lane, and a preset must not be able to
+  change which language somebody reads their plugin in.
+
+### Changed
+
+- **Every native `title=` on the preset bar is deleted.** All five carried the
+  only help their element had, so each text moved verbatim to `data-i18n-aria`
+  and was then translated. A native title renders a second, untranslated OS
+  tooltip; no new hover-help prose was authored — that is a later stage.
+- **Five per-element layout pins, so French cannot move anything that is not a
+  label.** The preset action buttons are pinned to 60 px, the engine knobs take
+  their full grid cell, the Feedback and Mono-Safe captions are pinned to their
+  English boxes, and the Width caption and its readout are spread rather than
+  left-packed. Each was reverted alone and confirmed to re-break the geometry
+  gate. The visible English cost: the preset bar reserves 32 px, and the Width
+  readout moves to the right edge of the column it already sat in.
+
+### Fixed
+
+- The page's version label read `v1.5.4` and now reads `v1.6.0`, matching
+  `CMakeLists.txt`.
+
+No parameter IDs, ranges, types or DSP behaviour changed.
+
 ## [1.5.4] - 2026-08-02
 
 ### Fixed

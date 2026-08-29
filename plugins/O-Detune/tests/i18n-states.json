@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover OPEN (reveals label.language, which is display:none until the gear is pressed)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "unison distribution = Random (reveals label.random — #random_amt_container is display:none until unison_dist is 2, and the caption is the one string on this page whose I18N_EXEMPT collision makes it worth measuring rather than reasoning about)",
+    "eval": "const s = document.getElementById('unison_dist'); s.value = '2'; s.dispatchEvent(new Event('change', { bubbles: true }));"
+  }
+]
