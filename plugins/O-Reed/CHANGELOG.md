@@ -1,5 +1,41 @@
 # O-Reed Changelog
 
+## v1.2.0 (2026-08-29)
+
+### Added
+
+- **The PAGE speaks French.** Every visible string in the O-Reed UI is now a keyed label with an English and a French face, switched from a gear popover in the header bar. 55 label entries across 52 keyed elements and 3 keyed accessible names. **This release does NOT add hover-help copy** — v1.1.0 had none, and authoring it is a separate, later piece of work.
+- **A UI-language preference that persists.** `uiLanguage` rides the APVTS state tree as a non-parameter property, written as a readable `"en"` / `"fr"` string in `getStateInformation()` and read back in `setStateInformation()` AFTER the preset manager has replaced the tree. Deliberately not an `AudioParameterChoice`: it must not appear in a DAW automation lane, and a preset must not be able to change which language somebody reads their plugin in. The guard is `isVoid()`, not `isBool()` — the ValueTree/XML round-trip rebuilds every property as a `var` over the attribute STRING and does not preserve the type.
+- `Resources/ui/js/i18n.js`, embedded in `juce_add_binary_data` SOURCES and served from a `getResource()` branch in the same commit. A file that is one without the other is a 404 that presents as a missing panel and nothing else.
+- `tests/i18n-states.json`, so the label gate can reach the 34 captions that live inside collapsed sections and the inactive FX tab.
+
+### Fixed
+
+- **Two knob captions were being silently ellipsised in ENGLISH.** `.knob-label` is `nowrap` + `overflow: hidden` + `text-overflow: ellipsis` capped by `.knob-control`'s 60px width, and "Embouchure" (61.44px) and "Double Reed" (60.58px) both overran it — rendering "EMBOUCHUR…" and "DOUBLE REE…" since v1.0.0. The box is now 68px. Every `.param-row` is `flex-wrap: wrap` in an 854px content box and the widest row holds seven knobs (500px), so no row rewraps and no row changes height; the knobs sit 8px further apart.
+- **A broken `<script>` tag threw on every page load.** `index.html` carried a CLASSIC `<script src="/js/juce/index.js">` alongside the ES-module `import` of the same file. `js/juce/index.js` is a module, so the classic load threw `SyntaxError: Unexpected token 'export'` before defining anything, on every open of the editor, in the shipping plugin. It was a no-op that only produced an error; the tag is deleted and the module import — which is what actually provides `Juce` — is untouched. `check_native_interop.js` is a genuine classic script and is unchanged.
+- **The FX tab's placeholder hugged the left edge of a 900px tab.** `.effects-placeholder` carries `align-items: center; justify-content: center; height: 100%` but had no width, so as a flex item of a `flex-start` row it shrink-wrapped its widest child instead of filling and centring its panel. `width: 100%` was added. **"Coming Soon" and its sentence now sit in the middle of the FX tab rather than at its left edge** — a visible change, on a placeholder tab with no other content.
+
+### Changed
+
+- The `Bore:` / `Reed:` readouts under the XY pad are split into a caption span and a value span (the caption is translated, the number is not). The caption span is pinned to 31px so the two readouts land at a language-invariant x; in English they move 9.41px and 8.00px right, into a row with roughly 570px of unused width, and they now line up with each other.
+- `.toggle-control` is pinned to 126px so `DUAL BORE` -> `DOUBLE PERCE` cannot resize the control's own box. The track and the caption are left-aligned inside it and neither moves in either language.
+- The tuning-panel load-failure notice is built with `createElement` + `setLabel` instead of an `innerHTML` string, so it is localized like everything else and no markup path can carry a translated string.
+- The header bar gains a 22px gear button at its right-hand end; the tab group and the Ouaricon wordmark move 30px left.
+
+### Not changed, deliberately
+
+- **The fifteen XY-pad instrument markers stay in English.** They are the abbreviation set of the `instrumentPreset` `AudioParameterChoice`, and three of them — `Oboe`, `Suona`, `Piri` — are byte-identical to their option strings. The pad must name the same instruments the host automation lane and the dropdown beside it name, so the set is not split across two languages. A French user still reads `Oboe` and `E.Hrn` there. Recorded as an `I18N_EXEMPT` entry with that reason.
+- **The Tuning tab stays in English.** Every caption in it belongs to the shared `modules/tuning/scala-tuning-engine` module, which is referenced by path rather than copied; localizing it is a cross-plugin change and a local edit would be reverted by `/module-upgrade`.
+- **`CMakeLists.txt` still declares `PLUGIN_VERSION`, which JUCE ignores.** It is not a `juce_add_plugin` keyword — JUCE reads `VERSION` — so the plugin reports the project version to the host no matter what that line says. The number is bumped to 1.2.0 in place and the defect is left standing: correcting it is a host-visible change that several plugins share and it needs one decision across all of them.
+
+### Technical Notes
+
+- **All French is a machine draft.** Every entry is flagged `reviewed: false`; no native speaker has read any of it.
+- **Four geometry cliffs, each invisible to the assertion that catches the others**, are documented with their measured numbers in the header of `Resources/ui/js/i18n.js`: the ellipsising `.knob-label`, the centre-growing XY axis caption in a pad full of markers, the `max-height: 0` collapse boxes whose clipped children still hold their rectangles, and `.section-content`'s max-height ceiling. Every pin was reverted alone and confirmed to re-break its gate; none is decoration.
+- Twelve of the 27 knob captions are SHORTER in French than in English. A clip-only check would have certified all twelve.
+- **Files:** `Resources/ui/index.html`, `Resources/ui/js/i18n.js` (new), `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`, `CMakeLists.txt`, `tests/i18n-states.json` (new).
+- **Version:** 1.1.0 -> 1.2.0 (MINOR — new user-visible feature, backward compatible; a pre-1.2.0 session has no `uiLanguage` property and defaults to English).
+
 ## v1.1.0 (2026-04-26)
 
 ### Added

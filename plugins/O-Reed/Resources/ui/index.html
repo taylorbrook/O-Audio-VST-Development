@@ -265,7 +265,27 @@
             font-size: 9px;
             color: var(--brown-text-light);
         }
-        .xy-val-item span {
+        /* PIN. The caption span this commit split out of .xy-val-item's own text
+           is the only thing between the readout and the left edge of its box, so
+           a wider French caption slides the NUMBER right — 5.4px on Bore and
+           7.0px on Reed — and assertion 7 reads a moved readout as a French
+           push, correctly. Measured in this element: Bore: 21.59, Reed: 23.00,
+           Perce : 26.95, Anche : 30.02. One 31px box holds the widest of the
+           four with 0.98px to spare and makes both readouts land at a
+           language-invariant x. It costs English 9.41px on Bore and 8.00px on
+           Reed, into a row that has ~570px of unused width, and it lines the two
+           readouts up with each other. Reverting this rule alone re-breaks
+           check-ui-labels assertion 7 on four elements. */
+        .xy-val-item > span[data-i18n] {
+            display: inline-block;
+            width: 31px;
+        }
+
+        /* v1.2.0: scoped to the VALUE span. The caption beside it was split out
+           of this node's own text (contract §5) so it could carry a key, and an
+           unscoped `.xy-val-item span` would have italicised the caption too —
+           a rendering change smuggled in by a markup change. */
+        .xy-val-item .xy-val-num {
             font-style: italic;
             color: var(--brown-text);
         }
@@ -336,11 +356,19 @@
         /* ====================================================================
            Knob Control
            ==================================================================== */
+        /* v1.2.0: 60px -> 68px. At 60px TWO of the 27 captions were ALREADY
+           being ellipsised in ENGLISH — "Embouchure" at 61.44px and
+           "Double Reed" at 60.58px — which `text-overflow: ellipsis` hides in
+           plain sight. `.param-row` is `flex-wrap: wrap` inside an 854px
+           content box and the widest row holds seven knobs (7 x 68 + 6 x 4 =
+           500px), so no row rewraps and no row changes height. Reverting this
+           pair of numbers alone re-breaks check-ui-labels [4][en] on exactly
+           those two captions. */
         .knob-control {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 60px;
+            width: 68px;
             gap: 1px;
         }
 
@@ -391,7 +419,7 @@
             color: var(--brown-text-light);
             text-align: center;
             line-height: 1.1;
-            max-width: 60px;
+            max-width: 68px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -437,12 +465,23 @@
         /* ====================================================================
            Toggle Control
            ==================================================================== */
+        /* PIN. .toggle-control shrink-wraps around a 34px track and its caption,
+           so DUAL BORE -> DOUBLE PERCE widens the control's own box by 20.38px
+           (104.25 -> 124.63) and assertion 7 reads that as a French push. The
+           width is pinned to 126px, above the French box: the row is
+           justify-content: flex-start, so the track and the caption sit at fixed
+           offsets from the left and NEITHER MOVES IN EITHER LANGUAGE — only the
+           container's own rectangle changes, and pinning it makes that
+           rectangle language-invariant. The 21.75px English gain lands in the
+           empty right-hand side of .controls-inline, which holds nothing else.
+           Reverting this one declaration re-breaks assertion 7 on #dualBore-toggle. */
         .toggle-control {
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
             padding: 4px 0;
+            width: 126px;
         }
 
         .toggle-track {
@@ -510,11 +549,28 @@
         /* ====================================================================
            Effects Placeholder
            ==================================================================== */
+        /* PIN, and a pre-existing ENGLISH layout defect the keying exposed.
+           .effects-placeholder is a flex ITEM of .tab-panel.active (a row flex
+           with the default justify-content: flex-start) and had no width, so it
+           shrink-wrapped its widest child — 314.2px in English, 379.2px in
+           French. Assertion 7 reads that 65px as a French push, correctly.
+
+           It was ALSO hugging the left edge of a 900px tab in English while
+           carrying `align-items: center; justify-content: center; height: 100%`
+           — three declarations that say it was authored to fill and centre its
+           panel and could not, for want of a width. `width: 100%` makes its
+           rectangle language-invariant by construction AND delivers the
+           centring: the "Coming Soon" block moves from x=0 to the middle of the
+           tab in English (h2 85.3 -> 378.2, p 0 -> 292.9). That is a VISIBLE
+           ENGLISH CHANGE on the FX placeholder tab, deliberate, and reported.
+           Its two children are labels and so are outside assertion 7 anyway.
+           Reverting this one declaration re-breaks assertion 7. */
         .effects-placeholder {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            width: 100%;
             height: 100%;
             color: var(--brown-text-lighter);
         }
@@ -550,6 +606,115 @@
         }
 
         /* ====================================================================
+           Settings cluster (v1.2.0)
+
+           The cluster is the LAST flex item in .header-bar, after the brand
+           label. The header is the only place on this page a global control
+           belongs: everything below it is a tab panel, and the instrument panel
+           scrolls. The bar carries 466px of content inside 876px, so adding a
+           22px button plus the bar's 8px gap moves the tab group and the brand
+           label 30px left and pushes nothing off the end.
+           ==================================================================== */
+        .settings-cluster {
+            position: relative;
+            display: flex;
+            align-items: center;
+            z-index: 20;
+        }
+
+        .gear-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            background: rgba(245, 230, 211, 0.15);
+            border: 1px solid var(--brown-frame-light);
+            border-radius: 50%;
+            color: var(--bg-paper);
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .gear-btn:hover { background: rgba(245, 230, 211, 0.3); }
+        .gear-btn[aria-expanded="true"] {
+            background: var(--green-dark);
+            border-color: var(--green-mid);
+        }
+        .gear-btn:focus-visible {
+            outline: 2px solid var(--green-light);
+            outline-offset: 2px;
+        }
+
+        /* Opens DOWNWARDS and to the left. The gear sits inside a 36px header
+           strip at the top of a 600px frame, so a panel above it would leave
+           the frame entirely.
+
+           WIDTH IS PINNED, not min-width. .settings-popover is not a
+           [data-i18n] element, so check-ui-labels assertion 7 measures its box
+           in BOTH languages and any language-driven resize is a reported
+           failure. A hard width makes the panel's rect language-invariant by
+           construction, and 190px holds LANGUAGE + English and LANGUE +
+           Français with room to spare — measured as rendered in this plugin's
+           own popover, because text-transform and letter-spacing are not in
+           getComputedStyle().font and no width is ever borrowed from another
+           plugin's page. */
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 21;
+            width: 190px;
+            padding: 9px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg-paper);
+            border: 1px solid var(--brown-border);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px var(--shadow-hard);
+        }
+        .settings-popover[hidden] { display: none; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the control beside it. */
+        .settings-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--brown-text-light);
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 2px 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid var(--brown-border);
+            border-radius: 3px;
+            color: var(--brown-text);
+            font-family: inherit;
+            font-size: 10.5px;
+            line-height: 1.2;
+            cursor: pointer;
+            outline: none;
+        }
+        .settings-select:focus-visible {
+            outline: 2px solid var(--green-mid);
+            outline-offset: 1px;
+        }
+
+        /* ====================================================================
            Utility
            ==================================================================== */
         .hidden { display: none !important; }
@@ -568,11 +733,45 @@
          Header Bar
          ================================================================ -->
     <div class="header-bar">
+        <!-- NOT [data-i18n] elements: a product name and a company name are
+             never translated. Both are declared in I18N_EXEMPT with that
+             reason, so a genuinely missed label cannot hide here as a
+             deliberate one. Neither shares a line with a localized string, so
+             neither can be re-centred by one. -->
         <span class="plugin-name">O-Reed</span>
-        <button class="tab-btn active" data-tab="instrument">Instrument</button>
-        <button class="tab-btn" data-tab="tuning">Tuning</button>
-        <button class="tab-btn" data-tab="fx">FX</button>
+        <button class="tab-btn active" data-tab="instrument"
+                data-i18n="label.tab.instrument" data-label="Instrument">Instrument</button>
+        <button class="tab-btn" data-tab="tuning"
+                data-i18n="label.tab.tuning" data-label="Tuning">Tuning</button>
+        <button class="tab-btn" data-tab="fx"
+                data-i18n="label.tab.fx" data-label="FX">FX</button>
         <span class="brand-label">Ouaricon</span>
+
+        <!-- v1.2.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to switch on or off — v1.1.0 carried no data-tip and no
+             native title= anywhere — and authoring that copy is Stage M's job. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <!-- data-label so a state updater that writes textContent
+                         reads the authored caption back instead of erasing it
+                         (pattern_js_state_updater_overwrites_html_labels). -->
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
+        </div>
     </div>
 
     <!-- ================================================================
@@ -586,23 +785,33 @@
 
                 <!-- XY Pad: Bore Character x Double Reed -->
                 <div class="xy-pad-container">
-                    <div class="xy-pad-label">Instrument Morphing</div>
+                    <div class="xy-pad-label" data-i18n="label.xy.title" data-label="Instrument Morphing">Instrument Morphing</div>
                     <div class="xy-pad-wrap">
                         <div class="xy-pad-box" id="xy-pad">
-                            <span class="xy-axis-label xy-axis-x">Bore Character</span>
-                            <span class="xy-axis-label xy-axis-y">Double Reed</span>
+                            <!-- CLIFF 2: both are absolutely positioned boxes
+                                 that grow from their CENTRE inside a 200x170
+                                 overflow:hidden pad already holding fifteen
+                                 markers. They spill nothing while growing, so
+                                 only assertion 8 can see them. See the CLIFF 2
+                                 note in js/i18n.js for the measured hit sets. -->
+                            <span class="xy-axis-label xy-axis-x" data-i18n="label.xy.axisX" data-label="Bore Character">Bore Character</span>
+                            <span class="xy-axis-label xy-axis-y" data-i18n="label.xy.axisY" data-label="Double Reed">Double Reed</span>
                             <div class="xy-crosshair-h" id="xy-ch"></div>
                             <div class="xy-crosshair-v" id="xy-cv"></div>
                             <div class="xy-cursor" id="xy-cursor"></div>
                         </div>
                         <div class="xy-info-panel">
                             <div class="dropdown-control">
-                                <div class="dropdown-label">Instrument Preset</div>
+                                <div class="dropdown-label" data-i18n="label.dropdown.instrumentPreset" data-label="Instrument Preset">Instrument Preset</div>
                                 <select class="xy-preset-select" id="instrumentPreset"></select>
                             </div>
                             <div class="xy-values">
-                                <div class="xy-val-item">Bore: <span id="xy-bore-val">0.00</span></div>
-                                <div class="xy-val-item">Reed: <span id="xy-reed-val">0.00</span></div>
+                                <!-- contract §5: caption and readout SPLIT into
+                                     two spans in v1.2.0. Only the caption span
+                                     carries a key; the value span is a readout
+                                     and is exempt on D-01 arms 2 and 3. -->
+                                <div class="xy-val-item"><span data-i18n="label.xy.boreKey" data-label="Bore:">Bore:</span> <span class="xy-val-num" id="xy-bore-val">0.00</span></div>
+                                <div class="xy-val-item"><span data-i18n="label.xy.reedKey" data-label="Reed:">Reed:</span> <span class="xy-val-num" id="xy-reed-val">0.00</span></div>
                             </div>
                         </div>
                     </div>
@@ -612,28 +821,28 @@
                 <div class="section" data-expanded="true">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Primary Controls</span>
+                        <span class="section-title" data-i18n="label.section.primary" data-label="Primary Controls">Primary Controls</span>
                     </div>
                     <div class="section-content">
                         <div class="param-row">
                             <div class="knob-control" data-param="breathPressure">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Breath</div>
+                                <div class="knob-label" data-i18n="label.knob.breath" data-label="Breath">Breath</div>
                                 <div class="knob-value">0.50</div>
                             </div>
                             <div class="knob-control" data-param="embouchure">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Embouchure</div>
+                                <div class="knob-label" data-i18n="label.knob.embouchure" data-label="Embouchure">Embouchure</div>
                                 <div class="knob-value">0.40</div>
                             </div>
                             <div class="knob-control" data-param="reedHardness">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Reed Hard.</div>
+                                <div class="knob-label" data-i18n="label.knob.reedHard" data-label="Reed Hard.">Reed Hard.</div>
                                 <div class="knob-value">0.50</div>
                             </div>
                             <div class="knob-control" data-param="outputGain">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Output</div>
+                                <div class="knob-label" data-i18n="label.knob.output" data-label="Output">Output</div>
                                 <div class="knob-value">0.0 dB</div>
                             </div>
                         </div>
@@ -644,43 +853,43 @@
                 <div class="section collapsed">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Bore &amp; Resonance</span>
+                        <span class="section-title" data-i18n="label.section.bore" data-label="Bore &amp; Resonance">Bore &amp; Resonance</span>
                     </div>
                     <div class="section-content">
                         <div class="param-row">
                             <div class="knob-control" data-param="boreCharacter">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Character</div>
+                                <div class="knob-label" data-i18n="label.knob.character" data-label="Character">Character</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="boreDiameter">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Diameter</div>
+                                <div class="knob-label" data-i18n="label.knob.diameter" data-label="Diameter">Diameter</div>
                                 <div class="knob-value">0.50</div>
                             </div>
                             <div class="knob-control" data-param="bellSize">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Bell Size</div>
+                                <div class="knob-label" data-i18n="label.knob.bellSize" data-label="Bell Size">Bell Size</div>
                                 <div class="knob-value">0.50</div>
                             </div>
                             <div class="knob-control" data-param="boreLength">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Length</div>
+                                <div class="knob-label" data-i18n="label.knob.length" data-label="Length">Length</div>
                                 <div class="knob-value">0.50</div>
                             </div>
                             <div class="knob-control" data-param="toneHoleCutoff">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Tone Hole</div>
+                                <div class="knob-label" data-i18n="label.knob.toneHole" data-label="Tone Hole">Tone Hole</div>
                                 <div class="knob-value">1500 Hz</div>
                             </div>
                             <div class="knob-control" data-param="registerHole">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Register</div>
+                                <div class="knob-label" data-i18n="label.knob.register" data-label="Register">Register</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                         </div>
                         <div class="dropdown-control">
-                            <div class="dropdown-label">Bore Profile</div>
+                            <div class="dropdown-label" data-i18n="label.dropdown.boreProfile" data-label="Bore Profile">Bore Profile</div>
                             <select class="dropdown-select" id="boreProfile"></select>
                         </div>
                     </div>
@@ -690,12 +899,11 @@
                 <div class="section collapsed">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Bore Visualization</span>
+                        <span class="section-title" data-i18n="label.section.boreViz" data-label="Bore Visualization">Bore Visualization</span>
                     </div>
                     <div class="section-content">
-                        <div class="bore-viz-placeholder">
-                            Bore cross-section visualization (coming soon)
-                        </div>
+                        <div class="bore-viz-placeholder" data-i18n="label.boreViz.placeholder"
+                             data-label="Bore cross-section visualization (coming soon)">Bore cross-section visualization (coming soon)</div>
                     </div>
                 </div>
 
@@ -703,33 +911,33 @@
                 <div class="section collapsed">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Reed</span>
+                        <span class="section-title" data-i18n="label.section.reed" data-label="Reed">Reed</span>
                     </div>
                     <div class="section-content">
                         <div class="param-row">
                             <div class="knob-control" data-param="reedOpening">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Opening</div>
+                                <div class="knob-label" data-i18n="label.knob.opening" data-label="Opening">Opening</div>
                                 <div class="knob-value">0.40</div>
                             </div>
                             <div class="knob-control" data-param="reedMass">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Mass</div>
+                                <div class="knob-label" data-i18n="label.knob.mass" data-label="Mass">Mass</div>
                                 <div class="knob-value">0.30</div>
                             </div>
                             <div class="knob-control" data-param="reedDamping">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Damping</div>
+                                <div class="knob-label" data-i18n="label.knob.damping" data-label="Damping">Damping</div>
                                 <div class="knob-value">0.50</div>
                             </div>
                             <div class="knob-control" data-param="doubleReed">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Double Reed</div>
+                                <div class="knob-label" data-i18n="label.knob.doubleReed" data-label="Double Reed">Double Reed</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="mouthpieceVol">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Mouthpiece</div>
+                                <div class="knob-label" data-i18n="label.knob.mouthpiece" data-label="Mouthpiece">Mouthpiece</div>
                                 <div class="knob-value">0.30</div>
                             </div>
                         </div>
@@ -740,48 +948,48 @@
                 <div class="section collapsed">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Expression</span>
+                        <span class="section-title" data-i18n="label.section.expression" data-label="Expression">Expression</span>
                     </div>
                     <div class="section-content">
                         <div class="param-row">
                             <div class="knob-control" data-param="vibratoDepth">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Vib Depth</div>
+                                <div class="knob-label" data-i18n="label.knob.vibDepth" data-label="Vib Depth">Vib Depth</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="vibratoRate">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Vib Rate</div>
+                                <div class="knob-label" data-i18n="label.knob.vibRate" data-label="Vib Rate">Vib Rate</div>
                                 <div class="knob-value">5.0 Hz</div>
                             </div>
                             <div class="knob-control" data-param="growlAmount">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Growl</div>
+                                <div class="knob-label" data-i18n="label.knob.growl" data-label="Growl">Growl</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="flutterTongue">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Flutter</div>
+                                <div class="knob-label" data-i18n="label.knob.flutter" data-label="Flutter">Flutter</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="subtone">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Subtone</div>
+                                <div class="knob-label" data-i18n="label.knob.subtone" data-label="Subtone">Subtone</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="attackChiff">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Chiff</div>
+                                <div class="knob-label" data-i18n="label.knob.chiff" data-label="Chiff">Chiff</div>
                                 <div class="knob-value">0.30</div>
                             </div>
                             <div class="knob-control" data-param="airNoise">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Air Noise</div>
+                                <div class="knob-label" data-i18n="label.knob.airNoise" data-label="Air Noise">Air Noise</div>
                                 <div class="knob-value">0.15</div>
                             </div>
                         </div>
                         <div class="dropdown-control">
-                            <div class="dropdown-label">Vibrato Source</div>
+                            <div class="dropdown-label" data-i18n="label.dropdown.vibratoSource" data-label="Vibrato Source">Vibrato Source</div>
                             <select class="dropdown-select" id="vibratoSource"></select>
                         </div>
                     </div>
@@ -791,28 +999,28 @@
                 <div class="section collapsed">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Sound Design</span>
+                        <span class="section-title" data-i18n="label.section.soundDesign" data-label="Sound Design">Sound Design</span>
                     </div>
                     <div class="section-content">
                         <div class="param-row">
                             <div class="knob-control" data-param="infiniteSustain">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Inf. Sustain</div>
+                                <div class="knob-label" data-i18n="label.knob.infSustain" data-label="Inf. Sustain">Inf. Sustain</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="reverseBore">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Rev. Bore</div>
+                                <div class="knob-label" data-i18n="label.knob.revBore" data-label="Rev. Bore">Rev. Bore</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="feedbackPath">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Feedback</div>
+                                <div class="knob-label" data-i18n="label.knob.feedback" data-label="Feedback">Feedback</div>
                                 <div class="knob-value">0.00</div>
                             </div>
                             <div class="knob-control" data-param="dronePitch">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Drone Pitch</div>
+                                <div class="knob-label" data-i18n="label.knob.dronePitch" data-label="Drone Pitch">Drone Pitch</div>
                                 <div class="knob-value">0 ct</div>
                             </div>
                         </div>
@@ -821,7 +1029,7 @@
                                 <div class="toggle-track">
                                     <div class="toggle-thumb"></div>
                                 </div>
-                                <span class="toggle-label">Dual Bore</span>
+                                <span class="toggle-label" data-i18n="label.toggle.dualBore" data-label="Dual Bore">Dual Bore</span>
                             </div>
                         </div>
                     </div>
@@ -831,22 +1039,22 @@
                 <div class="section collapsed">
                     <div class="section-header">
                         <span class="section-chevron">&#9660;</span>
-                        <span class="section-title">Voice</span>
+                        <span class="section-title" data-i18n="label.section.voice" data-label="Voice">Voice</span>
                     </div>
                     <div class="section-content">
                         <div class="param-row">
                             <div class="knob-control" data-param="maxVoices">
                                 <div class="knob-wrapper"></div>
-                                <div class="knob-label">Max Voices</div>
+                                <div class="knob-label" data-i18n="label.knob.maxVoices" data-label="Max Voices">Max Voices</div>
                                 <div class="knob-value">8</div>
                             </div>
                         </div>
                         <div class="dropdown-control">
-                            <div class="dropdown-label">Poly Mode</div>
+                            <div class="dropdown-label" data-i18n="label.dropdown.polyMode" data-label="Poly Mode">Poly Mode</div>
                             <select class="dropdown-select" id="polyMode"></select>
                         </div>
                         <div class="dropdown-control">
-                            <div class="dropdown-label">Oversampling</div>
+                            <div class="dropdown-label" data-i18n="label.dropdown.oversampling" data-label="Oversampling">Oversampling</div>
                             <select class="dropdown-select" id="oversampling"></select>
                         </div>
                     </div>
@@ -863,19 +1071,41 @@
         <!-- FX TAB -->
         <div class="tab-panel" id="tab-fx">
             <div class="effects-placeholder">
-                <h2>Coming Soon</h2>
-                <p>Effects processing will be added in a future update.</p>
+                <h2 data-i18n="label.fx.title" data-label="Coming Soon">Coming Soon</h2>
+                <p data-i18n="label.fx.body"
+                   data-label="Effects processing will be added in a future update.">Effects processing will be added in a future update.</p>
             </div>
         </div>
 
     </div>
 
-    <!-- JUCE WebView Bridge -->
-    <script src="/js/juce/index.js"></script>
+    <!-- JUCE WebView Bridge
+
+         v1.2.0 REMOVED a second, CLASSIC <script src="/js/juce/index.js"> tag
+         that stood here at v1.1.0. js/juce/index.js is an ES module — it has a
+         bare `export {` at line 570 — so loading it as a classic script threw
+         `SyntaxError: Unexpected token 'export'` on EVERY page load, in
+         English, in the shipping plugin. It defined nothing before throwing and
+         the module `import` below is what actually provides Juce, so the tag
+         was a broken no-op; deleting it is a pure removal. It surfaced only
+         because check-ui-labels asserts zero uncaught page errors during its
+         sweep, and reverting the deletion alone re-breaks that assertion.
+
+         check_native_interop.js has no import and no export and is a genuine
+         classic script, so it stays exactly as it was. -->
     <script src="/js/juce/check_native_interop.js"></script>
 
     <script type="module">
         import * as Juce from '/js/juce/index.js';
+
+        // v1.2.0: the label table. The canonical import line, re-rooted from
+        // './i18n.js' to './js/i18n.js' because this plugin's controller is an
+        // inline <script type="module"> at the UI root rather than a js/app.js.
+        // check-i18n assertion 6 accepts exactly that one substitution and
+        // nothing else. I18N and TIP_BINDINGS are both EMPTY here (this page has
+        // no hover-help) and are imported anyway so the canon block below stays
+        // byte-identical to every other copy in the repo.
+        import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
         // ====================================================================
         // Parameter Definitions (raw ranges for display formatting)
@@ -1315,9 +1545,187 @@
                 }
             } catch (err) {
                 console.error('Failed to init tuning panel:', err);
-                document.getElementById('tuning-container').innerHTML =
-                    '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+
+                // v1.2.0: built with createElement + setLabel rather than the
+                // innerHTML string this was. Two reasons, both load-bearing.
+                // The notice DECLARES ITS OWN KEY through setLabel and becomes a
+                // [data-i18n] element from that moment on, so the language sweep
+                // owns it — a failure notice stranded in the previous language
+                // is the exact bug contract §3 exists to prevent. And an
+                // innerHTML sink is a markup path that machine-drafted French
+                // must never be able to reach (check-i18n assertion 9).
+                const container = document.getElementById('tuning-container');
+                container.textContent = '';
+                const notice = document.createElement('div');
+                notice.style.padding = '20px';
+                notice.style.color = '#8B7355';
+                notice.style.fontStyle = 'italic';
+                setLabel(notice, 'label.tuningLoadFailed');
+                container.appendChild(notice);
             }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
+        // ════════════════════════════════════════════════════════════════════
+        //
+        // Byte-compared by check-i18n assertion 6 after comment stripping and
+        // whitespace normalisation. Do not edit it here; edit the canon and
+        // every copy together, which is the whole point of holding it as data.
+        //
+        // PLACED HERE, below every other definition and above the DOMContentLoaded
+        // handler that calls it, rather than at the bottom by convention. Nothing
+        // on this page READS trLabel() during module evaluation — populateXYMarkers()
+        // and initTuningPanel() are both called later — so the block would also be
+        // safe at the very end, but placing it where the page first uses it is what
+        // keeps a future top-level reader from becoming a TDZ ReferenceError that
+        // takes the WHOLE UI. The controller here is ONE inline module, not a file
+        // that can fail in isolation (pattern_module_toplevel_init_tdz).
+
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // The settings popover (v1.2.0)
+        // ════════════════════════════════════════════════════════════════════
+        //
+        // ONE row. This plugin has no hover-help to switch on or off — v1.1.0
+        // carried no data-tip and, measured, no native title= either — and
+        // authoring that copy is Stage M's job, so the popover holds the language
+        // selector alone.
+        //
+        // The panel opens DOWNWARDS: the gear lives in a 36px header strip at the
+        // top of a 600px frame, so a panel above it would leave the frame.
+
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsPopoverOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initializeSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover missing - language selector unavailable');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsPopoverOpen(settingsPopoverEl.hidden);
+            });
+
+            // Dismiss on a press anywhere else, and on Escape. pointerdown rather
+            // than click, so the panel is gone before a knob drag underneath it
+            // begins — bindSliderParam() starts its drag on pointerdown.
+            document.addEventListener('pointerdown', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsPopoverOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsPopoverOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
         }
 
         // ====================================================================
@@ -1343,6 +1751,12 @@
             // XY pad markers + initial position
             populateXYMarkers();
             updateXYFromParams();
+
+            // Guarded, and LAST. Every slider, combo and toggle binding, the XY
+            // markers and the tab navigation have already run, so an i18n failure
+            // leaves an English plugin that still works rather than a dead page.
+            initializeSettingsPopover();
+            try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
         });
 
     </script>
