@@ -1118,6 +1118,16 @@ juce::AudioProcessorEditor* OGainAudioProcessor::createEditor()
 void OGainAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+
+    // v1.3.0: the UI language rides the state tree as a non-parameter property.
+    //
+    // Written on the COPY, not on parameters.state: copyState() has already
+    // snapshotted the tree by this line, so a setProperty on the live tree here
+    // would never reach the XML that gets serialised two lines below.
+    state.setProperty("uiLanguage",
+                      languageCode(uiLanguage.load(std::memory_order_acquire)),
+                      nullptr);
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -1127,7 +1137,24 @@ void OGainAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    {
+        auto state = juce::ValueTree::fromXml(*xmlState);
+        parameters.replaceState(state);
+
+        // v1.3.0: read from the RESTORED tree.
+        //
+        // isVoid() is the ONLY correct guard and toString() the only correct
+        // read. NamedValueSet::setFromXmlAttributes rebuilds every property as
+        // a var over the attribute STRING, so isBool()/isInt()/isString() type
+        // predicates are false for every session ever saved
+        // (critical_valuetree_xml_roundtrip_loses_type). A session written
+        // before v1.3.0 has no such attribute at all and simply leaves the
+        // language where it is — English on a fresh instance.
+        const juce::var lang = state.getProperty("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+    }
 }
 
 // =============================================================================

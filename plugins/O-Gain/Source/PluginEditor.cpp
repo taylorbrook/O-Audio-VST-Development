@@ -97,6 +97,42 @@ OGainAudioProcessorEditor::OGainAudioProcessorEditor(OGainAudioProcessor& p)
                 processorRef.learnActive.store(newState, std::memory_order_release);
                 complete(newState);
             })
+
+            //==================================================================
+            // v1.3.0: the UI language pair.
+            //
+            // ONE-SHOT PULL, no revision counter and no poll. js/app.js calls
+            // getUiLanguage() once from initI18n() after painting English
+            // synchronously, so the page is never blank and never flashes. The
+            // language is not preset content: nothing but this page can change
+            // it, so there is nothing to re-poll for.
+            //
+            // THIS PLUGIN HAD NO NATIVE-FUNCTION BRIDGE BEYOND toggleLearn, so
+            // this pair is new rather than joining an existing one. A missing
+            // native function fails SILENTLY — Juce.getNativeFunction() returns
+            // a callable that never settles, no page error fires, and the
+            // selector appears to work until the session is reopened. Both
+            // names below are grep-matched against js/app.js's
+            // getNativeFunction calls, in BOTH directions: app.js asks for
+            // exactly three (toggleLearn, getUiLanguage, setUiLanguage) and
+            // this file registers exactly those three.
+            //==================================================================
+            .withNativeFunction("getUiLanguage", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(juce::var(OGainAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
+
+            .withNativeFunction("setUiLanguage", [this](const juce::Array<juce::var>& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument degrades to English rather than being
+                // stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.setUiLanguageIndex(
+                        OGainAudioProcessor::languageIndex(args[0].toString()));
+
+                complete(juce::var(OGainAudioProcessor::languageCode(
+                    processorRef.getUiLanguageIndex())));
+            })
     );
 
     addAndMakeVisible(*webView);
@@ -217,6 +253,28 @@ OGainAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
             juce::String("text/html")
+        };
+    }
+
+    //==========================================================================
+    // v1.3.0: the extracted controller and the i18n copy table.
+    // FOUR PLACES, ONE COMMIT, TWICE OVER — each of the two new files needs the
+    // file on disk, the CMake SOURCES entry, a branch HERE, and a reference
+    // from the page (index.html's <script src> for app.js, app.js's import for
+    // i18n.js). Miss one and the page 404s at runtime and presents as a dead
+    // panel with no other symptom.
+    //==========================================================================
+    if (url == "/js/app.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String("application/javascript")
+        };
+    }
+
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String("application/javascript")
         };
     }
 
