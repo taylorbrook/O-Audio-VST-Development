@@ -3723,3 +3723,256 @@ All restores checksum-verified.
 `extractJsRows` has no element to match against. Assertion 12 therefore still
 matches exemptions by text alone. No plugin needs it today; it is named here so
 it is not rediscovered as a surprise.
+
+
+---
+
+# Stage K (batch K2) — T15: the five TIGHT FRAMES — BATCH K2 COMPLETE
+
+**Ran SERIAL by plan instruction**, because the stop condition depends on seeing
+each geometry diff before the next plugin starts. Seven commits: five plugins and
+**two repo-level gate fixes**, each landed alone ahead of the plugin that found it.
+
+| # | Plugin | Version | Commit | Frame | LABEL | Layout change? |
+|---|---|---|---|---|---|---|
+| 1 | O-Chorus | 1.3.0 | `ff9c8616` | **700x125** | 16 | no |
+| 2 | O-DigiDelay | 1.3.0 | `934f3eeb` | **700x196** | 21 | yes, one — NOT French-caused |
+| 3 | O-AnalogEQ | 1.2.0 | `fcfcc5d9` | **920x220** | 20 | no |
+| 4 | O-Bass | 1.4.0 | `f3631041` | 420x320 | 16 | no |
+| 5 | O-SimpleReverb | 1.6.0 | `0f8abb9d` | 500x350 | 26 | no |
+
+## THE HEADLINE: the tight frames were not the risk the plan expected
+
+The plan isolated these five because "a label that gains a line has nowhere to
+go", and set a stop condition: **if two of the five need layout changes, stop —
+that is a pattern, not an incident.** It was not met, and not narrowly: **five of five tight frames absorbed French
+with ZERO French-caused layout changes.**
+
+The one layout change in the batch was **O-DigiDelay's, and French did not cause
+it**: `.led-meter-label` was `width: 18px` while the ENGLISH word `OUT` renders
+20.91px. Keying the node exposed it; reverting the change alone fails
+`[4][en] label.out "OUT" 20.9>18.0` **before any French exists**, and no French
+string could have fitted either (SORTIE 35.77, SORT. 28.05, even SOR 19.92).
+
+**What the tight frames actually cost was ABBREVIATION, not geometry.** Every
+plugin paid in rejected fuller forms, each recorded with its measured width:
+RÉINJECTION 66.30 and MODULATION 68.00 past O-DigiDelay's cliff; PROFONDEUR 68.02
+and SATURATION 63.52 past O-Chorus's wrap cliff; ANALOGIQUE 66.70 in a 57.00px
+box; CHARGER + SAUVER = +37.71px on a zero-slack row.
+
+## Keying a node EXPOSES a pre-existing ENGLISH defect — 2 of 5
+
+Both were invisible until the node was keyed, and neither is a French problem:
+
+- **O-DigiDelay** `.led-meter-label` — assertion 4 HARD-FAILS in English. Fixed
+  in the same commit, negative-controlled before any French existed.
+- **O-Chorus** `label.lfo` overhangs its offsetParent by 2.0px in English —
+  assertion 5 reports it as an authored layout, so it was REPORTED, not fixed.
+
+**That split is the rule for K3/K4**: a hard fail is yours to fix and prove; an
+authored-layout NOTE is a design decision and is not.
+
+## THE CLIFFS ARE PER-PAGE, AND THEY COME IN PAIRS OR TRIPLES
+
+No two plugins in this batch had the same cliff structure, and each mechanism is
+invisible to the assertion that catches the other:
+
+| Plugin | Cliffs | What separates them |
+|---|---|---|
+| O-Chorus | **50.00** / **62.00** | 50 widens the label rect (gate-visible, invisible to a user); 62 WRAPS and pushes the readout down 10px |
+| O-DigiDelay | **60.00** / **60.00** | same number, different mechanism: a single word SPILLS (`[4][fr]` sees it, `[7]` is blind); two words WRAP AND PUSH (`[7]` sees it, `[4]` is blind) |
+| O-AnalogEQ | 57.00 / — / **67.00** | the third is invisible to BOTH — see the gate fix below |
+| O-Bass | 65.00 / zero-slack / no threshold | **no fixed-width text box anywhere**: every caption's width fed straight into where its neighbours painted |
+| O-SimpleReverb | 52.00 / zero-slack / **97.50** | the third is a GRID-TRACK spill — a `1fr` track is `minmax(auto, 1fr)`, so a caption whose longest word passes the track width raises min-content and the column steals from its three siblings |
+
+**One plant certifies one mechanism.** The batch's practice, now standing: plant
+a harness-blindness probe for EACH cliff, both arms where a pin is involved
+(pin present → `[4]` fails and nothing moves; pin removed → `[4]` green and
+`[7]` fails).
+
+## `dx` ALONE MISLABELS A PIN AS DECORATION — O-Bass
+
+A pin expected to be decoration moved its neighbours only **0.33px**, under the
+0.5px tolerance — and **failed its negative control anyway**. Assertion 7
+tolerances `dw` as well as `dx`, and the **0.68px WIDTH** change on the row the
+caption owned was itself past 0.5.
+
+**A caption can be load-bearing through the box it OWNS while moving nothing far
+enough to notice.** Judge every pin on the full delta, never on `dx`.
+
+**O-SimpleReverb confirmed it independently, on a different page and a sharper
+number.** Its CHARACTER pin moves the knob by `dx=0.50` — *exactly* the
+tolerance, not past it — and all four of its children by 0.50 too, so a
+`dx`-only differ reports **nothing at all**. It fails on `dw=-1.00`. Two
+independent confirmations in one batch makes this a rule, not an anecdote.
+
+## TWO GATE FIXES — the twenty-second and twenty-third wrong-shaped assumptions
+
+Both were found by a gate MISBEHAVING on a real plugin, not by reading code.
+
+### `67bdf3a4` — the gate could not tell an ANIMATION from a French push
+
+Assertion 7's premise is that the page holds still. The probe already froze
+DECLARATIVE animation — SMIL via `pauseAnimations()`, WAAPI via
+`getAnimations()`, both added in Stage H for O-simplePhysicalModelSynth — but
+**neither API can reach a `requestAnimationFrame` loop, because that is the
+page's own code and not an `Animation` object.**
+
+O-Chorus's `#lfo-dot` free-runs off the wall clock: `dy=-24.0` on one run,
+`dy=+0.4` on the next, every French string identical. Held at ENGLISH on both
+sides it reported the same element moving `dx=4.9 dy=19.6` — the `3be873eb`
+signature. **A failure that reproduces with the language held constant is never
+a French failure.**
+
+The animated set is now MEASURED, not declared: English is probed twice more and
+anything unstable across the three samples is excluded and printed as a NOTE
+with its EN→EN spread. Two extra samples, because a periodic animation can land
+on the same phase twice. The hole it leaves is named: an element that BOTH
+animates and is pushed by French is excluded, so a second NOTE prints its EN→FR
+delta beside the spread — a real push shows a delta well OUTSIDE it.
+
+The repo-wide sweep also found **O-simpleSubtractive's `#tooltip`** unstable
+(`dy=11.5 dh=16.2`) in one committed state — a **CSS transition mid-flight**, a
+second mechanism with the same symptom, which was passing on tolerance luck.
+
+### `4fa586e8` — THE THIRD CLIFF: a caption can grow ON TOP of its neighbour
+
+Assertions 4/5 catch a caption that SPILLS its box; assertion 7 catches one that
+PUSHES a sibling. A caption in a box that is `position: absolute`, width-pinned
+and height-free does **neither**: it wraps, grows downward inside its own box,
+exceeds no width, exceeds no content height (the box grew with it), and pushes
+nothing because absolute positioning takes it out of flow. It lands ON TOP of
+what is beneath it.
+
+O-AnalogEQ's `.band-label` is exactly that shape. Planting `PLATEAU BF` with the
+caption's `nowrap` removed grows it `dh=+13.00px`, reaching y=86 into a knob ring
+that begins at y=75 — **and the whole gate printed ALL CHECKS PASSED.** Assertion
+8 was blind too: a knob ring is not a label, and 8 compares labels to labels.
+
+New assertion **8b**: a label that GREW must not intersect a non-label element it
+cleared in English.
+
+**THREE SHIPPED PLUGINS WENT RED ON THE NAIVE FORM, and every red was a rule
+rather than a bug** — which is the reusable part:
+
+1. **O-Contrabass** exposed a defect in the EXISTING assertion 8. `overlayOf`
+   tested only `backgroundColor`, so a panel painted with a `linear-gradient`
+   reads `rgba(0,0,0,0)` and **was never recognised as a paint layer at all** —
+   its own popover captions were being compared against the page beneath the
+   panel. Fixing it strengthens assertion 8 as well as 8b.
+2. **O-Bassoon** hit `.botanical-overlay`: a full-bleed `<img>` at `opacity: 0.18`
+   with `pointer-events: none`. Decoration a caption cannot collide with. Skipped
+   — and every skip is PRINTED.
+3. **O-IntonationPad** is the subtle one. `Tuning` becomes `Gamme` — **French
+   SHORTER by a character** — so the tab row re-centres, the button MOVES, and it
+   grazes two panel edges it had cleared. Nothing grew. **The rule is GROWTH, not
+   intersection**; a label that merely moved is a different phenomenon, and
+   movement of non-labels is already assertion 7's job.
+
+Controls: the plant fails; the decoration skip did NOT make it vacuous (it still
+fires by naming the knob WRAPPER divs, which geometrically contain the skipped
+SVG art, so the skip costs no coverage); the growth gate did not make it vacuous
+either; and **all 31 localized plugins were swept under HEAD's gate and the new
+one with 8b clean on every one.** Contract §8 holds.
+
+The residual hole, named: a wrapper that is itself `pointer-events: none` would
+be skipped entirely.
+
+## O-SimpleReverb: the density was cheap, and the reason generalises
+
+26 labels in a 500x350 frame was the highest text-per-pixel density of the
+batch, and it needed **three pins for twenty-six labels** where O-Bass needed
+four for sixteen. Two reasons, both reusable:
+
+- **Twelve of the 26 never needed a key.** Six `<option>` texts are
+  byte-identical to `AudioParameterChoice { "Booth", "Room", "Hall", "Spring",
+  "Plate", "Ambient" }` — D-01 arm 1, the purest case in the stage, because a
+  `WebComboBoxRelay` drives the combo by INDEX and the visible strings are the
+  only place the page and the automation lane can diverge.
+- **The other fourteen sit in CSS grid tracks**, and `repeat(4, 1fr)` /
+  `repeat(3, 1fr)` hand out **seven language-invariant rectangles** for free.
+  O-Bass had none of those and paid for it in pins.
+
+**A grid is a localization asset.** Where K3/K4 meet one, expect the pin count
+to fall; where they meet centred shrink-to-fit rows, expect it to rise.
+
+## Carried into K3 and K4
+
+1. **Measure your page's cliffs; expect two or three, each invisible to the
+   assertion that catches the others. Plant for EACH.**
+2. **Judge a pin on its FULL delta, never on `dx`** — `dw` past tolerance on the
+   box the caption owns is enough to make it load-bearing.
+3. **Expect keying to expose a pre-existing ENGLISH overflow.** Hard fail in
+   English → fix and negative-control it before any French exists. Authored-layout
+   NOTE → report, do not fix.
+4. **`[7]` animation NOTEs and `[8b]` DECORATION / PAINT LAYER NOTEs are
+   machinery, not findings.** Read the second `[7]` NOTE: a real French push
+   shows an EN→FR delta well outside the EN→EN spread.
+5. **A CSS transition mid-flight looks exactly like an animation.** Confirm the
+   page holds still at 180ms and 1.7s before trusting any number.
+6. `git commit -- <paths>` still takes only TRACKED files. Still the trap.
+7. **The plan's text counts remain wrong** and the measured inventory remains
+   right — **it matched in every column on all five K2 plugins**.
+8. **NEVER copy another plugin's measured width.** O-SimpleReverb re-measured
+   `LANGUAGE -> LANGUE` in its own `.settings-label`: 63.55 -> 47.11, against
+   O-Bass's 55.31 -> 38.87 for the same two words at the same declared font-size
+   and letter-spacing. The delta is identical (-16.44) but **the absolutes differ
+   by 8.24px**. Borrowing the number would have produced a wrong number that
+   reads exactly like a right one.
+9. **`grep` without `-a` on a built binary reports EVERY string missing**,
+   including ones that are certainly there. O-SimpleReverb's first verification
+   pass hit this and read as a total failure. `grep -a` finds them. It is the
+   same trap `strings(1)` sets from the other direction by splitting a UTF-8
+   multibyte — **verify the probe against a string you know is present before
+   believing a miss.**
+10. **The canon block does not always go at the bottom.** O-SimpleReverb's
+    low-cut IIFE calls `trLabel()` during module evaluation, so the block had to
+    go at the TOP or the read is a TDZ `ReferenceError` that takes the whole UI.
+    `initI18n()` is still called last. Place it by where the page first READS it,
+    not by convention.
+
+## NEEDS A HUMAN DECISION
+
+1. **`paper1.jpg` is byte-identical across all TWELVE copies in the repo**,
+   sha256 `1619a20c6e7b4155b4a2feb533101f8c4fa6e0f70ccdc290e11c0a698280db49`.
+   The watermarked "Adobe Stock" texture flagged on O-Gain and O-Lyrica is the
+   same file served by **TEN** plugins — O-AnalogEQ, O-AnalogSaturation,
+   O-Chorus, O-Detune, O-DigiDelay, O-Freeze, O-Gain, O-Lyrica, O-Marimba,
+   O-MicrotonalSampler — plus two `.planning/mockups` copies. The standing note
+   said "three plugins to check"; it is ten, measured. **A licensing question,
+   before the next `/publish`.**
+2. **O-AnalogEQ's two three-way Q toggles clip their own `TIGHT` option in
+   ENGLISH.** `.three-way-option` is `flex: 1` without `min-width: 0`, so the
+   three sit at min-content — 109.87px inside a 108px content box — and
+   `overflow: hidden` clips **1.87px** off TIGHT. Pre-existing, invisible to both
+   gates because the nodes are exempt and never keyed.
+3. **O-DigiDelay ships a label-in-name defect**: `label.load` `CHARGER` against
+   `aria.loadPreset` "Ouvrir un préréglage…" — WCAG 2.5.3 does not hold in French
+   on that button, and its own `i18n.js` comment claims a string it does not
+   ship. Found by O-AnalogEQ, reported not edited (another plugin's file).
+4. **O-Bass ships `OUT` as `sameAsEn` while `OUTPUT` becomes `SORTIE`** — the
+   same English word gets two answers on one page, decided by geometry (14px of
+   slack vs none). Keyed rather than exempted so it stays on the reviewer's list.
+5. **O-SimpleReverb's footer wordmark is a hard-coded `Ouaricon Audio v1.5.5`**,
+   already two versions stale before this commit and now three. The right fix is
+   the runtime-filled `id="versionLabel"` span O-DigiDelay and O-Tremolo already
+   use, not another literal — a user-visible change unrelated to localization,
+   so it was recorded in the `I18N_EXEMPT` reason rather than made.
+6. Items 2-7 of K1's human-decision list still stand, including `PLUGIN_VERSION`
+   on **O-Reed and O-MicrotonalSampler, both still ahead in K4**.
+
+## Not verified
+
+- **Checkpoint 5 outstanding on all 32.** No human has seen any French UI.
+- **All French repo-wide is machine drafts**, every entry `reviewed: false`.
+- **Checkpoint 4** is reasoned from the `isVoid()` guard and the build on every
+  K2 plugin — no host session reopen was executed for any of the five.
+- **Windows/WebView2 font metrics** — the standing hardware-blocked deferral, and
+  K2 is where it bites hardest. Tightest margins shipped: O-AnalogEQ **1.20px**
+  (`CHARGER`), O-SimpleReverb **1.28px** (`CARACTÈRE`), O-DigiDelay **1.39px**
+  (`SYNCHRO`), O-Bass **1.66px** (`FRÉQUENCE`), O-Chorus **1.89px** (`LARGEUR`).
+- **The Standalone `.app` is stale on every K2 plugin** — `build-and-install.sh`
+  builds VST3+AU only.
+- O-FreqPulse returned one `rc=1` during a repo-wide sweep with **zero** `[8b]`
+  failures — a different assertion, and it did not reproduce in three consecutive
+  re-runs. Recorded, not chased.
