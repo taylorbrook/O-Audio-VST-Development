@@ -4,8 +4,10 @@ type: execute
 mode: quick
 status: incomplete
 stages_complete: [A, B, C, D, E, F, G, H, I, J]
+stage_k_batches_complete: [K1]
+stage_k_batches_remaining: [K2, K3, K4]
 stages_remaining: [K, L, M]
-stopped_at: "STAGE J COMPLETE. All seven second-renderer plugins ported AND localized, one path-scoped commit each: O-FreqPulse v1.18.0 (`37602894`), O-Polystutter v1.14.0 (`66456f1e`), O-Lyrica v2.4.0 (`09bdbb61`), O-SpectralShaper v1.7.0 (`5b509e8c`), O-IntonationPad v2.9.0 (`bb275ae1`), O-Marimba v1.13.0 (`5406f419`), O-Gain v1.3.0 (`f571a78e`). **THERE IS NOW ONE TOOLTIP RENDERER REPO-WIDE** — the third stop point named in the plan. The T14 done-criteria are met and were verified by the orchestrator independently of the executors: `grep -rn tooltipHeight` over every served UI root returns **0**, and every surviving `data-tooltip` occurrence is a COMMENT documenting the deleted design. `check-i18n --strict-v2` reports **21 canon v2, 0 canon v1**. FOUR repo-level gate fixes landed, each as its OWN commit ahead of its plugin: `b0ce697e` (scan EVERY inline script, not just the canon target), `1151de07` (assertion 12 PARSES injected markup instead of grepping it), `435957a7` (assertion 15 counts keys declared in injected markup), `91d81cf7` (i18n-extract finds injected keys in an ACCUMULATED template). Those are the THIRTEENTH through SIXTEENTH wrong-shaped gate assumptions in this task, and all four are the SAME shape found four ways: the gate grepped source text where it needed to parse what the page actually renders. A SEVENTEENTH was found on O-Gain (assertion 12 reads the whole RHS of a `.textContent =`, so a literal in CALL-ARGUMENT position — `formatParam('trim', norm)` — is reported as unkeyed copy) and was deliberately NOT fixed: it occurs at exactly two sites repo-wide, and narrowing a COVERAGE assertion on n=2 trades a cheap over-report for a costly under-report. Named in `O-Gain/js/app.js:591-608` instead. TWO CHECKPOINT-4 ROUND-TRIPS WERE FINALLY MEASURED rather than reasoned — O-IntonationPad (six ways, including a real Standalone launch-and-quit writing `<Parameters uiLanguage=\"en\">`, a stored `fr` surviving quit/relaunch/quit, and three negative controls) and O-Marimba (a compiled JUCE probe plus a four-state JS drive through the real gear popover). The other NINETEEN plugins remain reasoned-not-measured. Checkpoint 5 is outstanding on all 21: no human has seen any French UI. FOUR ITEMS NEED A HUMAN DECISION, none blocking Stage K: (1) `PLUGIN_VERSION` is not a JUCE keyword and is silently ignored, so SEVEN plugins ship reporting 1.0.0 to the host — O-Contrabass, O-Marimba, O-Octagon, O-Reed, O-ReverseDelay, O-MicrotonalSampler, O-Tapestop; flipping it to `VERSION` is a host-visible behavioural change across all seven at once; (2) the ported renderer's VERTICAL CLAMP is latent in all 21 copies — independently reproducible on only O-FreqPulse and O-IntonationPad, but every copy now carries it; (3) `O-IntonationPad/js/tuning-panel.js` is a DIVERGED local copy at module v2.0.0 against `scala-tuning-engine` v3.0.1, the release that fixes the scrambled tuning tab; (4) O-Gain and O-Lyrica both still ship the watermarked \"Adobe Stock\" `paper1.jpg`, and both shipped a new version in this stage."
+stopped_at: "STAGE K BATCH K1 COMPLETE — 7 of 21 plugins. O-AnalogSaturation v1.2.0 (`7e8cd024`), O-Texture v0.2.0 (`3b307140`), O-Freeze v2.1.0 (`e235e33c`), O-Detune v1.6.0 (`6437d0de`), O-Bassoon v1.1.0 (`b8c1d9a1`), O-Emulator v1.1.0 (`fab53677`), O-TextureForge v1.1.0 (`6c595b70`). `check-i18n --strict-v2` reports **28 canon v2, 0 canon v1**. NEXT: batch K2, the five TIGHT FRAMES — O-Chorus (700x125), O-DigiDelay (700x196), O-AnalogEQ (920x220, 3 nowrap + 1 ellipsis), O-Bass (420x320), O-SimpleReverb (500x350). **K2 is SERIAL by plan instruction** — one plugin at a time, report each geometry diff before the next, and STOP and raise it if two of the five need layout changes, because that is a pattern rather than an incident and it changes what K3/K4 cost. Then K3 (O-Comp, O-Tremolo, O-Bowed, O-Reed, O-GrainScatter) and K4 (O-Wind, O-Bells, O-Formant, then O-MicrotonalSampler ALONE) can run parallel again. FIVE OF SEVEN K1 PLUGINS RAN CONCURRENTLY and the PARALLEL DISPATCH PROTOCOL at the end of `260826-ieq-STAGE-K-BRIEF.md` is what made it safe: build/ behind a mkdir mutex, PLUGINS.md and scripts/ owned by the orchestrator, and per-plugin scratchpad subdirs. SIX repo-level gate fixes landed, each ALONE ahead of its plugin: `e80288eb`, `fbdb6930`, `e6c159e0`, `64b3d53d`, `3be873eb`, `a32039c7` — the eighteenth through twenty-first wrong-shaped gate assumptions in this task. Every one was found by a control that FAILED TO FIRE or by holding a variable constant that should have produced no result; none by reading code. TWO of those fixes had a first draft that was WRONG and the pre-commit repo sweep caught it, and ONE proposed fix (reorder assertion 10s guards) was verified a NO-OP before being written. THE SHARED SCRATCHPAD SILENTLY SWAPS PLUGINS — three executors got another plugin's measurements back; all three detected it and re-took every number in a namespaced subdir. FOUR CONTROLLER SHAPES in seven plugins, none of them the shape the plan assumes. Seven items need a human decision, none blocking K2 — chief among them the I18N_EXEMPT contract (text-matched exemptions can hide a missed label; five ambiguous strings today) and O-Bassoon's registry row now reading `Stage 0 | 1.1.0`."
 
 plugins_shipped:
   - name: O-Gain
@@ -3418,3 +3420,229 @@ which keys those nodes by id AFTER injection via `window.__setLabel(document.get
 - **Windows/WebView2 font metrics** remain the named hardware-blocked deferral. The tightest
   French margins measured in this stage: O-Marimba **1.69px** (CUSTOM in a 48px box),
   O-Polystutter 4.2px (DÉCLIN), O-FreqPulse 5.2px (MÉDIUM).
+
+
+---
+---
+
+# Stage K (batch K1) — T15: the seven cheap plugins — BATCH K1 COMPLETE
+
+**Fourteen commits: seven plugins, SIX repo-level gate fixes, and four docs.**
+Batches K2, K3 and K4 remain: **14 of 21 plugins still to run.**
+
+| # | Plugin | Version | Commit | Root | Frame | LABEL |
+|---|---|---|---|---|---|---|
+| 1 | O-AnalogSaturation | 1.2.0 | `7e8cd024` | `Source/ui/public` | 600x450 | 14 |
+| 2 | O-Texture | 0.2.0 | `3b307140` | `Source/ui/public` | 800x600 | 21 |
+| 3 | O-Freeze | 2.1.0 | `e235e33c` | `Source/ui/public` | 550x530 | 18 |
+| 4 | O-Detune | 1.6.0 | `6437d0de` | `Source/ui/public` | 600x480 | 30 |
+| 5 | O-Bassoon | 1.1.0 | `b8c1d9a1` | **`Resources/ui`** | 900x600 | 29 |
+| 6 | O-Emulator | 1.1.0 | `fab53677` | `Source/ui/public` | 620x430 | 19 |
+| 7 | O-TextureForge | 1.1.0 | `6c595b70` | `Source/ui/public` | 900x600 | 21 |
+
+`check-i18n --strict-v2`: **28 canon v2, 0 canon v1.** `PLUGINS.md` rows landed
+in ONE commit (`54c1a818`), not seven — see the parallel protocol.
+
+## THE HEADLINE: five of the seven ran CONCURRENTLY, and the protocol is the deliverable
+
+K1 plugins 3-7 ran as five simultaneous executors in one checkout. It worked —
+no lost commit, no build collision, nothing foreign in any commit — but only
+because four shared resources were taken away from the executors first
+(`260826-ieq-STAGE-K-BRIEF.md`, PARALLEL DISPATCH PROTOCOL section):
+
+1. **`build/`** — ONE shared ninja dir for all 43 plugins (`build-and-install.sh:308,443`),
+   and ninja does not lock. Plus the AU cache wipe is global, so a second
+   install pulls the cache out from under the first plugin's `auval`. Both go
+   inside a `mkdir` mutex with a 25-minute stale-lock break.
+2. **`PLUGINS.md`** — one row per plugin, no merge help in a single working
+   tree; seven concurrent read-modify-writes lose rows silently.
+3. **`scripts/`** — gate defects run at 4-6 per stage here, so two executors
+   editing `check-i18n.js` at once is live, not theoretical. An executor that
+   finds one now STOPS and reports; the orchestrator lands it alone.
+4. **THE SCRATCHPAD** — found the hard way, mid-batch. See below.
+
+## THE SCRATCHPAD IS SHARED, AND IT SILENTLY SWAPS PLUGINS
+
+The scratchpad path carries ONE session id for every executor. O-Freeze's
+`measure.js` was overwritten mid-run by O-Bassoon's script and handed O-Freeze
+a page of **O-BASSOON's knob widths in reply to its own command**; its baseline
+JSON was clobbered the same way. O-Detune's `base-en.json` came back holding
+**O-Emulator's** rects. O-Emulator's first-round numbers came from bare-named
+root files too.
+
+**The danger is not a crash. It is a geometry diff between a clobbered baseline
+and an intact after-pass — a comparison between two different plugins that
+reads exactly like a real result.** All three detected it independently (from
+the JSON shape, or from data that made no sense for their page), re-took every
+number in a per-plugin subdir against a `git show HEAD:` / `git archive`
+baseline, and reported only the re-taken figures. O-Detune added an
+`assert plugin === 'O-Detune'` to its differ.
+
+Rule now in the protocol: **write everything to `scratchpad/<yourplugin>/`**,
+and re-run rather than reason about whether a touched file mattered.
+
+## SIX gate fixes — the eighteenth through twenty-first wrong-shaped assumptions
+
+Every one was found by a control that FAILED TO FIRE, or by holding a variable
+constant that should have produced no result. None was found by reading code.
+
+| Commit | Defect |
+|---|---|
+| `e80288eb` | **Assertions 1 and 2 hard-failed on a plugin with NO hover-help** — the shape every Stage K plugin has. `I18N has entries` is false on a page whose copy is entirely LABELS; `TIP_BINDINGS has entries` treated 0 as a defect when it is the correct state. |
+| `fbdb6930` | **The label gate measured only WIDTH.** A French caption that WRAPS out of a fixed-height control spilled with every assertion green — 44px of text across four lines in a 28px button. |
+| `e6c159e0` | **Assertion 6 could not find a controller loaded by `src`.** It reported "a controller module exists" FALSE on a correct plugin, and since 6 gates the rest, 10-13 and 15 never ran — the plugin came out "canon none" with the whole v2 half silently skipped. |
+| `64b3d53d` | **A minified bundle is unparseable, and the gate scanned it anyway.** `stripJsComments` blanked 17.3% of a 220KB bundle across 711 runs, so all EIGHT live keys read as DEAD while assertion 12 went vacuous — planted English prose PASSED. |
+| `3be873eb` | **The geometry diff keyed on a path truncated at 6 segments**, collapsing distinct elements onto one key. Reported 12 elements moved WITH THE LANGUAGE HELD CONSTANT. |
+| `a32039c7` | **`I18N_EXEMPT` matches by TEXT, so it silences every node with that string** — a missed label hides as a deliberate one. |
+
+### Two of those fixes had a FIRST DRAFT THAT WAS WRONG, and the sweep caught it
+
+Both times the repo-wide sweep before committing is what caught it, not review.
+
+- **`fbdb6930`**: comparing text height to content height put **O-simpleBeatmaker
+  red IN ENGLISH**, on four-letter words like "Kick", by exactly 1.0px — a
+  line-height tighter than the font's natural line box. Wrapping IS more than
+  one line box, so the condition became `textLines > 1 && textHeight >
+  contentHeight`, and the single-line overhang prints as a NOTE.
+- **`64b3d53d`**: borrowing `i18n-extract`'s whole `JS_SKIP` — on the strength
+  of check-i18n's own comment claiming the two scanners see the same set —
+  reported **37 live O-IntonationPad keys as DEAD**, because its diverged local
+  `js/tuning-panel.js` is where they are referenced. `JS_SKIP` answers "whose
+  code may this tool propose edits to" (a WORKLIST concern) and correctly drops
+  vendored modules; assertion 15 asks "is every key live". Only unparseability
+  is borrowed now, and the wrong comment is corrected in place.
+
+### And one PROPOSED fix was a NO-OP
+
+Two executors independently proposed fixing the `I18N_EXEMPT` hole by testing
+`keyedAncestor` before `exemptSet` in assertion 10. **Both branches are
+`continue`** — the node is skipped either way and O-Detune's control still
+passes. Checked in the code before writing anything. A real fix scopes each
+exemption to the element that earned it, changing the `I18N_EXEMPT` contract
+across all 28 localized plugins: **a decision, not a repair, and NOT taken.**
+`a32039c7` makes the hazard visible instead, at zero pass/fail change.
+
+## FOUR controller shapes in seven plugins — the plan describes none of them
+
+The plan silently assumes the O-Tapestop `js/app.js` shape. Actual:
+
+| Shape | Plugins |
+|---|---|
+| Controller AND stylesheet **inline in `index.html`** | O-AnalogSaturation, O-Freeze, O-Detune, O-Bassoon, O-Emulator |
+| `js/main.js`, loaded by `src` | O-Texture |
+| **webpack bundle** — `Source/ui/src/app.js` → `public/js/app.bundle.js`, a CLASSIC script | O-TextureForge |
+
+The inline shape re-roots the canon import to `'./js/i18n.js'` and makes a TDZ
+throw fatal to the WHOLE UI, not one panel. The bundle shape cannot host the
+canon at all — webpack would inline the table at build time, leaving the
+embedded, served `js/i18n.js` read by nobody — so O-TextureForge got a separate
+served ES module, `js/i18n_init.js` (underscore: `i18n-init.js` would embed as
+`i18ninit_js`).
+
+## Pre-existing ENGLISH defects the French sweep exposed
+
+- **O-Texture: a self-feeding layout runaway, in English, at rest.** `#xy-pad`
+  is a canvas whose intrinsic size is written from its own client box, and
+  `.main-area` carried `min-height: auto`, so each `ResizeObserver` delivery
+  raised the floor, which raised the canvas, which fed the next delivery:
+  800x644 at 100ms, 800x1176 at 1.2s, **800x5696 at 6s and still climbing**.
+  The XY pad and the whole bottom strip left the 600px frame inside the first
+  second, `html{overflow:hidden}` making them unreachable. Introduced by
+  v0.1.2's IN-10 change. **Fixed** — `min-height: 0` — because assertion 7
+  compares an EN sweep to an FR sweep ~180ms later and at 0.86px/ms every
+  element differs: the gate can say nothing about French on a page that will
+  not hold still.
+- **O-Emulator: `.hdr` is 570px of content holding 732.28px of max-content** —
+  162px over-full in English at v1.0.1. `.wordmark` renders on two lines and
+  `.plate` on three, both overflowing the 48px header upward. **Reported, not
+  fixed** — a layout decision, not a localization one.
+- **O-Texture: six `title="Coming soon"`** deleted; text moved into the
+  accessible NAME as `Metal — coming soon`, assembled only from strings already
+  on the page. A shared `aria.comingSoon` key would have made `aria-label`
+  REPLACE "Metal" as the accessible name, breaking label-in-name.
+
+## Geometry — every pin negative-controlled, and one removed as DECORATION
+
+Zero non-label elements moved between languages on all seven, after pins.
+**French shrinks at least as often as it grows**: O-Texture 6 of 7 strings
+shrank, O-Bassoon 6 of 12, O-TextureForge 4 of 12, O-AnalogSaturation 2 of 5.
+A clip-only check would have certified every one of those pages.
+
+- **O-Texture tried `.xy-pad-container { min-height: 0 }`, its negative control
+  PASSED, and it was REMOVED.** No decorative pin ships in this batch.
+- O-Detune folded `.preset-action-btn` side padding 8→6px — border-box with a
+  pinned width, so no outer rectangle moves — taking its tightest French margin
+  from **2.91px to 6.91px**.
+- O-TextureForge rejected "Dispersion X" on measurement: 65.14px WRAPPED to two
+  lines in a 72px box because the space before the axis letter is a break
+  opportunity. `Disp. X` is 38.78.
+- O-Emulator caught a wrong number of its own: an armed face measured 17.69 was
+  really **26.23** — 17.69 was the widest LINE of a wrapped string in the
+  unpinned box.
+- O-Bassoon's first French About blurb was **too SHORT**: two line boxes against
+  English's three shrank the card 19.4px and pulled the byline up. Re-authored
+  to the English line count.
+
+## Carried into K2, K3 and K4
+
+1. **`git commit -- <paths>` takes only TRACKED files.** Still true, still the
+   trap. `git add` new paths, commit, `git show --stat`, confirm the count.
+2. **Do not trust the plan's structural claims.** Frames and served roots were
+   right on all 21; text counts are wrong on 20 of 21 and JS prose is
+   undercounted almost everywhere — see `260826-ieq-STAGE-K-MEASURED-INVENTORY.md`.
+3. **Check whether the page HOLDS STILL before trusting any geometry number.**
+   Measure at 180ms and 1.7s. O-Texture's runaway made assertion 7 meaningless
+   until fixed, and it was invisible to every other assertion.
+4. **`scratchpad/<yourplugin>/`, always.**
+5. **An executor's own probe can carry the gate's bug.** O-Emulator's differ had
+   the same 6-segment `pathOf` truncation, copied from the gate, and had to be
+   corrected and both diffs re-taken.
+6. **The "28 of 26 elements visible" coverage line is NOT the path cap** — it is
+   the class list inside the path changing when `active` toggles on a tab
+   button. A report line, not an assertion, and it errs safe: it can invent a
+   surplus but cannot conceal a hole. **It will recur on every tabbed plugin in
+   K3/K4.** Not fixed.
+
+## NEEDS A HUMAN DECISION — none blocking K2
+
+1. **The `I18N_EXEMPT` contract.** Element-scoped exemptions would close the
+   hole `a32039c7` only makes visible. Suggested shape: an optional third field
+   carrying a selector, backwards compatible so the 28 shipped plugins keep
+   working and the remaining 15 can use it. **Five ambiguous strings today:**
+   O-MultiBandCompressor `Off` (8 nodes), O-Lyrica `Off` (2), O-Detune `Random`
+   (2), O-ReverseDelay `Delay` (1), O-simpleGrain `Grain` (1).
+2. **O-Bassoon's registry row now reads `🚧 Stage 0 | 1.1.0`**, which is
+   internally odd. Built, installed, `auval`-clean — but its executor declined
+   to assert the `🚧 → 📦` flip as beyond a localization dispatch, and that
+   restraint was kept. The flip is the developer's.
+3. **Assertion 6's scroll-extent check is blind to a page that has left its
+   frame.** It reads `documentElement.scrollWidth/Height`, which
+   `html{overflow:hidden}` clamps — it reported a comfortable 800x600 while
+   O-Texture's `body.scrollHeight` was 1704. Such a page is visible only
+   INDIRECTLY, via assertion 7 mistaking growth for French. Promoting the
+   existing NOTE to an assertion is repo-wide and could turn shipped plugins red
+   mid-rollout.
+4. **`O-Freeze` ships `assets/paper1.jpg`** — same filename as the watermarked
+   "Adobe Stock" texture already flagged on O-Gain and O-Lyrica. Bytes not
+   compared. **Three plugins to check before the next `/publish`.**
+5. **O-TextureForge's `package-lock.json` is UNTRACKED**, so its webpack bundle
+   reproduced byte-identically on this machine — which is what made the diff
+   attributable — but a fresh clone resolves its own tree with no guarantee.
+6. **O-Emulator's `GB` caption is not byte-identical to its `Game Boy` option**
+   — a pre-existing page/automation divergence. Exempted, because keying one
+   segment of five leaves it switching while four arm-1 siblings stay pinned.
+7. `PLUGIN_VERSION`, the silently-ignored non-keyword, still affects seven
+   plugins. **O-Reed and O-MicrotonalSampler are both still ahead in K4.**
+
+## Not verified
+
+- **Checkpoint 5 outstanding on all 28.** No human has seen any French UI.
+- **Checkpoint 4 measured on two of 28** (O-IntonationPad, O-Marimba, both in
+  Stage J). All seven K1 plugins are reasoned from the `isVoid()` guard and the
+  build, not run through a host session reopen.
+- **All French repo-wide is machine drafts**, every entry `reviewed: false`.
+- **Windows/WebView2 font metrics** — the standing hardware-blocked deferral.
+  Tightest K1 margins: O-Emulator **0.83px** (`Broyage`), O-Bassoon 1.8px
+  (rejected `Car. attaque`, shipped `Caractère` at 5.2px), O-Detune 6.91px.
+- **The Standalone `.app` is stale on every K1 plugin** — `build-and-install.sh`
+  builds VST3+AU only.
