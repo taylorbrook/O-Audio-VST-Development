@@ -45,9 +45,10 @@ TextureEditor::TextureEditor(TextureProcessor& p)
     modeRelay       = std::make_unique<juce::WebComboBoxRelay>("modeCombo");
     freezeRelay     = std::make_unique<juce::WebToggleButtonRelay>("freezeToggle");
 
-    // 2. Create WebView with all relay options
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
+    // 2. WebView options. Split out of the single chained expression they were
+    //    through v0.1.2 so v0.2.0's two native functions can be appended
+    //    without reformatting the relay chain.
+    auto options = juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
@@ -71,8 +72,38 @@ TextureEditor::TextureEditor(TextureProcessor& p)
             .withOptionsFrom(*mixRelay)
             .withOptionsFrom(*sourceRelay)
             .withOptionsFrom(*modeRelay)
-            .withOptionsFrom(*freezeRelay)
-    );
+            .withOptionsFrom(*freezeRelay);
+
+    // ── v0.2.0: the UI LANGUAGE pair ────────────────────────────────────────
+    //
+    // Plain withNativeFunction, no relay. The page PULLS once at init; there is
+    // no push from this constructor, no timer and no revision counter, because
+    // the language is not preset content and no preset path can change it
+    // behind the page's back. A push from here would race the WebView's load.
+    options = options.withNativeFunction("getUiLanguage",
+        [this](auto&, auto complete)
+        {
+            complete(juce::var(TextureProcessor::languageCode(
+                                   processorRef.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction("setUiLanguage",
+        [this](auto& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store(
+                    TextureProcessor::languageIndex(args[0].toString()),
+                    std::memory_order_release);
+
+            complete(juce::var(TextureProcessor::languageCode(
+                                   processorRef.uiLanguage.load(std::memory_order_acquire))));
+        });
+
+    // 2b. Create WebView with native integration and resource provider
+    webView = std::make_unique<juce::WebBrowserComponent>(std::move(options));
 
     addAndMakeVisible(*webView);
 
@@ -170,6 +201,17 @@ TextureEditor::getResource(const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("application/javascript")};
+    }
+
+    // JavaScript - the label table (v0.2.0). EMBEDDED in CMakeLists.txt AND
+    // served here, in the same commit. A file embedded but not served, or
+    // served but not embedded, is a 404 that presents as a page stuck in
+    // English and nothing else — check-i18n assertion 8 exists for this pair.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String("application/javascript")};
     }
 

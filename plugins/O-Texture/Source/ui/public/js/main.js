@@ -25,6 +25,20 @@
 */
 
 import { getSliderState, getToggleState, getComboBoxState } from './juce/index.js';
+// The JUCE 8 frontend NAMESPACE, imported alongside the three named bindings
+// this file already used. Juce.getNativeFunction is the only correct way to
+// reach a withNativeFunction registration — window.__JUCE__ is the raw
+// postMessage transport and does not carry the promise contract
+// (critical_juce_webview_namespace_vs_postmessage). Two import statements from
+// one specifier is legal ES and leaves the existing call sites untouched.
+import * as Juce from './juce/index.js';
+
+// v0.2.0: the label table. The CANONICAL import line verbatim — this
+// controller is a real js/app.js-shaped module living beside i18n.js, so the
+// specifier needs no re-rooting. I18N and TIP_BINDINGS are both EMPTY here
+// (this page has no hover-help) and are imported anyway so the canon block at
+// the foot of this file stays byte-identical to the other forty-two copies.
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // ============================================================================
 // State Management
@@ -69,6 +83,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (canvas) {
         requestAnimationFrame(animationLoop);
     }
+
+    // v0.2.0: i18n LAST, and guarded. Every relay and every control binding
+    // above has already run, so a failure here leaves an English plugin that
+    // still works rather than a dead page. The canon block lives at the FOOT of
+    // this module: its `let uiLanguage` is a top-level binding, and module
+    // evaluation completes before DOMContentLoaded fires on a deferred module
+    // script, so there is no TDZ window for this call to fall into
+    // (pattern_module_toplevel_init_tdz).
+    initializeSettingsPopover();
+    try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
 });
 
 // ============================================================================
@@ -468,4 +492,163 @@ function updateFreezeVisual() {
         button.classList.remove('active');
         canvas?.classList.remove('frozen');
     }
+}
+
+// ============================================================================
+// i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
+// ============================================================================
+//
+// Byte-compared by check-i18n assertion 6 after comment stripping and
+// whitespace normalisation. Do not edit it here; edit the canon and every copy
+// together, which is the whole point of holding it as data.
+//
+// It sits at the END of the module, below every existing initializer, and is
+// REACHED only through the guarded initI18n() call inside the DOMContentLoaded
+// handler above. Nothing here executes at module-evaluation time.
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ============================================================================
+// Settings popover (v0.2.0)
+// ============================================================================
+//
+// ONE row. This plugin has no hover-help to switch on or off — v0.1.2 carried
+// no data-tip and no data-tooltip anywhere, only six native title= attributes
+// this version deletes — and authoring that copy is Stage M's job, so the
+// popover holds the language selector alone.
+//
+// It opens DOWNWARDS: the gear sits 21 px from the top of a 600 px frame, so a
+// panel above it would leave the frame entirely.
+
+let settingsPopoverEl = null;
+let gearBtnEl = null;
+
+function setSettingsPopoverOpen(open) {
+    if (!settingsPopoverEl || !gearBtnEl) return;
+    settingsPopoverEl.hidden = !open;
+    gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initializeSettingsPopover() {
+    gearBtnEl = document.getElementById('gear-btn');
+    settingsPopoverEl = document.getElementById('settings-popover');
+
+    if (!gearBtnEl || !settingsPopoverEl) {
+        console.warn('settings popover missing - language selector unavailable');
+        return;
+    }
+
+    gearBtnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSettingsPopoverOpen(settingsPopoverEl.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. pointerdown rather than
+    // click, so the panel is gone before a drag begins underneath it — every
+    // knob and slider on this page starts its drag on pointerdown, and the
+    // panel overhangs the XY pad.
+    document.addEventListener('pointerdown', (e) => {
+        if (settingsPopoverEl.hidden) return;
+        if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+        setSettingsPopoverOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+            setSettingsPopoverOpen(false);
+            gearBtnEl.focus();
+        }
+    });
 }

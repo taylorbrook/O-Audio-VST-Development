@@ -592,6 +592,14 @@ void TextureProcessor::getStateInformation(juce::MemoryBlock& destData)
     }
     state.setProperty("evolve_cursors", cursorStr, nullptr);
 
+    // v0.2.0: the UI language rides the same tree as one more plain property,
+    // beside the two above. Not a parameter (see PluginProcessor.h), so it is
+    // saved and restored here rather than by the APVTS parameter round-trip.
+    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means.
+    state.setProperty("uiLanguage",
+                      languageCode(uiLanguage.load(std::memory_order_acquire)), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -634,6 +642,25 @@ void TextureProcessor::setStateInformation(const void* data, int sizeInBytes)
 
             noiseStagingPending.store(true, std::memory_order_release);
         }
+
+        // v0.2.0: the UI language. hasProperty() + toString() is the ONLY
+        // correct read, and it is this file's own idiom for the two noise
+        // properties above. getStateInformation writes a STRING var, but even a
+        // bool or an int written there would not survive: the XML round-trip
+        // does not preserve the type, because NamedValueSet::setFromXmlAttributes
+        // rebuilds every property as `var (value)` over the attribute STRING
+        // (critical_valuetree_xml_roundtrip_loses_type), so an isBool() or
+        // isInt() guard would be false for every saved session. A pre-0.2.0
+        // session has no such property at all and the default (English) stands.
+        // languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited value degrades to English rather than to a bad index.
+        //
+        // The editor PULLS this through the getUiLanguage native fn at page
+        // init rather than being pushed from here — a push would race the
+        // WebView's load.
+        if (state.hasProperty("uiLanguage"))
+            uiLanguage.store(languageIndex(state.getProperty("uiLanguage").toString()),
+                             std::memory_order_release);
     }
 }
 

@@ -5,6 +5,73 @@ All notable changes to O-Texture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-28
+
+The PAGE speaks French, not only a tooltip — because this plugin never had a
+tooltip. And the page now FITS ITS OWN FRAME, which it did not.
+
+### Fixed
+- **The layout grew without bound and pushed most of the UI off the bottom of the
+  800 x 600 frame.** `#xy-pad` is a canvas, a replaced element whose intrinsic size
+  is its `width`/`height` ATTRIBUTES, which `resizeCanvas()` writes from
+  `clientWidth`/`clientHeight`. `.main-area` is a flex item and therefore carried
+  `min-height: auto`, whose content-based minimum was floored by that intrinsic
+  height — so every `ResizeObserver` delivery wrote an attribute that raised
+  `.main-area`'s own floor, which raised the canvas's client box by the 2 px borders
+  on `.xy-pad`, which the next delivery wrote back 4 px larger. A self-feeding loop,
+  not a settling one. Measured at the shipping frame: `.main-area` 362 px at 100 ms,
+  894 at 1.2 s, **5414 at 6 s**, still climbing. The XY pad, the source row and the
+  whole bottom strip left the frame within the first second, and
+  `html { overflow: hidden }` meant they were simply not reachable. `min-height: 0`
+  on `.main-area` removes the floor; the area now resolves to the 306 px the design
+  intends and holds it at every settle time from 100 ms to 6 s. Introduced in v0.1.2
+  by the IN-10 `ResizeObserver` change.
+
+### Added
+- **Language selector, in a gear popover beside the title.** Styled in this page's own
+  vocabulary — aged-paper fills, the single 1 px `--ink-brown` rule `.mode-toggle`
+  already uses, the `--botanical-green` active state, Garamond — rather than pasted in
+  from another plugin. Opens downwards; the gear sits 21 px from the top of a 600 px
+  frame. One row, because there is no hover-help to switch on or off.
+- **`Source/ui/public/js/i18n.js`** — the label table, English + French, on canon v2.
+  Embedded in `juce_add_binary_data` SOURCES *and* served from a `getResource()` branch
+  in the same commit: a file embedded but not served is a 404 that presents as a page
+  stuck in English and nothing else.
+- **The UI language persists with the session.** A non-parameter `uiLanguage` property
+  on the APVTS state tree beside `evolve_seed` and `evolve_cursors`, saved as
+  `"en"`/`"fr"` and read back with `hasProperty()` + `toString()` — the XML round-trip
+  rebuilds every property as a var over the attribute STRING, so an `isBool()`/`isInt()`
+  test would be false for every saved session. Deliberately not an
+  `AudioParameterChoice`: the language must not appear in a DAW automation lane and a
+  preset must not be able to change which language somebody reads their plugin in.
+
+### Changed
+- Seven visible strings localize: Char A, Char B, Evolve, Brightness, Mix, Freeze and
+  the popover's own Language caption. **Nine do not, and each says why in
+  `I18N_EXEMPT`:** the six source captions (Rain, Metal, Wind, Crowd, Synth, Organic)
+  and the two mode captions (Generate, Transform) are the `SOURCE` and `MODE`
+  `AudioParameterChoice` option strings byte for byte, so translating the caption alone
+  would make the page and the host automation lane disagree about the same setting. The
+  h1 is a product name.
+- **All six native `title="Coming soon"` attributes are deleted.** Each one's text moves
+  into that control's accessible NAME, keeping the visible caption in it —
+  `aria-label="Coming soon"` alone would have REPLACED "Metal" as the accessible name of
+  the button whose visible caption is Metal, breaking the label-in-name match. No new
+  prose was invented: every name is the control's own caption plus the status text the
+  title already carried.
+
+### Notes
+- All French is a machine draft, every entry flagged `reviewed: false`. No native speaker
+  has read it.
+- No hover-help copy was authored: `TIP_BINDINGS` and `I18N` are both empty, which is this
+  plugin's correct state rather than a gap. Authoring that prose is a later stage's job.
+- Zero geometry movement from the localization. **0 of 75 English elements moved**, 9
+  added (the gear cluster and its popover); the header's `space-between` still puts
+  `.mode-toggle` at exactly `[590.44, 20, 185.56, 25]`. No non-label element moves
+  between English and French. **Six of the seven page labels get SHORTER in French**, not
+  longer — the half a clip check is blind to.
+- No parameter IDs, ranges, types or DSP behaviour changed.
+
 ## [0.1.2] - 2026-07-15
 
 Resolves CODE_REVIEW.md info findings IN-01 and IN-03–IN-10 (IN-02 was already

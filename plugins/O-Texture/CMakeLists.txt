@@ -39,7 +39,7 @@ juce_add_plugin(${PROJECT_NAME}
     PLUGIN_CODE OuTx
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Texture${OUARICON_DEV_SUFFIX}"
-    VERSION 0.1.2
+    VERSION 0.2.0
     IS_SYNTH TRUE
     # MIDI input is required by the AU spec for MusicDevice (aumu) — auval
     # fails without it — even though v0.1.x ignores all MIDI (IN-07).
@@ -122,6 +122,12 @@ juce_add_binary_data(${PROJECT_NAME}_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/js/main.js
+        # v0.2.0: the label table. EMBEDDED here AND served from a
+        # getResource() branch in PluginEditor.cpp, in the same commit. A file
+        # embedded but not served, or served but not embedded, is a 404 that
+        # presents as a page stuck in English and nothing else — check-i18n
+        # assertion 8 exists for exactly this pair.
+        Source/ui/public/js/i18n.js
         Source/ui/public/img/fern.png
 )
 
