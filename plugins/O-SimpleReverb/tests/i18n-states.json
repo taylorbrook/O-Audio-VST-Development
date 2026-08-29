@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover open (the language row and the endonym select)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "low-cut toggled (ui.on — the second of the two setLabel states)",
+    "click": "#LPFREQ-value"
+  }
+]

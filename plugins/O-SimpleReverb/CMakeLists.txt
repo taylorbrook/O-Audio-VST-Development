@@ -5,7 +5,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SimpleReverb
-    VERSION 1.5.7
+    VERSION 1.6.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuSr
@@ -60,6 +60,7 @@ ouaricon_add_module(O-SimpleReverb preset-manager)
 juce_add_binary_data(O-SimpleReverb_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
