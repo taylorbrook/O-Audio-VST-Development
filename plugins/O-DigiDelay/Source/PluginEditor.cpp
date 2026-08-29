@@ -156,6 +156,29 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
             .withNativeFunction("getPluginVersion", [](auto&, auto complete) {
                 complete(juce::String(JucePlugin_VersionString));
             })
+            // ── v1.3.0: the UI LANGUAGE pair ───────────────────────────────
+            //
+            // Plain withNativeFunction, no relay. The page PULLS once at init;
+            // there is no push from this constructor, no timer and no revision
+            // counter, because the language is not preset content and no preset
+            // path can change it behind the page's back. A push from here would
+            // race the WebView's load.
+            .withNativeFunction("getUiLanguage", [this](auto&, auto complete) {
+                complete(juce::var(OuariconDigitalDelayAudioProcessor::languageCode(
+                                       processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+            .withNativeFunction("setUiLanguage", [this](auto& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument from the page degrades to English rather
+                // than being stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.uiLanguage.store(
+                        OuariconDigitalDelayAudioProcessor::languageIndex(args[0].toString()),
+                        std::memory_order_release);
+
+                complete(juce::var(OuariconDigitalDelayAudioProcessor::languageCode(
+                                       processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
     ))
     // 3. Create attachments LAST (depend on relays AND webView)
     , timeAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
@@ -265,6 +288,17 @@ OuariconDigitalDelayAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/juce/index.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::index_js, BinaryData::index_jsSize),
+            juce::String("application/javascript")
+        };
+    }
+
+    // v1.3.0: the label table. EMBEDDED in CMakeLists.txt AND served here, in
+    // the same commit. A file embedded but not served, or served but not
+    // embedded, is a 404 that presents as a page stuck in English and nothing
+    // else — check-i18n assertion 8 exists for exactly this pair.
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String("application/javascript")
         };
     }
