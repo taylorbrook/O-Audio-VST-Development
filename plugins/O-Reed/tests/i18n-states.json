@@ -1,0 +1,14 @@
+[
+  {
+    "name": "every collapsible section EXPANDED (six of the seven ship collapsed and .section-content is max-height:0 + overflow:hidden, so 23 of the 27 knob captions never lay out at their real size in the default state). FIRST, because the states are CUMULATIVE and the FX-tab click below hides the whole instrument panel.",
+    "eval": "document.querySelectorAll('.section.collapsed').forEach(s => s.classList.remove('collapsed'));"
+  },
+  {
+    "name": "settings popover OPEN (reveals label.language, which is display:none until the gear is pressed)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "FX tab (reveals label.fx.title and label.fx.body — .tab-panel is display:none until its tab is active). LAST, because clicking it makes #tab-instrument display:none and every label inside it unmeasurable.",
+    "click": ".tab-btn[data-tab=\"fx\"]"
+  }
+]

@@ -8,7 +8,15 @@ juce_add_plugin(O-Reed
     PLUGIN_CODE ORed
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Reed${OUARICON_DEV_SUFFIX}"
-    PLUGIN_VERSION "1.1.0"
+    # REPORTED, NOT FIXED: PLUGIN_VERSION is NOT a juce_add_plugin keyword.
+    # JUCE reads VERSION; the unrecognised keyword is silently ignored, so this
+    # plugin ships reporting the project version (1.0.0) to the host no matter
+    # what this line says. Correcting it to VERSION is a HOST-VISIBLE change
+    # pending one human decision across the plugins that share the defect, so
+    # the number below is bumped in place and the defect is left standing —
+    # bumping it changes nothing the host can see, exactly because the keyword
+    # is ignored. See the task's NEEDS A HUMAN DECISION list.
+    PLUGIN_VERSION "1.2.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -65,6 +73,11 @@ juce_generate_juce_header(O-Reed)
 juce_add_binary_data(O-Reed_UIResources
     SOURCES
         Resources/ui/index.html
+        # v1.2.0: the label table. It must be in BOTH this SOURCES block and a
+        # getResource() branch in PluginEditor.cpp — a file embedded but not
+        # served, or served but not embedded, is a 404 that presents as a
+        # missing panel and nothing else. check-i18n assertion 8 asserts both.
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js

@@ -219,6 +219,35 @@ OReedAudioProcessorEditor::OReedAudioProcessorEditor(OReedAudioProcessor& p)
                     }
                 );
             })
+
+            // =========================================================
+            // v1.2.0 — THE UI LANGUAGE PAIR
+            //
+            // Plain withNativeFunction, no relay. The page PULLS once at init;
+            // nothing is pushed from this constructor, because the language is
+            // not preset content and no preset path can change it behind the
+            // page's back. A push from here would race the WebView's load.
+            // =========================================================
+
+            .withNativeFunction("getUiLanguage",
+                [this](const juce::Array<juce::var>&, auto complete) {
+                    complete(juce::var(OReedAudioProcessor::languageCode(
+                                 processorRef.uiLanguage.load(std::memory_order_acquire))));
+                })
+
+            .withNativeFunction("setUiLanguage",
+                [this](const juce::Array<juce::var>& args, auto complete) {
+                    // languageIndex() maps anything that is not "fr" to 0, so an
+                    // unexpected argument from the page degrades to English
+                    // rather than being stored unvalidated.
+                    if (args.size() > 0)
+                        processorRef.uiLanguage.store(
+                            OReedAudioProcessor::languageIndex(args[0].toString()),
+                            std::memory_order_release);
+
+                    complete(juce::var(OReedAudioProcessor::languageCode(
+                                 processorRef.uiLanguage.load(std::memory_order_acquire))));
+                })
     );
 
     addAndMakeVisible(webView.get());
@@ -367,6 +396,14 @@ OReedAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/juce/check_native_interop.js")
         return makeResource(BinaryData::check_native_interop_js,
                            BinaryData::check_native_interop_jsSize,
+                           "text/javascript");
+
+    // v1.2.0: the label table. Embedded in the juce_add_binary_data SOURCES
+    // block AND served here, in the same commit — a file that is one without
+    // the other is a 404 that presents as a missing panel and nothing else.
+    if (url == "/js/i18n.js")
+        return makeResource(BinaryData::i18n_js,
+                           BinaryData::i18n_jsSize,
                            "text/javascript");
 
     // Tuning panel
