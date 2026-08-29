@@ -696,13 +696,67 @@ function checkPlugin(p) {
         if (pageModules.some((m) => m.code === s.code)) continue;
         pageModules.push(s);
     }
+    // THE GATE AND THE WORKLIST NEED DIFFERENT SETS, and the comment above was
+    // wrong to claim otherwise ("the type filter matches i18n-extract.js's own
+    // jsSources loop exactly, so the GATE and the WORKLIST see the same set").
+    //
+    // i18n-extract's JS_SKIP answers "whose code may this tool propose edits
+    // to", so it drops vendored shared modules: editing one here edits every
+    // plugin that embeds it. That is a WORKLIST concern. Assertion 15 asks a
+    // different question — "is every key live" — and a vendored module the page
+    // actually runs references keys and writes prose like any other script.
+    // Applying JS_SKIP wholesale reported 37 live O-IntonationPad keys as DEAD,
+    // because its diverged local `js/tuning-panel.js` copy is where they are
+    // referenced. So only the ONE overlapping reason is borrowed:
+    //
+    // A MINIFIED BUNDLE IS NOT MERELY NOISY TO SCAN, IT IS UNPARSEABLE.
+    // `stripJsComments` disambiguates a regex literal from a division by
+    // context, and minified code defeats that: on O-TextureForge's 220,686-byte
+    // `app.bundle.js` it blanked 38,118 bytes — 17.3% — across 711 runs, and
+    // `window.__setLabel` at byte 213,029 fell inside a blanked run. So the
+    // gate reported all EIGHT of that plugin's live keys as DEAD (assertion 15)
+    // while assertion 12 went vacuous in the same breath: raw English prose
+    // planted in the bundle and rebuilt was scanned and PASSED.
+    const bundlesSkipped = [];
     if (fs.existsSync(jsDir)) {
         for (const f of fs.readdirSync(jsDir).sort()) {
             if (!f.endsWith('.js') || f === 'i18n.js') continue;
             const full = path.join(jsDir, f);
             if (!fs.statSync(full).isFile()) continue;
-            pageModules.push({ label: 'js/' + f, code: fs.readFileSync(full, 'utf8'), inline: false });
+            const rel = 'js/' + f;
+            if (/\.(bundle|min)\.js$/.test(f)) { bundlesSkipped.push(rel); continue; }
+            pageModules.push({ label: rel, code: fs.readFileSync(full, 'utf8'), inline: false });
         }
+    }
+
+    // A bundled plugin's prose lives in the AUTHORED source, which is not in
+    // the served root at all — O-TextureForge builds `Source/ui/src/app.js`
+    // into `Source/ui/public/js/app.bundle.js`. Skipping the bundle without
+    // finding that source would trade a false failure for a silent blindness,
+    // which is the worse of the two. So the source tree is scanned in its
+    // place, and if there is a bundle with no findable source the gate SAYS SO
+    // rather than passing on an empty set.
+    if (bundlesSkipped.length) {
+        const srcDir = path.join(p.pluginRoot, 'Source', 'ui', 'src');
+        const authored = [];
+        const walk = (dir) => {
+            if (!fs.existsSync(dir)) return;
+            for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+                const full = path.join(dir, e.name);
+                if (e.isDirectory()) { walk(full); continue; }
+                if (!e.name.endsWith('.js') || e.name === 'i18n.js') continue;
+                if (/\.(bundle|min)\.js$/.test(e.name)) continue;
+                const rel = path.relative(p.pluginRoot, full).split(path.sep).join('/');
+                authored.push({ label: rel, code: fs.readFileSync(full, 'utf8'), inline: false });
+            }
+        };
+        walk(srcDir);
+        for (const m of authored) pageModules.push(m);
+        check(authored.length > 0,
+            `[12] a served bundle (${bundlesSkipped.join(', ')}) has authored source to scan in `
+            + 'Source/ui/src — a minified bundle cannot be parsed, so without its source '
+            + 'assertions 12, 13 and 15 can see none of this plugin\'s JS'
+            + (authored.length ? ` — ${authored.length} file(s): ${authored.map((m) => m.label).join(', ')}` : ''));
     }
 
     let canonVersion = null;
