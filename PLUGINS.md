@@ -27,10 +27,10 @@ Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
 | O-Bells | 📦 Installed | 4.1.5 | Synth (Physical Modeling Bells) | 2026-08-02 |
-| O-Tremolo | 📦 Installed | 1.6.0 | Audio Effect (Tremolo) | 2026-08-02 |
+| O-Tremolo | 📦 Installed | 1.7.0 | Audio Effect (Tremolo) | 2026-08-29 |
 | O-AnalogSaturation | 📦 Installed | 1.2.0 | Audio Effect (Saturation) | 2026-08-29 |
 | O-Marimba | 📦 Installed | 1.13.0 | Synth (Physical Model) | 2026-08-28 |
-| O-Comp | 📦 Installed | 1.5.0 | Audio Effect (Compressor) | 2026-07-01 |
+| O-Comp | 📦 Installed | 1.6.0 | Audio Effect (Compressor) | 2026-08-29 |
 | O-AnalogEQ | 📦 Installed | 1.2.0 | Audio Effect (EQ) | 2026-08-28 |
 | O-DigiDelay | 📦 Installed | 1.3.0 | Audio Effect (Delay) | 2026-08-28 |
 | O-SimpleReverb | 📦 Installed | 1.6.0 | Audio Effect (Reverb) | 2026-08-29 |
@@ -43,7 +43,7 @@ Ouaricon Plugins:
 | O-Freeze | 📦 Installed | 2.1.0 | Audio Effect (Granular Freeze) | 2026-08-28 |
 | O-FreqPulse | 📦 Installed | 1.18.0 | Audio Effect (Spectral Sequencer) | 2026-08-28 |
 | O-SpectralShaper | 📦 Installed | 1.7.0 | Audio Effect (Spectral Transient Shaper) | 2026-08-28 |
-| O-GrainScatter | 📦 Installed | 2.4.4 | Audio Effect (Granular Stutter Engine) | 2026-08-19 |
+| O-GrainScatter | 📦 Installed | 2.5.0 | Audio Effect (Granular Stutter Engine) | 2026-08-29 |
 | O-Chorus | 📦 Installed | 1.3.0 | Audio Effect (Chorus) | 2026-08-28 |
 | O-Orbit | 📦 Installed | 1.2.0-dev | Audio Effect (Spatial Orbiter) | 2026-08-28 |
 | O-TextureForge | 📦 Installed | 1.1.0 | Instrument (Concatenative Synth) | 2026-08-28 |
@@ -51,8 +51,8 @@ Ouaricon Plugins:
 | O-Prism | 📦 Installed | 1.20.0 | Synth (Microtonal Wavetable) | 2026-08-20 |
 | O-Gain | 📦 Installed | 1.3.0 | Audio Effect (Gain Staging Utility) | 2026-08-28 |
 | O-Formant | 📦 Installed | 1.25.4 | Synth (Physical Model Vocal) | 2026-07-01 |
-| O-Bowed | 📦 Installed | 1.4.1 | Synth (Physical Model Bowed String) | 2026-07-08 |
-| O-Reed | 📦 Installed | 1.1.0 | Synth (Physical Modeling Reed Wind) | 2026-04-26 |
+| O-Bowed | 📦 Installed | 1.5.0 | Synth (Physical Model Bowed String) | 2026-08-29 |
+| O-Reed | 📦 Installed | 1.2.0 | Synth (Physical Modeling Reed Wind) | 2026-08-29 |
 | O-Wind | 📦 Installed | 1.16.3 | Synth (Physical Model Flute) | 2026-07-10 |
 | O-Contrabass | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed Bass) | 2026-08-27 |
 | O-Bassoon | 🚧 Stage 0 | 1.1.0 | Synth (Physical Model Bassoon) | 2026-08-28 |
