@@ -9,7 +9,7 @@ juce_add_plugin(O-Bowed
     PLUGIN_CODE OBwd
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bowed${OUARICON_DEV_SUFFIX}"
-    VERSION "1.4.1"
+    VERSION "1.5.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -90,6 +90,12 @@ juce_generate_juce_header(O-Bowed)
 juce_add_binary_data(O-Bowed_UIResources
     SOURCES
         Resources/ui/index.html
+        # v1.5.0: THE FOUR-PLACE RULE. js/i18n.js must appear HERE **and** get a
+        # getResource() branch in PluginEditor.cpp, in the same commit. Embedded
+        # but not served, or served but not embedded, is a 404 that presents as
+        # a missing language selector and nothing else — check-i18n assertion 8
+        # exists for exactly this pair.
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/botanical.png

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover open",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "tuning overlay open",
+    "click": "#tuning-toggle"
+  }
+]

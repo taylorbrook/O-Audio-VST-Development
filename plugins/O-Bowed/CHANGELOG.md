@@ -2,6 +2,78 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.5.0] - 2026-08-29
+
+The page speaks French. Stage K batch K3 of the suite-wide i18n rollout, canon v2.
+MINOR — no param IDs/ranges/defaults changed, and no DSP: the render harness renders
+the canonical preset bit-identical to the committed golden before and after.
+
+### Added
+
+- **French UI, 41 keyed strings.** Every visible caption on the page is now owned by its
+  element through `data-i18n` and rendered from `Resources/ui/js/i18n.js`: the six Bow
+  knobs, the Humanize grid, the three visualisation tabs, the Impossible row, Body,
+  String, Sympathetic, the footer, and the two header buttons. All French is a MACHINE
+  DRAFT flagged `reviewed: false` — no native speaker has read it.
+- **A language selector**, in a gear popover at the end of the preset bar, styled in this
+  plugin's own header vocabulary (28 px, 4 px radius, the translucent border its two
+  preset-nav siblings already use). The two options are ENDONYMS and are never translated.
+- **The language persists with the session.** `uiLanguage` is a non-parameter property on
+  the APVTS state tree — deliberately NOT an `AudioParameterChoice`, so it cannot appear
+  in a DAW automation lane and no preset can change which language somebody reads their
+  plugin in. It rides through `OuariconPresetManager::getStateAsXml()`'s `copyState()`,
+  the idiom this processor already uses. Read back with `isVoid()`, because the XML
+  round-trip rebuilds every property as a string `var`
+  (`critical_valuetree_xml_roundtrip_loses_type`).
+- **Accessible names for the three header controls.** The text is the text v1.4.1 carried
+  in its native `title=` attributes, MOVED not rewritten. No hover-help prose is invented
+  here; that is a later stage.
+
+### Fixed
+
+- **The page threw `SyntaxError: Unexpected token 'export'` on every load, in English, at
+  rest, in the plugin as shipped.** `js/juce/index.js` is an ES module and was ALSO being
+  loaded by a second, CLASSIC `<script src>` tag. The UI still worked — the module
+  `<script>` below it imports the same file correctly — so nothing surfaced it until the
+  repo-wide boot sweep counted O-Bowed as a failed boot. The redundant tag is deleted.
+  `check_native_interop.js` stays a classic script, which is what it is.
+- **`Rev. Friction` has been rendering with an ellipsis.** `.knob-label`'s `max-width` was
+  62 px, the same number as `.knob-control`'s width, and that caption needs 63.0. A
+  clipped caption pushes nothing, so no layout check could see it; the label gate's own
+  per-string measurement is what named it. The cap is now 64 px, which touches no other
+  caption — the widest French string on the page is `Colophane` at 52.70.
+
+### Changed
+
+- **Three geometry pins, so that no non-label element moves between the two languages.**
+  Each was reverted alone and confirmed to re-break the gate; none is decoration.
+  - `.humanize-grid` is `repeat(4, minmax(0, 1fr))` and `.humanize-col` is `width: 100%`.
+    `repeat(4, 1fr)` means `minmax(auto, 1fr)`, so the four tracks were content-sized at
+    38 / 44 / 41 / 38 and summed to 164 inside a 162 px box. `Pressure` -> `Pression`
+    SHRINKS 1.69 px, which moved the column and everything in it.
+  - `.preset-save-btn` is pinned to 54 px and `.tuning-btn` to 62 px, both the English box
+    rounded up. `.preset-name-display` is `flex: 1`, so every pixel either button gained
+    was taken from it and moved all four elements to its right.
+- **English geometry moves once, for the gear.** The settings cluster costs
+  `.preset-name-display` 36 px, so `#preset-next`, `#preset-save`, `#tuning-toggle` and
+  the maker's name sit ~39 px further left than in v1.4.1. That is a markup change, not a
+  language one.
+
+### Known Limitations
+
+- **The three visualisation canvases still draw ENGLISH.** ~15 prose strings are painted
+  with `ctx.fillText` — `Bridge`, `Nut`, `Playing`/`Silent`, `Frequency`, `Membrane` /
+  `Wood` / `Metal` / `Glass`, `Bow Position`, `Bow Pressure`, `P_max (raucous)`,
+  `P_min (slip)`, `Helmholtz`, and the three `Speed:` / `Pressure:` / `Position:` readout
+  prefixes. Canvas text is not a DOM node, so no scanner in this repo reports it and no
+  geometry check can measure whether a longer French string would clip. Deliberately left
+  English: canon v2 has no mechanism for it, and the obvious one (a `LABELS` key read
+  through `trLabel()`) is rejected by `check-i18n` assertion 15 as a dead key.
+- **The tuning panel is module-owned** (`modules/tuning/scala-tuning-engine`) and stays
+  English. Localizing it is cross-plugin work and a local edit would be reverted by
+  `/module-upgrade`.
+- **All French is unreviewed.** `node scripts/check-i18n.js` prints the worklist.
+
 ## [1.4.1] - 2026-07-08
 
 Resolves the three runtime-affecting Info findings from the v1.3.0 review (`CODE_REVIEW.md`).

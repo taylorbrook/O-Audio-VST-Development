@@ -181,6 +181,36 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
             })
 
             // =============================================================
+            // v1.5.0 — THE UI LANGUAGE PAIR
+            //
+            // Plain withNativeFunction, no relay. The page PULLS once at init;
+            // nothing is pushed from this constructor and the 15 Hz
+            // visualisation poll is not involved, because the language is not
+            // preset content and no preset path can change it behind the page's
+            // back — OuariconPresetManager::loadPreset walks the preset's
+            // "parameters" object only. A push from here would race the
+            // WebView's load.
+            // =============================================================
+
+            .withNativeFunction("getUiLanguage", [this](auto, auto complete) {
+                complete(juce::var(OBowedAudioProcessor::languageCode(
+                    processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+
+            .withNativeFunction("setUiLanguage", [this](const auto& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument from the page degrades to English rather
+                // than being stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.uiLanguage.store(
+                        OBowedAudioProcessor::languageIndex(args[0].toString()),
+                        std::memory_order_release);
+
+                complete(juce::var(OBowedAudioProcessor::languageCode(
+                    processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+
+            // =============================================================
             // PRESET NATIVE FUNCTIONS
             // =============================================================
 
@@ -708,6 +738,15 @@ OBowedAudioProcessorEditor::getResource(const juce::String& url)
         return makeResource(BinaryData::index_html,
                            BinaryData::index_htmlSize,
                            "text/html");
+
+    // v1.5.0: the i18n table. THE OTHER HALF OF THE FOUR-PLACE RULE — this
+    // branch and the juce_add_binary_data SOURCES entry land together or the
+    // page 404s on its import and the whole inline controller module fails to
+    // evaluate. check-i18n assertion 8 exists for exactly this pair.
+    if (url == "/js/i18n.js")
+        return makeResource(BinaryData::i18n_js,
+                           BinaryData::i18n_jsSize,
+                           "text/javascript");
 
     // JUCE Bridge
     if (url == "/js/juce/index.js")
