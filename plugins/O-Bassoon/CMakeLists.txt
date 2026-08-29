@@ -11,7 +11,7 @@ juce_add_plugin(O-Bassoon
     PLUGIN_CODE OBsn
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bassoon${OUARICON_DEV_SUFFIX}"
-    VERSION "1.0.0"
+    VERSION "1.1.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -89,6 +89,12 @@ juce_generate_juce_header(O-Bassoon)
 juce_add_binary_data(O-Bassoon_UIResources
     SOURCES
         Resources/ui/index.html
+        # v1.1.0 — the label table. EMBEDDED here AND served from a
+        # getResource() branch in PluginEditor.cpp, in the same commit. A file
+        # embedded but not served, or served but not embedded, is a 404 that
+        # presents as a page stuck in English and nothing else; check-i18n
+        # assertion 8 exists for exactly this pair.
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/fern.png

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "about tab",
+    "click": ".tab-btn[data-tab=\"about\"]"
+  },
+  {
+    "name": "settings popover open",
+    "click": "#gear-btn"
+  }
+]
