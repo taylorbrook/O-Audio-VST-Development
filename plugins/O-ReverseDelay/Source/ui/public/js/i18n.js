@@ -478,7 +478,8 @@ export const I18N_EXEMPT = [
     // ORDINARY spaces — exempting the as-authored form instead would silently
     // fail to match and report the product name as an unlocalized label.
     ['O – Reverse', 'half of the product name O–ReverseDelay — a product name is never translated'],
-    ['Delay',       'the italic half of the product name O–ReverseDelay, in .title-accent'],
+    ['Delay',       'the italic half of the product name O–ReverseDelay, in .title-accent. SCOPED there, because the delayTime knob caption is also "Delay" and DOES localize (knob-delayTime)',
+                    '.title-accent'],
 
     // #preset-name displays the loaded preset. The name IS the JSON filename
     // (OuariconPresetManager.h:283-285), so translating it breaks recall.

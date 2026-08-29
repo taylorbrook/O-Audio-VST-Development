@@ -98,6 +98,19 @@ reasons in `I18N_EXEMPT` or in the commit message.
 Every exclusion is an `I18N_EXEMPT` entry **with a reason** (§7, assertion 14).
 A bare skip list lets a missed label hide as a deliberate one.
 
+**An entry is `[text, reason]` or `[text, reason, scope]`.** An exemption is
+matched by TEXT, so an unscoped one silences EVERY node with that string — the
+way a missed label hides as a deliberate one even with a reason attached. The
+scope names where it applies: a comma-separated list of `tag`, `.class` or
+`#id`, matched against the node's own parent and its ancestors.
+
+Unscoped stays legal and is right for most entries — a product name or `Hz`
+says the same thing everywhere. **A scope is REQUIRED when the same string is
+also keyed on your page**, which is the one case where the gate cannot tell a
+deliberate skip from a forgotten label. Assertion 14 fails you if you skip it.
+If you find yourself writing a WARNING in a reason explaining that the entry
+also silences some other element — write a scope instead.
+
 ## Carried lessons that cost real time when ignored
 
 - **`git commit -- <paths>` TAKES ONLY TRACKED FILES.** O-Marimba's first

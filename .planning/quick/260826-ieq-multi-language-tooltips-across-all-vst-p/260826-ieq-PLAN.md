@@ -281,6 +281,10 @@ export const I18N_EXEMPT = [
     ['Cathedral', 'factory preset name — the name IS the filename (OuariconPresetManager.h:283)'],
     ['Hz',        'unit symbol, language-neutral (D-03)'],
     ['Français',  'endonym — a language name is never translated'],
+    // [text, reason, SCOPE] — see below. Scope is a comma-separated list of
+    // `tag`, `.class` or `#id`, matched against the node's parent and ancestors.
+    ['Random',    'a wobble_shape and unison_dist option string VERBATIM — D-01 arm 1',
+                  'option'],
 ];
 ```
 
@@ -288,6 +292,27 @@ Every visible string the coverage scan finds must be either a `[data-i18n]` elem
 `setLabel` call, or an `I18N_EXEMPT` entry **with a reason**. A bare skip list would let a
 missed label hide as a deliberate one; O-Octagon's reviewed-when-it-grows whitelist is the
 precedent for reason-bearing exclusions.
+
+**AN EXEMPTION IS MATCHED BY TEXT, SO IT SILENCES EVERY NODE WITH THAT TEXT** — and that is
+how a missed label hides as a deliberate one anyway, despite the reason. O-Detune proved it
+in Stage K: `Random` is a `wobble_shape` option, a `unison_dist` option, **and** a caption
+backed by an `AudioParameterFloat` that must translate. Deleting `label.random` and its
+`data-i18n`, leaving bare English on the page, left the gate GREEN.
+
+**The third field fixes it.** An entry is `[text, reason]` or `[text, reason, scope]`, where
+scope names where the exemption applies. **Unscoped entries stay legal**, because most
+exemptions are not ambiguous — a product name or `Hz` says the same thing everywhere, and
+demanding a scope there is noise that teaches people to write one without thinking.
+
+A scope is **required** exactly where the ambiguity is real: **a string that is exempt AND
+keyed on the same page must say where it is exempt.** That is the one state in which the gate
+cannot tell a deliberate skip from a label somebody forgot, because both look identical to a
+text match. `check-i18n` assertion 14 enforces it.
+
+The scope language is deliberately three forms — `tag`, `.class`, `#id` — and no more. The
+five ambiguous strings in the repo when this landed needed exactly three shapes between them
+(`option`, `.knob-value`, `.title-accent`). A full CSS engine would be a second parser to
+keep in step with the first.
 
 ### 8. Migration is explicit, so the repo is never red
 

@@ -777,7 +777,8 @@ export const I18N_EXEMPT = [
     // this entry. Anyone adding a third bare "Grain" to this page must key it
     // deliberately — the coverage assertion will not catch a miss.
     ['Grain',
-     'the product name, second half of the split wordmark (.title-accent) — a product name is never translated. Collides by text with the Grain group heading, which carries label.groupGrain of its own'],
+     'the product name, second half of the split wordmark — a product name is never translated. SCOPED to .title-accent, because it collides by text with the Grain group heading, which carries label.groupGrain of its own and localizes',
+     '.title-accent'],
 
     // The two endonyms in the language selector. A language name is written in
     // its OWN language: a French speaker looking for their language looks for
