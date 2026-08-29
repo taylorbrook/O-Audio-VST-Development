@@ -156,10 +156,34 @@ const PROBE = () => {
         return { x: b.x, y: b.y, w: b.width, h: b.height };
     };
 
+    // The path is the KEY assertion 7 diffs English against French on, so it
+    // has to identify an element uniquely. It used to stop after 6 segments,
+    // and on a page with more than six levels of repeated structure that cap
+    // made two different elements share a key.
+    //
+    // O-Bassoon is the proof. Its sound tab is two `.sections-grid` rows of
+    // `.section-box > .param-row > .knob-control > .knob-wrapper > svg > path`;
+    // measured from an SVG child, six segments run out ABOVE the grid that
+    // tells row 1 from row 2, so 24 elements collapsed onto 12 keys. The diff
+    // builds its English map last-writer-wins, so row-1 elements were compared
+    // against row-2 rectangles and the gate reported `dy=-190.4` — exactly the
+    // distance between the rows — as a French geometry failure on a page whose
+    // French geometry is perfect. Held at ENGLISH on both sides it reported the
+    // same 12.
+    //
+    // The cap also cut the other way: two real elements collapsed onto one key
+    // means the survivor is diffed and the other is never compared at all, so
+    // the same defect can make assertion 7 VACUOUSLY GREEN.
+    //
+    // Uncapped, the nth-child chain makes a path unique by construction, which
+    // is why there is no length limit to tune. The one way two elements can
+    // still collide is a DUPLICATE id in the markup — invalid HTML, and a bug
+    // in its own right — so the collision count is asserted below rather than
+    // assumed away.
     const pathOf = (el) => {
         const bits = [];
         let n = el;
-        while (n && n.nodeType === 1 && bits.length < 6) {
+        while (n && n.nodeType === 1) {
             if (n.id) { bits.unshift('#' + n.id); break; }
             const p = n.parentElement;
             const i = p ? [...p.children].indexOf(n) + 1 : 1;
@@ -794,7 +818,7 @@ const overlaps = (a, b) =>
         const pathOf = (el) => {
             const bits = [];
             let n = el;
-            while (n && n.nodeType === 1 && bits.length < 6) {
+            while (n && n.nodeType === 1) {
                 if (n.id) { bits.unshift('#' + n.id); break; }
                 const p = n.parentElement;
                 const i = p ? [...p.children].indexOf(n) + 1 : 1;
