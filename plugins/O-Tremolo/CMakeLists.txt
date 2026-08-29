@@ -10,7 +10,7 @@ juce_add_plugin(OuariconTremolo
     PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Tremolo${OUARICON_DEV_SUFFIX}"
-    VERSION 1.6.0
+    VERSION 1.7.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -69,6 +69,7 @@ target_compile_definitions(OuariconTremolo
 juce_add_binary_data(OuariconTremolo_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg

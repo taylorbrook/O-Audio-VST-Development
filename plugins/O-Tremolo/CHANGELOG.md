@@ -5,6 +5,34 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-08-29
+
+The page speaks French. Every visible caption, every accessible name and the two image `alt` strings now resolve through a label table, and a gear popover in the bottom-right corner switches the interface between English and French. The choice is remembered with the session.
+
+**This release does NOT add hover-help.** O-Tremolo has never had tooltip copy — only five stray native `title=` attributes — and none is invented here. Authoring hover-help is a separate piece of work. `TIP_BINDINGS` is empty and `I18N` carries no bodies, which is this plugin's correct state rather than a gap.
+
+### Added
+
+- **`Source/ui/public/js/i18n.js`** — the label table, English + French, `{en:{t}, fr:{t, reviewed}}`. 21 entries: 12 captions, 2 image `alt` strings and 7 accessible names. Embedded in `juce_add_binary_data` SOURCES **and** served from a `getResource()` branch in the same commit — a file embedded but not served is a 404 that presents as a page stuck in English and nothing else.
+- **The canon v2 i18n runtime** in the inline `<script type="module">`: `trLabel`, `applyLabel`, `applyI18nAttributes`, `setLabel`, `applyI18n`, `initI18n`. Byte-identical to `scripts/i18n-canon.js` after comment stripping; `check-i18n.js` assertion 6 compares it. Placed at the TOP of the module rather than the bottom, so a future top-level label read cannot hit the temporal dead zone and take the whole inline-module UI with it.
+- **A settings popover**, opened by a gear button 6 px from the bottom-right corner. Positioned absolutely in the 144 px of unused flex space to the right of `.right-panel`, so **no existing element moves to make room** — measured against the v1.6.0 rect sweep, not eyeballed. The language row is STACKED (caption above select) rather than side by side: side by side needs 133.55 px of row, which forces a panel wide enough to overlap `#waveformCanvas`.
+- **`getUiLanguage` / `setUiLanguage` native functions** (`Source/PluginEditor.cpp`) and a **`uiLanguage` atomic** on the processor (`Source/PluginProcessor.h`). The page PULLS once at init; nothing is pushed from the editor constructor, which would race the WebView's load.
+- **Language persistence.** `uiLanguage` rides the APVTS state tree as a non-parameter property, written as the string `"en"` / `"fr"` so a hand-inspected session says what it means. Deliberately NOT an `AudioParameterChoice`: it must not appear in a DAW automation lane, and a preset must not be able to change which language somebody reads their plugin in.
+- **`tests/i18n-states.json`** — the two states the label gate cannot reach by loading the page: the settings popover and the preset dropdown.
+
+### Changed
+
+- **The five native `title=` attributes on the preset bar are DELETED, not localized.** Their existing English moved verbatim into `data-i18n-aria`; no new prose was invented, and this plugin's own wording ("Load preset from file", "Save current settings") was kept rather than harmonised with a sibling's shorter form. A native `title` is a second, untranslated OS tooltip.
+- **The preset dropdown's three JS-written strings go through `setLabel()`** instead of raw `textContent`: the Factory and User section headers and "No presets available". The element becomes a `[data-i18n]` element the moment it is written, so the language sweep owns it and it cannot be stranded in the previous language when the selector fires. Preset NAMES stay a plain `textContent` write — a preset name is the JSON filename on disk.
+- **Three width pins, each measured against this page's own English boxes and each negative-controlled.** `#loadPreset` 48 px and `#savePreset` 45 px (their English border boxes rounded up), `.knob-container` 60 px, `.settings-popover` 116 px. Together the two preset-bar pins add **0.39 px** to a header with 114.06 px of slack; **no other English element moves at all** between v1.6.0 and v1.7.0.
+
+### Notes
+
+- **All French is machine-drafted and flagged `reviewed: false`.** No native speaker has read it. `node scripts/check-i18n.js` prints the worklist.
+- **Six strings stay English on purpose**, each with a reason in `I18N_EXEMPT`: the six waveform names are `WAVEFORM_PARAM` `AudioParameterChoice` options **byte-identical** to the C++ `StringArray`, so translating the caption while the DAW's automation lane keeps the English would put two names on one control. The product name, the company name, the preset name and the two language endonyms are exempt for their own reasons.
+- **The two readout nodes are untouched.** `#speedValue` and `#depthValue` show a number with a unit, or a musical division name such as `1/8T` — which is itself a `SYNC_DIVISION_PARAM` choice string verbatim. A readout is never a localized element.
+- **Non-breaking.** No parameter is added, removed or renamed. A pre-1.7.0 session has no `uiLanguage` property and opens in English.
+
 ## [1.6.0] - 2026-07-08
 
 Synced Speed is now backed by a dedicated discrete division parameter instead of the continuous Speed knob. This removes the two v1.5.0 known limitations and makes the synced rate exact at every tempo. Non-breaking: adds one parameter at the end of the layout, so existing sessions and older presets load fine (the new parameter falls back to its default).
