@@ -68,6 +68,28 @@ public:
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
 
+    // ------------------------------------------------------------------------
+    // v1.1.0 — the UI language. 0 = en, 1 = fr.
+    //
+    // An INDEX rather than a string because std::atomic<juce::String> does not
+    // compile (juce::String is not trivially copyable), so the audio-safe form
+    // is an index behind the two-function codec below while the PERSISTED form
+    // stays a readable language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a PRESET must not be able to change which language
+    // somebody reads their plugin in. It rides the session state as a plain
+    // XML attribute instead — see getStateInformation, which already stamps
+    // `pluginVersion` the same way.
+    // ------------------------------------------------------------------------
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // Preset manager (v1.0.6) — declared AFTER apvts (member init order).
     // Name has NO dev suffix on purpose: dev and release builds share
     // ~/Library/O-Emulator/Presets/.

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover open",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "delete button ARMED",
+    "eval": "window.__setLabel(document.getElementById('preset-delete'), 'ui.confirm')"
+  }
+]

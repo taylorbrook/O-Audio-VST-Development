@@ -2,6 +2,125 @@
 
 All notable changes to O-Emulator are documented here.
 
+## [1.1.0] — 2026-08-28
+
+### Added
+
+- **The page speaks French.** A `Langue` selector in a new settings popover,
+  bottom-right, switches every caption, heading and accessible name between
+  English and French. The choice persists with the session. Fifteen keys in a
+  new `Source/ui/public/js/i18n.js`; canon v2 of the shared i18n runtime block
+  lives in the inline module and is byte-compared against
+  `scripts/i18n-canon.js` by `check-i18n` assertion 6.
+- **A `getUiLanguage` / `setUiLanguage` native pair**, and the language on the
+  session state. It is deliberately NOT an `AudioParameterChoice`: it must not
+  appear in a DAW automation lane, and a preset must not be able to change
+  which language somebody reads their plugin in. It rides the state XML as a
+  plain attribute beside `pluginVersion`, stamped on the document rather than
+  on the live tree — `getStateAsXml()` has already taken its `copyState()`
+  snapshot by the time it returns — which also keeps it out of `savePreset()`'s
+  parameter sweep entirely. Read back through an `isVoid()` guard, because the
+  XML round-trip rebuilds every property as a `var` over the attribute STRING
+  (`critical_valuetree_xml_roundtrip_loses_type`).
+
+### Changed
+
+- **The delete button's two faces are now KEYS, not attributes.** `data-confirm`
+  is gone and the armed face goes through `setLabel(btn, "ui.confirm")`. An
+  attribute holds one string, so switching language while the button was armed
+  would have restored the English "Confirm?" and left it there.
+- **The three preset buttons are pinned to a fixed width** — `#preset-save` 38,
+  `#preset-load` 39, `#preset-delete` 51, with the 7 px side padding moved into
+  the width. See the geometry note below; this is the only pin in the commit.
+
+### Not done, deliberately
+
+- **No hover-help was authored.** This plugin had no `data-tip` and no native
+  `title=` at v1.0.1, so there was no tooltip copy to move and none is
+  invented — that is Stage M's job. `I18N` and `TIP_BINDINGS` are both empty,
+  which `check-i18n` assertion 2 reports as "0 tip(s) bound" rather than
+  passing silently.
+- **The five console captions stay English**, with reasons in `I18N_EXEMPT`.
+  SNES / PS1 / NES / Genesis are the `console` `AudioParameterChoice` option
+  strings byte for byte, so D-01 arm 1 exempts them: a DAW lane reading
+  `Genesis` beside a page reading `Mega Drive` — which is what that console was
+  actually called in France — is a bug report, not a localization.
+- **`#consoleInfo`'s spec line stays English**, on two independent arms: every
+  one of the five carries a number and a unit, and it is a readout node, which
+  is never a `[data-i18n]` element. What that costs a French reader is
+  "Gaussian" and "wave"; translating them means splitting a centred one-line
+  readout into four keyed spans, which is a markup change to a readout.
+
+### Geometry — measured at 620 x 430, rendered, not guessed
+
+**The header is 162 px OVER-FULL in ENGLISH, and it already was at v1.0.1.**
+`.hdr` is 570 px of content holding three flex children whose max-content
+widths total 732.28. `.preset-band` cannot shrink, so the whole overflow lands
+on `.wordmark` — which renders "❦O-" / "EMULATOR" on TWO LINES — and on
+`.hdr-right`, which wraps `.plate` to three lines. Both overflow the 48 px
+header upward. **This is a pre-existing English layout defect, reported and NOT
+fixed here**; it is also why a pin was unavoidable, because `.hdr-right`'s width
+is exactly `570 - 159.66 - bandWidth`.
+
+English before vs after: **2 elements moved, both of them `[data-i18n]` labels**
+(`#preset-load` dw −1.48, `#preset-delete` dw +1.59, dx ≤ 1.73). 7 added, the
+gear cluster. `.preset-band` 284.14 → 284.00 and `.hdr-right` 126.20 → 126.34,
+both under the 0.5 px tolerance, so `.wordmark`, `.brand`, `.plate`,
+`#preset-name` and both nav arrows did not move at all. Document scroll extent
+620 x 430, unchanged.
+
+French vs English: **2 elements moved, both of them the label boxes themselves**
+(`label.crush`, `label.mix`). Assertion 7 reports zero non-label elements moved
+in all three states.
+
+    .ctl-label   Crush    42.69 -> Broyage 59.17   in a 60.00 column
+                 Age      27.39 -> Âge     27.39   IDENTICAL
+                 Reverb   50.17 -> Réverb  50.17   IDENTICAL
+                 Mix      27.06 -> Dosage  51.39   in a 60.00 column
+    .preset-btn  Save     22.25 -> Enreg.  32.47   in a 36 px content box
+                 Load     24.48 -> Ouvrir  33.81   in a 37 px content box
+                 Delete   33.41 -> Suppr.  30.38   in a 49 px content box
+                 Confirm? 44.75 -> Sûr ?   26.23   same box, ARMED, one line
+    .plate       widest line 91.91 -> 94.45, THREE lines in both languages
+
+Two of the eight SHRINK or hold exactly, which is the half a clip check is
+blind to. `.ctl` is shrink-to-fit around a 60 px knob, so a caption over 60 px
+would slide all four columns; **Broyage's 0.83 px of clearance is the tightest
+margin in this plugin** and is a margin against the knob, not against a clip.
+
+**Negative controls — three, all fired.**
+
+- Reverting the three width pins alone, French left in place, fails assertion 7
+  in all three states: `.preset-band` dw +16.5, `.hdr-right` and `.brand` both
+  dx +16.5 dw −16.5. With the delete button ARMED it is worse — "Sûr ?" WRAPS in
+  the unpinned 33 px box (a space before a French "?" is a break opportunity)
+  and the band grows 4 px taller, moving both nav arrows and the name plate.
+  **The pin is not decoration.**
+- Lengthening one French knob caption past the 60 px column ceiling moves 16
+  non-label elements, so the diff genuinely sees that ceiling.
+- Stripping one `data-i18n` key fails `check-i18n` assertions 10 and 15 by
+  name, so the coverage sweep is live on this plugin rather than vacuous.
+
+That wrap is also why the armed face is recorded at 26.23 and not the 17.69 a
+first pass produced: 17.69 was the widest LINE of the wrapped string measured in
+the wrong box — a confidently wrong number that was too SMALL.
+
+### Verification
+
+`check-i18n --strict-v2` 34/34, `check-ui-labels` 75/75 across three states with
+9 of 9 keyed elements visible, `boot-all-uis` 41/43 clean (identical to the
+pre-change baseline; O-Bowed and O-Reed fail on an unrelated pre-existing
+`Unexpected token 'export'`), and the plugin's own render harness ALL PASS —
+including all three cross-version digest anchors still matching their v1.0.1
+values (`2798e18f`, `8742db25`, `7466614b`), so **no DSP behaviour changed**.
+`auval` PASS. All 15 French strings are machine drafts, `reviewed: false`.
+
+No parameter IDs, ranges, types or DSP behaviour changed. No `setVisible`
+anywhere in `Source/`, so the hidden-WebView completion drop does not apply. No
+`PLUGIN_VERSION` keyword here — the version is declared once as `VERSION`, the
+render harness derives its stamp from the target property, and the host reports
+1.1.0.
+
 ## [1.0.1] — 2026-08-21
 
 ### Fixed
