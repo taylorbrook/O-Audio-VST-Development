@@ -2,6 +2,45 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.2.0] - 2026-08-29
+
+The PAGE speaks French, not only a tooltip — because this plugin never had a tooltip.
+
+### Added
+- **Language selector, in a gear popover top-right.** Styled in this page's own
+  vocabulary (olive fill over the `#3C5C1A` border, Garamond, uppercase) rather than
+  pasted in from another plugin. Opens downwards: the gear is 12 px from the top of a
+  450 px frame. One row, because there is no hover-help to switch on or off.
+- **`Source/ui/public/js/i18n.js`** — the label table, English + French, on canon v2.
+  Embedded in `juce_add_binary_data` SOURCES *and* served from a `getResource()` branch
+  in the same commit: a file embedded but not served is a 404 that presents as a page
+  stuck in English and nothing else.
+- **The UI language persists with the session.** A non-parameter `uiLanguage` property on
+  the APVTS state tree, saved as `"en"`/`"fr"` and read back through an `isVoid()` guard —
+  the XML round-trip rebuilds every property as a var over the attribute STRING, so an
+  `isBool()`/`isInt()` test would be false for every saved session. Deliberately not an
+  `AudioParameterChoice`: the language must not appear in a DAW automation lane and a
+  preset must not be able to change which language somebody reads their plugin in.
+- The snake illustration's `alt` text is keyed rather than left English.
+
+### Changed
+- Six visible strings localize: IN, OUT, INTENSITY, QUALITY, AUTOGAIN and the popover's
+  own Language caption. **Seven do not, and each says why in `I18N_EXEMPT`:** the four
+  model captions and the three quality captions are the `AudioParameterChoice` option
+  strings byte for byte, so translating the caption alone would make the page and the
+  host automation lane disagree about the same setting. The title is a product name.
+- The version label in the page read **v1.1.5** while `CMakeLists.txt` declared 1.1.6 —
+  it had not been bumped with the v1.1.6 licensing pass. Now v1.2.0, matching.
+
+### Notes
+- All French is a machine draft, every entry flagged `reviewed: false`. No native speaker
+  has read it.
+- No hover-help copy was authored: `TIP_BINDINGS` and `I18N` are both empty, which is this
+  plugin's correct state rather than a gap. Authoring that prose is a later stage's job.
+- Zero geometry movement. The English page is byte-for-byte where it was — 0 of 48
+  elements moved, 8 added (the gear cluster) — and no non-label element moves between
+  English and French. Two of the five page labels get SHORTER in French, not longer.
+
 ## [1.1.6] - 2026-08-02
 
 ### Changed
