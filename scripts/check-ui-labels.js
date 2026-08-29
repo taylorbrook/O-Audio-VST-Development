@@ -137,6 +137,11 @@ const PROBE = () => {
     // every snapshot in the run — both languages, every state — is measured at
     // the SAME frozen timeline position.
     //
+    // This reaches DECLARATIVE animation only. A requestAnimationFrame loop is
+    // the page's own code, not an Animation object, so neither call touches it
+    // — see the EN -> EN animation control below, which measures the animated
+    // set instead of declaring it and therefore covers both.
+    //
     // CSSTransition is deliberately EXCLUDED. The state pass drives every slider
     // on the page and this repo's knob stems transition their rotation; pausing a
     // transition mid-flight would freeze a stem at an arbitrary intermediate
@@ -536,6 +541,58 @@ const overlaps = (a, b) =>
             for (const l of snaps[lang].before.labels) if (l.visible) seenVisible.add(l.path);
         }
 
+        // ── THE ANIMATION CONTROL — an EN -> EN pass, before any state pass ──
+        // Assertion 7 reads "any element that moved was pushed by a French
+        // string", and that only holds if the page HOLDS STILL. The PROBE
+        // freezes declarative animation — SMIL via pauseAnimations(), the Web
+        // Animations API via getAnimations() — but neither API can reach a
+        // requestAnimationFrame loop writing attributes from the wall clock,
+        // because that is the page's own code and not an Animation object.
+        //
+        // O-Chorus is the proof. Its #lfo-dot is an SVG circle whose cx/cy are
+        // rewritten every frame by lfoLoop(timestamp), so it has no fixed
+        // rectangle at all: the diff reported dy=-24.0 on one run and dy=+0.4
+        // on the next, with every French string identical. Held at ENGLISH on
+        // both sides it reported the same element moving dx=4.9 dy=19.6, which
+        // is the `3be873eb` signature — a failure that reproduces with the
+        // language held constant is never a French failure.
+        //
+        // So the animated set is MEASURED rather than declared: probe English
+        // twice more and treat any element whose rectangle is not stable across
+        // the three samples as animated. That covers any mechanism, including
+        // ones no pause API knows about, and it can only make the gate MORE
+        // permissive — an element genuinely pushed by French does not move
+        // EN -> EN, so it stays asserted.
+        //
+        // The hole this leaves, named rather than glossed: an element that both
+        // animates AND is pushed by French is excluded. The NOTE below prints
+        // its EN -> FR delta beside its EN -> EN spread so it stays visible.
+        //
+        // Two extra samples, not one: a periodic animation can land on the same
+        // phase twice. The spread is taken across all three.
+        const enControl = [];
+        await page.evaluate((l) => window.__setLanguage(l), 'en');
+        await page.waitForTimeout(180);
+        enControl.push(await page.evaluate(PROBE));
+        await page.waitForTimeout(150);
+        enControl.push(await page.evaluate(PROBE));
+
+        const animated = new Map();   // path -> the EN -> EN spread, per axis
+        {
+            const byPath = new Map();
+            for (const s of [snaps.en.before, ...enControl])
+                for (const o of s.others) {
+                    if (!byPath.has(o.path)) byPath.set(o.path, []);
+                    byPath.get(o.path).push(o.rect);
+                }
+            for (const [p, rects] of byPath) {
+                if (rects.length < 2) continue;
+                const spread = (k) => Math.max(...rects.map((r) => r[k])) - Math.min(...rects.map((r) => r[k]));
+                const d = { dx: spread('x'), dy: spread('y'), dw: spread('w'), dh: spread('h') };
+                if (Math.max(d.dx, d.dy, d.dw, d.dh) > TOL) animated.set(p, d);
+            }
+        }
+
         // ── 3. dataset.label === textContent, AFTER A STATE PASS ───────────
         for (const lang of ['en', 'fr']) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
@@ -762,17 +819,32 @@ const overlaps = (a, b) =>
         // neither `nowrap` nor `ellipsis`.
         const enOthers = new Map(en.others.map((o) => [o.path, o.rect]));
         const moved = [];
+        const movedButAnimated = [];    // excluded from the assertion, never silent
         for (const o of fr.others) {
             const e = enOthers.get(o.path);
             if (!e) continue;               // appeared/disappeared with language: reported separately
             const d = { dx: o.rect.x - e.x, dy: o.rect.y - e.y, dw: o.rect.w - e.w, dh: o.rect.h - e.h };
             if (Math.abs(d.dx) > TOL || Math.abs(d.dy) > TOL || Math.abs(d.dw) > TOL || Math.abs(d.dh) > TOL)
-                moved.push({ path: o.path, ...d });
+                (animated.has(o.path) ? movedButAnimated : moved).push({ path: o.path, ...d });
         }
         check(moved.length === 0,
             `[7][GEOMETRY DIFF] no non-label element moved between English and French at a fixed frame`
+            + (animated.size ? ` (${animated.size} animated element(s) excluded — see NOTE)` : '')
             + (moved.length ? ` — ${moved.length} moved:\n` + moved.slice(0, 12).map((m) =>
                 `        ${m.path}  dx=${m.dx.toFixed(1)} dy=${m.dy.toFixed(1)} dw=${m.dw.toFixed(1)} dh=${m.dh.toFixed(1)}`).join('\n') : ''));
+
+        if (animated.size)
+            console.log(`   NOTE: [7] ${animated.size} element(s) MOVE WITH THE LANGUAGE HELD CONSTANT — `
+                + `an animation this page drives itself, not a French push. Excluded from the diff and `
+                + `reported here with the EN -> EN spread: `
+                + [...animated.entries()].slice(0, 6).map(([p, d]) =>
+                    `${p} dx=${d.dx.toFixed(1)} dy=${d.dy.toFixed(1)} dw=${d.dw.toFixed(1)} dh=${d.dh.toFixed(1)}`).join(' | '));
+        for (const m of movedButAnimated)
+            console.log(`   NOTE: [7] ${m.path} is ANIMATED and also differs EN -> FR by `
+                + `dx=${m.dx.toFixed(1)} dy=${m.dy.toFixed(1)} dw=${m.dw.toFixed(1)} dh=${m.dh.toFixed(1)} — `
+                + `EN -> EN spread dx=${animated.get(m.path).dx.toFixed(1)} dy=${animated.get(m.path).dy.toFixed(1)} `
+                + `dw=${animated.get(m.path).dw.toFixed(1)} dh=${animated.get(m.path).dh.toFixed(1)}. A French push `
+                + `hiding inside an animation would show an EN -> FR delta well OUTSIDE that spread.`);
 
         const appeared = fr.others.filter((o) => !enOthers.has(o.path)).map((o) => o.path);
         const frPaths  = new Set(fr.others.map((o) => o.path));
