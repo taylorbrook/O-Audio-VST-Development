@@ -1,5 +1,159 @@
 # O-AnalogEQ Changelog
 
+## [1.2.0] - 2026-08-28
+
+### Added — the PAGE speaks French (Stage K batch K2, canon v2)
+
+- **`Source/ui/public/js/i18n.js`** — seventeen keys: ten visible captions and
+  seven accessible names. Embedded in `juce_add_binary_data` SOURCES **and**
+  served from a `getResource()` branch, in this same commit (check-i18n
+  assertion 8 exists because a file embedded but not served is a 404 that
+  presents as a page stuck in English and nothing else).
+- **A settings popover** in the empty bottom-left margin carrying the language
+  selector. ONE row: this plugin has no hover-help to switch on or off.
+- **`getUiLanguage` / `setUiLanguage`** native functions and session
+  persistence. The page PULLS once at init; nothing is pushed from the editor
+  constructor, which would race the WebView's load. `uiLanguage` is a
+  non-parameter property on the APVTS state tree read back through an
+  `isVoid()` guard, because the XML round-trip rebuilds every property as a
+  `var` over the attribute STRING.
+- `plugins/O-AnalogEQ/tests/i18n-states.json` — drives the popover and the
+  preset dropdown so `check-ui-labels` measures 9 of 9 keyed elements.
+
+**No hover-help was authored.** `TIP_BINDINGS` and `I18N` are both empty, which
+is this plugin's correct state and which assertion 2 reports as "0 tip(s)
+bound". Authoring that copy is Stage M's job.
+
+### Changed
+
+- **The five native `title=` attributes on the preset bar are DELETED**
+  (contract §4) and their existing English moved verbatim into
+  `data-i18n-aria`. No new prose was invented. Both button names contain their
+  own visible caption as a prefix, so label-in-name holds in both languages
+  (WCAG 2.5.3). `#presetName` is the one place that rule cannot hold — its
+  visible text is a runtime preset name, exempt under D-02.
+- **`#savePreset` / `#loadPreset` pinned to 62 px.** Unpinned, SAUVER and
+  CHARGER widen the right-anchored flex bar and shove `#presetBar`,
+  `#prevPreset`, `#presetName` and `#nextPreset` left by 34.4 px; removed
+  alone, `check-ui-labels` assertion 7 reports exactly those four. 62 px is
+  O-Chorus's and O-DigiDelay's number, kept so the suite's preset bar is one
+  shape. Its cost is that the ENGLISH cluster now sits 44.33 px further left,
+  in a header whose middle is empty paper.
+- **`.band-label { white-space: nowrap }`** — NOT a geometry pin and not
+  claimed as one; its negative control passes on the shipped strings. It ships
+  because it converts this page's third failure mechanism, which BOTH gate
+  assertions are structurally blind to, into one that assertion 4 catches. See
+  the comment in `index.html` and the note below.
+
+### Geometry, measured at 920 x 220 over every rendered box, at 180 ms and 1.7 s
+
+The page HOLDS STILL: zero of 155 elements differ between the two settle times
+at a 0.01 px tolerance, in either language, in either popover state. Nothing
+free-runs off the wall clock in the harness, so there is no assertion-7
+animation NOTE on this plugin and none was expected.
+
+- **English v1.1.11 → v1.2.0:** 6 of 147 elements moved, 8 added (the settings
+  cluster), 0 vanished, document scroll extent 920 x 220 unchanged. All six
+  moved are the preset bar and all six are the one pin. ZERO band labels, ZERO
+  knob or notch elements, ZERO VU-meter elements, zero title movement.
+- **French vs English at v1.2.0: ZERO elements moved**, in the default state
+  and with the preset dropdown open — not one of 155 boxes, including the keyed
+  captions themselves, because every one of them has a pinned width. With the
+  settings popover open, ONE element moves and it is the keyed
+  `.settings-label` shrinking 14.44 px (LANGUAGE → LANGUE); zero non-label
+  elements move, which is the `.settings-popover { width: 170px }` pin working.
+  Removed alone, assertion 7 reports the panel, its row and `#lang-select`.
+
+### The three cliffs, and the one that is invisible
+
+| | Control | Budget | Mechanism | Caught by | Blind |
+|---|---|---|---|---|---|
+| A | `#analog` | 57.00 px | SPILL | `[4][fr]` | `[7]` |
+| B | `#savePreset` / `#loadPreset` | — | PUSH | `[7]` | `[4]` |
+| C | `.band-label` | 67.00 px | WRAP | **nothing** | both |
+
+All three were PLANTED and watched, because "no failures" is otherwise
+indistinguishable from a sweep that cannot see them:
+
+- **A.** French `ANALOGIQUE` fails `[4][fr] "ANALOGIQUE" 66.7>57.0` and moves
+  nothing at all.
+- **B.** Removing the 62 px pin fails `[7]` with four elements at dx=-34.4
+  while every `[4]` check stays green.
+- **C.** French `PLATEAU BF` on `#lf_on`, with `nowrap` removed, passes
+  **EVERY ASSERTION** while the caption grows 21 → 34 px and reaches y=86 into
+  the knob ring that begins at y=75. `.band-label` is `position: absolute` with
+  an inline `width: 85px` and no fixed height, so a wrapped caption exceeds
+  neither its content width nor its own grown content height, and being both
+  the keyed element and absolutely positioned it pushes no sibling. With
+  `nowrap` present the same string fails `[4][fr] "PLATEAU BF" 81.8>67.0`.
+
+### French, all machine drafts (`reviewed: false`)
+
+Rendered widths against each control's measured content box:
+
+```
+LF SHELF  63.03 -> LF PLAT.  57.44   9.56 spare   (67.00 box)
+LMF       28.41 -> LMF       28.41   sameAsEn
+HMF       29.63 -> HMF       29.63   sameAsEn
+HF SHELF  64.25 -> HF PLAT.  58.66   8.34 spare
+ANALOG    42.33 -> ANALOG.   45.30  11.70 spare   (57.00 box)
+Level     34.16 -> Niveau    41.33  66.67 spare   (108.00 box)
+SAVE      24.52 -> SAUVER    39.25   8.75 spare   (48.00 box, pinned)
+LOAD      27.16 -> CHARGER   46.80   1.20 spare   TIGHTEST SHIPPED
+Language  55.31 -> Langue    41.08   SHRANK
+```
+
+TWO of the ten SHRINK and TWO do not change at all — a clip-only check would
+have certified this page.
+
+`LF` / `LMF` / `HMF` / `HF` are kept verbatim: they are the band abbreviations
+silk-screened on the French market's own consoles, so translating them would
+make the plugin less legible, not more. Only SHELF — the filter TYPE — is a
+word, and it becomes PLAT. Every fuller form is past the 67.00 px wrap cliff
+(PLATEAU BF 81.77, PLATEAU HF 82.98, BAS MEDIUM 85.63, HAUT MEDIUM 97.14) and
+`MED.HAUT` (70.77) stays on one line only to spill 3.77 px. ANALOGIQUE (66.70)
+would need the button widened from 75 to 85 px — a layout change caused by
+French, which this page did not need. OUVRIR (37.75) is the reviewer's lever if
+CHARGER's 1.20 px is judged too thin on Windows metrics.
+
+### Not changed, and why
+
+- **`WIDE` / `MED` / `TIGHT` do not translate.** They are the three
+  `lmf_q` / `hmf_q` `AudioParameterChoice` options declared verbatim as
+  `juce::StringArray { "WIDE", "MED", "TIGHT" }` (`PluginProcessor.cpp:56,
+  :69`) — D-01 arm 1. A French face reading MOYEN against a DAW automation lane
+  offering MED is the divergence that arm exists to prevent. The consequence
+  for this release is that `.three-way-option`'s `white-space: nowrap` is never
+  reached by a French string.
+- **Both three-way Q toggles clip their own TIGHT option in ENGLISH**, and this
+  release does not fix it. `.three-way-option` is `flex: 1` without
+  `min-width: 0`, so the three items sit at their min-content widths — 35.95 +
+  32.83 + 39.09 plus two 1 px gaps = 109.87 px inside a 108 px content box —
+  and `.three-way-toggle { overflow: hidden }` clips 1.87 px off TIGHT's right
+  edge. Pre-existing since the control was authored, present on `#lmf_q` and
+  `#hmf_q` alike, invisible to both gates because these nodes are exempt and
+  never keyed. Fixing it means changing English geometry on an exempt control
+  for a non-localization reason, which is a layout decision.
+- **The vendored `modules/preset-manager.js`** still carries four native
+  `title=` attributes inside a `createPresetBar()` factory this page never
+  calls. Dead markup in a SHARED module, so a local edit is reverted by
+  `/module-upgrade`.
+
+No parameter IDs, ranges, types, defaults or DSP behaviour changed.
+
+### Verification
+
+`check-i18n --strict-v2` exits 0, 39 assertions, canon v2.
+`check-ui-labels` exits 0, 75 assertions across three states, 9 of 9 keyed
+elements visible, no page error, every resource served.
+`boot-all-uis` 41/43 clean, verdict identical to HEAD's (O-Bowed and O-Reed
+fail on an unrelated pre-existing `Unexpected token export`); O-AnalogEQ reads
+text 24 → 27, title 5 → 0, aria 0 → 8, i18n 0 → 9, and the repo title total
+falls 453 → 448.
+`auval -v aufx OuAE OuDv`: AU VALIDATION SUCCEEDED. Both installed bundles
+report 1.2.0 and the binary carries the table, both native function names and
+`/js/i18n.js`.
+
 ## [1.1.11] - 2026-08-02
 
 ### Changed

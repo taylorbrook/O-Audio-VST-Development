@@ -9,7 +9,7 @@ juce_add_plugin(OuariconAnalogEQ
     PLUGIN_CODE OuAE
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-AnalogEQ${OUARICON_DEV_SUFFIX}"
-    VERSION 1.1.11
+    VERSION 1.2.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -59,6 +59,7 @@ ouaricon_add_module(OuariconAnalogEQ preset-manager)
 juce_add_binary_data(OuariconAnalogEQ_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg
