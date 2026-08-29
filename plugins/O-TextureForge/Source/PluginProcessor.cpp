@@ -236,6 +236,21 @@ void TextureForgeProcessor::getStateInformation(juce::MemoryBlock& destData)
         corpusXml->setAttribute("filePath", currentCorpus->filePath);
     }
 
+    // v1.1.0: the UI language, saved as one more plain XML child beside CORPUS
+    // above — this processor's own idiom for non-parameter state. Written as a
+    // language CODE ("en"/"fr") rather than the atomic's index, so a
+    // hand-inspected session file says what it means.
+    //
+    // A CHILD ELEMENT rather than a property on the APVTS state tree, and that
+    // choice sidesteps a trap the tree form carries: NamedValueSet's XML
+    // round-trip rebuilds every property as a var over the attribute STRING
+    // (critical_valuetree_xml_roundtrip_loses_type), so an isBool()/isInt()
+    // guard on the way back would be false for every saved session. An XML
+    // attribute is a string by construction and getStringAttribute is the only
+    // read it has.
+    auto* langXml = xml->createNewChildElement("UILANG");
+    langXml->setAttribute("code", languageCode(uiLanguage.load(std::memory_order_acquire)));
+
     copyXmlToBinary(*xml, destData);
 }
 
@@ -245,6 +260,18 @@ void TextureForgeProcessor::setStateInformation(const void* data, int sizeInByte
     if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
     {
         parameters.replaceState(juce::ValueTree::fromXml(*xml));
+
+        // v1.1.0: the UI language. A pre-1.1.0 session has no UILANG child at
+        // all and the default (English) stands. languageIndex() clamps anything
+        // that is not "fr" to 0, so a hand-edited value degrades to English
+        // rather than to a bad index.
+        //
+        // The editor PULLS this through the getUiLanguage native function at
+        // page init rather than being pushed from here — a push would race the
+        // WebView's load.
+        if (auto* langXml = xml->getChildByName("UILANG"))
+            uiLanguage.store(languageIndex(langXml->getStringAttribute("code")),
+                             std::memory_order_release);
 
         // Restore corpus from saved path — defer to message thread to avoid
         // blocking the audio thread (setStateInformation can be called from any thread)

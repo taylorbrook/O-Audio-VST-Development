@@ -85,6 +85,79 @@ function getNativeFunction(name) {
     return window.getNativeFunction(name);
 }
 
+// ===== i18n bridge =====
+//
+// THE BUNDLE CANNOT IMPORT THE LABEL TABLE. `import ... from './i18n.js'` here
+// would be resolved by WEBPACK at build time and inlined into app.bundle.js,
+// at which point public/js/i18n.js is embedded in the binary, served from
+// getResource(), and read by nobody — the table shipped twice and editable in
+// only one of the two copies.
+//
+// So the label runtime lives in public/js/i18n_init.js, a real ES module the
+// page loads by src, and it exposes window.__setLabel for exactly this case.
+// The canon block carries that export verbatim on all 43 plugins; O-Bitrot
+// needs it because its controller is an inline module with nowhere to put an
+// export, and this plugin needs it because its controller is a bundle.
+//
+// An element handed to this function becomes a [data-i18n] element from that
+// moment on, so the language-change sweep owns it thereafter. There is no
+// second code path and no subscription list that can go stale in the other
+// language — the failure contract section 3 exists to prevent.
+//
+// NO ENGLISH FALLBACK IS SPELLED HERE. Repeating the English string in this
+// file would be a second copy of a string that already lives in i18n.js, free
+// to drift, and check-i18n assertion 12 would report it as unkeyed prose. If
+// the runtime is missing the element shows its KEY, which is visible, greppable
+// and unmistakable — a blank control would look like a layout bug instead.
+//
+// ── WHY THE CALL SITES SPELL window.__setLabel IN FULL ──────────────────────
+//
+// A local wrapper named setLabel() would read better here and would be WRONG.
+// This file is minified into app.bundle.js, and terser mangles a local function
+// name to a single letter — so `setLabel(el, 'toast.loadFailed')` becomes
+// something like `Z(Q(),"toast.loadFailed")` in the shipped bundle, which is
+// the only copy check-i18n can scan. The key is still in there as a literal,
+// but nothing marks it as a LABEL REFERENCE, so assertion 15 reports every
+// JS-only key as DEAD and assertion 13 cannot see the argument list at all.
+//
+// Terser does not mangle PROPERTY names, so `window.__setLabel(...)` survives
+// minification verbatim — and it is the spelling i18n-extract.js's scanner
+// already looks for, because the canon publishes window.__setLabel for exactly
+// this "a sibling module writes a localized label" case.
+//
+// THIS STUB IS A SAFETY NET, NOT THE IMPLEMENTATION. index.html loads
+// js/i18n_init.js as a deferred module, which runs AFTER this classic script
+// and overwrites the binding with the canon's own setLabel. The stub survives
+// only if that module fails to load — the embed-and-serve 404 that check-i18n
+// assertion 8 exists to prevent — and then every caption shows its key rather
+// than going blank.
+if (typeof window.__setLabel !== 'function') {
+    window.__setLabel = function (el, key) {
+        if (!el) return;
+        console.warn('i18n runtime not loaded; showing key for', key);
+        el.textContent = key;
+    };
+}
+
+// Text that arrives from C++ at runtime and cannot be keyed. Clears any key the
+// element is still carrying from an earlier localized message, so the next
+// language switch does not overwrite the message with a stale caption.
+function setRawText(el, text) {
+    if (!el) return;
+    delete el.dataset.i18n;
+    delete el.dataset.i18nVars;
+    delete el.dataset.label;
+    el.textContent = text;
+}
+
+// The placeholder is a fleuron glyph element plus a text span (v1.1.0). Only
+// the span is keyed; writing the container with innerHTML, as v1.0.2 did, would
+// re-author the glyph on every message and would be a markup path for a
+// machine-drafted French string.
+function placeholderText() {
+    return document.querySelector('.scatter-placeholder .placeholder-text');
+}
+
 // ===== Knob Controller =====
 function setupKnob(paramId, sliderState, formatter, defaultNorm) {
     const knobEl = document.querySelector(`.knob[data-param="${paramId}"]`);
@@ -238,7 +311,7 @@ function initScatterPlot(data) {
         console.error('Failed to initialize scatter plot:', err);
         if (placeholder) {
             placeholder.style.display = 'block';
-            placeholder.innerHTML = '<span class="fleuron">&#10087;</span>WebGL unavailable';
+            window.__setLabel(placeholderText(), 'placeholder.webglUnavailable');
         }
     }
 }
@@ -335,7 +408,18 @@ function drawCursor(cx, cy, variation) {
 }
 
 // ===== Toast / Notification =====
+// Two arms, deliberately. showToastNode() is the localized path: the caller
+// passes a writer that names its key as a LITERAL, because a helper forwarding
+// a `key` variable into window.__setLabel would be a computed key, which
+// check-i18n assertion 13 rejects — a computed key cannot be checked, and a raw
+// copy string there would ship English. showToast() takes text that arrived
+// from C++ and cannot be keyed at all — see the loadFailed listener and the
+// I18N_EXEMPT entry for 'Unsupported format: '.
 function showToast(message, duration) {
+    showToastNode(duration, (el) => setRawText(el, message));
+}
+
+function showToastNode(duration, write) {
     duration = duration || 4000;
     let toast = document.getElementById('toast-notification');
     if (!toast) {
@@ -346,7 +430,7 @@ function showToast(message, duration) {
             'font-family:inherit;font-size:13px;z-index:1000;transition:opacity 0.3s;border:1px solid #8B6914;';
         document.body.appendChild(toast);
     }
-    toast.textContent = message;
+    write(toast);
     toast.style.opacity = '1';
     toast.style.display = 'block';
     clearTimeout(toast._timer);
@@ -368,10 +452,16 @@ function showFileSizeWarning(sizeMB) {
             'padding:24px;text-align:center;max-width:320px;color:#C9A27B;font-family:inherit;">' +
             '<p id="file-size-msg" style="margin:0 0 16px;font-size:14px;"></p>' +
             '<button id="btn-load-anyway" style="background:#8B6914;color:#F5E6D3;border:none;' +
-            'padding:8px 16px;border-radius:4px;cursor:pointer;margin-right:8px;font-size:13px;">Load Anyway</button>' +
+            'padding:8px 16px;border-radius:4px;cursor:pointer;margin-right:8px;font-size:13px;"></button>' +
             '<button id="btn-cancel-load" style="background:transparent;color:#C9A27B;border:1px solid #C9A27B;' +
-            'padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button></div>';
+            'padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;"></button></div>';
         document.body.appendChild(overlay);
+
+        // v1.1.0: the two captions are set through the label table rather than
+        // authored into the innerHTML above. The markup is structure and inline
+        // style only; no prose survives in it.
+        window.__setLabel(document.getElementById('btn-load-anyway'), 'dialog.loadAnyway');
+        window.__setLabel(document.getElementById('btn-cancel-load'), 'action.cancel');
 
         document.getElementById('btn-load-anyway').addEventListener('click', function() {
             overlay.style.display = 'none';
@@ -382,8 +472,12 @@ function showFileSizeWarning(sizeMB) {
             overlay.style.display = 'none';
         });
     }
-    document.getElementById('file-size-msg').textContent =
-        'Large file: ' + sizeMB.toFixed(1) + ' MB. This may use significant memory.';
+    // COMPOSED, with the number as a {size} token rather than string
+    // concatenation: the French word order differs and the unit symbol is Mo,
+    // so the sentence has to be authored as one string per language. The value
+    // itself stays a readout and is not translated (D-03).
+    window.__setLabel(document.getElementById('file-size-msg'), 'dialog.largeFile',
+             { size: sizeMB.toFixed(1) });
     overlay.style.display = 'flex';
 }
 
@@ -402,7 +496,7 @@ function updateUmapProgress(progress) {
         if (!cancelBtn) {
             cancelBtn = document.createElement('button');
             cancelBtn.id = 'umap-cancel-btn';
-            cancelBtn.textContent = 'Cancel';
+            window.__setLabel(cancelBtn, 'action.cancel');
             cancelBtn.style.cssText = 'position:absolute;right:8px;top:50%;transform:translateY(-50%);' +
                 'background:transparent;color:#C9A27B;border:1px solid #C9A27B;border-radius:3px;' +
                 'padding:2px 8px;font-size:11px;cursor:pointer;';
@@ -447,7 +541,9 @@ function listenForEvents() {
                     const placeholder = document.querySelector('.scatter-placeholder');
                     if (placeholder) {
                         placeholder.style.display = 'block';
-                        placeholder.innerHTML = '<span class="fleuron">&#10087;</span>Drop audio file here';
+                        // The same key the drop zone carries: one sentence, one
+                        // entry, rather than two copies free to drift apart.
+                        window.__setLabel(placeholderText(), 'label.dropZone');
                     }
                     return;
                 }
@@ -497,14 +593,18 @@ function listenForEvents() {
     // UMAP cancelled — PCA layout preserved
     window.__JUCE__.backend.addEventListener('umapCancelled', () => {
         updateUmapProgress(1.0);
-        showToast('UMAP cancelled \u2014 using PCA layout', 3000);
+        showToastNode(3000, (el) => window.__setLabel(el, 'toast.umapCancelled'));
     });
 
     // Load failed — invalid file format
     window.__JUCE__.backend.addEventListener('loadFailed', (event) => {
         try {
             const data = typeof event === 'string' ? JSON.parse(event) : event;
-            showToast(data.reason || 'Failed to load file', 5000);
+            // A reason supplied by C++ is shown VERBATIM and is not localized:
+            // it is authored in CorpusLoader.cpp and reaches the page as an
+            // opaque string. Only the page-side fallback is keyed.
+            if (data.reason) showToast(data.reason, 5000);
+            else showToastNode(5000, (el) => window.__setLabel(el, 'toast.loadFailed'));
         } catch (e) {}
     });
 
@@ -523,8 +623,33 @@ function listenForEvents() {
             const placeholder = document.querySelector('.scatter-placeholder');
             if (placeholder) {
                 placeholder.style.display = 'block';
-                placeholder.innerHTML = '<span class="fleuron">&#10087;</span>File not found: ' +
-                    (data.path || 'unknown') + '<br>Drop a new file to continue.';
+                // COMPOSED, and ONE string with no branch in it. The <br> is
+                // gone: the line break is \n in the table with
+                // white-space: pre-line on the span, because a markup tag in a
+                // localized string needs innerHTML and check-i18n assertion 9
+                // rejects an angle bracket in i18n.js for exactly that reason.
+                //
+                // v1.1.0 first wrote `data.path || 'placeholder.unknownPath'`
+                // HERE, inside the argument, carried over from v1.0.2's
+                // `(data.path || 'unknown')`. That is the shape contract §6
+                // forbids — copy selected by a condition rather than authored
+                // around one — and the condition cannot even fire: C++ reaches
+                // onCorpusMissing only inside `else if (savedPath.isNotEmpty())`
+                // (PluginProcessor.cpp:294) and its emitter always writes a
+                // path field (PluginEditor.cpp:345-347). So the fallback guarded
+                // a case its only producer cannot produce, and its alternate
+                // branch was a LABELS key nothing else referenced.
+                //
+                // The path is normalised to a string at the PAYLOAD BOUNDARY
+                // below — JSON hygiene over a value that crossed a process
+                // boundary, not a choice between two wordings — and the
+                // sentence is authored so it reads correctly whether the path
+                // is long, short or empty: it sits on its own line rather than
+                // inside the sentence, which is also what makes a 200-character
+                // path legible against the 320 px box.
+                const missingPath = String(data.path || '');
+                window.__setLabel(placeholderText(), 'placeholder.fileNotFound',
+                         { path: missingPath });
             }
         } catch (e) {}
     });

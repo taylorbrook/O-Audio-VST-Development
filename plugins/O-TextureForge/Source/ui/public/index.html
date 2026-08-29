@@ -34,13 +34,54 @@
             window.getBackendResourceAddress = m.getBackendResourceAddress;
         });
     </script>
+    <!-- v1.1.0: the language runtime. A real ES module, because the canon block
+         imports ./i18n.js over the wire and webpack would inline that import at
+         BUILD time if it lived in src/app.js — shipping the label table twice
+         and leaving js/i18n.js embedded, served and read by nobody. Deferred
+         like every module, so it runs after app.bundle.js has registered its
+         DOMContentLoaded handler; nothing races. -->
+    <script type="module" src="./js/i18n_init.js"></script>
 </head>
 <body>
 
 <!-- Header -->
 <div class="header">
-    <h1>O-TextureForge</h1>
-    <span class="tagline">Concatenative Texture Engine</span>
+    <!-- v1.1.0: the h1 and the gear share the LEFT slot of the space-between
+         header, so .tagline keeps the right edge it already had and nothing on
+         the page moves to make room for the settings cluster. -->
+    <div class="header-left">
+        <!-- NOT a [data-i18n] element: a product name is never translated.
+             Declared in I18N_EXEMPT with that reason, so a genuinely missed
+             label cannot hide here as a deliberate one. -->
+        <h1>O-TextureForge</h1>
+
+        <!-- v1.1.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to switch on or off — authoring that copy is Stage M's
+             job and this version does not invent it. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <!-- data-label so a state updater that writes textContent
+                         reads the authored caption back instead of erasing it
+                         (pattern_js_state_updater_overwrites_html_labels). -->
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+    </div>
+    <span class="tagline" data-i18n="label.tagline">Concatenative Texture Engine</span>
 </div>
 
 <!-- Main Area: Scatter + Macro Knobs -->
@@ -50,48 +91,54 @@
     <div class="scatter-container">
         <canvas id="scatter-canvas"></canvas>
         <canvas id="cursor-overlay"></canvas>
+        <!-- v1.1.0: SPLIT per contract section 5 / D-01 arm 3. Through v1.0.2
+             this div held the fleuron element AND a bare text node as siblings,
+             and src/app.js rewrote both together with innerHTML in three
+             places. applyLabel writes textContent, which would have deleted the
+             glyph, so the text moved into its own span and only that span is
+             keyed. The glyph is now authored once and never rewritten, and the
+             three JS writes became setLabel calls carrying no markup. -->
         <div class="scatter-placeholder">
-            <span class="fleuron">&#10087;</span>
-            Drop an audio file to begin
+            <span class="fleuron">&#10087;</span><span class="placeholder-text" data-i18n="placeholder.dropToBegin">Drop an audio file to begin</span>
         </div>
     </div>
 
     <!-- Macro Knobs Panel -->
     <div class="macro-panel">
-        <span class="section-label">Timbral Macros</span>
+        <span class="section-label" data-i18n="section.timbralMacros">Timbral Macros</span>
 
         <div class="knob-row">
-            <span class="knob-label">Energy</span>
+            <span class="knob-label" data-i18n="knob.energy">Energy</span>
             <div class="knob" data-param="energy"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="energy">50%</span>
         </div>
         <div class="knob-row">
-            <span class="knob-label">Brightness</span>
+            <span class="knob-label" data-i18n="knob.brightness">Brightness</span>
             <div class="knob" data-param="brightness"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="brightness">50%</span>
         </div>
         <div class="knob-row">
-            <span class="knob-label">Texture</span>
+            <span class="knob-label" data-i18n="knob.texture">Texture</span>
             <div class="knob" data-param="texture"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="texture">50%</span>
         </div>
 
         <div class="divider">&#10087;</div>
 
-        <span class="section-label">Scatter Position</span>
+        <span class="section-label" data-i18n="section.scatterPosition">Scatter Position</span>
 
         <div class="knob-row">
-            <span class="knob-label">Scatter X</span>
+            <span class="knob-label" data-i18n="knob.scatterX">Scatter X</span>
             <div class="knob" data-param="scatterX"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="scatterX">50%</span>
         </div>
         <div class="knob-row">
-            <span class="knob-label">Scatter Y</span>
+            <span class="knob-label" data-i18n="knob.scatterY">Scatter Y</span>
             <div class="knob" data-param="scatterY"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="scatterY">50%</span>
         </div>
         <div class="knob-row">
-            <span class="knob-label">Variation</span>
+            <span class="knob-label" data-i18n="knob.variation">Variation</span>
             <div class="knob" data-param="variation"><div class="knob-indicator"></div></div>
             <span class="knob-value" data-value="variation">20%</span>
         </div>
@@ -111,38 +158,38 @@
     <div class="bottom-knobs">
         <div class="bottom-knob-group">
             <div class="knob small" data-param="position"><div class="knob-indicator"></div></div>
-            <span class="knob-label">Position</span>
+            <span class="knob-label" data-i18n="knob.position">Position</span>
             <span class="knob-value" data-value="position">0%</span>
         </div>
         <div class="bottom-knob-group">
             <div class="knob small" data-param="grainSize"><div class="knob-indicator"></div></div>
-            <span class="knob-label">Grain Size</span>
+            <span class="knob-label" data-i18n="knob.grainSize">Grain Size</span>
             <span class="knob-value" data-value="grainSize">50ms</span>
         </div>
         <div class="bottom-knob-group">
             <div class="knob small" data-param="grainDensity"><div class="knob-indicator"></div></div>
-            <span class="knob-label">Density</span>
+            <span class="knob-label" data-i18n="knob.grainDensity">Density</span>
             <span class="knob-value" data-value="grainDensity">8</span>
         </div>
         <div class="bottom-knob-group">
             <div class="knob small" data-param="crossfade"><div class="knob-indicator"></div></div>
-            <span class="knob-label">Crossfade</span>
+            <span class="knob-label" data-i18n="knob.crossfade">Crossfade</span>
             <span class="knob-value" data-value="crossfade">50%</span>
         </div>
         <div class="bottom-knob-group">
             <div class="knob small" data-param="outputGain"><div class="knob-indicator"></div></div>
-            <span class="knob-label">Gain</span>
+            <span class="knob-label" data-i18n="knob.gain">Gain</span>
             <span class="knob-value" data-value="outputGain">0 dB</span>
         </div>
     </div>
     <div class="bottom-controls">
-        <span class="midi-mode-label">MIDI Mode</span>
+        <span class="midi-mode-label" data-i18n="label.midiMode">MIDI Mode</span>
         <select id="midi-mode" class="midi-mode-select">
             <option value="0">Pitch-Mapped</option>
             <option value="1">Trigger + Modulate</option>
             <option value="2" selected>Generative Drone</option>
         </select>
-        <div class="drop-zone" id="drop-zone">Drop audio file here</div>
+        <div class="drop-zone" id="drop-zone" data-i18n="label.dropZone">Drop audio file here</div>
     </div>
 </div>
 

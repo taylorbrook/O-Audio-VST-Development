@@ -27,7 +27,7 @@ juce_add_plugin(OuariconTextureForge
     PLUGIN_CODE OuTF
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-TextureForge${OUARICON_DEV_SUFFIX}"
-    VERSION 1.0.2
+    VERSION 1.1.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -82,6 +82,19 @@ juce_add_binary_data(OuariconTextureForge_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/app.bundle.js
+        # v1.1.0: the label table and the language runtime. EMBEDDED here AND
+        # served from getResource() branches in PluginEditor.cpp, in the same
+        # commit. A file embedded but not served, or served but not embedded,
+        # is a 404 that presents as a page stuck in English and nothing else —
+        # check-i18n assertion 8 exists for exactly this pair.
+        #
+        # i18n_init.js carries an UNDERSCORE, not a hyphen: juce_add_binary_data
+        # STRIPS hyphens rather than converting them, so i18n-init.js would be
+        # reachable only as the symbol i18ninit_js
+        # (critical_binary_data_strips_hyphens). These two embed as i18n_js and
+        # i18n_init_js.
+        Source/ui/public/js/i18n.js
+        Source/ui/public/js/i18n_init.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/css/ouaricon-naturalist.css
