@@ -321,6 +321,52 @@ function readInlineModule(indexHtml) {
              code: blocks[0], inline: true };
 }
 
+// ───────────────────────────────────────────── external module script src ──
+// A plugin whose controller is a MODULE FILE the page loads by src, under a
+// name that is not app.js. O-Texture is the first: its page ends with
+// <script type="module" src="js/main.js">, and js/main.js is a perfectly
+// ordinary controller carrying the canon block, the relays and every binding.
+//
+// Before this, the resolver was `js/app.js OR an inline block`, so O-Texture
+// fell through both and assertion 6 reported "a controller module exists"
+// FALSE on a plugin that is entirely correct — the wrong-shaped assertion this
+// file's own assertion-6 comment warns about, one filename convention later.
+//
+// DERIVED FROM THE PAGE, never from a filename guess: whatever index.html
+// actually loads as type="module" IS the controller. js/juce/ is excluded — it
+// is verbatim JUCE frontend code, not authored page code, and on every plugin
+// here it is imported by the controller rather than loaded by the page. When a
+// page loads more than one, the LARGEST wins, which is the same tie-break
+// readInlineModule already uses and for the same reason.
+function readModuleScriptSrc(indexHtml, uiRoot) {
+    if (!fs.existsSync(indexHtml)) return null;
+
+    const html = fs.readFileSync(indexHtml, 'utf8');
+    const candidates = [];
+
+    for (const m of html.matchAll(/<script\b[^>]*\btype=["']module["'][^>]*>/g)) {
+        const tag = m[0];
+        const src = tag.match(/\bsrc=["']([^"']+)["']/);
+        if (!src) continue;                                  // inline; not ours
+
+        const rel = src[1].replace(/^\.?\//, '');
+        if (/^(https?:)?\/\//.test(src[1])) continue;          // remote
+        if (rel.startsWith('js/juce/')) continue;            // verbatim JUCE
+
+        const full = path.join(uiRoot, rel);
+        if (!fs.existsSync(full) || !fs.statSync(full).isFile()) continue;
+
+        const code = fs.readFileSync(full, 'utf8');
+        if (code.trim().length === 0) continue;
+        candidates.push({ label: rel, code, inline: false });
+    }
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a, b) => b.code.length - a.code.length);
+    return candidates[0];
+}
+
 // ───────────────────────────────────────────── every inline script on the page ──
 // readInlineModule above answers "where does the CANON block live" and returns
 // ONE block. Assertions 12, 13 and 15 ask a different question — "does any
@@ -593,19 +639,27 @@ function checkPlugin(p) {
     // ── 6. drift gate ────────────────────────────────────────────────────
     //
     // The controller does NOT always live in js/app.js. O-Bitrot's is one
-    // inline <script type="module"> in index.html, which is a legitimate layout
-    // this gate has to describe rather than fail: reporting "[6] app.js exists"
-    // FALSE on a plugin that is entirely correct is the same wrong-shaped
-    // assertion as O-Octagon's double-quote-only import scan.
+    // inline <script type="module"> in index.html and O-Texture's is a module
+    // FILE the page loads by src under another name (js/main.js) — both
+    // legitimate layouts this gate has to describe rather than fail: reporting
+    // "[6] app.js exists" FALSE on a plugin that is entirely correct is the
+    // same wrong-shaped assertion as O-Octagon's double-quote-only import scan.
     //
     // The import SPECIFIER differs with the module's depth, and only the
-    // specifier does. From js/app.js the table is './i18n.js'; from an inline
-    // module at the UI root it is './js/i18n.js'. Both are accepted; the
+    // specifier does. From js/app.js — or any other module file in js/, such as
+    // O-Texture's js/main.js — the table is './i18n.js'; from an inline module
+    // at the UI root it is './js/i18n.js'. Both are accepted; the
     // applyI18n/initI18n BODY that this gate byte-compares is identical either
     // way, and that body is the part 43 hand-copies can actually drift in.
+    //
+    // THREE SHAPES, IN ORDER, and the order is load-bearing: js/app.js first so
+    // no already-migrated plugin can change verdict, then whatever the page
+    // loads as type="module" by src (O-Texture's js/main.js), then the inline
+    // block. A plugin with js/app.js resolves exactly as it did before this
+    // clause existed.
     const moduleSrc = fs.existsSync(p.appJs)
         ? { label: 'app.js', code: fs.readFileSync(p.appJs, 'utf8'), inline: false }
-        : readInlineModule(p.indexHtml);
+        : (readModuleScriptSrc(p.indexHtml, p.uiRoot) || readInlineModule(p.indexHtml));
 
     // ── THE CONTROLLER IS ONE FILE; THE PAGE IS NOT ──────────────────────
     //
