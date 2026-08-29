@@ -265,6 +265,25 @@ your plugin, per the standing precedent, and tells you to resume.
 If the defect BLOCKS you, say so plainly and stop rather than working around
 it. A workaround in one plugin is the thing that hides a repo-wide gate hole.
 
+## 4. THE SCRATCHPAD IS SHARED — NAMESPACE EVERY FILE YOU WRITE
+
+The scratchpad path carries ONE session id for every executor in the batch, so
+a bare-named file in its root is not yours. This is not hypothetical: in the K1
+batch, O-Freeze's `measure.js` was overwritten mid-run by O-Bassoon's script and
+handed O-Freeze a page of O-BASSOON's knob widths in reply to its own command,
+and its baseline JSON was clobbered in the same way.
+
+**Write everything into `scratchpad/<yourplugin>/`.** Never write a bare
+`before-en.json`, `after-en.json`, `geom.js`, `measure.js` or `probe.js` at the
+scratchpad root — every executor reaches for those same names at the same time.
+
+The danger is not a crash, it is a **silent wrong number**. A geometry diff
+taken between a baseline that was clobbered and an after-pass that was not is a
+comparison between two different plugins, and it reads exactly like a real
+result. Geometry numbers are the primary evidence of this stage, so a wrong one
+is worse than a missing one. If you suspect a file was touched, re-run the
+measurement rather than reasoning about whether it mattered.
+
 ## Commits under concurrency
 
 `git commit -- <exact paths>` is safe while another executor stages files: a
