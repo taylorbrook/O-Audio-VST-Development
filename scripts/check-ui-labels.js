@@ -232,7 +232,15 @@ const PROBE = () => {
         while (n && n.nodeType === 1) {
             const cs = getComputedStyle(n);
             const bg = cs.backgroundColor || '';
-            const paints = bg !== '' && bg !== 'transparent' && !/,\s*0\s*\)$/.test(bg);
+            // A GRADIENT is a background-image, not a background-color, and
+            // reads as rgba(0,0,0,0) here. Testing only the colour made this
+            // blind to every gradient-backed panel: O-Contrabass's
+            // .settings-popover is `background: linear-gradient(#4A3226,#3E2A20)`
+            // and was not recognised as a paint layer at all, so its own
+            // captions were compared against the page beneath the panel.
+            const bgImg = cs.backgroundImage || '';
+            const paints = (bg !== '' && bg !== 'transparent' && !/,\s*0\s*\)$/.test(bg))
+                || (bgImg !== '' && bgImg !== 'none');
             if ((cs.position === 'absolute' || cs.position === 'fixed')
                 && cs.zIndex !== 'auto' && paints)
                 return pathOf(n);
@@ -347,6 +355,14 @@ const PROBE = () => {
             // 6 and 7 still measure their rects, so the label is not unwatched
             // — only this one check cannot express itself about it.
             inlineBox: cs.display === 'inline',
+            // Every ancestor's path, so assertion 8b can tell "this label grew
+            // into the box that CONTAINS it" — not a collision — from "this
+            // label grew into a box beside it", which is.
+            ancestors: (() => {
+                const a = [];
+                for (let n = el.parentElement; n; n = n.parentElement) a.push(pathOf(n));
+                return a;
+            })(),
             parentPad: parent ? (() => {
                 const pcs = getComputedStyle(parent);
                 const pb = parent.getBoundingClientRect();
@@ -366,7 +382,8 @@ const PROBE = () => {
             || el.tagName === 'META' || el.tagName === 'LINK' || el.tagName === 'TITLE') continue;
         if (insideLabel(el)) continue;
         if (!visible(el)) continue;
-        out.others.push({ path: pathOf(el), rect: r(el) });
+        out.others.push({ path: pathOf(el), rect: r(el), overlay: overlayOf(el),
+                          inert: getComputedStyle(el).pointerEvents === 'none' });
     }
 
     return out;
@@ -881,6 +898,79 @@ const overlaps = (a, b) =>
         check(newOverlaps.length === 0,
             `[8] two labels disjoint in English do not intersect in French`
             + (newOverlaps.length ? ` — ${newOverlaps.length}: ${newOverlaps.slice(0, 4).join(', ')}` : ''));
+
+        // ── 8b. a label must not grow into a NON-label element ─────────────
+        // THE THIRD CLIFF. Assertions 4/5 catch a caption that SPILLS its own
+        // box; assertion 7 catches one that PUSHES a sibling. A caption in a box
+        // that is absolutely positioned, width-pinned and height-free does
+        // NEITHER — it wraps, grows downward inside its own box, exceeds no
+        // width, exceeds no content height (the box grew with it), and pushes
+        // nothing because absolute positioning takes it out of flow. It simply
+        // lands ON TOP of whatever is beneath it.
+        //
+        // O-AnalogEQ is the proof. Its four .band-label captions are
+        // `position: absolute` with an inline `width: 85px` and no fixed
+        // height. Planting `PLATEAU BF` on label.band.lf with the caption's
+        // `nowrap` removed grows it dh=+13.00px, reaching y=86 into a knob ring
+        // that begins at y=75 — and the whole gate printed ALL CHECKS PASSED.
+        // Assertion 8 could not see it either, because a knob ring is not a
+        // label and 8 compares labels to labels.
+        //
+        // Same form as 8: only a NEW intersection counts. A label already over
+        // something in English is an authored layout, and a label growing into
+        // its own ANCESTOR is not a collision at all — hence the ancestor list.
+        // Elements inside a label are already excluded from `others`.
+        // The PAINT LAYER rule from assertion 8 applies here for the same reason
+        // and was found the same way — by a shipped plugin going red on a
+        // collision no user can see. O-Contrabass's `help-toggle` caption lives
+        // inside the settings popover; the knob-control it "intersects" is on
+        // the page UNDERNEATH an opaque panel doing exactly what a panel is for.
+        // Same rule, same reporting: only a pair spanning the boundary is
+        // skipped, and every skip is printed.
+        const frOthers = new Map(fr.others.map((o) => [o.path, o]));
+        const grewInto = [];
+        const grewCrossLayer = [];
+        const inertSkips = new Set();
+        for (const L of enVis) {
+            const fl = frByPath.get(L.path);
+            if (!fl || !fl.visible) continue;
+            // ONLY a label that GREW. This assertion exists for the caption that
+            // wraps and expands over its neighbour; a label that merely MOVED is
+            // a different phenomenon and not evidence of a collision.
+            //
+            // O-IntonationPad proves the distinction matters. Its `Tuning` tab
+            // becomes `Gamme` — French SHORTER by a character — the tab row
+            // re-centres, the button shifts, and it grazes two panel edges it
+            // previously cleared. Nothing grew, nothing overlapped anything a
+            // user can see, and a shipped green plugin went red. Contract §8
+            // says a gate is never red for a whole rollout.
+            if (fl.rect.w <= L.rect.w + TOL && fl.rect.h <= L.rect.h + TOL) continue;
+            for (const o of en.others) {
+                if (L.ancestors && L.ancestors.includes(o.path)) continue;
+                // `pointer-events: none` is DECORATION the user cannot reach:
+                // O-Bassoon's .botanical-overlay is a full-bleed <img> at
+                // opacity 0.18 behind the whole page, and a caption reaching it
+                // is not a collision with anything. Recorded as a skip below so
+                // the exemption can never be silent.
+                if (o.inert) { inertSkips.add(o.path); continue; }
+                if (overlaps(L.rect, o.rect)) continue;      // together in English already
+                const fo = frOthers.get(o.path);
+                if (!fo || !overlaps(fl.rect, fo.rect)) continue;
+                ((L.overlay || null) !== (o.overlay || null) ? grewCrossLayer : grewInto)
+                    .push(`${L.key} x ${o.path}`);
+            }
+        }
+        if (inertSkips.size)
+            console.log(`   NOTE: [8b] ${inertSkips.size} non-label element(s) skipped as DECORATION `
+                + `(pointer-events: none), which a caption cannot collide with: `
+                + `${[...inertSkips].slice(0, 3).join(', ')}`);
+        if (grewCrossLayer.length)
+            console.log(`   NOTE: [8b] ${grewCrossLayer.length} label/non-label pair(s) intersect in French `
+                + `across DIFFERENT paint layers — an opaque floating panel over the page, which cannot `
+                + `visually collide with what it covers: ${grewCrossLayer.slice(0, 4).join(', ')}`);
+        check(grewInto.length === 0,
+            `[8b] no label intersects a NON-label element it cleared in English`
+            + (grewInto.length ? ` — ${grewInto.length}: ${grewInto.slice(0, 4).join(', ')}` : ''));
 
         console.log(`   state-update pass driven via: ${stateMechanism}`);
     }
