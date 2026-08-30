@@ -4485,3 +4485,245 @@ task.
   real reveal path (the stub returns `[]`).
 - **O-MicrotonalSampler's `.SCL`/`.KBM` file dialogs and `Generate`** were not
   driven — they call into C++ FileChoosers.
+
+
+---
+---
+
+# STAGE L — T16: O-Prism, alone — STAGE L COMPLETE, 43 of 43
+
+The largest single item in the project, batched with nothing. One executor, one
+gate fix, one plugin commit.
+
+| | |
+|---|---|
+| Version | **1.21.0**, commit `e4796486`, **10 files** (+1257 / −206) |
+| Parent | `f70ea7a0` — the gate fix, landed ahead of it per the standing precedent |
+| LABEL: plan / measured | 247 / **272** |
+| js-prose: plan / measured | 9 / **24** |
+| Parameters: plan / param-dump | 173 / **173** |
+| Rendered text-bearing elements | **925** — the largest in the repo |
+| Registry row | `66f7a70d`-style docs commit, duplicate check clean |
+
+**`check-i18n` now passes across all 43 plugins with no flag. Canon v2: 43.
+Canon v1: deleted.** `boot-all-uis`: 43/43 clean, 0 warn, 0 failed, and
+**repo-wide native `title=` is 0.**
+
+**Twenty for twenty.** The measured inventory matched the executor's own
+re-measurement on every plugin of K2, K3, K4 and L, and the plan's text count
+was wrong on every one. The inventory was always the authority.
+
+## THE HEADLINE: 64 knob captions no gate could see, and the fix the gate forbade
+
+`expandKnobMarkup()` walks 64 `div.knob-container[data-knob]` placeholders and
+injects `<span class="knob-label">` from each container's **`data-label`
+attribute**. Every detector was blind to them at once:
+
+| Detector | Why |
+|---|---|
+| `i18n-extract` | does not scan `data-label`. The inventory does not contain the string once. |
+| assertion 10 | reads the **static parse** of `index.html`. The caption is never a text node there. |
+| assertion 11 | walks only `aria-label` / `placeholder` / `alt`. |
+| assertion 12 | sees a concatenation whose caption half is a **variable**. |
+| `check-ui-labels` | collects `[data-i18n]`. An unkeyed span is not one. |
+
+**A quarter of the page could have shipped English with ALL CHECKS PASS on both
+gates.** Sixth instance in this task of a gate certifying the absence of a thing
+it cannot see, and the largest.
+
+**The obvious fix is blocked by the gate's own rules**, which is what makes this
+worth recording rather than just fixing. A concatenated
+`data-i18n="knob.' + paramId + '"` makes `markupKeyRefs` record a dangling
+`knob.` and reports all 64 real keys DEAD (assertion 15); `setLabel(el, 'knob.'
++ id)` is a computed key (assertion 13). Both rules are correct. The shape that
+satisfies them: **key the STATIC container, and move the attribute onto the
+generated span at expansion time.** It registers in assertion 15's `markupKeys`,
+needs no exemption, and puts `check-ui-labels` — not `check-i18n` — in the
+evidence seat.
+
+64 keyed, **35 distinct keys**. Post-init: `containersKeyed=0`, `labelsKeyed=65`,
+`vinesAlive=64`, `valuesAlive=64`, unchanged after `en→fr→en→fr`, 0 page errors.
+The `containersKeyed=0` assertion is load-bearing: leaving the key on the
+container makes `applyLabel`'s `textContent =` **delete the entire expanded
+knob** — svg, vine and readout — on the first language switch.
+
+**The negative control is the finding.** Un-keying one container leaves
+`check-i18n` **byte-identical** when the key is shared (29 of 35) and trips only
+the dead-key rule when unique (6). `check-ui-labels`' `[2]` count drops 189 → 188
+either way.
+
+## THE TENTH GATE FIX — a nested template desynchronizes the comment stripper
+
+`stripJsComments()` walked a backtick with the same flat "copy to the next
+matching quote" loop it uses for `'` and `"`. An interpolation can hold a nested
+template, a quote, a regex and a comment; reading its contents as string content
+leaves the parse **one quote out of phase for the rest of the file**.
+`readLiteralAt()` in the same file already recursed correctly — `stripJsComments`
+never called into that knowledge.
+
+Found by the executor, who **stopped and reported rather than working around
+it**, which is the protocol working as designed. Fixed in `f70ea7a0`.
+
+| | before → after |
+|---|---|
+| O-Lyrica comments swallowed | 38 → 0 |
+| O-Prism comments swallowed | 12 → 0 |
+| `check-i18n` repo-wide diff | **exactly one line** — O-Prism `[15]` FAIL → PASS |
+
+The four keys it falsely reported dead — `label.genStartHarm`, `label.genEndHarm`,
+`label.genGenerator`, `label.genNotes` — are each declared in a `data-i18n`
+attribute inside a scale-generator `innerHTML` template and read on every
+language change. Driven in the harness afterwards in both languages and all
+three generator variants, so they are **live, not merely unreported**.
+
+**It fails SAFE, and that is measured, not reasoned.** Five plants of raw
+unkeyed English — four by the executor on O-Prism, one by the orchestrator
+inside the exact region the old scanner swallowed in O-Lyrica's inline module —
+were caught by BOTH scanners, because assertion 12's discovery runs through
+`readLiteralAt`, which was never broken. **A desynchronized scan invents a false
+failure and does not open a false pass.** So the accurate statement about
+O-Lyrica v2.4.1 is narrower than it first read: it shipped under a partially
+corrupted comment strip, **with no demonstrated hole**. The executor's first
+draft called it a shipped defect; that was stronger than the evidence.
+
+**Two regressions in the fix itself, both caught by the before/after control
+rather than by reading the diff:**
+
+1. **Position preservation** — the invariant the whole function rests on, so a
+   line number reported against the stripped source still points at the right
+   line. A first draft broke it (+1 char on O-simpleBeatmaker) because the new
+   interpolation scanner inherited `n` as a regex-preceder — it is in the set to
+   cover `return` — so `${Math.floor(n / 12) - 1}` read its **division** as a
+   regex literal and ran to end of line. An interpolation holds an expression,
+   never a statement, so `return` cannot appear inside one. Caught by an
+   invariant sweep over 270 script blocks; back to 0 violations.
+2. **The first metric was measuring the wrong thing.** "A `//` survived
+   stripping" is not a defect — a `//` inside a string is *supposed* to survive
+   — and counting them made O-Octagon look like a 3 → 8 regression when the new
+   scanner was right and the old one had been wrongly stripping five lines of a
+   template that holds an HTML page. **The gate-outcome diff is the control that
+   means something; the comment count only pointed at where to look.**
+
+## A rotated SVG's bounding box is 41% wider than the knob — general, not French
+
+The most reusable geometry finding of the stage, and it holds for every plugin
+drawing this knob, in both languages, before any localization exists.
+
+```
+.knob-visual                52 × 52 px
+.knob-visual svg            transform: rotate(-135deg)
+getBoundingClientRect(svg)  73.54 × 73.54 px  (52 × √2)  →  +10.77 px per side
+```
+
+`getBoundingClientRect` returns the **axis-aligned box of the transformed
+shape**. The visible artwork has not moved a pixel; only the measured rectangle
+has. Columns sit 4 px apart, so each neighbour reaches **6.77 px into yours** and
+a centred `.knob-label` has **38.45 px, not 52**. Against the neighbour's
+`.knob-track` circle the cap is **49.8 px**.
+
+Three consequences: `[8b]` reports a caption past 38.45 px as intersecting the
+neighbour's svg — **true of the boxes, false of the pixels**, over-strict and
+never a false pass, and why 13 knobs went red before sizing; **`dx` alone is
+useless on this family**, because a caption growing inside a centred column
+moves siblings without widening anything; and the honest fix is at source —
+rotating an inner `<g>` instead of the `<svg>` is rendering-identical, restores
+every knob caption in the suite to its full column, and retires the `[8b]` false
+positives. **Not made** — it is working visual code across three viewBox variants
+plus three hand-written knobs, changed for a measurement artefact. Decision item.
+
+## The caption-fit probe was VACUOUS as specified, and the hole it covers is not here
+
+The brief told the executor to point O-Formant's caption-fit probe at the knob
+captions. Pointed at `.knob-container` it reports 0 for a planted 38-char
+caption, because that box **shrink-wraps**. Re-pointed at the design column
+(`.knob-visual`, 52 px) it works.
+
+And then it found nothing — because planting the same 38-char caption in the
+**source** makes the real gate fail with 2 `[7]`s. **The shrink-to-fit hole does
+not exist on this page**: an oversized caption here PUSHES rather than silently
+overflowing. That is a property of this layout, not a clean bill of health for
+the probe, and the standing Stage-H hole is still standing elsewhere.
+
+## Geometry
+
+**EN→FR non-label movers: 24 `[7]` failures → 0**, with `[4]`, `[5]`, `[6]`,
+`[8]` and `[8b]` all 0 across 23 states. Verified at 180 ms **and** 1.7 s, with
+`en@180 vs en@1700`, `fr@180 vs fr@1700` and `HEAD en@180 vs en@1700` all
+**moved=0** — the page is pixel-identical at both, so no transition sits behind
+any number.
+
+**English moves exactly 8 elements**, identically at both settle times in all 16
+states: the preset browser and six children at `dx=-77.5`, the subtitle at
+`dx=-155.0`. One cause — the gear is a fourth `space-between` child. Nothing
+outside the header, no `dw`, no `dh`.
+
+**Nine pins ship, each reverted alone** with its own failure count (1, 7, 13, 2,
+7, 2, 2, 6, 6). **A tenth was measured as DECORATION and removed.** `dx` alone
+would have mislabelled two more as decoration — `delayFeedback` is
+`dx=0.6 dw=-1.2`, `oscAWarpAmt` is `dx=1.6 dw=-3.2`. **That is the sixth and
+seventh time `dw` has been the deciding number.**
+
+**French SHRANK on the dominant failures** — `Réinj.` −19.75, `Étir.` −16.83,
+`Langue` −14.97, `Bibliothèque` −9.34. **Five of the nine pins exist to stop
+shrinkage, not growth.**
+
+**A pin trap worth carrying:** the first ops-bar pins were sized to painted text,
+and under global `box-sizing: border-box` that gave a 69 px content box which
+**wrapped `Normalize Global` onto two lines in ENGLISH**. Border-box sizing
+(`text + 26`) is correct.
+
+## Native titles: the source grep counts writes, the page renders instances — again
+
+Assertion 11's markup scan sees **6**, not the 8 a grep finds, because
+`scanHtml` does not parse inside `<script>`. And "6 rendered" was badly low:
+**6 at load, 127 after Matrix, 248 after Rotation.** Now **0 in every state**,
+repo-wide 0.
+
+This is the O-Wind/O-Lyrica lesson recurring with a different multiplier: one
+per-knob setup path gave O-Lyrica 16, and O-Prism's grid-render paths gave 248.
+
+## Corrections to the orchestrator's own brief
+
+- **The 65th knob container does not exist.** The brief asserted 65 and asked
+  which carried no `data-label`. `grep -o` counts 65 because one match is the
+  literal inside the **source comment at `index.html:1658`**, which a browser
+  does not render. Runtime is 64 in every state. Nothing was missed.
+- The caption-fit probe instruction was vacuous as written (above).
+
+## `I18N_EXEMPT` — 105 entries, 101 scoped
+
+33 parameter options (arm 1, scoped `.param-select`); **28 wavetable catalogue
+names that are NOT arm 1** — `oscATable` is an `AudioParameterInt`, so they are
+exempt as a C++-owned mirrored catalogue, and saying so is the point of a
+reasoned exemption; 36 mod-matrix names (arm 1, scoped `#mod-matrix-rows`
+because `Osc Mix` is also a live key); `— Init —` (D-02); `12-TET Standard`
+(arm 3); 4 unscoped.
+
+**Two arm-1 overrules, decided by geometry and stated plainly.** The five bypass
+buttons are **keyed** — upper-case `ON`/`OFF` is byte-identical to nothing. The
+delay Sync button is **exempt**: it was keyed first, then taken back to arm 1
+when `Arrêt`/`Marche` pushed the delay row 16 px. So `label.sync` ships
+`sameAsEn` while the LFO button keeps `Synchro` — **the same English word, two
+answers, decided by measurement.**
+
+## Not verified
+
+- **Checkpoint 5 outstanding on all 43.** No human has seen any French UI.
+- All 3202 French entries repo-wide are machine drafts, every one
+  `reviewed: false`.
+- **Checkpoint 4 reasoned, not executed**, on O-Prism — from the `isVoid()`
+  guard, the native fns present in the binary, and `auval`. No host session was
+  saved and reopened.
+- No DAW test. `auval` and the headless harness only. Standalone `.app` stale.
+- **Four O-Prism states not driven:** the two drag overlays, closed-`<select>`
+  option *geometry* (text confirmed), the `.SCL`/`.KBM`/`Export HTML`
+  FileChoosers, and the **empty** user-wavetable state.
+- **Windows/WebView2 font metrics**, the standing hardware-blocked deferral, and
+  O-Prism's margins are the tightest yet measured: `Satur.` **0.71 px**,
+  `Prof A` 0.78, `Prof B` 0.86, `Taille` 0.90.
+- Generated scale names stay English — `Rank-2 (696.6¢, 12 notes)` is
+  **persisted through C++ as the stored identifier**, so localizing it would
+  change saved state.
+- Six `<optgroup label>` strings: no gate scans them and canon has no attribute
+  for them.
+- `<html lang>` does not follow the language selector. Canon-owned, all 43.
