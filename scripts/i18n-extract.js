@@ -283,6 +283,36 @@ function decodeEntities(s) {
 // Comment-stripped but position-preserving, so a line number reported against
 // the stripped source still points at the right line of the original. Replacing
 // a comment with spaces rather than deleting it is what buys that.
+//
+// A TEMPLATE LITERAL'S `${ … }` IS CODE, NOT STRING CONTENT.
+//
+// This scanner used to walk a backtick with the same flat "copy to the next
+// matching quote" loop it uses for ' and ", which is correct for those two and
+// wrong for the third. An interpolation can hold a nested template, a quote, a
+// regex and a comment, and reading its contents as string content leaves the
+// parse ONE QUOTE OUT OF PHASE for the rest of the file. Everything downstream
+// then reads a shifted picture of the module: real comments survive stripping,
+// and real markup literals stop being literals.
+//
+// Found by the O-Prism executor. Measured on that page: 340 lines carrying //,
+// six of them real comments that survived. Assertion 15 reported four LIVE keys
+// as dead — label.genStartHarm, label.genEndHarm, label.genGenerator,
+// label.genNotes — every one declared in a data-i18n attribute inside a scale
+// generator innerHTML template and read on every language change. The gate
+// describing a violation of a rule the code was obeying, for the seventeenth
+// time in this task.
+//
+// It fails SAFE, and that is measured rather than reasoned: four plants of raw
+// unkeyed English — one before the nested template, two after, one inside an
+// innerHTML template after — were all four still caught by assertion 12. A
+// desynchronized scan invents a FALSE FAILURE, never a false pass.
+//
+// Repo-wide the shape reaches exactly two plugins, O-Prism and O-Lyrica, and
+// O-LYRICA SHIPPED AT v2.4.1 UNDER A PARTIALLY-CORRUPTED SCAN.
+//
+// readLiteralAt() below already reads interpolations correctly, recursing
+// through them; this function simply never called into that knowledge. The two
+// scanners now agree about what a template literal is.
 function stripJsComments(src) {
     let out = '';
     let i = 0;
@@ -290,6 +320,84 @@ function stripJsComments(src) {
     let prevSig = '';
     const REGEX_PRECEDERS = new Set(['', '(', ',', '=', ':', '[', '!', '&', '|', '?',
                                      '{', '}', ';', '+', '-', '*', '%', '~', '^', '<', '>', 'n']);
+
+    // Scans the quoted run that OPENS at `start` (src[start] is the quote),
+    // appends it to `out`, and returns the index just past its closing quote.
+    // Only a backtick descends into `${ … }`; ' and " keep the flat behaviour
+    // that was always right for them.
+    const scanQuoted = (start) => {
+        const quote = src[start];
+        out += quote;
+        let j = start + 1;
+        while (j < n) {
+            const ch = src[j];
+            if (ch === '\\') { out += ch + (src[j + 1] || ''); j += 2; continue; }
+            if (ch === quote) break;
+            if (quote === '`' && ch === '$' && src[j + 1] === '{') {
+                out += '${';
+                j = scanInterpolation(j + 2);
+                continue;
+            }
+            out += ch; ++j;
+        }
+        out += quote;               // emitted even at EOF, as the flat loop did
+        return j + 1;
+    };
+
+    // Scans the CODE inside a `${ … }` starting just past the `{`, and returns
+    // the index just past the matching `}`. Comments, strings, nested templates
+    // and regex literals are all live here, so this is a small copy of the main
+    // loop rather than a character skip — the whole defect was treating this
+    // region as inert.
+    // `n` is in REGEX_PRECEDERS to cover a `return`/`in` that ends in one, and
+    // an interpolation holds an EXPRESSION, never a statement, so `return`
+    // cannot appear inside one. Keeping `n` here costs a real false positive
+    // and buys nothing: O-simpleBeatmaker's `${Math.floor(n / 12) - 1}` reads
+    // its division as the start of a regex literal and runs to end of line.
+    const INTERP_REGEX_PRECEDERS = new Set([...REGEX_PRECEDERS].filter((x) => x !== 'n'));
+
+    const scanInterpolation = (start) => {
+        let j = start;
+        let depth = 1;
+        let sig = '(';              // an interpolation opens in regex position
+        while (j < n) {
+            const ch = src[j], nx = src[j + 1];
+            if (ch === '/' && nx === '/') {
+                while (j < n && src[j] !== '\n') { out += ' '; ++j; }
+                continue;
+            }
+            if (ch === '/' && nx === '*') {
+                while (j < n && !(src[j] === '*' && src[j + 1] === '/')) { out += src[j] === '\n' ? '\n' : ' '; ++j; }
+                out += '  '; j += 2;
+                continue;
+            }
+            if (ch === '"' || ch === "'" || ch === '`') { j = scanQuoted(j); sig = ch; continue; }
+            if (ch === '/' && INTERP_REGEX_PRECEDERS.has(sig)) {
+                let inClass = false;
+                out += ch; ++j;
+                while (j < n) {
+                    if (src[j] === '\\') { out += src[j] + (src[j + 1] || ''); j += 2; continue; }
+                    if (src[j] === '[') inClass = true;
+                    else if (src[j] === ']') inClass = false;
+                    else if (src[j] === '/' && !inClass) break;
+                    else if (src[j] === '\n') break;
+                    out += src[j]; ++j;
+                }
+                out += src[j] || ''; ++j;
+                sig = '/';
+                continue;
+            }
+            if (ch === '{') ++depth;
+            else if (ch === '}') {
+                --depth;
+                if (depth === 0) { out += '}'; return j + 1; }
+            }
+            out += ch;
+            if (!/\s/.test(ch)) sig = ch;
+            ++j;
+        }
+        return j;                   // unterminated interpolation — stop at EOF
+    };
 
     while (i < n) {
         const c = src[i], d = src[i + 1];
@@ -304,15 +412,8 @@ function stripJsComments(src) {
             continue;
         }
         if (c === '"' || c === "'" || c === '`') {
-            const quote = c;
-            out += c; ++i;
-            while (i < n) {
-                if (src[i] === '\\') { out += src[i] + (src[i + 1] || ''); i += 2; continue; }
-                if (src[i] === quote) break;
-                out += src[i]; ++i;
-            }
-            out += quote; ++i;
-            prevSig = quote;
+            i = scanQuoted(i);
+            prevSig = c;
             continue;
         }
         if (c === '/' && REGEX_PRECEDERS.has(prevSig)) {
