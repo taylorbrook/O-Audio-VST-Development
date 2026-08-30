@@ -2,6 +2,100 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.2.0] - 2026-08-29
+
+### Added — the PAGE speaks French
+
+The whole interface is now bilingual (English / Français), selectable from a new
+gear popover in the preset bar and remembered with the session. **122 label
+entries over 123 keyed elements and 19 keyed accessible names.** No hover-help
+copy: v4.1.5 had none, and authoring it is a separate piece of work.
+
+- `Resources/ui/js/i18n.js` — the table, embedded in `CMakeLists.txt` and served
+  from a `getResource()` branch **in this same commit**. A file that is one
+  without the other 404s at runtime and presents as a dead panel with no other
+  symptom.
+- The canon v2 `applyI18n` / `setLabel` / `initI18n` block, byte-identical to
+  `scripts/i18n-canon.js`, at the top of the inline module in `index.html`, with
+  `initI18n()` called LAST so the first sweep sees the sixteen effects knobs and
+  the popover, which do not exist until then.
+- The C++ language pair (`getUiLanguage` / `setUiLanguage`) and persistence as a
+  non-parameter property on the APVTS state tree — deliberately not an
+  `AudioParameterChoice`, so it cannot appear in an automation lane and no preset
+  can change which language somebody reads their plugin in. Read back with an
+  `isVoid()` guard, because the XML round-trip rebuilds every property as a
+  string `var` regardless of what was written.
+
+### Added — the Tuning tab speaks it too
+
+`Resources/ui/js/tuning-panel.js` is a **plugin-owned copy**, 279 lines diverged
+from `modules/tuning/scala-tuning-engine/js/tuning-panel.js`, and O-Bells has no
+`dependencies.json` listing the module, so `/module-upgrade` will not revert
+these edits. Its 34 captions are localized and its four rebuilt subtrees
+re-sweep through a new `window.__reapplyI18n()`. This deliberately widens an
+already-large divergence from the module; the alternative was a page whose
+Tuning tab stayed English while every other tab spoke French. The module file
+itself is untouched.
+
+`scripts/i18n-extract.js` skips that filename unconditionally, so none of those
+34 strings came from a worklist — they were enumerated by hand and verified by
+driving the panel in the browser rather than by trusting a static check.
+
+### Fixed — pre-existing, in ENGLISH
+
+- **"True Keys" wrapped to two lines inside its own button**, making the tuning
+  panel's visualisation row 10px taller than the other four states and pushing
+  everything below it down. Present at v4.1.5 with no French anywhere on the
+  page: measured on the pre-image at 2 line boxes and a 34px row, against 1 line
+  and 24px now. `.viz-btn` is `flex: 1`, which carries `min-width: auto`, so each
+  button was floored by its longest WORD; `white-space: nowrap` with 4px of
+  horizontal padding gives every caption a 45.6px box that fits both languages.
+- **The version label in the header read `v4.0.0`** while the plugin shipped
+  4.1.5.
+
+### Changed — geometry
+
+Twelve pins and one restructure, each reverted alone and confirmed to re-break
+`check-ui-labels` assertion 7. French moved captions in BOTH directions here —
+`MIX -> DOSAGE` is +21.02px and `FEEDBACK -> RÉINJ.` is −21.75px on adjacent
+knobs — so a clip-only check would have certified the whole Effects tab.
+
+- `.preset-action-btn` pinned to 62px (SAVE/LOAD are shorter than ENREG./OUVRIR,
+  and `.preset-browser` is the right-hand child of a `space-between` header, so
+  any width change walked five elements sideways).
+- `.choice-group` given `width: 100%` so its three `flex: 1` buttons split a
+  fixed total.
+- `.lp-filter-toggle` 98px and `.hi-fi-toggle` 136px — shrink-wrapped chips whose
+  captions grow.
+- `.fx-title` 62px, `.fx-bypass-btn` 48px, `#effects-tab .knob-container` 62px
+  and `.knob-label { width: 100% }` — `.fx-section` floats the knob row between
+  two auto margins, so it moved by HALF of any width change on either side.
+- `.tonic-label` and `.octave-stretch-label` given fixed flex bases, because the
+  slider and the readout beside each of them start where the caption ends.
+- The CPU-warning banner's live estimate moved to the FRONT of the sentence. No
+  word choice can hold an interpolated number at a fixed x while the words in
+  front of it change length; putting the readout first makes its position
+  language-invariant and keeps its own bold styling.
+- `.tonic-selector`'s gap went 8px → 5px. Its negative control PASSES, so it is
+  labelled a design guard rather than claimed as a French fix: what it buys is
+  the room the 42px caption pin costs, without which the row overflows its
+  column by 7.82px identically in both languages.
+
+### Added — test artifacts
+
+- `tests/i18n-states.json` — 14 states driving the Tuning and Effects tabs, the
+  three generator forms, all five visualisations and the settings popover.
+- `tests/ui-stub/generic-overrides.json` — the headless stub infers a native
+  function's return shape from its NAME, and that guess emptied the Tuning tab:
+  `getOctaveStretch` returned `null` and threw out of `loadInitialState()` before
+  three of its four update calls ran, `getEmbeddedTuningList` returned an array
+  where the page does `JSON.parse()`, and `getTonicNote` rendered the string
+  `undefined`. With the plugin's real defaults supplied, coverage went from 118
+  to 123 measured elements.
+
+All French is a machine draft: 122 of 122 entries `reviewed: false`. No native
+speaker has read it.
+
 ## [4.1.5] - 2026-08-02
 
 ### Fixed

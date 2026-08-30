@@ -1,0 +1,13 @@
+{
+  "_why": "The generic stub infers a native function's return shape from its NAME. That guess is wrong for the tuning backend in ways that silently empty the Tuning tab: getOctaveStretch matches /^get/ and returns null, so `stretch.toFixed(2)` throws out of loadInitialState() before updateIntervalList(), updateVisualization() and updateScaleNameDisplay() ever run; getEmbeddedTuningList matches /List$/ and returns an ARRAY where the page does JSON.parse(), so the library list stays empty and label.noteCount is never rendered; and getTonicNote returns null, so the tonic readout renders the string 'undefined'. Every value below is the plugin's own real default, so check-ui-labels measures the panel a user actually sees rather than a half-collapsed one.",
+
+  "natives": {
+    "getTuningIntervals": "[0,100,200,300,400,500,600,700,800,900,1000,1100,1200]",
+    "getTuningName": "12-TET Standard",
+    "getTonicNote": 0,
+    "getOctaveStretch": 1.0,
+    "getMasterTune": 440.0,
+
+    "getEmbeddedTuningList": "[{\"id\":\"pythagorean\",\"name\":\"Pythagorean\",\"category\":\"Historical\",\"noteCount\":12},{\"id\":\"just5\",\"name\":\"Just Intonation 5-limit\",\"category\":\"Just Intonation\",\"noteCount\":12},{\"id\":\"edo19\",\"name\":\"19-EDO\",\"category\":\"Equal Divisions\",\"noteCount\":19},{\"id\":\"bohlen\",\"name\":\"Bohlen-Pierce\",\"category\":\"Non-Octave\",\"noteCount\":13},{\"id\":\"slendro\",\"name\":\"Slendro\",\"category\":\"World\",\"noteCount\":5}]"
+  }
+}

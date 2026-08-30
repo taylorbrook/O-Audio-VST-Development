@@ -197,6 +197,35 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*tuningTemperamentPresetRelay)
 
             // ═══════════════════════════════════════════════════════════════════
+            // v4.2.0: UI LANGUAGE
+            //
+            // Plain withNativeFunction, no relay. The page PULLS once at init;
+            // nothing is pushed from this constructor, because the language is
+            // not preset content and no preset path can change it behind the
+            // page's back — OuariconPresetManager::loadPreset walks the preset's
+            // "parameters" object only. A push from here would race the
+            // WebView's load.
+            // ═══════════════════════════════════════════════════════════════════
+
+            .withNativeFunction("getUiLanguage", [this](auto, auto complete) {
+                complete(juce::var(OBellsAudioProcessor::languageCode(
+                    processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+
+            .withNativeFunction("setUiLanguage", [this](const auto& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument from the page degrades to English rather
+                // than being stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.uiLanguage.store(
+                        OBellsAudioProcessor::languageIndex(args[0].toString()),
+                        std::memory_order_release);
+
+                complete(juce::var(OBellsAudioProcessor::languageCode(
+                    processorRef.uiLanguage.load(std::memory_order_acquire))));
+            })
+
+            // ═══════════════════════════════════════════════════════════════════
             // v2.2.0: GUI KEYBOARD NATIVE FUNCTION
             // ═══════════════════════════════════════════════════════════════════
 
@@ -1019,6 +1048,16 @@ OBellsAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/juce/check_native_interop.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v4.2.0: the i18n table. Embedded in CMakeLists.txt AND served here — a
+    // file that is one without the other 404s at runtime and presents as a dead
+    // panel with no other symptom (check-i18n assertion 8).
+    if (url == "/js/i18n.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String("text/javascript")
         };
     }

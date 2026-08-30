@@ -105,6 +105,28 @@ public:
     std::atomic<uint64_t> activeNotesLow { 0 };   // notes 0-63
     std::atomic<uint64_t> activeNotesHigh { 0 };   // notes 64-127
 
+    // ------------------------------------------------------------------------
+    // v4.2.0: the UI language. Read by the page once at init through the
+    // getUiLanguage native function and written back by setUiLanguage when the
+    // selector changes; persisted as a plain property on the APVTS state tree so
+    // a reopened session comes back in the language it was left in and a
+    // hand-inspected session file stays a readable language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their plugin in. It rides the APVTS state tree as a
+    // non-parameter property instead — which on this plugin means it rides
+    // through OuariconPresetManager::getStateAsXml()'s parameters.copyState(),
+    // because that is the idiom this processor already uses for its own state.
+    // ------------------------------------------------------------------------
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;

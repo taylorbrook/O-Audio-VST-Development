@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    VERSION 4.1.5
+    VERSION 4.2.0
 
     # Synthesizer configuration
     IS_SYNTH TRUE
@@ -95,6 +95,14 @@ juce_add_binary_data(O-Bells_UIResources
         Resources/ui/index.html
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
+        # v4.2.0: the i18n table. FOUR PLACES, ONE COMMIT — this line, the file
+        # on disk, a getResource() branch in PluginEditor.cpp, and the import in
+        # the inline module in index.html. Miss one and the page 404s at runtime
+        # and presents as a dead panel with no other symptom (check-i18n
+        # assertion 8). It joins the EXISTING O-Bells_UIResources SOURCES list: a
+        # second juce_add_binary_data target would collide on the default
+        # BinaryData namespace (critical_dual_binary_data_namespace_collision).
+        Resources/ui/js/i18n.js
         Resources/ui/img/snail.png
         Resources/ui/js/tuning-panel.js
         Resources/ui/css/tuning-panel.css
