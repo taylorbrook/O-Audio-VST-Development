@@ -229,6 +229,25 @@ const PROBE = () => {
     // that spans the boundary is skipped, and the skips are REPORTED.
     const overlayOf = (el) => {
         let n = el;
+        // A MODAL'S OPAQUE CARD IS USUALLY `position: relative`.
+        //
+        // Requiring absolute/fixed ON THE PAINTING ELEMENT is blind to the most
+        // common modal shape there is: a full-viewport `position: fixed` root
+        // that paints nothing itself, flex-centring an opaque card that carries
+        // the background and a numeric z-index but is only `position: relative`
+        // — because relative is what lets it stack over its own sibling
+        // backdrop without leaving the flex flow. O-MicrotonalSampler writes
+        // all six of its dialogs this way. Neither node qualified, so every
+        // caption inside every dialog was compared against the page underneath
+        // the dialog, and thirteen [8b] failures named collisions no user can
+        // see. Same class of miss as the gradient bug above: the test described
+        // one way of building the thing rather than the thing.
+        //
+        // So a painting, numerically-stacked element is accepted as the layer
+        // when it is positioned at all, PROVIDED an absolute/fixed, numerically
+        // stacked ancestor is above it — which is what makes the pair a
+        // floating layer rather than an ordinary positioned box in the page.
+        let candidate = null;
         while (n && n.nodeType === 1) {
             const cs = getComputedStyle(n);
             const bg = cs.backgroundColor || '';
@@ -241,9 +260,14 @@ const PROBE = () => {
             const bgImg = cs.backgroundImage || '';
             const paints = (bg !== '' && bg !== 'transparent' && !/,\s*0\s*\)$/.test(bg))
                 || (bgImg !== '' && bgImg !== 'none');
-            if ((cs.position === 'absolute' || cs.position === 'fixed')
-                && cs.zIndex !== 'auto' && paints)
-                return pathOf(n);
+            const fixedOrAbs = cs.position === 'absolute' || cs.position === 'fixed';
+            const stacked = cs.zIndex !== 'auto';
+            if (fixedOrAbs && stacked && paints) return pathOf(n);
+            // The card: positioned, stacked, painting — but not absolute/fixed.
+            // Held, and only honoured if a floating ancestor turns up above it.
+            if (candidate === null && cs.position !== 'static' && stacked && paints)
+                candidate = pathOf(n);
+            if (candidate !== null && fixedOrAbs && stacked) return candidate;
             n = n.parentElement;
         }
         return null;
