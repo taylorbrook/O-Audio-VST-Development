@@ -64,12 +64,91 @@ body {
     color: #C9A27B;
 }
 .header-bar .subtitle {
+    /* NO PIN HERE, and that is a measured result rather than an oversight. The
+       header is `justify-content: space-between`, so the subtitle's width does
+       decide where the preset browser sits — the first French draft ran 39.35 px
+       wider and dragged the browser 13.1 px left. The shipped French is sized to
+       the English box instead (201.47 px against 202.78 px), and a `width:
+       202.78px` pin on top of that was REVERTED ALONE and check-ui-labels stayed
+       green: 1.31 px of slack splits across two `space-between` gaps and lands
+       under tolerance. A pin whose negative control passes is decoration.
+       The constraint now lives on `label.subtitle` in i18n.js, where a reviewer
+       changing the French will read it. */
     font-size: 10px;
     letter-spacing: 1.5px;
     color: #8B7355;
     font-style: italic;
     flex-shrink: 0;
 }
+
+/* ─── SETTINGS POPOVER (the language selector) ─── */
+/* Styled in O-Prism's own system: the dark #3C2F2F header plate with the
+   #C9A27B tan accent, not a widget pasted in from another plugin.
+
+   position: absolute + a numeric z-index + an opaque background is what makes
+   check-ui-labels recognise this as its own PAINT LAYER. Without all three the
+   gate compares the popover's caption against the page underneath it and
+   reports collisions no user can see. */
+.settings-wrap {
+    position: relative;
+    flex-shrink: 0;
+    margin-left: 12px;
+    display: flex;
+    align-items: center;
+}
+.gear-btn {
+    background: transparent;
+    border: 1px solid #8B7355;
+    color: #C9A27B;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+    border-radius: 2px;
+    font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s, color 0.15s;
+}
+.gear-btn:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.settings-popover {
+    display: none;
+    position: absolute;
+    top: 26px;
+    right: 0;
+    z-index: 9998;
+    background: #3C2F2F;
+    border: 1px solid #8B7355;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    padding: 8px 10px;
+    border-radius: 2px;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+.settings-popover.visible { display: flex; }
+.settings-label {
+    /* GEOMETRY PIN, English box (59.77 px). `Langue` is 14.97 px narrower than
+       `Language`, and the popover is `right: 0`, so a narrower caption moves
+       the popover's LEFT edge. */
+    display: inline-block;
+    width: 59.77px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #8B7355;
+}
+.settings-select {
+    background: #2A2020;
+    border: 1px solid #8B7355;
+    color: #F5E6D3;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 2px;
+    cursor: pointer;
+}
+.settings-select:focus { outline: 1px solid #C9A27B; }
 
 /* ─── PRESET BROWSER (persistent in header) ─── */
 .preset-browser {
@@ -403,6 +482,22 @@ body {
     stroke-width: 3;
     stroke-linecap: round;
 }
+/* GEOMETRY PINS on the two knob captions whose ENGLISH is wider than the 52 px
+   knob column. `.knob-container` shrink-wraps to max(52 px, caption), so on
+   every other knob a French caption under 52 px costs nothing — but on these
+   two the English itself sets the column width, and any French at all makes the
+   column NARROWER and slides the whole row. Pinned to the measured English
+   width so English is unchanged and French cannot shrink it.
+
+   `dx` alone would have called these decoration: on `delayFeedback` the
+   siblings report dx=0 and only `dw=-2.3` names it. */
+.knob-container[data-knob="delayFeedback"],
+.knob-container[data-knob="delayFeedback"] .knob { min-width: 54.25px; }   /* "Feedback" */
+.knob-container[data-knob="oscAWarpAmt"],
+.knob-container[data-knob="oscAWarpAmt"] .knob,
+.knob-container[data-knob="oscBWarpAmt"],
+.knob-container[data-knob="oscBWarpAmt"] .knob   { min-width: 55.16px; }   /* "Warp Amt" */
+
 .knob-label {
     font-size: 9px;
     letter-spacing: 0.8px;
@@ -461,6 +556,11 @@ body {
     align-items: center;
     margin: 2px 4px;
 }
+/* GEOMETRY PIN, English box (82.08 px). This caption is wider than its own
+   <select>, so the shrink-wrapping `.dropdown-group` takes ITS width, and that
+   group sits between the two `flex: 1` filter sections — a 6.8 px change here
+   redistributes 3.4 px to each of them. */
+#lbl-filt-routing { display: inline-block; width: 82.08px; }
 .dropdown-label {
     font-size: 8px;
     text-transform: uppercase;
@@ -727,7 +827,10 @@ body {
     border: 1px solid #8B7355;
     border-radius: 3px;
 }
-.tonic-label { font-size: 8px; color: #5C4033; text-transform: uppercase; }
+.tonic-label { /* GEOMETRY PIN, English box (27.8 px). `.tonic-selector` is
+      `justify-content: space-between`, so the caption's width moves the tonic
+      readout between the two arrows. */
+  display: inline-block; width: 27.8px; font-size: 8px; color: #5C4033; text-transform: uppercase; }
 .tonic-value { font-size: 10px; font-weight: bold; color: #3C2F2F; min-width: 22px; text-align: center; }
 .tonic-arrow {
     width: 14px; height: 14px;
@@ -815,7 +918,15 @@ body {
 /* Held notes bar (persistent across all viz tabs) */
 .held-notes-bar { display: none; position: absolute; bottom: 0; left: 0; right: 0; background: rgba(60, 47, 47, 0.92); border-top: 1px solid rgba(139, 115, 85, 0.5); padding: 6px 10px; z-index: 10; }
 .held-notes-bar.active { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
-.hn-label { font-size: 10px; color: rgba(235, 217, 199, 0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
+.hn-label { /* GEOMETRY PIN, English box (64.45 px) — the bar is a left-aligned
+      flex row, so this caption's width places every interval item after it. */
+  display: inline-block; width: 64.45px; font-size: 10px; color: rgba(235, 217, 199, 0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
+/* GEOMETRY PIN, FRENCH-sized (26.03 px) and the only one on this page that is.
+   `Span` is 24.50 px and `Écart` is 26.03; there is no French word for it at the
+   English width, and the caption is an inline run inside the item, so the 1.53 px
+   goes to the ENGLISH box instead. It moves one `.hn-cents` readout by 1.53 px in
+   English, in a bar that only appears while notes are held. */
+.hn-span { display: inline-block; width: 26.03px; }
 .hn-item { font-size: 11px; color: #EBD9C7; font-weight: 500; }
 .hn-item .hn-cents { font-family: monospace; color: #9DC76B; font-weight: 600; margin-left: 3px; }
 .hn-item .hn-name { color: rgba(235, 217, 199, 0.6); font-size: 10px; margin-left: 2px; }
@@ -968,16 +1079,31 @@ body {
     <h1>O-PRISM</h1>
 
     <div class="preset-browser">
-        <button class="preset-nav" id="btn-preset-prev" title="Previous Preset">‹</button>
-        <div class="preset-display" id="preset-display" title="Click to browse presets">
+        <button class="preset-nav" id="btn-preset-prev" data-i18n-aria="aria.presetPrev">‹</button>
+        <div class="preset-display" id="preset-display" data-i18n-aria="aria.presetBrowse">
             <span class="preset-category" id="preset-current-category"></span>
             <span class="preset-name" id="preset-current-name">— Init —</span>
         </div>
-        <button class="preset-nav" id="btn-preset-next" title="Next Preset">›</button>
-        <button class="preset-save" id="btn-preset-save" title="Save Preset">★</button>
+        <button class="preset-nav" id="btn-preset-next" data-i18n-aria="aria.presetNext">›</button>
+        <button class="preset-save" id="btn-preset-save" data-i18n-aria="aria.presetSave">★</button>
     </div>
 
-    <span class="subtitle">Microtonal Wavetable Synthesizer</span>
+    <span class="subtitle" data-i18n="label.subtitle">Microtonal Wavetable Synthesizer</span>
+
+    <!-- Settings popover: the language selector. Absolutely positioned with a
+         numeric z-index and an opaque background so check-ui-labels recognises
+         it as its own PAINT LAYER and does not compare its caption against the
+         page underneath it. -->
+    <div class="settings-wrap">
+        <button class="gear-btn" id="gear-btn" data-i18n-aria="aria.settings">&#9881;</button>
+        <div class="settings-popover" id="settings-popover">
+            <span class="settings-label" data-i18n="label.language">Language</span>
+            <select id="lang-select" class="settings-select">
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+            </select>
+        </div>
+    </div>
 </div>
 
 <!-- Preset menu (opens from header, floats over tabs) -->
@@ -987,11 +1113,11 @@ body {
      TAB BAR
      ═══════════════════════════════════════════════════════════════════ -->
 <div class="tab-bar">
-    <div class="tab active" data-tab="synth" onclick="switchTab('synth')">Synth</div>
-    <div class="tab" data-tab="mod" onclick="switchTab('mod')">Mod</div>
-    <div class="tab" data-tab="tuning" onclick="switchTab('tuning')">Tuning</div>
-    <div class="tab" data-tab="effects" onclick="switchTab('effects')">Effects</div>
-    <div class="tab" data-tab="wavetable" onclick="switchTab('wavetable')">Wavetable</div>
+    <div class="tab active" data-tab="synth" data-i18n="tab.synth" onclick="switchTab('synth')">Synth</div>
+    <div class="tab" data-tab="mod" data-i18n="tab.mod" onclick="switchTab('mod')">Mod</div>
+    <div class="tab" data-tab="tuning" data-i18n="tab.tuning" onclick="switchTab('tuning')">Tuning</div>
+    <div class="tab" data-tab="effects" data-i18n="tab.effects" onclick="switchTab('effects')">Effects</div>
+    <div class="tab" data-tab="wavetable" data-i18n="tab.wavetable" onclick="switchTab('wavetable')">Wavetable</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -1003,15 +1129,15 @@ body {
 <div id="synth-tab" class="tab-content active">
 
     <!-- Oscillator A -->
-    <div class="section-header">Oscillator A</div>
+    <div class="section-header" data-i18n="label.oscA">Oscillator A</div>
     <div class="osc-section">
         <div class="osc-canvas-wrap" id="canvasWrapA">
             <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
-            <div class="wt-drop-overlay">Drop WAV</div>
+            <div class="wt-drop-overlay" data-i18n="label.dropWav">Drop WAV</div>
         </div>
         <div class="osc-params">
             <div class="dropdown-group">
-                <span class="dropdown-label">Shape</span>
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                 <select id="select-oscATable" class="param-select">
                     <optgroup label="Analog">
                         <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
@@ -1037,35 +1163,35 @@ body {
                     </optgroup>
                 </select>
             </div>
-            <div class="knob-container" data-knob="oscAPos" data-label="Position" data-initial="0%"></div>
-            <div class="knob-container" data-knob="oscALevel" data-label="Level" data-initial="80%"></div>
-            <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C"></div>
-            <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st"></div>
-            <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct"></div>
-            <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%"></div>
-            <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1"></div>
-            <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%"></div>
-            <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%"></div>
+            <div class="knob-container" data-knob="oscAPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
+            <div class="knob-container" data-knob="oscALevel" data-label="Level" data-initial="80%" data-i18n="label.level"></div>
+            <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+            <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+            <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+            <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+            <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+            <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+            <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
             <div class="dropdown-group">
-                <span class="dropdown-label">Warp</span>
+                <span class="dropdown-label" data-i18n="label.warp">Warp</span>
                 <select id="select-oscAWarpType" class="param-select">
                     <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
                 </select>
             </div>
-            <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
         </div>
     </div>
 
     <!-- Oscillator B -->
-    <div class="section-header">Oscillator B</div>
+    <div class="section-header" data-i18n="label.oscB">Oscillator B</div>
     <div class="osc-section">
         <div class="osc-canvas-wrap" id="canvasWrapB">
             <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
-            <div class="wt-drop-overlay">Drop WAV</div>
+            <div class="wt-drop-overlay" data-i18n="label.dropWav">Drop WAV</div>
         </div>
         <div class="osc-params">
             <div class="dropdown-group">
-                <span class="dropdown-label">Shape</span>
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                 <select id="select-oscBTable" class="param-select">
                     <optgroup label="Analog">
                         <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
@@ -1091,74 +1217,74 @@ body {
                     </optgroup>
                 </select>
             </div>
-            <div class="knob-container" data-knob="oscBPos" data-label="Position" data-initial="0%"></div>
-            <div class="knob-container" data-knob="oscBLevel" data-label="Level" data-initial="0%"></div>
-            <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C"></div>
-            <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st"></div>
-            <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct"></div>
-            <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%"></div>
-            <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1"></div>
-            <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%"></div>
-            <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%"></div>
+            <div class="knob-container" data-knob="oscBPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
+            <div class="knob-container" data-knob="oscBLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+            <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+            <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+            <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+            <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+            <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+            <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+            <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
             <div class="dropdown-group">
-                <span class="dropdown-label">Warp</span>
+                <span class="dropdown-label" data-i18n="label.warp">Warp</span>
                 <select id="select-oscBWarpType" class="param-select">
                     <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
                 </select>
             </div>
-            <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
         </div>
     </div>
 
     <!-- Sub + Noise -->
     <div class="inline-sections">
         <div class="inline-section">
-            <div class="section-header">Sub Oscillator</div>
+            <div class="section-header" data-i18n="label.subOsc">Sub Oscillator</div>
             <div class="param-row">
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Shape</span>
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                     <select id="select-subShape" class="param-select">
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option>
                     </select>
                 </div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Octave</span>
+                    <span class="dropdown-label" data-i18n="label.octave">Octave</span>
                     <select id="select-subOctave" class="param-select">
                         <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
                     </select>
                 </div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Routing</span>
+                    <span class="dropdown-label" data-i18n="label.routing">Routing</span>
                     <select id="select-subRouting" class="param-select">
                         <option>Post-Filter</option><option>Pre-Filter</option>
                     </select>
                 </div>
-                <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%"></div>
+                <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
             </div>
         </div>
         <div class="inline-section">
-            <div class="section-header">Noise</div>
+            <div class="section-header" data-i18n="label.noise">Noise</div>
             <div class="param-row">
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Type</span>
+                    <span class="dropdown-label" data-i18n="label.type">Type</span>
                     <select id="select-noiseType" class="param-select">
                         <option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option>
                     </select>
                 </div>
-                <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%"></div>
+                <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
             </div>
         </div>
         <div class="inline-section">
-            <div class="section-header">Performance</div>
+            <div class="section-header" data-i18n="label.performance">Performance</div>
             <div class="param-row">
-                <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st"></div>
+                <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st" data-i18n="label.pbRange"></div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Glide Mode</span>
+                    <span class="dropdown-label" data-i18n="label.glideMode">Glide Mode</span>
                     <select id="select-glideMode" class="param-select">
                         <option>Off</option><option>Legato</option><option>Always</option>
                     </select>
                 </div>
-                <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms"></div>
+                <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms" data-i18n="label.glide"></div>
             </div>
         </div>
     </div>
@@ -1166,41 +1292,41 @@ body {
     <!-- Filters -->
     <div class="inline-sections">
         <div class="inline-section">
-            <div class="section-header">Filter A</div>
+            <div class="section-header" data-i18n="label.filterA">Filter A</div>
             <div class="param-row">
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Type</span>
+                    <span class="dropdown-label" data-i18n="label.type">Type</span>
                     <select id="select-filtAType" class="param-select">
                         <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
                     </select>
                 </div>
-                <div class="knob-container" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz"></div>
-                <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%"></div>
-                <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%"></div>
-                <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
             </div>
         </div>
         <div style="display:flex; align-items:center; padding-top:20px;">
             <div class="dropdown-group">
-                <span class="dropdown-label">Filter Routing</span>
+                <span class="dropdown-label" id="lbl-filt-routing" data-i18n="label.filterRouting">Filter Routing</span>
                 <select id="select-filtRouting" class="param-select">
                     <option>Serial</option><option>Parallel</option>
                 </select>
             </div>
         </div>
         <div class="inline-section">
-            <div class="section-header">Filter B</div>
+            <div class="section-header" data-i18n="label.filterB">Filter B</div>
             <div class="param-row">
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Type</span>
+                    <span class="dropdown-label" data-i18n="label.type">Type</span>
                     <select id="select-filtBType" class="param-select">
                         <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
                     </select>
                 </div>
-                <div class="knob-container" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz"></div>
-                <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%"></div>
-                <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%"></div>
-                <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
             </div>
         </div>
     </div>
@@ -1208,23 +1334,23 @@ body {
     <!-- Envelopes -->
     <div class="inline-sections">
         <div class="inline-section">
-            <div class="section-header">Amp Envelope</div>
+            <div class="section-header" data-i18n="label.ampEnv">Amp Envelope</div>
             <div class="param-row">
-                <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms"></div>
-                <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms"></div>
-                <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%"></div>
-                <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms"></div>
+                <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+                <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms" data-i18n="label.decay"></div>
+                <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%" data-i18n="label.sustain"></div>
+                <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
             </div>
         </div>
         <div class="inline-section">
-            <div class="section-header">Filter Envelope</div>
+            <div class="section-header" data-i18n="label.filtEnv">Filter Envelope</div>
             <div class="param-row">
-                <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms"></div>
-                <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms"></div>
-                <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%"></div>
-                <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms"></div>
-                <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%"></div>
-                <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+                <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms" data-i18n="label.decay"></div>
+                <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%" data-i18n="label.sustain"></div>
+                <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+                <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%" data-i18n="label.depA"></div>
+                <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%" data-i18n="label.depB"></div>
             </div>
         </div>
     </div>
@@ -1232,11 +1358,11 @@ body {
     <!-- LFOs (rate/sync + shape — routing via Mod Matrix tab) -->
     <div class="inline-sections">
         <div class="inline-section" id="lfo1-section">
-            <div class="section-header">LFO 1 <button id="toggle-lfo1Sync" class="toggle-btn">Free</button> <button id="toggle-lfo1FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="section-header"><span data-i18n="label.lfo1">LFO 1</span> <button id="toggle-lfo1Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo1FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
             <div class="param-row">
-                <div class="knob-container" id="lfo1-rate-wrap" data-knob="lfo1Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="knob-container" id="lfo1-rate-wrap" data-knob="lfo1Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
                 <div class="dropdown-group" id="lfo1-div-wrap" style="display:none">
-                    <span class="dropdown-label">Division</span>
+                    <span class="dropdown-label" data-i18n="label.division">Division</span>
                     <select id="select-lfo1Division" class="param-select">
                         <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
                         <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
@@ -1244,7 +1370,7 @@ body {
                     </select>
                 </div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Shape</span>
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                     <select id="select-lfo1Shape" class="param-select">
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
                     </select>
@@ -1252,11 +1378,11 @@ body {
             </div>
         </div>
         <div class="inline-section" id="lfo2-section">
-            <div class="section-header">LFO 2 <button id="toggle-lfo2Sync" class="toggle-btn">Free</button> <button id="toggle-lfo2FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="section-header"><span data-i18n="label.lfo2">LFO 2</span> <button id="toggle-lfo2Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo2FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
             <div class="param-row">
-                <div class="knob-container" id="lfo2-rate-wrap" data-knob="lfo2Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="knob-container" id="lfo2-rate-wrap" data-knob="lfo2Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
                 <div class="dropdown-group" id="lfo2-div-wrap" style="display:none">
-                    <span class="dropdown-label">Division</span>
+                    <span class="dropdown-label" data-i18n="label.division">Division</span>
                     <select id="select-lfo2Division" class="param-select">
                         <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
                         <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
@@ -1264,7 +1390,7 @@ body {
                     </select>
                 </div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Shape</span>
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                     <select id="select-lfo2Shape" class="param-select">
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
                     </select>
@@ -1272,11 +1398,11 @@ body {
             </div>
         </div>
         <div class="inline-section" id="lfo3-section">
-            <div class="section-header">LFO 3 <button id="toggle-lfo3Sync" class="toggle-btn">Free</button> <button id="toggle-lfo3FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="section-header"><span data-i18n="label.lfo3">LFO 3</span> <button id="toggle-lfo3Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo3FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
             <div class="param-row">
-                <div class="knob-container" id="lfo3-rate-wrap" data-knob="lfo3Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="knob-container" id="lfo3-rate-wrap" data-knob="lfo3Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
                 <div class="dropdown-group" id="lfo3-div-wrap" style="display:none">
-                    <span class="dropdown-label">Division</span>
+                    <span class="dropdown-label" data-i18n="label.division">Division</span>
                     <select id="select-lfo3Division" class="param-select">
                         <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
                         <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
@@ -1284,7 +1410,7 @@ body {
                     </select>
                 </div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Shape</span>
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                     <select id="select-lfo3Shape" class="param-select">
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
                     </select>
@@ -1292,11 +1418,11 @@ body {
             </div>
         </div>
         <div class="inline-section" id="lfo4-section">
-            <div class="section-header">LFO 4 <button id="toggle-lfo4Sync" class="toggle-btn">Free</button> <button id="toggle-lfo4FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="section-header"><span data-i18n="label.lfo4">LFO 4</span> <button id="toggle-lfo4Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo4FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
             <div class="param-row">
-                <div class="knob-container" id="lfo4-rate-wrap" data-knob="lfo4Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="knob-container" id="lfo4-rate-wrap" data-knob="lfo4Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
                 <div class="dropdown-group" id="lfo4-div-wrap" style="display:none">
-                    <span class="dropdown-label">Division</span>
+                    <span class="dropdown-label" data-i18n="label.division">Division</span>
                     <select id="select-lfo4Division" class="param-select">
                         <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
                         <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
@@ -1304,7 +1430,7 @@ body {
                     </select>
                 </div>
                 <div class="dropdown-group">
-                    <span class="dropdown-label">Shape</span>
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
                     <select id="select-lfo4Shape" class="param-select">
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
                     </select>
@@ -1318,15 +1444,15 @@ body {
 
 <!-- ─── MOD MATRIX TAB ─── -->
 <div id="mod-tab" class="tab-content">
-    <div class="section-header">Modulation Matrix</div>
-    <div class="mod-matrix-info">Route any source to any destination. 16 slots available.</div>
+    <div class="section-header" data-i18n="label.modMatrix">Modulation Matrix</div>
+    <div class="mod-matrix-info" data-i18n="label.modMatrixInfo">Route any source to any destination. 16 slots available.</div>
     <div class="mod-matrix-table">
         <div class="mod-matrix-header">
-            <span class="mod-col-on">On</span>
+            <span class="mod-col-on" data-i18n="label.colOn">On</span>
             <span class="mod-col-slot">#</span>
-            <span class="mod-col-src">Source</span>
-            <span class="mod-col-dst">Destination</span>
-            <span class="mod-col-amt">Amount</span>
+            <span class="mod-col-src" data-i18n="label.colSource">Source</span>
+            <span class="mod-col-dst" data-i18n="label.colDest">Destination</span>
+            <span class="mod-col-amt" data-i18n="label.colAmount">Amount</span>
             <span class="mod-col-val"></span>
         </div>
         <div id="mod-matrix-rows"></div>
@@ -1339,17 +1465,17 @@ body {
     <!-- LEFT: Interval List -->
     <div class="tuning-viz-container">
         <div class="interval-list" id="interval-list">
-            <div class="interval-list-header">Intervals (12 notes)</div>
+            <div class="interval-list-header" data-i18n="label.intervalCount" data-i18n-vars='{"n":12}'>Intervals (12)</div>
         </div>
     </div>
 
     <!-- Viz Mode Toggle -->
     <div class="viz-mode-toggle">
-        <button class="viz-btn active" data-mode="circle">Circle</button>
-        <button class="viz-btn" data-mode="polar">Polar</button>
-        <button class="viz-btn" data-mode="matrix">Matrix</button>
-        <button class="viz-btn" data-mode="truekeys">True Keys</button>
-        <button class="viz-btn" data-mode="rotation">Rotation</button>
+        <button class="viz-btn active" data-mode="circle" data-i18n="label.vizCircle">Circle</button>
+        <button class="viz-btn" data-mode="polar" data-i18n="label.vizPolar">Polar</button>
+        <button class="viz-btn" data-mode="matrix" data-i18n="label.vizMatrix">Matrix</button>
+        <button class="viz-btn" data-mode="truekeys" data-i18n="label.vizTrueKeys">True Keys</button>
+        <button class="viz-btn" data-mode="rotation" data-i18n="label.vizRotation">Rotation</button>
     </div>
 
     <!-- CENTER: Visualization Container -->
@@ -1363,7 +1489,7 @@ body {
                     <g id="interval-lines"></g>
                     <g id="degree-labels" font-size="9" fill="#5C4033"></g>
                 </svg>
-                <div class="pitch-circle-label">Scale Intervals</div>
+                <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
             </div>
         </div>
         <div class="viz-view" id="polar-view">
@@ -1371,7 +1497,7 @@ body {
         </div>
         <div class="viz-view matrix-view" id="matrix-view"></div>
         <div class="viz-view truekeys-view" id="truekeys-view">
-            <div class="tk-hint">Hold 2+ notes to see intervals</div>
+            <div class="tk-hint" data-i18n="label.tkHint">Hold 2+ notes to see intervals</div>
         </div>
         <div class="viz-view rotation-view" id="rotation-view"></div>
         <div id="held-notes-bar" class="held-notes-bar"></div>
@@ -1382,18 +1508,18 @@ body {
         <!-- Tuning Library -->
         <div class="library-section" id="library-section">
             <div class="library-header" id="library-header">
-                <span class="library-header-text">Tuning Library</span>
+                <span class="library-header-text" data-i18n="label.tuningLibrary">Tuning Library</span>
                 <span class="library-toggle" id="library-toggle">&#x25BC;</span>
             </div>
             <div class="library-content" id="library-content">
                 <div class="library-filter">
                     <select id="library-filter" class="library-filter-select">
-                        <option value="all">All Categories</option>
-                        <option value="Historical">Historical</option>
-                        <option value="Just Intonation">Just Intonation</option>
-                        <option value="Equal Divisions">Equal Divisions</option>
-                        <option value="Non-Octave">Non-Octave</option>
-                        <option value="World">World</option>
+                        <option value="all" data-i18n="label.catAll">All Categories</option>
+                        <option value="Historical" data-i18n="label.catHistorical">Historical</option>
+                        <option value="Just Intonation" data-i18n="label.catJust">Just Intonation</option>
+                        <option value="Equal Divisions" data-i18n="label.catEqual">Equal Divisions</option>
+                        <option value="Non-Octave" data-i18n="label.catNonOctave">Non-Octave</option>
+                        <option value="World" data-i18n="label.catWorld">World</option>
                     </select>
                 </div>
                 <div class="library-list" id="library-list"></div>
@@ -1409,7 +1535,7 @@ body {
                         <circle class="knob-vine" id="vine-refPitch" cx="32" cy="32" r="27" stroke-dasharray="127.24" stroke-dashoffset="127.24"/>
                     </svg>
                 </div>
-                <span class="knob-label">A4 Ref</span>
+                <span class="knob-label" data-i18n="label.a4Ref">A4 Ref</span>
                 <span class="knob-value" id="ref-pitch-value">440.0 Hz</span>
             </div>
         </div>
@@ -1420,7 +1546,7 @@ body {
         <!-- Octave Stretch -->
         <div class="octave-stretch-section">
             <div class="octave-stretch-row">
-                <span class="octave-stretch-label">Stretch</span>
+                <span class="octave-stretch-label" data-i18n="label.stretch">Stretch</span>
                 <input type="range" id="octave-stretch" class="octave-stretch-slider"
                        min="0.95" max="1.25" step="0.01" value="1.0">
                 <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
@@ -1430,39 +1556,39 @@ body {
         <!-- File Operations -->
         <div class="tuning-file-section">
             <div class="tuning-file-buttons">
-                <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
-                <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
-                <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
-                <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
-                <button class="tuning-file-btn tuning-export-btn" id="btn-export-html">Export HTML</button>
+                <button class="tuning-file-btn" id="btn-load-scl" data-i18n="label.loadScl">Load .SCL</button>
+                <button class="tuning-file-btn" id="btn-load-kbm" data-i18n="label.loadKbm">Load .KBM</button>
+                <button class="tuning-file-btn" id="btn-save-scl" data-i18n="label.saveScl">Save .SCL</button>
+                <button class="tuning-file-btn" id="btn-save-kbm" data-i18n="label.saveKbm">Save .KBM</button>
+                <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-i18n="label.exportHtml">Export HTML</button>
             </div>
         </div>
 
         <!-- Scale Generator -->
         <div class="generator-section" id="generator-section">
             <div class="generator-header" id="generator-header">
-                <span class="generator-header-text">Generate Scale</span>
+                <span class="generator-header-text" data-i18n="label.generateScale">Generate Scale</span>
                 <span class="generator-toggle" id="generator-toggle">&#x25BC;</span>
             </div>
             <div class="generator-content" id="generator-content">
                 <div class="generator-type-row">
                     <select id="generator-type" class="generator-type-select">
-                        <option value="edo">EDO (Equal Division)</option>
-                        <option value="harmonic">Harmonic Series</option>
-                        <option value="rank2">Rank-2 Temperament</option>
+                        <option value="edo" data-i18n="label.genEdo">EDO (Equal Division)</option>
+                        <option value="harmonic" data-i18n="label.genHarmonic">Harmonic Series</option>
+                        <option value="rank2" data-i18n="label.genRank2">Rank-2 Temperament</option>
                     </select>
                 </div>
                 <div class="generator-inputs" id="generator-inputs">
                     <div class="gen-row">
-                        <label>Divisions</label>
+                        <label data-i18n="label.genDivisions">Divisions</label>
                         <input type="number" id="gen-divisions" value="19" min="5" max="53">
                     </div>
                     <div class="gen-row">
-                        <label>Period (cents)</label>
+                        <label data-i18n="label.genPeriod">Period (cents)</label>
                         <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
                     </div>
                 </div>
-                <button class="generator-btn" id="btn-generate">Generate</button>
+                <button class="generator-btn" id="btn-generate" data-i18n="label.generate">Generate</button>
             </div>
         </div>
     </div>
@@ -1474,78 +1600,78 @@ body {
 
     <!-- Delay -->
     <div class="effect-section" id="section-delay">
-        <div class="section-header"><span>Delay</span><button id="toggle-delayBypass" class="bypass-toggle">ON</button></div>
+        <div class="section-header"><span data-i18n="label.delay">Delay</span><button id="toggle-delayBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
-            <div class="knob-container" data-knob="delayTime" data-label="Time" data-initial="375ms"></div>
-            <div class="knob-container" data-knob="delayFeedback" data-label="Feedback" data-initial="30%"></div>
+            <div class="knob-container" data-knob="delayTime" data-label="Time" data-initial="375ms" data-i18n="label.time"></div>
+            <div class="knob-container" data-knob="delayFeedback" data-label="Feedback" data-initial="30%" data-i18n="label.feedback"></div>
             <div class="dropdown-group">
-                <span class="dropdown-label">Mode</span>
+                <span class="dropdown-label" data-i18n="label.mode">Mode</span>
                 <select id="select-delayMode" class="param-select">
                     <option>Normal</option><option>PingPong</option>
                 </select>
             </div>
             <div style="display:flex;flex-direction:column;align-items:center;margin:2px 6px;">
-                <span class="dropdown-label">Sync</span>
+                <span class="dropdown-label" data-i18n="label.sync">Sync</span>
                 <button id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;">Off</button>
             </div>
             <div class="dropdown-group">
-                <span class="dropdown-label">Division</span>
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
                 <select id="select-delayDivision" class="param-select">
                     <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
                     <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
                     <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
                 </select>
             </div>
-            <div class="knob-container" data-knob="delayMix" data-label="Mix" data-initial="0%"></div>
+            <div class="knob-container" data-knob="delayMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
         </div>
     </div>
 
     <!-- Chorus -->
     <div class="effect-section" id="section-chorus">
-        <div class="section-header"><span>Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle">ON</button></div>
+        <div class="section-header"><span data-i18n="label.chorus">Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
-            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz"></div>
-            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%"></div>
-            <div class="knob-container" data-knob="chorusMix" data-label="Mix" data-initial="0%"></div>
+            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%" data-i18n="label.depth"></div>
+            <div class="knob-container" data-knob="chorusMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
         </div>
     </div>
 
     <!-- Distortion -->
     <div class="effect-section" id="section-dist">
-        <div class="section-header"><span>Distortion</span><button id="toggle-distBypass" class="bypass-toggle">ON</button></div>
+        <div class="section-header"><span data-i18n="label.distortion">Distortion</span><button id="toggle-distBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
             <div class="dropdown-group">
-                <span class="dropdown-label">Type</span>
+                <span class="dropdown-label" data-i18n="label.type">Type</span>
                 <select id="select-distType" class="param-select">
                     <option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option>
                 </select>
             </div>
-            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%"></div>
-            <div class="knob-container" data-knob="distMix" data-label="Mix" data-initial="0%"></div>
+            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+            <div class="knob-container" data-knob="distMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
         </div>
     </div>
 
     <!-- Reverb -->
     <div class="effect-section" id="section-reverb">
-        <div class="section-header"><span>Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle">ON</button></div>
+        <div class="section-header"><span data-i18n="label.reverb">Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
-            <div class="knob-container" data-knob="reverbSize" data-label="Size" data-initial="50%"></div>
-            <div class="knob-container" data-knob="reverbDamp" data-label="Damp" data-initial="50%"></div>
-            <div class="knob-container" data-knob="reverbPredelay" data-label="Pre-Dly" data-initial="20ms"></div>
-            <div class="knob-container" data-knob="reverbMix" data-label="Mix" data-initial="0%"></div>
-            <div class="knob-container" data-knob="reverbModDepth" data-label="Mod" data-initial="30%"></div>
-            <div class="knob-container" data-knob="reverbModRate" data-label="Rate" data-initial="1.0Hz"></div>
+            <div class="knob-container" data-knob="reverbSize" data-label="Size" data-initial="50%" data-i18n="label.size"></div>
+            <div class="knob-container" data-knob="reverbDamp" data-label="Damp" data-initial="50%" data-i18n="label.damp"></div>
+            <div class="knob-container" data-knob="reverbPredelay" data-label="Pre-Dly" data-initial="20ms" data-i18n="label.preDly"></div>
+            <div class="knob-container" data-knob="reverbMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+            <div class="knob-container" data-knob="reverbModDepth" data-label="Mod" data-initial="30%" data-i18n="label.modAmt"></div>
+            <div class="knob-container" data-knob="reverbModRate" data-label="Rate" data-initial="1.0Hz" data-i18n="label.rate"></div>
         </div>
     </div>
 
     <!-- EQ -->
     <div class="effect-section" id="section-eq">
-        <div class="section-header"><span>3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle">ON</button></div>
+        <div class="section-header"><span data-i18n="label.eq3">3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
-            <div class="knob-container" data-knob="eqLowGain" data-label="Low" data-initial="0 dB"></div>
-            <div class="knob-container" data-knob="eqMidGain" data-label="Mid" data-initial="0 dB"></div>
-            <div class="knob-container" data-knob="eqMidFreq" data-label="Mid Freq" data-initial="1.0kHz"></div>
-            <div class="knob-container" data-knob="eqHighGain" data-label="High" data-initial="0 dB"></div>
+            <div class="knob-container" data-knob="eqLowGain" data-label="Low" data-initial="0 dB" data-i18n="label.low"></div>
+            <div class="knob-container" data-knob="eqMidGain" data-label="Mid" data-initial="0 dB" data-i18n="label.mid"></div>
+            <div class="knob-container" data-knob="eqMidFreq" data-label="Mid Freq" data-initial="1.0kHz" data-i18n="label.midFreq"></div>
+            <div class="knob-container" data-knob="eqHighGain" data-label="High" data-initial="0 dB" data-i18n="label.high"></div>
         </div>
     </div>
 
@@ -1556,8 +1682,8 @@ body {
 
     <!-- Osc A/B Toggle -->
     <div class="wt-osc-toggle">
-        <button class="wt-osc-btn active" data-osc="0">Osc A</button>
-        <button class="wt-osc-btn" data-osc="1">Osc B</button>
+        <button class="wt-osc-btn active" data-osc="0" data-i18n="label.oscAShort">Osc A</button>
+        <button class="wt-osc-btn" data-osc="1" data-i18n="label.oscBShort">Osc B</button>
     </div>
 
     <!-- Frame Strip -->
@@ -1568,7 +1694,7 @@ body {
     <!-- Harmonic Editor -->
     <div class="wt-harmonic-area">
         <div class="wt-harmonic-toolbar">
-            <span class="wt-label">Harmonics</span>
+            <span class="wt-label" data-i18n="label.harmonics">Harmonics</span>
             <button class="wt-bin-btn" data-bins="32">32</button>
             <button class="wt-bin-btn" data-bins="64">64</button>
             <button class="wt-bin-btn active" data-bins="128">128</button>
@@ -1579,7 +1705,7 @@ body {
                 <canvas id="wt-harmonic-canvas" class="wt-harmonic-canvas"></canvas>
             </div>
             <div class="wt-waveform-preview-wrap">
-                <span class="wt-waveform-preview-label">Waveform</span>
+                <span class="wt-waveform-preview-label" data-i18n="label.waveform">Waveform</span>
                 <canvas id="wt-waveform-preview" class="wt-waveform-canvas"></canvas>
             </div>
         </div>
@@ -1587,18 +1713,18 @@ body {
 
     <!-- Operations Bar -->
     <div class="wt-ops-bar">
-        <button class="wt-op-btn" id="wt-op-normalize">Normalize</button>
-        <button class="wt-op-btn" id="wt-op-normalizeGlobal">Normalize Global</button>
+        <button class="wt-op-btn" id="wt-op-normalize" data-i18n="label.normalize">Normalize</button>
+        <button class="wt-op-btn" id="wt-op-normalizeGlobal" data-i18n="label.normalizeGlobal">Normalize Global</button>
         <div class="wt-op-separator"></div>
-        <button class="wt-op-btn" id="wt-op-fade">Fade Edges</button>
-        <button class="wt-op-btn" id="wt-op-reverse">Reverse</button>
-        <button class="wt-op-btn" id="wt-op-reverseOrder">Reverse Order</button>
-        <button class="wt-op-btn" id="wt-op-smooth">Smooth</button>
+        <button class="wt-op-btn" id="wt-op-fade" data-i18n="label.fadeEdges">Fade Edges</button>
+        <button class="wt-op-btn" id="wt-op-reverse" data-i18n="label.reverse">Reverse</button>
+        <button class="wt-op-btn" id="wt-op-reverseOrder" data-i18n="label.reverseOrder">Reverse Order</button>
+        <button class="wt-op-btn" id="wt-op-smooth" data-i18n="label.smooth">Smooth</button>
         <div class="wt-op-separator"></div>
-        <button class="wt-op-btn" id="wt-op-save" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        <button class="wt-op-btn" id="wt-op-save" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;" data-i18n="label.saveShort">Save</button>
         <div class="wt-op-separator"></div>
-        <button class="wt-undo-btn" id="wt-undo-btn" disabled title="Undo (Ctrl+Z)">&#x21A9;</button>
-        <button class="wt-undo-btn" id="wt-redo-btn" disabled title="Redo (Ctrl+Shift+Z)">&#x21AA;</button>
+        <button class="wt-undo-btn" id="wt-undo-btn" disabled data-i18n-aria="aria.undo">&#x21A9;</button>
+        <button class="wt-undo-btn" id="wt-redo-btn" disabled data-i18n-aria="aria.redo">&#x21AA;</button>
     </div>
 
 </div><!-- /wavetable-tab -->
@@ -1606,11 +1732,11 @@ body {
 <!-- Save Modal -->
 <div id="wt-save-modal-overlay" class="wt-save-modal-overlay">
     <div class="wt-save-modal">
-        <h3>Save Wavetable</h3>
-        <input type="text" id="wt-save-name-input" placeholder="Wavetable name...">
+        <h3 data-i18n="label.saveWavetable">Save Wavetable</h3>
+        <input type="text" id="wt-save-name-input" placeholder="Wavetable name..." data-i18n-placeholder="aria.wavetableName">
         <div class="wt-save-modal-buttons">
-            <button class="wt-op-btn" id="wt-save-cancel">Cancel</button>
-            <button class="wt-op-btn" id="wt-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+            <button class="wt-op-btn" id="wt-save-cancel" data-i18n="label.cancel">Cancel</button>
+            <button class="wt-op-btn" id="wt-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;" data-i18n="label.save">Save</button>
         </div>
     </div>
 </div>
@@ -1618,11 +1744,11 @@ body {
 <!-- Preset Save Modal (CR-10: window.prompt is a silent no-op under WKWebView) -->
 <div id="preset-save-modal-overlay" class="wt-save-modal-overlay">
     <div class="wt-save-modal">
-        <h3>Save Preset</h3>
-        <input type="text" id="preset-save-name-input" placeholder="Preset name...">
+        <h3 data-i18n="label.savePreset">Save Preset</h3>
+        <input type="text" id="preset-save-name-input" placeholder="Preset name..." data-i18n-placeholder="aria.presetName">
         <div class="wt-save-modal-buttons">
-            <button class="wt-op-btn" id="preset-save-cancel">Cancel</button>
-            <button class="wt-op-btn" id="preset-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+            <button class="wt-op-btn" id="preset-save-cancel" data-i18n="label.cancel">Cancel</button>
+            <button class="wt-op-btn" id="preset-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;" data-i18n="label.save">Save</button>
         </div>
     </div>
 </div>
@@ -1635,12 +1761,12 @@ body {
 <div class="footer-bar">
     <div class="footer-param">
         <div class="knob" id="knob-masterVol"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-masterVol" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
-        <span class="footer-label">Master</span>
+        <span class="footer-label" data-i18n="label.master">Master</span>
         <span class="footer-value" id="val-masterVol">80%</span>
     </div>
     <div class="footer-param">
         <div class="knob" id="knob-oscMix"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-oscMix" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
-        <span class="footer-label">Osc Mix</span>
+        <span class="footer-label" data-i18n="label.oscMix">Osc Mix</span>
         <span class="footer-value" id="val-oscMix">50%</span>
     </div>
 </div>
@@ -1650,9 +1776,149 @@ body {
      ═══════════════════════════════════════════════════════════════════ -->
 <script type="module">
 import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
 // Expose getNativeFunction for non-module scripts (wavetable-editor.js)
 window.JuceGetNativeFunction = Juce.getNativeFunction;
+
+// ═══════════════════════════════════════════════════════════════════
+// i18n — canon v2, verbatim from scripts/i18n-canon.js
+// ═══════════════════════════════════════════════════════════════════
+//
+// PLACED AT THE TOP, and that is load-bearing rather than conventional. This
+// module is 2,100+ lines of top-level IIFEs, the first of which
+// (expandKnobMarkup, immediately below) runs during module evaluation. Anything
+// here that reached a `let` declared further down would be a TDZ
+// ReferenceError that kills every later initializer on the page silently
+// (pattern_module_toplevel_init_tdz). Declaring the block first and CALLING
+// initI18n() last is the only ordering that is safe in both directions:
+// applyLabel() must exist before the injectors below call it, and the sweep
+// must not run until every knob has been expanded and every panel built.
+//
+// check-i18n assertion 6 byte-compares the region from `let uiLanguage` to the
+// close of initI18n() against scripts/i18n-canon.js after comment stripping and
+// whitespace normalisation. Do not edit inside it; helpers go outside.
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── outside the canon region ────────────────────────────────────────────────
+// Re-localizes a subtree the page has just INJECTED. applyLabel/applyI18nAttributes
+// are canon functions; this only loops them over a fragment that did not exist
+// when the last language sweep ran.
+//
+// It is deliberately NOT setLabel(): the keys inside an injected template are
+// already declared in the template's own data-i18n attributes, and
+// setLabel(el, el.dataset.i18n) is a COMPUTED key, which check-i18n assertion 13
+// rejects for the same reason it rejects a computed setLabel key anywhere else —
+// a computed key cannot be checked.
+function localizeSubtree(root) {
+    if (!root) return;
+    for (const el of root.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of root.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+}
+window.__localizeSubtree = localizeSubtree;
+
+// ── the settings popover ────────────────────────────────────────────────────
+(function initSettingsPopover() {
+    const gear = document.getElementById('gear-btn');
+    const pop  = document.getElementById('settings-popover');
+    if (!gear || !pop) return;
+    gear.addEventListener('click', (e) => { e.stopPropagation(); pop.classList.toggle('visible'); });
+    pop.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', () => pop.classList.remove('visible'));
+})();
 
 // ─── KNOB SCAFFOLD EXPANSION ───
 // Walks every <div class="knob-container" data-knob="..."> placeholder and
@@ -1665,6 +1931,35 @@ window.JuceGetNativeFunction = Juce.getNativeFunction;
         const paramId = el.dataset.knob;
         const label = el.dataset.label || '';
         const initial = el.dataset.initial || '';
+
+        // ── THE 64 KNOB CAPTIONS, AND WHY THE KEY MOVES ────────────────────
+        //
+        // The caption is generated here from data-label, so it is a text node
+        // that exists in NO static parse: i18n-extract does not scan data-label,
+        // check-i18n assertion 10 reads index.html's static parse, assertion 12
+        // finds no English literal because the caption half of the concatenation
+        // is a variable, and check-ui-labels only collects [data-i18n]. All 64
+        // could ship in English with ALL CHECKS PASS on both gates.
+        //
+        // Keying the GENERATED span from a concatenated literal does not work
+        // either: assertion 15 parses whole string literals, so
+        // '... data-i18n="knob.' + paramId + '"' registers a dangling key
+        // `knob.` and reports every real LABELS key dead, and assertion 13
+        // rejects a computed setLabel key.
+        //
+        // So the key is declared on the STATIC container, where assertion 15's
+        // markupKeys sweep reads it out of index.html, and MOVED onto the
+        // generated .knob-label here. check-ui-labels then measures all 64 from
+        // the live DOM, in both languages, in geometry and in the vacuity sweep
+        // — that gate, not check-i18n, is the evidence for this class.
+        //
+        // removeAttribute IS NOT OPTIONAL. If the container keeps the key, the
+        // language sweep calls applyLabel(container), which writes textContent
+        // and DELETES the entire expanded knob — svg, vine, readout and all —
+        // on the first language switch.
+        const key = el.dataset.i18n || '';
+        el.removeAttribute('data-i18n');
+
         el.innerHTML =
             '<div class="knob" id="knob-' + paramId + '">' +
                 '<div class="knob-visual">' +
@@ -1676,7 +1971,20 @@ window.JuceGetNativeFunction = Juce.getNativeFunction;
                 '<span class="knob-label">' + label + '</span>' +
                 '<span class="knob-value" id="val-' + paramId + '">' + initial + '</span>' +
             '</div>';
+
+        if (key) el.querySelector('.knob-label').dataset.i18n = key;
     });
+
+    // The post-condition, asserted rather than assumed: no container kept its
+    // key (which would delete the knob on the first switch), and every caption
+    // carries one.
+    const stranded = document.querySelectorAll('.knob-container[data-i18n]').length;
+    const captions = document.querySelectorAll('.knob-label[data-i18n]').length;
+    if (stranded !== 0)
+        console.error('[i18n] ' + stranded + ' knob container(s) kept data-i18n — '
+                    + 'the language sweep will delete their contents');
+    if (captions === 0)
+        console.error('[i18n] no .knob-label carries a key — the 64 knob captions are unlocalized');
 })();
 
 // ─── TAB SWITCHING ───
@@ -2455,13 +2763,18 @@ function bindLfoSync(lfoNum) {
     const syncState = Juce.getToggleState('lfo' + lfoNum + 'Sync');
 
     function updateSyncUI(isSync) {
+        // setLabel(), not textContent: the element becomes a [data-i18n] element
+        // from this moment on and the language sweep owns it. A raw literal here
+        // would be stranded in the previous language the instant the toggle
+        // fires. Two calls rather than one ternary — check-i18n assertion 13
+        // rejects a conditional inside a setLabel argument (contract section 6).
         if (isSync) {
-            syncBtn.textContent = 'Sync';
+            setLabel(syncBtn, 'ui.sync');
             syncBtn.classList.add('active');
             rateWrap.style.display = 'none';
             divWrap.style.display = '';
         } else {
-            syncBtn.textContent = 'Free';
+            setLabel(syncBtn, 'ui.free');
             syncBtn.classList.remove('active');
             rateWrap.style.display = '';
             divWrap.style.display = 'none';
@@ -2486,10 +2799,10 @@ function bindLfoFreeRun(lfoNum) {
 
     function updateUI(isFree) {
         if (isFree) {
-            btn.textContent = 'Free Run';
+            setLabel(btn, 'ui.freeRun');
             btn.classList.add('active');
         } else {
-            btn.textContent = 'Retrig';
+            setLabel(btn, 'ui.retrig');
             btn.classList.remove('active');
         }
     }
@@ -2727,6 +3040,10 @@ bindKnob('oscMix',    pct,     0.5, 'small');
 
     function updateSyncDisplay() {
         const isOn = toggle.getValue();
+        // NOT setLabel(): this face is D-01 arm 1 — byte-identical to what the
+        // delaySync parameter reports to the host — and is an I18N_EXEMPT entry
+        // scoped to #toggle-delaySync. See i18n.js for the reasoning and for the
+        // geometry that made it unambiguous.
         syncBtn.textContent = isOn ? 'On' : 'Off';
         syncBtn.classList.toggle('active', isOn);
     }
@@ -2747,7 +3064,11 @@ function bindBypassToggle(paramId, buttonId, sectionId) {
 
     function update() {
         const isBypassed = toggle.getValue();
-        btn.textContent = isBypassed ? 'OFF' : 'ON';
+        // Separate keys from ui.on/ui.off: these five carry the markup's own
+        // upper case, and the ownership mirror asserts
+        // dataset.label === textContent, which CSS text-transform is not.
+        if (isBypassed) setLabel(btn, 'ui.bypassOff');
+        else            setLabel(btn, 'ui.bypassOn');
         btn.classList.toggle('off', isBypassed);
         if (section) section.classList.toggle('bypassed', isBypassed);
     }
@@ -2907,13 +3228,13 @@ class WavetableSelector {
 
         const importOpt = document.createElement('option');
         importOpt.dataset.action = 'import';
-        importOpt.textContent = 'Import WAV...';
+        setLabel(importOpt, 'label.importWav');
         this.selectEl.appendChild(importOpt);
 
         if (this.userTableNames.length > 0) {
             const manageOpt = document.createElement('option');
             manageOpt.dataset.action = 'manage';
-            manageOpt.textContent = 'Manage...';
+            setLabel(manageOpt, 'label.manage');
             this.selectEl.appendChild(manageOpt);
         }
 
@@ -3052,7 +3373,11 @@ async function showWavetableManager() {
             names = result ? (typeof result === 'string' ? JSON.parse(result) : result) : [];
         } catch(e) {}
         if (names.length === 0) {
-            list.innerHTML = '<li class="wt-modal-empty">No user wavetables imported yet.</li>';
+            list.innerHTML = '<li class="wt-modal-empty" data-i18n="label.noUserWavetables">No user wavetables imported yet.</li>';
+            // The English in the template is contract section 1's fallback; this
+            // is what makes the node speak the CURRENT language rather than
+            // waiting for the next switch.
+            localizeSubtree(list);
             return;
         }
         for (const name of names) {
@@ -3061,7 +3386,7 @@ async function showWavetableManager() {
             span.textContent = name;
             const btn = document.createElement('button');
             btn.className = 'wt-delete-btn';
-            btn.textContent = 'Delete';
+            setLabel(btn, 'label.delete');
             btn.addEventListener('click', async () => {
                 await deleteUserWt(name);
                 await refresh();
@@ -3290,12 +3615,21 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
                 else if (Math.abs(interval - 700) < 20) cls += ' medium';
                 else if (Math.abs(interval - 500) < 20) cls += ' medium';
                 else if (Math.abs(interval - 400) < 20) cls += ' small';
-                html += `<td class="${cls}" title="${interval.toFixed(1)}\u00A2">${Math.round(interval)}</td>`;
+                // v1.21.0: the native title= is DELETED, not localized (contract
+                // section 4). It carried a pure numeric readout — cents to one
+                // decimal — and there is no prose to move to data-i18n-aria;
+                // inventing some would be Stage M's job. Both gates were blind to
+                // it: assertion 11's markup loop cannot see inside a <script>, and
+                // the accumulator shape (`html += ...`, `container.innerHTML = html`)
+                // is invisible to assertion 12. The page rendered 127 of these in
+                // the Matrix view and 121 more in Rotation.
+                html += `<td class="${cls}">${Math.round(interval)}</td>`;
             }
             html += '</tr>';
         }
         html += '</table>';
         container.innerHTML = html;
+        localizeSubtree(container);
     }
 
     // ── True Keys ──
@@ -3342,7 +3676,8 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         const container = document.getElementById('truekeys-view');
         if (!container) return;
         if (heldNotes.length < 2) {
-            container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+            container.innerHTML = '<div class="tk-hint" data-i18n="label.tkHint">Hold 2+ notes to see intervals</div>';
+            localizeSubtree(container);
             return;
         }
         let html = '<div class="tk-grid">';
@@ -3355,10 +3690,11 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         }
         if (sorted.length > 2) {
             const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
-            html += `<div class="tk-interval" style="border-color:#6B8E4E;margin-top:6px;"><span><strong>Total span</strong></span><span class="tk-cents">${totalCents.toFixed(1)}\u00A2</span></div>`;
+            html += `<div class="tk-interval" style="border-color:#6B8E4E;margin-top:6px;"><span><strong data-i18n="label.totalSpan">Total span</strong></span><span class="tk-cents">${totalCents.toFixed(1)}\u00A2</span></div>`;
         }
         html += '</div>';
         container.innerHTML = html;
+        localizeSubtree(container);
     }
 
     function updateHeldNotesBar() {
@@ -3370,7 +3706,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
             return;
         }
         const sorted = heldNotes.map((n, i) => ({ note: n, freq: heldFreqs[i] })).sort((a, b) => a.note - b.note);
-        let html = '<span class="hn-label">Intervals:</span>';
+        let html = '<span class="hn-label" data-i18n="label.heldIntervals">Intervals:</span>';
         for (let i = 0; i < sorted.length - 1; i++) {
             const cents = 1200 * Math.log2(sorted[i + 1].freq / sorted[i].freq);
             const name = approxIntervalName(cents);
@@ -3380,9 +3716,10 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         }
         if (sorted.length > 2) {
             const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
-            html += `<span class="hn-item" style="margin-left:6px;border-left:1px solid rgba(235,217,199,0.3);padding-left:8px;">Span <span class="hn-cents">${totalCents.toFixed(1)}\u00A2</span></span>`;
+            html += `<span class="hn-item" style="margin-left:6px;border-left:1px solid rgba(235,217,199,0.3);padding-left:8px;"><span class="hn-span" data-i18n="label.span">Span</span> <span class="hn-cents">${totalCents.toFixed(1)}\u00A2</span></span>`;
         }
         bar.innerHTML = html;
+        localizeSubtree(bar);
         bar.classList.add('active');
     }
 
@@ -3391,7 +3728,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         const container = document.getElementById('rotation-view');
         if (!container) return;
         const total = currentIntervals.length;
-        let html = '<table class="rotation-table"><tr><th>Mode</th>';
+        let html = '<table class="rotation-table"><tr><th data-i18n="label.rotationMode">Mode</th>';
         for (let i = 1; i <= total; i++) html += `<th>${i}</th>`;
         html += '</tr>';
         for (let start = 0; start < total; start++) {
@@ -3414,12 +3751,13 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
                     else if (interval < 250) cls += ' medium';
                     else cls += ' large';
                 }
-                html += `<td class="${cls}" title="${interval.toFixed(1)}\u00A2">${step === 0 ? '-' : Math.round(interval)}</td>`;
+                html += `<td class="${cls}">${step === 0 ? '-' : Math.round(interval)}</td>`;
             }
             html += '</tr>';
         }
         html += '</table>';
         container.innerHTML = html;
+        localizeSubtree(container);
     }
 
     // ── Interval List UI ──
@@ -3430,8 +3768,13 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         } catch (e) { console.error('[Tuning] Get tonic failed:', e); }
 
         const total = currentIntervals.length;
-        let html = `<div class="interval-list-header">Intervals (${total} notes)</div>`;
-        html += `<div class="tonic-selector"><span class="tonic-arrow" id="tonic-down">\u25C0</span><span class="tonic-label">Tonic:</span><span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span><span class="tonic-arrow" id="tonic-up">\u25B6</span></div>`;
+        // "notes" is gone from the header, in BOTH languages. French pluralizes
+        // zero as singular where English does not, and the English already read
+        // "Intervals (1 notes)" on a one-degree scale — contract section 6 says
+        // the copy is authored around the inflection rather than engineered.
+        // data-i18n-vars carries the count as a {token} the table interpolates.
+        let html = `<div class="interval-list-header" data-i18n="label.intervalCount" data-i18n-vars='{"n":${total}}'>Intervals (${total})</div>`;
+        html += `<div class="tonic-selector"><span class="tonic-arrow" id="tonic-down">\u25C0</span><span class="tonic-label" data-i18n="label.tonic">Tonic:</span><span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span><span class="tonic-arrow" id="tonic-up">\u25B6</span></div>`;
 
         for (let i = 0; i < total; i++) {
             const cents = currentIntervals[i] || 0;
@@ -3447,6 +3790,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         }
 
         intervalList.innerHTML = html;
+        localizeSubtree(intervalList);
 
         intervalList.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
             const idx = parseInt(input.dataset.index, 10);
@@ -3684,16 +4028,40 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         } catch (e) { console.error('[Library] Failed to load tunings:', e); }
     }
 
+    // The C++ category strings (EmbeddedTunings.cpp) mapped onto the SAME five
+    // keys the #library-filter options already declare in the markup. Reusing
+    // them rather than minting new ones is what keeps the filter and the list
+    // agreeing, and what keeps assertion 15 from reporting either set dead:
+    // a key set only from a computed `.dataset.i18n =` is invisible to the
+    // dead-key sweep, so it has to be referenced from the static markup.
+    const CATEGORY_KEY = {
+        'Historical':      'label.catHistorical',
+        'Just Intonation': 'label.catJust',
+        'Equal Divisions': 'label.catEqual',
+        'Non-Octave':      'label.catNonOctave',
+        'World':           'label.catWorld',
+    };
+
     function renderLibraryList() {
         const listEl = document.getElementById('library-list');
         if (!listEl) return;
         const filtered = libraryFilter === 'all' ? embeddedTunings : embeddedTunings.filter(t => t.category === libraryFilter);
         let html = '';
         filtered.forEach(tuning => {
-            const periodNote = tuning.period && tuning.period !== 1200 ? ' (' + tuning.period.toFixed(0) + '\u00A2 period)' : '';
-            html += `<div class="library-item" data-id="${tuning.id}"><div class="library-item-name">${tuning.name}</div><div class="library-item-info">${tuning.category || ''} \u2022 ${tuning.noteCount} notes${periodNote}</div></div>`;
+            const periodNote = tuning.period && tuning.period !== 1200
+                ? ` (${tuning.period.toFixed(0)}\u00A2 <span data-i18n="label.libPeriod">period</span>)` : '';
+            html += `<div class="library-item" data-id="${tuning.id}"><div class="library-item-name">${tuning.name}</div><div class="library-item-info"><span class="li-cat" data-cat="${tuning.category || ''}">${tuning.category || ''}</span> \u2022 ${tuning.noteCount} <span data-i18n="label.libNotes">notes</span>${periodNote}</div></div>`;
         });
         listEl.innerHTML = html;
+        // The category span's key is data-DRIVEN, so it is attached after
+        // injection rather than written into the template: a computed key inside
+        // a data-i18n attribute would be read by assertion 15 as the literal
+        // "${...}" and reported dangling.
+        listEl.querySelectorAll('.li-cat').forEach(el => {
+            const k = CATEGORY_KEY[el.dataset.cat];
+            if (k) el.dataset.i18n = k;
+        });
+        localizeSubtree(listEl);
         listEl.querySelectorAll('.library-item').forEach(item => {
             item.addEventListener('click', () => loadEmbeddedTuning(item.dataset.id));
         });
@@ -3730,15 +4098,16 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         if (!inputsDiv) return;
         switch (generatorType) {
             case 'edo':
-                inputsDiv.innerHTML = '<div class="gen-row"><label>Divisions</label><input type="number" id="gen-divisions" value="19" min="5" max="53"></div><div class="gen-row"><label>Period (cents)</label><input type="number" id="gen-period" value="1200" min="100" max="2400" step="1"></div>';
+                inputsDiv.innerHTML = '<div class="gen-row"><label data-i18n="label.genDivisions">Divisions</label><input type="number" id="gen-divisions" value="19" min="5" max="53"></div><div class="gen-row"><label data-i18n="label.genPeriod">Period (cents)</label><input type="number" id="gen-period" value="1200" min="100" max="2400" step="1"></div>';
                 break;
             case 'harmonic':
-                inputsDiv.innerHTML = '<div class="gen-row"><label>Start Harmonic</label><input type="number" id="gen-start" value="8" min="1" max="32"></div><div class="gen-row"><label>End Harmonic</label><input type="number" id="gen-end" value="16" min="2" max="64"></div>';
+                inputsDiv.innerHTML = '<div class="gen-row"><label data-i18n="label.genStartHarm">Start Harmonic</label><input type="number" id="gen-start" value="8" min="1" max="32"></div><div class="gen-row"><label data-i18n="label.genEndHarm">End Harmonic</label><input type="number" id="gen-end" value="16" min="2" max="64"></div>';
                 break;
             case 'rank2':
-                inputsDiv.innerHTML = '<div class="gen-row"><label>Generator (cents)</label><input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1"></div><div class="gen-row"><label>Period (cents)</label><input type="number" id="gen-r2-period" value="1200" min="100" max="2400"></div><div class="gen-row"><label>Notes</label><input type="number" id="gen-count" value="12" min="3" max="31"></div>';
+                inputsDiv.innerHTML = '<div class="gen-row"><label data-i18n="label.genGenerator">Generator (cents)</label><input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1"></div><div class="gen-row"><label data-i18n="label.genPeriod">Period (cents)</label><input type="number" id="gen-r2-period" value="1200" min="100" max="2400"></div><div class="gen-row"><label data-i18n="label.genNotes">Notes</label><input type="number" id="gen-count" value="12" min="3" max="31"></div>';
                 break;
         }
+        localizeSubtree(inputsDiv);
     });
 
     document.getElementById('btn-generate')?.addEventListener('click', async () => {
@@ -3813,14 +4182,23 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
     }
     setTimeout(tryInit, 300);
 })();
+
+// ═══════════════════════════════════════════════════════════════════
+// i18n — CALLED LAST
+// ═══════════════════════════════════════════════════════════════════
+// Every [data-i18n] element on the page must exist before the first sweep:
+// expandKnobMarkup() has generated all 64 .knob-label spans, the preset bar has
+// been built, and the panels above have been declared. The tuning IIFE's own
+// injectors call localizeSubtree() on whatever they build after this point.
+try { initI18n(); } catch (e) { console.error('[i18n] init failed:', e); }
 </script>
 
 <!-- Wavetable Manager Modal -->
 <div class="wt-modal-backdrop" id="wt-modal-backdrop">
     <div class="wt-modal">
-        <h3>User Wavetables</h3>
+        <h3 data-i18n="label.userWavetables">User Wavetables</h3>
         <ul class="wt-modal-list" id="wt-modal-list"></ul>
-        <button class="wt-modal-close" id="wt-modal-close">Close</button>
+        <button class="wt-modal-close" id="wt-modal-close" data-i18n="label.close">Close</button>
     </div>
 </div>
 

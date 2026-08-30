@@ -1,5 +1,40 @@
 # O-Prism Changelog
 
+## v1.21.0 (2026-08-30)
+
+### Added
+- **The page speaks French.** A gear in the header opens a settings popover with a language selector; the choice rides the APVTS state tree as a non-parameter property, so it is remembered with the session and never appears in a DAW automation lane. 155 label keys, every French string machine-drafted and flagged `reviewed: false` — no native speaker has read any of it yet. Canon v2 (`scripts/i18n-canon.js`), the same runtime block all 43 plugins now carry.
+- `Source/ui/public/js/i18n.js` — the table. Embedded in `juce_add_binary_data` **and** served from a `getResource()` branch, both halves verified independently: a file that is one but not the other is a 404 that presents as a missing panel and nothing else.
+- `tests/i18n-states.json` — 23 UI states for `scripts/check-ui-labels.js`, so the four non-default tabs, the six viz modes, the four dialogs, the preset menu and the settings popover are all measured in both languages instead of certified by never being rendered.
+
+### Changed
+- **The 64 knob captions are keyed on their static container, not on the generated span.** `expandKnobMarkup()` builds each knob's caption from `data-label`, a text node that exists in no static parse — `i18n-extract` does not scan `data-label`, `check-i18n` assertion 10 reads index.html's static parse, assertion 12 finds no English literal because the caption half of the concatenation is a variable, and `check-ui-labels` only collects `[data-i18n]`. All 64 could have shipped in English with ALL CHECKS PASS on both gates. The key is now declared on the `div.knob-container` and MOVED onto the generated `.knob-label`, with `removeAttribute('data-i18n')` on the container — without which the language sweep writes `textContent` on the container and deletes the entire expanded knob, svg and readout included, on the first switch.
+- **The four LFO section headers were split.** Each held a text node beside two buttons; writing `textContent` on the header would have deleted the buttons, so the caption moved into its own `<span>` (contract §5).
+- **Six visible strings changed in ENGLISH too**, all recorded here because they are user-visible:
+  - `Intervals (12 notes)` → `Intervals (12)`. French pluralizes zero as singular where English does not, and the existing English already read `Intervals (1 notes)` on a one-degree scale. The count sits in a panel captioned "Intervals" and needs no noun (contract §6).
+  - The eight native `title=` attributes are gone (contract §4). Six carried real prose and moved verbatim to `data-i18n-aria`: Previous/Next/Save Preset, Click to browse presets, Undo (Ctrl+Z), Redo (Ctrl+Shift+Z).
+  - The two remaining ones were `title="${interval.toFixed(1)}¢"` inside the interval-matrix and modal-rotation templates. **Deleted, not localized.** They carried a pure numeric readout — cents to one decimal, beside a cell already showing the rounded integer — so there is no prose to move to `data-i18n-aria`, and inventing some is Stage M's job. This does remove a value a user could previously read on hover. It also removes a great deal more than the markup suggested: the page rendered **six** native titles at load and **248** once the Matrix and Rotation views had been opened, and every gate in the repo saw only the six.
+
+### Fixed
+- Nothing. No pre-existing English defect was exposed by keying this page — the first plugin in seven batches of this rollout where that is true.
+
+### Technical Notes
+- **Geometry: zero non-label elements move between English and French**, at a fixed 1200x800 frame, across all 23 states, measured at 180 ms and 1.7 s. The page is pixel-identical at the two settle times in both languages, so no CSS transition is in flight behind the numbers.
+- **Nine geometry pins ship, each pinned to a MEASURED English box and each reverted alone to confirm it re-breaks the gate**: `.settings-label` (1 failure), `.hn-label` (7), `.tonic-label` (13), `#lbl-filt-routing` (2), `.hn-span` (7), the `delayFeedback` knob column (2), the two `WarpAmt` knob columns (2), `.wt-label` (6) and the seven `#wt-op-*` buttons (6). A tenth, on `.subtitle`, was measured as DECORATION — removed, with the constraint recorded on `label.subtitle` instead.
+- **`.hn-span` is the only French-sized pin on the page**, and it moves one `.hn-cents` readout 1.53 px in English. There is no French word for "Span" at the English width.
+- **The knob columns cap a caption at 38.45 px, and the cause is a bounding box rather than a design.** `.knob-visual svg` carries `transform: rotate(-135deg)`, so its `getBoundingClientRect` is the axis-aligned box of the ROTATED square — 73.5 px for a 52 px knob — reaching 10.75 px past the visual on every side. Six French captions crossed that line and were shortened for it: `Niv.`, `Larg.`, `Chute`, `Vit.`, `Amor.`, `Méd.`. `Gross.` was shortened for a tighter variant of the same rule (49.8 px, set by the neighbour's rotated `circle`). None of these are preferred vocabulary; a reviewer should read them as layout constraints.
+- **The seven wavetable ops-bar buttons are width-pinned to their English boxes** so the row's three separators and its undo/redo pair hold still, and each French caption is the longest form that fits its own button. `Enregistrer` is 60.72 px in a 24.50 px box, which is why the ops-bar Save carries its own key (`label.saveShort` → `Enr.`) while the two dialog Save buttons keep `Enregistrer`.
+- **The delay Sync toggle face is EXEMPT, not keyed.** `On`/`Off` there is byte-identical to what the `delaySync` parameter reports to the host (verified in the runtime parameter dump: 173 parameters, `textAtMin` "Off", `textAtMax` "On") — D-01 arm 1. The five BYPASS buttons are keyed instead, because their faces are `ON`/`OFF` in the markup's own upper case, which is byte-identical to nothing. Geometry made the call unambiguous either way: the sync button and its caption share a 44.44 px cell in the middle of the delay row, and a French word there pushes every control to its right by 16 px.
+- **103 `I18N_EXEMPT` entries, 100 of them scoped.** The 61 parameter-dropdown option strings and the 28 wavetable catalogue names are scoped to `.param-select`, the class the 23 parameter dropdowns carry and the library filter and the scale generator do not — without which `Sine`, `Square`, `Triangle`, `Saw`, `Harmonic Series`, `Off`, `Sync`, `Wind` and `Digital` would each silence a caption elsewhere on the page that must translate. The 36 modulation source/destination names are scoped to `#mod-matrix-rows` for the same reason: `Osc Mix` is also the footer caption.
+- **Canvas text was probed, not reasoned about.** Both `fillText` sites paint numbers only — the wavetable frame index and the pitch-circle degree label — and a recording probe confirmed it en→fr→en, with a negative control (a planted English canvas string) that the probe reports and `check-i18n` does not.
+- The controller is an inline `<script type="module">`, and the canon block sits at the TOP of it. `expandKnobMarkup()` runs during module evaluation, so anything reaching a `let` declared further down would be a TDZ ReferenceError that silently kills every later initializer. `initI18n()` is still called last, after every panel exists.
+
+### Testing
+- `node scripts/check-ui-labels.js --plugin O-Prism` — ALL CHECKS PASSED, 198 of 201 `[data-i18n]` elements measured across 23 states in both languages.
+- `node scripts/boot-all-uis.js` — 43/43 clean, 0 warn, 0 failed. O-Prism: 940 text-bearing elements, 7 aria-label, **0 native title=** (was 6), 189 `[data-i18n]`.
+- `./scripts/build-and-install.sh O-Prism` — VST3 + AU, `auval -v aumu OuPr OuDv` PASSES. The binary carries the embedded table (a French string only `i18n.js` holds is present) and both language native functions.
+- Not verified: no human has seen the French UI, no DAW session was saved and reopened, and every French string is a machine draft.
+
 ## v1.20.0 (2026-08-20)
 
 ### Added

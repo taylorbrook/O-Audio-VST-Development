@@ -1188,6 +1188,12 @@ void OPrismAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     auto tuningState = state.getOrCreateChildWithName ("tuningEngine", nullptr);
     tuningEngine.writeStateTo (tuningState);
 
+    // v1.21.0: the UI language rides the same tree. Written as a STRING
+    // ("en"/"fr") rather than the atomic's int index, so a hand-inspected
+    // session file says what it means.
+    state.setProperty ("uiLanguage",
+                       languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+
     // Save user wavetable selections
     auto userWtState = state.getOrCreateChildWithName ("userWavetables", nullptr);
     userWtState.setProperty ("oscAUserTable", userTableNameA, nullptr);
@@ -1218,6 +1224,18 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
         tuningEngine.setMasterTune (static_cast<double> (lastMasterTune));
         tuningEngine.setOctaveStretch (lastOctaveStretch);
         tuningEngine.setPitchBendRange (lastPitchBendRange);
+
+        // v1.21.0: the UI language. A NON-PARAMETER property round-trips
+        // through XML as a STRING var, never a bool or an int, so isVoid() is
+        // the ONLY correct guard and toString() the only correct read
+        // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.21.0 session
+        // has no such property and the default (English) stands;
+        // languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited value degrades to English rather than to a bad index.
+        const juce::var lang = parameters.state.getProperty ("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
         // Restore full tuning state (intervals + mode + preset + KBM, WR-17;
         // legacy sessions with only intervals/scaleName/tonic still load)
