@@ -4251,9 +4251,9 @@ Three concurrent (O-Wind, O-Bells, O-Formant), then O-MicrotonalSampler alone.
 | O-Wind | 1.17.0 | `a2e60212` | 8 | 65 / 61 / **61** |
 | O-Formant | 1.26.0 | `314bd710` | 10 | 109 / 94 / **94** |
 | O-Bells | 4.2.0 | `d9ba51ca` | 12 | 84 / 79 / **79** |
-| O-MicrotonalSampler | 1.24.0 | `9c1f8c3e` | 12 | 126 / 146 / **146** |
+| O-MicrotonalSampler | 1.24.0 | `783ebb1d` | 12 | 126 / 146 / **146** |
 
-Rows in `66f7a70d` and `bb0a4d29`, duplicate check clean both times.
+Rows in `66f7a70d` and `046c568a`, duplicate check clean both times.
 `check-i18n --strict-v2`: **42 localized plugins, ALL PASS**. `boot-all-uis`:
 **43/43 clean, 0 warn, 0 failed.**
 
@@ -4378,7 +4378,7 @@ naming collisions no user can see.**
 Same class as the gradient bug already recorded two comments above it: *the test
 described one way of building the thing rather than the thing.*
 
-Fixed in `72a9d1b7`. It only ever RELAXES (pairs move from a failure to a
+Fixed in `7c51c4eb`. It only ever RELAXES (pairs move from a failure to a
 printed NOTE), so it cannot turn a green plugin red. Controls:
 - 13 → 3 with 11 skips reported. **The three survivors are the proof it is not
   blinded**: one is `label.rrBodyAfter` against `<code>` elements INSIDE the
