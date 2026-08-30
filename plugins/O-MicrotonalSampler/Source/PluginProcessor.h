@@ -253,6 +253,29 @@ public:
     // Public access to APVTS for editor
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    // ------------------------------------------------------------------------
+    // v1.24.0: the UI language. Read by the page once at init through the
+    // getUiLanguage native function and written back by setUiLanguage when the
+    // selector changes; persisted as a plain property on the APVTS state tree
+    // so a reopened session comes back in the language it was left in and a
+    // hand-inspected session file stays a readable language code.
+    //
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their plugin in. It rides the APVTS state tree as a
+    // non-parameter property instead — which on this processor means it is set
+    // on parameters.state immediately before captureStateValueTree() calls
+    // parameters.copyState(), the idiom this file already uses for the sample
+    // folder history, the tuning state and the technique tables.
+    // ------------------------------------------------------------------------
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // Public access to tuning engine (forward-compat for Phase 2.1+)
     TuningEngine* getTuningEngine() { return &tuningEngine; }
 

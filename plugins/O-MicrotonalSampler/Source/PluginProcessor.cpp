@@ -2942,6 +2942,17 @@ namespace
 
 juce::ValueTree OMicrotonalSamplerAudioProcessor::captureStateValueTree()
 {
+    // v1.24.0: the UI language rides the same tree as one more plain property.
+    // Not a parameter (see PluginProcessor.h), so it is written HERE, onto the
+    // LIVE state tree, immediately before copyState() takes the snapshot that
+    // becomes the session XML and the .omspreset file alike.
+    //
+    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means.
+    parameters.state.setProperty ("uiLanguage",
+                                  languageCode (uiLanguage.load (std::memory_order_acquire)),
+                                  nullptr);
+
     auto root = parameters.copyState();   // <APVTS> with all <PARAM> children
 
     // Strip any prior persistence siblings before re-adding — defensive
@@ -3143,6 +3154,28 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     // 1. APVTS replaceState. Non-PARAM children are preserved on the
     // returned tree but APVTS itself only walks PARAM nodes — no harm.
     parameters.replaceState (root);
+
+    // 1b. v1.24.0 — the UI language, read back AFTER replaceState(), because
+    // reading before it would read the property off the tree that is about to
+    // be discarded.
+    //
+    // isVoid() is the ONLY correct guard and toString() the only correct read.
+    // captureStateValueTree writes a STRING var, but even a bool or an int
+    // written there would not survive: the XML round-trip does not preserve the
+    // type, because NamedValueSet::setFromXmlAttributes rebuilds every property
+    // as `var (value)` over the attribute STRING
+    // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.24.0 session has
+    // no such property at all and the default (English) stands. languageIndex()
+    // clamps anything that is not "fr" to 0, so a hand-edited value degrades to
+    // English rather than to a bad index.
+    //
+    // The editor PULLS this through the getUiLanguage native fn at page init
+    // rather than being pushed from here — a push would race the WebView load.
+    {
+        const juce::var lang = parameters.state.getProperty ("uiLanguage");
+        if (! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+    }
 
     // 2. Tuning — restore synchronously. In-memory operation, fast.
     auto tuningTree = root.getChildWithName (kTuningStateTag);

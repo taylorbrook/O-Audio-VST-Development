@@ -46,6 +46,169 @@ import * as Juce from './juce/index.js';
 // PluginEditor::getResource serves this at /js/modules/webview-drop-streaming.js.
 import { bindWebViewFileDrop } from './modules/webview-drop-streaming.js';
 
+// ════════════════════════════════════════════════════════════════════════════
+// v1.24.0 — CANON V2 i18n BLOCK, verbatim from scripts/i18n-canon.js.
+//
+// check-i18n assertion 6 byte-compares the region from `let uiLanguage` to the
+// close of initI18n() against that file after comments are stripped and
+// whitespace collapsed. DO NOT EDIT INSIDE IT — every plugin in this repo
+// hand-copies its UI runtime, and this gate is the only thing that stops 43
+// copies drifting. Plugin-specific helpers go BELOW the block, never inside it.
+//
+// initI18n() is called LAST, at the end of the DOMContentLoaded handler at the
+// bottom of this file, so the first sweep sees the control strip, the technique
+// bar and the trim panel — none of which exist in index.html.
+// ════════════════════════════════════════════════════════════════════════════
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── plugin-side i18n helpers (OUTSIDE the canon region) ────────────────────
+//
+// A composed or JS-written string that cannot declare its key in markup lives
+// in I18N with an EMPTY body and is resolved through trLabel(). A trLabel()
+// call is none of the four reference shapes check-i18n assertion 15 collects
+// (markup attribute, literal setLabel key, literal `.dataset.i18n* =` write,
+// innerHTML-injected key), so a LABELS key reached only this way would report
+// DEAD. I18N keys sit outside that sweep, and assertion 2 accepts a body-less
+// I18N entry with no TIP_BINDINGS. Same shape O-Comp adopted in Stage K3 for
+// its canvas strings, adopted as the standard by the K4 addendum.
+function trComposed(key, vars) {
+    return trLabel(key, uiLanguage, vars || null);
+}
+
+// Every string this page composes at RENDER time — the grid's accessible cell
+// names, the technique tab strip, the trim chip's accessible name — is written
+// by its own renderer, not by applyI18n's [data-i18n] sweep, so the sweep alone
+// leaves them stranded in the previous language the instant the selector fires
+// (the Stage B bug, generalised). Re-running the renderers is the one
+// re-render path; there is no second copy of the copy.
+function refreshComposedUi() {
+    try {
+        if (lastSampleMapSnapshot) renderGrid(lastSampleMapSnapshot);
+        renderTechniqueBar();
+        renderTrimPanel();
+        renderVariantTabStrip();
+        updateResetButtonState(editorState.snap);
+    } catch (e) {
+        console.warn('[sampler-app] refreshComposedUi failed', e);
+    }
+}
+
+// The canon publishes window.__setLanguage = applyI18n and the label gate drives
+// the page through it. Wrapping it here — rather than editing the canon — keeps
+// assertion 6 byte-exact while still refreshing the composed strings. The
+// selector's own change event is covered separately, in initSettingsPopover().
+{
+    const canonApply = window.__setLanguage;
+    window.__setLanguage = (lang) => { canonApply(lang); refreshComposedUi(); };
+}
+
+// js/tuning-panel.js mounts LAZILY, on the first Tuning-tab activation — long
+// after initI18n() has swept the page — and rebuilds its interval list, matrix,
+// rotation table, library list and generator rows from markup templates whose
+// captions carry data-i18n keys. Re-running the sweep is how those keys are
+// applied; the panel calls this after every injection. Published rather than
+// imported because tuning-panel.js is a plugin-owned copy of a module file and
+// must keep working when app.js exports nothing (the same reason the canon
+// publishes window.__setLabel).
+window.__omsRefreshI18n = () => {
+    try { applyI18n(uiLanguage); }
+    catch (e) { console.warn('[sampler-app] i18n sweep failed', e); }
+};
+
 // v1.16.10 (MEDIUM-05): guarded-number coercion for parsed JSON snapshots.
 // Replaces the `Number.isFinite(x) ? x : default` ternary pattern. Sites that
 // use Number.isFinite as a control-flow guard (e.g. `if (!Number.isFinite(x)) return`)
@@ -168,10 +331,15 @@ const SLIDER_BINDINGS = [
     { domId: 'ctrl-release',             relayId: 'release',             label: 'Release' },
     { domId: 'ctrl-polyphony',           relayId: 'polyphony',           label: 'Poly' },
     { domId: 'ctrl-velocity-crossfade',  relayId: 'velocity_crossfade',  label: 'Vel-XF' },
-    { domId: 'ctrl-expression',          relayId: 'expression',          label: 'Expr',
-      tooltip: 'Expression (MIDI CC 11) — dynamics control, independent of velocity layer' },  // v1.7.0
-    { domId: 'ctrl-dynamic-range',       relayId: 'dynamic_range',       label: 'Dyn Rng',
-      tooltip: 'Dynamic Range (CC Crossfade only) — dB span between pp and ff. 0 dB = flat; higher = louder ff / quieter pp. Fixes "forte too soft, piano too loud" in Dorico.' },  // v1.22.0
+    // v1.24.0: the `tooltip` field is gone. It was interpolated into a native
+    // title= inside renderControlStrip's innerHTML template — invisible to
+    // check-i18n assertion 11 (which reads index.html and `.title =` writes,
+    // and this was neither) and to boot-all-uis as anything but a count.
+    // Contract §4 deletes a native title rather than localizing it; the two
+    // strings that carried real help move VERBATIM to data-i18n-aria, applied
+    // by literal dataset writes in labelControlStrip() below.
+    { domId: 'ctrl-expression',          relayId: 'expression',          label: 'Expr' },      // v1.7.0
+    { domId: 'ctrl-dynamic-range',       relayId: 'dynamic_range',       label: 'Dyn Rng' },   // v1.22.0
     { domId: 'ctrl-output-gain',         relayId: 'output_gain',         label: 'Out Gain' }
 ];
 
@@ -430,9 +598,8 @@ function renderControlStrip() {
         return;
     }
     const knobsHtml = SLIDER_BINDINGS.map(b => {
-        const titleAttr = b.tooltip ? ` title="${b.tooltip.replace(/"/g, '&quot;')}"` : '';
         return `
-      <div class="ouaricon-knob" data-knob-id="${b.domId}"${titleAttr}>
+      <div class="ouaricon-knob" data-knob-id="${b.domId}">
         <div class="ouaricon-knob-visual">
           <svg viewBox="0 0 44 44">
             <circle class="knob-track" cx="22" cy="22" r="18"/>
@@ -449,17 +616,63 @@ function renderControlStrip() {
     // Sits in the control strip next to Expression. Bound to the WebComboBox
     // relay in bindDynamicsMode(). CC Crossfade is the default — see
     // PluginProcessor::createParameterLayout.
+    // v1.24.0: the native title= is DELETED (contract §4) and its own v1.23.10
+    // wording moved verbatim to a keyed accessible name. The keys here are
+    // LITERAL inside the template — check-i18n assertion 15 reads keys out of
+    // markup a module injects, so a literal `data-i18n-aria="..."` is a live
+    // reference while `data-i18n="${b.key}"` from the mapped template above
+    // would be a computed one and report DEAD. That is why the nine knob
+    // captions are keyed by literal setLabel() calls instead (see below).
+    //
+    // Velocity / CC Crossfade are NOT keyed: both are byte-identical to the
+    // dynamics_mode AudioParameterChoice option strings, so the page and the
+    // host automation lane must keep saying the same word (D-01 arm 1).
     const dynamicsHtml = `
       <div class="dynamics-mode-control"
-           title="Dynamics Mode — how MIDI CC 11 shapes dynamics. Velocity: note-on velocity picks the layer, CC 11 is a post-mix volume trim (v1.20 behaviour). CC Crossfade: CC 11 morphs across all velocity layers mid-note (timbre + loudness, like pro sustain patches).">
-        <span class="dynamics-mode-title">Dynamics</span>
-        <div class="seg-toggle" id="dynamics-mode-seg" role="group" aria-label="Dynamics Mode">
+           aria-label="Dynamics Mode — how MIDI CC 11 shapes dynamics. Velocity: note-on velocity picks the layer, CC 11 is a post-mix volume trim (v1.20 behaviour). CC Crossfade: CC 11 morphs across all velocity layers mid-note (timbre + loudness, like pro sustain patches)."
+           data-i18n-aria="aria.dynamicsMode">
+        <span class="dynamics-mode-title" data-i18n="label.dynamics">Dynamics</span>
+        <div class="seg-toggle" id="dynamics-mode-seg" role="group"
+             aria-label="Dynamics Mode" data-i18n-aria="aria.dynamicsModeShort">
           <button type="button" class="seg-btn" data-idx="0">Velocity</button>
           <button type="button" class="seg-btn" data-idx="1">CC&nbsp;Crossfade</button>
         </div>
       </div>`;
 
     strip.innerHTML = knobsHtml + dynamicsHtml;
+    labelControlStrip();
+}
+
+// v1.24.0: the nine knob captions and the two knob accessible names.
+//
+// NINE LITERAL CALL SITES, deliberately verbose. The captions live in
+// SLIDER_BINDINGS' array literal and are interpolated into an innerHTML
+// template one frame from the write, which is the shape neither the extractor's
+// js-prose scan nor assertion 12 can see — it is the O-Tremolo near-miss, and
+// on O-Wind and O-Bells it was sixteen strings each. A key read from the data
+// table (`b.key`) fails assertion 13's plain-literal rule and is invisible to
+// assertion 15's dead-key sweep, so one literal call per knob is the only shape
+// BOTH gates can read. The authored English stays in the markup above as
+// contract §1's fallback.
+function labelControlStrip() {
+    const cap = (id) => document.querySelector(`label[for="${id}"]`);
+    setLabel(cap('ctrl-attack'),              'label.knobAttack');
+    setLabel(cap('ctrl-decay'),               'label.knobDecay');
+    setLabel(cap('ctrl-sustain'),             'label.knobSustain');
+    setLabel(cap('ctrl-release'),             'label.knobRelease');
+    setLabel(cap('ctrl-polyphony'),           'label.knobPoly');
+    setLabel(cap('ctrl-velocity-crossfade'),  'label.knobVelXf');
+    setLabel(cap('ctrl-expression'),          'label.knobExpr');
+    setLabel(cap('ctrl-dynamic-range'),       'label.knobDynRng');
+    setLabel(cap('ctrl-output-gain'),         'label.knobOutGain');
+
+    // The two deleted native titles, verbatim, as keyed accessible names.
+    // Literal `.dataset.i18nAria =` writes — the shape assertion 15 collects,
+    // so these read LIVE rather than dead.
+    const expr = document.querySelector('[data-knob-id="ctrl-expression"]');
+    if (expr) expr.dataset.i18nAria = 'aria.knobExpr';
+    const dyn = document.querySelector('[data-knob-id="ctrl-dynamic-range"]');
+    if (dyn) dyn.dataset.i18nAria = 'aria.knobDynRng';
 }
 
 // v1.21.0: bind the Dynamics Mode segmented toggle to the "dynamics_mode"
@@ -668,7 +881,14 @@ async function ensureTuningPanelMounted() {
         genToggle?.classList.add('expanded');
     } catch (e) {
         console.error('[sampler-app] TuningPanel mount failed:', e);
-        container.innerHTML = '<div style="color:var(--text-muted); padding:16px; font-style:italic;">Tuning panel unavailable.</div>';
+        // v1.24.0: built with createElement + setLabel rather than an
+        // innerHTML string, so the caption declares a LITERAL key that
+        // assertion 15 can see and the language sweep owns it.
+        container.innerHTML = '';
+        const notice = document.createElement('div');
+        notice.className = 'tuning-panel-unavailable';
+        setLabel(notice, 'label.tuningPanelUnavailable');
+        container.appendChild(notice);
     }
 }
 
@@ -782,8 +1002,14 @@ function handleSampleMapSnapshot(payloadOrJson) {
                 li.textContent = s;
                 issuesList.appendChild(li);
             });
-            issues.querySelector('summary').textContent =
-                `Issues (${skipped.length} file${skipped.length === 1 ? '' : 's'} skipped)`;
+            // v1.24.0 (contract §6): the English ternary is GONE, not ported.
+            // French pluralizes 0 as singular and English does not, so a
+            // mechanical port is wrong at n=0 before it is wrong anywhere else.
+            // The copy is authored around the inflection instead: the count sits
+            // after a colon, beside an invariant plural noun phrase that reads
+            // as a category header at 0, 1 and n in both languages.
+            setLabel(issues.querySelector('summary'), 'label.issuesSummary',
+                     { n: skipped.length });
             issues.hidden = false;
         } else {
             issues.hidden = true;
@@ -796,7 +1022,7 @@ function handleSampleMapSnapshot(payloadOrJson) {
     if (sig !== lastSkippedSignature) {
         lastSkippedSignature = sig;
         if (skipped.length > 0) {
-            showToast(`${skipped.length} file${skipped.length === 1 ? '' : 's'} skipped`);
+            showToastKey('toast.filesSkipped', { n: skipped.length });   // §6: no inflection
         }
     }
 
@@ -966,17 +1192,42 @@ function renderGrid(snap) {
                 cell.dataset.octaveStart = '1';
             }
 
-            // v1.1.0: Tooltip = "<filename | Empty> · <NoteName>(<midi>) · Vel <lo>–<hi>"
-            // v1.8.0: multi-variant cells list every variant filename.
-            // v1.14.0: tooltip includes the active technique slot name when
-            // the user has expanded beyond the default single slot — that's
-            // the visible signal that a load auto-routed to a non-`ord` slot.
+            // ── v1.24.0: 352 NATIVE title= DELETED (contract §4) ──────────
+            //
+            // This loop wrote a native title on EVERY cell — 88 notes x 4
+            // layers — so v1.23.10 rendered 356 of them here alone against the
+            // five index.html declares. A source grep counts WRITES (five in
+            // this function); the page renders INSTANCES.
+            //
+            // §4 deletes a native title rather than localizing it, and moves
+            // its text to a keyed accessible name where it is the element's
+            // only help. A grid cell is an empty <div>: it has no text of its
+            // own, so the title WAS its only help and deleting it outright
+            // would take the filename with it. But the string is COMPOSED from
+            // per-cell data, and applyI18nAttributes() resolves a
+            // data-i18n-aria key with no vars — so a keyed attribute cannot
+            // express it. The accessible name is therefore composed here from
+            // trComposed() parts and re-composed by refreshComposedUi() on
+            // every language change, which is the same one-re-render-path rule
+            // §3 states for a JS-written label.
+            //
+            // AN EMPTY CELL GETS NO ACCESSIBLE NAME AT ALL. "Empty · C3 (60) ·
+            // Vel mf (65–96)" is pure grid position, and the position is
+            // already on the page twice — #sample-grid-col-labels names every
+            // C and #sample-grid-vel-labels names every layer. 348 of the 352
+            // attributes in the default state carried nothing else.
+            //
+            // WHAT THE USER LOSES, stated rather than hidden: the HOVER
+            // tooltip is gone. Every Stage K plugin pays that, because these
+            // 21 plugins have no data-tip renderer and authoring hover-help
+            // copy is Stage M's job, not this rule's.
             const noteLabel = `${midiToNoteName(midi)} (${midi})`;
-            const velLabel  = `Vel ${velRange.mark} (${velRange.label})`;
+            const velLabel  = trComposed('aria.cellVel',
+                                         { mark: velRange.mark, range: velRange.label });
             const techName  = techniqueState.names[activeTech]
-                              || `slot ${activeTech + 1}`;
+                              || trComposed('aria.slotN', { n: activeTech + 1 });
             const techLabel = (techniqueState.count > 1)
-                                ? ` · tech: ${techName}`
+                                ? ' · ' + trComposed('aria.cellTech', { name: techName })
                                 : '';
             const cellEntry = cellMap.get(`${midi}_${layer}`);
             const slot = slotMap.get(`${midi}_${layer}`);
@@ -986,29 +1237,35 @@ function renderGrid(snap) {
                 const variantCount = cellEntry.variants.length;
                 if (variantCount > 1) {
                     cell.classList.add('cell-multivariant');
-                    const head = `${variantCount} variants:`;
+                    const head = trComposed('aria.cellVariants', { n: variantCount });
+                    const unnamed = trComposed('aria.unnamed');
                     const list = cellEntry.variants
-                        .map((v, i) => `  ${i + 1}. ${v.filename || '(unnamed)'}`)
+                        .map((v, i) => `  ${i + 1}. ${v.filename || unnamed}`)
                         .join('\n');
-                    cell.title = `${head}\n${list}\n${noteLabel} · ${velLabel}${techLabel}`;
+                    cell.setAttribute('aria-label',
+                        `${head}\n${list}\n${noteLabel} · ${velLabel}${techLabel}`);
                     cell.dataset.variantCount = String(variantCount);
                 } else {
-                    const head = cellEntry.variants[0].filename || 'Loaded';
-                    cell.title = `${head} · ${noteLabel} · ${velLabel}${techLabel}`;
+                    const loadedWord = trComposed('aria.loaded');
+                    const head = cellEntry.variants[0].filename || loadedWord;
+                    cell.setAttribute('aria-label',
+                        `${head} · ${noteLabel} · ${velLabel}${techLabel}`);
                 }
             } else if (slot) {
                 cell.classList.add('cell-loaded');
-                const head = slot.filename ? slot.filename : 'Loaded';
+                const loadedWord2 = trComposed('aria.loaded');
+                const head = slot.filename ? slot.filename : loadedWord2;
                 if (slot.variantCount && slot.variantCount > 1) {
                     cell.classList.add('cell-multivariant');
-                    cell.title = `${head} (+${slot.variantCount - 1} more) · ${noteLabel} · ${velLabel}`;
+                    const slotVariants = trComposed('aria.cellVariants', { n: slot.variantCount });
+                    cell.setAttribute('aria-label',
+                        `${head} · ${slotVariants} · ${noteLabel} · ${velLabel}`);
                     cell.dataset.variantCount = String(slot.variantCount);
                 } else {
-                    cell.title = `${head} · ${noteLabel} · ${velLabel}`;
+                    cell.setAttribute('aria-label', `${head} · ${noteLabel} · ${velLabel}`);
                 }
             } else {
                 cell.classList.add('cell-empty');
-                cell.title = `Empty · ${noteLabel} · ${velLabel}`;
             }
 
             frag.appendChild(cell);
@@ -1049,7 +1306,13 @@ function renderGrid(snap) {
             el.dataset.layer = String(layer);
             el.textContent = v.mark;
             // v1.18.0: right-click clears the whole layer (across techniques).
-            el.title = `Dynamic ${v.mark} (layer ${layer}): MIDI velocity ${v.label} — right-click to clear this layer`;
+            // v1.24.0: native title= DELETED (§4). The label's own text is the
+            // dynamic mark alone, so the right-click affordance IS its only
+            // help — it moves to a composed accessible name that keeps the mark
+            // in front, so a screen reader still reads the mark first.
+            const velAria = trComposed('aria.velLabel',
+                                       { mark: v.mark, layer, range: v.label });
+            el.setAttribute('aria-label', velAria);
             vFrag.appendChild(el);
         }
         velLabels.appendChild(vFrag);
@@ -1269,13 +1532,14 @@ function deleteCellWithConfirm(midi, layer) {
         ? ` (technique “${techName}”)` : '';
     const mark = velocityLayerToRange(layer).mark;
     showConfirmDialog({
-        title: 'Delete this sample?',
-        message: `Remove the sample on ${noteName}, velocity layer ${mark}${techStr}.`,
-        confirmLabel: 'Delete',
+        title: trComposed('msg.deleteSampleTitle'),
+        message: trComposed('msg.deleteSampleBody',
+                            { note: noteName, mark, tech: techStr }),
+        confirmLabel: trComposed('msg.deleteBtn'),
         destructive: true,
         onConfirm: async () => {
             const ok = await invokeNative('deleteSampleCell', midi, layer, techniqueState.active);
-            if (!ok) showToast('Nothing to delete on that cell.');
+            if (!ok) showToastKey('toast.nothingToDelete');
             // On success the sampleMapUpdated push triggers renderGrid.
         },
     });
@@ -1284,16 +1548,17 @@ function deleteCellWithConfirm(midi, layer) {
 function clearLayerWithConfirm(layer) {
     const mark = velocityLayerToRange(layer).mark;
     showConfirmDialog({
-        title: `Clear velocity layer ${mark}?`,
-        message: `Remove every sample in velocity layer ${mark}, across all techniques. This cannot be undone.`,
-        confirmLabel: 'Clear layer',
+        title: trComposed('msg.clearLayerTitle', { mark }),
+        message: trComposed('msg.clearLayerBody', { mark }),
+        confirmLabel: trComposed('msg.clearLayerBtn'),
         destructive: true,
         onConfirm: async () => {
             const removed = await invokeNative('clearVelocityLayer', layer);
             const n = Number.isFinite(removed) ? removed : 0;
-            showToast(n > 0
-                ? `Cleared ${n} sample${n === 1 ? '' : 's'} from layer ${mark}.`
-                : `Layer ${mark} was already empty.`);
+            // §6: no ternary suffix. Two separately keyed faces, and the
+            // count sits after a colon beside an invariant noun phrase.
+            if (n > 0) showToastKey('toast.layerCleared', { mark, n });
+            else       showToastKey('toast.layerAlreadyEmpty', { mark });
         },
     });
 }
@@ -1380,9 +1645,11 @@ function openBatchLoopDialog() {
             if (ok || startEl.value === '' || endEl.value === '') {
                 errEl.hidden = true;
             } else {
-                errEl.textContent = (mode === 0)
-                    ? 'Start and end must be 0–100 %, with end greater than start.'
-                    : 'Start and end must be in ms, with end greater than start.';
+                // Two literal keys, not one ternary: assertion 13 rejects a
+                // conditional inside a setLabel argument on purpose, because a
+                // conditional is where an inflection creeps back in (§6).
+                if (mode === 0) setLabel(errEl, 'label.blErrPercent');
+                else            setLabel(errEl, 'label.blErrMs');
                 errEl.hidden = false;
             }
         }
@@ -1409,9 +1676,9 @@ function openBatchLoopDialog() {
             const eVal  = (mode === 0) ? end   / 100.0 : end;
             const updated = await invokeNative('applyLoopPointsToAll', mode, sVal, eVal, 8);
             const n = Number.isFinite(updated) ? updated : 0;
-            showToast(n > 0
-                ? `Loop points applied to ${n} sample${n === 1 ? '' : 's'}. ${APPLY_TOAST}`
-                : 'No loopable samples to update.');
+            // §6 again: the count moved behind a colon so no suffix inflects.
+            if (n > 0) showToastKey('toast.loopPointsApplied', { n });
+            else       showToastKey('toast.noLoopableSamples');
             return true;
         }],
         [cancelBtn, () => false],
@@ -1487,7 +1754,7 @@ function publishCellLayout() {
 // Phase 3.5 Task 33 — auto-close loop editor + toast when window narrows
 // below 900 px while it's open (panel + grid would otherwise overlap).
 const NARROW_BREAKPOINT_PX = 900;
-const NARROW_TOAST = 'Resize wider to use the loop editor.';
+const NARROW_TOAST_KEY = 'toast.resizeWider';
 let lastIsNarrow = null;  // null = not yet measured; otherwise boolean
 
 function checkNarrowWindowGuard() {
@@ -1498,7 +1765,7 @@ function checkNarrowWindowGuard() {
 
     if (isNarrow && editorState.open) {
         closeLoopEditor();
-        showToast(NARROW_TOAST);
+        showToastKey(NARROW_TOAST_KEY);
     }
 }
 
@@ -1577,7 +1844,7 @@ function bindFolderDropZone() {
                 opts.technique         ?? 0,
                 opts.overrideTechnique ? 1 : 0);
             if (!ok) {
-                showToast('Folder load failed');
+                showToastKey('toast.folderLoadFailed');
             }
             // sampleMapUpdated push event drives the rest of the UI.
         } catch (e) {
@@ -1735,15 +2002,13 @@ async function showFolderLoadOptionsModal (sizeBytes) {
                 return;
             }
             if (typeof sizeBytes === 'number' && sizeBytes > 0) {
-                sizeEl.textContent =
-                    `Project state will grow by ~${formatBytes(sizeBytes)}.`;
+                setLabel(sizeEl, 'label.floEmbedSize', { size: formatBytes(sizeBytes) });
                 sizeEl.classList.add('has-warning');
             } else {
                 // Dialog flow — folder not selected yet. The post-pick
                 // confirmation modal will surface the actual size before
                 // the load commits.
-                sizeEl.textContent =
-                    'Size will be confirmed after folder selection.';
+                setLabel(sizeEl, 'label.floEmbedSizePending');
                 sizeEl.classList.remove('has-warning');
             }
         };
@@ -1752,30 +2017,24 @@ async function showFolderLoadOptionsModal (sizeBytes) {
             const overrideOn     = overrideEl.checked;
             const overrideTechOn = overrideTechEl.checked;
             const layerStr       = velocityLayerToRange(layer).mark;
-            const techName       = techniqueNames[technique] || `slot ${technique}`;
-            let txt = '';
-            if (mode === 'append') {
-                txt = overrideOn
-                    ? `Add samples to ${layerStr}, ignoring filename velocity tokens.`
-                    : `Add samples; filename tokens (v1–v4, p/mp/mf/f) decide layer.`;
-            } else if (mode === 'replace_layer') {
-                txt = overrideOn
-                    ? `Clear ${layerStr} and add the new samples there.`
-                    : `Clear ${layerStr}; filename tokens decide where new samples land.`;
-            } else if (mode === 'replace_all') {
-                txt = overrideOn
-                    ? `Replace existing samples; new ones land on ${layerStr}.`
-                    : `Replace existing samples; filename tokens decide layer.`;
-            } else if (mode === 'merge_rr') {
-                txt = overrideOn
-                    ? `Layer onto ${layerStr}: collisions become round-robin variants (cap 64 per cell).`
-                    : `Layer existing notes: collisions become round-robin variants. Filename tokens decide layer.`;
-            }
+            const techName       = techniqueNames[technique]
+                                   || trComposed('aria.slotN', { n: technique });
+            // v1.24.0: eight separately keyed faces rather than four ternaries.
+            // The key IS the branch, so nothing inflects inside a string and
+            // check-i18n assertion 13 has nothing to reject.
+            const EXPLAIN = {
+                'append':        ['msg.floAppendForced',      'msg.floAppendTokens'],
+                'replace_layer': ['msg.floReplaceLayerForced','msg.floReplaceLayerTokens'],
+                'replace_all':   ['msg.floReplaceAllForced',  'msg.floReplaceAllTokens'],
+                'merge_rr':      ['msg.floMergeRrForced',     'msg.floMergeRrTokens'],
+            };
+            const pair = EXPLAIN[mode];
+            let txt = pair ? trComposed(pair[overrideOn ? 0 : 1], { layer: layerStr }) : '';
             // Technique line — appended only when the user is forcing a
             // technique. Filename-token routing is the default path and
             // doesn't need a callout.
             if (overrideTechOn) {
-                txt += ` Technique forced to "${techName}".`;
+                txt += ' ' + trComposed('msg.floTechniqueForced', { name: techName });
             }
             explainEl.textContent = txt;
         };
@@ -1856,15 +2115,17 @@ function showEmbedSizeConfirmModal (sizeBytes, displayName) {
             // could never actually ask — fail safe: cancel the embed and
             // surface the failure instead.
             console.error('[sampler-app] embed-size-confirm modal DOM missing — cancelling embed');
-            showToast('Internal UI error: confirmation dialog unavailable — embed cancelled.');
+            showToastKey('toast.embedDialogMissing');
             resolve(false);
             return;
         }
 
-        const folderLabel = displayName ? `"${displayName}" ` : '';
-        messageEl.textContent =
-            `Embedding folder ${folderLabel}will add `
-            + `~${formatBytes(sizeBytes)} to your project state.`;
+        // Two keyed faces rather than an interpolated fragment: the named and
+        // unnamed forms are different SENTENCES in French, not one sentence
+        // with a hole in it.
+        const embedVars = { name: displayName, size: formatBytes(sizeBytes) };
+        if (displayName) setLabel(messageEl, 'label.embedMsgNamed',   embedVars);
+        else             setLabel(messageEl, 'label.embedMsgUnnamed', embedVars);
 
         bindModal(dialog, [
             [confirmBtn, () => true],
@@ -1894,13 +2155,17 @@ function showPerCellMergeDialog (existingCount, midi, layer) {
         }
 
         const noteName = (typeof midiToNoteName === 'function')
-            ? midiToNoteName(midi) : `MIDI ${midi}`;
-        const variantWord = existingCount === 1 ? '1 variant' : `${existingCount} variants`;
+            ? midiToNoteName(midi) : trComposed('aria.midiN', { n: midi });
         const capHit = existingCount >= 64;
         const mark = velocityLayerToRange(layer).mark;
-        messageEl.textContent = capHit
-            ? `${noteName} layer ${mark} already holds the maximum ${variantWord}. Replace the cell, or cancel.`
-            : `${noteName} layer ${mark} already holds ${variantWord}. Add this sample as round-robin variant ${existingCount + 1}, or replace the cell?`;
+        // v1.24.0 (§6): `existingCount === 1 ? '1 variant' : '${n} variants'`
+        // is gone. It was the repo's only inline English pluralization outside
+        // the four above, and porting the ternary would be wrong in French at
+        // 0 and inconsistent at 1. The count now sits after a colon beside an
+        // invariant plural noun phrase, in both faces.
+        const mergeVars = { note: noteName, mark, n: existingCount, next: existingCount + 1 };
+        if (capHit) setLabel(messageEl, 'label.mergeMsgCapped', mergeVars);
+        else        setLabel(messageEl, 'label.mergeMsgAdd',    mergeVars);
         mergeBtn.disabled = capHit;
         mergeBtn.style.opacity = capHit ? '0.4' : '';
         mergeBtn.style.cursor  = capHit ? 'not-allowed' : '';
@@ -1930,9 +2195,13 @@ function showConfirmDialog ({ title, message, confirmLabel, destructive, onConfi
     const cancelEl  = document.getElementById('confirm-cancel-btn');
     if (!dialog || !titleEl || !messageEl || !confirmEl || !cancelEl) return;
 
-    titleEl.textContent   = title   || 'Are you sure?';
+    // The three defaults are the ones index.html already authors on these
+    // elements, so they are keyed there and re-applied here through the same
+    // keys rather than re-spelled as raw English.
+    if (title) titleEl.textContent = title; else setLabel(titleEl, 'label.areYouSure');
     messageEl.textContent = message || '';
-    confirmEl.textContent = confirmLabel || 'Confirm';
+    if (confirmLabel) confirmEl.textContent = confirmLabel;
+    else setLabel(confirmEl, 'label.confirm');
     confirmEl.classList.toggle('destructive', !!destructive);
 
     bindModal(dialog, [
@@ -1955,9 +2224,9 @@ async function showDiagnosticDialog (title, text) {
     const closeBtn = document.getElementById('diagnostic-close-btn');
     if (!dialog || !titleEl || !textEl || !copyBtn || !closeBtn) return;
 
-    titleEl.textContent = title || 'Diagnostic';
+    if (title) titleEl.textContent = title; else setLabel(titleEl, 'label.diagnostic');
     textEl.textContent  = text  || '';
-    copyBtn.textContent = 'Copy again';
+    setLabel(copyBtn, 'label.copyAgain');
 
     const writeClipboard = async () => {
         // Primary: async Clipboard API (requires user activation, which the
@@ -1981,17 +2250,17 @@ async function showDiagnosticDialog (title, text) {
 
     const autoCopied = await writeClipboard();
     if (hintEl) {
-        hintEl.textContent = autoCopied
-            ? 'Auto-copied to clipboard. (Select below + ⌘C if you need it again.)'
-            : 'Clipboard write blocked — select the text below and ⌘C to copy.';
+        if (autoCopied) setLabel(hintEl, 'label.diagCopied');
+        else            setLabel(hintEl, 'label.diagCopyBlocked');
     }
 
     // Copy button doesn't dismiss — register externally; bindModal's onClose
     // hook removes it when the user finally closes the dialog.
     const onCopy = async () => {
         const ok = await writeClipboard();
-        copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
-        setTimeout(() => { copyBtn.textContent = 'Copy again'; }, 1400);
+        if (ok) setLabel(copyBtn, 'label.copied');
+        else    setLabel(copyBtn, 'label.copyFailed');
+        setTimeout(() => setLabel(copyBtn, 'label.copyAgain'), 1400);
     };
     copyBtn.addEventListener('click', onCopy);
 
@@ -2011,12 +2280,9 @@ function bindClearSamplesButton() {
     btn.addEventListener('click', () => {
         if (btn.disabled) return;
         showConfirmDialog({
-            title:        'Clear all samples?',
-            message:      'All loaded samples will be removed from the sample map. '
-                        + 'Active notes will finish playing, but new note-ons will '
-                        + 'produce silence until samples are loaded again. This '
-                        + 'cannot be undone.',
-            confirmLabel: 'Clear',
+            title:        trComposed('msg.clearAllTitle'),
+            message:      trComposed('msg.clearAllBody'),
+            confirmLabel: trComposed('msg.clearBtn'),
             destructive:  true,
             onConfirm:    async () => {
                 // sampleMapUpdated push event drives grid + button state
@@ -2069,6 +2335,14 @@ function bindHostDragEvents() {
 // invalid-target messages without a custom JS round-trip.
 
 let toastTimer = null;
+
+// v1.24.0: the KEYED toast. showToast() below still takes a raw string,
+// because the C++ side and the shared webview-drop-streaming module both push
+// finished text through it (see I18N_EXEMPT for why those stay English); every
+// toast this file authors goes through showToastKey instead.
+function showToastKey(key, vars) {
+    showToast(trComposed(key, vars));
+}
 
 function showToast(message) {
     const region = document.getElementById('toast-region');
@@ -2134,8 +2408,14 @@ function bindToastEventListener() {
 
 const LOOP_EDITOR_BINS = 512;
 const MARKER_HIT_PX = 8;       // Within this many CSS px of marker → grab handle
-const APPLY_TOAST = 'New loop points apply to next note-on.';
-const ONE_SHOT_TOOLTIP = 'Sample is one-shot — no loop region detected.';
+const APPLY_TOAST_KEY = 'toast.loopApplyNote';
+// v1.24.0: the one-shot string is no longer a native title (contract §4) — it
+// is a keyed accessible name applied by a LITERAL dataset write in
+// updateResetButtonState(). It is not hoisted into a const here, because
+// check-i18n assertion 15 only counts a PLAIN STRING LITERAL on the right of
+// `.dataset.i18nAria =` as a reference — a const reads as a computed key and
+// reports the entry dead, which is the gate describing a violation of a rule
+// the code is obeying.
 
 const editorState = {
     open: false,
@@ -2165,7 +2445,7 @@ async function openLoopEditor(midi, vel, variantIndex = 0) {
         const snap = (typeof json === 'string') ? JSON.parse(json) : json;
         if (!snap || !Array.isArray(snap.peaks) || snap.peaks.length === 0) {
             console.warn('[sampler-app] openLoopEditor: empty peaks snapshot', snap);
-            showToast('Unable to load waveform for this cell.');
+            showToastKey('toast.waveformUnavailable');
             return;
         }
         editorState.open = true;
@@ -2210,7 +2490,8 @@ function renderVariantTabStrip() {
 
     const label = document.createElement('span');
     label.className = 'le-variant-label';
-    label.textContent = `Variant ${editorState.variantIndex + 1} of ${editorState.variantCount}`;
+    setLabel(label, 'label.variantOf',
+             { i: editorState.variantIndex + 1, n: editorState.variantCount });
     wrap.appendChild(label);
 
     for (let i = 0; i < editorState.variantCount; ++i) {
@@ -2219,7 +2500,11 @@ function renderVariantTabStrip() {
         tab.className = 'le-variant-tab';
         if (i === editorState.variantIndex) tab.classList.add('active');
         tab.textContent = String(i + 1);
-        tab.title = `Switch to variant ${i + 1}`;
+        // v1.24.0: native title= DELETED (§4). The tab's own text is a bare
+        // ordinal, so the affordance is its only help: composed accessible
+        // name, re-composed by refreshComposedUi() on a language change.
+        const tabAria = trComposed('aria.switchToVariant', { n: i + 1 });
+        tab.setAttribute('aria-label', tabAria);
         tab.addEventListener('click', () => {
             if (i === editorState.variantIndex) return;
             // Re-open with the chosen variant — fresh peaks + loop points.
@@ -2234,8 +2519,10 @@ function populateLoopEditorHeader(snap) {
     const midiEl  = document.getElementById('le-midi');
     const velEl   = document.getElementById('le-vel');
     const modeEl  = document.getElementById('le-loop-mode');
-    if (fnEl)   fnEl.textContent   = snap.filename || '(unknown)';
-    if (midiEl) midiEl.textContent = `MIDI ${snap.midiNote}`;
+    const unknownName = trComposed('aria.unknown');
+    const midiText    = trComposed('aria.midiN', { n: snap.midiNote });
+    if (fnEl)   fnEl.textContent   = snap.filename || unknownName;
+    if (midiEl) midiEl.textContent = midiText;
     if (velEl)  velEl.textContent  = velocityLayerToRange(snap.velocityLayer).mark;
     if (modeEl) modeEl.textContent = snap.loopMode || '—';
     updateLoopMetaLabels();
@@ -2259,10 +2546,14 @@ function updateResetButtonState(snap) {
     if (!btn) return;
     if (isOneShot(snap)) {
         btn.disabled = true;
-        btn.title = ONE_SHOT_TOOLTIP;
+        // Literal `.dataset.i18nAria =` — the shape assertion 15 collects, so
+        // the key reads LIVE. The wording is v1.23.10's own, verbatim.
+        btn.dataset.i18nAria = 'aria.loopResetOneShot';
+        applyI18nAttributes(btn);
     } else {
         btn.disabled = false;
-        btn.title = '';
+        delete btn.dataset.i18nAria;
+        btn.removeAttribute('aria-label');
     }
 }
 
@@ -2451,7 +2742,7 @@ function bindLoopEditorEvents() {
                 await fn(editorState.midi, editorState.vel,
                          editorState.loopStart, editorState.loopEnd, 8,
                          editorState.variantIndex);
-                showToast(APPLY_TOAST);
+                showToastKey(APPLY_TOAST_KEY);
                 // Don't auto-close — user may want to keep iterating.
                 // The sampleMapUpdated push event will refresh the grid;
                 // editor stays open with current values reflected.
@@ -2581,11 +2872,11 @@ function bindPresetButtons () {
             try {
                 const fn = Juce.getNativeFunction('saveCurrentPreset');
                 const ok = await fn();
-                if (ok === true) showToast('Preset saved');
+                if (ok === true) showToastKey('toast.presetSaved');
                 // Cancel resolves false — silent (user dismissed the picker).
             } catch (e) {
                 console.error('[sampler-app] saveCurrentPreset failed:', e);
-                showToast('Save preset failed');
+                showToastKey('toast.presetSaveFailed');
             }
         });
     }
@@ -2597,7 +2888,7 @@ function bindPresetButtons () {
                 const fn = Juce.getNativeFunction('loadPreset');
                 const ok = await fn();
                 if (ok === true) {
-                    showToast('Preset loaded');
+                    showToastKey('toast.presetLoaded');
                     // The processor's sampleMapUpdated push covers the grid;
                     // refresh the tuning readout (tab-tuning lazy-mounts the
                     // panel, but the header readout polls on demand).
@@ -2611,7 +2902,7 @@ function bindPresetButtons () {
                 }
             } catch (e) {
                 console.error('[sampler-app] loadPreset failed:', e);
-                showToast('Load preset failed');
+                showToastKey('toast.presetLoadFailed');
             }
         });
     }
@@ -2645,18 +2936,19 @@ async function showMissingFolderDialog (info) {
     const kind      = typeof safe.kind === 'string' ? safe.kind : 'filesystem';
     const givenName = typeof safe.name === 'string' ? safe.name : '';
 
+    // These two are the highest-value strings on the page: they are what a
+    // French user reads when their session comes back broken. Both faces of
+    // each are keyed separately rather than interpolated, so neither has to
+    // read as a sentence with a hole in it.
     if (kind === 'drag-drop') {
-        titleEl.textContent = 'Drag-dropped samples not embedded';
-        const friendly = givenName || 'this folder';
-        messageEl.textContent =
-            `Samples were drag-dropped from "${friendly}" without "Embed audio" `
-            + `enabled, so they could not be re-loaded automatically. `
-            + `Re-drag the folder onto the plugin, or browse to its current location.`;
+        setLabel(titleEl, 'label.dragDropNotEmbedded');
+        if (givenName) setLabel(messageEl, 'label.dragDropMsgNamed', { name: givenName });
+        else           setLabel(messageEl, 'label.dragDropMsgUnnamed');
         pathEl.textContent = '';   // no path to show; clear the legacy slot
         pathEl.style.display = 'none';
-        locateBtn.textContent = 'Browse for folder…';
+        setLabel(locateBtn, 'label.browseForFolder');
     } else {
-        titleEl.textContent = 'Sample folder not found';
+        setLabel(titleEl, 'label.folderNotFound');
         // Derive a friendly folder name from the saved path for the message
         // (or use the explicit name when provided).
         let folderName = givenName;
@@ -2665,12 +2957,12 @@ async function showMissingFolderDialog (info) {
             const idx = path.lastIndexOf(sep);
             folderName = idx >= 0 ? path.substring(idx + 1) : path;
         }
-        messageEl.textContent = folderName
-            ? `The sample folder "${folderName}" was not found at its saved location. Locate it now, or skip and load samples manually.`
-            : 'The saved sample folder was not found. Locate it now, or skip and load samples manually.';
-        pathEl.textContent = path || '(empty path)';
+        if (folderName) setLabel(messageEl, 'label.folderNotFoundMsgNamed', { name: folderName });
+        else            setLabel(messageEl, 'label.folderNotFoundMsgUnnamed');
+        const emptyPathText = trComposed('aria.emptyPath');
+        pathEl.textContent = path || emptyPathText;
         pathEl.style.display = '';
-        locateBtn.textContent = 'Locate folder…';
+        setLabel(locateBtn, 'label.locateFolder');
     }
 
     // Dialog dismisses synchronously on click; the chosen action runs after
@@ -2691,10 +2983,10 @@ async function showMissingFolderDialog (info) {
             // Cancel resolves false — leave the pending state intact so the
             // user can try again from the next setStateInformation event or
             // by manually using "Load Folder…".
-            if (ok === true) showToast('Folder located — loading…');
+            if (ok === true) showToastKey('toast.folderLocated');
         } catch (e) {
             console.error('[sampler-app] locateMissingFolder failed:', e);
-            showToast('Locate folder failed');
+            showToastKey('toast.locateFolderFailed');
         }
     }
 }
@@ -2735,7 +3027,7 @@ function showAmbiguousDuplicatesDialog (dups) {
         // returns undefined), so the old fallback silently sent a "cancel"
         // the user never saw. Cancel explicitly and surface the failure.
         console.error('[sampler-app] rr-confirm modal DOM missing — cancelling ambiguous-duplicate load');
-        showToast('Internal UI error: round-robin confirmation dialog unavailable — load cancelled.');
+        showToastKey('toast.rrDialogMissing');
         sendRrConfirmation(false);
         return;
     }
@@ -2745,7 +3037,8 @@ function showAmbiguousDuplicatesDialog (dups) {
         const item = document.createElement('li');
         const head = document.createElement('div');
         head.className = 'rr-confirm-cell-head';
-        head.textContent = `MIDI ${d.midiNote} · ${velocityLayerToRange(d.velocityLayer).mark}`;
+        setLabel(head, 'label.rrCellHead',
+                 { n: d.midiNote, mark: velocityLayerToRange(d.velocityLayer).mark });
         item.appendChild(head);
         const fns = document.createElement('ul');
         fns.className = 'rr-confirm-filename-list';
@@ -2907,7 +3200,7 @@ function renderTechniqueBar() {
     if (tabs) {
         tabs.innerHTML = '';
         for (let i = 0; i < techniqueState.count; ++i) {
-            const name  = techniqueState.names[i] || `slot ${i + 1}`;
+            const name  = techniqueState.names[i] || trComposed('aria.slotN', { n: i + 1 });
             const count = cellCountsByTech[i];
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -2917,9 +3210,23 @@ function renderTechniqueBar() {
             btn.dataset.tech = String(i);
             btn.setAttribute('role', 'tab');
             btn.setAttribute('aria-selected', i === techniqueState.active ? 'true' : 'false');
-            btn.title = count > 0
-                ? `Technique ${i + 1}: ${name} — ${count} cell${count === 1 ? '' : 's'} loaded  (right-click to rename)`
-                : `Technique ${i + 1}: ${name} — empty  (right-click to rename)`;
+            // v1.24.0: native title= DELETED (§4). check-i18n assertion 11's
+            // JS scan reads a QUOTED literal immediately after `.title =`, so
+            // this ternary form was invisible to it — reported to the
+            // orchestrator, and deleted here regardless because the page
+            // rendered it. Its text was also the tab's only help beyond the
+            // slot name, so it becomes a composed accessible name.
+            //
+            // §6: `cell${count === 1 ? '' : 's'}` is gone; the count sits
+            // after a colon beside an invariant plural noun phrase.
+            const tabAriaText = count > 0
+                ? trComposed('aria.techTabLoaded', { i: i + 1, name, n: count })
+                : trComposed('aria.techTabEmpty',  { i: i + 1, name });
+            btn.setAttribute('aria-label', tabAriaText);
+            // The tab's visible face is a technique NAME plus a cell count —
+            // runtime data, not copy. D-01 arm 3: a node that carries a number
+            // is never a [data-i18n] element, so the parenthesised count stays
+            // exactly as it is.
             btn.textContent = count > 0 ? `${name} (${count})` : name;
             tabs.appendChild(btn);
         }
@@ -2991,12 +3298,16 @@ function renderTrimPanel() {
     if (!hasCells) return;
 
     const t = Math.max(0, Math.min(7, num(techniqueState.active)));
-    const name = techniqueState.names[t] || `slot ${t + 1}`;
+    const name = techniqueState.names[t] || trComposed('aria.slotN', { n: t + 1 });
 
     const chip = document.getElementById('trim-active-tech');
     if (chip) chip.textContent = name;
     const techLabel = document.getElementById('trim-tech-label');
-    if (techLabel) techLabel.title = `Trim the whole "${name}" technique (all layers)`;
+    // v1.24.0: native title= DELETED (§4). The caption's own word is
+    // "Technique"; WHICH technique is what the title added, so it becomes a
+    // composed accessible name rather than being dropped.
+    const trimAria = trComposed('aria.trimWholeTechnique', { name });
+    if (techLabel) techLabel.setAttribute('aria-label', trimAria);
 
     const trims   = techniqueState.trims || {};
     const techArr = Array.isArray(trims.technique) ? trims.technique : [];
@@ -3136,8 +3447,13 @@ const TECHNIQUE_PRESETS = {
     generic: ['ord', 't2', 't3', 't4', 't5', 't6', 't7', 't8'],
 };
 
-const TECHNIQUE_PRESET_LABELS = {
-    strings: 'Strings', winds: 'Winds', brass: 'Brass', generic: 'Generic',
+// v1.24.0: the four family names are captions, not data — the <option>
+// VALUES ('strings' … 'generic') are what the code keys on, and they are
+// untouched. The visible faces are keyed in index.html; this map now names
+// their keys so the toast reads the same four words the selector shows.
+const TECHNIQUE_PRESET_LABEL_KEYS = {
+    strings: 'label.familyStrings', winds: 'label.familyWinds',
+    brass:   'label.familyBrass',   generic: 'label.familyGeneric',
 };
 
 async function applyTechniquePreset(key) {
@@ -3148,7 +3464,8 @@ async function applyTechniquePreset(key) {
     // techniqueStateUpdated that re-pulls + re-renders the strip (and reveals
     // the technique bar, which stays hidden at count==1).
     await invokeNative('applyTechniqueNames', ...names);
-    showToast(`Applied ${TECHNIQUE_PRESET_LABELS[key] || key} technique names`);
+    showToastKey('toast.techniquePresetApplied',
+                 { family: TECHNIQUE_PRESET_LABEL_KEYS[key] || key });
 }
 
 function bindTechniquePresets() {
@@ -3480,6 +3797,51 @@ function bindTriggerPanel() {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// v1.24.0 — THE SETTINGS POPOVER
+//
+// ONE row: this plugin has no hover-help to switch on or off, so the popover
+// holds the language selector alone.
+// ════════════════════════════════════════════════════════════════════════════
+
+function initSettingsPopover() {
+    const gearBtn = document.getElementById('gear-btn');
+    const popover = document.getElementById('settings-popover');
+    if (!gearBtn || !popover) {
+        console.warn('[sampler-app] settings popover missing — language selector unavailable');
+        return;
+    }
+
+    const setOpen = (open) => {
+        popover.hidden = !open;
+        gearBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    gearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(popover.hidden);
+    });
+
+    // mousedown, not click, so the panel is gone before a knob drag underneath
+    // it begins — the SVG knobs start their drag on pointerdown.
+    document.addEventListener('mousedown', (e) => {
+        if (popover.hidden) return;
+        if (popover.contains(e.target) || gearBtn.contains(e.target)) return;
+        setOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !popover.hidden) { setOpen(false); gearBtn.focus(); }
+    });
+
+    // The canon's own change listener (registered inside initI18n) runs first
+    // and repaints every [data-i18n] element; this one repaints the strings the
+    // renderers compose. Registration order is the firing order, so the
+    // composed pass always sees the language the sweep has just set.
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', () => refreshComposedUi());
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     bindTabs();
     bindSliders();
@@ -3533,4 +3895,12 @@ document.addEventListener('DOMContentLoaded', () => {
     pullTechniqueState();            // v1.14.0
     bindTriggerPanel();              // v1.15.0
     pullTriggerState();              // v1.15.0
+
+    // ── i18n LAST, and guarded ──────────────────────────────────────────
+    // Every binding above has already run, so an i18n failure leaves an
+    // English plugin that still works rather than a dead page. Running it here
+    // is also what lets the first sweep see the control strip, which does not
+    // exist in index.html until renderControlStrip() has run.
+    initSettingsPopover();           // v1.24.0
+    try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
 });
