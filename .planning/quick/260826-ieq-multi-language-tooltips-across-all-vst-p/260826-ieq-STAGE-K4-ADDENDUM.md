@@ -159,7 +159,7 @@ the module file consumed by reference, not a local copy.
 
 ## A NATIVE `title=` DOES NOT HAVE TO BE IN THE MARKUP — gate widened mid-batch
 
-`9a3ec4a4` widened `check-i18n` assertion 11 to scan the JS as well as the
+`5e9813c3` widened `check-i18n` assertion 11 to scan the JS as well as the
 markup. It used to walk only `scanHtml()`'s parse of `index.html`, so
 `el.title = '...'` in a controller was invisible and "zero native title=
 remain" was reachable while any number of them shipped.
@@ -168,7 +168,7 @@ Found by the O-Wind executor: its page rendered **19** native titles against
 the **3** its markup declared — every FX readout carried
 `valueDisplay.title = 'Double-click to edit'`. **O-Lyrica had already shipped
 16 of them under a passing claim**, and was the only already-shipped plugin the
-widened assertion caught (fixed in `f0d7dc31`, v2.4.1).
+widened assertion caught (fixed in `bd89aa11`, v2.4.1).
 
 Two things generalise:
 
