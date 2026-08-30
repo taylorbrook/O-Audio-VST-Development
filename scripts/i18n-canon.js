@@ -44,12 +44,20 @@
     inside a comment, where backticks and ${...} are inert, and the module
     reads its own source to recover it. Zero escaping, zero duplication.
 
-    Usage:  const { I18N_CANON, I18N_CANON_V2 } = require('./i18n-canon.js');
+    Usage:  const { I18N_CANON_V2 } = require('./i18n-canon.js');
 
-    v1 localizes tooltip attributes. v2 adds labels, visible-text attributes
-    and JS-written strings. BOTH are carried during the migration and
-    check-i18n.js assertion 6 accepts either, reporting the split — changing
-    the canon in place would turn the gate red for the whole rollout.
+    ── There used to be two canons ──────────────────────────────────────────
+    v1 localized tooltip ATTRIBUTES; v2 adds labels, visible-text attributes
+    and JS-written strings. Both were carried through the rollout and assertion
+    6 accepted either, reporting the split, because changing the canon in place
+    would have turned the gate red the moment v2 was committed and kept it red
+    for every plugin that had not migrated yet.
+
+    That is over. All 43 plugins are on v2 as of Stage L, and v1 is deleted
+    here rather than left as a canon nothing is on — a second canonical block
+    that no plugin matches is not a safety net, it is a thing that can be
+    matched by accident. The rollout's own record lives in the SUMMARY, not in
+    a dead sentinel pair.
 
   ==============================================================================
 */
@@ -58,62 +66,11 @@
 
 const fs = require('fs');
 
-// ─────────────────────────────────────────────────────────── BEGIN I18N CANON
-/* <<<I18N_CANON_BEGIN>>>
-import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';
-
-let uiLanguage = 'en';
-let getUiLanguageNative = null;
-let setUiLanguageNative = null;
-
-function applyI18n(lang) {
-    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
-    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
-        const el = document.querySelector(selector);
-        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
-        const target = wrapper ? (el.closest(wrapper) || el) : el;
-        const s = tr(key, uiLanguage, vars);
-        target.setAttribute('data-tip-title', s.t);
-        target.setAttribute('data-tip', s.b);
-    }
-    const sel = document.getElementById('lang-select');
-    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
-}
-
-// Exposed so a clamp gate can drive the language without teaching the ui-stub a
-// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
-window.__setLanguage = applyI18n;
-
-function initI18n() {
-    try {
-        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
-        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
-    } catch (e) {
-        console.warn('Language preference not available, session-only:', e);
-    }
-
-    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
-    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
-
-    if (getUiLanguageNative) {
-        getUiLanguageNative()
-            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
-            .catch((e) => console.warn('Could not read language preference:', e));
-    }
-
-    const sel = document.getElementById('lang-select');
-    if (sel) sel.addEventListener('change', (e) => {
-        applyI18n(e.target.value);
-        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
-    });
-}
-<<<I18N_CANON_END>>> */
-// ───────────────────────────────────────────────────────────── END I18N CANON
 
 // ───────────────────────────────────────────────────────── BEGIN I18N CANON V2
 //
-// Canon v1 above localizes tooltip ATTRIBUTES. v2 adds LABELS, visible-text
-// attributes and JS-written strings, per the CANONICAL CONTRACT V2 section of
+// The retired canon v1 localized tooltip ATTRIBUTES. v2 adds LABELS,
+// visible-text attributes and JS-written strings, per the CONTRACT V2 section of
 // the plan.
 //
 // BOTH canons are carried, and check-i18n.js assertion 6 accepts either and
@@ -273,20 +230,12 @@ function extractBetween(beginTag, endTag, label) {
     return body;
 }
 
-const I18N_CANON    = extractBetween('<<<I18N_CANON_' + 'BEGIN>>>', '<<<I18N_CANON_' + 'END>>>', 'canon v1');
 const I18N_CANON_V2 = extractBetween('<<<I18N_CANON_V2_' + 'BEGIN>>>', '<<<I18N_CANON_V2_' + 'END>>>', 'canon v2');
-
-// v2 must be a genuine superset in intent, not a copy. A v2 that accidentally
-// equals v1 would make the version split meaningless and every plugin would
-// report whichever the comparison happened to try first.
-if (I18N_CANON.trim() === I18N_CANON_V2.trim())
-    throw new Error('i18n-canon.js: canon v2 is byte-identical to v1. The version split would be meaningless.');
 
 // The import line is asserted separately from the body. On plugins whose gates
 // pin the shape of the module top level — O-Octagon §2 forbids any module-level
 // declaration after `init();` — the hoisted import is the only new top-level
 // form and does not sit adjacent to the rest of the block.
-const I18N_CANON_IMPORT    = "import { LANGUAGES, I18N, TIP_BINDINGS, tr } from './i18n.js';";
 const I18N_CANON_V2_IMPORT = "import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';";
 
 // The body region the drift gate compares: from the first declaration to the
@@ -296,9 +245,7 @@ const I18N_CANON_BODY_START = "let uiLanguage = 'en';";
 const I18N_CANON_BODY_END_FN = 'initI18n';
 
 module.exports = {
-    I18N_CANON,
     I18N_CANON_V2,
-    I18N_CANON_IMPORT,
     I18N_CANON_V2_IMPORT,
     I18N_CANON_BODY_START,
     I18N_CANON_BODY_END_FN,
