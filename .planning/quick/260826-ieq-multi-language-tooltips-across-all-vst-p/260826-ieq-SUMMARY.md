@@ -4241,3 +4241,247 @@ majority of plugins in this stage. **Verify it; never assume it.**
 - O-GrainScatter's `#pitch-hint` is measured only via a states-file `eval` that
   adds the `.visible` class its controller sets; the real reveal path was not
   driven.
+
+# STAGE K — BATCH K4 (the volume) — STAGE K COMPLETE, 21 of 21
+
+Three concurrent (O-Wind, O-Bells, O-Formant), then O-MicrotonalSampler alone.
+
+| Plugin | Version | Commit | Files | LABEL: plan / inventory / measured |
+|---|---|---|---|---|
+| O-Wind | 1.17.0 | `a2e60212` | 8 | 65 / 61 / **61** |
+| O-Formant | 1.26.0 | `314bd710` | 10 | 109 / 94 / **94** |
+| O-Bells | 4.2.0 | `d9ba51ca` | 12 | 84 / 79 / **79** |
+| O-MicrotonalSampler | 1.24.0 | `9c1f8c3e` | 12 | 126 / 146 / **146** |
+
+Rows in `66f7a70d` and `bb0a4d29`, duplicate check clean both times.
+`check-i18n --strict-v2`: **42 localized plugins, ALL PASS**. `boot-all-uis`:
+**43/43 clean, 0 warn, 0 failed.**
+
+**The measured inventory matched on all four, and the plan was wrong on all
+four. That is 19 of 19 across K2, K3 and K4.** The inventory is the authority;
+the plan's text counts never were.
+
+## THE HEADLINE: a gate can certify the absence of a thing it cannot see
+
+O-Wind reported that `check-i18n` assertion 11 — "zero native `title=` remain" —
+walked only `scanHtml()`'s parse of `index.html`. **`el.title = '...'` in a
+controller was invisible to it.** O-Wind's page rendered **19** native titles
+against the **3** its markup declared, and the gate counted 3.
+
+It had already shipped that way: **O-Lyrica rendered 16 of them under a passing
+claim**, from a single write in a per-knob setup path.
+
+Two things generalise, and the second is the more useful:
+
+1. **A source grep counts WRITES; the page renders INSTANCES.** One write,
+   sixteen tooltips. A grep would have called O-Lyrica a one-site defect.
+   `boot-all-uis`' per-plugin `title=` column was the only thing that ever saw
+   them — and it is a REPORT, not a gate, so it printed 16 and exited 0.
+2. **The half-enforced contract.** §4 has a markup half and a JS half; the
+   markup scan enforced one and nothing enforced the other. Assertion 11 now
+   feeds both sources into ONE check, because splitting them lets a plugin pass
+   the half it happens not to trip.
+
+Fixed in `5e9813c3` with both controls (O-Lyrica fails by name; a plant in clean
+O-Tapestop goes red then green on restore). Repo swept: 41 localized plugins,
+exactly one failure. O-Lyrica fixed in `bd89aa11` (v2.4.1). **O-Bells then hit
+the identical shape and caught it because the gate had learned to see it** —
+16 knob readouts, same `valueDisplay.title = 'Double-click to edit'` line.
+O-MicrotonalSampler had 8 more, on grid-render paths.
+
+**Four plugins carried this. Three would have shipped it green.**
+
+## The tuning panel: the extractor's skip list is not an ownership test
+
+`i18n-extract.js:442` drops `tuning-panel.js` **by filename**, with no ownership
+test, so ~34 visible strings per plugin sat in no count. Ownership is not
+uniform, and the brief's blanket module exemption was wrong for three of four:
+
+| Plugin | What it consumes | Verdict |
+|---|---|---|
+| O-Wind | the MODULE file, by reference | exempt — its Tuning tab is English in both languages, about a third of its navigable surface |
+| O-Bells | plugin-owned, **279 lines diverged** | localized |
+| O-Formant | plugin-owned, **45 lines diverged** | localized |
+| O-MicrotonalSampler | plugin-owned, **317 lines diverged** | localized |
+
+None of the three lists the module in a `dependencies.json`, so
+`/module-upgrade` will not revert the edits. **`check-i18n` DOES scan these
+files** — `pageModules` deliberately does not apply `JS_SKIP` — so 12/13/15
+cover the keys; only the worklist was missing. The orchestrator got this
+backwards in the first dispatch and corrected both running executors mid-flight.
+
+## The canvas decision, applied once and controlled
+
+O-Formant was the only K4 plugin with `fillText` (5 sites; the other three had
+0). Two localized via `I18N` with empty bodies, three exempt under D-01 arm 2
+(IPA glyphs, F1–F5 markers). **Its negative control is the finding**: restoring
+a hardcoded English `ctx.fillText('LYRICS', …)` still gave **ALL CHECKS PASS**.
+The probe — recording `fillText`, en→fr→en, at three sibilance values so all
+three manner branches paint — is the only thing that sees this class.
+
+## Geometry — and the margin nobody had a number for
+
+**Every plugin: 0 non-label elements moved EN→FR**, at 180ms and 1.7s.
+O-Wind 8/10/99 → 0/0/0. O-Bells 11/47/134 → 0 across 14 states.
+O-Formant 9 → 0. **O-MicrotonalSampler 116 → 0 across 22 states.**
+
+**O-Formant quantified the standing shrink-to-fit hole**: a **20-character**
+French caption in a **55px** `.knob-label` passes assertions 7, 8 and 8b
+**green** — ~22px of overflow per side into empty space — and it takes ~**38
+characters** before assertion 8 names it. Knob captions in this batch were sized
+by hand against that margin, not by the gate.
+
+The orchestrator wrote a **caption-fit probe** (painted text width vs the
+element's own content box, per language, per state) and proved it by planting a
+38-char caption on O-Bells' `label.fxReverb`: **+47.38px, 109.38 in a 62px
+`.fx-title`**, clean on restore. **All four K4 plugins measure 0 in both
+languages.** The hand-sizing held. The probe is in the session scratchpad, not
+promoted to `scripts/` — promoting it changes what every future dispatch must
+pass, which is a decision, not a cleanup.
+
+**`dx` alone mislabels a pin as decoration — now five times.** O-MicrotonalSampler's
+tonic row is the cleanest instance yet: a fixed 142px CENTRED row where the
+caption's 12.84px growth produced `dx=6.42, dw=0` on all three siblings. Nothing
+widened; everything moved.
+
+Two pins shipped honestly labelled **design guards** because their negative
+control passes: O-Bells' `.tonic-selector` gap (it prevents a 7.82px overflow
+identical in both languages, which an en-vs-fr diff cannot see by construction).
+
+## A harness that cannot reach a state certifies nothing about it
+
+O-MicrotonalSampler's stub reported an empty `slots[]`, which leaves
+`#clear-samples-btn` and `#batch-loop-btn` disabled — so **six dialog states
+were unreachable and `check-ui-labels` died on a hidden button** rather than
+reporting them. This was present from the executor's first run and read as a
+harness crash. Giving the stub the `slots` a real loaded state carries changed
+**no rendering** (the legacy flat list is only read when `cells` is empty) and
+immediately surfaced **38 real failures**.
+
+The same stub fired a 3.3s toast at load — alive for the English snapshot, gone
+by the French one, reported as "2 vanished in fr". A transient is not a
+regression; the Issues panel is now driven through the real `setLabel` path.
+
+**Both are the same lesson from opposite ends: the gate was green (or crashed)
+for reasons that had nothing to do with the plugin.**
+
+## A THIRD gate fix — the modal shape the paint-layer rule could not see
+
+`check-ui-labels`' `overlayOf` required `position: absolute|fixed` **on the
+painting element**. The most common modal there is — a full-viewport `fixed`
+root that paints nothing, flex-centring an opaque card that is only `position:
+relative` — matched neither node, so **every caption inside every dialog was
+compared against the page underneath it**. O-MicrotonalSampler writes all six of
+its dialogs that way: **13 `[8b]` failures and 1 `[8]`, all in `*-open` states,
+naming collisions no user can see.**
+
+Same class as the gradient bug already recorded two comments above it: *the test
+described one way of building the thing rather than the thing.*
+
+Fixed in `72a9d1b7`. It only ever RELAXES (pairs move from a failure to a
+printed NOTE), so it cannot turn a green plugin red. Controls:
+- 13 → 3 with 11 skips reported. **The three survivors are the proof it is not
+  blinded**: one is `label.rrBodyAfter` against `<code>` elements INSIDE the
+  same dialog — same layer, still failing.
+- A 94-char French caption planted inside the batch-loop dialog is still caught,
+  by **`[7]`** with 3 new failures naming `blUnits` six times. In a flex dialog a
+  taller caption PUSHES rather than overlaps, so `[7]` is the correct catcher
+  there; `[8b]` remains the catcher for the absolute-positioned case.
+- O-Contrabass (the plugin the original rule was written for), O-Tapestop and
+  O-Bells: exit 0, zero failures each.
+
+**Three gate fixes this batch, all from executor reports or executor-found
+shapes.** Total for the task: nine.
+
+## Pluralization — the one inline English inflection in the repo
+
+O-MicrotonalSampler's `${n} file${n === 1 ? '' : 's'}` and five siblings are
+**gone, not ported**: French pluralizes 0 as singular where English does not, so
+a mechanical port is wrong at n=0 before it is wrong anywhere else. The count
+now sits after a colon beside an invariant plural noun phrase. The same
+reasoning rejected a one-line interval header that fits (`Intervalles · {n}
+notes`, 138.44px in a 142px column) in favour of `Interv. · notes : {n}`
+(114.45px), because the former reads "1 notes".
+
+## Pre-existing ENGLISH defects, exposed by keying — the sixth batch running
+
+| Plugin | Defect | Since |
+|---|---|---|
+| O-Formant | `#octave-stretch-value` rendered **9px past the 800px frame**, clipped, in every build | v1.25.4 |
+| O-Bells | `"True Keys"` wrapped to two lines inside its own `.viz-btn`, making the viz row 10px taller | pre-v4.1.5 |
+| O-Bells | the header's version label read **`v4.0.0` at v4.1.5** | v4.1.5 |
+| O-Wind | 16 JS-written native titles (above) | — |
+
+Each negative-controlled to re-fail in English before any French existed. Both
+O-Formant's and O-Bells' root cause is the same one K3 named: **`flex: 1` leaves
+`min-width: auto`**, so the item is floored by its longest word or its input's
+intrinsic minimum.
+
+## FOUND AND NOT FIXED — a functional defect wider than this task
+
+**`window.confirm` and `window.prompt` do not work in JUCE WebViews.** Three
+independent prior in-repo findings say so outright — O-MicrotonalSampler v1.0.2
+("JUCE does not wire JS `confirm()` through WKWebView's UIDelegate"), the same
+plugin's v1.23.7 ("returns `undefined` silently"), and O-simpleFM ("unreliable
+inside JUCE WebViews") — and both of those plugins already route around it with
+in-DOM dialogs.
+
+The vendored `modules/persistence/preset-manager/js/preset-manager.js` still
+does `if (confirm(...)) { this.deletePreset(...) }`, whose own docstring hedges
+"confirm() may not work in all JUCE WebView contexts" and then does it anyway.
+**`undefined` is falsy, so Delete Preset is a silent no-op** in every plugin
+still on that path: **O-Bass, O-Comp, O-DigiDelay, O-Polystutter,
+O-SpectralShaper**. O-Formant's Save uses `prompt()` and may never have worked
+outside a browser. O-IntonationPad uses both directly.
+
+Out of scope for an i18n task and deliberately untouched. It is a
+**cross-plugin functional defect**, not a translation one, and it wants its own
+task.
+
+## NEEDS A HUMAN DECISION
+
+1. **The `confirm`/`prompt` defect above** — ~7 plugins, Delete Preset and Save
+   likely dead. The fix pattern already exists twice in the repo.
+2. **O-Wind's Tuning tab is English in both languages.** Localizing the shared
+   `scala-tuning-engine` panel is a module change touching O-Bowed, O-Reed and
+   O-Bassoon as well. The three plugin-owned copies are now localized and
+   therefore diverge further from the module — reconverging them is a separate
+   piece of work.
+3. **The caption-fit probe is not a gate.** It found nothing on four plugins
+   that had been hand-sized against the documented margin, but the hole it
+   covers is real and standing since Stage H. Promoting it to `scripts/`
+   changes what every future dispatch must pass.
+4. **English moves visibly on three plugins** where a pin had to be
+   French-sized: O-Formant's preset cluster −9.1px and lyrics controls −28px;
+   O-Wind's Effects tab (147 elements, all horizontal, no rewraps); O-Bells' 22
+   / 62 / 144 elements per tab, all inside the frame. Correct, and visible.
+5. **O-MicrotonalSampler's `Empl.` pin adds ~7.5px of space before the slot
+   number in ENGLISH prose** — the visible cost of holding an inline element
+   still. A shorter French word would remove it.
+6. **`Interv. · notes : {n}`** is an abbreviation chosen over the fuller
+   `Intervalles` on a measured 142px column. A native speaker may prefer the
+   layout change instead.
+7. Items from K1, K2 and K3 still stand — including the two O-Bowed render-harness
+   version copies, and O-Reed's fifteen English XY-pad instrument markers.
+
+## Not verified
+
+- **Checkpoint 5 outstanding on all 42.** No human has seen any French UI.
+- **All French repo-wide is machine drafts**, every entry `reviewed: false`.
+- **Checkpoint 4 is reasoned on all four** — from the `isVoid()` guard, the
+  native fns present in each built binary, and `auval`. **No host session was
+  saved and reopened for any K4 plugin.**
+- **No DAW test on any of the four.** `auval` and the headless harness only.
+- **The Standalone `.app` is stale on all four** — `build-and-install.sh` builds
+  VST3+AU only.
+- **Windows/WebView2 font metrics** — the standing hardware-blocked deferral.
+  K4's tightest margins are roomier than K2's 1.2–1.9px band, but
+  O-MicrotonalSampler's three English-width pins (125/489/53px) sit 3.03,
+  9.94 and 10.69px above their French, and a wider Windows face eats that first.
+- **O-Bells: nine `<option>` captions and one `:hover` note were never
+  MEASURED** — a closed native select's options have no box. Their French is
+  confirmed rendered by assertion 2's text sweep; only their geometry is unknown.
+- **O-Formant's tuning library list was populated by injection**, not by the
+  real reveal path (the stub returns `[]`).
+- **O-MicrotonalSampler's `.SCL`/`.KBM` file dialogs and `Generate`** were not
+  driven — they call into C++ FileChoosers.
