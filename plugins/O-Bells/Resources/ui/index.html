@@ -215,6 +215,15 @@
         }
 
         .fx-title {
+            /* v4.2.0 GEOMETRY PIN. .fx-section lays out [title …knobs… button]
+               with `margin-right: auto` here and `margin-left: auto` on the
+               button, so the knob row floats in the free space BETWEEN two auto
+               margins and moves by HALF of any width change on either side.
+               REVERB -> RÉVERBE is +8.35px and DELAY -> DÉLAI is -2.66px, in
+               opposite directions, so no single translation could have absorbed
+               it. Pinned to 62px, which the widest caption in either language
+               (Réverbe, 60.19px) fits. */
+            width: 62px;
             font-size: 11px;
             font-weight: bold;
             color: #2C3E10;
@@ -224,6 +233,12 @@
         }
 
         .fx-bypass-btn {
+            /* v4.2.0 GEOMETRY PIN. The other half of the same pair: ON ->
+               MARCHE is 16.48px wider and walked all four knob rows 8.2px left.
+               Pinned to a width the FRENCH fits (45.48px), because MARCHE and
+               ARRÊT are both longer than ON and OFF and an English-sized pin
+               would spill them out of the button. */
+            width: 48px;
             padding: 2px 8px;
             background: rgba(107, 142, 35, 0.5);
             border: 1px solid #5C4033;
@@ -253,11 +268,22 @@
             pointer-events: none;
         }
 
+        /* v4.2.0 GEOMETRY PIN. The container is a centred COLUMN flex, so its
+           width is max(44px knob visual, caption, readout) and any caption wider
+           than the knob widens the container and shifts every knob after it.
+           French moves these in BOTH directions — MIX -> DOSAGE is +21.02px,
+           FEEDBACK -> RÉINJ. is -21.75px — so the row shifts either way.
+           62px is the widest caption in either language (Fréq. méd. at 57.75px)
+           rounded up, and `width: 100%` on the caption makes the caption box
+           itself language-invariant rather than merely its parent: the keyed
+           SPAN inside it is excluded from the diff, but the div wrapping it is
+           not, and that div was reported by name. */
         #effects-tab .knob-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 1px;
+            width: 62px;
         }
 
         #effects-tab .knob {
@@ -293,6 +319,9 @@
         }
 
         #effects-tab .knob-label {
+            width: 100%;              /* v4.2.0 geometry pin — see .knob-container */
+            text-align: center;
+            white-space: nowrap;
             font-size: 9px;
             color: #3C2F2F;
             font-weight: 600;
@@ -549,6 +578,16 @@
 
         .choice-group {
             display: flex;
+            /* v4.2.0 GEOMETRY PIN. .param-control is a centred COLUMN flex, so
+               this group is a flex ITEM sized by its content: EXP -> EXP. and
+               LOG -> LOG. widened it by 4.50px and re-centred it, moving the
+               group and the active button. `width: 100%` is the wrapper form
+               the brief recommends trying first — the group now fills its
+               column in both languages, its three `flex: 1` buttons split a
+               FIXED total, and the widest min-content on the page (LINEAR at
+               36px in a 52px content box) still fits, so no button needs
+               min-width: 0 and none is added. */
+            width: 100%;
             gap: 6px;
             margin-top: 5px;
         }
@@ -697,6 +736,11 @@
 
         .hi-fi-toggle {
             display: flex;
+            /* v4.2.0 GEOMETRY PIN. Same shape as .lp-filter-toggle, eight times
+               the size: HIGH FIDELITY -> HAUTE FIDÉLITÉ grew the box 8.58px.
+               French needs 133.47px (10 + 14 checkbox + 8 gap + 91.47 caption +
+               10); 136px leaves the caption 94px and cannot wrap it. */
+            width: 136px;
             align-items: center;
             gap: 8px;
             margin-bottom: 4px;
@@ -772,6 +816,12 @@
 
         .lp-filter-toggle {
             display: flex;
+            /* v4.2.0 GEOMETRY PIN. Shrink-wrapped and centred, so LP FILTER ->
+               FILTRE PB grew the box 0.94px and shifted its checkbox. Pinned to
+               a width the French caption fits (96.91px), NOT to `width: 100%`:
+               this toggle is a compact chip beside a slider, and filling the
+               234px column would be a design change rather than a pin. */
+            width: 98px;
             align-items: center;
             gap: 8px;
             margin-bottom: 4px;
@@ -922,6 +972,112 @@
            PRESET BROWSER
            ==================================================================== */
 
+        /* ====================================================================
+           The settings popover (v4.2.0)
+
+           Styled in THIS page's vocabulary, not a uniform widget pasted in: the
+           gear wears .preset-action-btn's border, radius and sage-green fill
+           because it is a sibling of Save and Load inside .preset-browser, and
+           the panel wears the paper/brown of .preset-dropdown, which is the only
+           other floating panel this header opens.
+
+           It sits INSIDE .preset-browser rather than as a third child of
+           .header-bar. .header-bar is `justify-content: space-between` with two
+           children; a third would re-distribute the row and move the whole
+           preset browser to the centre of the frame — a large ENGLISH-only
+           layout change the both-language gate cannot see, because it is a
+           markup change rather than a language one.
+
+           Opens DOWNWARDS. The gear is inside a 50px header at the top of a
+           600px frame, so a panel above it would leave the frame entirely.
+
+           WIDTH IS PINNED, not min-width. .settings-popover is not a
+           [data-i18n] element, so the label gate measures its box in BOTH
+           languages and any language-driven resize is a reported failure. A hard
+           width makes the panel's rect language-invariant by construction.
+           200px was chosen against LANGUAGE + English and LANGUE + Français
+           measured in THESE elements: text-transform and letter-spacing are not
+           in getComputedStyle().font, so it cannot be computed from the font
+           alone and cannot be borrowed from another plugin.
+           ==================================================================== */
+        .settings-cluster {
+            position: relative;
+            display: flex;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 20;
+        }
+
+        .gear-btn {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #3C5C1A;
+            border-radius: 3px;
+            color: #2C3E10;
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .gear-btn:hover { background: rgba(139, 168, 112, 0.55); }
+        .gear-btn[aria-expanded="true"] { background: rgba(139, 168, 112, 0.7); }
+        .gear-btn:focus-visible { outline: 2px solid #3C5C1A; outline-offset: 2px; }
+
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 21;
+            width: 200px;
+            padding: 9px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #F5E6D3;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(60, 47, 47, 0.35);
+        }
+        .settings-popover[hidden] { display: none; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the control beside it. */
+        .settings-label {
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #5C4033;
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-family: inherit;
+            font-size: 10px;
+            line-height: 1.2;
+            color: #5C4033;
+            cursor: pointer;
+            outline: none;
+        }
+        .settings-select:focus-visible { outline: 2px solid #3C5C1A; outline-offset: 1px; }
+
         .header-bar {
             display: flex;
             justify-content: space-between;
@@ -1042,6 +1198,17 @@
         }
 
         .preset-action-btn {
+            /* v4.2.0 GEOMETRY PIN. Shrink-wrapped, and .preset-browser is the
+               right-hand child of a `space-between` header bar, so ANY width
+               change walks the whole preset browser sideways: SAVE -> ENREG.
+               and LOAD -> OUVRIR grew the pair by 21.43px and moved five
+               elements including both arrows and the preset name.
+               Pinned to a width the FRENCH fits (fr content 37.52px + 20px
+               padding + 2px border = 59.52px), not to the English box, because
+               here French is the LONGER of the two and an English-sized pin
+               would spill the caption out of its own button. English gains
+               ~12px of padding; both languages now measure 62px. */
+            width: 62px;
             padding: 5px 10px;
             background: rgba(139, 168, 112, 0.3);
             border: 1px solid #3C5C1A;
@@ -1143,7 +1310,7 @@
 <body>
     <div class="plugin-container">
         <!-- Botanical Overlay -->
-        <img src="img/snail.png" alt="Snail" class="botanical-overlay" id="botanicalOverlay">
+        <img src="img/snail.png" alt="Snail" data-i18n-alt="alt.snail" class="botanical-overlay" id="botanicalOverlay">
 
         <!-- Header -->
         <div class="header">
@@ -1156,17 +1323,44 @@
                         <div class="preset-dropdown" id="preset-dropdown"></div>
                     </div>
                     <div class="preset-arrow" id="preset-next">▶</div>
-                    <div class="preset-action-btn" id="preset-save">Save</div>
-                    <div class="preset-action-btn" id="preset-load">Load</div>
+                    <div class="preset-action-btn" id="preset-save" data-i18n="label.presetSave">Save</div>
+                    <div class="preset-action-btn" id="preset-load" data-i18n="label.presetLoad">Load</div>
+
+                    <!-- The language selector. ONE row: this plugin has no
+                         hover-help to switch on or off, and authoring that copy
+                         is Stage M's job. -->
+                    <div class="settings-cluster">
+                        <button type="button" class="gear-btn" id="gear-btn"
+                                aria-haspopup="dialog" aria-expanded="false"
+                                aria-label="Settings" data-i18n-aria="aria.settings">&#9881;</button>
+
+                        <div class="settings-popover" id="settings-popover"
+                             role="dialog" aria-label="Settings" data-i18n-aria="aria.settings" hidden>
+                            <label class="settings-row" for="lang-select">
+                                <span class="settings-label" data-i18n="label.language">Language</span>
+                                <!-- ENDONYMS. Never localized and never written
+                                     by a state updater: a French speaker looking
+                                     for their language looks for "Fran&ccedil;ais".
+                                     Their widths are therefore identical in both
+                                     languages, which is what keeps the select's
+                                     box out of the geometry diff. -->
+                                <select class="settings-select" id="lang-select"
+                                        aria-label="Interface language" data-i18n-aria="aria.langSelect">
+                                    <option value="en">English</option>
+                                    <option value="fr">Fran&ccedil;ais</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Tab Bar -->
         <div class="tab-bar">
-            <div class="tab active" data-tab="instrument">Instrument</div>
-            <div class="tab" data-tab="tuning">Tuning</div>
-            <div class="tab" data-tab="effects">Effects</div>
+            <div class="tab active" data-tab="instrument" data-i18n="label.tabInstrument">Instrument</div>
+            <div class="tab" data-tab="tuning" data-i18n="label.tabTuning">Tuning</div>
+            <div class="tab" data-tab="effects" data-i18n="label.tabEffects">Effects</div>
         </div>
 
         <!-- Tab Content: Instrument -->
@@ -1174,39 +1368,48 @@
             <!-- CPU Warning Banner (v3.2.0) -->
             <div class="cpu-warning" id="cpu-warning">
                 <span class="cpu-warning-icon">&#9888;</span>
-                <span class="cpu-warning-text">
-                    Estimated bell decay: <span class="cpu-warning-estimate" id="cpu-warning-estimate">--</span>.
-                    Long decays with polyphony may cause high CPU usage, distortion, or stuttering.
-                </span>
+                <!-- v4.2.0: the ESTIMATE LEADS. v4.1.5 read "Estimated bell
+                     decay: ~18s. Long decays..." with the live readout in the
+                     middle of the sentence, and no amount of word choice can
+                     keep an interpolated number at a fixed x while the words in
+                     front of it change length — the French prefix is 54.4px
+                     wider than the English one and pushed the readout by exactly
+                     that. Contract §5 splits a shared label/readout node and §6
+                     authors the copy around the constraint; putting the readout
+                     FIRST does both, and the number keeps its own bold styling,
+                     which folding the whole banner into one composed label would
+                     have lost. Everything after it is one keyed span, and a
+                     label is excluded from the geometry diff by construction. -->
+                <span class="cpu-warning-text"><span class="cpu-warning-estimate" id="cpu-warning-estimate">--</span> <span data-i18n="label.cpuWarning">estimated bell decay. Long decays with polyphony may cause high CPU usage, distortion, or stuttering.</span></span>
             </div>
 
             <!-- Synthesis Section -->
             <div class="section">
-                <div class="section-title">Synthesis</div>
+                <div class="section-title" data-i18n="label.secSynthesis">Synthesis</div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Damping</div>
+                        <div class="param-label" data-i18n="label.damping">Damping</div>
                         <div class="slider" data-param="damping">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="damping">70%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Overtone Brightness</div>
+                        <div class="param-label" data-i18n="label.overtoneBrightness">Overtone Brightness</div>
                         <div class="slider" data-param="overtoneBrightness">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="overtoneBrightness">50%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Acoustic Brightness</div>
+                        <div class="param-label" data-i18n="label.acousticBrightness">Acoustic Brightness</div>
                         <div class="slider" data-param="acousticBrightness">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="acousticBrightness">70%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Material</div>
+                        <div class="param-label" data-i18n="label.material">Material</div>
                         <div class="slider" data-param="material">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1215,21 +1418,21 @@
                 </div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Inharmonicity</div>
+                        <div class="param-label" data-i18n="label.inharmonicity">Inharmonicity</div>
                         <div class="slider" data-param="inharmonicity">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="inharmonicity">50%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Air Absorption</div>
+                        <div class="param-label" data-i18n="label.airAbsorption">Air Absorption</div>
                         <div class="slider" data-param="airAbsorption">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="airAbsorption">0%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Air Time</div>
+                        <div class="param-label" data-i18n="label.airTime">Air Time</div>
                         <div class="slider" data-param="airAbsorptionTime">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1238,21 +1441,21 @@
                 </div>
                 <div class="param-row" id="bloom-main-row">
                     <div class="param-control" id="bloomSpeed-control">
-                        <div class="param-label">Bloom Speed</div>
+                        <div class="param-label" data-i18n="label.bloomSpeed">Bloom Speed</div>
                         <div class="slider" data-param="bloomSpeed">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="bloomSpeed">50%</div>
                     </div>
                     <div class="param-control" id="bloomAmount-control">
-                        <div class="param-label">Bloom Amount</div>
+                        <div class="param-label" data-i18n="label.bloomAmount">Bloom Amount</div>
                         <div class="slider" data-param="bloomAmount">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="bloomAmount">0%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Shimmer</div>
+                        <div class="param-label" data-i18n="label.shimmer">Shimmer</div>
                         <div class="slider" data-param="shimmer">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1264,27 +1467,27 @@
                 <div class="expandable-section bloom-fine-section" id="bloom-fine-section">
                     <div class="bloom-fine-toggle" id="bloom-fine-toggle">
                         <div class="toggle-checkbox" id="bloom-fine-checkbox"></div>
-                        <div class="toggle-label">Bloom Fine Controls (Override Mode)</div>
+                        <div class="toggle-label" data-i18n="label.bloomFineToggle">Bloom Fine Controls (Override Mode)</div>
                     </div>
                     <div class="bloom-fine-content" id="bloom-fine-content">
-                        <div class="section-hint">Per-band control - main sliders disabled when active</div>
+                        <div class="section-hint" data-i18n="label.bloomFineHint">Per-band control - main sliders disabled when active</div>
                         <div class="param-row param-row-4">
                             <div class="param-control">
-                                <div class="param-label">Speed Low</div>
+                                <div class="param-label" data-i18n="label.speedLow">Speed Low</div>
                                 <div class="slider" data-param="bloomSpeedLow">
                                     <div class="slider-thumb"></div>
                                 </div>
                                 <div class="param-value" data-value="bloomSpeedLow">50%</div>
                             </div>
                             <div class="param-control">
-                                <div class="param-label">Speed Mid</div>
+                                <div class="param-label" data-i18n="label.speedMid">Speed Mid</div>
                                 <div class="slider" data-param="bloomSpeedMid">
                                     <div class="slider-thumb"></div>
                                 </div>
                                 <div class="param-value" data-value="bloomSpeedMid">50%</div>
                             </div>
                             <div class="param-control">
-                                <div class="param-label">Speed High</div>
+                                <div class="param-label" data-i18n="label.speedHigh">Speed High</div>
                                 <div class="slider" data-param="bloomSpeedHigh">
                                     <div class="slider-thumb"></div>
                                 </div>
@@ -1296,21 +1499,21 @@
                         </div>
                         <div class="param-row param-row-4">
                             <div class="param-control">
-                                <div class="param-label">Amount Low</div>
+                                <div class="param-label" data-i18n="label.amountLow">Amount Low</div>
                                 <div class="slider" data-param="bloomAmountLow">
                                     <div class="slider-thumb"></div>
                                 </div>
                                 <div class="param-value" data-value="bloomAmountLow">0%</div>
                             </div>
                             <div class="param-control">
-                                <div class="param-label">Amount Mid</div>
+                                <div class="param-label" data-i18n="label.amountMid">Amount Mid</div>
                                 <div class="slider" data-param="bloomAmountMid">
                                     <div class="slider-thumb"></div>
                                 </div>
                                 <div class="param-value" data-value="bloomAmountMid">0%</div>
                             </div>
                             <div class="param-control">
-                                <div class="param-label">Amount High</div>
+                                <div class="param-label" data-i18n="label.amountHigh">Amount High</div>
                                 <div class="slider" data-param="bloomAmountHigh">
                                     <div class="slider-thumb"></div>
                                 </div>
@@ -1326,24 +1529,24 @@
 
             <!-- Ensemble Section -->
             <div class="section">
-                <div class="section-title">Ensemble</div>
+                <div class="section-title" data-i18n="label.secEnsemble">Ensemble</div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Unison</div>
+                        <div class="param-label" data-i18n="label.unison">Unison</div>
                         <div class="slider" data-param="unisonCount">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="unisonCount">1</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Detune</div>
+                        <div class="param-label" data-i18n="label.detune">Detune</div>
                         <div class="slider" data-param="unisonDetune">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="unisonDetune">10ct</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Sub</div>
+                        <div class="param-label" data-i18n="label.sub">Sub</div>
                         <div class="slider" data-param="octaveBlendSub">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1352,14 +1555,14 @@
                 </div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Oct</div>
+                        <div class="param-label" data-i18n="label.oct">Oct</div>
                         <div class="slider" data-param="octaveBlendOct">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="octaveBlendOct">0%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Spread</div>
+                        <div class="param-label" data-i18n="label.spread">Spread</div>
                         <div class="slider" data-param="stereoSpread">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1373,24 +1576,24 @@
 
             <!-- Onsets Section (renamed from Character in v1.5.4) -->
             <div class="section">
-                <div class="section-title">Onsets</div>
+                <div class="section-title" data-i18n="label.secOnsets">Onsets</div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Strike</div>
+                        <div class="param-label" data-i18n="label.strike">Strike</div>
                         <div class="slider" data-param="strikePosition">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="strikePosition">50%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Mallet</div>
+                        <div class="param-label" data-i18n="label.mallet">Mallet</div>
                         <div class="slider" data-param="malletHardness">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="malletHardness">50%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Attack Amount</div>
+                        <div class="param-label" data-i18n="label.attackAmount">Attack Amount</div>
                         <div class="slider" data-param="attackLevel">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1399,7 +1602,7 @@
                 </div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Noise</div>
+                        <div class="param-label" data-i18n="label.noise">Noise</div>
                         <div class="choice-group" data-param="strikeNoiseChar">
                             <div class="choice-button active" data-index="0">Click</div>
                             <div class="choice-button" data-index="1">Thud</div>
@@ -1407,11 +1610,11 @@
                         </div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Velocity</div>
+                        <div class="param-label" data-i18n="label.velocity">Velocity</div>
                         <div class="choice-group" data-param="velocityCurve">
                             <div class="choice-button active" data-index="0">Linear</div>
-                            <div class="choice-button" data-index="1">Exp</div>
-                            <div class="choice-button" data-index="2">Log</div>
+                            <div class="choice-button" data-index="1" data-i18n="label.velExp">Exp</div>
+                            <div class="choice-button" data-index="2" data-i18n="label.velLog">Log</div>
                         </div>
                     </div>
                     <div class="param-control">
@@ -1422,31 +1625,31 @@
 
             <!-- Advanced Section -->
             <div class="section">
-                <div class="section-title">Advanced</div>
+                <div class="section-title" data-i18n="label.secAdvanced">Advanced</div>
                 <div class="param-row param-row-4">
                     <div class="param-control">
-                        <div class="param-label">Partial Tune</div>
+                        <div class="param-label" data-i18n="label.partialTune">Partial Tune</div>
                         <div class="slider" data-param="partialTuning">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="partialTuning">0ct</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Pitch Env</div>
+                        <div class="param-label" data-i18n="label.pitchEnv">Pitch Env</div>
                         <div class="slider" data-param="pitchEnvelope">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="pitchEnvelope">0%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">P.Env Time</div>
+                        <div class="param-label" data-i18n="label.pEnvTime">P.Env Time</div>
                         <div class="slider" data-param="pitchEnvTime">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="pitchEnvTime">50ms</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Nonlinear</div>
+                        <div class="param-label" data-i18n="label.nonlinear">Nonlinear</div>
                         <div class="slider" data-param="nonlinearEffects">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1457,32 +1660,32 @@
 
             <!-- Multi-Stage Envelope Section (visible when decayShape == Multi) -->
             <div class="section envelope-section" id="envelope-section">
-                <div class="section-title">Multi-Stage Envelope</div>
-                <div class="section-hint">Controls how different frequencies decay over time</div>
+                <div class="section-title" data-i18n="label.secEnvelope">Multi-Stage Envelope</div>
+                <div class="section-hint" data-i18n="label.envelopeHint">Controls how different frequencies decay over time</div>
                 <div class="param-row param-row-4">
                     <div class="param-control">
-                        <div class="param-label">Strike Time</div>
+                        <div class="param-label" data-i18n="label.strikeTime">Strike Time</div>
                         <div class="slider" data-param="strikeTime">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="strikeTime">30ms</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Brilliance</div>
+                        <div class="param-label" data-i18n="label.brilliance">Brilliance</div>
                         <div class="slider" data-param="brilliance">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="brilliance">50%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Body Time</div>
+                        <div class="param-label" data-i18n="label.bodyTime">Body Time</div>
                         <div class="slider" data-param="bodyTime">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="bodyTime">1.5s</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Hum Sustain</div>
+                        <div class="param-label" data-i18n="label.humSustain">Hum Sustain</div>
                         <div class="slider" data-param="humSustain">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1493,16 +1696,16 @@
 
             <!-- Lowpass Filter Section (v2.6.0) -->
             <div class="section">
-                <div class="section-title">Filter</div>
+                <div class="section-title" data-i18n="label.secFilter">Filter</div>
                 <div class="param-row">
                     <div class="param-control">
                         <div class="lp-filter-toggle" id="lp-filter-toggle">
                             <div class="toggle-checkbox" id="lp-filter-checkbox"></div>
-                            <div class="toggle-label">LP Filter</div>
+                            <div class="toggle-label" data-i18n="label.lpFilter">LP Filter</div>
                         </div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Cutoff</div>
+                        <div class="param-label" data-i18n="label.cutoff">Cutoff</div>
                         <div class="slider" data-param="lpFilterCutoff">
                             <div class="slider-thumb"></div>
                         </div>
@@ -1513,13 +1716,13 @@
 
             <!-- Performance Section (v3.1.2) -->
             <div class="section">
-                <div class="section-title">Performance</div>
+                <div class="section-title" data-i18n="label.secPerformance">Performance</div>
                 <div class="param-row">
                     <div class="param-control">
                         <div class="hi-fi-toggle" id="hi-fi-toggle">
                             <div class="toggle-checkbox" id="hi-fi-checkbox"></div>
-                            <div class="toggle-label">High Fidelity</div>
-                            <div class="toggle-tooltip">Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony.</div>
+                            <div class="toggle-label" data-i18n="label.highFidelity">High Fidelity</div>
+                            <div class="toggle-tooltip" data-i18n="label.hiFiNote">Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony.</div>
                         </div>
                     </div>
                 </div>
@@ -1527,17 +1730,17 @@
 
             <!-- Output Section (v4.0.0: Reverb moved to Effects tab) -->
             <div class="section">
-                <div class="section-title">Output</div>
+                <div class="section-title" data-i18n="label.secOutput">Output</div>
                 <div class="param-row output-row">
                     <div class="param-control output-control">
-                        <div class="param-label">Humanize</div>
+                        <div class="param-label" data-i18n="label.humanize">Humanize</div>
                         <div class="slider" data-param="humanize">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="humanize">30%</div>
                     </div>
                     <div class="meter-control meter-control-compact">
-                        <div class="param-label">Level</div>
+                        <div class="param-label" data-i18n="label.level">Level</div>
                         <div class="output-meter">
                             <div class="meter-bar meter-left" id="meterLeft"></div>
                             <div class="meter-bar meter-right" id="meterRight"></div>
@@ -1560,45 +1763,45 @@
         <div id="effects-tab" class="tab-content">
             <div class="fx-section" id="chorusSection">
                 <div class="fx-header">
-                    <span class="fx-title">Chorus</span>
-                    <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxChorus">Chorus</span>
+                    <button class="fx-bypass-btn" id="chorusBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="chorus-knobs"></div>
             </div>
 
             <div class="fx-section" id="delaySection">
                 <div class="fx-header">
-                    <span class="fx-title">Delay</span>
-                    <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxDelay">Delay</span>
+                    <button class="fx-bypass-btn" id="delayBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="delay-knobs"></div>
             </div>
 
             <div class="fx-section" id="reverbSection">
                 <div class="fx-header">
-                    <span class="fx-title">Reverb</span>
-                    <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxReverb">Reverb</span>
+                    <button class="fx-bypass-btn" id="reverbBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="reverb-knobs"></div>
             </div>
 
             <div class="fx-section" id="eqSection">
                 <div class="fx-header">
-                    <span class="fx-title">EQ</span>
-                    <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fxEq">EQ</span>
+                    <button class="fx-bypass-btn" id="eqBypassBtn" data-i18n="ui.on">On</button>
                 </div>
                 <div class="fx-knobs" id="eq-knobs"></div>
             </div>
         </div>
 
         <!-- Version Label -->
-        <span class="version-label">v4.0.0</span>
+        <span class="version-label">v4.2.0</span>
 
         <!-- Footer (v2.2.0: Added Gain slider and keyboard) -->
         <div class="footer">
             <!-- Gain Slider -->
             <div class="footer-gain">
-                <span class="footer-gain-label">Gain</span>
+                <span class="footer-gain-label" data-i18n="label.gain">Gain</span>
                 <div class="slider" data-param="outputGain" id="footer-gain-slider">
                     <div class="slider-thumb"></div>
                 </div>
@@ -1608,7 +1811,7 @@
             <!-- Keyboard -->
             <div class="footer-keyboard">
                 <div class="footer-keyboard-viz" id="keyboard-viz"></div>
-                <div class="footer-keyboard-help">Click or use Z-M, Q-P keys</div>
+                <div class="footer-keyboard-help" data-i18n="label.keyboardHelp">Click or use Z-M, Q-P keys</div>
             </div>
 
             <!-- Branding -->
@@ -1619,6 +1822,123 @@
     <!-- JUCE WebView Bridge -->
     <script type="module">
         import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+        // ════════════════════════════════════════════════════════════════════
+        // THE I18N CANON BLOCK (v2), byte-identical to scripts/i18n-canon.js.
+        // check-i18n assertion 6 normalises both and compares them; do not edit
+        // it here. Change the canon, then every copy.
+        //
+        // It sits at the TOP of the module, above every binding below, and it
+        // touches no lower `let`/`const` — a top-level initializer that did
+        // would be a TDZ throw taking every later initializer on the page with
+        // it (pattern_module_toplevel_init_tdz). initI18n() is called at the
+        // very END of this module instead, because the sixteen effects knobs
+        // and the settings popover do not exist until then and the first sweep
+        // has to see them.
+        // ════════════════════════════════════════════════════════════════════
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // Re-runs the sweep at the CURRENT language, for a subtree that was
+        // built after the last one. It cannot be window.__setLanguage, which
+        // needs a language argument this caller does not have, and it cannot
+        // live INSIDE the canon block: the region from `let uiLanguage` to the
+        // close of initI18n() is byte-compared against scripts/i18n-canon.js and
+        // may not gain a line.
+        window.__reapplyI18n = () => applyI18n(uiLanguage);
+
 
         // Parameter state storage
         const parameterStates = new Map();
@@ -2182,7 +2502,7 @@
             }
         });
 
-        console.log('O-Bells v3.0.0 UI initialized - 36 sliders + 3 choice params + keyboard + tuning');
+        console.log('O-Bells v4.2.0 UI initialized - 36 sliders + 3 choice params + keyboard + tuning');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY
@@ -2367,6 +2687,14 @@
             }
         });
 
+        // `label` is a MARKUP FRAGMENT carrying its own data-i18n key, not a
+        // bare word. The key cannot be interpolated into this template —
+        // `data-i18n="${key}"` would put the literal text ${key} in front of
+        // check-i18n assertion 15's markup-key scan and report it as a dangling
+        // key — and it cannot be a setLabel call either, because assertion 13
+        // requires a plain string literal key and the call site loops over an
+        // array. A literal fragment per call site satisfies both, and keeps the
+        // authored English in the markup as contract §1's fallback.
         function makeFxKnob(id, label) {
             const vb = 44;
             const c = 22;
@@ -2384,7 +2712,7 @@
                         `</svg>` +
                     `</div>` +
                 `</div>` +
-                `<div class="knob-label">${label}</div>` +
+                `<div class="knob-label">${label}</div>` +   // label is a KEYED markup fragment; see populateFxKnobs
                 `<div class="knob-value" id="${id}Value"></div>`;
             return container;
         }
@@ -2445,7 +2773,13 @@
             updateVisual();
 
             valueDisplay.style.cursor = 'text';
-            valueDisplay.title = 'Double-click to edit';
+            // Contract §4: the native title= is DELETED, not localized. It was
+            // this element's only help, so its own v4.1.5 wording becomes the
+            // accessible name — no new prose invented. A literal
+            // `.dataset.i18nAria =` is what check-i18n assertion 15 collects as
+            // a live key reference; setLabel() cannot be used, because it writes
+            // textContent and this is an attribute.
+            valueDisplay.dataset.i18nAria = 'aria.doubleClickEdit';
             valueDisplay.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
                 if (isEditing) return;
@@ -2517,7 +2851,11 @@
 
             function updateVisual() {
                 const bypassed = toggleState.getValue();
-                btn.textContent = bypassed ? 'Off' : 'On';
+                // if/else, NOT a ternary inside the call: check-i18n assertion
+                // 13 rejects a conditional in a setLabel argument, because that
+                // is where a plural suffix creeps back in (contract §6).
+                if (bypassed) window.__setLabel(btn, 'ui.off');
+                else          window.__setLabel(btn, 'ui.on');
                 btn.classList.toggle('bypassed', bypassed);
                 section.classList.toggle('bypassed', bypassed);
             }
@@ -2537,25 +2875,28 @@
         try {
             // Populate knobs
             populateFxKnobs('chorus-knobs', [
-                { id: 'chorusRate', label: 'Rate' },
-                { id: 'chorusDepth', label: 'Depth' },
-                { id: 'chorusMix', label: 'Mix' },
+                { id: 'chorusRate',  label: '<span data-i18n="label.rate">Rate</span>' },
+                { id: 'chorusDepth', label: '<span data-i18n="label.depth">Depth</span>' },
+                { id: 'chorusMix',   label: '<span data-i18n="label.mix">Mix</span>' },
             ]);
 
             // Delay - knobs + mode dropdown
             const delayRow = document.getElementById('delay-knobs');
             if (delayRow) {
-                delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
-                delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+                delayRow.appendChild(makeFxKnob('delayTime', '<span data-i18n="label.time">Time</span>'));
+                delayRow.appendChild(makeFxKnob('delayFeedback', '<span data-i18n="label.feedback">Feedback</span>'));
 
                 const modeWrap = document.createElement('div');
                 modeWrap.className = 'fx-dropdown-container';
                 const modeLbl = document.createElement('div');
                 modeLbl.className = 'knob-label';
-                modeLbl.textContent = 'Mode';
+                window.__setLabel(modeLbl, 'label.mode');
                 const modeSel = document.createElement('select');
                 modeSel.className = 'fx-dropdown';
                 modeSel.id = 'delayModeSelect';
+                // NOT localized: these two are the delayMode AudioParameterChoice
+                // option strings verbatim, which the host shows in its automation
+                // lane — D-01 arm 1, and an I18N_EXEMPT entry in js/i18n.js.
                 ['Normal', 'PingPong'].forEach((name, i) => {
                     const opt = document.createElement('option');
                     opt.value = i;
@@ -2566,23 +2907,23 @@
                 modeWrap.appendChild(modeSel);
                 delayRow.appendChild(modeWrap);
 
-                delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+                delayRow.appendChild(makeFxKnob('delayMix', '<span data-i18n="label.mix">Mix</span>'));
             }
 
             populateFxKnobs('eq-knobs', [
-                { id: 'eqLowGain', label: 'Low' },
-                { id: 'eqMidGain', label: 'Mid' },
-                { id: 'eqMidFreq', label: 'Mid Freq' },
-                { id: 'eqHighGain', label: 'High' },
+                { id: 'eqLowGain',  label: '<span data-i18n="label.low">Low</span>' },
+                { id: 'eqMidGain',  label: '<span data-i18n="label.mid">Mid</span>' },
+                { id: 'eqMidFreq',  label: '<span data-i18n="label.midFreq">Mid Freq</span>' },
+                { id: 'eqHighGain', label: '<span data-i18n="label.high">High</span>' },
             ]);
 
             populateFxKnobs('reverb-knobs', [
-                { id: 'reverbSize', label: 'Size' },
-                { id: 'reverbDamp', label: 'Damp' },
-                { id: 'reverbPredelay', label: 'Pre-dly' },
-                { id: 'reverbMod', label: 'Mod' },
-                { id: 'reverbShimmer', label: 'Shimmer' },
-                { id: 'reverbMix', label: 'Mix' },
+                { id: 'reverbSize',     label: '<span data-i18n="label.size">Size</span>' },
+                { id: 'reverbDamp',     label: '<span data-i18n="label.damp">Damp</span>' },
+                { id: 'reverbPredelay', label: '<span data-i18n="label.preDly">Pre-dly</span>' },
+                { id: 'reverbMod',      label: '<span data-i18n="label.mod">Mod</span>' },
+                { id: 'reverbShimmer',  label: '<span data-i18n="label.shimmer">Shimmer</span>' },
+                { id: 'reverbMix',      label: '<span data-i18n="label.mix">Mix</span>' },
             ]);
 
             // Get JUCE states
@@ -2667,11 +3008,73 @@
                 // v3.1.0: Expose held notes + frequencies for TrueKeys interval reporting
                 window.updateHeldNotes = (notes, freqs) => tuningPanel.updateHeldNotes(notes, freqs);
 
+                // The panel's whole subtree was built AFTER initI18n() swept
+                // the page, so its [data-i18n] nodes are new elements the sweep
+                // never saw. Re-run it at the current language.
+                if (window.__reapplyI18n) window.__reapplyI18n();
+
                 console.log('[Tuning] Panel initialized successfully');
             } catch (err) {
                 console.error('[Tuning] Failed to initialize panel:', err);
             }
         })();
+
+        // ════════════════════════════════════════════════════════════════════
+        // THE SETTINGS POPOVER (v4.2.0)
+        //
+        // ONE row. This plugin has no hover-help to switch on or off, so the
+        // popover holds the language selector alone.
+        // ════════════════════════════════════════════════════════════════════
+
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsPopoverOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initializeSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover missing - language selector unavailable');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsPopoverOpen(settingsPopoverEl.hidden);
+            });
+
+            // Dismiss on a press anywhere else, and on Escape. mousedown rather
+            // than click, so the panel is gone before a slider drag underneath
+            // it begins — the slider bindings above start their drag on
+            // mousedown.
+            document.addEventListener('mousedown', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsPopoverOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsPopoverOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
+        }
+
+        // Guarded, and LAST. Every parameter binding, the tabs, the preset
+        // browser and the sixteen effects knobs above have already been wired,
+        // so an i18n failure leaves an English plugin that still works rather
+        // than a dead page. Running it here rather than at the top is also what
+        // lets the first sweep see the knob captions and the popover, which do
+        // not exist until this point.
+        initializeSettingsPopover();
+        try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
     </script>
 </body>
 </html>

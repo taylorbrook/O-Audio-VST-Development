@@ -92,11 +92,27 @@
     color: var(--tuning-text-muted);
 }
 
+/* v4.2.0 GEOMETRY PIN. .tonic-value is the row's only flexible item, so it
+   ABSORBS whatever the caption takes: TONIC -> TONIQUE is 12.49px wider, the
+   value clamped down onto its 24px min-width (dw=-6.84) and the remaining
+   5.65px of overflow walked both arrows sideways. Pinning the CAPTION is the
+   fix — it is a [data-i18n] element and so is excluded from the diff itself,
+   but everything beside it is not. 42px fits Tonique (39.83px) and leaves
+   Tonic 14.66px of slack.
+
+   THE 5px GAP IS A DESIGN GUARD, NOT A LANGUAGE PIN, and its negative control
+   says so: reverted alone to 8px the gate STILL PASSES, because the row then
+   overflows its 130px column by 7.82px IDENTICALLY in both languages and an
+   en-vs-fr diff cannot see a symmetric overflow. What it buys is the room the
+   42px caption pin costs: 42 + 5 + 23.91 + 5 + 25.19 + 5 + 23.91 = 130.01 of
+   130, where at 8px the value readout clamps onto its 24px min-width and both
+   arrows push out of the column. Claiming it as a French fix would be
+   decoration; leaving it out would ship a new ENGLISH overflow. */
 .tonic-selector {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 5px;
     margin-bottom: 10px;
     padding: 6px;
     background: var(--tuning-input-bg);
@@ -104,6 +120,7 @@
 }
 
 .tonic-label {
+    flex: 0 0 42px;         /* v4.2.0 geometry pin — see .tonic-selector */
     font-size: 9px;
     text-transform: uppercase;
     color: var(--tuning-text-muted);
@@ -194,9 +211,21 @@
     gap: 4px;
 }
 
+/* v4.2.0. `flex: 1` carries `min-width: auto`, so each of these five buttons is
+   floored by its own min-content and none can be narrower than its longest
+   WORD. "True Keys" therefore wraps to two lines inside its 37.6px content box
+   and makes the whole row 10px taller — IN ENGLISH, at v4.1.5, before any of
+   this. French "Touches" is one word and does not wrap, so the row is 10px
+   SHORTER in French and every element below #viz-container moved up by exactly
+   that: 47 rows in the geometry diff, all of them tracing back to an English
+   caption wrapping out of an English button.
+   Fixed rather than pinned around: `nowrap` plus 4px of horizontal padding
+   gives every caption a 45.6px content box, and the widest one-line string in
+   either language fits it. */
 .viz-btn {
     flex: 1;
-    padding: 6px 8px;
+    white-space: nowrap;
+    padding: 6px 4px;
     background: rgba(255, 255, 255, 0.5);
     border: 1px solid var(--tuning-border);
     border-radius: 4px;
@@ -310,6 +339,14 @@
     background: var(--tuning-input-bg);
     border-radius: 3px;
     border-left: 2px solid var(--tuning-accent, #8B7355);
+}
+
+/* v4.2.0. "Total span" used to be a <strong> inside a bare <span>. The keyed
+   element is excluded from the geometry diff; the un-keyed span WRAPPING it is
+   not, and it grew 1.5px in French. The key moved onto the span itself and the
+   bold moved into CSS. */
+.tk-total-label {
+    font-weight: 700;
 }
 
 .tk-interval span:first-child {
@@ -565,7 +602,12 @@
     gap: 8px;
 }
 
+/* v4.2.0 GEOMETRY PIN. The slider beside this caption is `flex: 1`, so it and
+   the value readout after it start wherever the caption ends: STRETCH ->
+   ÉTIREMENT is 10.98px wider and moved both by exactly that. 52px fits
+   Étirement (51px) and leaves Stretch 12px of slack. */
 .octave-stretch-label {
+    flex: 0 0 52px;
     font-size: 9px;
     text-transform: uppercase;
     color: var(--tuning-text-muted);
