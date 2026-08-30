@@ -100,11 +100,17 @@ Consequences you must handle, because the tooling does not:
 
 - **The extractor will not list these strings.** `i18n-extract.js:442` drops
   the file by filename. Enumerate them by hand from the file itself.
-- **Neither gate will check them.** `check-i18n` assertion 10 scans
-  `index.html`; assertion 15's `referenced` set will not see keys used only
-  inside `tuning-panel.js` unless they are written through the literal shapes
-  it collects. Verify your keys are live by DRIVING the panel, and say in your
-  report exactly which of its states you rendered and which you did not.
+- **The EXTRACTOR skips it, but `check-i18n` does NOT** — a correction to the
+  first draft of this file, which told the O-Bells and O-Formant executors
+  otherwise. `check-i18n` builds `pageModules` from every `.js` in the served
+  js dir except `i18n.js` and unparseable bundles, and **deliberately does not
+  apply `JS_SKIP`** (borrowing it wholesale once reported 37 live
+  O-IntonationPad keys as dead, for this exact reason). So assertions 12, 13
+  and 15 DO scan your local `tuning-panel.js`. What is missing is the
+  worklist — you must enumerate its strings by hand — and `check-ui-labels`,
+  which only measures what it renders. **Verify your keys are live by DRIVING
+  the panel**, and say in your report exactly which of its states you rendered
+  and which you did not.
 - **Do not "fix" the extractor's skip list** — `scripts/` is orchestrator-owned.
   Report the shape if it blocks you.
 - **Do not edit `modules/tuning/scala-tuning-engine/js/tuning-panel.js`.** Your
@@ -150,6 +156,36 @@ the module file consumed by reference, not a local copy.
 12. **Four of five K3 plugins were an inline `<script type="module">` in
     `index.html`**, not the `js/app.js` shape the plan assumes. Verify the
     controller shape; never assume it.
+
+## A NATIVE `title=` DOES NOT HAVE TO BE IN THE MARKUP — gate widened mid-batch
+
+`9a3ec4a4` widened `check-i18n` assertion 11 to scan the JS as well as the
+markup. It used to walk only `scanHtml()`'s parse of `index.html`, so
+`el.title = '...'` in a controller was invisible and "zero native title=
+remain" was reachable while any number of them shipped.
+
+Found by the O-Wind executor: its page rendered **19** native titles against
+the **3** its markup declared — every FX readout carried
+`valueDisplay.title = 'Double-click to edit'`. **O-Lyrica had already shipped
+16 of them under a passing claim**, and was the only already-shipped plugin the
+widened assertion caught (fixed in `f0d7dc31`, v2.4.1).
+
+Two things generalise:
+
+1. **A source grep counts WRITES; the page renders INSTANCES.** O-Lyrica's
+   source had ONE write, in a per-knob setup path, and the page rendered
+   SIXTEEN. **`boot-all-uis`'s per-plugin `title=` column is the evidence** —
+   and it is a REPORT, not a gate, so it never failed anything.
+2. **Resolution shape, per §4:** DELETE the title; where it is an element's
+   only help, its text moves to `data-i18n-aria` via a literal
+   `dataset.i18nAria = 'aria.<key>'` write — the shape assertion 15 collects,
+   so the key reads live rather than dead. Reuse the existing English verbatim.
+
+**O-MicrotonalSampler has 8 live JS-written titles** in `js/sampler-app.js`
+(lines ~993-2999), all composed template literals carrying real user-facing
+prose — cell contents, dynamic-layer descriptions, variant tabs, technique trim.
+They are the largest such set in the repo. `btn.title = ''` at 2265 is a CLEAR
+and is correctly exempt.
 
 ## `PLUGIN_VERSION` — CLOSED, do not report it again
 
