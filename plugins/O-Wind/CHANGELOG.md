@@ -1,5 +1,102 @@
 # O-Wind Changelog
 
+## [1.17.0] - 2026-08-29
+
+### Added — the PAGE speaks French (Stage K batch K4, canon v2)
+
+67 label entries over 65 keyed elements and 22 keyed accessible names, a gear
+popover with the language selector, the C++ language pair with persistence, and
+`Resources/ui/js/i18n.js` embedded and served in this same commit. No hover-help
+copy: v1.16.3 had none and authoring it is Stage M. MINOR — new user-facing
+feature, no parameter, range or state-format change.
+
+**Measured, against the batch inventory's 61 / 7 / 3 / 3 / 4.** The extractor
+reports LABEL 61, READOUT 7, UNSURE 3, attributes 3, js-prose 4, and every one
+of those numbers is right about what it can see. Two things it cannot see are
+the real finding here:
+
+- **Sixteen Effects-tab knob captions.** `makeFxKnob(id, label)` took the
+  caption as an ordinary function argument and interpolated it into an innerHTML
+  template; the English words sat in object literals one frame from the write.
+  The extractor's js-prose scan and check-i18n assertion 12 both look for a
+  prose LITERAL on an assignment's right-hand side, so all sixteen would have
+  shipped English inside a French UI with every gate GREEN. Each now carries a
+  LITERAL key at its own call site — `setLabel(addFxKnob('reverb-knobs',
+  'reverbSize'), 'label.fx.size')` — because a key read out of a data table
+  fails assertion 13 and is invisible to assertion 15.
+- **Sixteen native `title=` attributes written from script.**
+  `setupFxKnob()` did `valueDisplay.title = 'Double-click to edit'` on every FX
+  readout. The page rendered NINETEEN native titles against the THREE the markup
+  declares; assertion 11 reads index.html only, so it counted three. Contract §4
+  deletes a native title rather than localizing it, and where the title is an
+  element's only help its text moves to `data-i18n-aria` — the same eighteen
+  characters, verbatim, no new prose. boot-all-uis now reports `title= 0` for
+  this plugin.
+
+Two of the nine non-literal `textContent` writes on this page were also carrying
+English one frame away: the FX bypass face (`bypassed ? 'Off' : 'On'`, now two
+literal `setLabel` calls, not a ternary — contract §6) and the tuning panel's
+load-failure notice (was an `innerHTML` string, now createElement + setLabel).
+The other seven are numeric readouts, a preset filename, or an empty string.
+
+**Deliberately NOT localized, with reasons on the record in `I18N_EXEMPT`:**
+
+- **The Tuning tab, entirely.** O-Wind embeds
+  `${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js`
+  BY REFERENCE from the module tree (CMakeLists.txt:92) rather than carrying a
+  plugin-owned copy. Localizing it is a cross-plugin change and a local edit
+  would be reverted by `/module-upgrade`. **A French user reads one of this
+  plugin's three tabs in English.**
+- **The eight instrument `<option>` captions.** Not an arm-1 case —
+  `instrumentPreset` is an `AudioParameterInt`, not a Choice — but they are
+  byte-identical to the eight FACTORY PRESET NAMES, and a preset name IS the
+  JSON filename (D-02). The preset browser 30 px above lists the same eight in
+  English, so localizing the selector would put two languages on one set of
+  eight names inside one frame.
+- **`Normal` / `PingPong`.** delayMode `AudioParameterChoice` option strings
+  VERBATIM — D-01 arm 1.
+
+### Changed — geometry pins, each negative-controlled
+
+Eight width pins, every one REVERTED ALONE and confirmed to re-break its gate.
+Zero decoration.
+
+| pin | reverted alone, `[7]` fails with |
+|---|---|
+| `.preset-save-btn` 68px | `#preset-name` dw=-11.5 |
+| `.toggle-label` 86px | `#tone-hole-toggle` dw=9.7, `#instrument-select` dx=9.7 |
+| `.instrument-selector label` 80px | `.instrument-selector` dw=33.9 |
+| `.adsr-section .section-label > span` 160px | `#adsr-toggle` dx=7.7 |
+| `.fx-title` 64px | `#delay-knobs` dx=-1.6 (67 moved) |
+| `.fx-bypass-btn` 52px | every fx knob dx=-9.1 (118 moved) |
+| `#tab-effects .knob-container` 66px | 96 moved across four rows |
+| `.settings-popover` 190px | `#settings-popover` dx=16.0 dw=-16.0 |
+
+Before: **8 / 10 / 99** non-label elements moved EN→FR in the default, popover
+and Effects states. After: **0 / 0 / 0**, and the page HOLDS STILL — 284 of 284
+elements identical at 180 ms and at 1.7 s in both languages on the Sound tab,
+164 of 164 on the Effects tab. Every EN→FR difference that remains is a keyed
+caption's own box.
+
+**Twelve of the 43 Sound-tab captions SHRANK in French** — Tone Color −24.6,
+Sound −21.3, Vib Tremolo −19.6, Drift Speed −18.7, Air Column −15.2, Drift Depth
+−11.4, Inf. Sustain −8.9, Effects −8.6, Output −4.8 / −3.9, Flut Rate −2.6,
+Rev. Jet −1.8. A clip-only check would have certified this page.
+
+`.knob-label` is `max-width: 72px; nowrap; ellipsis`, and ENGLISH is already
+within 1.27 px of it — "Embouchure" measures 70.73. No French caption on this
+page was drafted longer than ten characters for that reason; the widest is
+"Embouchure" itself at 70.73 and the next is "Sous-harm." at 62.44.
+
+Three ENGLISH design consequences, all horizontal, no row rewraps, nothing
+vanishes: the preset bar loses 45.4 px of elastic name display to the gear
+cluster and the wider Save button; the instrument strip's selector moves 45.8 px
+right; and each Effects knob cell goes from a shrink-wrapped 44–58 px to a
+uniform 66 px, re-centring the four rows. The 66 px floor is set by ENGLISH
+("Feedback" 57.97) as much as by French ("Fréq. méd." 63.50).
+
+All French is a machine draft: 67/67 entries `reviewed: false`.
+
 ## [1.16.3] - 2026-07-10
 
 ### Fixed — final CODE_REVIEW.md info-finding sweep (IN-01, IN-08..10, IN-12..15, IN-17)

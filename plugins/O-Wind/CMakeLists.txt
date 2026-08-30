@@ -9,7 +9,7 @@ juce_add_plugin(O-Wind
     PLUGIN_CODE OWnd
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Wind${OUARICON_DEV_SUFFIX}"
-    VERSION "1.16.3"
+    VERSION "1.17.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -86,6 +86,11 @@ juce_generate_juce_header(O-Wind)
 juce_add_binary_data(O-Wind_UIResources
     SOURCES
         Resources/ui/index.html
+        # v1.17.0: the label table. It must be in BOTH this SOURCES block and a
+        # getResource() branch in PluginEditor.cpp — a file embedded but not
+        # served, or served but not embedded, is a 404 that presents as a
+        # missing panel and nothing else. check-i18n assertion 8 asserts both.
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/fern.png

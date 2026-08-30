@@ -1,0 +1,10 @@
+[
+  {
+    "name": "settings popover OPEN (reveals label.language and aria.langSelect — .settings-popover carries [hidden] until the gear is pressed, so display is none and every rect inside it is 0x0)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "EFFECTS tab (reveals the four fx titles, the four bypass faces and the SIXTEEN script-written knob captions — .tab-panel is display:none until its tab is active). LAST, because clicking it makes #tab-sound display:none and every caption inside it unmeasurable, and the states are CUMULATIVE.",
+    "click": ".tab-btn[data-tab=\"effects\"]"
+  }
+]
