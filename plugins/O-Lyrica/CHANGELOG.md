@@ -2,6 +2,24 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.4.1] - 2026-08-29
+
+### Fixed
+
+- **A native `title=` written from JS survived the v2.4.0 sweep.** `js/app.js` did
+  `valueDisplay.title = 'Double-click to edit'` on every knob readout, so the plugin rendered
+  an untranslated OS tooltip beside the measure-then-pin renderer — in both languages —
+  while `check-i18n` assertion 11 reported zero native titles. The gate was reading the
+  markup only: it walked `scanHtml()`'s parse of `index.html`, where a JS-written title
+  simply does not appear. Contract §4 DELETES a native title rather than localizing it, and
+  where the title is an element's only help its text moves to `data-i18n-aria`, so the same
+  eighteen characters now live in an accessible name the language sweep owns
+  (`aria.valueEdit`, machine-drafted, `reviewed: false`).
+
+  Found by the O-Wind executor in Stage K batch K4, which hit the identical write on sixteen
+  FX readouts. The gate learned to see both sources in the commit before this one; O-Lyrica
+  was the only already-shipped plugin the widened assertion caught.
+
 ## [2.4.0] - 2026-08-28
 
 ### Added

@@ -702,6 +702,15 @@ export const LABELS = Object.freeze({
     'aria.langSelect':      { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
     'aria.helpToggle':      { en: { t: 'Toggle hover help' },
                               fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+
+    // v2.4.1: was `valueDisplay.title = 'Double-click to edit'` in app.js — a
+    // native title= written from JS, which contract §4 deletes rather than
+    // localizes. It shipped from v2.0.0 because assertion 11 read the markup
+    // only and could not see a JS-written one; the gate learned to in the
+    // commit before this one. The same eighteen characters, verbatim, in an
+    // accessible name the language sweep owns.
+    'aria.valueEdit':       { en: { t: 'Double-click to edit' },
+                              fr: { t: 'Double-cliquer pour modifier', reviewed: false } },
     // The two faces of the tonic selector's own accessible name. Chosen by an
     // if/else over two literal keys in updateIntervalListUI, never a ternary.
     'aria.tonicSelector12': { en: { t: 'Change tonic note (transposes instrument)' },

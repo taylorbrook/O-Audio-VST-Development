@@ -639,7 +639,13 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
 
     // Double-click to edit value
     valueDisplay.style.cursor = 'text';
-    valueDisplay.title = 'Double-click to edit';
+    // v2.4.1: was `valueDisplay.title = 'Double-click to edit'`. A native title
+    // renders a second, untranslated OS tooltip beside the measure-then-pin
+    // renderer, and §4 DELETES it rather than localizing it. Where the title is
+    // an element's only help its text moves to data-i18n-aria. A literal
+    // dataset.i18nAria write is also what assertion 15 collects as a reference.
+    valueDisplay.dataset.i18nAria = 'aria.valueEdit';
+    applyI18nAttributes(valueDisplay);
     valueDisplay.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         if (isEditing) return;
