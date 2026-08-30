@@ -65,8 +65,39 @@ export class TuningPanel {
 
     async init() {
         this.render();
+        this.localize();
         this.attachEventListeners();
         await this.loadInitialState();
+    }
+
+    // ===================================================================
+    // LOCALIZATION
+    // ===================================================================
+    //
+    // WHY THIS EXISTS. Every caption in this panel is authored inside an
+    // innerHTML template, and the panel is built LAZILY the first time the
+    // Tuning tab is clicked — long after initI18n()'s one sweep has run. So
+    // the [data-i18n] attributes in those templates are correct and inert
+    // until something sweeps them, and every innerHTML rebuild below (the
+    // interval list, the True Keys hint, the rotation table, the three
+    // generator forms) throws the previous sweep's work away and needs
+    // another.
+    //
+    // WHY IT RE-RUNS THE WHOLE SWEEP RATHER THAN CALLING setLabel PER NODE.
+    // window.__setLabel is the canon's published hook for a sibling module,
+    // but it takes a KEY, and a loop over querySelectorAll('[data-i18n]')
+    // would pass `el.dataset.i18n` — a COMPUTED key, which check-i18n
+    // assertion 13 rejects for the same reason it rejects a computed setLabel
+    // key anywhere else: a computed key cannot be checked. Re-running
+    // applyI18n is one call, has no key argument at all, and is idempotent.
+    //
+    // The language comes from #lang-select because the canon's applyI18n
+    // syncs that control to uiLanguage on every sweep, so it is the current
+    // language by construction rather than a second copy of it that can drift.
+    localize() {
+        if (typeof window === 'undefined' || typeof window.__setLanguage !== 'function') return;
+        const sel = document.getElementById('lang-select');
+        window.__setLanguage(sel && sel.value ? sel.value : 'en');
     }
 
     // ===================================================================
@@ -80,17 +111,17 @@ export class TuningPanel {
                 <!-- LEFT: Interval List -->
                 <div class="tuning-viz-container">
                     <div class="interval-list" id="interval-list">
-                        <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
+                        <div class="interval-list-header" data-i18n="tuning.intervals" data-i18n-vars='{"n":12}'>Intervals (12 notes)</div>
                     </div>
                 </div>
 
                 <!-- Visualization Mode Toggle -->
                 <div class="viz-mode-toggle">
-                    <button class="viz-btn active" data-mode="circle">Circle</button>
-                    <button class="viz-btn" data-mode="polar">Polar</button>
-                    <button class="viz-btn" data-mode="matrix">Matrix</button>
-                    <button class="viz-btn" data-mode="truekeys">True Keys</button>
-                    <button class="viz-btn" data-mode="rotation">Rotation</button>
+                    <button class="viz-btn active" data-mode="circle" data-i18n="tuning.vizCircle">Circle</button>
+                    <button class="viz-btn" data-mode="polar" data-i18n="tuning.vizPolar">Polar</button>
+                    <button class="viz-btn" data-mode="matrix" data-i18n="tuning.vizMatrix">Matrix</button>
+                    <button class="viz-btn" data-mode="truekeys" data-i18n="tuning.vizTrueKeys">True Keys</button>
+                    <button class="viz-btn" data-mode="rotation" data-i18n="tuning.vizRotation">Rotation</button>
                 </div>
 
                 <!-- CENTER: Visualization Container -->
@@ -104,7 +135,7 @@ export class TuningPanel {
                                 <g id="interval-lines"></g>
                                 <g id="degree-labels" font-size="10" fill="#5C4033"></g>
                             </svg>
-                            <div class="pitch-circle-label">Scale Intervals</div>
+                            <div class="pitch-circle-label" data-i18n="tuning.scaleIntervals">Scale Intervals</div>
                         </div>
                     </div>
                     <div class="viz-view" id="polar-view">
@@ -112,7 +143,7 @@ export class TuningPanel {
                     </div>
                     <div class="viz-view matrix-view" id="matrix-view"></div>
                     <div class="viz-view truekeys-view" id="truekeys-view">
-                        <div class="tk-hint">Hold 2+ notes to see intervals</div>
+                        <div class="tk-hint" data-i18n="tuning.tkHint">Hold 2+ notes to see intervals</div>
                     </div>
                     <div class="viz-view rotation-view" id="rotation-view"></div>
                 </div>
@@ -122,18 +153,18 @@ export class TuningPanel {
                     <!-- Tuning Library -->
                     <div class="library-section" id="library-section">
                         <div class="library-header">
-                            <span class="library-header-text">Tuning Library</span>
+                            <span class="library-header-text" data-i18n="tuning.library">Tuning Library</span>
                             <span class="library-toggle" id="library-toggle">&#9660;</span>
                         </div>
                         <div class="library-content" id="library-content">
                             <div class="library-filter">
                                 <select id="library-filter" class="library-filter-select">
-                                    <option value="all">All Categories</option>
-                                    <option value="Historical">Historical</option>
-                                    <option value="Just Intonation">Just Intonation</option>
-                                    <option value="Equal Divisions">Equal Divisions</option>
-                                    <option value="Non-Octave">Non-Octave</option>
-                                    <option value="World">World</option>
+                                    <option value="all" data-i18n="tuning.catAll">All Categories</option>
+                                    <option value="Historical" data-i18n="tuning.catHistorical">Historical</option>
+                                    <option value="Just Intonation" data-i18n="tuning.catJust">Just Intonation</option>
+                                    <option value="Equal Divisions" data-i18n="tuning.catEqual">Equal Divisions</option>
+                                    <option value="Non-Octave" data-i18n="tuning.catNonOctave">Non-Octave</option>
+                                    <option value="World" data-i18n="tuning.catWorld">World</option>
                                 </select>
                             </div>
                             <div class="library-list" id="library-list"></div>
@@ -147,7 +178,7 @@ export class TuningPanel {
                                 <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
                             </div>
                         </div>
-                        <div class="ref-knob-label">A4 REF</div>
+                        <div class="ref-knob-label" data-i18n="tuning.a4Ref">A4 REF</div>
                         <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
                     </div>
 
@@ -157,7 +188,7 @@ export class TuningPanel {
                     <!-- Octave Stretch -->
                     <div class="octave-stretch-section">
                         <div class="octave-stretch-row">
-                            <span class="octave-stretch-label">Stretch</span>
+                            <span class="octave-stretch-label" data-i18n="tuning.stretch">Stretch</span>
                             <input type="range" id="octave-stretch" class="octave-stretch-slider"
                                    min="0.95" max="1.25" step="0.01" value="1.0">
                             <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
@@ -167,39 +198,39 @@ export class TuningPanel {
                     <!-- File Operations -->
                     <div class="tuning-file-section">
                         <div class="tuning-file-buttons">
-                            <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
-                            <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
-                            <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
-                            <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
-                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html">Export HTML</button>
+                            <button class="tuning-file-btn" id="btn-load-scl" data-i18n="tuning.loadScl">Load .SCL</button>
+                            <button class="tuning-file-btn" id="btn-load-kbm" data-i18n="tuning.loadKbm">Load .KBM</button>
+                            <button class="tuning-file-btn" id="btn-save-scl" data-i18n="tuning.saveScl">Save .SCL</button>
+                            <button class="tuning-file-btn" id="btn-save-kbm" data-i18n="tuning.saveKbm">Save .KBM</button>
+                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-i18n="tuning.exportHtml">Export HTML</button>
                         </div>
                     </div>
 
                     <!-- Scale Generator -->
                     <div class="generator-section" id="generator-section">
                         <div class="generator-header">
-                            <span class="generator-header-text">Generate Scale</span>
+                            <span class="generator-header-text" data-i18n="tuning.generateScale">Generate Scale</span>
                             <span class="generator-toggle" id="generator-toggle">&#9660;</span>
                         </div>
                         <div class="generator-content" id="generator-content">
                             <div class="generator-type-row">
                                 <select id="generator-type" class="generator-type-select">
-                                    <option value="edo">EDO (Equal Division)</option>
-                                    <option value="harmonic">Harmonic Series</option>
-                                    <option value="rank2">Rank-2 Temperament</option>
+                                    <option value="edo" data-i18n="tuning.genEdo">EDO (Equal Division)</option>
+                                    <option value="harmonic" data-i18n="tuning.genHarmonic">Harmonic Series</option>
+                                    <option value="rank2" data-i18n="tuning.genRank2">Rank-2 Temperament</option>
                                 </select>
                             </div>
                             <div class="generator-inputs" id="generator-inputs">
                                 <div class="gen-row">
-                                    <label>Divisions</label>
+                                    <label data-i18n="tuning.divisions">Divisions</label>
                                     <input type="number" id="gen-divisions" value="19" min="5" max="53">
                                 </div>
                                 <div class="gen-row">
-                                    <label>Period (c)</label>
+                                    <label data-i18n="tuning.period">Period (c)</label>
                                     <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
                                 </div>
                             </div>
-                            <button class="generator-btn" id="btn-generate">Generate</button>
+                            <button class="generator-btn" id="btn-generate" data-i18n="tuning.generate">Generate</button>
                         </div>
                     </div>
                 </div>
@@ -287,12 +318,12 @@ export class TuningPanel {
         const count = this.intervals.length - 1; // Exclude period
         if (countEl) countEl.textContent = count;
 
-        let html = `<div class="interval-list-header">Intervals (${count} notes)</div>`;
+        let html = `<div class="interval-list-header" data-i18n="tuning.intervals" data-i18n-vars='{"n":${count}}'>Intervals (${count} notes)</div>`;
 
         // Tonic selector
         html += `
             <div class="tonic-selector">
-                <span class="tonic-label">Tonic</span>
+                <span class="tonic-label" data-i18n="tuning.tonic">Tonic</span>
                 <button class="tonic-arrow" id="tonic-down">&#9668;</button>
                 <span class="tonic-value" id="tonic-value">${this.noteNames[this.tonic]}</span>
                 <button class="tonic-arrow" id="tonic-up">&#9658;</button>
@@ -314,6 +345,7 @@ export class TuningPanel {
         }
 
         listEl.innerHTML = html;
+        this.localize();
 
         // Attach event listeners for intervals
         listEl.querySelectorAll('.interval-input:not([readonly])').forEach(input => {
@@ -560,7 +592,8 @@ export class TuningPanel {
         if (!container) return;
 
         if (this.heldNotes.size < 2) {
-            container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+            container.innerHTML = '<div class="tk-hint" data-i18n="tuning.tkHint">Hold 2+ notes to see intervals</div>';
+            this.localize();
             return;
         }
 
@@ -585,7 +618,7 @@ export class TuningPanel {
         const count = this.intervals.length - 1;
         const period = this.intervals[this.intervals.length - 1] || 1200;
 
-        let html = '<table class="rotation-table"><tr><th>Mode</th>';
+        let html = '<table class="rotation-table"><tr><th data-i18n="label.mode">Mode</th>';
 
         for (let i = 0; i < count; i++) {
             html += `<th>${i}</th>`;
@@ -607,6 +640,7 @@ export class TuningPanel {
 
         html += '</table>';
         container.innerHTML = html;
+        this.localize();
     }
 
     // ===================================================================
@@ -719,12 +753,13 @@ export class TuningPanel {
             html += `
                 <div class="library-item" data-id="${tuning.id}">
                     <div class="library-item-name">${tuning.name}</div>
-                    <div class="library-item-desc">${tuning.noteCount} notes</div>
+                    <div class="library-item-desc" data-i18n="tuning.noteCount" data-i18n-vars='{"n":${tuning.noteCount}}'>${tuning.noteCount} notes</div>
                 </div>
             `;
         }
 
         listEl.innerHTML = html;
+        this.localize();
 
         // Attach click handlers
         listEl.querySelectorAll('.library-item').forEach(item => {
@@ -767,11 +802,11 @@ export class TuningPanel {
             case 'edo':
                 inputsDiv.innerHTML = `
                     <div class="gen-row">
-                        <label>Divisions</label>
+                        <label data-i18n="tuning.divisions">Divisions</label>
                         <input type="number" id="gen-divisions" value="19" min="5" max="53">
                     </div>
                     <div class="gen-row">
-                        <label>Period (c)</label>
+                        <label data-i18n="tuning.period">Period (c)</label>
                         <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
                     </div>
                 `;
@@ -779,11 +814,11 @@ export class TuningPanel {
             case 'harmonic':
                 inputsDiv.innerHTML = `
                     <div class="gen-row">
-                        <label>Start Harmonic</label>
+                        <label data-i18n="tuning.startHarmonic">Start Harmonic</label>
                         <input type="number" id="gen-start" value="8" min="1" max="32">
                     </div>
                     <div class="gen-row">
-                        <label>End Harmonic</label>
+                        <label data-i18n="tuning.endHarmonic">End Harmonic</label>
                         <input type="number" id="gen-end" value="16" min="2" max="64">
                     </div>
                 `;
@@ -791,20 +826,21 @@ export class TuningPanel {
             case 'rank2':
                 inputsDiv.innerHTML = `
                     <div class="gen-row">
-                        <label>Generator (c)</label>
+                        <label data-i18n="tuning.generator">Generator (c)</label>
                         <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
                     </div>
                     <div class="gen-row">
-                        <label>Period (c)</label>
+                        <label data-i18n="tuning.period">Period (c)</label>
                         <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
                     </div>
                     <div class="gen-row">
-                        <label>Notes</label>
+                        <label data-i18n="tuning.notes">Notes</label>
                         <input type="number" id="gen-count" value="12" min="3" max="31">
                     </div>
                 `;
                 break;
         }
+        this.localize();
     }
 
     async generate() {

@@ -1,0 +1,20 @@
+[
+  { "name": "settings popover open", "click": "#gear-btn" },
+  { "name": "effects tab",           "click": ".tab[data-tab=\"effects\"]" },
+  { "name": "lyrics tab",            "click": ".tab[data-tab=\"lyrics\"]" },
+  { "name": "tuning tab",            "click": ".tab[data-tab=\"tuning\"]" },
+  { "name": "tuning library open",   "click": "#library-toggle" },
+  { "name": "tuning generator open", "click": "#generator-toggle" },
+  { "name": "tuning viz polar",      "click": ".viz-btn[data-mode=\"polar\"]" },
+  { "name": "tuning viz matrix",     "click": ".viz-btn[data-mode=\"matrix\"]" },
+  { "name": "tuning viz true keys",  "click": ".viz-btn[data-mode=\"truekeys\"]" },
+  { "name": "tuning viz rotation",   "click": ".viz-btn[data-mode=\"rotation\"]" },
+  { "name": "tuning viz circle",     "click": ".viz-btn[data-mode=\"circle\"]" },
+  { "name": "generator harmonic",
+    "eval": "const s=document.querySelector('#generator-type'); s.value='harmonic'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "generator rank-2",
+    "eval": "const s=document.querySelector('#generator-type'); s.value='rank2'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "generator edo",
+    "eval": "const s=document.querySelector('#generator-type'); s.value='edo'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "back to synth tab",     "click": ".tab[data-tab=\"synth\"]" }
+]

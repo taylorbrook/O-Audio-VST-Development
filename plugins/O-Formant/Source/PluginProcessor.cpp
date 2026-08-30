@@ -929,6 +929,12 @@ void OFormantAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     lyricsState.setProperty ("text", lyricsEngine.getLyricsText(), nullptr);
     lyricsState.setProperty ("looping", lyricsEngine.isLooping(), nullptr);
 
+    // v1.26.0: the UI language rides the same tree as one plain property.
+    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means.
+    state.setProperty ("uiLanguage",
+                       languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     xml->setAttribute ("currentPreset", presetManager.getCurrentPresetName());
     copyXmlToBinary (*xml, destData);
@@ -944,6 +950,19 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
         parameters.replaceState (state);
         presetManager.setCurrentPresetName (
             xmlState->getStringAttribute ("currentPreset", "Default"));
+
+        // v1.26.0: restore the UI language. isVoid() is the ONLY correct guard
+        // and toString() the only correct read: a non-parameter property on the
+        // APVTS tree round-trips through XML as a STRING var
+        // (critical_valuetree_xml_roundtrip_loses_type), so isString()/isBool()
+        // would be wrong here. A pre-1.26.0 session carries no such property
+        // and the default (English) stands. languageIndex() clamps anything
+        // that is not "fr" to 0, so a hand-edited value degrades to English
+        // rather than to a bad index.
+        const juce::var lang = state.getProperty ("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
         // Restore tuning engine state.
         // master-tune / octave-stretch / pitch-bend-range / built-in temperament

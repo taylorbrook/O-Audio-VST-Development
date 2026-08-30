@@ -222,6 +222,16 @@ html, body {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
+/* GEOMETRY PIN (v1.26.0). .lyrics-header is justify-content: space-between, so
+   .lyrics-controls is right-anchored and any growth inside it drags the loop
+   button, the reset button, the Enable toggle and its thumb LEFT. "LOOP" ->
+   "BOUCLE" and "RESET" -> "RÉINIT." are +14.5 and +9 px. One pin on the shared
+   class sizes BOTH buttons to a box that holds all four captions, so the
+   control group measures the same in either language. English grows 28 px
+   (both buttons widen), which is the direction available when French is the
+   longer string. Negative-controlled: removing this line alone re-fails
+   assertion 7 on four elements in the lyrics tab. */
+.lyrics-btn { min-width: 66px; }
 .lyrics-btn:hover { background: rgba(139,115,85,0.15); color: #3C2F2F; }
 .lyrics-btn.active { background: #8BA870; color: #F5E6D3; border-color: #8BA870; }
 #lyrics-input {
@@ -261,12 +271,22 @@ html, body {
   align-items: center;
   gap: 8px;
 }
-.lyrics-syllable-label span {
+/* SCOPED to the counter in v1.26.0. Until the caption was split into its own
+   span (contract §5) the counter was the only span in this row, and the loose
+   selector would now repaint "Syllables" in Courier green. */
+#lyrics-counter {
   font-family: 'Courier New', monospace;
   font-size: 10px;
   color: #6B8E4E;
   letter-spacing: 0;
 }
+/* GEOMETRY PIN (v1.26.0), and the one on this page where French is SHORTER:
+   "SYLLABLES" is 74.67 px and "SYLLABES" is 66.56 px, which pulled
+   #lyrics-counter 8.1 px LEFT in French. min-width floors the box without
+   raising it, so the English caption keeps its 74.67 px (rounded up by 0.33,
+   inside the gate's half-pixel tolerance) and only the French one is padded. Negative-controlled: removing this line
+   alone re-fails assertion 7 on #lyrics-counter. */
+.lyrics-syllable-label span[data-i18n] { min-width: 75px; }
 .lyrics-syllables {
   display: flex;
   flex-wrap: wrap;
@@ -346,6 +366,67 @@ html, body {
   font-style: italic;
 }
 
+/* Settings popover (v1.26.0) — the language selector lives here.
+   Styled in O-Formant's own parchment system: the same #8B7355 rule, the same
+   #EDD9C4 fill and the same Garamond small-caps register as the preset bar. */
+.gear-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #8B7355;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-family: 'Garamond', serif;
+  transition: color 0.15s;
+}
+.gear-btn:hover { color: #3C2F2F; }
+.gear-btn.open   { color: #6B8E4E; }
+.settings-popover {
+  display: none;
+  position: absolute;
+  top: 34px; right: 14px;
+  z-index: 60;
+  min-width: 168px;
+  padding: 8px 10px 10px;
+  background: #EDD9C4;
+  border: 1px solid #8B7355;
+  border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(60,47,47,0.25);
+}
+.settings-popover.open { display: block; }
+.settings-title {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  border-bottom: 1px solid rgba(139,115,85,0.3);
+  padding-bottom: 3px;
+  margin-bottom: 7px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.settings-label {
+  font-size: 10px;
+  color: #3C2F2F;
+  white-space: nowrap;
+}
+#lang-select {
+  background: #F5E6D3;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  color: #3C2F2F;
+  font-family: 'Garamond', serif;
+  font-size: 10px;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
 /* Preset bar */
 .preset-bar {
   grid-column: 1 / -1;
@@ -401,6 +482,16 @@ html, body {
   cursor: pointer;
   letter-spacing: 1px;
   text-transform: uppercase;
+  /* GEOMETRY PIN (v1.26.0). .preset-bar is justify-content: center, so this
+     button's width sets where the whole cluster sits. "SAVE" is 46.8 px and
+     "SAUVER" is 61.2 px, which re-centred #preset-category, #preset-prev,
+     #preset-name and #preset-next by -7.6 px in French. The pin sizes the box
+     to the FRENCH caption so both languages render the identical box; the
+     price is that the English cluster sits 7.6 px further left than it did in
+     v1.25.4, which is the only direction available when the French string is
+     the longer one. Negative-controlled: removing this line alone re-fails
+     assertion 7 on all four elements. */
+  min-width: 65px;
 }
 .preset-bar .preset-save-btn:hover {
   background: rgba(139,115,85,0.1);
@@ -786,8 +877,19 @@ canvas#consonant-xy-pad {
 }
 .interval-list { width: 130px; max-height: 100%; background: rgba(235,217,199,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; padding: 6px 8px; overflow-y: auto; order: -1; }
 .interval-list-header { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; color: var(--tuning-text-muted); }
-.tonic-selector { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; padding: 6px; background: var(--tuning-input-bg); border-radius: 4px; }
-.tonic-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); }
+/* GEOMETRY PIN (v1.26.0). justify-content: center again, so "TONIC" -> "TONIQUE"
+   (+12.5 px) pushed #tonic-down, #tonic-value and #tonic-up right by 6.3 px.
+   The label is pinned to the French box and the row gap drops 8 -> 4 px, which
+   returns the 12 px the wider caption takes, so the row's OUTER width is
+   within 0.7 px of v1.25.4 (123.8 vs 123.2). The saving is spread over three
+   gaps and only one of them sits between the caption and the first arrow, so
+   English still moves inside the row: #tonic-down +8.3 px, #tonic-value
+   +4.3 px, #tonic-up +0.3 px. Measured, not predicted — the first estimate
+   here said 0.3 px for all three and was wrong.
+   Negative-controlled: removing the min-width alone re-fails assertion 7 on the
+   three siblings. */
+.tonic-selector { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 10px; padding: 6px; background: var(--tuning-input-bg); border-radius: 4px; }
+.tonic-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); min-width: 40px; text-align: center; }
 .tonic-arrow { background: none; border: 1px solid var(--tuning-border); border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 10px; color: var(--tuning-text); }
 .tonic-arrow:hover { background: var(--tuning-hover); }
 .tonic-value { font-weight: 600; min-width: 24px; text-align: center; }
@@ -854,8 +956,22 @@ canvas#consonant-xy-pad {
 .scale-name-display { text-align: center; padding: 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-weight: 500; font-size: 11px; }
 .octave-stretch-section { padding: 8px; }
 .octave-stretch-row { display: flex; align-items: center; gap: 8px; }
-.octave-stretch-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); }
-.octave-stretch-slider { flex: 1; height: 4px; -webkit-appearance: none; background: linear-gradient(to right, var(--tuning-border), var(--tuning-accent)); border-radius: 2px; }
+/* GEOMETRY PIN (v1.26.0). "STRETCH" -> "ÉTIREMENT" is +11 px and pushed the
+   slider and its readout right by exactly that. Pinned to the French box so
+   both languages render the identical row. Negative-controlled: removing the
+   min-width alone re-fails assertion 7 on #octave-stretch and
+   #octave-stretch-value. */
+.octave-stretch-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); min-width: 51px; }
+/* PRE-EXISTING ENGLISH DEFECT, fixed in v1.26.0 and NOT caused by French.
+   `flex: 1` leaves min-width at `auto`, and an <input type=range>'s intrinsic
+   minimum is 129 px. The row's content box is 184 px and its content summed to
+   40 + 8 + 129 + 8 + 30 = 215 px, so the row overflowed by 31 px and
+   #octave-stretch-value rendered at x=779..809 — NINE PIXELS PAST the 800 px
+   plugin frame, with .tuning-panel's clip cutting the readout in half. Measured
+   at v1.25.4 before any French existed. `min-width: 0` is the documented fix
+   (flex items are floored by min-content unless told otherwise); the slider now
+   absorbs the slack and the readout lands inside the frame in both languages. */
+.octave-stretch-slider { flex: 1; min-width: 0; height: 4px; -webkit-appearance: none; background: linear-gradient(to right, var(--tuning-border), var(--tuning-accent)); border-radius: 2px; }
 .octave-stretch-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0); border: 1px solid var(--tuning-border); border-radius: 50%; cursor: pointer; }
 .octave-stretch-value { font-size: 10px; min-width: 30px; text-align: right; }
 .tuning-file-section { padding: 8px; }
@@ -871,30 +987,41 @@ canvas#consonant-xy-pad {
 
   <div class="header">
     <h1>O-Formant</h1>
-    <span>vocal synthesizer</span>
+    <span data-i18n="label.subtitle">vocal synthesizer</span>
+    <button class="gear-btn" id="gear-btn" data-i18n-aria="label.settings">&#9881;</button>
+    <div class="settings-popover" id="settings-popover">
+      <div class="settings-title" data-i18n="label.settings">Settings</div>
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="label.language">Language</span>
+        <select id="lang-select" data-i18n-aria="aria.langSelect">
+          <option value="en">English</option>
+          <option value="fr">Fran&ccedil;ais</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <div class="preset-bar">
     <select id="preset-category">
-      <option value="all">All</option>
+      <option value="all" data-i18n="label.allCategories">All</option>
     </select>
-    <button class="preset-nav" id="preset-prev" title="Previous preset">&#8249;</button>
+    <button class="preset-nav" id="preset-prev" data-i18n-aria="aria.presetPrev">&#8249;</button>
     <span class="preset-name" id="preset-name">Default</span>
-    <button class="preset-nav" id="preset-next" title="Next preset">&#8250;</button>
-    <button class="preset-save-btn" id="preset-save">Save</button>
+    <button class="preset-nav" id="preset-next" data-i18n-aria="aria.presetNext">&#8250;</button>
+    <button class="preset-save-btn" id="preset-save" data-i18n="label.save">Save</button>
   </div>
 
   <div class="tab-bar">
-    <div class="tab active" data-tab="synth">Synth</div>
-    <div class="tab" data-tab="lyrics">Lyrics</div>
-    <div class="tab" data-tab="tuning">Tuning</div>
-    <div class="tab" data-tab="effects">Effects</div>
+    <div class="tab active" data-tab="synth" data-i18n="label.tabSynth">Synth</div>
+    <div class="tab" data-tab="lyrics" data-i18n="label.tabLyrics">Lyrics</div>
+    <div class="tab" data-tab="tuning" data-i18n="label.tabTuning">Tuning</div>
+    <div class="tab" data-tab="effects" data-i18n="label.tabEffects">Effects</div>
   </div>
 
   <div id="synth-tab" class="tab-content active">
 
   <div class="xy-area">
-    <h2>Vowel Morph</h2>
+    <h2 data-i18n="label.vowelMorph">Vowel Morph</h2>
     <div class="xy-canvas-wrap">
       <canvas id="xy-pad"></canvas>
     </div>
@@ -902,105 +1029,105 @@ canvas#consonant-xy-pad {
 
   <div class="right-col">
     <div class="param-group">
-      <h3>Glottal Source</h3>
+      <h3 data-i18n="label.glottalSource">Glottal Source</h3>
       <div class="param-row">
         <div class="knob-wrap" data-param="glottalRd">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Voice Q</div>
+          <div class="knob-label" data-i18n="label.voiceQ">Voice Q</div>
           <div class="knob-value">1.00</div>
         </div>
         <div class="knob-wrap" data-param="breathiness">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Breath</div>
+          <div class="knob-label" data-i18n="label.breath">Breath</div>
           <div class="knob-value">0.10</div>
         </div>
         <div class="knob-wrap" data-param="vibratoRate">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Vib Rate</div>
+          <div class="knob-label" data-i18n="label.vibRate">Vib Rate</div>
           <div class="knob-value">5.5 Hz</div>
         </div>
         <div class="knob-wrap" data-param="vibratoDepth">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Vib Depth</div>
+          <div class="knob-label" data-i18n="label.vibDepth">Vib Depth</div>
           <div class="knob-value">15 ct</div>
         </div>
         <div class="knob-wrap" data-param="vibratoDelay">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Vib Delay</div>
+          <div class="knob-label" data-i18n="label.vibDelay">Vib Delay</div>
           <div class="knob-value">300 ms</div>
         </div>
         <div class="knob-wrap" data-param="jitter">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Jitter</div>
+          <div class="knob-label" data-i18n="label.jitter">Jitter</div>
           <div class="knob-value">0.15</div>
         </div>
         <div class="knob-wrap" data-param="shimmer">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Shimmer</div>
+          <div class="knob-label" data-i18n="label.shimmer">Shimmer</div>
           <div class="knob-value">0.10</div>
         </div>
         <div class="knob-wrap" data-param="rdModDepth">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Rd Mod</div>
+          <div class="knob-label" data-i18n="label.rdMod">Rd Mod</div>
           <div class="knob-value">0.50</div>
         </div>
         <div class="knob-wrap" data-param="spectralTilt">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Tilt</div>
+          <div class="knob-label" data-i18n="label.tilt">Tilt</div>
           <div class="knob-value">0.0 dB</div>
         </div>
       </div>
     </div>
 
     <div class="param-group">
-      <h3>Consonant</h3>
+      <h3 data-i18n="label.consonant">Consonant</h3>
       <div class="consonant-row">
         <div class="consonant-controls">
           <div class="knob-wrap" data-param="consonantLevel">
             <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-            <div class="knob-label">Level</div>
+            <div class="knob-label" data-i18n="label.level">Level</div>
             <div class="knob-value">0.30</div>
           </div>
           <div class="knob-wrap" data-param="consonantVoicing">
             <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-            <div class="knob-label">Voicing</div>
+            <div class="knob-label" data-i18n="label.voicing">Voicing</div>
             <div class="knob-value">0.50</div>
           </div>
           <div class="toggle-wrap" data-param="autoConsonant">
             <div class="toggle-btn" id="autoConsonant-toggle"><div class="toggle-thumb"></div></div>
-            <div class="toggle-label">Auto</div>
+            <div class="toggle-label" data-i18n="label.auto">Auto</div>
           </div>
         </div>
         <div class="consonant-xy-wrap">
           <canvas id="consonant-xy-pad"></canvas>
           <div class="consonant-xy-labels">
-            <span class="cxy-label cxy-left">Lab</span>
-            <span class="cxy-label cxy-mid-left">Alv</span>
-            <span class="cxy-label cxy-mid-right">Pal</span>
-            <span class="cxy-label cxy-right">Vel</span>
-            <span class="cxy-label cxy-top">Fric</span>
-            <span class="cxy-label cxy-bottom">Plos</span>
+            <span class="cxy-label cxy-left" data-i18n="label.placeLabial">Lab</span>
+            <span class="cxy-label cxy-mid-left" data-i18n="label.placeAlveolar">Alv</span>
+            <span class="cxy-label cxy-mid-right" data-i18n="label.placePalatal">Pal</span>
+            <span class="cxy-label cxy-right" data-i18n="label.placeVelar">Vel</span>
+            <span class="cxy-label cxy-top" data-i18n="label.mannerFricative">Fric</span>
+            <span class="cxy-label cxy-bottom" data-i18n="label.mannerPlosive">Plos</span>
           </div>
         </div>
         <div class="consonant-env-controls" id="consonant-env-controls">
           <div class="knob-wrap" data-param="consonantAttack">
             <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-            <div class="knob-label">Atk</div>
+            <div class="knob-label" data-i18n="label.attackShort">Atk</div>
             <div class="knob-value">20 ms</div>
           </div>
           <div class="knob-wrap" data-param="consonantHold">
             <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-            <div class="knob-label">Hold</div>
+            <div class="knob-label" data-i18n="label.hold">Hold</div>
             <div class="knob-value">30 ms</div>
           </div>
           <div class="knob-wrap" data-param="consonantDecay">
             <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-            <div class="knob-label">Decay</div>
+            <div class="knob-label" data-i18n="label.decay">Decay</div>
             <div class="knob-value">40 ms</div>
           </div>
           <div class="knob-wrap" data-param="consonantTransition">
             <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-            <div class="knob-label">Trans</div>
+            <div class="knob-label" data-i18n="label.transShort">Trans</div>
             <div class="knob-value">0.50</div>
           </div>
         </div>
@@ -1008,9 +1135,9 @@ canvas#consonant-xy-pad {
     </div>
 
     <div class="param-group">
-      <h3>Character</h3>
+      <h3 data-i18n="label.character">Character</h3>
       <div class="segmented-wrap">
-        <span class="segmented-label">Topology</span>
+        <span class="segmented-label" data-i18n="label.topology">Topology</span>
         <div class="segmented-control" id="topology-control">
           <button class="segmented-btn active" data-index="0">Cascade</button>
           <button class="segmented-btn" data-index="1">Parallel</button>
@@ -1020,42 +1147,42 @@ canvas#consonant-xy-pad {
       <div class="param-row">
         <div class="knob-wrap" data-param="formantShift">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Shift</div>
+          <div class="knob-label" data-i18n="label.shift">Shift</div>
           <div class="knob-value">0 st</div>
         </div>
         <div class="knob-wrap" data-param="formantSpread">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Spread</div>
+          <div class="knob-label" data-i18n="label.spread">Spread</div>
           <div class="knob-value">1.00</div>
         </div>
         <div class="knob-wrap" data-param="pitchGlide">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Glide</div>
+          <div class="knob-label" data-i18n="label.glide">Glide</div>
           <div class="knob-value">0 ms</div>
         </div>
         <div class="knob-wrap" data-param="transitionTime">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Transition</div>
+          <div class="knob-label" data-i18n="label.transition">Transition</div>
           <div class="knob-value">0.40</div>
         </div>
         <div class="knob-wrap" data-param="vowelFocus">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Focus</div>
+          <div class="knob-label" data-i18n="label.focus">Focus</div>
           <div class="knob-value">2.50</div>
         </div>
         <div class="knob-wrap" data-param="singersFormant">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Singer's F</div>
+          <div class="knob-label" data-i18n="label.singersFormant">Singer's F</div>
           <div class="knob-value">0.00</div>
         </div>
         <div class="knob-wrap" data-param="nasalCoupling">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Nasality</div>
+          <div class="knob-label" data-i18n="label.nasality">Nasality</div>
           <div class="knob-value">0.00</div>
         </div>
         <div class="knob-wrap" data-param="nasalPlace">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Nasal Place</div>
+          <div class="knob-label" data-i18n="label.nasalPlace">Nasal Place</div>
           <div class="knob-value">0.50</div>
         </div>
       </div>
@@ -1066,42 +1193,42 @@ canvas#consonant-xy-pad {
 
   <div class="bottom-row">
     <div class="bottom-group">
-      <h3>Envelope</h3>
+      <h3 data-i18n="label.envelope">Envelope</h3>
       <div class="param-row">
         <div class="knob-wrap" data-param="attack">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Attack</div>
+          <div class="knob-label" data-i18n="label.attack">Attack</div>
           <div class="knob-value">10 ms</div>
         </div>
         <div class="knob-wrap" data-param="decay">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Decay</div>
+          <div class="knob-label" data-i18n="label.decay">Decay</div>
           <div class="knob-value">300 ms</div>
         </div>
         <div class="knob-wrap" data-param="sustain">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Sustain</div>
+          <div class="knob-label" data-i18n="label.sustain">Sustain</div>
           <div class="knob-value">0.80</div>
         </div>
         <div class="knob-wrap" data-param="release">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Release</div>
+          <div class="knob-label" data-i18n="label.release">Release</div>
           <div class="knob-value">500 ms</div>
         </div>
       </div>
       <canvas id="adsr-canvas"></canvas>
     </div>
     <div class="bottom-group">
-      <h3>Output</h3>
+      <h3 data-i18n="label.output">Output</h3>
       <div class="param-row">
         <div class="knob-wrap" data-param="outputGain">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Gain</div>
+          <div class="knob-label" data-i18n="label.gain">Gain</div>
           <div class="knob-value">0.0 dB</div>
         </div>
         <div class="knob-wrap" data-param="stereoWidth">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Width</div>
+          <div class="knob-label" data-i18n="label.width">Width</div>
           <div class="knob-value">0.50</div>
         </div>
       </div>
@@ -1114,23 +1241,23 @@ canvas#consonant-xy-pad {
     <!-- Chorus -->
     <div class="fx-section" id="chorusSection">
       <div class="fx-header">
-        <span class="fx-title">Chorus</span>
-        <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+        <span class="fx-title" data-i18n="label.chorus">Chorus</span>
+        <button class="fx-bypass-btn" id="chorusBypassBtn" data-i18n="label.on">On</button>
       </div>
       <div class="fx-knobs" id="chorus-knobs">
         <div class="knob-wrap" data-param="chorusRate">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Rate</div>
+          <div class="knob-label" data-i18n="label.rate">Rate</div>
           <div class="knob-value">1.00 Hz</div>
         </div>
         <div class="knob-wrap" data-param="chorusDepth">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Depth</div>
+          <div class="knob-label" data-i18n="label.depth">Depth</div>
           <div class="knob-value">50%</div>
         </div>
         <div class="knob-wrap" data-param="chorusMix">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Mix</div>
+          <div class="knob-label" data-i18n="label.mix">Mix</div>
           <div class="knob-value">0%</div>
         </div>
       </div>
@@ -1139,23 +1266,23 @@ canvas#consonant-xy-pad {
     <!-- Delay -->
     <div class="fx-section" id="delaySection">
       <div class="fx-header">
-        <span class="fx-title">Delay</span>
-        <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+        <span class="fx-title" data-i18n="label.delay">Delay</span>
+        <button class="fx-bypass-btn" id="delayBypassBtn" data-i18n="label.on">On</button>
       </div>
       <div class="fx-knobs" id="delay-knobs">
         <div class="knob-wrap" data-param="delayTime">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Time</div>
+          <div class="knob-label" data-i18n="label.time">Time</div>
           <div class="knob-value">375 ms</div>
         </div>
         <div class="knob-wrap" data-param="delayFeedback">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Feedback</div>
+          <div class="knob-label" data-i18n="label.feedback">Feedback</div>
           <div class="knob-value">30%</div>
         </div>
         <div class="knob-wrap" data-param="delayMix">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Mix</div>
+          <div class="knob-label" data-i18n="label.mix">Mix</div>
           <div class="knob-value">0%</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:center;width:50px;">
@@ -1163,7 +1290,7 @@ canvas#consonant-xy-pad {
             <option value="0">Normal</option>
             <option value="1">PingPong</option>
           </select>
-          <div class="knob-label" style="margin-top:2px;">Mode</div>
+          <div class="knob-label" style="margin-top:2px;" data-i18n="label.mode">Mode</div>
         </div>
       </div>
     </div>
@@ -1171,38 +1298,38 @@ canvas#consonant-xy-pad {
     <!-- Reverb -->
     <div class="fx-section" id="reverbSection">
       <div class="fx-header">
-        <span class="fx-title">Reverb</span>
-        <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+        <span class="fx-title" data-i18n="label.reverb">Reverb</span>
+        <button class="fx-bypass-btn" id="reverbBypassBtn" data-i18n="label.on">On</button>
       </div>
       <div class="fx-knobs" id="reverb-knobs">
         <div class="knob-wrap" data-param="reverbSize">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Size</div>
+          <div class="knob-label" data-i18n="label.size">Size</div>
           <div class="knob-value">50%</div>
         </div>
         <div class="knob-wrap" data-param="reverbDamp">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Damp</div>
+          <div class="knob-label" data-i18n="label.damp">Damp</div>
           <div class="knob-value">50%</div>
         </div>
         <div class="knob-wrap" data-param="reverbPredelay">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Pre-dly</div>
+          <div class="knob-label" data-i18n="label.preDelay">Pre-dly</div>
           <div class="knob-value">20 ms</div>
         </div>
         <div class="knob-wrap" data-param="reverbMod">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Mod</div>
+          <div class="knob-label" data-i18n="label.mod">Mod</div>
           <div class="knob-value">20%</div>
         </div>
         <div class="knob-wrap" data-param="reverbShimmer">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Shimmer</div>
+          <div class="knob-label" data-i18n="label.shimmer">Shimmer</div>
           <div class="knob-value">0%</div>
         </div>
         <div class="knob-wrap" data-param="reverbMix">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Mix</div>
+          <div class="knob-label" data-i18n="label.mix">Mix</div>
           <div class="knob-value">0%</div>
         </div>
       </div>
@@ -1211,28 +1338,28 @@ canvas#consonant-xy-pad {
     <!-- EQ -->
     <div class="fx-section" id="eqSection">
       <div class="fx-header">
-        <span class="fx-title">EQ</span>
-        <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+        <span class="fx-title" data-i18n="label.eq">EQ</span>
+        <button class="fx-bypass-btn" id="eqBypassBtn" data-i18n="label.on">On</button>
       </div>
       <div class="fx-knobs" id="eq-knobs">
         <div class="knob-wrap" data-param="eqLowGain">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Low</div>
+          <div class="knob-label" data-i18n="label.low">Low</div>
           <div class="knob-value">0.0 dB</div>
         </div>
         <div class="knob-wrap" data-param="eqMidGain">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Mid</div>
+          <div class="knob-label" data-i18n="label.mid">Mid</div>
           <div class="knob-value">0.0 dB</div>
         </div>
         <div class="knob-wrap" data-param="eqMidFreq">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">Mid Freq</div>
+          <div class="knob-label" data-i18n="label.midFreq">Mid Freq</div>
           <div class="knob-value">1000 Hz</div>
         </div>
         <div class="knob-wrap" data-param="eqHighGain">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
-          <div class="knob-label">High</div>
+          <div class="knob-label" data-i18n="label.high">High</div>
           <div class="knob-value">0.0 dB</div>
         </div>
       </div>
@@ -1243,25 +1370,25 @@ canvas#consonant-xy-pad {
     <div class="lyrics-panel">
       <div class="lyrics-input-section">
         <div class="lyrics-header">
-          <h3>ARPABET Input</h3>
+          <h3 data-i18n="label.arpabetInput">ARPABET Input</h3>
           <div class="lyrics-controls">
             <div class="toggle-wrap lyrics-toggle" data-param="lyricsEnabled">
               <div class="toggle-btn" id="lyricsEnabled-toggle"><div class="toggle-thumb"></div></div>
-              <div class="toggle-label">Enable</div>
+              <div class="toggle-label" data-i18n="label.enable">Enable</div>
             </div>
-            <button class="lyrics-btn" id="lyrics-loop-btn" title="Toggle loop">Loop</button>
-            <button class="lyrics-btn" id="lyrics-reset-btn" title="Reset to first syllable">Reset</button>
+            <button class="lyrics-btn" id="lyrics-loop-btn" data-i18n="label.loop" data-i18n-aria="aria.loopToggle">Loop</button>
+            <button class="lyrics-btn" id="lyrics-reset-btn" data-i18n="label.reset" data-i18n-aria="aria.resetLyrics">Reset</button>
           </div>
         </div>
-        <textarea id="lyrics-input" rows="3" spellcheck="false"
+        <textarea id="lyrics-input" rows="3" spellcheck="false" data-i18n-placeholder="placeholder.lyrics"
           placeholder="Type ARPABET phonemes separated by spaces (e.g. HH AH L OW W ER L D)"></textarea>
         <div class="lyrics-help">
-          Vowels: AA AE AH AO AW AY EH ER EY IH IY OW OY UH UW &nbsp;|&nbsp;
-          Consonants: B CH D DH F G HH JH K L M N NG P R S SH T TH V W Y Z ZH
+          <span data-i18n="label.vowels">Vowels:</span> AA AE AH AO AW AY EH ER EY IH IY OW OY UH UW &nbsp;|&nbsp;
+          <span data-i18n="label.consonants">Consonants:</span> B CH D DH F G HH JH K L M N NG P R S SH T TH V W Y Z ZH
         </div>
       </div>
       <div class="lyrics-display-section">
-        <div class="lyrics-syllable-label">Syllables <span id="lyrics-counter">0 / 0</span></div>
+        <div class="lyrics-syllable-label"><span data-i18n="label.syllables">Syllables</span> <span id="lyrics-counter">0 / 0</span></div>
         <div class="lyrics-syllables" id="lyrics-syllables"></div>
       </div>
     </div>
@@ -1300,8 +1427,14 @@ async function initTuningPanel() {
         await tuningPanel.init();
     } catch (err) {
         console.error('[O-Formant] Failed to init tuning panel:', err);
-        document.getElementById('tuning-container').innerHTML =
-            '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+        const failBox = document.getElementById('tuning-container');
+        failBox.innerHTML =
+            '<div style="padding:20px;color:#8B7355;font-style:italic;" data-i18n="label.tuningPanelFailed">Tuning panel failed to load.</div>';
+        // The canon publishes window.__setLabel precisely so a sibling module
+        // can write a localized label without app.js exporting anything. The
+        // node is created after initI18n's sweep has already run, so the sweep
+        // will never reach it on its own.
+        if (window.__setLabel) window.__setLabel(failBox.firstElementChild, 'label.tuningPanelFailed');
     }
 }
 </script>
