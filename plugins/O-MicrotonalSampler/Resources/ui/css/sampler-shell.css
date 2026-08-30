@@ -227,6 +227,130 @@ body {
     background: rgba(0, 0, 0, 0.30);
 }
 
+/* ============================================================================
+   v1.24.0 — THE SETTINGS POPOVER
+
+   Styled in THIS page's vocabulary, not a uniform widget pasted in: the gear
+   wears .header-action-btn's border colour, radius and hover treatment because
+   it is a sibling of Save Preset and Load Preset inside .header-actions, and
+   the panel wears the same parchment card surface (--bg-card over paper2) and
+   --border-warm rule as #header itself.
+
+   It sits INSIDE .header-actions rather than as a fourth child of #header.
+   #header is `justify-content: space-between` with three children; a fourth
+   would re-distribute the whole row and move the tab strip — a large
+   ENGLISH-only layout change the both-language gate cannot see, because it is
+   a markup change rather than a language one.
+
+   Opens DOWNWARDS. The gear sits in a ~53px header at the top of a 640px
+   frame, so a panel above it would leave the frame entirely.
+
+   WIDTH IS PINNED, not min-width. .settings-popover is not a [data-i18n]
+   element, so check-ui-labels assertion 7 measures its box in BOTH languages
+   and any language-driven resize is a reported failure. A hard width makes the
+   panel's rect language-invariant by construction. 208px was measured against
+   LANGUAGE + English and LANGUE + Français in THESE elements: letter-spacing
+   and text-transform are not in getComputedStyle().font, so it cannot be
+   computed from the font alone or borrowed from another plugin.
+   ============================================================================ */
+.settings-cluster {
+    position: relative;
+    display: flex;
+    align-items: center;
+    z-index: 20;
+}
+
+.gear-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.gear-btn:hover {
+    color: var(--text-body);
+    border-color: var(--accent-gold);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.gear-btn[aria-expanded="true"] {
+    color: var(--accent-gold);
+    border-color: var(--accent-gold);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.gear-btn:focus-visible {
+    outline: 2px solid var(--accent-gold);
+    outline-offset: 2px;
+}
+
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 21;
+    width: 208px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    background: linear-gradient(rgba(235, 217, 199, 0.94),
+                                rgba(235, 217, 199, 0.94)),
+                url('/images/paper2.jpg') center/cover no-repeat,
+                var(--bg-card);
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    box-shadow: var(--shadow-card);
+}
+
+.settings-popover[hidden] { display: none; }
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* nowrap because the row is space-between: a caption that wrapped would grow
+   the row's height and move the control beside it. */
+.settings-label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.settings-select {
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid var(--border-warm);
+    border-radius: 3px;
+    color: var(--text-body);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 3px 6px;
+}
+
+/* v1.24.0: the tuning-panel mount-failure notice. Was an inline `style=` on an
+   innerHTML string; it is a keyed caption now, so it needs a class. */
+.tuning-panel-unavailable {
+    color: var(--text-muted);
+    padding: 16px;
+    font-style: italic;
+}
+
 /* Missing-folder modal — saved-path readout. Monospace + faint border so
    the user can read long absolute paths without ambiguity. */
 .missing-folder-path {
@@ -1964,4 +2088,203 @@ body {
 
 .trim-panel-footer button:hover {
     background: var(--bg-paper, #faf6ee);
+}
+
+/* ============================================================================
+   v1.24.0 — LANGUAGE-INVARIANT BOXES
+
+   check-ui-labels assertion 7 measures every NON-[data-i18n] element's rect in
+   both languages and reports any that moved. A keyed caption may resize freely;
+   the box AROUND it may not, because a box that grows on French pushes its
+   siblings and that is a layout regression rather than a translation.
+
+   Every pin below is sized to the WIDER of the two languages, measured in
+   THESE elements at the shipping 900x640 frame — not computed from the font,
+   because letter-spacing and text-transform are not in getComputedStyle().font.
+   Each was reverted alone and confirmed to re-break assertion 7; the numbers in
+   the comments are that measurement.
+   ============================================================================ */
+
+/* #tab-strip grows 19.95px on French ("À propos" 79.73 vs "About" 63.00) and,
+   being centred, shifts -10.14px — so the nav is pinned rather than the three
+   buttons, which are keyed and may resize inside it. EN 246.11 / FR 266.06. */
+#tab-strip {
+    width: 267px;
+    justify-content: center;
+}
+
+/* The drop-zone separators are unkeyed spans whose x is the running sum of the
+   controls before them, so each of those controls is pinned to its own wider
+   language. EN/FR: 99.97/133.72, 116.83/136.00, 109.05/128.11, and "Clear
+   samples" 108.92/61.05 — the one that SHRINKS, pinned to ENGLISH so English
+   does not move. Per-element, never a uniform rule on the row. */
+#folder-drop-zone > .drop-zone-text { min-width: 134px; }
+#folder-drop-zone > .drop-zone-or   { min-width: 13px; }
+#folder-drop-zone > #load-folder-btn { min-width: 136px; }
+#folder-drop-zone > #batch-loop-btn  { min-width: 129px; }
+#folder-drop-zone > #clear-samples-btn { min-width: 109px; }
+
+/* Both trigger headers: the label wraps a checkbox plus a keyed span, so the
+   label itself is unkeyed and its growth is reported. EN 72.64 / FR 101.09. */
+.trigger-toggle-label { min-width: 102px; }
+
+/* EN 82.02 / FR 89.81 — "CC#" vs "CC n°" around the same number input. */
+.trigger-cc-number-label { min-width: 90px; }
+
+/* The trigger tables are auto-layout, so a wider French header in column 1
+   ("empl." 33.13 vs "slot" 26.50) steals width from column 2 and shifts every
+   input in all eight rows. Pinning column 1 to the French width makes the whole
+   table's column distribution language-invariant. CC 66.61/76.89,
+   PC 92.08/105.00 — the two tables differ, so they are pinned separately. */
+#cc-trigger-table th:first-child,
+#cc-trigger-table td:first-child { width: 77px; }
+#pc-trigger-table th:first-child,
+#pc-trigger-table td:first-child { width: 105px; }
+
+/* A shrink-to-fit <select> sizes to its LONGEST option, so a longer French
+   option name resizes the control itself and slides everything after it in the
+   technique bar. EN 128.00 / FR 152.00 ("Choose family…" vs "Choisir une
+   famille…"). The options are keyed and may grow; the control may not. */
+#technique-preset-select { width: 152px; }
+
+/* The number input's x is the running sum of the keyed caption before it
+   inside the same label, so the caption is pinned as well as the label:
+   "CC#" 26.02 / "CC n°" 33.81 in these elements. */
+.trigger-cc-number-label > [data-i18n] { display: inline-block; min-width: 34px; }
+
+/* The row's caption is keyed and grows 38.48px ("Technique preset" 81.47 vs
+   "Préréglage de techniques" 119.95), which slides the unkeyed <select> beside
+   it. Pin the caption, not the select's margin — the select is already pinned
+   above and a margin would move it in English too. */
+#technique-preset-row > label[for="technique-preset-select"] { min-width: 120px; }
+
+/* The keyswitch range labels each wrap a keyed caption plus a 56px number
+   input, so the caption's width sets the label's and the whole KS cluster
+   re-flows on sub-pixel text differences: "low" 21.34 / "min" 22.00 and
+   "high" 25.34 / "max" 24.00 in these elements. Pinning the caption makes both
+   labels the same invariant width, which is also why the two are pinned
+   together here rather than per-element — they are one symmetric pair of
+   controls in one row, not two independent captions. */
+#technique-ks-controls .ks-range-label > [data-i18n] {
+    display: inline-block;
+    min-width: 26px;
+}
+
+/* ── The loop editor and the cell context menu ──────────────────────────── */
+
+/* The variant counter is a keyed COMPOSED label ("Variant 1 of 3" 71.89 /
+   "Variante 1 sur 3" 84.83) and the three variant tab buttons after it are
+   unkeyed, so its growth slides all three. */
+#le-variant-tabs > [data-i18n] { display: inline-block; min-width: 85px; }
+
+/* Each loop-meta span wraps a keyed caption and a live value, and the span
+   itself is unkeyed — so the caption's growth moves the value and every span
+   after it. Pinned per-span to its own French width, not uniformly: the three
+   differ (157 / 145 / 68) because the captions do.
+   EN/FR: 117.11/156.19, 118.13/144.75, 63.73/67.11. */
+.loop-meta > span:nth-of-type(1) { min-width: 157px; }
+.loop-meta > span:nth-of-type(3) { min-width: 145px; }
+.loop-meta > span:nth-of-type(5) { min-width: 68px; }
+
+/* A shrink-to-fit popup menu sizes to its longest item, so the whole menu box
+   grows on the longest French entry ("Ouvrir l'éditeur de boucle").
+   EN 160.00 / FR 165.38. */
+#cell-context-menu { width: 166px; }
+
+/* Pinning the loop-meta spans above holds the SPAN box still, but the live
+   value inside each still slid, because the keyed caption before it grows.
+   Both are needed: the span pin keeps the row's spans from moving each other,
+   the caption pin keeps the value from moving inside its own span.
+   Captions EN/FR: 61.22/100.30, 56.20/82.83, 35.38/38.75. */
+.loop-meta > span > [data-i18n] { display: inline-block; }
+.loop-meta > span:nth-of-type(1) > [data-i18n] { min-width: 101px; }
+.loop-meta > span:nth-of-type(3) > [data-i18n] { min-width: 83px; }
+.loop-meta > span:nth-of-type(5) > [data-i18n] { min-width: 39px; }
+
+/* ── The batch-loop dialog ──────────────────────────────────────────────── */
+
+/* The mode radios are unkeyed <label>s wrapping keyed captions, so each grows
+   on French and widens the options column. EN 108.73 / FR 115.23. */
+#batch-loop-dialog .bl-mode { min-width: 116px; }
+
+/* The row captions are pinned at 84px, which "Début de boucle" (85.20)
+   overruns by 1.20 — enough to move the field beside it. */
+#batch-loop-dialog .bl-row > label { min-width: 86px; }
+
+/* ── The tuning panel (plugin-owned copy, in scope for this stage) ──────── */
+
+/* .tonic-selector is a fixed 142px CENTRED row, so the keyed caption's growth
+   ("Tonic" 28.75 / "Tonique" 41.59) does not widen the row — it re-centres it,
+   sliding the two arrows and the note readout 6.42px each. dx with dw=0 is the
+   whole signature here, which is why dx alone must never be read as
+   decoration. Pin the caption and the row is invariant. */
+#interval-list .tonic-selector > [data-i18n] {
+    display: inline-block;
+    min-width: 42px;
+}
+
+/* ── The About card ─────────────────────────────────────────────────────── */
+
+/* "Made by" 55.55 / "Réalisé par" 69.34 — an unkeyed <a> follows it on the
+   same line, so the caption's growth drags the link 13.79px. */
+#about-content .about-meta > [data-i18n] { display: inline-block; min-width: 70px; }
+
+/* ── The folder-load options dialog ─────────────────────────────────────── */
+
+/* The dialog card is shrink-to-fit, so its whole box grows on its longest
+   French line. EN 452.69 / FR 460.00. */
+#folder-load-options-dialog .confirm-dialog-content { width: 460px; }
+
+/* The four load-mode radios share one options column that sizes to the longest
+   of them ("Add to layer" 130.75 / "Ajouter à la couche" 160.36). Pinned on
+   the column and the label together because they are the same box. */
+#folder-load-options-dialog .flo-mode-options,
+#folder-load-options-dialog .flo-mode { min-width: 161px; }
+
+/* ── The tuning panel's octave-stretch row ──────────────────────────────── */
+
+/* "Stretch" 42.42 / "Étirement" 51.84 — the slider and its readout follow the
+   caption on the same row and slide 9.42px each. */
+.octave-stretch-row > .octave-stretch-label {
+    display: inline-block;
+    min-width: 52px;
+}
+
+/* The override text block is shrink-to-fit, so it sizes to its own longest
+   French line and the whole block's box changes width with the language.
+   Pinned to the wider of the two blocks (327.75/376.34 for the technique one,
+   282.97/340.73 for the layer one) — the text inside is LEFT-ALIGNED, so a
+   wider box moves no glyph in either language; only the reported rect settles. */
+#folder-load-options-dialog .flo-override-text { width: 377px; }
+
+/* The rename dialog's leading caption sits inline before the slot index, so its
+   width decides where the number lands. "Slot" 26.02 / "Empl." 33.50 — pinned
+   to the French so the index is fixed; English gains ~7.5px of space before the
+   number, which is the visible cost of holding an inline prose element still. */
+#technique-rename-dialog .confirm-dialog-message > [data-i18n]:first-child {
+    display: inline-block;
+    min-width: 34px;
+}
+
+/* ── Three inline captions that sit immediately before inline content ───── */
+/*
+   Each of these is followed on the same line by an unkeyed element — a <code>
+   chip, or a value — so the caption's width decides where that element lands,
+   and here the FRENCH IS THE NARROWER of the two. Pinned to the ENGLISH width
+   so English does not move at all and French carries a few px of trailing
+   space, which is invisible before an inline chip. The French was first chosen
+   to land close to English (121.30 against 124.33 for the token prefix) so the
+   pin absorbs a residue rather than a gap.
+*/
+#folder-load-options-dialog .flo-override-sub > [data-i18n]:first-child {
+    display: inline-block;
+    min-width: 125px;        /* EN 124.33 / FR 121.30 */
+}
+#rr-confirm-dialog .confirm-dialog-message > [data-i18n]:first-child {
+    display: inline-block;
+    min-width: 489px;        /* EN 488.91 / FR 478.97 */
+}
+#truekeys-view .tk-total > span:first-child {
+    display: inline-block;
+    min-width: 53px;         /* EN 52.91 / FR 42.22 */
 }

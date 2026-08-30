@@ -1,0 +1,72 @@
+[
+  { "name": "issues-open",
+    "eval": "const d=document.getElementById('issues-disclosure'), l=document.getElementById('issues-list'); l.innerHTML=''; ['vln_readme.txt: not an audio file','vln_X9_mf.wav: note token not recognised'].forEach(t=>{const li=document.createElement('li'); li.textContent=t; l.appendChild(li);}); window.__setLabel(d.querySelector('summary'), 'label.issuesSummary', {n:2}); d.hidden=false; d.open=true;" },
+  { "name": "trigger-open",      "click": "#trigger-panel > summary" },
+  { "name": "trim-open",         "click": "#trim-panel > summary" },
+
+  { "name": "cell-context-menu",
+    "eval": "const c=document.querySelector('.grid-cell.cell-loaded'); const r=c.getBoundingClientRect(); c.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:r.x+3,clientY:r.y+3}));" },
+  { "name": "cell-context-menu-shut",
+    "eval": "document.body.click();" },
+
+  { "name": "loop-editor-open",
+    "eval": "const c=document.querySelector('.grid-cell.cell-loaded'); c.click();" },
+  { "name": "loop-editor-shut",  "click": "#loop-close" },
+
+  { "name": "settings-popover-open", "click": "#gear-btn" },
+  { "name": "settings-popover-shut", "click": "#gear-btn" },
+
+  { "name": "confirm-dialog-open",   "click": "#clear-samples-btn" },
+  { "name": "confirm-dialog-shut",   "click": "#confirm-cancel-btn" },
+
+  { "name": "batch-loop-open",       "click": "#batch-loop-btn" },
+  { "name": "batch-loop-ms",
+    "eval": "const r=document.querySelector('input[name=\"bl-mode\"][value=\"1\"]'); r.checked=true; r.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "batch-loop-error",
+    "eval": "const s=document.getElementById('bl-start'); s.value='900'; s.dispatchEvent(new Event('input',{bubbles:true}));" },
+  { "name": "batch-loop-shut",       "click": "#bl-cancel-btn" },
+
+  { "name": "folder-load-options-open", "click": "#load-folder-btn" },
+  { "name": "folder-load-options-override",
+    "eval": "const c=document.getElementById('flo-override-checkbox'); c.checked=true; c.dispatchEvent(new Event('change',{bubbles:true})); const t=document.getElementById('flo-override-technique-checkbox'); t.checked=true; t.dispatchEvent(new Event('change',{bubbles:true})); const e=document.getElementById('flo-embed-checkbox'); e.checked=true; e.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "folder-load-options-mergerr",
+    "eval": "const r=document.querySelector('input[name=\"flo-mode\"][value=\"merge_rr\"]'); r.checked=true; r.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "folder-load-options-shut",  "click": "#flo-cancel-btn" },
+
+  { "name": "technique-rename-open",
+    "eval": "const t=document.querySelector('.tech-tab'); t.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}));" },
+  { "name": "technique-rename-shut", "click": "#technique-rename-cancel" },
+
+  { "name": "missing-folder-open",
+    "eval": "window.__stubEmit('folderMissing', { path: '/Users/x/Samples/Violin', kind: 'filesystem', name: 'Violin' });" },
+  { "name": "missing-folder-shut",   "click": "#missing-folder-skip-btn" },
+
+  { "name": "missing-folder-dragdrop-open",
+    "eval": "window.__stubEmit('folderMissing', { path: '', kind: 'drag-drop', name: 'Violin' });" },
+  { "name": "missing-folder-dragdrop-shut", "click": "#missing-folder-skip-btn" },
+
+  { "name": "rr-confirm-open",
+    "eval": "window.__stubEmit('ambiguousDuplicates', [{ midiNote: 60, velocityLayer: 2, filenames: ['vln_C3_mf_a.wav','vln_C3_mf_b.wav'] }]);" },
+  { "name": "rr-confirm-shut",       "click": "#rr-confirm-cancel" },
+
+  { "name": "tuning-tab",            "click": ".tab-btn[data-tab=\"tuning\"]" },
+  { "name": "tuning-library-open",   "click": ".library-header" },
+  { "name": "tuning-generator-open", "click": ".generator-header" },
+  { "name": "generator-harmonic",
+    "eval": "const s=document.getElementById('generator-type'); s.value='harmonic'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "generator-rank2",
+    "eval": "const s=document.getElementById('generator-type'); s.value='rank2'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "generator-edo",
+    "eval": "const s=document.getElementById('generator-type'); s.value='edo'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+
+  { "name": "viz-matrix",            "click": ".viz-btn[data-mode=\"matrix\"]" },
+  { "name": "viz-rotation",          "click": ".viz-btn[data-mode=\"rotation\"]" },
+  { "name": "viz-truekeys",          "click": ".viz-btn[data-mode=\"truekeys\"]" },
+  { "name": "viz-truekeys-held",
+    "eval": "window.__stubEmit('tuningHeldNotes', { notes: [60,64,67], freqs: [261.63,329.63,392.0] });" },
+  { "name": "viz-polar",             "click": ".viz-btn[data-mode=\"polar\"]" },
+  { "name": "viz-circle",            "click": ".viz-btn[data-mode=\"circle\"]" },
+
+  { "name": "about-tab",             "click": ".tab-btn[data-tab=\"about\"]" },
+  { "name": "samplemap-tab",         "click": ".tab-btn[data-tab=\"samplemap\"]" }
+]

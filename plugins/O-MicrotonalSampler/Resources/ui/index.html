@@ -54,17 +54,49 @@
         <span id="tuning-readout" class="tuning-readout"></span>
       </div>
       <nav id="tab-strip">
-        <button class="tab-btn active" data-tab="samplemap">Sample Map</button>
-        <button class="tab-btn" data-tab="tuning">Tuning</button>
-        <button class="tab-btn" data-tab="about">About</button>
+        <button class="tab-btn active" data-tab="samplemap" data-i18n="label.tabSampleMap">Sample Map</button>
+        <button class="tab-btn" data-tab="tuning" data-i18n="label.tabTuning">Tuning</button>
+        <button class="tab-btn" data-tab="about" data-i18n="label.tabAbout">About</button>
       </nav>
       <!-- v1.3.0 — preset save/load (full plugin state including the
            loaded sample folder reference and current tuning). -->
       <div class="header-actions">
         <button id="save-preset-btn" type="button" class="header-action-btn"
-                title="Save plugin state to .omspreset">Save Preset…</button>
+                aria-label="Save plugin state to .omspreset"
+                data-i18n-aria="aria.savePreset"
+                data-i18n="label.savePreset">Save Preset…</button>
         <button id="load-preset-btn" type="button" class="header-action-btn"
-                title="Load plugin state from .omspreset">Load Preset…</button>
+                aria-label="Load plugin state from .omspreset"
+                data-i18n-aria="aria.loadPreset"
+                data-i18n="label.loadPreset">Load Preset…</button>
+
+        <!-- v1.24.0: the settings cluster. ONE row — this plugin ships no
+             hover-help copy (authoring it is Stage M), so the popover holds the
+             language selector alone. It sits INSIDE .header-actions rather than
+             as a fourth child of #header, because #header is
+             justify-content: space-between with three children and a fourth
+             would re-distribute the whole row. -->
+        <div class="settings-cluster">
+          <button type="button" class="gear-btn" id="gear-btn"
+                  aria-haspopup="dialog" aria-expanded="false"
+                  aria-label="Settings" data-i18n-aria="aria.settings">&#9881;</button>
+
+          <div class="settings-popover" id="settings-popover"
+               role="dialog" aria-label="Settings" data-i18n-aria="aria.settings" hidden>
+            <label class="settings-row" for="lang-select">
+              <span class="settings-label" data-i18n="label.language">Language</span>
+              <!-- ENDONYMS. A language name is never translated: a French
+                   speaker looks for "Français". Their widths are therefore
+                   identical in both languages, which is what keeps the
+                   select's own box out of the geometry diff. -->
+              <select class="settings-select" id="lang-select"
+                      aria-label="Interface language" data-i18n-aria="aria.langSelect">
+                <option value="en">English</option>
+                <option value="fr">Fran&ccedil;ais</option>
+              </select>
+            </label>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -74,15 +106,15 @@
       <!-- Sample Map (default) -->
       <section id="tab-samplemap" class="tab-body active">
         <div id="folder-drop-zone">
-          <span class="drop-zone-text">Drop folder here</span>
+          <span class="drop-zone-text" data-i18n="label.dropFolderHere">Drop folder here</span>
           <span class="drop-zone-sep">·</span>
-          <span class="drop-zone-or">or</span>
+          <span class="drop-zone-or" data-i18n="label.or">or</span>
           <span class="drop-zone-sep">·</span>
-          <button id="load-folder-btn" type="button">Load Folder…</button>
+          <button id="load-folder-btn" type="button" data-i18n="label.loadFolder">Load Folder…</button>
           <span class="drop-zone-sep">·</span>
-          <button id="batch-loop-btn" type="button" disabled>Batch loop…</button>
+          <button id="batch-loop-btn" type="button" disabled data-i18n="label.batchLoop">Batch loop…</button>
           <span class="drop-zone-sep">·</span>
-          <button id="clear-samples-btn" type="button" disabled>Clear samples</button>
+          <button id="clear-samples-btn" type="button" disabled data-i18n="label.clearSamples">Clear samples</button>
         </div>
 
         <!-- v1.14.0: Technique tab strip + KS picker. Hidden by default
@@ -95,36 +127,38 @@
              action — picking a family renames all 8 slots in Dorico keyswitch
              order and grows the technique count to 8. -->
         <div id="technique-preset-row" class="technique-preset-row">
-          <label for="technique-preset-select">Technique preset</label>
+          <label for="technique-preset-select" data-i18n="label.techniquePreset">Technique preset</label>
           <select id="technique-preset-select" class="technique-preset-select"
-                  title="Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)">
-            <option value="" selected>Choose family…</option>
-            <option value="strings">Strings</option>
-            <option value="winds">Winds</option>
-            <option value="brass">Brass</option>
-            <option value="generic">Generic</option>
+                  aria-label="Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)"
+                  data-i18n-aria="aria.techniquePreset">
+            <option value="" selected data-i18n="label.chooseFamily">Choose family…</option>
+            <option value="strings" data-i18n="label.familyStrings">Strings</option>
+            <option value="winds" data-i18n="label.familyWinds">Winds</option>
+            <option value="brass" data-i18n="label.familyBrass">Brass</option>
+            <option value="generic" data-i18n="label.familyGeneric">Generic</option>
           </select>
         </div>
         <div id="technique-bar" class="technique-bar">
           <div id="technique-tabs" class="technique-tabs"
-               role="tablist" aria-label="Playing techniques">
+               role="tablist" aria-label="Playing techniques"
+               data-i18n-aria="aria.playingTechniques">
             <!-- Populated by renderTechniqueTabs(). -->
           </div>
-          <button id="technique-add" type="button"
-                  class="technique-control" title="Add technique slot">+</button>
-          <button id="technique-remove" type="button"
-                  class="technique-control" title="Remove last technique slot">−</button>
+          <button id="technique-add" type="button" class="technique-control"
+                  aria-label="Add technique slot" data-i18n-aria="aria.addTechnique">+</button>
+          <button id="technique-remove" type="button" class="technique-control"
+                  aria-label="Remove last technique slot" data-i18n-aria="aria.removeTechnique">−</button>
           <div id="technique-ks-controls" class="technique-ks-controls">
             <label class="ks-toggle-label">
               <input type="checkbox" id="technique-ks-enabled" />
-              <span>KS</span>
+              <span data-i18n="label.ks">KS</span>
             </label>
             <span class="ks-range-sep">·</span>
-            <label class="ks-range-label">low
+            <label class="ks-range-label"><span data-i18n="label.ksLow">low</span>
               <input type="number" id="technique-ks-low"
                      min="0" max="127" step="1" value="0" />
             </label>
-            <label class="ks-range-label">high
+            <label class="ks-range-label"><span data-i18n="label.ksHigh">high</span>
               <input type="number" id="technique-ks-high"
                      min="0" max="127" step="1" value="9" />
             </label>
@@ -138,30 +172,31 @@
              technique-bar visibility contract). -->
         <details id="trigger-panel" class="trigger-panel" hidden>
           <summary class="trigger-panel-summary">
-            <span>Triggers (CC + PC)</span>
+            <span data-i18n="label.triggersHeading">Triggers (CC + PC)</span>
             <span id="trigger-precedence-indicator"
-                  class="trigger-precedence">KS &gt; CC &gt; PC &gt; history</span>
+                  class="trigger-precedence"
+                  data-i18n="label.triggerPrecedence">KS &gt; CC &gt; PC &gt; history</span>
           </summary>
           <div class="trigger-panel-body">
             <section class="trigger-subpanel" aria-labelledby="cc-trigger-heading">
               <header class="trigger-subpanel-header">
                 <label class="trigger-toggle-label">
                   <input type="checkbox" id="cc-trigger-enabled" />
-                  <span id="cc-trigger-heading">CC trigger</span>
+                  <span id="cc-trigger-heading" data-i18n="label.ccTrigger">CC trigger</span>
                 </label>
-                <label class="trigger-cc-number-label">CC#
+                <label class="trigger-cc-number-label"><span data-i18n="label.ccNumber">CC#</span>
                   <input type="number" id="cc-trigger-number"
                          min="0" max="119" step="1" value="32" />
                 </label>
-                <span class="trigger-hint">value 0–127 → technique slot</span>
+                <span class="trigger-hint" data-i18n="label.ccHint">value 0–127 → technique slot</span>
               </header>
               <table class="trigger-table" id="cc-trigger-table">
                 <thead>
                   <tr>
-                    <th scope="col">slot</th>
-                    <th scope="col">low</th>
-                    <th scope="col">high</th>
-                    <th scope="col">tech</th>
+                    <th scope="col" data-i18n="label.thSlot">slot</th>
+                    <th scope="col" data-i18n="label.thLow">low</th>
+                    <th scope="col" data-i18n="label.thHigh">high</th>
+                    <th scope="col" data-i18n="label.thTech">tech</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,16 +208,16 @@
               <header class="trigger-subpanel-header">
                 <label class="trigger-toggle-label">
                   <input type="checkbox" id="pc-trigger-enabled" />
-                  <span id="pc-trigger-heading">PC trigger</span>
+                  <span id="pc-trigger-heading" data-i18n="label.pcTrigger">PC trigger</span>
                 </label>
-                <span class="trigger-hint">program # → technique slot</span>
+                <span class="trigger-hint" data-i18n="label.pcHint">program # → technique slot</span>
               </header>
               <table class="trigger-table" id="pc-trigger-table">
                 <thead>
                   <tr>
-                    <th scope="col">slot</th>
-                    <th scope="col">PC#</th>
-                    <th scope="col">tech</th>
+                    <th scope="col" data-i18n="label.thSlot2">slot</th>
+                    <th scope="col" data-i18n="label.thPc">PC#</th>
+                    <th scope="col" data-i18n="label.thTech2">tech</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -191,7 +226,7 @@
               </table>
             </section>
             <div class="trigger-panel-footer">
-              <button id="trigger-reset" type="button">Reset to defaults</button>
+              <button id="trigger-reset" type="button" data-i18n="label.resetDefaults">Reset to defaults</button>
             </div>
           </div>
         </details>
@@ -204,15 +239,16 @@
              panel reveals itself whenever a library is loaded. -->
         <details id="trim-panel" class="trim-panel" hidden>
           <summary class="trim-panel-summary">
-            <span>Trims (loudness)</span>
+            <span data-i18n="label.trimsHeading">Trims (loudness)</span>
             <span id="trim-active-tech" class="trim-active-tech">ord</span>
           </summary>
           <div class="trim-panel-body">
             <div class="trim-row trim-row-master">
-              <span class="trim-label" id="trim-tech-label">Technique</span>
+              <span class="trim-label" id="trim-tech-label" data-i18n="label.trimTechnique">Technique</span>
               <input type="range" class="trim-slider" id="trim-tech-slider"
                      min="-12" max="12" step="0.5" value="0"
-                     aria-label="Technique master trim (dB)" />
+                     aria-label="Technique master trim (dB)"
+                     data-i18n-aria="aria.trimTech" />
               <span class="trim-readout" id="trim-tech-readout">0.0 dB</span>
             </div>
             <div class="trim-layer-rows" id="trim-layer-rows">
@@ -220,34 +256,38 @@
                 <span class="trim-label trim-layer-label" id="trim-layer-label-0">p</span>
                 <input type="range" class="trim-slider" id="trim-layer-slider-0"
                        min="-12" max="12" step="0.5" value="0"
-                       aria-label="Layer p trim (dB)" />
+                       aria-label="Layer p trim (dB)"
+                       data-i18n-aria="aria.trimLayer0" />
                 <span class="trim-readout" id="trim-layer-readout-0">0.0 dB</span>
               </div>
               <div class="trim-row trim-row-layer" data-layer="1">
                 <span class="trim-label trim-layer-label" id="trim-layer-label-1">mp</span>
                 <input type="range" class="trim-slider" id="trim-layer-slider-1"
                        min="-12" max="12" step="0.5" value="0"
-                       aria-label="Layer mp trim (dB)" />
+                       aria-label="Layer mp trim (dB)"
+                       data-i18n-aria="aria.trimLayer1" />
                 <span class="trim-readout" id="trim-layer-readout-1">0.0 dB</span>
               </div>
               <div class="trim-row trim-row-layer" data-layer="2">
                 <span class="trim-label trim-layer-label" id="trim-layer-label-2">mf</span>
                 <input type="range" class="trim-slider" id="trim-layer-slider-2"
                        min="-12" max="12" step="0.5" value="0"
-                       aria-label="Layer mf trim (dB)" />
+                       aria-label="Layer mf trim (dB)"
+                       data-i18n-aria="aria.trimLayer2" />
                 <span class="trim-readout" id="trim-layer-readout-2">0.0 dB</span>
               </div>
               <div class="trim-row trim-row-layer" data-layer="3">
                 <span class="trim-label trim-layer-label" id="trim-layer-label-3">f</span>
                 <input type="range" class="trim-slider" id="trim-layer-slider-3"
                        min="-12" max="12" step="0.5" value="0"
-                       aria-label="Layer f trim (dB)" />
+                       aria-label="Layer f trim (dB)"
+                       data-i18n-aria="aria.trimLayer3" />
                 <span class="trim-readout" id="trim-layer-readout-3">0.0 dB</span>
               </div>
             </div>
             <div class="trim-panel-footer">
-              <span class="trim-hint">Double-click a slider to reset to 0 dB</span>
-              <button id="trim-reset" type="button">Reset all trims</button>
+              <span class="trim-hint" data-i18n="label.trimHint">Double-click a slider to reset to 0 dB</span>
+              <button id="trim-reset" type="button" data-i18n="label.resetAllTrims">Reset all trims</button>
             </div>
           </div>
         </details>
@@ -268,16 +308,16 @@
         <!-- CSS-only context menu — surfaced by JS on right-click; positioned
              via inline style and hidden by default. Cleared on document click. -->
         <div id="cell-context-menu" hidden>
-          <button data-action="replace">Replace…</button>
-          <button data-action="open-loop-editor">Open Loop Editor</button>
-          <button data-action="delete-cell" class="context-menu-destructive">Delete sample</button>
+          <button data-action="replace" data-i18n="label.ctxReplace">Replace…</button>
+          <button data-action="open-loop-editor" data-i18n="label.ctxOpenLoopEditor">Open Loop Editor</button>
+          <button data-action="delete-cell" class="context-menu-destructive" data-i18n="label.ctxDeleteSample">Delete sample</button>
         </div>
         <details id="issues-disclosure" hidden>
-          <summary>Issues</summary>
+          <summary data-i18n="label.issues">Issues</summary>
           <ul id="issues-list"></ul>
         </details>
         <aside id="loop-editor-panel" class="no-selection">
-          <div class="loop-editor-placeholder">
+          <div class="loop-editor-placeholder" data-i18n="label.loopPlaceholder">
             Select a loaded sample slot to edit loop points
           </div>
           <header class="loop-editor-header">
@@ -288,7 +328,8 @@
               <span class="loop-editor-sep">·</span>
               <span id="le-vel">—</span>
             </h3>
-            <button id="loop-close" class="loop-close-btn" type="button" aria-label="Close loop editor">×</button>
+            <button id="loop-close" class="loop-close-btn" type="button"
+                  aria-label="Close loop editor" data-i18n-aria="aria.closeLoopEditor">×</button>
           </header>
           <!-- v1.8.0: variant tab strip — visible only when cell has > 1 variant. -->
           <div id="le-variant-tabs" class="le-variant-tabs" style="display:none"></div>
@@ -296,16 +337,16 @@
             <canvas id="waveform-canvas"></canvas>
           </div>
           <div class="loop-meta">
-            <span>Loop start: <span id="le-loop-start-ms">0</span> ms</span>
+            <span><span data-i18n="label.loopStartCap">Loop start:</span> <span id="le-loop-start-ms">0</span> ms</span>
             <span class="loop-editor-sep">·</span>
-            <span>Loop end: <span id="le-loop-end-ms">0</span> ms</span>
+            <span><span data-i18n="label.loopEndCap">Loop end:</span> <span id="le-loop-end-ms">0</span> ms</span>
             <span class="loop-editor-sep">·</span>
-            <span>Mode: <span id="le-loop-mode">—</span></span>
+            <span><span data-i18n="label.loopModeCap">Mode:</span> <span id="le-loop-mode">—</span></span>
           </div>
           <div class="loop-editor-actions">
-            <button id="loop-reset" type="button">Reset to auto-detect</button>
-            <button id="loop-cancel" type="button">Cancel</button>
-            <button id="loop-apply" type="button" class="primary">Apply</button>
+            <button id="loop-reset" type="button" data-i18n="label.loopReset">Reset to auto-detect</button>
+            <button id="loop-cancel" type="button" data-i18n="label.loopCancel">Cancel</button>
+            <button id="loop-apply" type="button" class="primary" data-i18n="label.loopApply">Apply</button>
           </div>
         </aside>
         <div id="toast-region" aria-live="polite"></div>
@@ -317,11 +358,11 @@
              aria-modal="true" aria-labelledby="confirm-dialog-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content">
-            <h3 id="confirm-dialog-title" class="confirm-dialog-title">Are you sure?</h3>
+            <h3 id="confirm-dialog-title" class="confirm-dialog-title" data-i18n="label.areYouSure">Are you sure?</h3>
             <p id="confirm-dialog-message" class="confirm-dialog-message"></p>
             <div class="confirm-dialog-actions">
-              <button id="confirm-cancel-btn" type="button">Cancel</button>
-              <button id="confirm-confirm-btn" type="button">Confirm</button>
+              <button id="confirm-cancel-btn" type="button" data-i18n="label.cancel">Cancel</button>
+              <button id="confirm-confirm-btn" type="button" data-i18n="label.confirm">Confirm</button>
             </div>
           </div>
         </div>
@@ -333,34 +374,34 @@
              aria-modal="true" aria-labelledby="batch-loop-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content batch-loop-content">
-            <h3 id="batch-loop-title" class="confirm-dialog-title">Batch loop points</h3>
-            <p class="confirm-dialog-message">
+            <h3 id="batch-loop-title" class="confirm-dialog-title" data-i18n="label.batchLoopTitle">Batch loop points</h3>
+            <p class="confirm-dialog-message" data-i18n="label.batchLoopBlurb">
               Apply one loop region to every loaded sample at once. One-shot
               samples (too short to loop) are left untouched.
             </p>
 
             <div class="bl-row bl-modes">
-              <span class="bl-label">Units</span>
+              <span class="bl-label" data-i18n="label.blUnits">Units</span>
               <div class="bl-mode-options">
                 <label class="bl-mode">
                   <input type="radio" name="bl-mode" value="0" checked />
-                  <span>Proportional (%)</span>
+                  <span data-i18n="label.blProportional">Proportional (%)</span>
                 </label>
                 <label class="bl-mode">
                   <input type="radio" name="bl-mode" value="1" />
-                  <span>Milliseconds</span>
+                  <span data-i18n="label.blMilliseconds">Milliseconds</span>
                 </label>
               </div>
             </div>
 
             <div class="bl-row">
-              <label class="bl-label" for="bl-start">Loop start</label>
+              <label class="bl-label" for="bl-start" data-i18n="label.blLoopStart">Loop start</label>
               <input type="number" id="bl-start" class="bl-input" value="0" min="0" max="100" step="1" />
               <span id="bl-start-unit" class="bl-unit">%</span>
             </div>
 
             <div class="bl-row">
-              <label class="bl-label" for="bl-end">Loop end</label>
+              <label class="bl-label" for="bl-end" data-i18n="label.blLoopEnd">Loop end</label>
               <input type="number" id="bl-end" class="bl-input" value="100" min="0" max="100" step="1" />
               <span id="bl-end-unit" class="bl-unit">%</span>
             </div>
@@ -368,8 +409,8 @@
             <p id="bl-error" class="bl-error" hidden></p>
 
             <div class="confirm-dialog-actions">
-              <button id="bl-cancel-btn" type="button">Cancel</button>
-              <button id="bl-apply-btn" type="button" class="primary">Apply to all</button>
+              <button id="bl-cancel-btn" type="button" data-i18n="label.cancelBl">Cancel</button>
+              <button id="bl-apply-btn" type="button" class="primary" data-i18n="label.blApplyAll">Apply to all</button>
             </div>
           </div>
         </div>
@@ -381,15 +422,15 @@
              aria-modal="true" aria-labelledby="diagnostic-dialog-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content diagnostic-dialog-content">
-            <h3 id="diagnostic-dialog-title" class="confirm-dialog-title">Diagnostic</h3>
-            <p id="diagnostic-dialog-hint" class="confirm-dialog-message">
+            <h3 id="diagnostic-dialog-title" class="confirm-dialog-title" data-i18n="label.diagnostic">Diagnostic</h3>
+            <p id="diagnostic-dialog-hint" class="confirm-dialog-message" data-i18n="label.diagnosticHint">
               Auto-copied to clipboard. Select the text below and ⌘C if it
               wasn't.
             </p>
             <pre id="diagnostic-dialog-text" class="diagnostic-pre"></pre>
             <div class="confirm-dialog-actions">
-              <button id="diagnostic-copy-btn" type="button">Copy again</button>
-              <button id="diagnostic-close-btn" type="button">Close</button>
+              <button id="diagnostic-copy-btn" type="button" data-i18n="label.copyAgain">Copy again</button>
+              <button id="diagnostic-close-btn" type="button" data-i18n="label.close">Close</button>
             </div>
           </div>
         </div>
@@ -403,14 +444,15 @@
              aria-modal="true" aria-labelledby="missing-folder-dialog-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content">
-            <h3 id="missing-folder-dialog-title" class="confirm-dialog-title">
+            <h3 id="missing-folder-dialog-title" class="confirm-dialog-title"
+                data-i18n="label.folderNotFound">
               Sample folder not found
             </h3>
             <p id="missing-folder-dialog-message" class="confirm-dialog-message"></p>
             <pre id="missing-folder-saved-path" class="missing-folder-path"></pre>
             <div class="confirm-dialog-actions">
-              <button id="missing-folder-skip-btn" type="button">Skip</button>
-              <button id="missing-folder-locate-btn" type="button">Locate folder…</button>
+              <button id="missing-folder-skip-btn" type="button" data-i18n="label.skip">Skip</button>
+              <button id="missing-folder-locate-btn" type="button" data-i18n="label.locateFolder">Locate folder…</button>
             </div>
           </div>
         </div>
@@ -423,19 +465,21 @@
              aria-modal="true" aria-labelledby="rr-confirm-dialog-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content rr-confirm-dialog-content">
-            <h3 id="rr-confirm-dialog-title" class="confirm-dialog-title">
+            <h3 id="rr-confirm-dialog-title" class="confirm-dialog-title"
+                data-i18n="label.rrTitle">
               Multiple samples for the same note
             </h3>
             <p class="confirm-dialog-message">
-              The folder contains more than one sample for the same note and
-              velocity layer, without explicit <code>rr</code> / <code>take</code>
-              / <code>tk</code> tokens in the filenames. Treat them as
-              round-robin variants?
+              <span data-i18n="label.rrBodyBefore">The folder contains more than one sample for the same note and
+              velocity layer, without explicit</span> <code>rr</code> / <code>take</code>
+              / <code>tk</code> <span data-i18n="label.rrBodyAfter">tokens in the filenames. Treat them as
+              round-robin variants?</span>
             </p>
             <ul id="rr-confirm-list" class="rr-confirm-list"></ul>
             <div class="confirm-dialog-actions">
-              <button id="rr-confirm-cancel" type="button">Cancel load</button>
-              <button id="rr-confirm-accept" type="button" class="primary">
+              <button id="rr-confirm-cancel" type="button" data-i18n="label.rrCancel">Cancel load</button>
+              <button id="rr-confirm-accept" type="button" class="primary"
+                      data-i18n="label.rrAccept">
                 Treat as variants
               </button>
             </div>
@@ -452,11 +496,12 @@
              aria-modal="true" aria-labelledby="folder-load-options-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content folder-load-options-content">
-            <h3 id="folder-load-options-title" class="confirm-dialog-title">Load samples</h3>
+            <h3 id="folder-load-options-title" class="confirm-dialog-title" data-i18n="label.floTitle">Load samples</h3>
 
             <div class="flo-row">
-              <span class="flo-label">Layer</span>
-              <select id="flo-layer-select" class="flo-select" aria-label="Target velocity layer">
+              <span class="flo-label" data-i18n="label.floLayer">Layer</span>
+              <select id="flo-layer-select" class="flo-select"
+                      aria-label="Target velocity layer" data-i18n-aria="aria.floLayer">
                 <option value="0" selected>L0</option>
                 <option value="1">L1</option>
                 <option value="2">L2</option>
@@ -465,30 +510,31 @@
             </div>
 
             <div class="flo-row">
-              <span class="flo-label">Technique</span>
-              <select id="flo-technique-select" class="flo-select" aria-label="Target technique slot">
+              <span class="flo-label" data-i18n="label.floTechnique">Technique</span>
+              <select id="flo-technique-select" class="flo-select"
+                      aria-label="Target technique slot" data-i18n-aria="aria.floTechnique">
                 <!-- Options injected at modal-open from getTechniqueState().names -->
               </select>
             </div>
 
             <div class="flo-row flo-modes">
-              <span class="flo-label">When loading</span>
+              <span class="flo-label" data-i18n="label.floWhenLoading">When loading</span>
               <div class="flo-mode-options">
                 <label class="flo-mode">
                   <input type="radio" name="flo-mode" value="append" checked />
-                  <span>Add to layer</span>
+                  <span data-i18n="label.floAddToLayer">Add to layer</span>
                 </label>
                 <label class="flo-mode">
                   <input type="radio" name="flo-mode" value="replace_layer" />
-                  <span>Replace this layer</span>
+                  <span data-i18n="label.floReplaceLayer">Replace this layer</span>
                 </label>
                 <label class="flo-mode">
                   <input type="radio" name="flo-mode" value="replace_all" />
-                  <span>Replace all samples</span>
+                  <span data-i18n="label.floReplaceAll">Replace all samples</span>
                 </label>
                 <label class="flo-mode">
                   <input type="radio" name="flo-mode" value="merge_rr" />
-                  <span>Layer as round-robin</span>
+                  <span data-i18n="label.floMergeRr">Layer as round-robin</span>
                 </label>
               </div>
             </div>
@@ -496,16 +542,16 @@
             <label class="flo-override">
               <input type="checkbox" id="flo-override-checkbox" />
               <span class="flo-override-text">
-                <span class="flo-override-title">Force all samples onto this layer</span>
-                <span class="flo-override-sub">Otherwise filename tokens (<code>_v1</code>, <code>_ff</code>, etc.) decide the layer</span>
+                <span class="flo-override-title" data-i18n="label.floForceLayer">Force all samples onto this layer</span>
+                <span class="flo-override-sub"><span data-i18n="label.floTokensBefore">Otherwise filename tokens (</span><code>_v1</code>, <code>_ff</code><span data-i18n="label.floTokensAfterLayer">, etc.) decide the layer</span></span>
               </span>
             </label>
 
             <label class="flo-override">
               <input type="checkbox" id="flo-override-technique-checkbox" />
               <span class="flo-override-text">
-                <span class="flo-override-title">Force all samples onto this technique</span>
-                <span class="flo-override-sub">Otherwise filename tokens (<code>_pizz</code>, <code>_harm</code>, etc.) decide the technique</span>
+                <span class="flo-override-title" data-i18n="label.floForceTechnique">Force all samples onto this technique</span>
+                <span class="flo-override-sub"><span data-i18n="label.floTokensBefore2">Otherwise filename tokens (</span><code>_pizz</code>, <code>_harm</code><span data-i18n="label.floTokensAfterTech">, etc.) decide the technique</span></span>
               </span>
             </label>
 
@@ -517,15 +563,15 @@
                  at modal time) and post-selection for the dialog flow. -->
             <label class="flo-embed">
               <input type="checkbox" id="flo-embed-checkbox" />
-              <span>Embed audio in project state</span>
+              <span data-i18n="label.floEmbed">Embed audio in project state</span>
             </label>
             <p class="flo-embed-size" id="flo-embed-size"></p>
 
             <p class="flo-explain" id="flo-explain"></p>
 
             <div class="confirm-dialog-actions">
-              <button id="flo-cancel-btn" type="button">Cancel</button>
-              <button id="flo-confirm-btn" type="button" class="flo-primary">Load…</button>
+              <button id="flo-cancel-btn" type="button" data-i18n="label.cancelFlo">Cancel</button>
+              <button id="flo-confirm-btn" type="button" class="flo-primary" data-i18n="label.floLoad">Load…</button>
             </div>
           </div>
         </div>
@@ -539,19 +585,21 @@
              aria-modal="true" aria-labelledby="embed-size-confirm-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content">
-            <h3 id="embed-size-confirm-title" class="confirm-dialog-title">
+            <h3 id="embed-size-confirm-title" class="confirm-dialog-title"
+                data-i18n="label.embedTitle">
               Embed audio in project?
             </h3>
             <p id="embed-size-confirm-message" class="confirm-dialog-message"></p>
-            <p class="confirm-dialog-message embed-size-confirm-detail">
+            <p class="confirm-dialog-message embed-size-confirm-detail" data-i18n="label.embedDetail">
               The audio data will be written into your DAW project file.
               Project saves and reopens will be slower for large libraries,
               but the samples will travel with the project across folders
               and machines.
             </p>
             <div class="confirm-dialog-actions">
-              <button id="embed-size-cancel-btn" type="button">Cancel</button>
-              <button id="embed-size-confirm-btn" type="button" class="flo-primary">
+              <button id="embed-size-cancel-btn" type="button" data-i18n="label.cancelEmbed">Cancel</button>
+              <button id="embed-size-confirm-btn" type="button" class="flo-primary"
+                      data-i18n="label.embedAndLoad">
                 Embed and load
               </button>
             </div>
@@ -567,12 +615,12 @@
              aria-modal="true" aria-labelledby="per-cell-merge-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content">
-            <h3 id="per-cell-merge-title" class="confirm-dialog-title">Cell already has samples</h3>
+            <h3 id="per-cell-merge-title" class="confirm-dialog-title" data-i18n="label.mergeTitle">Cell already has samples</h3>
             <p id="per-cell-merge-message" class="confirm-dialog-message"></p>
             <div class="confirm-dialog-actions">
-              <button id="per-cell-merge-cancel-btn" type="button">Cancel</button>
-              <button id="per-cell-merge-replace-btn" type="button">Replace cell</button>
-              <button id="per-cell-merge-merge-btn"   type="button" class="flo-primary">Add as round-robin</button>
+              <button id="per-cell-merge-cancel-btn" type="button" data-i18n="label.cancelMerge">Cancel</button>
+              <button id="per-cell-merge-replace-btn" type="button" data-i18n="label.mergeReplaceCell">Replace cell</button>
+              <button id="per-cell-merge-merge-btn"   type="button" class="flo-primary" data-i18n="label.mergeAddRr">Add as round-robin</button>
             </div>
           </div>
         </div>
@@ -584,19 +632,21 @@
              aria-modal="true" aria-labelledby="technique-rename-title">
           <div class="confirm-dialog-backdrop"></div>
           <div class="confirm-dialog-content">
-            <h3 id="technique-rename-title" class="confirm-dialog-title">
+            <h3 id="technique-rename-title" class="confirm-dialog-title"
+                data-i18n="label.renameTitle">
               Rename technique
             </h3>
             <p class="confirm-dialog-message">
-              Slot <span id="technique-rename-index">—</span>: enter a new
+              <span data-i18n="label.renameSlot">Slot</span> <span id="technique-rename-index">—</span><span data-i18n="label.renameBody">: enter a new
               name. Names appear in the tab strip and Dorico expression
-              maps.
+              maps.</span>
             </p>
             <input type="text" id="technique-rename-input"
-                   maxlength="20" autocomplete="off" spellcheck="false" />
+                   maxlength="20" autocomplete="off" spellcheck="false"
+                   aria-label="New technique name" data-i18n-aria="aria.renameInput" />
             <div class="confirm-dialog-actions">
-              <button id="technique-rename-cancel" type="button">Cancel</button>
-              <button id="technique-rename-save" type="button" class="primary">Save</button>
+              <button id="technique-rename-cancel" type="button" data-i18n="label.cancelRename">Cancel</button>
+              <button id="technique-rename-save" type="button" class="primary" data-i18n="label.renameSave">Save</button>
             </div>
           </div>
         </div>
@@ -613,16 +663,16 @@
           <div class="about-card">
             <h2 class="about-title">O-MicrotonalSampler</h2>
             <div class="about-version" id="about-version"></div>
-            <p class="about-tagline">
+            <p class="about-tagline" data-i18n="label.aboutTagline">
               Microtonal sample engine for Dorico microtonal playback.
             </p>
-            <p class="about-blurb">
+            <p class="about-blurb" data-i18n="label.aboutBlurb">
               Per-key, per-velocity-layer sample mapping with offline loop
               auto-detection, manual loop editing, and the Ouaricon
               tuning-system family. Built on JUCE 8.
             </p>
             <div class="about-meta">
-              <span>Made by</span>
+              <span data-i18n="label.madeBy">Made by</span>
               <a class="about-link"
                  href="https://oaudio.io/"
                  target="_blank"

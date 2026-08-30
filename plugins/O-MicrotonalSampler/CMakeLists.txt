@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.23.10"
+    VERSION "1.24.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -84,6 +84,15 @@ juce_add_binary_data(O-MicrotonalSampler_UIResources
         Resources/ui/css/tuning-panel.css
         Resources/ui/js/sampler-app.js
         Resources/ui/js/tuning-panel.js
+        # v1.24.0: the i18n table. FOUR PLACES, ONE COMMIT — this line, the
+        # file on disk, a getResource() branch in PluginEditor.cpp, and the
+        # import at the top of sampler-app.js. Miss one and the page 404s at
+        # runtime and presents as a dead panel with no other symptom
+        # (check-i18n assertion 8). It joins the EXISTING
+        # O-MicrotonalSampler_UIResources SOURCES list: a second
+        # juce_add_binary_data target would collide on the default BinaryData
+        # namespace (critical_dual_binary_data_namespace_collision).
+        Resources/ui/js/i18n.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         # v1.13.0: shared webview-drop-streaming module JS, served by

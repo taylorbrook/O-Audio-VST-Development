@@ -1,5 +1,55 @@
 # O-MicrotonalSampler Changelog
 
+## [1.24.0] - 2026-08-30
+
+### Added
+
+- **The page speaks French.** A language selector in a new settings gear switches every
+  caption, section heading, tab name, button face, dialog, panel title and accessible name
+  between English and French. All entries are machine-drafted and flagged `reviewed: false`;
+  no native speaker has read them. `node scripts/check-i18n.js` prints the worklist.
+- **`Resources/ui/js/i18n.js`**, the string table, added to the EXISTING
+  `O-MicrotonalSampler_UIResources` target — a second `juce_add_binary_data` call would have
+  collided on the default `BinaryData` namespace. Four places, one commit: the file on disk,
+  the `SOURCES` list, a `getResource()` branch, and the `import` in `js/sampler-app.js`.
+- **`getUiLanguage` / `setUiLanguage`** native functions, with the choice persisted on the
+  APVTS state tree. A non-parameter value round-trips through XML as a **string** `var`, so
+  the guard is `isVoid()`, not `isBool()`.
+- **The Tuning tab is localized too.** `Resources/ui/js/tuning-panel.js` is a plugin-owned
+  copy — its header reads "part of O-MicrotonalSampler" and it is 317 lines diverged from
+  `modules/tuning/scala-tuning-engine` — so its ~34 strings are in scope for this plugin.
+  `scripts/i18n-extract.js` skips the filename unconditionally, so they appear in no
+  extractor count and had to be enumerated by hand. This deliberately widens an already
+  large divergence from the module.
+
+### Fixed
+
+- **Eight JS-written native `title=` attributes deleted** (contract §4). They were written
+  from grid-render paths in `sampler-app.js`, so a handful of source lines produced a much
+  larger number of rendered tooltips — untranslated OS tooltips competing with the page's own
+  help. `boot-all-uis` now reports `title= 0`. These were invisible to `check-i18n` until
+  assertion 11 was widened to read the JS as well as the markup.
+
+### Changed
+
+- **Inline English pluralization removed, not ported.** `${n} file${n === 1 ? '' : 's'}` and
+  its siblings are gone: French pluralizes 0 as singular where English does not, so a
+  mechanical port is wrong at n=0 before it is wrong anywhere else. The copy is authored
+  around the inflection per contract §6 — the count sits after a colon beside an invariant
+  plural noun phrase that reads correctly at 0, 1 and n in both languages.
+- **Geometry: 116 non-label elements moved between English and French; now 0**, across all
+  22 driven states, measured at both 180 ms and 1.7 s. Every pin is sized to a measured
+  width in these elements and was reverted alone and confirmed to re-break the gate.
+  Nine French strings were shortened rather than pinned where a pin would have opened a
+  visible gap in prose or grown an English box.
+
+### Notes
+
+- `tests/i18n-states.json` (22 states) and `tests/ui-stub/generic-overrides.json` added. The
+  stub's sample map now reports `slots`, without which `#clear-samples-btn` and
+  `#batch-loop-btn` stay disabled and six dialog states are unreachable — the harness died on
+  a hidden button rather than reporting them.
+
 ## [1.23.10] - 2026-08-08
 
 ### Fixed

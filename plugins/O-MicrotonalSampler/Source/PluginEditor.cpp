@@ -513,6 +513,17 @@ OMicrotonalSamplerAudioProcessorEditor::getResource (const juce::String& url)
             juce::String ("text/javascript") };
     }
 
+    // v1.24.0: the i18n table. Embedded in CMakeLists.txt AND served here — a
+    // file that is one without the other 404s at runtime and presents as a dead
+    // panel with no other symptom (check-i18n assertion 8).
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::i18n_js, BinaryData::i18n_jsSize),
+            juce::String ("text/javascript")
+        };
+    }
+
     if (url == "/js/tuning-panel.js")
     {
         return juce::WebBrowserComponent::Resource {
@@ -734,6 +745,40 @@ std::vector<std::pair<juce::Identifier, juce::WebBrowserComponent::NativeFunctio
 OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
 {
     std::vector<std::pair<juce::Identifier, juce::WebBrowserComponent::NativeFunction>> registry = {
+        // ═══════════════════════════════════════════════════════════════════
+        // v1.24.0: UI LANGUAGE
+        //
+        // Plain native functions, no relay. The page PULLS once at init;
+        // nothing is pushed from here, because the language is not preset
+        // content and no preset path can change it behind the page's back.
+        // A push from the constructor would race the WebView's load.
+        // ═══════════════════════════════════════════════════════════════════
+        { "getUiLanguage",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    complete (juce::var (OMicrotonalSamplerAudioProcessor::languageCode (
+                        processorRef.uiLanguage.load (std::memory_order_acquire))));
+                }
+        },
+
+        { "setUiLanguage",
+                [this] (const juce::Array<juce::var>& args,
+                        std::function<void(juce::var)> complete)
+                {
+                    // languageIndex() maps anything that is not "fr" to 0, so an
+                    // unexpected argument from the page degrades to English
+                    // rather than being stored unvalidated.
+                    if (args.size() > 0)
+                        processorRef.uiLanguage.store (
+                            OMicrotonalSamplerAudioProcessor::languageIndex (args[0].toString()),
+                            std::memory_order_release);
+
+                    complete (juce::var (OMicrotonalSamplerAudioProcessor::languageCode (
+                        processorRef.uiLanguage.load (std::memory_order_acquire))));
+                }
+        },
+
         { "getSampleMap",
                 [this] (const juce::Array<juce::var>&,
                         std::function<void(juce::var)> complete)
