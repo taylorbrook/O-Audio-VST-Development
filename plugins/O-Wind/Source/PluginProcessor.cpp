@@ -780,6 +780,18 @@ juce::AudioProcessorEditor* OWindAudioProcessor::createEditor()
 
 void OWindAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
+    // v1.17.0: the UI language rides the same tree as one more plain property.
+    // Not a parameter (see PluginProcessor.h), so it is written HERE, onto the
+    // live state tree, immediately before the preset manager copies that tree —
+    // getStateAsXml() starts from parameters.copyState(), so a property set on
+    // parameters.state is carried into the XML with everything else.
+    //
+    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // hand-inspected session file says what it means.
+    parameters.state.setProperty("uiLanguage",
+                                 languageCode(uiLanguage.load(std::memory_order_acquire)),
+                                 nullptr);
+
     auto xml = presetManager.getStateAsXml();
     if (xml != nullptr)
         copyXmlToBinary(*xml, destData);
@@ -789,7 +801,32 @@ void OWindAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     if (xmlState != nullptr)
+    {
         presetManager.setStateFromXml(xmlState.get());
+
+        // v1.17.0: the UI language, read back AFTER the preset manager has
+        // restored the tree — setStateFromXml() calls parameters.replaceState(),
+        // so reading before it would read the property off the tree that was
+        // just discarded.
+        //
+        // isVoid() is the ONLY correct guard and toString() the only correct
+        // read. getStateInformation writes a STRING var, but even a bool or an
+        // int written there would not survive: the XML round-trip does not
+        // preserve the type, because NamedValueSet::setFromXmlAttributes
+        // rebuilds every property as `var (value)` over the attribute STRING
+        // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.17.0 session
+        // has no such property at all and the default (English) stands.
+        // languageIndex() clamps anything that is not "fr" to 0, so a
+        // hand-edited value degrades to English rather than to a bad index.
+        //
+        // The editor PULLS this through the getUiLanguage native fn at page init
+        // rather than being pushed from here — a push would race the WebView's
+        // load.
+        const juce::var lang = parameters.state.getProperty("uiLanguage");
+
+        if (! lang.isVoid())
+            uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+    }
 }
 
 //==============================================================================

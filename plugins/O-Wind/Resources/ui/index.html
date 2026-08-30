@@ -178,6 +178,115 @@
         }
         .preset-save-btn:hover { background: rgba(245, 230, 211, 0.15); }
 
+        /* v1.17.0 GEOMETRY PIN. #preset-name is `flex: 1`, so ANY width change
+           in a sibling of this bar resizes it — "Save" 26.55px -> "Enreg."
+           41.98px would shrink the elastic preset display by 15px and assertion
+           7 reports it by name. A hard width holds both faces and makes the
+           bar's geometry language-invariant by construction. 68px = the French
+           text at 41.98 + 24px padding + 2px border, rounded up; English is
+           centred in it and gains 17px of trailing air, once, in BOTH
+           languages. Reverted alone, [7] fails with #preset-name dw=-15.4. */
+        .preset-save-btn { width: 68px; }
+
+        /* ====================================================================
+           Settings cluster (v1.17.0) — gear + language popover
+           ====================================================================
+           It lives in the 40px preset bar rather than the tab bar below it,
+           because `.tab-btn` is `flex: 1` x3 and a fourth item there would
+           resize all three tabs. */
+        .settings-cluster {
+            position: relative;
+            display: flex;
+            align-items: center;
+            z-index: 20;
+        }
+
+        .gear-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            background: rgba(245, 230, 211, 0.15);
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            border-radius: 50%;
+            color: var(--bg-paper);
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .gear-btn:hover { background: rgba(245, 230, 211, 0.3); }
+        .gear-btn[aria-expanded="true"] {
+            background: var(--green-dark);
+            border-color: var(--green-mid);
+        }
+        .gear-btn:focus-visible {
+            outline: 2px solid var(--green-mid);
+            outline-offset: 2px;
+        }
+
+        /* Opens DOWNWARDS and to the left: the gear sits in a 40px strip at the
+           top of a 600px frame, so a panel above it would leave the frame.
+
+           WIDTH IS PINNED, not min-width. .settings-popover is not a
+           [data-i18n] element, so check-ui-labels assertion 7 measures its box
+           in BOTH languages and any language-driven resize is a reported
+           failure. A hard width makes the panel's rect language-invariant by
+           construction, and 190px holds LANGUAGE + English and LANGUE +
+           Français with room to spare — measured as rendered in this plugin's
+           own popover, because text-transform and letter-spacing are not in
+           getComputedStyle().font and no width is ever borrowed from another
+           plugin's page. */
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 21;
+            width: 190px;
+            padding: 9px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg-paper);
+            border: 1px solid var(--brown-border);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px var(--shadow-hard);
+        }
+        .settings-popover[hidden] { display: none; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the control beside it. */
+        .settings-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--brown-text-light);
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 2px 4px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid var(--brown-border);
+            border-radius: 3px;
+            color: var(--brown-text);
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
         .brand-label {
             font-size: 10px;
             letter-spacing: 1.5px;
@@ -394,6 +503,15 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--brown-text-light);
+            /* v1.17.0 GEOMETRY PIN. "Tone Holes" 75.42px -> "Trous de jeu"
+               85.14px. This span is a flex item of #tone-hole-toggle, which is
+               itself a flex item of .instrument-strip, so the 9.72px of growth
+               widened the toggle and pushed the preset selector beside it.
+               86px holds BOTH faces; English gains 10.6px of trailing air,
+               once, in both languages. Reverted alone, [7] fails with
+               #tone-hole-toggle dw=9.7 and #instrument-select dx=9.7. */
+            display: inline-block;
+            width: 86px;
         }
 
         /* ====================================================================
@@ -410,6 +528,14 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--brown-text-light);
+            /* v1.17.0 GEOMETRY PIN. "Preset" 44.78px -> "Préréglage" 78.69px,
+               the largest single caption growth on this page. It is a flex item
+               of .instrument-selector, so the 33.91px pushed #instrument-select
+               a further 33.9px right on top of the toggle's 9.7. 80px holds
+               both. Reverted alone, [7] fails with .instrument-selector dw=33.9
+               and #instrument-select dx=33.9. */
+            display: inline-block;
+            width: 80px;
         }
 
         .instrument-select {
@@ -448,6 +574,15 @@
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+        /* v1.17.0 GEOMETRY PIN. The caption span this commit SPLIT out of the
+           section label (contract §5) is a flex item beside #adsr-toggle:
+           "ADSR Envelope" 150.03px -> "Enveloppe ADSR" 157.73px pushed the
+           toggle 7.7px right. 160px holds both. Reverted alone, [7] fails with
+           #adsr-toggle dx=7.7 and both of its children with it. */
+        .adsr-section .section-label > span {
+            display: inline-block;
+            width: 160px;
         }
 
         .adsr-toggle {
@@ -662,9 +797,24 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-right: auto;
+            /* v1.17.0 GEOMETRY PIN. .fx-section is a flex row whose free space
+               is split between THIS element's margin-right:auto and the bypass
+               button's margin-left:auto, so a title that grows by d moves the
+               whole knob row by d/2 — "Reverb" 56.13 -> "Réverb." 60.73 is
+               +2.30px on every reverb knob, and "Delay" -> "Délai" is -1.57px
+               the other way. 64px holds the widest of the eight faces.
+               Reverted alone, [7] fails with #reverb-knobs dx=2.3. */
+            width: 64px;
         }
 
         .fx-bypass-btn {
+            /* v1.17.0 GEOMETRY PIN. Same auto-margin split as .fx-title, from
+               the other end: "On" 12.02 -> "Marche" 30.25 is +18.23px on the
+               button, which moves the knob row 9.11px LEFT. 52px is border-box
+               (the page sets box-sizing globally) — 16px padding + 2px border
+               leaves 34 for a 30.25px face. Reverted alone, [7] fails with
+               every fx knob container at dx=-9.1. */
+            width: 52px;
             padding: 2px 8px;
             background: rgba(107, 142, 35, 0.5);
             border: 1px solid var(--brown-frame);
@@ -700,6 +850,16 @@
             flex-direction: column;
             align-items: center;
             gap: 1px;
+            /* v1.17.0 GEOMETRY PIN. This box SHRINK-WRAPS max(44px knob visual,
+               caption width), so every one of the sixteen Effects captions sets
+               its own container's width and pushes every knob after it in the
+               row. Widest EN "Feedback" 57.97; widest FR "Fréq. méd." 63.50.
+               66px holds both with 2.5px to spare and is the only pin that can
+               make a row of shrink-wrapping boxes language-invariant — a
+               width:100% here would do nothing, because the box is not the one
+               distributing the space. Reverted alone, [7] fails with 90+
+               elements moved across the four rows. */
+            width: 66px;
         }
 
         #tab-effects .knob {
@@ -833,23 +993,64 @@
          Preset Browser Bar
          ================================================================ -->
     <div class="preset-bar">
-        <button class="preset-nav-btn" id="preset-prev" title="Previous Preset">&#9664;</button>
-        <div class="preset-name-display" id="preset-name" title="Click to browse presets">
+        <!-- v1.17.0: the three native title= attributes this bar carried are
+             DELETED per contract §4 — a native title renders a second,
+             untranslated OS tooltip. Each was the element's only help, so its
+             text moved verbatim into data-i18n-aria. No new prose was
+             invented. -->
+        <button class="preset-nav-btn" id="preset-prev"
+                data-i18n-aria="aria.presetPrev" aria-label="Previous Preset">&#9664;</button>
+        <!-- #preset-name is deliberately NOT a [data-i18n] element: it holds
+             #preset-dropdown as a CHILD, and applyLabel() writes textContent,
+             which would delete the whole dropdown on the first sweep. -->
+        <div class="preset-name-display" id="preset-name"
+             data-i18n-aria="aria.presetName" aria-label="Click to browse presets">
             Default
             <div class="preset-dropdown" id="preset-dropdown"></div>
         </div>
-        <button class="preset-nav-btn" id="preset-next" title="Next Preset">&#9654;</button>
-        <button class="preset-save-btn" id="preset-save">Save</button>
+        <button class="preset-nav-btn" id="preset-next"
+                data-i18n-aria="aria.presetNext" aria-label="Next Preset">&#9654;</button>
+        <!-- data-label so a state updater that writes textContent reads the
+             authored caption back instead of erasing it
+             (pattern_js_state_updater_overwrites_html_labels). -->
+        <button class="preset-save-btn" id="preset-save"
+                data-i18n="label.presetSave" data-label="Save">Save</button>
         <span class="brand-label">Ouaricon</span>
+
+        <!-- v1.17.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to switch on or off — v1.16.3 carried no data-tip
+             anywhere — and authoring that copy is Stage M's job. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
+        </div>
     </div>
 
     <!-- ================================================================
          Tab Bar
          ================================================================ -->
     <div class="tab-bar">
-        <button class="tab-btn active" data-tab="sound">Sound</button>
-        <button class="tab-btn" data-tab="tuning">Tuning</button>
-        <button class="tab-btn" data-tab="effects">Effects</button>
+        <button class="tab-btn active" data-tab="sound"
+                data-i18n="label.tab.sound" data-label="Sound">Sound</button>
+        <button class="tab-btn" data-tab="tuning"
+                data-i18n="label.tab.tuning" data-label="Tuning">Tuning</button>
+        <button class="tab-btn" data-tab="effects"
+                data-i18n="label.tab.effects" data-label="Effects">Effects</button>
     </div>
 
     <!-- ================================================================
@@ -862,15 +1063,15 @@
 
             <!-- Row 0: Instrument strip -->
             <div class="instrument-strip">
-                <div class="section-label">Instrument</div>
+                <div class="section-label" data-i18n="label.instrument" data-label="Instrument">Instrument</div>
                 <div class="toggle-control" id="tone-hole-toggle">
                     <div class="toggle-track">
                         <div class="toggle-thumb"></div>
                     </div>
-                    <span class="toggle-label">Tone Holes</span>
+                    <span class="toggle-label" data-i18n="label.toneHoles" data-label="Tone Holes">Tone Holes</span>
                 </div>
                 <div class="instrument-selector">
-                    <label>Preset</label>
+                    <label data-i18n="label.preset" data-label="Preset">Preset</label>
                     <select class="instrument-select" id="instrument-select">
                         <option value="0">Concert Flute</option>
                         <option value="1">Shakuhachi</option>
@@ -888,21 +1089,21 @@
             <div class="sections-grid">
                 <!-- Excitation -->
                 <div class="section-box">
-                    <div class="section-label">Excitation</div>
+                    <div class="section-label" data-i18n="label.excitation" data-label="Excitation">Excitation</div>
                     <div class="param-row">
                         <div class="knob-control" data-param="breathPressure">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Breath</div>
+                            <div class="knob-label" data-i18n="label.breath" data-label="Breath">Breath</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="embouchure">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Embouchure</div>
+                            <div class="knob-label" data-i18n="label.embouchure" data-label="Embouchure">Embouchure</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="breathNoise">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Noise</div>
+                            <div class="knob-label" data-i18n="label.noise" data-label="Noise">Noise</div>
                             <div class="knob-value">0.15</div>
                         </div>
                     </div>
@@ -910,31 +1111,31 @@
 
                 <!-- Resonator -->
                 <div class="section-box">
-                    <div class="section-label">Resonator</div>
+                    <div class="section-label" data-i18n="label.resonator" data-label="Resonator">Resonator</div>
                     <div class="param-row">
                         <div class="knob-control" data-param="material">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Material</div>
+                            <div class="knob-label" data-i18n="label.material" data-label="Material">Material</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="toneColor">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Tone Color</div>
+                            <div class="knob-label" data-i18n="label.toneColor" data-label="Tone Color">Tone Color</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="airColumn">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Air Column</div>
+                            <div class="knob-label" data-i18n="label.airColumn" data-label="Air Column">Air Column</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="jetReflection">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Jet Refl.</div>
+                            <div class="knob-label" data-i18n="label.jetRefl" data-label="Jet Refl.">Jet Refl.</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="endReflection">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">End Refl.</div>
+                            <div class="knob-label" data-i18n="label.endRefl" data-label="End Refl.">End Refl.</div>
                             <div class="knob-value">0.50</div>
                         </div>
                     </div>
@@ -943,7 +1144,11 @@
                 <!-- ADSR Envelope -->
                 <div class="section-box adsr-section" id="adsr-section">
                     <div class="section-label">
-                        ADSR Envelope
+                        <!-- SPLIT per contract section 5. The div also holds
+                             #adsr-toggle as an element child, and applyLabel()
+                             writes textContent, which would delete the toggle
+                             on the first language sweep. -->
+                        <span data-i18n="label.adsrEnvelope" data-label="ADSR Envelope">ADSR Envelope</span>
                         <div class="toggle-control adsr-toggle" id="adsr-toggle">
                             <div class="toggle-track">
                                 <div class="toggle-thumb"></div>
@@ -953,22 +1158,22 @@
                     <div class="param-row adsr-knobs" id="adsr-knobs">
                         <div class="knob-control" data-param="adsrAttack">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Attack</div>
+                            <div class="knob-label" data-i18n="label.attack" data-label="Attack">Attack</div>
                             <div class="knob-value">10 ms</div>
                         </div>
                         <div class="knob-control" data-param="adsrDecay">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Decay</div>
+                            <div class="knob-label" data-i18n="label.decay" data-label="Decay">Decay</div>
                             <div class="knob-value">100 ms</div>
                         </div>
                         <div class="knob-control" data-param="adsrSustain">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Sustain</div>
+                            <div class="knob-label" data-i18n="label.sustain" data-label="Sustain">Sustain</div>
                             <div class="knob-value">0.80</div>
                         </div>
                         <div class="knob-control" data-param="adsrRelease">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Release</div>
+                            <div class="knob-label" data-i18n="label.release" data-label="Release">Release</div>
                             <div class="knob-value">200 ms</div>
                         </div>
                     </div>
@@ -977,46 +1182,46 @@
 
             <!-- Row 2: Expression (full width) -->
             <div class="section-box expression-section">
-                <div class="section-label">Expression</div>
+                <div class="section-label" data-i18n="label.expression" data-label="Expression">Expression</div>
                 <div class="param-row">
                     <div class="knob-control" data-param="vibratoRate">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Vib Rate</div>
+                        <div class="knob-label" data-i18n="label.vibRate" data-label="Vib Rate">Vib Rate</div>
                         <div class="knob-value">5.0 Hz</div>
                     </div>
                     <div class="knob-control" data-param="vibratoDepth">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Vib Pitch</div>
+                        <div class="knob-label" data-i18n="label.vibPitch" data-label="Vib Pitch">Vib Pitch</div>
                         <div class="knob-value">0.30</div>
                     </div>
                     <div class="knob-control" data-param="vibratoTremolo">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Vib Tremolo</div>
+                        <div class="knob-label" data-i18n="label.vibTremolo" data-label="Vib Tremolo">Vib Tremolo</div>
                         <div class="knob-value">0.00</div>
                     </div>
                     <div class="knob-control" data-param="vibratoDriftDepth">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Drift Depth</div>
+                        <div class="knob-label" data-i18n="label.driftDepth" data-label="Drift Depth">Drift Depth</div>
                         <div class="knob-value">0.50</div>
                     </div>
                     <div class="knob-control" data-param="vibratoDriftSpeed">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Drift Speed</div>
+                        <div class="knob-label" data-i18n="label.driftSpeed" data-label="Drift Speed">Drift Speed</div>
                         <div class="knob-value">0.4 Hz</div>
                     </div>
                     <div class="knob-control" data-param="flutterTongue">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Flutter</div>
+                        <div class="knob-label" data-i18n="label.flutter" data-label="Flutter">Flutter</div>
                         <div class="knob-value">0.00</div>
                     </div>
                     <div class="knob-control" data-param="flutterRate">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Flut Rate</div>
+                        <div class="knob-label" data-i18n="label.flutRate" data-label="Flut Rate">Flut Rate</div>
                         <div class="knob-value">22.0 Hz</div>
                     </div>
                     <div class="knob-control" data-param="growl">
                         <div class="knob-wrapper"></div>
-                        <div class="knob-label">Growl</div>
+                        <div class="knob-label" data-i18n="label.growl" data-label="Growl">Growl</div>
                         <div class="knob-value">0.00</div>
                     </div>
                 </div>
@@ -1026,21 +1231,21 @@
             <div class="sections-grid-2">
                 <!-- Output -->
                 <div class="section-box">
-                    <div class="section-label">Output</div>
+                    <div class="section-label" data-i18n="label.output" data-label="Output">Output</div>
                     <div class="param-row">
                         <div class="knob-control" data-param="width">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Width</div>
+                            <div class="knob-label" data-i18n="label.width" data-label="Width">Width</div>
                             <div class="knob-value">1.00</div>
                         </div>
                         <div class="knob-control" data-param="formant">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Formant</div>
+                            <div class="knob-label" data-i18n="label.formant" data-label="Formant">Formant</div>
                             <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="outputLevel">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Output</div>
+                            <div class="knob-label" data-i18n="label.output" data-label="Output">Output</div>
                             <div class="knob-value">0.0 dB</div>
                         </div>
                     </div>
@@ -1048,21 +1253,21 @@
 
                 <!-- Impossible Physics -->
                 <div class="section-box impossible-physics-row">
-                    <div class="section-label">Impossible Physics</div>
+                    <div class="section-label" data-i18n="label.impossiblePhysics" data-label="Impossible Physics">Impossible Physics</div>
                     <div class="param-row">
                         <div class="knob-control" data-param="infiniteSustain">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Inf. Sustain</div>
+                            <div class="knob-label" data-i18n="label.infSustain" data-label="Inf. Sustain">Inf. Sustain</div>
                             <div class="knob-value">0.00</div>
                         </div>
                         <div class="knob-control" data-param="reversedJet">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Rev. Jet</div>
+                            <div class="knob-label" data-i18n="label.revJet" data-label="Rev. Jet">Rev. Jet</div>
                             <div class="knob-value">0.00</div>
                         </div>
                         <div class="knob-control" data-param="subHarmonics">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Sub Harm.</div>
+                            <div class="knob-label" data-i18n="label.subHarm" data-label="Sub Harm.">Sub Harm.</div>
                             <div class="knob-value">0.00</div>
                         </div>
                     </div>
@@ -1087,32 +1292,36 @@
         <div class="tab-panel" id="tab-effects">
             <div class="fx-section" id="chorusSection">
                 <div class="fx-header">
-                    <span class="fx-title">Chorus</span>
-                    <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fx.chorus" data-label="Chorus">Chorus</span>
+                    <button class="fx-bypass-btn" id="chorusBypassBtn"
+                            data-i18n="label.fx.on" data-label="On">On</button>
                 </div>
                 <div class="fx-knobs" id="chorus-knobs"></div>
             </div>
 
             <div class="fx-section" id="delaySection">
                 <div class="fx-header">
-                    <span class="fx-title">Delay</span>
-                    <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fx.delay" data-label="Delay">Delay</span>
+                    <button class="fx-bypass-btn" id="delayBypassBtn"
+                            data-i18n="label.fx.on" data-label="On">On</button>
                 </div>
                 <div class="fx-knobs" id="delay-knobs"></div>
             </div>
 
             <div class="fx-section" id="reverbSection">
                 <div class="fx-header">
-                    <span class="fx-title">Reverb</span>
-                    <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fx.reverb" data-label="Reverb">Reverb</span>
+                    <button class="fx-bypass-btn" id="reverbBypassBtn"
+                            data-i18n="label.fx.on" data-label="On">On</button>
                 </div>
                 <div class="fx-knobs" id="reverb-knobs"></div>
             </div>
 
             <div class="fx-section" id="eqSection">
                 <div class="fx-header">
-                    <span class="fx-title">EQ</span>
-                    <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                    <span class="fx-title" data-i18n="label.fx.eq" data-label="EQ">EQ</span>
+                    <button class="fx-bypass-btn" id="eqBypassBtn"
+                            data-i18n="label.fx.on" data-label="On">On</button>
                 </div>
                 <div class="fx-knobs" id="eq-knobs"></div>
             </div>
@@ -1126,6 +1335,165 @@
 
     <script type="module">
         import * as Juce from '/js/juce/index.js';
+        import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+        // ════════════════════════════════════════════════════════════════════
+        // i18n runtime — CANON v2, byte-identical to scripts/i18n-canon.js.
+        //
+        // check-i18n assertion 6 pulls this region out, strips comments,
+        // normalises whitespace and byte-compares it against the canon. It is
+        // not edited per plugin: 43 hand-copies of one runtime is exactly the
+        // drift the gate exists to catch.
+        //
+        // PLACED FIRST, immediately after the imports, so `let uiLanguage`
+        // initialises before anything else on this page can reach it. A
+        // top-level initializer that touches a LOWER let/const is a TDZ throw
+        // that kills every later initializer on the page
+        // (pattern_module_toplevel_init_tdz).
+        // ════════════════════════════════════════════════════════════════════
+
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // The settings popover (v1.17.0)
+        // ════════════════════════════════════════════════════════════════════
+        //
+        // ONE row. This plugin has no hover-help to switch on or off — v1.16.3
+        // carried no data-tip anywhere — and authoring that copy is Stage M's
+        // job, so the popover holds the language selector alone.
+
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsPopoverOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initializeSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover missing - language selector unavailable');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsPopoverOpen(settingsPopoverEl.hidden);
+            });
+
+            // Dismiss on a press anywhere else, and on Escape. pointerdown rather
+            // than click, so the panel is gone before a knob drag underneath it
+            // begins — bindSliderParam() starts its drag on mousedown, which
+            // follows pointerdown.
+            document.addEventListener('pointerdown', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsPopoverOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsPopoverOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
+        }
 
         // ====================================================================
         // Parameter Definitions
@@ -1619,8 +1987,17 @@
                 console.log('[Tuning] Panel initialized successfully');
             } catch (err) {
                 console.error('Failed to init tuning panel:', err);
-                document.getElementById('tuning-container').innerHTML =
-                    '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+                // v1.17.0: was an innerHTML string carrying both the styling and
+                // the sentence. Built with createElement + setLabel now — a
+                // machine-drafted translation must never travel through a
+                // markup path (check-i18n assertion 9), and setLabel makes the
+                // notice a [data-i18n] element the language sweep owns.
+                const notice = document.createElement('div');
+                notice.style.cssText = 'padding:20px;color:#8B7355;font-style:italic;';
+                setLabel(notice, 'label.tuningFailed');
+                const host = document.getElementById('tuning-container');
+                host.textContent = '';
+                host.appendChild(notice);
             }
         }
 
@@ -1646,7 +2023,24 @@
             }
         });
 
-        function makeFxKnob(id, label) {
+        // v1.17.0: the caption is NO LONGER an argument.
+        //
+        // Until v1.16.3 this took `(id, label)` and interpolated an English word
+        // into the innerHTML template below. The extractor's js-prose scan and
+        // check-i18n assertion 12 both look for a prose LITERAL on the
+        // right-hand side of a textContent/innerHTML assignment; an English word
+        // sitting in an object literal one frame away at the call site is
+        // neither, so all SIXTEEN Effects-tab captions would have shipped
+        // English inside a French UI with every gate GREEN. That is the
+        // O-Tremolo shape, at sixteen strings.
+        //
+        // The label element is now created EMPTY and given its key by a LITERAL
+        // setLabel() call at each call site. A key read out of a data table
+        // (`setLabel(el, k.key)`) would fail assertion 13 — a computed key
+        // cannot be checked — and would be invisible to assertion 15's
+        // dead-key sweep. Sixteen literal call sites are verbose, and they are
+        // the only shape both gates can read.
+        function makeFxKnob(id) {
             const vb = 44, c = 22, r = 18;
             const da = (2 * Math.PI * r * 0.75).toFixed(2);
             const container = document.createElement('div');
@@ -1660,9 +2054,20 @@
                         `</svg>` +
                     `</div>` +
                 `</div>` +
-                `<div class="knob-label">${label}</div>` +
+                `<div class="knob-label" id="${id}Label"></div>` +
                 `<div class="knob-value" id="${id}Value"></div>`;
             return container;
+        }
+
+        // Appends one FX knob and hands back its caption element, so the call
+        // site reads `setLabel(addFxKnob(...), 'literal.key')` on one line.
+        // setLabel() no-ops on a null, so a missing container degrades to a
+        // page with one fewer knob rather than a throw.
+        function addFxKnob(containerId, id) {
+            const container = document.getElementById(containerId);
+            if (!container) return null;
+            container.appendChild(makeFxKnob(id));
+            return document.getElementById(id + 'Label');
         }
 
         // displayFactor converts the parameter's engineering value (from
@@ -1724,7 +2129,17 @@
             updateVisual();
 
             valueDisplay.style.cursor = 'text';
-            valueDisplay.title = 'Double-click to edit';
+            // v1.17.0: was `valueDisplay.title = 'Double-click to edit'`, which
+            // put a native title= on all SIXTEEN FX readouts — the page rendered
+            // 19 native titles against the 3 index.html declares, and assertion
+            // 11 reads the markup only, so it counted 3. Contract §4 DELETES a
+            // native title rather than localizing it, and where the title is an
+            // element's only help its text moves to data-i18n-aria. The same
+            // eighteen characters, verbatim, in an accessible name the language
+            // sweep owns. A literal dataset.i18nAria write is also what
+            // assertion 15 collects as a key reference.
+            valueDisplay.dataset.i18nAria = 'aria.fxValueEdit';
+            applyI18nAttributes(valueDisplay);
             valueDisplay.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
                 if (isEditing) return;
@@ -1772,12 +2187,6 @@
             });
         }
 
-        function populateFxKnobs(containerId, knobs) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            knobs.forEach(k => container.appendChild(makeFxKnob(k.id, k.label)));
-        }
-
         function setupFxBypassToggle(fxName, toggleState) {
             const btn = document.getElementById(fxName + 'BypassBtn');
             const section = document.getElementById(fxName + 'Section');
@@ -1785,7 +2194,16 @@
 
             function updateVisual() {
                 const bypassed = toggleState.getValue();
-                btn.textContent = bypassed ? 'Off' : 'On';
+                // v1.17.0: was `btn.textContent = bypassed ? 'Off' : 'On'` — two
+                // English literals one frame from the write. TWO literal
+                // setLabel calls, not a ternary inside one: contract §6, and
+                // assertion 13 rejects a ternary inside a setLabel argument.
+                // Going through setLabel also makes the button a [data-i18n]
+                // element from that moment on, so the language sweep owns it —
+                // a raw literal here would be stranded in the previous language
+                // the instant the selector fires.
+                if (bypassed) setLabel(btn, 'label.fx.off');
+                else          setLabel(btn, 'label.fx.on');
                 btn.classList.toggle('bypassed', bypassed);
                 section.classList.toggle('bypassed', bypassed);
             }
@@ -1797,26 +2215,31 @@
 
         function initializeEffects() {
             try {
-                // Populate knobs
-                populateFxKnobs('chorus-knobs', [
-                    { id: 'chorusRate', label: 'Rate' },
-                    { id: 'chorusDepth', label: 'Depth' },
-                    { id: 'chorusMix', label: 'Mix' },
-                ]);
+                // Populate knobs. ONE LITERAL KEY PER CALL SITE — see
+                // makeFxKnob() for why a data-driven key is invisible to
+                // assertions 13 and 15.
+                setLabel(addFxKnob('chorus-knobs', 'chorusRate'),  'label.fx.rate');
+                setLabel(addFxKnob('chorus-knobs', 'chorusDepth'), 'label.fx.depth');
+                setLabel(addFxKnob('chorus-knobs', 'chorusMix'),   'label.fx.mix');
 
                 const delayRow = document.getElementById('delay-knobs');
                 if (delayRow) {
-                    delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
-                    delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+                    setLabel(addFxKnob('delay-knobs', 'delayTime'),     'label.fx.time');
+                    setLabel(addFxKnob('delay-knobs', 'delayFeedback'), 'label.fx.feedback');
 
                     const modeWrap = document.createElement('div');
                     modeWrap.className = 'fx-dropdown-container';
                     const modeLbl = document.createElement('div');
                     modeLbl.className = 'knob-label';
-                    modeLbl.textContent = 'Mode';
+                    setLabel(modeLbl, 'label.fx.mode');
                     const modeSel = document.createElement('select');
                     modeSel.className = 'fx-dropdown';
                     modeSel.id = 'delayModeSelect';
+                    // NOT localized, and deliberately: these two are the
+                    // delayMode AudioParameterChoice option strings VERBATIM
+                    // (PluginProcessor.cpp:377), so the page and the host
+                    // automation lane must name them identically — D-01 arm 1.
+                    // Both carry an I18N_EXEMPT entry with that reason.
                     ['Normal', 'PingPong'].forEach((name, i) => {
                         const opt = document.createElement('option');
                         opt.value = i;
@@ -1826,24 +2249,20 @@
                     modeWrap.appendChild(modeLbl);
                     modeWrap.appendChild(modeSel);
                     delayRow.appendChild(modeWrap);
-                    delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+                    setLabel(addFxKnob('delay-knobs', 'delayMix'), 'label.fx.mix');
                 }
 
-                populateFxKnobs('eq-knobs', [
-                    { id: 'eqLowGain', label: 'Low' },
-                    { id: 'eqMidGain', label: 'Mid' },
-                    { id: 'eqMidFreq', label: 'Mid Freq' },
-                    { id: 'eqHighGain', label: 'High' },
-                ]);
+                setLabel(addFxKnob('eq-knobs', 'eqLowGain'),  'label.fx.low');
+                setLabel(addFxKnob('eq-knobs', 'eqMidGain'),  'label.fx.mid');
+                setLabel(addFxKnob('eq-knobs', 'eqMidFreq'),  'label.fx.midFreq');
+                setLabel(addFxKnob('eq-knobs', 'eqHighGain'), 'label.fx.high');
 
-                populateFxKnobs('reverb-knobs', [
-                    { id: 'reverbSize', label: 'Size' },
-                    { id: 'reverbDamp', label: 'Damp' },
-                    { id: 'reverbPredelay', label: 'Pre-dly' },
-                    { id: 'reverbMod', label: 'Mod' },
-                    { id: 'reverbShimmer', label: 'Shimmer' },
-                    { id: 'reverbMix', label: 'Mix' },
-                ]);
+                setLabel(addFxKnob('reverb-knobs', 'reverbSize'),     'label.fx.size');
+                setLabel(addFxKnob('reverb-knobs', 'reverbDamp'),     'label.fx.damp');
+                setLabel(addFxKnob('reverb-knobs', 'reverbPredelay'), 'label.fx.predelay');
+                setLabel(addFxKnob('reverb-knobs', 'reverbMod'),      'label.fx.mod');
+                setLabel(addFxKnob('reverb-knobs', 'reverbShimmer'),  'label.fx.shimmer');
+                setLabel(addFxKnob('reverb-knobs', 'reverbMix'),      'label.fx.mix');
 
                 // Get JUCE states
                 const chorusRateState     = Juce.getSliderState('chorusRate');
@@ -1933,6 +2352,15 @@
 
             // Initialize preset display
             await refreshPresetDisplay();
+
+            // Guarded, and LAST. Every slider, toggle and combo binding, the
+            // Effects tab and the preset display have already run, so an i18n
+            // failure leaves an English plugin that still works rather than a
+            // dead page. initI18n() must also follow initializeEffects(): the
+            // sixteen FX captions and their accessible names do not exist as
+            // elements until then.
+            initializeSettingsPopover();
+            try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
         });
 
     </script>
