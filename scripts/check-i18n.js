@@ -1022,9 +1022,40 @@ function checkPlugin(p) {
     check(unkeyedAttrs.length === 0,
         `[11] every aria-label / placeholder / alt carrying prose is keyed or exempt`
         + (unkeyedAttrs.length ? ` — ${unkeyedAttrs.length} unkeyed: ${unkeyedAttrs.slice(0, 5).join(' | ')}` : ''));
+
+    // A NATIVE TITLE DOES NOT HAVE TO BE IN THE MARKUP.
+    //
+    // The loop above walks `elements`, which is scanHtml()'s parse of
+    // index.html. `el.title = '...'` in the controller produces a native title
+    // on the rendered page that this scan cannot see, so "zero native title=
+    // remain" was reachable while any number of them shipped. On O-Wind that
+    // was SIXTEEN of the nineteen the page actually rendered — every FX
+    // readout carried `valueDisplay.title = 'Double-click to edit'` — and the
+    // markup declared only three. O-Lyrica shipped one under the same claim.
+    //
+    // boot-all-uis' per-plugin `title=` column is the only thing that ever saw
+    // these, and it is a REPORT, not a gate: it prints the count and exits 0.
+    //
+    // So §4 is enforced over both sources at once. Splitting them into two
+    // assertions would let a plugin pass the one it happens to trip.
+    const TITLE_WRITE = /(?:\.\s*title\s*=|setAttribute\s*\(\s*['"]title['"]\s*,)\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g;
+    for (const pm of pageModules) {
+        const stripped = EXTRACT.stripJsComments(pm.code);
+        for (const m of stripped.matchAll(TITLE_WRITE)) {
+            // `el.title = ''` REMOVES a title. Clearing one is the fix, not the
+            // defect, so an empty write must not fail the plugin that applied it.
+            if (m[2].trim() === '') continue;
+            // document.title is the window/tab name, not a tooltip.
+            const before = stripped.slice(Math.max(0, m.index - 20), m.index);
+            if (/\bdocument\s*$/.test(before)) continue;
+            nativeTitles.push(`${pm.label}[title="${m[2].replace(/\s+/g, ' ').slice(0, 24)}"]`);
+        }
+    }
+
     check(nativeTitles.length === 0,
-        `[11] zero native title= attributes remain (contract §4 — a native title renders a `
-        + `second, untranslated OS tooltip competing with the measure-then-pin renderer)`
+        `[11] zero native title= remain, in the MARKUP AND IN THE JS (contract §4 — a `
+        + `native title renders a second, untranslated OS tooltip competing with the `
+        + `measure-then-pin renderer; a JS-written one is invisible to the markup scan)`
         + (nativeTitles.length ? ` — ${nativeTitles.length}: ${nativeTitles.slice(0, 5).join(' | ')}` : ''));
 
     // ── 12 / 13 / 15. the controller module ──────────────────────────────
