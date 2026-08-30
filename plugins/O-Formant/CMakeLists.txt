@@ -10,7 +10,7 @@ juce_add_plugin(O-Formant
     PLUGIN_CODE OuFm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Formant${OUARICON_DEV_SUFFIX}"
-    VERSION 1.25.4
+    VERSION 1.26.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -54,6 +54,7 @@ juce_add_binary_data(O-Formant_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/js/main.js
+        Source/ui/public/js/i18n.js
         Source/ui/public/js/tuning-panel.js
         Source/ui/public/img/flora.png
 )

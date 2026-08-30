@@ -19,6 +19,112 @@
 */
 import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './juce/index.js';
 
+// ============================================================================
+// i18n — canon v2, VERBATIM from scripts/i18n-canon.js (assertion 6 byte-
+// compares this region after comment stripping and whitespace normalisation).
+// Do not edit the block below; edit scripts/i18n-canon.js and re-copy.
+//
+// initI18n() is called from the DOMContentLoaded handler below, inside a
+// try/catch: a throw here would take every later initializer on the page with
+// it (pattern_module_toplevel_init_tdz).
+// ============================================================================
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+
 // Relay states
 let vowelXState, vowelYState, vowelFocusState;
 let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState, jitterState, shimmerState, rdModDepthState, spectralTiltState;
@@ -140,6 +246,12 @@ let knobStartY = 0;
 let knobStartNorm = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
+  // i18n FIRST and inside try/catch. It paints the default language
+  // synchronously (never blank, never a flash) and a throw here must not take
+  // the rest of this handler with it.
+  try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+  bindSettingsPopover();
+  watchLanguageForCanvasRepaint();
   initRelays();
   setupCanvas();
   setupConsonantXYCanvas();
@@ -478,7 +590,11 @@ function drawXYPad() {
     ctx.fillStyle = 'rgba(107, 142, 78, 0.6)';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
-    ctx.fillText('LYRICS', cw - 6, 4);
+    // A canvas string is invisible to BOTH gates: assertion 10 walks text
+    // nodes and assertion 12 scans textContent writes, and fillText is
+    // neither. Read through trLabel, repainted by
+    // watchLanguageForCanvasRepaint() below.
+    ctx.fillText(trLabel('canvas.lyrics', uiLanguage), cw - 6, 4);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
   }
@@ -703,7 +819,14 @@ function drawConsonantXYPad() {
   // Frequency readout
   const freq = computePlaceFreq(normX);
   const freqText = freq >= 1000 ? (freq / 1000).toFixed(1) + 'k' : Math.round(freq) + '';
-  const mannerText = normY < 0.3 ? 'plosive' : normY > 0.7 ? 'fricative' : 'mixed';
+  // The number and the 'Hz' are a readout and stay (D-03). The MANNER is a
+  // word, and the axis captions right above it — Fric / Plos — are
+  // [data-i18n] elements, so leaving this English would put French on the
+  // axis and English in the readout under it.
+  let mannerKey = 'canvas.mixed';
+  if (normY < 0.3) mannerKey = 'canvas.plosive';
+  else if (normY > 0.7) mannerKey = 'canvas.fricative';
+  const mannerText = trLabel(mannerKey, uiLanguage);
   cxyCtx.font = '8px Garamond, Times New Roman, serif';
   cxyCtx.fillStyle = 'rgba(60,47,47,0.5)';
   cxyCtx.textAlign = 'left';
@@ -791,6 +914,66 @@ function formatValue(v) {
   if (Math.abs(v) >= 100) return Math.round(v).toString();
   if (Math.abs(v) >= 10) return v.toFixed(1);
   return v.toFixed(2);
+}
+
+// ============================================================================
+// Settings popover (v1.26.0)
+// ============================================================================
+function bindSettingsPopover() {
+  const btn = document.getElementById('gear-btn');
+  const pop = document.getElementById('settings-popover');
+  if (!btn || !pop) return;
+
+  const close = () => { pop.classList.remove('open'); btn.classList.remove('open'); };
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = !pop.classList.contains('open');
+    pop.classList.toggle('open', open);
+    btn.classList.toggle('open', open);
+  });
+
+  // Click-away closes; a click INSIDE must not, or picking a language would
+  // shut the panel out from under the pointer.
+  pop.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', close);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+}
+
+// ============================================================================
+// Canvas repaint on a language change
+// ============================================================================
+//
+// THE PROBLEM THIS SOLVES. Two canvas strings on this page are prose and are
+// read through trLabel() at PAINT time — the lyrics badge on the vowel pad and
+// the manner word in the consonant pad's readout. Neither canvas repaints on
+// its own: both are drawn from state changes, so after a language switch they
+// keep painting the previous language until something unrelated moves.
+//
+// WHY AN OBSERVER RATHER THAN A LISTENER ON #lang-select. There are TWO paths
+// into applyI18n and a change listener only covers one. The other is the
+// one-shot getUiLanguage() pull that settles after page load and repaints the
+// whole page in French with no event of its own. The canon's applyLabel writes
+// `dataset.label` on every [data-i18n] element on every sweep, so observing
+// that attribute on one always-present label catches BOTH paths — and any
+// third one a future canon adds — without touching the canon block, which
+// assertion 6 byte-compares.
+function watchLanguageForCanvasRepaint() {
+  const witness = document.getElementById('preset-save');
+  if (!witness || typeof MutationObserver !== 'function') return;
+
+  let last = null;
+  const obs = new MutationObserver(() => {
+    const now = witness.dataset.label;
+    if (now === last) return;         // same language; nothing to repaint
+    last = now;
+    try {
+      if (ctx) drawXYPad();
+      if (cxyCtx) drawConsonantXYPad();
+    } catch (e) { /* relays not up yet; the next state change repaints */ }
+  });
+  last = witness.dataset.label;
+  obs.observe(witness, { attributes: true, attributeFilter: ['data-label'] });
 }
 
 // ============================================================================
@@ -892,7 +1075,12 @@ function setupFxBypass(btnId, toggleState) {
 
   const update = () => {
     const bypassed = toggleState.getValue();
-    btn.textContent = bypassed ? 'Off' : 'On';
+    // if/else, not a ternary INSIDE the setLabel argument: contract §6 forbids
+    // inflection logic in a localized string and check-i18n assertion 13
+    // rejects a conditional there. The element becomes a [data-i18n] element
+    // from this call on, so the language sweep owns it from then on.
+    if (bypassed) setLabel(btn, 'label.off');
+    else          setLabel(btn, 'label.on');
     if (bypassed) {
       btn.classList.add('bypassed');
     } else {
@@ -949,7 +1137,7 @@ async function initPresetBrowser() {
 
   // Save
   saveBtn.addEventListener('click', async () => {
-    const name = prompt('Save preset as:');
+    const name = prompt(trLabel('js.savePresetAs', uiLanguage));
     if (!name || !name.trim()) return;
     const success = await presetFns.savePreset(name.trim());
     if (success && nameEl) {
@@ -974,7 +1162,11 @@ async function initPresetBrowser() {
 async function populateCategories(selectEl) {
   if (!selectEl) return;
   const categories = await presetFns.getPresetListWithCategories();
-  selectEl.innerHTML = '<option value="all">All</option>';
+  // The VALUE is the sentinel every comparison uses ("all"); only the text is
+  // localized. setLabel() after the injection because this option is created
+  // long after initI18n's sweep ran.
+  selectEl.innerHTML = '<option value="all" data-i18n="label.allCategories">All</option>';
+  setLabel(selectEl.firstElementChild, 'label.allCategories');
   for (const cat of Object.keys(categories).sort()) {
     const opt = document.createElement('option');
     opt.value = cat;
@@ -1301,7 +1493,17 @@ function renderSyllables(parsed, container, counterEl, currentIdx) {
     if (i === currentIdx) chip.classList.add('current');
     else if (currentIdx >= 0 && i < currentIdx) chip.classList.add('past');
     chip.textContent = syl.label;
-    chip.title = `Syllable ${i + 1}: ${syl.phonemes.join('-')}`;
+    // v1.26.0: the native title= is DELETED per contract §4 — it rendered a
+    // second, untranslated OS tooltip on every chip.
+    //
+    // It is deleted rather than MOVED to data-i18n-aria, and that is the
+    // narrow reading of §4 rather than a shortcut. §4 moves a title's text
+    // when the title is the ONLY help an element has. Here it was
+    // "Syllable 3: HH-AH-L" over a chip whose own text already reads
+    // "HH AH L", beside a #lyrics-counter that already reads "3 / 7" — so the
+    // title carried nothing the page was not already saying, and an
+    // aria-label would OVERRIDE the phonemes a screen reader otherwise reads
+    // straight off the chip. No new prose is invented, and none is lost.
     container.appendChild(chip);
   });
   if (counterEl) {

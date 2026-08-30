@@ -2,6 +2,60 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.26.0] - 2026-08-30
+
+### Added — The PAGE speaks French (Stage K batch K4, canon v2)
+
+Every visible string on the interface is now owned by a key table with an English and a French rendering, selectable from a new gear popover in the header and remembered with the session. This localizes the plugin's EXISTING text; it does **not** author hover-help prose (`TIP_BINDINGS` is `[]`, and hover help is a later stage).
+
+**What was localized — measured, not estimated.** 94 LABEL text nodes and 5 attributes from `node scripts/i18n-extract.js --plugin O-Formant`, plus 4 JS-written strings, plus 35 strings in `js/tuning-panel.js` that the extractor never reports (`scripts/i18n-extract.js:442` skips that filename unconditionally, with no ownership test). 119 `LABELS` keys and 5 `I18N` keys in total, every French entry `reviewed: false` — no native speaker has read it.
+
+- **`Source/ui/public/js/i18n.js` (new)** — `LANGUAGES`, `I18N`, `LABELS`, `I18N_EXEMPT`, `TIP_BINDINGS`, `tr()`. Embedded in `juce_add_binary_data` SOURCES **and** served from a `getResource()` branch in `PluginEditor.cpp`; a file embedded but not served is a 404 that presents as a blank panel and nothing else.
+- **The canon v2 runtime block** copied verbatim from `scripts/i18n-canon.js` into `js/main.js`, called from the existing `DOMContentLoaded` handler inside `try`/`catch`.
+- **C++ language pair** — `getUiLanguage` / `setUiLanguage` native functions and a `std::atomic<int> uiLanguage` riding the APVTS state tree as a plain `"uiLanguage"` property, saved as `"en"`/`"fr"`. Deliberately not an `AudioParameterChoice`: it must not appear in a DAW automation lane, and a preset must not change which language somebody reads. Restored with an `isVoid()` guard and `toString()`, because a non-parameter property round-trips through XML as a **string** `var`.
+- **`plugins/O-Formant/tests/i18n-states.json` (new)** — 15 states so the label gate can reach the effects, lyrics and tuning tabs, the popover, the five visualisation modes and the three generator forms.
+
+**The tuning panel is IN SCOPE, and that widens a divergence on purpose.** `Source/ui/public/js/tuning-panel.js` is O-Formant's own copy — its header says so, and it is 45 lines diverged from `modules/tuning/scala-tuning-engine/js/tuning-panel.js`. O-Formant has no `dependencies.json` listing that module, so `/module-upgrade` will not revert this. Its ~35 captions are now keyed inside the templates that inject them, re-swept by a `localize()` method after every `innerHTML` rebuild. **The module's own copy is untouched**; this deliberately widens the divergence rather than leaving the Tuning tab speaking English inside a French plugin.
+
+**Canvas text.** Five `ctx.fillText` sites. Two paint prose and are localized through `I18N` (the `LYRICS` badge on the vowel pad, and `plosive`/`fricative`/`mixed` in the consonant pad readout); three paint notation and are exempt — the IPA vowel and consonant glyphs and the `F1`..`F5` formant markers. **No gate can see any of this**: assertion 10 walks text nodes, assertion 12 scans `textContent` writes, and `fillText` is neither, so leaving them in English passes green. Verified with a `fillText`-recording probe, en→fr→en, at three consonant-pad positions; negative-controlled by restoring one hard-coded English literal, which the probe caught and `check-i18n --strict-v2` did not.
+
+**D-01 arm 1, verified verbatim against the parameter layout.** `Cascade` / `Parallel` / `Hybrid` are `formantTopology` `AudioParameterChoice` options and `Normal` / `PingPong` are `delayMode` options, byte-identical on the page. All five stay English so the page and the host automation lane agree.
+
+### Fixed — a pre-existing ENGLISH layout defect, exposed by keying the tuning panel
+
+The octave-stretch readout in the Tuning tab rendered **nine pixels past the right edge of the 800 px plugin frame** and was clipped, in English, in every shipped build up to and including v1.25.4. `.octave-stretch-slider` used `flex: 1`, which leaves `min-width` at `auto`, and an `<input type=range>`'s intrinsic minimum is 129 px; the row's content box is 184 px and its content summed to 215 px, so the row overflowed and `#octave-stretch-value` landed at x=779..809. Measured at v1.25.4 before any French existed. `min-width: 0` lets the slider absorb the slack; the readout now sits at x=748..778 in both languages.
+
+### Fixed — the syllable-count caption was about to be repainted in the counter's font
+
+Splitting `Syllables <span id="lyrics-counter">` into two spans (contract §5) brought the caption under the loose `.lyrics-syllable-label span` rule, which is the counter's Courier-green styling. The rule is now scoped to `#lyrics-counter`.
+
+### Changed — five geometry pins, each negative-controlled
+
+French moved geometry in five places; each pin was removed alone and confirmed to re-break assertion 7 on exactly the elements it holds. None is decoration.
+
+| Pin | What moved without it | Delta |
+|---|---|---|
+| `.preset-save-btn { min-width: 65px }` | `#preset-category`, `#preset-prev`, `#preset-name`, `#preset-next` — the bar is `justify-content: center` | dx −8.6 |
+| `.tonic-label { min-width: 40px }` (+ row gap 8→4 px to return the space) | `#tonic-down`, `#tonic-value`, `#tonic-up` | dx +6.3 |
+
+| `.octave-stretch-label { min-width: 51px }` | `#octave-stretch` | dx +11.0, dw −11.0 |
+| `.lyrics-btn { min-width: 66px }` | `.lyrics-controls`, the Enable toggle and its thumb — `.lyrics-header` is `justify-content: space-between` | dx −20.0 |
+| `.lyrics-syllable-label span[data-i18n] { min-width: 75px }` | `#lyrics-counter` — the one site where **French is SHORTER** | dx −8.1 |
+
+Two French captions were shortened rather than pinned, because pinning them would have moved English much further: the preset button reads `Sauver` (not `Enregistrer`, which moved four siblings 25 px) and the lyrics reset button reads `Réinit.` (not `Réinitialiser`, which moved four elements 59 px). The full phrasing survives on the accessible names and in the Save prompt, neither of which has a box to fit.
+
+### Changed — native `title=` deleted (contract §4)
+
+A native `title` renders a second, untranslated OS tooltip. Four markup attributes moved their text verbatim to `data-i18n-aria` (`Previous preset`, `Next preset`, `Toggle loop`, `Reset to first syllable`). The fifth, a per-chip `chip.title = 'Syllable N: ...'` written from `renderSyllables()`, was **deleted outright rather than moved**: the chip's own text already reads the phonemes and `#lyrics-counter` already reads the index, so it carried nothing new, and an `aria-label` would have overridden the phonemes a screen reader otherwise reads straight off the chip. `boot-all-uis` now reports `title= 0` for this plugin.
+
+### Not fixed, deliberately
+
+- **`prompt('Save preset as:')`** is localized but the call itself is left alone. JUCE's `WebBrowserComponent` does not implement the WebKit text-input-panel delegate on macOS, so `window.prompt` is likely to return `null` in the plugin and Save may never have worked outside the browser harness. That is a functional defect, not an i18n one, and replacing it needs a native dialog.
+- **Note names (`C`, `C#`, …) and embedded tuning names** stay English. They are pitch-class notation and engine data respectively; the French octave numbering for A4 is La3, so renaming them would silently change what the `.scl`/`.kbm` files are written against.
+- **`#tonic-value` renders `undefined`** in the headless harness because the generic stub answers `getTonicNote` with a shape `noteNames[]` cannot index. Harness artefact; the plugin returns an int.
+
+**Testing:** `check-i18n --strict-v2` and `check-ui-labels` both green, `boot-all-uis` 43/43 clean, build (VST3 + AU) + `auval`. The `fillText` probe and all six negative controls are described above.
+
 ## [1.25.4] - 2026-07-01
 
 ### Changed — Low-risk Info-item sweep from REVIEW.md (IN-01, IN-04, IN-05, IN-09, IN-11, IN-12, IN-13, IN-14, IN-15, IN-16, IN-17, IN-18, IN-19)

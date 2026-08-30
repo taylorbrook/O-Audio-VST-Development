@@ -157,6 +157,29 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
 
             // ── Preset Native Functions ──
 
+            // ── v1.26.0: the UI LANGUAGE pair ───────────────────────────
+            //
+            // Plain withNativeFunction, no relay, PULLED once by the page at
+            // init. No push from this constructor, no timer and no revision
+            // counter: the language is not preset content, and
+            // OuariconPresetManager::loadPreset walks preset["parameters"]
+            // only, so no preset path can change it behind the page's back.
+            .withNativeFunction ("getUiLanguage", [this] (auto, auto complete) {
+                complete (juce::var (OFormantAudioProcessor::languageCode (
+                    processorRef.uiLanguage.load (std::memory_order_acquire))));
+            })
+            .withNativeFunction ("setUiLanguage", [this] (const auto& args, auto complete) {
+                // languageIndex() maps anything that is not "fr" to 0, so an
+                // unexpected argument from the page degrades to English rather
+                // than being stored unvalidated.
+                if (args.size() > 0)
+                    processorRef.uiLanguage.store (
+                        OFormantAudioProcessor::languageIndex (args[0].toString()),
+                        std::memory_order_release);
+
+                complete (juce::var (OFormantAudioProcessor::languageCode (
+                    processorRef.uiLanguage.load (std::memory_order_acquire))));
+            })
             .withNativeFunction ("getPresetList", [this] (auto, auto complete) {
                 auto& pm = processorRef.getPresetManager();
                 auto presets = pm.getPresetList();
@@ -859,6 +882,16 @@ OFormantEditor::getResource (const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource {
             makeVector (BinaryData::main_js, BinaryData::main_jsSize),
+            juce::String ("application/javascript") };
+    }
+
+    // v1.26.0: the on-page copy table, imported by main.js as './i18n.js'.
+    // Embedded in CMakeLists.txt AND served here — a file embedded but not
+    // served is a 404 that presents as a blank panel and nothing else.
+    if (url == "/js/i18n.js")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::i18n_js, BinaryData::i18n_jsSize),
             juce::String ("application/javascript") };
     }
 
