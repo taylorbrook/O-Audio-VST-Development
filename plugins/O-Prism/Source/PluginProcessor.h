@@ -82,6 +82,20 @@ public:
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
     TuningEngine* getTuningEngine() { return &tuningEngine; }
 
+    // ── UI LANGUAGE (v1.21.0) ──────────────────────────────────────────────
+    // Deliberately NOT an AudioParameterChoice: it must not appear in a DAW
+    // automation lane, and a preset must not be able to change which language
+    // somebody reads their interface in. It rides the APVTS state tree as a
+    // non-parameter property, which is this plugin's FIRST such property —
+    // getStateInformation/setStateInformation were the only handlers before.
+    std::atomic<int> uiLanguage { 0 };
+
+    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+        hand-edited session or an unexpected argument from the page degrades to
+        English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+
     // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
     ScaleGenerator* getScaleGenerator() { return &scaleGenerator; }

@@ -97,6 +97,16 @@ OPrismAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::index_html,
                                    BinaryData::index_htmlSize, "text/html");
 
+    // v1.21.0: the i18n table. EMBEDDED (CMakeLists.txt) *and* SERVED (here) —
+    // a file that is one but not the other is a 404 that presents as a missing
+    // panel and nothing else, which is the highest-frequency mistake in this
+    // work. check-i18n assertion 8 asserts both halves; boot-all-uis is blind
+    // to this half by design, because it serves the copied file tree rather
+    // than getResource().
+    if (url == "/js/i18n.js")
+        return makeBinaryResource (BinaryData::i18n_js,
+                                   BinaryData::i18n_jsSize, "application/javascript");
+
     if (url == "/js/juce/index.js")
         return makeBinaryResource (BinaryData::index_js,
                                    BinaryData::index_jsSize, "application/javascript");
@@ -166,6 +176,32 @@ static void syncTuningPresetToCustom (juce::AudioProcessorValueTreeState& apvts)
 juce::WebBrowserComponent::Options
 OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Options options)
 {
+    // ── UI LANGUAGE (v1.21.0) ─────────────────────────────────────────
+    // Not a parameter: it must not appear in a DAW automation lane, and a
+    // preset must not be able to change which language somebody reads their
+    // interface in. It rides the APVTS state tree as a non-parameter property.
+    options = options.withNativeFunction ("getUiLanguage",
+        [this] (const juce::Array<juce::var>&, auto complete)
+        {
+            complete (juce::var (OPrismAudioProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
+        });
+
+    options = options.withNativeFunction ("setUiLanguage",
+        [this] (const juce::Array<juce::var>& args, auto complete)
+        {
+            // languageIndex() maps anything that is not "fr" to 0, so an
+            // unexpected argument from the page degrades to English rather than
+            // being stored unvalidated.
+            if (args.size() > 0)
+                processorRef.uiLanguage.store (
+                    OPrismAudioProcessor::languageIndex (args[0].toString()),
+                    std::memory_order_release);
+
+            complete (juce::var (OPrismAudioProcessor::languageCode (
+                processorRef.uiLanguage.load (std::memory_order_acquire))));
+        });
+
     // Tuning intervals
     options = options.withNativeFunction ("getTuningIntervals",
         [this] (const juce::Array<juce::var>&, auto complete) {
