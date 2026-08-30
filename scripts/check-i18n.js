@@ -83,10 +83,15 @@
         node scripts/check-i18n.js
         node scripts/check-i18n.js --plugin O-MultiBandCompressor
         node scripts/check-i18n.js --root /tmp/fixture      (negative controls)
-        node scripts/check-i18n.js --strict-v2             (fail anything on v1)
 
-    --strict-v2 is NOT the default until Stage L, when the last plugin migrates
-    and canon v1 can be deleted.
+    CANON V2 IS THE ONLY CANON, as of Stage L. All 43 plugins are on it, canon
+    v1 has been deleted from i18n-canon.js, and a plugin whose applyI18n/initI18n
+    region matches neither now simply fails assertion 6.
+
+    `--strict-v2` is still ACCEPTED and does nothing. It is spelled into the
+    stage briefs, the plugin CHANGELOGs and a year of commit messages, and a
+    flag that used to mean something must not start erroring at the one moment
+    somebody pastes an old command to check an old claim.
 
     Exit code = number of failed assertions (0 = all pass), matching the
     existing per-plugin gates.
@@ -116,7 +121,8 @@ const argValue = (flag) => {
 };
 
 const onlyPlugin = argValue('--plugin');
-const strictV2   = argv.includes('--strict-v2');
+// Accepted and ignored — canon v2 is the only canon. See the header.
+void argv.includes('--strict-v2');
 const repoRoot   = argValue('--root') || path.resolve(__dirname, '..');
 const pluginsDir = path.join(repoRoot, 'plugins');
 
@@ -266,15 +272,7 @@ const canonRegion = (src, label) => {
     return normalise(region);
 };
 
-const CANON_REGION    = canonRegion(CANON.I18N_CANON,    'canon v1');
 const CANON_REGION_V2 = canonRegion(CANON.I18N_CANON_V2, 'canon v2');
-
-if (CANON_REGION === CANON_REGION_V2) {
-    console.error('check-i18n: the v1 and v2 canon regions normalise to the same text. '
-                + 'The version split would be meaningless and every plugin would report '
-                + 'whichever comparison happened to run first.');
-    process.exit(1);
-}
 
 // ──────────────────────────────────────────────────── loading i18n.js ──
 // i18n.js is an ES module living outside any package.json, so node cannot
@@ -778,22 +776,16 @@ function checkPlugin(p) {
         const region = extractI18nRegion(appScan.code);
         const normalised = region === null ? null : normalise(region);
 
-        // EITHER canon passes, and which one is reported. Changing the canon in
-        // place would turn this gate red the moment canon v2 was committed and
-        // keep it red for the whole rollout — see i18n-canon.js and the plan's
-        // CANONICAL CONTRACT V2 §8.
-        if (normalised === CANON_REGION)         canonVersion = 'v1';
-        else if (normalised === CANON_REGION_V2) canonVersion = 'v2';
+        // ONE canon. During the rollout this accepted either v1 or v2 and
+        // reported which, because changing the canon in place would have turned
+        // the gate red the moment v2 was committed and kept it red for the whole
+        // migration. That migration is finished — all 43 plugins are on v2 — so
+        // the dual acceptance is gone and matching v2 is the only pass.
+        if (normalised === CANON_REGION_V2) canonVersion = 'v2';
 
         // './i18n.js' as written, or the same line re-rooted for an inline
         // module. Nothing else passes — a hand-rolled import shape would.
-        // The import line differs between canons (v2 adds LABELS), so the one
-        // demanded is the one belonging to the canon the BODY matched. A plugin
-        // whose body matches neither is checked against both, so the failure
-        // names the import line rather than reporting a bare mismatch.
-        const importLines = canonVersion === 'v2' ? [CANON.I18N_CANON_V2_IMPORT]
-                          : canonVersion === 'v1' ? [CANON.I18N_CANON_IMPORT]
-                          : [CANON.I18N_CANON_IMPORT, CANON.I18N_CANON_V2_IMPORT];
+        const importLines = [CANON.I18N_CANON_V2_IMPORT];
 
         const importOk = importLines.some((line) =>
             appScan.code.includes(line)
@@ -809,15 +801,11 @@ function checkPlugin(p) {
         } else {
             check(canonVersion !== null,
                 '[6] the applyI18n/initI18n region matches scripts/i18n-canon.js '
-                + `(canon v1 OR v2) — ${canonVersion ? `on ${canonVersion}` : 'matches NEITHER'}`);
+                + `(canon v2) — ${canonVersion ? `on ${canonVersion}` : 'does NOT match'}`);
         }
 
         check(/initI18n\s*\(\s*\)\s*;/.test(appScan.code.replace(/function\s+initI18n\s*\(\s*\)/, '')),
             '[6] initI18n() is actually CALLED — a block nobody calls localizes nothing');
-
-        if (strictV2)
-            check(canonVersion === 'v2',
-                `[6] --strict-v2: the plugin is on canon v2 — it is on ${canonVersion || 'NEITHER canon'}`);
     }
 
     // ── 3b. data-i18n is a KEY, not copy ─────────────────────────────────
@@ -875,9 +863,9 @@ function checkPlugin(p) {
     }
 
     if (canonVersion !== 'v2') {
-        console.log(`  SKIP: [${scope}] [10-13,15] canon v2 assertions — this plugin is on `
-            + `${canonVersion || 'no recognised canon'}. They are not failures until --strict-v2 `
-            + `(Stage L); a gate that is red for a whole rollout stops being read.`);
+        console.log(`  SKIP: [${scope}] [10-15] canon v2 assertions — this plugin does not `
+            + `match the canon, so assertion 6 has ALREADY failed it and these would only `
+            + `restate that failure against a block the gate cannot read.`);
         return { keys: keys.length + labelsCount, unreviewed: unreviewed + labelsUnreviewed,
                  tipKeys: keys.length, labelKeys: labelsCount, canon: canonVersion };
     }
@@ -1192,15 +1180,18 @@ if (summary.length === 0) {
     console.log(`  ${'TOTAL'.padEnd(30)} ${String(total).padStart(4)}`);
 }
 
-console.log('\n-- canon version split (the migration worklist)');
+// The migration worklist outlived its migration. It stays as a NON-VACUITY
+// report rather than being deleted with the canon it tracked: it is the one
+// line that would show a plugin silently dropping off canon, and "43 on v2"
+// read at a glance is what makes the count above mean something.
+console.log('\n-- canon');
 {
-    const byCanon = { v1: [], v2: [], none: [] };
-    for (const s of summary) (byCanon[s.canon || 'none']).push(s.name);
-    for (const v of ['v2', 'v1', 'none'])
-        console.log(`  canon ${v.padEnd(5)} ${String(byCanon[v].length).padStart(3)}`
-            + (byCanon[v].length ? `  ${byCanon[v].join(', ')}` : ''));
-    if (byCanon.v1.length && !strictV2)
-        console.log('  --strict-v2 would fail the canon-v1 plugins. It is not the default until Stage L.');
+    const onCanon = summary.filter((s) => s.canon === 'v2').map((s) => s.name);
+    const offCanon = summary.filter((s) => s.canon !== 'v2').map((s) => s.name);
+    console.log(`  canon v2   ${String(onCanon.length).padStart(3)}  ${onCanon.join(', ')}`);
+    if (offCanon.length)
+        console.log(`  OFF CANON  ${String(offCanon.length).padStart(3)}  ${offCanon.join(', ')}`
+            + '  — each has already failed assertion 6 by name');
 }
 
 console.log(`\n${failed === 0 ? 'ALL CHECKS PASS' : `${failed} FAILED`} — ${plugins.length} localized plugin(s)`);
