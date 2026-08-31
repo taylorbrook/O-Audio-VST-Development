@@ -156,18 +156,29 @@
            space-between`, so .preset-bar is anchored to the RIGHT and every
            child of it slides when the bar's width changes. These two buttons
            are the only shrink-to-fit boxes in the bar, and BOTH French captions
-           are SHORTER than their English (SAVE 26.83 -> ENR 21.50, LOAD 29.78
-           -> LIRE 24.22): unpinned, the bar CONTRACTS by 10.89 px and
-           #prevPreset, #presetName and #nextPreset all move 10.89 px right.
-           Four of twelve findings in one earlier stage were shrink rather than
-           growth, and this is one of them.
+           are SHORTER than their English: unpinned, the bar CONTRACTS and
+           #prevPreset, #presetName and #nextPreset all move right. Four of
+           twelve findings in one earlier stage were shrink rather than growth,
+           and this is one of them.
 
            Each pin is its own English BORDER box rounded up — 44.83 -> 45 and
            47.78 -> 48 — so English grows 0.17 px and 0.22 px, and the header's
            114.06 px of slack absorbs the 0.39 px without reflowing the title.
            box-sizing is border-box globally, so the content boxes are 27 px and
-           30 px and both French captions sit inside them with 5.50 px and
-           5.78 px to spare.
+           30 px and both French captions sit inside them.
+
+           THE CAPTIONS, as of v1.8.1 (Stage N). This table went stale once
+           already, so it now records the version it was measured at:
+
+             content box 27.00   SAVE 26.83 -> ENR 21.50
+             content box 30.00   LOAD 29.78 -> OUV 23.17
+
+           v1.7.0 shipped LIRE (24.22) on the load button; the Stage N French QA
+           pass replaced it with OUV, because the suite glossary FORBIDS "lire"
+           in a label — it means to read or to play. Both pins absorbed the swap
+           with assertion 7 still green. js/i18n.js budget A carries the full
+           reasoning and the spilling candidates (CHARGER 51.30, OUVRIR 41.34,
+           CHARG 37.52, ENREGISTRER 73.28, ENREG 35.84).
 
            NEGATIVE CONTROL RUN: removed alone, assertion 7 fails by name on
            #prevPreset, #presetName and #nextPreset. */
