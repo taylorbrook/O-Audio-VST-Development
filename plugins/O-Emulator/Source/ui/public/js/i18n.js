@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Emulator page labels, English + French (v1.1.0)
+// i18n.js — O-Emulator page copy, English + French (v1.2.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -33,16 +33,23 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.2.0 GIVES THIS PAGE HOVER-HELP, AND A RENDERER TO SHOW IT ───────────
 //
-// v1.0.1 carried no data-tip, no data-tooltip and no native title= anywhere on
-// the page. So there is no tooltip copy to MOVE here and none is INVENTED:
-// authoring hover-help prose is Stage M's job. I18N is therefore empty and
-// TIP_BINDINGS is empty, which is this plugin's correct state rather than a
-// gap. check-i18n assertion 2 reports it as "0 tip(s) bound" instead of passing
-// silently, and the emptiness is only admissible BECAUSE no I18N entry carries
-// a body — an emptied TIP_BINDINGS over a bodied table would be orphaned copy
-// and would fail.
+// v1.1.0 shipped an EMPTY I18N and an EMPTY TIP_BINDINGS, which was that
+// version's correct state: the page carried no data-tip, no data-tooltip and
+// no native title= anywhere, so there was no tooltip copy to move and none was
+// invented. v1.2.0 authors it — seven entries, five parameters plus the gear
+// and the language selector.
+//
+// AUTHORING COPY ALONE WOULD HAVE SHIPPED SEVEN INVISIBLE STRINGS. applyI18n()
+// only WRITES data-tip-title and data-tip onto the anchors named below; the
+// thing that reads those attributes and paints a surface is per-plugin code,
+// and this plugin had none of it — no #tooltip element, no .tooltip rule, no
+// hover handler. All three gates would have stayed green anyway: check-i18n
+// assertion 2 sees bindings > 0, check-ui-labels has no tooltip awareness at
+// all, and boot-all-uis counts aria-label and title and never data-tip. So the
+// renderer lands in the same commit (index.html, setupTooltips()), and
+// tests/ui_tip_render_check.js is the gate that can actually see a painted tip.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -55,17 +62,146 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {en:{t, b}, fr:{t, b, reviewed}}.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin that has no tooltips today, so Stage M
-// can add bodies here without touching the label keys below.
+// SEVEN entries: the five APVTS parameters, plus the gear and the language
+// selector. The preset bar deliberately gets none — its four controls already
+// carry accessible names (data-i18n-aria, v1.1.0) and are self-describing.
+//
+// ── TITLES ──────────────────────────────────────────────────────────────────
+//
+// The title is the control's display name as the PAGE spells it, which on this
+// plugin is the same string the parameter carries in every case:
+// .planning/params.tsv `name` reads Console / Crush / Age / Reverb / Mix and
+// the four .ctl-label captions and the .seg group's accessible name read the
+// same. So there is no caption-vs-parameter divergence to resolve here, and
+// each tip title reuses the LABELS entry's French rather than inventing a
+// second spelling of the same word.
+//
+// ── RANGES AND UNITS: MEASURED FROM THE DUMP, NOT RECOVERED FROM A FORMATTER ─
+//
+// The Stage M brief expects `label` to be empty on most M1 plugins and the
+// unit to have to be read back out of the page's own formatter. THAT IS NOT
+// THE CASE HERE and it is worth stating rather than leaving as a silent
+// non-finding: all four AudioParameterFloats declare
+// `AudioParameterFloatAttributes().withLabel("%")` (PluginProcessor.cpp:66),
+// so params.tsv carries `%` in the `label` column for crush, age, reverb and
+// mix, with textAtMin 0.0 and textAtMax 100.0. The page agrees independently —
+// each .knob carries data-unit="%" and fmtValue() appends it (index.html) — so
+// dump and formatter say the same thing and nothing had to be inferred.
+//
+// `console` has an EMPTY label because it is an AudioParameterChoice: its range
+// is its five option words, not a number, exactly as the brief describes.
+//
+// ── THE CONSOLE NAMES INSIDE A FRENCH SENTENCE ──────────────────────────────
+//
+// D-01 arm 1 exempts the five option strings AS THE SELECTOR RENDERS THEM: the
+// page and the host automation lane must agree, so the segments stay SNES /
+// PS1 / NES / GB / Genesis in both languages and carry no key (I18N_EXEMPT,
+// below). That rule governs the OPTION; it does not govern a sentence that
+// names it. So `tip.console`'s body is French prose that happens to contain
+// five English proper nouns, which is what those five are in French too — they
+// are hardware product names. The one place the two could drift is "Genesis",
+// sold in France as the Mega Drive: the tip says Genesis, because the segment
+// says Genesis, because the automation lane says Genesis.
+//
+// The body spells the fourth console "Game Boy" — the OPTION string
+// (PluginProcessor.cpp:56) — while the segment caption reads "GB". That
+// divergence predates this stage and is reported, not changed; naming the full
+// option in the tip is the one place a user can find out what the abbreviated
+// segment stands for.
+//
+// ── NUMBERS INSIDE A BODY ARE PROSE (D-03) ──────────────────────────────────
+//
+// D-03 exempts readout NODES, not digits. A number inside a localized tooltip
+// body is ordinary prose and is localized with the sentence around it:
+// "0 to 100 %" becomes "0 à 100 %", "30 ms" stays "30 ms", and the French
+// decimal comma is not reached here because no body carries a decimal.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The five parameters, in the page's own top-to-bottom order ──────────
+
+    // console — AudioParameterChoice, 5 options, default SNES.
+    // The French title is byte-identical to the English: "Console" is the same
+    // word for the same object in both languages, and the existing
+    // `aria.console` LABELS entry already declares that with sameAsEn. Here the
+    // BODY differs, so assertion 4 (which flags an entry only when t AND b both
+    // match) does not fire and no sameAsEn flag is needed — the entry is still
+    // in the reviewer worklist through `reviewed: false`.
+    'tip.console': {
+        en: { t: "Console",
+              b: "Chooses which machine the sound is played through — codec, fixed internal sample rate and output stage all change together. Switching crossfades over 30 ms, so it is safe to change while audio is running. Five settings: SNES, PS1, NES, Game Boy, Genesis." },
+        fr: { t: "Console",
+              b: "Choisit la machine par laquelle le son passe : codec, fréquence interne fixe et étage de sortie changent ensemble. Le changement se fait par un fondu de 30 ms, sans risque pendant la lecture. Cinq réglages : SNES, PS1, NES, Game Boy, Genesis.",
+              reviewed: false },
+    },
+
+    // crush — 0..100 %, default 50. The "still passes the codec at 0" sentence
+    // is the one thing a user cannot discover by turning the knob, so it earns
+    // its place over a second sentence about the curve.
+    'tip.crush': {
+        en: { t: "Crush",
+              b: "How hard the signal is driven through the console's codec: encoder gain, coarser quantisation steps, and past 80 % the anti-alias filter opening for deliberate aliasing. At 0 the signal still makes the full codec round trip, so this thins the colour rather than bypassing it. 0 to 100 %." },
+        fr: { t: "Broyage",
+              b: "À quel point le signal est poussé dans le codec de la console : gain d'encodage, pas de quantification plus grossiers et, au-delà de 80 %, ouverture du filtre anti-repliement pour un repliement volontaire. À 0 le signal traverse quand même tout le codec : ce réglage atténue la couleur, il ne la contourne pas. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // age — 0..100 %, default 20. The noise floor ramps in above ~5 %, which is
+    // why a user turning it off the stop hears nothing at first; that is the
+    // sentence, not the -78 dB figure behind it.
+    'tip.age': {
+        en: { t: "Age",
+              b: "The condition of the hardware: hiss, mains hum, a duller output filter, and a slow wander in the resampling ratio that detunes by up to 15 cents. The noise bed stays silent near the bottom of the range and only comes in above about 5 %. 0 to 100 %." },
+        fr: { t: "Âge",
+              b: "L'état de la machine : souffle, ronflement secteur, filtre de sortie plus sourd et lente dérive du rapport de rééchantillonnage qui désaccorde jusqu'à 15 cents. Le lit de bruit reste silencieux en bas de la course et n'apparaît qu'au-delà d'environ 5 %. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // reverb — 0..100 %, default 0. Available in EVERY console mode, which is
+    // the non-obvious part: it is the PS1's reverb unit, not the PS1's mode.
+    'tip.reverb': {
+        en: { t: "Reverb",
+              b: "Send level into the PlayStation reverb — a Hall setting from that console's own register model, available in every console mode, not just PS1. The send is taken after the codec, so the reverb hears the degraded signal rather than the clean one. 0 to 100 %." },
+        fr: { t: "Réverb",
+              b: "Niveau d'envoi vers la réverbération de la PlayStation : un réglage Hall issu du modèle de registres de cette console, disponible dans tous les modes, pas seulement en PS1. L'envoi est pris après le codec, donc la réverbération entend le signal dégradé et non le signal propre. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // mix — 0..100 %, default 100. The Age bed being wet-path only is the part
+    // that surprises people: at 0 % the hiss goes too.
+    'tip.mix': {
+        en: { t: "Mix",
+              b: "Blends the emulated signal against the untouched input. The dry path is delay-compensated, so at 0 % the input passes through unchanged — and the hiss and hum of the Age control go with it, because they live on the wet path only. 0 to 100 %." },
+        fr: { t: "Dosage",
+              b: "Dose le signal émulé face à l'entrée intacte. Le trajet direct est compensé en latence : à 0 % l'entrée ressort inchangée, et le souffle et le ronflement du réglage Âge disparaissent avec elle, car ils ne vivent que sur le trajet traité. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user that hover-help exists at all, so its
+    // body describes ONLY what the popover actually contains. This plugin has
+    // no hover-help on/off toggle — not a C++ one, not a localStorage one — so
+    // the panel holds the language selector and nothing else, and the tip says
+    // exactly that. A tip that promised a toggle would be a tip that lies.
+    'tip.gearBtn': {
+        en: { t: "Settings",
+              b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
+        fr: { t: "Réglages",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d'autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
+              reviewed: false },
+    },
+    'tip.langSelect': {
+        en: { t: "Language",
+              b: "The language of the labels on this page and of this hover help. English and French are available. Value readouts, the five console names and preset names stay in English so the page and the host agree." },
+        fr: { t: "Langue",
+              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles. Les valeurs affichées, les cinq noms de consoles et les noms de préréglages restent en anglais pour que la page et l'hôte s'accordent.",
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -308,16 +444,50 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key, wrapper?, vars?]
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), then closest(wrapper) if a
+// wrapper is given, and writes data-tip-title / data-tip onto whatever it lands
+// on. Any CSS selector is legal — an id is not required, and on this page three
+// of the seven anchors have no id at all.
+//
+// ── THE WRAPPER IS THE HOVER TARGET, NOT THE ADDRESSABLE NODE ───────────────
+//
+// The four knobs are addressable as .knob[data-param="..."], which is a 60 px
+// circle. The thing a user aims at is the whole .ctl column — caption, knob and
+// readout stacked with a 7 px gap, about 60 x 100 px. So each knob binding
+// walks up to .ctl and the tip opens anywhere in the cell, including over the
+// caption the tip is titled after.
+//
+// The console selector is the opposite case: .seg IS the control. It is a
+// full-width 5-button bar, its buttons are its own children, and closest()
+// finds .seg from any of them, so no wrapper walk is wanted. Binding to a
+// single segment button would give one fifth of the bar a tip and leave the
+// other four bare.
+//
+// #gear-btn and #lang-select are bound directly. Both are real 20-plus-pixel
+// targets and neither has a meaningful wrapper — #lang-select's parent is the
+// .settings-row label, and putting the tip there would make the row's caption
+// ("Language") open a tip titled "Language", which reads as a bug.
+//
+// EVERY BINDING MUST RESOLVE. applyI18n() logs `i18n: tip target not found:
+// <selector>` for one that does not, and boot-all-uis is the gate that sees
+// that console warning. tests/ui_tip_render_check.js asserts resolution AND
+// that each anchor actually paints a tip, which is the assertion no repo-wide
+// gate can make.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['.seg[data-param="console"]',   'tip.console'],
+
+    ['.knob[data-param="crush"]',    'tip.crush',  '.ctl'],
+    ['.knob[data-param="age"]',      'tip.age',    '.ctl'],
+    ['.knob[data-param="reverb"]',   'tip.reverb', '.ctl'],
+    ['.knob[data-param="mix"]',      'tip.mix',    '.ctl'],
+
+    ['#gear-btn',                    'tip.gearBtn'],
+    ['#lang-select',                 'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty

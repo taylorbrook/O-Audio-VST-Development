@@ -1,0 +1,9 @@
+# plugin	O-Emulator
+# params	5
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+console	Console		5	SNES	Genesis	0.000000	SNES	automatable,discrete
+crush	Crush	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+age	Age	%	2147483647	0.0	100.0	0.200000	20.0	automatable
+reverb	Reverb	%	2147483647	0.0	100.0	0.000000	0.0	automatable
+mix	Mix	%	2147483647	0.0	100.0	1.000000	100.0	automatable
