@@ -23,13 +23,21 @@ Publishes a plugin release by bumping version, updating changelog, creating a gi
     </on_failure>
   </check>
 
-  <check target="git" condition="working_directory_clean" required="true">
-    Git working directory MUST be clean (no uncommitted changes)
+  <check target="git" condition="plugin_scope_clean" required="true">
+    Publish-scoped paths MUST be clean: `plugins/{{PLUGIN_NAME}}/` and `PLUGINS.md`.
+    Uncommitted changes elsewhere in the repo (e.g. another plugin being worked
+    on in parallel) do NOT block — the release commit stages only its own paths.
+
+    Check: git status --porcelain -- "plugins/{{PLUGIN_NAME}}/" PLUGINS.md
 
     <on_failure action="block">
-      Display: "Cannot publish with uncommitted changes"
-      Guide: "Commit or stash changes before publishing"
+      Display: "Cannot publish {{PLUGIN_NAME}} - it has uncommitted changes in its own files or PLUGINS.md"
+      Guide: "Commit or stash changes to plugins/{{PLUGIN_NAME}}/ and PLUGINS.md before publishing"
     </on_failure>
+
+    <on_unrelated_dirty action="warn">
+      Display: "Note: unrelated uncommitted changes exist elsewhere in the repo (listed); they will NOT be included in the release commit"
+    </on_unrelated_dirty>
   </check>
 
   <check target="git" condition="remote_exists" required="true">

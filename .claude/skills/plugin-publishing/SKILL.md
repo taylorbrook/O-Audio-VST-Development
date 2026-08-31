@@ -35,8 +35,9 @@ Plugin Publishing Progress:
 **Run these checks in sequence:**
 
 ```bash
-# Check git status (must be clean)
-git status --porcelain
+# Check git status — SCOPED to the plugin being published + PLUGINS.md.
+# Unrelated dirty files (another plugin in parallel development) do NOT block.
+git status --porcelain -- "plugins/[PluginName]/" PLUGINS.md
 
 # Check remote exists
 git remote get-url origin
@@ -47,7 +48,8 @@ git remote get-url origin
 - Status is 📦 Installed or ✅ Working
 
 **Blocking conditions:**
-- If git has uncommitted changes → "Commit or stash changes first"
+- If the SCOPED status above is non-empty → "Commit or stash changes to plugins/[PluginName]/ and PLUGINS.md first"
+- If OTHER paths are dirty → warn only (list them, note they will not be in the release commit) and continue
 - If no remote → "Add remote: git remote add origin <url>"
 - If plugin not ready → Guide to /implement or /continue
 
@@ -195,6 +197,9 @@ git add plugins/[PluginName]/CMakeLists.txt
 git add plugins/[PluginName]/CHANGELOG.md
 git add PLUGINS.md
 
+# Pathspec-scoped commit: commits ONLY these paths even if unrelated files are
+# staged (parallel plugin work in the same checkout, or another session's git
+# add racing into the shared index). Never use a bare `git commit` here.
 git commit -m "$(cat <<'EOF'
 release([PluginName]): v[NEW_VERSION]
 
@@ -202,7 +207,7 @@ release([PluginName]): v[NEW_VERSION]
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
-)"
+)" -- plugins/[PluginName]/CMakeLists.txt plugins/[PluginName]/CHANGELOG.md PLUGINS.md
 ```
 
 ---
