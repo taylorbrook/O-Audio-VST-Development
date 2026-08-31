@@ -1,5 +1,32 @@
 # O-Reed Changelog
 
+## v1.3.0 (2026-08-30)
+
+### Added
+
+- **Hover-help, in both languages.** Every control on the page now explains itself on hover: 35 tooltips — 33 of the plugin's 35 parameters plus the gear button and the language selector — each with an English and a French title and body, switched by the same gear popover the labels use. The bodies were written against the DSP that implements each control (`ReedModel.h`, `BoreWaveguide.h`, `BreathEnvelope.h`, `BreathNoise.h`, `MouthpieceChamber.h`, `ReedWindVoice.cpp`) rather than from the parameter names, and each ends with the control's range and unit.
+- **The renderer that paints them.** Canon v2's `applyI18n()` writes `data-tip-title` and `data-tip` onto the anchors and stops there; the thing that reads those attributes and paints a surface is per-plugin code, and this page had none. Authoring the copy without it would have shipped **35 invisible strings past three green gates** — `check-i18n` only counts bindings, `check-ui-labels` has no tooltip awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. A single `#tooltip` surface, its CSS in this page's own naturalist plate, and a delegated cursor-following handler ported from O-simpleFM land in the same release as the table.
+- `tests/ui_tip_render_check.js` — 523 assertions at the real 900×600 frame against the real page. It resolves every binding including its `closest()` walk, hovers a **descendant** of each of the 35 anchors in both languages, byte-compares the rendered title and body against the table, and measures the tip rectangle on all four edges. Three negative controls: an over-long planted body (1987px tall in a 600px frame) that assertion 4 must report; the focus latch driven **both halves separately**; and the `pointerout` child-boundary rule.
+- `.planning/params.tsv` — the runtime parameter inventory, produced by walking `AudioProcessor::getParameters()` on a constructed processor rather than by a regex over `createParameterLayout()`. `CMakeLists.txt` gains the `OUARICON_BUILD_TESTS` option and the `ouaricon_add_param_dump()` call behind it; a normal build is unaffected.
+
+### Fixed
+
+- **The unconditional focus arm would have parked a tooltip on screen after every click.** A mouse click on a `<button>` focuses it, so the reference renderer's `focusin` rule re-opens the tip that `pointerdown` has just hidden — and it sits on top of whatever the click opened. Measured here with the guard clause removed: clicking the gear pinned its own tip at `[603, 45, 260×137]` **across the settings popover the click had just opened**, overlapping it by **5280 px²**. The renderer carries an explicit last-input-device latch instead. `:focus-visible` is deliberately not the discriminator — Chromium reports it false for a programmatic `.focus()` after a click, so a gate driving focus directly would measure "no tip" and record that as correct.
+
+### Changed
+
+- `Source/PluginProcessor.cpp` moves `#include "PluginEditor.h"` behind `#if JUCE_WEB_BROWSER`, directly above `createEditor()`, with a `GenericAudioProcessorEditor` fallback. The param-dump console target builds with `JUCE_WEB_BROWSER=0` and does not compile the editor TU, so a top-of-file include breaks the link. Under a normal build `JUCE_WEB_BROWSER=1` and behaviour is byte-identical to v1.2.0.
+- Three comments in `index.html` that said this plugin has no hover-help are rewritten, because they no longer do. The settings popover still holds the language selector alone and `tip.gearBtn`'s body says exactly that.
+
+### Not changed, deliberately
+
+- **`instrumentPreset` does not change the sound, and its tooltip says so.** `pInstrumentPreset` is fetched in `ReedWindVoice.cpp:50` and is never `load()`ed anywhere in `Source/` — the parameter has no consumer, so choosing an instrument in the dropdown moves the automation lane and nothing else. Wiring it is an audio change, not a hover-help one. A tip that lied about it would be worse than no tip, so the body records what the control actually does.
+- **The reported latency does not follow Oversampling, and its tooltip says so.** `setLatencySamples()` is called once in `prepareToPlay()` from the default 2× oversampler (`PluginProcessor.cpp:392-394`) and is never re-reported when the control changes, so selecting 4× leaves the host compensating by the 2× figure.
+- **Two of the 35 parameters get no tooltip, because they have no control on this page.** `referencePitch` is driven by `#ref-pitch-knob` inside the **shared** `scala-tuning-engine` tuning panel, which is lazy-mounted and absent from the DOM when `applyI18n()` first runs; binding it would log a `tip target not found` warning on every load, and adding an anchor to the module is a cross-plugin edit that `/module-upgrade` would revert. `tuningSystem` has no control anywhere — `bindComboBox('tuningSystem', 'tuningSystem')` resolves to `null` and warns on every load. Both are host-reachable and automatable; neither is page-reachable. Adding a control to satisfy the count is a feature change with a geometry cost.
+- **Option strings stay English inside the French bodies.** The six `<select>` elements are empty in the markup and are filled at runtime from the host's own choice properties, so `Simple`, `Multi-segment`, `Lip`, `Breath`, `Throat`, `Monophonic`, `Polyphonic`, `2x`, `4x`, `Off` and `On` are what the user reads 20px from the tooltip. The prose around them is French; the tokens are not, because a translated token would name a value that appears nowhere on the control. Where a body names another *knob*, it uses that knob's localized caption, because those are keyed and the page does show the French.
+- **Tooltip titles are the parameter's full name, not the page's caption.** All 27 knob captions were cut to fit the 68px box measured in v1.2.0 — `Reed Hard.`, `Inf. Sustain`, `Rev. Bore` each end in a truncating period — and a 260px tooltip is exactly where the full word belongs. It is also the name the host's automation lane shows.
+- All 35 French tooltips are machine drafts flagged `reviewed: false`, joining the 55 label entries already waiting. No native speaker has read any of it.
+
 ## v1.2.0 (2026-08-29)
 
 ### Added
