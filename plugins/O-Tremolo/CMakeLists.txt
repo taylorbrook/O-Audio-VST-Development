@@ -10,7 +10,7 @@ juce_add_plugin(OuariconTremolo
     PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Tremolo${OUARICON_DEV_SUFFIX}"
-    VERSION 1.8.0
+    VERSION 1.8.1
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
