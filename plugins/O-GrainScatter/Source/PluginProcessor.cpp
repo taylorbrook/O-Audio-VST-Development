@@ -18,7 +18,10 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+// PluginEditor.h is deliberately NOT included at the top of this TU — the
+// include lives inside the #if JUCE_WEB_BROWSER guard directly above
+// createEditor(), so a console target that compiles this TU with
+// JUCE_WEB_BROWSER=0 and no editor sources (scripts/param-dump) links.
 
 GrainScatterProcessor::GrainScatterProcessor()
     : AudioProcessor(BusesProperties()
@@ -826,9 +829,19 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 }
 
+#if JUCE_WEB_BROWSER
+#include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* GrainScatterProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new GrainScatterEditor(*this);
+#else
+    // The param-dump console target builds with JUCE_WEB_BROWSER=0 and no
+    // editor sources. It never opens an editor; this keeps the TU linkable.
+    return new juce::GenericAudioProcessorEditor(*this);
+#endif
 }
 
 bool GrainScatterProcessor::hasEditor() const { return true; }

@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-GrainScatter LABEL table, English + French (v2.5.0)
+// i18n.js — O-GrainScatter LABEL + HOVER-HELP table, English + French (v2.6.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -30,20 +30,25 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// NO HOVER-HELP COPY EXISTS ON THIS PAGE, AND THIS COMMIT DOES NOT AUTHOR ANY.
-// v2.4.4 shipped ZERO native title= attributes, zero aria-label, zero
-// placeholder and zero data-tip — verified by grep, not assumed. So `I18N` is
-// EMPTY and `TIP_BINDINGS` is EMPTY, which is this plugin's correct state under
-// Stage K and which check-i18n assertion 2 reports as "0 tip(s) bound" rather
-// than passing silently. Authoring hover help is Stage M's job.
+// HOVER-HELP ARRIVES IN v2.6.0, AND IT IS NOT ONLY COPY. v2.4.4 shipped ZERO
+// native title=, zero aria-label, zero placeholder and zero data-tip — verified
+// by grep, not assumed — so v2.5.0 correctly left `I18N` and `TIP_BINDINGS`
+// empty and check-i18n assertion 2 reported "0 tip(s) bound". This version
+// authors 38 entries (36 parameters + the gear + the language selector) and
+// binds every one. It ALSO adds the thing that paints them: applyI18n() writes
+// data-tip-title and data-tip onto the anchors and stops, and until this commit
+// no code on this page read those attributes. See the I18N header below.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing `<`.
 //
-// THE ENGLISH WAS MOVED, NOT REWRITTEN. Every `en` entry below is byte-for-byte
-// what index.html carried through v2.4.4, extracted mechanically rather than
-// re-typed, with its HTML entities decoded to the characters they named
-// (&amp; -> &) because textContent does not decode.
+// THE ENGLISH IN `LABELS` WAS MOVED, NOT REWRITTEN. Every `en` entry in that
+// block is byte-for-byte what index.html carried through v2.4.4, extracted
+// mechanically rather than re-typed, with its HTML entities decoded to the
+// characters they named (&amp; -> &) because textContent does not decode.
+// `I18N` is the one block that is NOT moved English — hover-help prose did not
+// exist on this page before v2.6.0, and its provenance is the parameter dump in
+// .planning/params.tsv plus the DSP that reads each parameter, cited per entry.
 //
 // ── FRENCH IS SIZED, NOT SHRUNK ────────────────────────────────────────────
 // D-04 forbids an auto-shrink font and a short-variant fallback: there is
@@ -65,11 +70,587 @@
 
 export const LANGUAGES = ['en', 'fr'];
 
-// EMPTY, and deliberately so. This page has no hover-help copy: v2.4.4 carried
-// no title=, no data-tip and no aria-label anywhere in index.html. An I18N
-// entry here would be tooltip prose invented by this commit, which contract §4
-// and the Stage K brief both forbid — that is Stage M.
-export const I18N = Object.freeze({});
+// ============================================================================
+// I18N — HOVER-HELP, authored in v2.6.0. `{en:{t,b}, fr:{t,b,reviewed}}`.
+//
+// EMPTY THROUGH v2.5.0, and that was this page's correct state: v2.4.4 carried
+// no title=, no data-tip and no aria-label anywhere in index.html, so Stage K
+// had nothing to move and forbade inventing any. v2.6.0 is Stage M and authors
+// all 38 — 36 parameters plus the gear and the language selector.
+//
+// THE COPY ALONE WOULD HAVE BEEN INVISIBLE. applyI18n() writes data-tip-title
+// and data-tip onto the anchors named in TIP_BINDINGS and stops there; the code
+// that READS those attributes and paints a surface is per-plugin, and this page
+// had none. check-i18n assertion 2 only counts bindings, check-ui-labels has no
+// tooltip awareness at all, and boot-all-uis counts aria-label and title and
+// never data-tip — so 38 unpaintable strings would have shipped past three
+// green gates. setupTooltips() lands in js/app.js and the .tooltip rules in
+// index.html in the SAME commit, and tests/ui_tip_render_check.js is the only
+// gate in this repo that can see a rendered tip.
+//
+// ── THE TITLE IS THE PAGE'S CAPTION, NOT THE DUMP'S NAME ────────────────────
+// Twelve of the 36 differ, and the caption wins per the Stage M brief: the user
+// is reading the page, not the automation lane. Six of those twelve are
+// ABBREVIATIONS forced by this page's 62 px .knob-container cap (Size Rnd, Amp
+// Rnd, Pitch Rnd, Traj Speed, Dist LPF, and their French, which abbreviates
+// harder still — "Alé. haut.", "Vit. traj.", "PB dist.", "Réinject.",
+// "Porte bég.", "Répét."). A 280 px tooltip has no such cap, so every
+// abbreviated title's BODY opens by naming the control in full. Recorded here
+// rather than silently widened: the alternative — a tip titled differently from
+// the caption it hangs off — is the one that leaves a user unable to tell which
+// control they are reading about.
+//
+// ── RANGES COME FROM THE PAGE'S OWN FORMATTER ──────────────────────────────
+// ALL 36 rows of .planning/params.tsv carry an EMPTY `label` column, so not one
+// unit here came from the dump. Each was recovered from the formatter that
+// renders that knob's readout, in js/app.js:
+//   pctFormatter          app.js:249   -> %   (density, scan_position, spread,
+//                                       reverse, feedback, dry_wet, size_random,
+//                                       amp_random, pitch_random, pan_random,
+//                                       probability, distance, spatial_width,
+//                                       dist_lpf, doppler)
+//   grainSizeFormatter    app.js:250   -> ms  (grain_size)
+//   repeatsFormatter      app.js:251   -> bare integer (repeats,
+//                                       euclidean_pulses/steps/rotation)
+//   swingFormatter        app.js:255   -> %   (euclidean_swing)
+//   degreeFormatter       app.js:259   -> deg (azimuth, elevation, az_spread,
+//                                       el_spread)
+//   trajSpeedFormatter    app.js:265   -> %   (traj_speed)
+//   spatialSmoothFormatter app.js:266  -> ms  (spatial_smooth)
+// The five choice and two boolean parameters take their option words as their
+// range instead of a number, per the brief.
+//
+// ── OPTION WORDS STAY ENGLISH INSIDE A FRENCH SENTENCE ─────────────────────
+// D-01 arm 1 exempts an AudioParameterChoice option ON THE PAGE so the host
+// automation lane agrees character for character. A tooltip BODY is prose and
+// is localized — but the option words it NAMES are the words the user has to
+// find in the dropdown beside it, and those are still English. So a French body
+// reads "Sept réglages : Free, 1/4, 1/8 ...". The two rules do not conflict:
+// the option in the selector stays English, the sentence around it is French.
+// This page already made that choice once, in label.spatialHint at v2.5.0.
+//
+// A CONTROL THIS TABLE ALSO CAPTIONS IS NAMED BY ITS FRENCH CAPTION, not by an
+// invented synonym — "Sans effet tant que le réglage Alé. haut. reste à zéro",
+// because that is the string the user is looking at 4 px away. tr() cannot
+// resolve a {n} token to a LABELS key (its resolve() reads I18N only, and the
+// canon is not trimmed per plugin), so these are written literally and a
+// reviewer changing a caption must change the sentences that name it.
+//
+// NUMBERS INSIDE A BODY ARE PROSE, NOT READOUTS. D-03 exempts the readout NODE;
+// it has nothing to say about a sentence. So the French takes French
+// convention — a space before %, U+2212 for the minus in "−90 à +90°". Every
+// range on this page renders as an integer (every formatter above calls
+// Math.round), so the decimal comma never arises here; it is still the settled
+// rule and the entries were scanned for a decimal POINT before commit.
+// ============================================================================
+
+export const I18N = Object.freeze({
+
+    // ── Core Engine ─────────────────────────────────────────────────────────
+
+    'tip.grainSize': {
+        en: { t: 'Grain Size',
+              b: 'Sets the length of every grain the engine plays. Short grains sound like '
+               + 'texture or buzz; long ones keep enough of the source to stay recognisable. '
+               + 'Range 10 to 500 ms.' },
+        fr: { t: 'Taille',
+              b: 'Règle la longueur de chaque grain lu par le moteur. Les grains courts donnent '
+               + 'une texture ou un bourdonnement; les longs conservent assez de la source pour '
+               + 'rester reconnaissables. Plage de 10 à 500 ms.',
+              reviewed: false },
+    },
+
+    // The exponential mapping is quoted from GrainScheduler.h:49-50, not
+    // guessed: the readout is a percentage and the audible result is a rate.
+    'tip.density': {
+        en: { t: 'Density',
+              b: 'Sets how often grains are spawned while Sync Mode is Free, on an exponential '
+               + 'curve: 1 % is about one grain a second, 50 % about ten, 100 % about a hundred. '
+               + 'High settings thicken the cloud into a continuous tone. Range 1 to 100 %.' },
+        fr: { t: 'Densité',
+              b: 'Règle la fréquence d’apparition des grains lorsque Mode synchro est sur Free, '
+               + 'selon une courbe exponentielle : 1 % donne environ un grain par seconde, 50 % '
+               + 'environ dix, 100 % environ cent. Les valeurs élevées épaississent le nuage '
+               + 'jusqu’au son continu. Plage de 1 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.scan': {
+        en: { t: 'Scan',
+              b: 'Scan Position moves the read point through the two seconds of audio the plugin '
+               + 'keeps behind it, so grains are taken from further back rather than from the '
+               + 'newest input. It is the control to reach for once Freeze is engaged. '
+               + 'Range 0 to 100 %.' },
+        fr: { t: 'Balayage',
+              b: 'Déplace le point de lecture dans les deux secondes d’audio conservées en '
+               + 'mémoire : les grains sont alors prélevés plus en arrière plutôt que sur '
+               + 'l’entrée la plus récente. C’est la commande à utiliser une fois Geler activé. '
+               + 'Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.spread': {
+        en: { t: 'Spread',
+              b: 'Scatters the read position of each grain around the scan point, by up to one '
+               + 'grain length at full setting. A little blurs the attack; a lot smears the '
+               + 'source into a cloud. Range 0 to 100 %.' },
+        fr: { t: 'Dispersion',
+              b: 'Disperse la position de lecture de chaque grain autour du point de balayage, '
+               + 'jusqu’à une longueur de grain au maximum. Un peu estompe l’attaque; beaucoup '
+               + 'dissout la source en nuage. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.reverse': {
+        en: { t: 'Reverse',
+              b: 'Sets the chance that any given grain plays backwards. It is a probability and '
+               + 'not a switch, so mid settings mix forward and reversed grains in the same '
+               + 'cloud. Range 0 to 100 %.' },
+        fr: { t: 'Inverse',
+              b: 'Détermine la probabilité qu’un grain donné soit lu à l’envers. C’est une '
+               + 'probabilité et non un commutateur : les réglages intermédiaires mêlent grains '
+               + 'à l’endroit et à l’envers dans le même nuage. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.feedback': {
+        en: { t: 'Feedback',
+              b: 'Feeds the granulated output back into the buffer it reads from, so grains '
+               + 're-granulate themselves into longer tails. The path is tanh-saturated and '
+               + 'gain-limited, so it warms rather than runs away. Range 0 to 100 %.' },
+        fr: { t: 'Réinject.',
+              b: 'La réinjection renvoie la sortie granulée dans la mémoire qu’elle relit : les '
+               + 'grains se regranulent alors en traînes plus longues. Le trajet est saturé par '
+               + 'tanh et limité en gain, il réchauffe donc au lieu de s’emballer. '
+               + 'Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.dryWet': {
+        en: { t: 'Dry/Wet',
+              b: 'Balances the untreated input against the granulated output. At 0 % only the '
+               + 'dry signal passes; at 100 % only grains are heard. Range 0 to 100 %.' },
+        fr: { t: 'Sec/Effet',
+              b: 'Équilibre l’entrée non traitée et la sortie granulée. À 0 % seul le signal sec '
+               + 'passe; à 100 % on n’entend que les grains. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.sizeRnd': {
+        en: { t: 'Size Rnd',
+              b: 'Size Random varies the length of each grain, stretching it by up to double its '
+               + 'Grain Size at full setting. It breaks up the metallic pitch that a constant '
+               + 'grain length produces. Range 0 to 100 %.' },
+        fr: { t: 'Alé. taille',
+              b: 'L’aléa de taille fait varier la longueur de chaque grain, jusqu’au double de '
+               + 'la valeur de Taille au réglage maximal. Cela casse la hauteur métallique '
+               + 'qu’engendre une longueur de grain constante. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.ampRnd': {
+        en: { t: 'Amp Rnd',
+              b: 'Amp Random varies the level of each grain, attenuating it by up to its full '
+               + 'amplitude. Small amounts make a mechanical cloud breathe; large ones thin it '
+               + 'out. Range 0 to 100 %.' },
+        fr: { t: 'Alé. ampl.',
+              b: 'L’aléa d’amplitude fait varier le niveau de chaque grain, jusqu’à l’atténuer '
+               + 'complètement. De faibles valeurs font respirer un nuage mécanique; de fortes '
+               + 'valeurs l’éclaircissent. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.shape': {
+        en: { t: 'Shape',
+              b: 'Grain Shape chooses the amplitude envelope applied to every grain, which is '
+               + 'what decides whether a grain sounds soft-edged or percussive. Hann and '
+               + 'Blackman are the smoothest, Trapezoid holds a flat top, and Exp Decay gives '
+               + 'each grain a plucked attack. Six shapes: Hann, Triangle, Trapezoid, Tukey, '
+               + 'Blackman, Exp Decay.' },
+        fr: { t: 'Forme',
+              b: 'La forme de grain choisit l’enveloppe d’amplitude appliquée à chaque grain, ce '
+               + 'qui détermine s’il sonne doux ou percussif. Hann et Blackman sont les plus '
+               + 'douces, Trapezoid garde un plateau et Exp Decay donne à chaque grain une '
+               + 'attaque pincée. Six formes : Hann, Triangle, Trapezoid, Tukey, Blackman, '
+               + 'Exp Decay.',
+              reviewed: false },
+    },
+
+    // ── Pitch & Scale ───────────────────────────────────────────────────────
+
+    'tip.pitchRnd': {
+        en: { t: 'Pitch Rnd',
+              b: 'Pitch Random sets how far each grain may be transposed away from the source '
+               + 'pitch, quantised to the Scale and Root Note beside it. At 0 % it is off, and '
+               + 'the Scale, Root Note and Pitch Mode controls are dimmed with it. '
+               + 'Range 0 to 100 %.' },
+        fr: { t: 'Alé. haut.',
+              b: 'L’aléa de hauteur détermine l’ampleur de la transposition possible de chaque '
+               + 'grain par rapport à la hauteur d’origine, quantifiée sur Gamme et '
+               + 'Fondamentale. À 0 % la fonction est inactive et les commandes Gamme, '
+               + 'Fondamentale et Mode hauteur sont estompées avec elle. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.panRnd': {
+        en: { t: 'Pan Rnd',
+              b: 'Pan Random scatters each grain across the stereo image instead of leaving the '
+               + 'whole cloud centred. It applies to the stereo path only and is ignored while '
+               + 'Spatial Audio is engaged. Range 0 to 100 %.' },
+        fr: { t: 'Alé. pan',
+              b: 'L’aléa de panoramique disperse chaque grain dans l’image stéréo au lieu de '
+               + 'laisser tout le nuage au centre. Ne s’applique qu’au trajet stéréo et reste '
+               + 'sans effet lorsque l’Audio spatial est engagé. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.scale': {
+        en: { t: 'Scale',
+              b: 'Quantises every random transposition to a musical scale, so a scattered cloud '
+               + 'stays in key rather than drifting. It does nothing until Pitch Rnd is above '
+               + 'zero. Five scales: Chromatic, Major, Minor, Pentatonic, Whole Tone.' },
+        fr: { t: 'Gamme',
+              b: 'Quantifie chaque transposition aléatoire sur une gamme musicale : le nuage '
+               + 'dispersé reste alors dans la tonalité au lieu de dériver. Sans effet tant que '
+               + 'le réglage Alé. haut. reste à zéro. Cinq gammes : Chromatic, Major, Minor, '
+               + 'Pentatonic, Whole Tone.',
+              reviewed: false },
+    },
+
+    'tip.rootNote': {
+        en: { t: 'Root Note',
+              b: 'Sets the tonic the chosen Scale is built on, so the quantised grains land in '
+               + 'the key of the track. It does nothing until Pitch Rnd is above zero. '
+               + 'Twelve semitones, C through B.' },
+        fr: { t: 'Fondamentale',
+              b: 'Définit la tonique sur laquelle la Gamme choisie est construite, afin que les '
+               + 'grains quantifiés tombent dans la tonalité du morceau. Sans effet tant que le '
+               + 'réglage Alé. haut. reste à zéro. Douze demi-tons, de C à B.',
+              reviewed: false },
+    },
+
+    'tip.pitchMode': {
+        en: { t: 'Pitch Mode',
+              b: 'Chooses how successive grains pick their transposition: freely at random, '
+               + 'climbing or descending the scale a degree at a time, or bouncing between the '
+               + 'two. Ladder and Pendulum give an arpeggio where Random gives a cloud. '
+               + 'Four modes: Random, Ladder Up, Ladder Down, Pendulum.' },
+        fr: { t: 'Mode hauteur',
+              b: 'Choisit la façon dont les grains successifs prennent leur transposition : '
+               + 'librement au hasard, en montant ou en descendant la gamme degré par degré, ou '
+               + 'en faisant l’aller-retour entre les deux. Ladder et Pendulum donnent un arpège '
+               + 'là où Random donne un nuage. Quatre modes : Random, Ladder Up, Ladder Down, '
+               + 'Pendulum.',
+              reviewed: false },
+    },
+
+    // ── Beat Sync ───────────────────────────────────────────────────────────
+
+    'tip.syncMode': {
+        en: { t: 'Sync Mode',
+              b: 'Chooses whether grains are spawned at the Density rate or locked to the host '
+               + 'tempo on a musical division. Probability, Repeats, Stutter Gate and the whole '
+               + 'Euclidean Rhythm group only apply once a division is chosen. Seven settings: '
+               + 'Free, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T.' },
+        fr: { t: 'Mode synchro',
+              b: 'Détermine si les grains sont déclenchés au rythme de Densité ou verrouillés '
+               + 'sur le tempo de l’hôte selon une division musicale. Probabilité, Répét., '
+               + 'Porte bég. et tout le groupe Rythme euclidien ne s’appliquent qu’une fois une '
+               + 'division choisie. Sept réglages : Free, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T.',
+              reviewed: false },
+    },
+
+    'tip.probability': {
+        en: { t: 'Probability',
+              b: 'Sets the chance that a scheduled trigger actually spawns a grain, thinning a '
+               + 'regular pattern into an irregular one. At 100 % every trigger fires. '
+               + 'Range 0 to 100 %.' },
+        fr: { t: 'Probabilité',
+              b: 'Détermine la probabilité qu’un déclenchement prévu produise réellement un '
+               + 'grain, ce qui éclaircit un motif régulier en motif irrégulier. À 100 % chaque '
+               + 'déclenchement se produit. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.repeats': {
+        en: { t: 'Repeats',
+              b: 'Sets how many grains a single trigger fires, spaced one subdivision apart, '
+               + 'which is what turns a hit into a stutter. It applies in the tempo-locked Sync '
+               + 'Modes only. Range 1 to 16 grains.' },
+        fr: { t: 'Répét.',
+              b: 'Le nombre de répétitions détermine combien de grains produit un même '
+               + 'déclenchement, espacés d’une subdivision, ce qui transforme une frappe en '
+               + 'bégaiement. Ne s’applique qu’aux modes synchronisés au tempo. '
+               + 'Plage de 1 à 16 grains.',
+              reviewed: false },
+    },
+
+    'tip.stutterGate': {
+        en: { t: 'Stutter Gate',
+              b: 'Mutes the dry signal for as long as a repeat burst lasts, so the stutter '
+               + 'replaces the source instead of sitting on top of it. It needs a tempo-locked '
+               + 'Sync Mode and a Repeats count above one to be heard at all. Off or On.' },
+        fr: { t: 'Porte bég.',
+              b: 'La porte de bégaiement coupe le signal sec pendant toute la durée d’une rafale '
+               + 'de répétitions : le bégaiement remplace alors la source au lieu de s’y '
+               + 'superposer. Nécessite un Mode synchro verrouillé au tempo et un réglage '
+               + 'Répét. supérieur à un. Désactivé ou activé.',
+              reviewed: false },
+    },
+
+    // ── Freeze ──────────────────────────────────────────────────────────────
+
+    'tip.freeze': {
+        en: { t: 'Freeze',
+              b: 'Captures the last two seconds of input and holds it, so the engine keeps '
+               + 'granulating that snapshot while live audio passes by underneath. Use Scan to '
+               + 'move through what was captured. Off or On.' },
+        fr: { t: 'Geler',
+              b: 'Capture les deux dernières secondes d’entrée et les maintient : le moteur '
+               + 'continue de granuler cet instantané pendant que l’audio en direct défile. '
+               + 'Utiliser Balayage pour parcourir ce qui a été capturé. Désactivé ou activé.',
+              reviewed: false },
+    },
+
+    // ── Euclidean Rhythm ────────────────────────────────────────────────────
+
+    'tip.pulses': {
+        en: { t: 'Pulses',
+              b: 'Sets how many hits the Euclidean pattern spreads as evenly as it can across '
+               + 'its steps. Few pulses in many steps give the sparse, off-kilter figures the '
+               + 'algorithm is known for. Range 1 to 16 pulses.' },
+        fr: { t: 'Impulsions',
+              b: 'Détermine le nombre de frappes que le motif euclidien répartit aussi '
+               + 'régulièrement que possible sur ses pas. Peu d’impulsions dans beaucoup de pas '
+               + 'donnent les figures clairsemées et décalées propres à cet algorithme. '
+               + 'Plage de 1 à 16 impulsions.',
+              reviewed: false },
+    },
+
+    'tip.steps': {
+        en: { t: 'Steps',
+              b: 'Sets the length of the Euclidean pattern in subdivisions, which is the cycle '
+               + 'the pulses are distributed over. A step count that is not a multiple of the '
+               + 'pulse count is what produces the interesting patterns. Range 2 to 16 steps.' },
+        fr: { t: 'Pas',
+              b: 'Détermine la longueur du motif euclidien en subdivisions, soit le cycle sur '
+               + 'lequel les impulsions sont réparties. C’est lorsque le nombre de pas n’est pas '
+               + 'un multiple du nombre d’impulsions que les motifs deviennent intéressants. '
+               + 'Plage de 2 à 16 pas.',
+              reviewed: false },
+    },
+
+    'tip.rotation': {
+        en: { t: 'Rotation',
+              b: 'Turns the Euclidean pattern in place, moving where its first pulse falls '
+               + 'without changing which pulses exist. It is the quickest way to shift a figure '
+               + 'off the downbeat. Range 0 to 15 steps.' },
+        fr: { t: 'Rotation',
+              b: 'Fait tourner le motif euclidien sur lui-même : la première impulsion change de '
+               + 'place sans que les impulsions elles-mêmes changent. C’est le moyen le plus '
+               + 'rapide de décaler une figure hors du temps fort. Plage de 0 à 15 pas.',
+              reviewed: false },
+    },
+
+    // The 50-75 % range is not a coincidence of the readout: swingRatio is
+    // (pct - 50) / 50, so 75 % is exactly half a subdivision (GrainScheduler.h:85-87).
+    'tip.swing': {
+        en: { t: 'Swing',
+              b: 'Delays every off-beat division, so the pattern falls with a shuffle instead of '
+               + 'straight. 50 % is straight and 75 % pushes the off-beat a full half-subdivision '
+               + 'late. Range 50 to 75 %.' },
+        fr: { t: 'Swing',
+              b: 'Retarde chaque division à contretemps, ce qui fait tomber le motif en shuffle '
+               + 'plutôt qu’en binaire. 50 % est binaire et 75 % repousse le contretemps d’une '
+               + 'demi-subdivision complète. Plage de 50 à 75 %.',
+              reviewed: false },
+    },
+
+    // ── Spatial Audio ───────────────────────────────────────────────────────
+
+    'tip.mode': {
+        en: { t: 'Mode',
+              b: 'Spatial Mode chooses how grains are placed in three dimensions. Scatter throws '
+               + 'each grain to a fixed random point inside the spread; Trajectory moves them '
+               + 'along a path instead, which is what brings the last four controls in this row '
+               + 'to life. Three modes: Off, Scatter, Trajectory.' },
+        fr: { t: 'Mode',
+              b: 'Le mode spatial détermine la façon dont les grains sont placés en trois '
+               + 'dimensions. Scatter projette chaque grain vers un point aléatoire fixe à '
+               + 'l’intérieur de la dispersion; Trajectory les déplace plutôt le long d’un '
+               + 'parcours, ce qui donne vie aux quatre dernières commandes de cette rangée. '
+               + 'Trois modes : Off, Scatter, Trajectory.',
+              reviewed: false },
+    },
+
+    'tip.azimuth': {
+        en: { t: 'Azimuth',
+              b: 'Sets the horizontal direction the grain cloud is centred on, measured '
+               + 'clockwise around the listener. Az Spread then scatters grains either side of '
+               + 'it. Range 0 to 360°.' },
+        fr: { t: 'Azimut',
+              b: 'Définit la direction horizontale autour de laquelle le nuage de grains est '
+               + 'centré, mesurée dans le sens horaire autour de l’auditeur. Disp. az. disperse '
+               + 'ensuite les grains de part et d’autre. Plage de 0 à 360°.',
+              reviewed: false },
+    },
+
+    'tip.elevation': {
+        en: { t: 'Elevation',
+              b: 'Sets the height the grain cloud is centred on, from directly below the '
+               + 'listener to directly above. El Spread then scatters grains either side of it. '
+               + 'Range −90 to +90°.' },
+        fr: { t: 'Élévation',
+              b: 'Définit la hauteur autour de laquelle le nuage de grains est centré, de la '
+               + 'verticale sous l’auditeur à la verticale au-dessus. Disp. él. disperse ensuite '
+               + 'les grains de part et d’autre. Plage de −90 à +90°.',
+              reviewed: false },
+    },
+
+    'tip.azSpread': {
+        en: { t: 'Az Spread',
+              b: 'Azimuth Spread sets how wide an arc grains are scattered over horizontally, '
+               + 'around the Azimuth centre. Width scales this and the vertical spread together. '
+               + 'Range 0 to 360°.' },
+        fr: { t: 'Disp. az.',
+              b: 'La dispersion en azimut détermine la largeur de l’arc sur lequel les grains '
+               + 'sont dispersés horizontalement, autour du centre défini par Azimut. Largeur '
+               + 'met cette dispersion et la dispersion verticale à l’échelle ensemble. '
+               + 'Plage de 0 à 360°.',
+              reviewed: false },
+    },
+
+    'tip.elSpread': {
+        en: { t: 'El Spread',
+              b: 'Elevation Spread sets how far grains are scattered vertically, around the '
+               + 'Elevation centre. Width scales this and the horizontal spread together. '
+               + 'Range 0 to 180°.' },
+        fr: { t: 'Disp. él.',
+              b: 'La dispersion en élévation détermine l’ampleur de la dispersion verticale des '
+               + 'grains, autour du centre défini par Élévation. Largeur met cette dispersion et '
+               + 'la dispersion horizontale à l’échelle ensemble. Plage de 0 à 180°.',
+              reviewed: false },
+    },
+
+    'tip.distance': {
+        en: { t: 'Distance',
+              b: 'Places the grain cloud nearer or further from the listener. Reach for it to '
+               + 'push a texture behind the mix rather than turning it down; with Dist LPF up it '
+               + 'darkens as it recedes as well. Range 0 to 100 %.' },
+        fr: { t: 'Distance',
+              b: 'Place le nuage de grains plus près ou plus loin de l’auditeur. À utiliser pour '
+               + 'reculer une texture derrière le mixage plutôt que d’en baisser le niveau; avec '
+               + 'PB dist. relevé, elle s’assombrit aussi en s’éloignant. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.width': {
+        en: { t: 'Width',
+              b: 'Spatial Width scales both spread arcs at once, collapsing the cloud onto its '
+               + 'Azimuth and Elevation centre at 0 % and opening it to the full spread at '
+               + '100 %. Range 0 to 100 %.' },
+        fr: { t: 'Largeur',
+              b: 'La largeur spatiale met les deux arcs de dispersion à l’échelle en même '
+               + 'temps : à 0 % le nuage se referme sur le centre défini par Azimut et '
+               + 'Élévation, à 100 % il s’ouvre à la dispersion complète. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.trajectory': {
+        en: { t: 'Trajectory',
+              b: 'Chooses the path grains travel while they sound, once Mode is set to '
+               + 'Trajectory. Orbital circles the listener, Spiral climbs as it turns, and '
+               + 'Random drifts. Four paths: Static, Orbital, Spiral, Random.' },
+        fr: { t: 'Trajectoire',
+              b: 'Choisit le parcours suivi par les grains pendant qu’ils sonnent, une fois Mode '
+               + 'réglé sur Trajectory. Orbital tourne autour de l’auditeur, Spiral monte en '
+               + 'tournant et Random dérive. Quatre parcours : Static, Orbital, Spiral, Random.',
+              reviewed: false },
+    },
+
+    'tip.trajSpeed': {
+        en: { t: 'Traj Speed',
+              b: 'Trajectory Speed scales how fast grains travel along the chosen path, from '
+               + 'held still to four times the base rate. Raise it with Doppler up for an '
+               + 'audible fly-past. Range 0 to 400 %.' },
+        fr: { t: 'Vit. traj.',
+              b: 'La vitesse de trajectoire met à l’échelle la rapidité de déplacement des '
+               + 'grains le long du parcours choisi, de l’immobilité à quatre fois la vitesse de '
+               + 'base. À monter avec Doppler pour un passage audible. Plage de 0 à 400 %.',
+              reviewed: false },
+    },
+
+    // 20 kHz down to 5 kHz is the actual coefficient, from
+    // PluginProcessor.cpp:750 — lpfCutoff = 20000 - distanceNorm * 15000 * distLpfAmt.
+    'tip.distLpf': {
+        en: { t: 'Dist LPF',
+              b: 'Distance LPF sets how much Distance darkens the cloud, by scaling a low-pass '
+               + 'that closes from 20 kHz down to 5 kHz at full distance. At 0 % a distant cloud '
+               + 'stays bright. Range 0 to 100 %.' },
+        fr: { t: 'PB dist.',
+              b: 'Le passe-bas de distance détermine dans quelle mesure Distance assombrit le '
+               + 'nuage, en dosant un filtre qui se referme de 20 kHz à 5 kHz à distance '
+               + 'maximale. À 0 % un nuage éloigné reste brillant. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.doppler': {
+        en: { t: 'Doppler',
+              b: 'Shifts a moving grain’s pitch with its motion, the way a passing siren rises '
+               + 'and then falls. It only speaks when grains are actually moving, so it needs a '
+               + 'Trajectory and some Traj Speed. Range 0 to 100 %.' },
+        fr: { t: 'Doppler',
+              b: 'Décale la hauteur d’un grain en mouvement selon son déplacement, comme une '
+               + 'sirène qui passe monte puis descend. Ne se manifeste que si les grains bougent '
+               + 'réellement : il faut donc une Trajectoire et un peu de Vit. traj. '
+               + 'Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.smoothing': {
+        en: { t: 'Smoothing',
+              b: 'Spatial Smooth sets how long the encoder takes to follow a change of position, '
+               + 'gliding the ambisonic coefficients rather than jumping them. Short values '
+               + 'track a fast trajectory; long ones remove the zipper a jumped position makes. '
+               + 'Range 1 to 200 ms.' },
+        fr: { t: 'Lissage',
+              b: 'Le lissage spatial détermine le temps que met l’encodeur à suivre un '
+               + 'changement de position, en faisant glisser les coefficients ambisoniques au '
+               + 'lieu de les faire sauter. Les valeurs courtes suivent une trajectoire rapide; '
+               + 'les longues suppriment le crépitement d’un saut de position. '
+               + 'Plage de 1 à 200 ms.',
+              reviewed: false },
+    },
+
+    // ── Chrome ──────────────────────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // must describe only what the popover ACTUALLY contains. This page's gear
+    // holds the language selector and nothing else — no hover-help toggle, no
+    // second control — and a tip that promises one would be a tip that lies.
+
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel. It holds the interface language and nothing else.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages. Il ne contient que la langue de l’interface.',
+              reviewed: false },
+    },
+
+    // The endonyms are quoted as the selector spells them — a language name is
+    // never translated, which is why they are not keyed on the page either.
+    'tip.language': {
+        en: { t: 'Language',
+              b: 'Chooses the language of the interface text and of this hover-help. Parameter '
+               + 'names in the host automation lane and the values on screen stay English. '
+               + 'English or Français.' },
+        fr: { t: 'Langue',
+              b: 'Choisit la langue du texte de l’interface et de cette aide contextuelle. Les '
+               + 'noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
+               + 'affichées restent en anglais. English ou Français.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — one string per key, no body. `{en:{t}, fr:{t, reviewed}}`.
@@ -345,24 +926,105 @@ export const I18N_EXEMPT = [
     // under D-03 in their own right as well as being canvas text.
 ];
 
-// [selector, key] or [selector, key, wrapperSelector].
+// ============================================================================
+// TIP_BINDINGS — 38 anchors, authored in v2.6.0.
 //
-// EMPTY. This page has no hover-help anchors because it has no hover-help copy.
-// check-i18n assertion 2 accepts an empty TIP_BINDINGS only while no I18N entry
-// carries a body — I18N is empty above, so the pair is consistent rather than
-// orphaned, and the gate reports "0 tip(s) bound" rather than passing silently.
-export const TIP_BINDINGS = [];
+// [selector, key] or [selector, key, wrapperSelector]. applyI18n() runs
+// document.querySelector(selector), then closest(wrapper) when a third element
+// is present, and writes data-tip-title + data-tip onto whatever that lands on.
+//
+// ── "BIND TO THE IDS THE UI ALREADY USES" IS FALSE HERE, IN BOTH HALVES ─────
+//
+// T17 says to bind the ids the UI already has. This page has FOUR ids in total
+// — #gear-btn, #settings-popover, #lang-select and #stutter-gate-btn — plus
+// #grain-canvas, #euclidean-canvas, #pitch-hint and #spatial-hint, none of
+// which is a control. Thirty-four of the 36 parameters carry NO id at all: a
+// knob is `.knob[data-param="…"]` and a dropdown is `select[data-param="…"]`,
+// exactly the shape O-Chorus reported in M1. The selector half fails on 34 of
+// 36.
+//
+// The TARGET half fails independently, and on the same 34: `.knob` is a 48 px
+// circle with a caption above it and a readout below, all three inside a 62 px
+// `.knob-container`. A tip bound to the circle alone would not open when the
+// pointer is on the caption or the value — the two parts a user reads FIRST —
+// so every knob and every dropdown walks `closest()` up to its container.
+//
+// ── THE CHROME IS BOUND BARE, AND THAT IS DELIBERATE ────────────────────────
+//
+// #gear-btn and #lang-select share an ancestor: .settings-cluster wraps the
+// gear button AND the popover the selector lives in (index.html:471-489). A
+// wrapper walk from either would land on the cluster, and hovering the language
+// selector would then show the GEAR's tip — O-Comp's carried trap 3. Both are
+// bound to themselves. #stutter-gate-btn and the Freeze toggle are bound bare
+// for a different reason: each IS the whole control, a full button with its own
+// caption, so there is no smaller node to walk up from. The Freeze toggle sits
+// alone in a full-width .freeze-bar, and binding that bar would arm a tip
+// across the entire 900 px width of the page.
+// ============================================================================
+
+export const TIP_BINDINGS = [
+    // ── Core Engine ─────────────────────────────────────────────────────────
+    ['.knob[data-param="grain_size"]',         'tip.grainSize',   '.knob-container'],
+    ['.knob[data-param="density"]',            'tip.density',     '.knob-container'],
+    ['.knob[data-param="scan_position"]',      'tip.scan',        '.knob-container'],
+    ['.knob[data-param="spread"]',             'tip.spread',      '.knob-container'],
+    ['.knob[data-param="reverse"]',            'tip.reverse',     '.knob-container'],
+    ['.knob[data-param="feedback"]',           'tip.feedback',    '.knob-container'],
+    ['.knob[data-param="dry_wet"]',            'tip.dryWet',      '.knob-container'],
+    ['.knob[data-param="size_random"]',        'tip.sizeRnd',     '.knob-container'],
+    ['.knob[data-param="amp_random"]',         'tip.ampRnd',      '.knob-container'],
+    ['select[data-param="grain_shape"]',       'tip.shape',       '.dropdown-container'],
+
+    // ── Pitch & Scale ───────────────────────────────────────────────────────
+    ['.knob[data-param="pitch_random"]',       'tip.pitchRnd',    '.knob-container'],
+    ['.knob[data-param="pan_random"]',         'tip.panRnd',      '.knob-container'],
+    ['select[data-param="scale"]',             'tip.scale',       '.dropdown-container'],
+    ['select[data-param="root_note"]',         'tip.rootNote',    '.dropdown-container'],
+    ['select[data-param="pitch_mode"]',        'tip.pitchMode',   '.dropdown-container'],
+
+    // ── Beat Sync ───────────────────────────────────────────────────────────
+    ['select[data-param="sync_mode"]',         'tip.syncMode',    '.dropdown-container'],
+    ['.knob[data-param="probability"]',        'tip.probability', '.knob-container'],
+    ['.knob[data-param="repeats"]',            'tip.repeats',     '.knob-container'],
+    ['#stutter-gate-btn',                      'tip.stutterGate'],
+
+    // ── Freeze ──────────────────────────────────────────────────────────────
+    ['.freeze-toggle',                         'tip.freeze'],
+
+    // ── Euclidean Rhythm ────────────────────────────────────────────────────
+    ['.knob[data-param="euclidean_pulses"]',   'tip.pulses',      '.knob-container'],
+    ['.knob[data-param="euclidean_steps"]',    'tip.steps',       '.knob-container'],
+    ['.knob[data-param="euclidean_rotation"]', 'tip.rotation',    '.knob-container'],
+    ['.knob[data-param="euclidean_swing"]',    'tip.swing',       '.knob-container'],
+
+    // ── Spatial Audio ───────────────────────────────────────────────────────
+    ['select[data-param="spatial_mode"]',      'tip.mode',        '.dropdown-container'],
+    ['.knob[data-param="azimuth"]',            'tip.azimuth',     '.knob-container'],
+    ['.knob[data-param="elevation"]',          'tip.elevation',   '.knob-container'],
+    ['.knob[data-param="az_spread"]',          'tip.azSpread',    '.knob-container'],
+    ['.knob[data-param="el_spread"]',          'tip.elSpread',    '.knob-container'],
+    ['.knob[data-param="distance"]',           'tip.distance',    '.knob-container'],
+    ['.knob[data-param="spatial_width"]',      'tip.width',       '.knob-container'],
+    ['select[data-param="trajectory"]',        'tip.trajectory',  '.dropdown-container'],
+    ['.knob[data-param="traj_speed"]',         'tip.trajSpeed',   '.knob-container'],
+    ['.knob[data-param="dist_lpf"]',           'tip.distLpf',     '.knob-container'],
+    ['.knob[data-param="doppler"]',            'tip.doppler',     '.knob-container'],
+    ['.knob[data-param="spatial_smooth"]',     'tip.smoothing',   '.knob-container'],
+
+    // ── Chrome — BARE, see the note above ───────────────────────────────────
+    ['#gear-btn',                              'tip.settings'],
+    ['#lang-select',                           'tip.language'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// UNREFERENCED AT RUNTIME TODAY: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty, and every visible string on this page goes
-// through trLabel() instead. It is exported verbatim all the same, so that this
-// plugin's copy of the canon block stays byte-identical to the other forty-two
-// — the canonical import line NAMES tr, and assertion 6 byte-compares it — and
-// so Stage M can add bodies to I18N without touching this file's shape.
+// LIVE AS OF v2.6.0. applyI18n() calls it once per TIP_BINDINGS row — 38 of
+// them now, where v2.5.0 had none — and the {t, b} it returns is written onto
+// the anchor as data-tip-title + data-tip. Every visible CAPTION still goes
+// through trLabel() instead; the two lookups are separate on purpose, because
+// LABELS entries have no body and I18N entries have both.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
