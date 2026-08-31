@@ -5633,3 +5633,93 @@ tree.
 | O-Prism | item 19 — 64 mod-matrix params need addressable row nodes before they can carry tips |
 | suite-wide, separate pass | item 2 (hover-help toggle on 2 of 43), item 11 (keyboard reach on pointer-drag knobs) |
 | not i18n | items 5–10, 20–24 |
+
+# STAGE N — Checkpoint 5 as a QA pass — N0 COMPLETE (repo level), N1 pilot dispatched
+
+**The developer chose the direction on 2026-08-31:** with all thirteen stages done and
+no native speaker scheduled, Checkpoint 5 becomes a second reading of all 3751 French
+entries by executors, against a glossary and a lint, one plugin per executor, patch bump
+each. `reviewed: false` stays `false` — the flag means a native speaker, and the header of
+each file records this pass instead.
+
+## THE HEADLINE: 43 authors, 267 terms, up to nine French words each
+
+Before anyone was dispatched, every plugin's `i18n.js` was imported (5078 rows, 43 plugins)
+and the French grouped by its English source. **267 English label strings had more than
+one French rendering across the suite.** "Off" had nine (Arrêt, ARRÊT, Non, NON, Aucun,
+désactivé, Désact., DÉS., Désactivée); "Save" seven; "Release" seven; "Feedback" seven;
+"Load" six; "Mix" five (Dosage, Mixage, Mix, DOSAGE, Mélange). Typography split the same
+way: 1559 typographic apostrophes against 550 straight (eleven plugins straight, thirty-two
+typographic); 6 no-break spaces before a colon against 332 plain ones; 15 before `%`
+against 233.
+
+Each rendering was one author's defensible choice on one page. **Dispatching 43 reviewers
+without a shared list would have widened it** — so the list came first.
+`scripts/i18n-fr-glossary.js` settles ~230 terms (root first, width-pinned abbreviations
+after; the prose companion `260826-ieq-FR-GLOSSARY.md` gives the reasoning), and
+`scripts/i18n-fr-lint.js` enforces them alongside seven typography rules, casing parity
+and forbidden words. Report by default, `--strict` exits 2 — the `--strict-tips` shape,
+because on the day it was written 43 of 43 failed it.
+
+## The lint's first zero was a lie, and the corpus scan is what caught it
+
+The first baseline reported **T4 (colon) = 0**. The corpus scan, written independently an
+hour earlier, had counted 332 plain spaces before a colon. The T4 and T5 regexes matched a
+non-space character immediately before the mark — the *no space at all* case — and let
+`Plage : ` with an ordinary space through, which is the case French typography is about.
+Fixed; baseline **1517 → 2145** (T4 311, T5 325). The scan that disagreed with the gate is
+the only reason the gate was not committed reporting a clean column.
+
+## `<html lang>` follows the selector — decision item 4 of the M brief, closed
+
+`applyI18n()` now sets `document.documentElement.lang = uiLanguage` (`ee912c59`). Same
+shape as `cec3f857`: one canon line, synced verbatim into all 43 canon-bearing files, no
+version bumps — the user-visible half ships with each plugin's Stage N release and its
+CHANGELOG. Controls: `check-i18n` 43/43 canon v2 (the sync is byte-equivalent),
+`boot-all-uis` 43/43 clean / 0 DEAD / 19 late (unchanged), a runtime probe reading `lang`
+on every page — `en` after init, `fr` after `__setLanguage('fr')`, still `fr` after
+`__reapplyI18n()`, `en` after switching back, **43/43**, zero page errors — and a negative
+control (a setter that leaves `lang` alone) that fails the same probe on O-Comp and O-Bells.
+
+## Baseline, per plugin (lint findings)
+
+O-AnalogSaturation 7 · O-Bass 13 · O-Texture 13 · O-Polystutter 15 · O-Tremolo 16 ·
+O-AnalogEQ 20 · O-Tapestop 20 · O-FreqPulse 25 · O-Gain 25 · O-SpectralShaper 25 ·
+O-Bassoon 26 · O-TextureForge 27 · O-Bowed 28 · O-Emulator 29 · O-ReverseDelay 29 ·
+O-Octagon 30 · O-MultiBandCompressor 31 · O-Orbit 32 · O-Marimba 33 · O-Comp 39 ·
+O-Freeze 41 · O-SimpleReverb 42 · O-Chorus 43 · O-DigiDelay 43 · O-simpleBeatmaker 44 ·
+O-Bitrot 45 · O-Lyrica 49 · O-simplePhysicalModelSynth 50 · O-Reed 54 ·
+O-simpleSubtractive 56 · O-simpleAdditive 62 · O-simpleFM 63 · O-Contrabass 67 ·
+O-GrainScatter 68 · O-Detune 70 · O-simpleSampler 71 · O-IntonationPad 76 · O-Wind 76 ·
+O-Formant 77 · O-MicrotonalSampler 77 · O-simpleGrain 92 · O-Bells 134 · O-Prism 262.
+**Total 2145.** By code: T7 unit 427, G1 glossary 347, T5 `;!?` 325, T1 apostrophe 311,
+T4 colon 311, F1 forbidden 203, T3 `%` 177, C1 casing 26, T6 minus 10, T2 decimal 8.
+218 `sameAsEn` entries listed as INFO for the reviewers to confirm or translate.
+
+## Commits
+
+- `47e8163f` docs — the record reconciled (A–M complete, 17/18/26 closed).
+- `ee912c59` feat(i18n) — `<html lang>` canon line, 44 files.
+- `75ef8254` feat(i18n) — glossary + lint.
+- `f1927cd4` docs — Stage N brief + glossary companion; decision items 27–29 added.
+
+## Decision items added
+
+27. `reviewed: false` after Stage N — dead weight or exactly right, the developer's call.
+28. Pages that uppercase with CSS — the table's casing is invisible on screen, visible to
+    assistive technology and the lint.
+29. The lint is a report; `--strict` exists and nothing calls it.
+
+## N1 pilot — dispatched
+
+O-Comp (39), O-Chorus (43, the casing case), O-simpleFM (63, the O-simple* family with
+26 straight apostrophes and Stage K width pins), three executors concurrently, builds on
+the Stage K mutex. Results appended below as they land.
+
+## Not verified
+
+- No French entry has yet been changed by this stage; the N0 numbers are a baseline.
+- The glossary's choices are the orchestrator's, from the corpus and standard French DAW
+  vocabulary — not a native speaker's. The pilots are the first test of whether the
+  settled terms fit the frames they were pinned on.
+- `<html lang>` verified headless in Chromium only, never in a WKWebView.
