@@ -1,0 +1,14 @@
+# plugin	O-Texture
+# params	10
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+SOURCE	Source		6	Rain	Organic	0.000000	Rain	automatable,discrete
+MODE	Mode		2	Generate	Transform	0.000000	Generate	automatable,discrete
+X	X		2147483647	0.000	1.000	0.500000	0.500	automatable
+Y	Y		2147483647	0.000	1.000	0.500000	0.500	automatable
+CHARACTER_A	Character A		2147483647	0.000	1.000	0.500000	0.500	automatable
+CHARACTER_B	Character B		2147483647	0.000	1.000	0.500000	0.500	automatable
+EVOLVE	Evolve		2147483647	0.000	1.000	0.300000	0.300	automatable
+FREEZE	Freeze		2	Off	On	0.000000	Off	automatable,discrete,boolean
+BRIGHTNESS	Brightness		2147483647	-1.000	1.000	0.500000	0.000	automatable
+MIX	Mix		2147483647	0.000	1.000	1.000000	1.000	automatable

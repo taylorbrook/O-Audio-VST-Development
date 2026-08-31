@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Texture page labels, English + French (v0.2.0)
+// i18n.js — O-Texture page labels and hover-help, English + French (v0.3.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -30,17 +30,40 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── HOVER-HELP ARRIVED IN v0.3.0, AND IT NEEDED A RENDERER TOO ────────────
 //
-// v0.1.2 carried no data-tip and no data-tooltip anywhere on the page — only
-// six stray native title="Coming soon" attributes, all six of them deleted
-// here per contract section 4. So there is no tooltip copy to MOVE and none is
-// INVENTED: authoring hover-help prose is Stage M's job. I18N is therefore
-// empty and TIP_BINDINGS is empty, which is this plugin's correct state rather
-// than a gap. check-i18n assertion 2 reports it as "0 tip(s) bound" instead of
-// passing silently, and the emptiness is only admissible BECAUSE no I18N entry
-// carries a body — an emptied TIP_BINDINGS over a bodied table would be
-// orphaned copy and would fail.
+// v0.2.0 shipped this table with I18N and TIP_BINDINGS both EMPTY — the page
+// had no tooltip copy to move and none was invented, because authoring it was
+// Stage M's job. This is Stage M: eleven entries covering all ten APVTS
+// parameters plus the gear and the language selector.
+//
+// COPY ALONE WOULD HAVE SHIPPED ELEVEN INVISIBLE STRINGS PAST THREE GREEN
+// GATES. Canon v2's applyI18n() writes data-tip-title and data-tip onto the
+// anchors named at the foot of this file and stops there. The thing that reads
+// those attributes and paints a surface is per-plugin code, and v0.2.0 had
+// none of it: no tooltip element, no .tooltip rule, no hover handler.
+// check-i18n assertion 2 only counts bindings, check-ui-labels has no tooltip
+// awareness whatsoever, and boot-all-uis counts aria-label and title and never
+// data-tip. So the renderer lands in the same change as the copy —
+// setupTooltips() at the foot of js/main.js, its surface in index.html, its
+// styling in css/ouaricon-naturalist.css — and tests/ui_tip_render_check.js is
+// the gate that can actually see one paint.
+//
+// TEN PARAMETERS, NINE PARAMETER TIPS — and that is arithmetic, not a gap.
+// X and Y share ONE control, the XY pad canvas. applyI18n() writes the tip
+// attributes onto the element each selector resolves to, so two bindings
+// pointing at the pad would have the second overwrite the first and leave one
+// entry permanently unrenderable — exactly the invisible-string failure this
+// version exists to close. One entry, tip.xyPad, names both axes instead.
+//
+// TITLES ARE THE PAGE'S CAPTIONS, WITH TWO DELIBERATE EXCEPTIONS. tip.charA
+// and tip.charB are titled "Character A" / "Character B" rather than the
+// page's "Char A" / "Char B". Those captions are ABBREVIATIONS forced by a
+// hard 50 px column (measured in the LABELS block below); the tooltip is the
+// one surface on this page with room to spell the parameter's real display
+// name, which is also the name the host's automation lane shows. The French
+// titles do the same: "Caractère A" is 51.5 px and unusable as a caption, and
+// entirely comfortable inside a 260 px tip.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -53,16 +76,209 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately. See the header.
+// I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}.
 //
-// Exported all the same because the canonical import line names it and
-// trLabel() falls back through it — a control whose tooltip title already IS
-// its caption is meant to carry ONE key, and that fallback must exist even on a
-// plugin that has no tooltips today, so Stage M can add bodies here without
-// touching the label keys below.
+// Eleven entries, in the page's own top-to-bottom, left-to-right order. Every
+// one is bound at the foot of this file: an authored body that nothing binds is
+// an ORPHAN and check-i18n assertion 2 fails it.
+//
+// ── WHERE THE RANGES COME FROM ──────────────────────────────────────────────
+//
+// .planning/params.tsv is the runtime inventory, dumped from a walk of
+// AudioProcessor::getParameters(). ALL TEN of this plugin's parameters have an
+// EMPTY `label` column — there is not one unit anywhere in the set, because
+// nothing here is measured in anything. Six are latent-space coordinates, one
+// is a drift rate, one a normalised level, one a bipolar tilt, and two are
+// choices. So no unit is invented here, and every numeric range is quoted the
+// way the PAGE renders that control:
+//
+//     .value      (Char A / Char B / Evolve)  js/main.js:361  scaledValue.toFixed(2)
+//     .knob-value (Brightness / Mix)          js/main.js:466  scaledValue.toFixed(2)
+//
+// The XY pad has NO readout node at all — it is a canvas, and js/main.js draws
+// a dot and a trail on it and nothing else. So tip.xyPad's range is the only
+// one on this page taken from the dump's own textAtMin/textAtMax (0.000 /
+// 1.000, the 0.001 parameter interval) rather than from a formatter, and it is
+// spelled with three decimals for that reason.
+//
+// ── D-01 ARM 1 AND D-03, BOTH LIVE, NEITHER IN CONFLICT ─────────────────────
+//
+// The SOURCE and MODE option strings (Rain, Metal, Wind, Crowd, Synth, Organic;
+// Generate, Transform) stay byte-identical inside these French bodies. They are
+// AudioParameterChoice options and I18N_EXEMPT declares the page captions for
+// exactly that reason — a DAW showing SOURCE = "Rain" beside a page reading
+// "Pluie" is a bug report. The SENTENCE naming them is prose and is localized;
+// the identifier inside it is not. Those two rules do not conflict.
+//
+// Numbers inside a body are ordinary prose (contract section 5 / D-03 binds to
+// NODES, not to sentences), so the French uses the French decimal comma —
+// "0,00 à 1,00" — while the page's own .value and .knob-value READOUT nodes
+// keep rendering "0.50" in both languages, because a readout node never becomes
+// a [data-i18n] element.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false` on every entry.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The header row ──────────────────────────────────────────────────────
+
+    // MODE — AudioParameterChoice, 2 options, default Generate. Transform is
+    // not implemented and its button ships `disabled`, which a user can see but
+    // not explain; the body explains it. The French title is byte-identical to
+    // the English because "Mode" is the same word for the same thing in both,
+    // and assertion 4 does not fire on that alone — it flags an entry only when
+    // t AND b both match, and the bodies differ.
+    'tip.mode': {
+        en: { t: "Mode",
+              b: "Generate synthesises texture from the model alone, with no audio input at all. Transform will reshape incoming audio through the same model and is not implemented yet, which is why its button is disabled. Generate or Transform." },
+        fr: { t: "Mode",
+              b: "Generate synthétise la texture à partir du seul modèle, sans aucune entrée audio. Transform remodèlera l’audio entrant par le même modèle mais n’est pas encore implémenté, d’où son bouton désactivé. Generate ou Transform.",
+              reviewed: false },
+    },
+
+    // ── The XY pad: TWO parameters, ONE control ─────────────────────────────
+    //
+    // X is latent dimension 0 and Y is dimension 1 of a 32-dimensional VAE
+    // latent space (Resources/models/rain/dim_map_rain.json). The training
+    // script ranks the dimensions by variance and hands the top four to the
+    // four continuous controls (training/analyze_latent.py:107,121), so X and Y
+    // are the two most active axes the model has — and the stereo image is made
+    // by offsetting X by ±0.1 and Y by ±0.05 between the two channels
+    // (PluginProcessor.cpp:304-307), which is why X is named as the one
+    // carrying the spread.
+    //
+    // The honest sentence is the third one: these axes have no trained meaning.
+    // Nothing in the pipeline names them, and a body that promised "brightness"
+    // or "density" would be inventing a semantics the model does not have.
+    'tip.xyPad': {
+        en: { t: "XY Pad",
+              b: "Drag the dot to move through the model's latent space: left to right is X, bottom to top is Y. They are the two most active dimensions the training run found, so this is where the texture changes most, and X also carries the stereo spread between the two channels. Neither axis is a named control — what you hear is whatever the model learned there — and both run 0.000 to 1.000." },
+        fr: { t: "Pad XY",
+              b: "Faites glisser le point pour parcourir l’espace latent du modèle : de gauche à droite pour X, de bas en haut pour Y. Ce sont les deux dimensions les plus actives trouvées à l’entraînement, donc c’est là que la texture change le plus, et X porte aussi l’écart stéréo entre les deux canaux. Aucun des deux axes n’est un réglage nommé — ce que vous entendez est ce que le modèle a appris à cet endroit — et tous deux vont de 0,000 à 1,000.",
+              reviewed: false },
+    },
+
+    // ── The three vertical sliders ──────────────────────────────────────────
+    //
+    // CHARACTER_A is latent dimension 2, variance 0.8 against X's 1.0.
+    // Title spelled out rather than abbreviated: see the header.
+    'tip.charA': {
+        en: { t: "Character A",
+              b: "The third dimension of the latent space, kept off the pad so that a texture found there can be varied without moving off it. It carries less of the model's variance than X or Y, so the same travel is a smaller change than either. 0.00 to 1.00." },
+        fr: { t: "Caractère A",
+              b: "La troisième dimension de l’espace latent, tenue à l’écart du pad pour qu’une texture trouvée dessus puisse varier sans quitter sa position. Elle porte moins de variance du modèle que X ou Y : la même course produit donc un changement plus fin que sur l’un ou l’autre. De 0,00 à 1,00.",
+              reviewed: false },
+    },
+
+    // CHARACTER_B is dimension 3, variance 0.7 — the least active of the four.
+    'tip.charB': {
+        en: { t: "Character B",
+              b: "The fourth latent dimension, and the least active of the four this plugin exposes. Reach for it last, once the pad and Character A have found the texture, when the move you want is the smallest of the four. 0.00 to 1.00." },
+        fr: { t: "Caractère B",
+              b: "La quatrième dimension latente, et la moins active des quatre dimensions proposées ici. À utiliser en dernier, une fois la texture trouvée avec le pad et Caractère A, quand le déplacement voulu est le plus fin des quatre. De 0,00 à 1,00.",
+              reviewed: false },
+    },
+
+    // EVOLVE drives a 1-D Perlin walk over the eight REMAINING active latent
+    // dimensions (evolve_dims 4..11), one step per overlap-add hop of 2048
+    // samples (OverlapAddProcessor.h:39). PerlinNoise1D::setSpeed squares the
+    // parameter before scaling (PerlinNoise1D.h:65-69) — that squaring is the
+    // one thing a user cannot discover by turning the slider, so it earns the
+    // second sentence.
+    'tip.evolve': {
+        en: { t: "Evolve",
+              b: "How fast the texture drifts on its own: a smooth random walk across eight further latent dimensions, taking one step per 2048-sample block. The response is squared, so all of the slow, usable movement sits in the lower half of the range. 0.00, which is perfectly still, to 1.00." },
+        fr: { t: "Évol.",
+              b: "La vitesse à laquelle la texture dérive d’elle-même : une marche aléatoire lissée sur huit autres dimensions latentes, à raison d’un pas par bloc de 2048 échantillons. La réponse est mise au carré, donc tout le mouvement lent et utilisable se trouve dans la moitié basse de la course. De 0,00, parfaitement immobile, à 1,00.",
+              reviewed: false },
+    },
+
+    // ── The source row ──────────────────────────────────────────────────────
+    //
+    // SOURCE — AudioParameterChoice, 6 options, default Rain. Five of the six
+    // buttons ship `disabled` because only the Rain model is trained, and a row
+    // of five dead buttons is the first thing a user asks about.
+    'tip.source': {
+        en: { t: "Source",
+              b: "Chooses which trained texture model the generator decodes from. Only Rain has a model today — the other five buttons stay disabled until theirs are trained, and pressing one does nothing. Rain, Metal, Wind, Crowd, Synth, Organic." },
+        fr: { t: "Source",
+              b: "Choisit le modèle de texture entraîné dont le générateur décode le son. Seul Rain dispose d’un modèle aujourd’hui : les cinq autres boutons restent désactivés tant que le leur n’est pas entraîné, et les presser ne fait rien. Rain, Metal, Wind, Crowd, Synth, Organic.",
+              reviewed: false },
+    },
+
+    // ── The bottom strip ────────────────────────────────────────────────────
+    //
+    // BRIGHTNESS drives a one-pole tilt EQ whose pivot is 800 Hz and is never
+    // moved — TiltFilter::setCenterFrequency exists but has no caller anywhere
+    // in Source/, so the default stands (TiltFilter.h:89,146). The bypass at
+    // zero is real rather than nominal: processBlock returns early when the
+    // brightness is zero and neither gain is still smoothing (TiltFilter.h:96).
+    'tip.brightness': {
+        en: { t: "Brightness",
+              b: "A tilt filter pivoting at 800 Hz, applied after the decoder: turn it up and the top of the spectrum lifts while the bottom drops away, turn it down and the two swap places. It is the only tone control in the plugin, and at 0.00 it is bypassed outright rather than merely flat. −1.00 to +1.00." },
+        fr: { t: "Brillance",
+              b: "Un filtre en bascule pivotant à 800 Hz, appliqué après le décodeur : vers le haut, le haut du spectre monte pendant que le bas recule ; vers le bas, les deux s’inversent. C’est la seule correction tonale du plugin, et à 0,00 elle est réellement contournée et pas seulement plate. De −1,00 à +1,00.",
+              reviewed: false },
+    },
+
+    // MIX is a LEVEL, not a blend, and the tooltip says so. processBlock ends
+    // with a final `buffer.applyGain(mix)`, guarded on mix being under unity
+    // (PluginProcessor.cpp:544-545) —
+    // there is no dry path to balance against, because Generate mode is a
+    // source and the sidechain input bus ships disabled and is never read. The
+    // title stays "Mix" / "Mélange" because that is the caption on the page and
+    // the display name in the host; the body is where the discrepancy is
+    // resolved rather than left for a user to discover at 0.50.
+    'tip.mix': {
+        en: { t: "Mix",
+              b: "The output level of the generated texture. Generate mode has no input signal to balance against, so this is a straight fade from silence up to full rather than a dry/wet control. 0.00 to 1.00." },
+        fr: { t: "Mélange",
+              b: "Le niveau de sortie de la texture générée. Le mode Generate n’a aucun signal d’entrée à doser, il s’agit donc d’un simple fondu du silence au plein niveau et non d’un équilibre entre son direct et son traité. De 0,00 à 1,00.",
+              reviewed: false },
+    },
+
+    // FREEZE — AudioParameterBool. PerlinNoise1D::advance returns immediately
+    // when frozen (PerlinNoise1D.h:73-75), so the latent stops moving while the
+    // decoder keeps running; every other control still reaches the latent on
+    // the next hop. Its option words are "Off" / "On" in the dump, and here
+    // they are prose inside a sentence, so they localize.
+    'tip.freeze': {
+        en: { t: "Freeze",
+              b: "Holds the Evolve walk exactly where it stands, so the texture stops drifting and stays as it is. Everything else still responds while it is on — the pad, both Character sliders, Brightness and Mix all keep working. Off or On." },
+        fr: { t: "Gel",
+              b: "Fige la marche d’Évolution exactement où elle en est : la texture cesse de dériver et reste telle quelle. Tout le reste répond encore pendant ce temps — le pad, les deux curseurs de Caractère, Brillance et Mélange continuent de fonctionner. Désactivé ou activé.",
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user that hover-help exists at all, so its
+    // body describes ONLY what the popover actually holds. This plugin has no
+    // hover-help on/off toggle — not in C++, not in localStorage — so the panel
+    // holds the language selector and nothing else, and the tip says exactly
+    // that. O-Tapestop's wording promises a toggle this plugin does not have,
+    // and a tip that lies is worse than no tip.
+    //
+    // "saved with the project" is checked, not assumed: setUiLanguage stores
+    // into TextureProcessor::uiLanguage (PluginEditor.cpp:97) and
+    // getStateInformation writes it onto the state tree as a "uiLanguage"
+    // property (PluginProcessor.cpp:613).
+    'tip.gearBtn': {
+        en: { t: "Settings",
+              b: "Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help switch with it, and the choice is saved with the project, so a session reopens in the language it was saved in." },
+        fr: { t: "Réglages",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est enregistré avec le projet — une session se rouvre donc dans la langue où elle a été enregistrée.",
+              reviewed: false },
+    },
+    'tip.langSelect': {
+        en: { t: "Language",
+              b: "The language of the captions on this page and of this hover help. English and French are available. The value readouts, the six source names and the two mode names stay in English so that the page and the host's automation lane agree about the same setting." },
+        fr: { t: "Langue",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées, les six noms de sources et les deux noms de modes restent en anglais pour que la page et la voie d’automation de l’hôte s’accordent sur un même réglage.",
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -235,25 +451,79 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper].
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), walks closest(wrapper) if
+// a wrapper is given, and writes data-tip-title + data-tip onto whatever it
+// lands on. setupTooltips() in js/main.js then reads those attributes off
+// closest('[data-tip]') from whatever the pointer is over.
+//
+// ── THE WRAPPER IS NOT DECORATION, IT IS THE HOVER AREA ─────────────────────
+//
+// T17 says "bind to the ids the UI already uses". On this page that is true for
+// only four of the eleven anchors. Five bind an addressable CHILD and walk up
+// to the cell a user actually aims at, because binding the child alone would
+// leave a tip nobody can open:
+//
+//   .source-selector   the six source buttons carry no id and no data-param —
+//                      the PARAMETER is the ROW. The selector resolves to the
+//                      first button (Rain, the only enabled one) and the
+//                      wrapper walk makes the whole 8 px-gapped row the hover
+//                      area, so a pointer between two buttons still gets help.
+//   .mode-toggle       the same shape, two buttons, and the second is
+//                      `disabled`. MEASURED, and it is the strongest argument
+//                      for the wrapper on this page: Chromium retargets a
+//                      pointer event over a disabled form control to the
+//                      nearest ENABLED ancestor, so binding the ROW keeps
+//                      hover-help alive over the dead buttons — five of the six
+//                      source buttons and one of the two mode buttons — which
+//                      is exactly where a user asks why nothing happens.
+//                      tests/ui_tip_render_check.js section 6 asserts it.
+//   .knob-container    the knob is 64 px of div; the caption and the readout
+//                      under it are siblings. The container is the column.
+//   .freeze-toggle     the button plus its caption.
+//
+// The three vertical sliders and the XY pad need no wrapper: #slider-charA and
+// its two siblings ARE the .vertical-slider cell, and #xy-pad fills its
+// container.
+//
+// ── NO tabindex IS ADDED, AND THAT IS A DECISION ────────────────────────────
+//
+// The XY pad, the three sliders and the two knobs are pointer-drag only and
+// have never been keyboard-operable. A tabindex here would add six tab stops
+// for controls the keyboard still could not move, and would pop a tip open in
+// the middle of a click-drag. The four natively focusable anchors — #gear-btn,
+// the Generate button, the Rain button and #freeze-button — carry the keyboard
+// half of this feature, and closest() reaches their wrappers for free.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['.mode-toggle button',   'tip.mode',       '.mode-toggle'],
+
+    ['#xy-pad',               'tip.xyPad'],
+
+    ['#slider-charA',         'tip.charA'],
+    ['#slider-charB',         'tip.charB'],
+    ['#slider-evolve',        'tip.evolve'],
+
+    ['.source-button',        'tip.source',     '.source-selector'],
+
+    ['#knob-brightness',      'tip.brightness', '.knob-container'],
+    ['#knob-mix',             'tip.mix',        '.knob-container'],
+    ['#freeze-button',        'tip.freeze',     '.freeze-toggle'],
+
+    ['#gear-btn',             'tip.gearBtn'],
+    ['#lang-select',          'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v0.3.0: applyI18n() calls it once per TIP_BINDINGS row, eleven
+// times per language switch. It was exported verbatim while the loop was empty
+// so that the canon block stayed byte-identical to the other forty-two copies,
+// which is why adding the bodies above needed no edit to this function.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }

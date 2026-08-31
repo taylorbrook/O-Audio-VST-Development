@@ -560,3 +560,65 @@ body::after {
     outline: 2px solid var(--botanical-green-dark);
     outline-offset: 1px;
 }
+
+
+/* ===== HOVER-HELP TOOLTIP (v0.3.0) =====
+   Styled in THIS page's vocabulary, not pasted in from another plugin. The
+   settings popover is the only other floating surface here, and this wears the
+   same treatment: the aged-paper ground, one 1 px --ink-brown rule, the same
+   3px 3px 8px shadow, Garamond, and the 0.05em uppercase tracking every small
+   caption on this page carries. The title line takes --botanical-green-dark,
+   which is the same ink .source-button.active and .freeze-button.active use.
+
+   Z-INDEX 1200, AND THAT NUMBER IS LOAD-BEARING. body::after paints a 180 x 180
+   fern at z-index 1000 pinned to the bottom-right corner — 10 px in from each
+   edge — and .freeze-toggle sits directly under it. A surface at the settings
+   popover's z-index 61 would be printed UNDER the fern for every tip the Freeze
+   button, the Mix knob or the right-hand end of the source row opens. The fern
+   is pointer-events: none, so it never blocks the hover; it only obscures the
+   paint, which is the failure a hover test that reads only visibility would
+   miss entirely.
+
+   position: fixed + visibility: hidden + opacity: 0 AT REST. check-ui-labels'
+   visibility predicate rejects all three, so an unshown surface is neither
+   measured in the geometry diff nor swept for text, and its rect never enters
+   the English/French comparison. pointer-events: none because a surface that
+   accepts the pointer steals the hover that is keeping it open.
+
+   max-width caps the line length so French, which runs 15-20% longer, wraps
+   rather than growing sideways into the frame edge. 260 px on an 800 px frame
+   leaves room for the 8 px clamp margin on either side of any anchor. */
+.tooltip {
+    position: fixed;
+    z-index: 1200;
+    max-width: 260px;
+    padding: 8px 10px;
+    background: var(--paper-light);
+    color: var(--ink-brown);
+    border: 1px solid var(--ink-brown);
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.25);
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+}
+
+.tooltip.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* text-transform only — the NODE keeps the authored case, so a gate comparing
+   textContent against the table still sees "Character A" and not "CHARACTER A".
+   The same arrangement .freeze-label already uses. */
+.tooltip .tip-title {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--botanical-green-dark);
+    margin-bottom: 3px;
+}

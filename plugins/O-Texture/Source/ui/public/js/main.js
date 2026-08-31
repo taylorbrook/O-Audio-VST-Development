@@ -35,9 +35,10 @@ import * as Juce from './juce/index.js';
 
 // v0.2.0: the label table. The CANONICAL import line verbatim — this
 // controller is a real js/app.js-shaped module living beside i18n.js, so the
-// specifier needs no re-rooting. I18N and TIP_BINDINGS are both EMPTY here
-// (this page has no hover-help) and are imported anyway so the canon block at
-// the foot of this file stays byte-identical to the other forty-two copies.
+// specifier needs no re-rooting. I18N and TIP_BINDINGS were both EMPTY at
+// v0.2.0 and were imported anyway so the canon block at the foot of this file
+// stayed byte-identical to the other forty-two copies; v0.3.0 fills both, and
+// that foresight is why adding hover-help changed no line of the canon.
 import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // ============================================================================
@@ -91,8 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // evaluation completes before DOMContentLoaded fires on a deferred module
     // script, so there is no TDZ window for this call to fall into
     // (pattern_module_toplevel_init_tdz).
+    //
+    // v0.3.0: setupTooltips() joins it INSIDE the same try/catch and AFTER
+    // initI18n(), deliberately on both counts. Before initI18n() every anchor
+    // is bare — applyI18n() is what writes data-tip-title and data-tip onto
+    // them — so a renderer wired up first would open an empty box on every
+    // hover. And a throw out of either must not reach module scope.
     initializeSettingsPopover();
-    try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+    try { initI18n(); setupTooltips(); } catch (e) { console.error('i18n init failed:', e); }
 });
 
 // ============================================================================
@@ -604,10 +611,14 @@ function initI18n() {
 // Settings popover (v0.2.0)
 // ============================================================================
 //
-// ONE row. This plugin has no hover-help to switch on or off — v0.1.2 carried
-// no data-tip and no data-tooltip anywhere, only six native title= attributes
-// this version deletes — and authoring that copy is Stage M's job, so the
-// popover holds the language selector alone.
+// ONE row, and STILL one row at v0.3.0. Hover-help arrived in that version but
+// it is always on: a toggle would mean a second control in this panel, a
+// preference persisted through C++, and a data-tip-always bypass so the
+// toggle's own tip still works when tips are off. Two of the suite's 43 plugins
+// have such a toggle and 41 do not; making them agree is a decision across all
+// 43, not a side effect here. So the popover still holds the language selector
+// alone, and tip.gearBtn says exactly that rather than promising a control this
+// plugin does not have.
 //
 // It opens DOWNWARDS: the gear sits 21 px from the top of a 600 px frame, so a
 // panel above it would leave the frame entirely.
@@ -650,5 +661,159 @@ function initializeSettingsPopover() {
             setSettingsPopoverOpen(false);
             gearBtnEl.focus();
         }
+    });
+}
+
+// ============================================================================
+// Hover-help renderer (v0.3.0)
+// ============================================================================
+//
+// THE COPY IS NOT LOOKED UP HERE. applyI18n() has already written it onto every
+// anchor named in TIP_BINDINGS as data-tip-title + data-tip, in the current
+// language, and it rewrites both on every language change. This function only
+// positions and paints what the anchor is already carrying — which is why it is
+// called AFTER initI18n() and not before: before, every anchor is bare and
+// every hover would open an empty box.
+//
+// Ported from O-simpleFM's delegated, cursor-following family
+// (js/app.js:384-462) rather than O-Tapestop's measure-then-pin engine: this
+// page has no flip-above/below design and no clamp gates to serve, and 80 lines
+// beat 180 for the same behaviour. Styled in this page's own aged-paper
+// vocabulary in css/ouaricon-naturalist.css.
+//
+// Every property below is load-bearing, and each has a scar behind it:
+//
+//   1. DELEGATED ON document, never querySelectorAll('[data-tip]') at setup.
+//      No anchor carries data-tip until applyI18n() has run, so a setup-time
+//      query binds NOTHING and fails silently.
+//   2. pointerover / pointerout / focusin / focusout, because those BUBBLE.
+//      pointerenter / pointerleave / focus / blur do not, and a delegated
+//      listener on document never sees them.
+//   3. pointerout IGNORES a move between two descendants of the SAME anchor.
+//      Every anchor here holds children — .vertical-slider has a caption, a
+//      track, a thumb and a readout — and without this the tip would flicker
+//      off and on at each internal boundary.
+//   4. createElement + textContent, NEVER innerHTML. Localized copy must not
+//      reach a markup path; check-i18n assertion 9 already forbids an angle
+//      bracket in an i18n.js string literal and this is the other half of it.
+//   5. Clamped on ALL FOUR edges with an 8 px margin, AFTER the flip. 800 x 600
+//      is roomy and the flip is still the normal path, MEASURED at the shipping
+//      frame: 5 of the 11 anchors flip horizontally (the mode row, the three
+//      vertical sliders whose column ends 12 px from the right edge, and the
+//      freeze button) and 3 flip vertically (both knobs and the freeze button,
+//      all of which sit in the bottom strip) — the freeze button flips BOTH
+//      ways. Clamping after the flip rather than instead of it means a tip that
+//      fits on neither side still lands fully on screen.
+//   6. pointer-events: none on the surface (CSS), or it steals the hover that
+//      is keeping it open.
+//   7. Escape hides it, and so does any pointerdown.
+//   8. THE FOCUS ARM IS LATCHED TO THE KEYBOARD. See the comment at the latch.
+//
+// No tabindex is added to the pointer-only controls — see the note above
+// TIP_BINDINGS in js/i18n.js. #gear-btn, #lang-select and the two enabled
+// buttons carry the keyboard half.
+function setupTooltips() {
+    const tip = document.getElementById('tooltip');
+    if (!tip) { console.warn('tooltip surface missing - hover-help unavailable'); return; }
+
+    const MARGIN = 8;
+    let active = null;
+
+    const position = (x, y) => {
+        const r = tip.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let nx = x + 14;
+        let ny = y + 16;
+        // Flip to the other side of the cursor when the natural side overflows.
+        if (nx + r.width  > vw - MARGIN) nx = x - r.width  - 14;
+        if (ny + r.height > vh - MARGIN) ny = y - r.height - 12;
+        // Then clamp, unconditionally, on all four edges. Math.max on the upper
+        // bound keeps the arithmetic sane if a tip ever exceeds the frame.
+        nx = Math.min(Math.max(MARGIN, nx), Math.max(MARGIN, vw - r.width  - MARGIN));
+        ny = Math.min(Math.max(MARGIN, ny), Math.max(MARGIN, vh - r.height - MARGIN));
+        tip.style.left = `${nx}px`;
+        tip.style.top  = `${ny}px`;
+    };
+
+    const show = (el, x, y) => {
+        const title = el.getAttribute('data-tip-title');
+        const body  = el.getAttribute('data-tip');
+        if (!title && !body) return;
+        tip.textContent = '';
+        if (title) {
+            const t = document.createElement('span');
+            t.className = 'tip-title';
+            t.textContent = title;
+            tip.appendChild(t);
+        }
+        if (body) tip.appendChild(document.createTextNode(body));
+        tip.classList.add('show');
+        tip.setAttribute('aria-hidden', 'false');
+        position(x, y);
+    };
+
+    const hide = () => {
+        tip.classList.remove('show');
+        tip.setAttribute('aria-hidden', 'true');
+        active = null;
+    };
+
+    const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
+
+    // Focus opens a tip as well — that is the keyboard half of this feature —
+    // but ONLY when the focus arrived from the keyboard.
+    //
+    // A mouse click on a button FOCUSES it, so the reference implementation's
+    // unconditional focusin rule re-opens the tip that pointerdown has just
+    // hidden, with the pointer still on the anchor and no further pointerover
+    // coming. Measured on two sibling plugins before the fix: the gear's own
+    // tip stayed pinned across the settings popover the click had opened,
+    // covering it by 146 x 35 px on O-Bass and 161 x 29 px on
+    // O-AnalogSaturation, and it stayed until focus moved. On this page the
+    // popover opens DOWNWARDS from a gear 21 px below the top edge, so the
+    // gear's tip would land on top of the language selector itself.
+    //
+    // :focus-visible is deliberately NOT the discriminator. Chromium reports it
+    // false for a programmatic .focus() that follows a click, so a gate driving
+    // focus directly would measure "no tip" and record that as correct — a
+    // false pass built into the fix. An explicit last-input-device latch is the
+    // same rule and is drivable from a test with real events.
+    let lastInputWasPointer = false;
+
+    document.addEventListener('pointerover', (e) => {
+        const el = anchorOf(e.target);
+        if (!el || el === active) return;
+        active = el;
+        show(el, e.clientX, e.clientY);
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+    });
+    document.addEventListener('pointerout', (e) => {
+        if (!active) return;
+        if (anchorOf(e.relatedTarget) === active) return;   // same anchor, child boundary
+        hide();
+    });
+    document.addEventListener('pointerdown', () => { lastInputWasPointer = true; hide(); });
+
+    document.addEventListener('focusin', (e) => {
+        if (lastInputWasPointer) return;
+        const el = anchorOf(e.target);
+        if (!el) return;
+        active = el;
+        const r = el.getBoundingClientRect();
+        show(el, r.left + r.width / 2, r.bottom);
+    });
+    document.addEventListener('focusout', hide);
+
+    // One keydown listener, two jobs: any key at all means the keyboard is
+    // driving again, which releases the latch above; Escape additionally hides.
+    // Registered AFTER initializeSettingsPopover()'s own keydown listener, whose
+    // Escape branch calls gearBtnEl.focus() — that focus is keyboard-driven by
+    // definition, so the gear's tip correctly opens as focus returns to it.
+    document.addEventListener('keydown', (e) => {
+        lastInputWasPointer = false;
+        if (e.key === 'Escape') hide();
     });
 }

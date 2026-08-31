@@ -39,9 +39,13 @@
                      one. -->
                 <h1>O-TEXTURE</h1>
 
-                <!-- v0.2.0: the settings cluster. ONE row, because this plugin
-                     has no hover-help to switch on or off - authoring that copy
-                     is Stage M's job and this commit does not invent it. -->
+                <!-- v0.2.0: the settings cluster. STILL ONE row at v0.3.0.
+                     Hover-help now exists, but it is always on: adding a toggle
+                     means a second control here, a persisted preference through
+                     C++ and a data-tip-always bypass so the toggle's own tip
+                     still works when tips are off. That is a suite-wide
+                     decision across 41 plugins, not a side effect of the
+                     version that authored the copy. -->
                 <div class="settings-cluster">
                     <button type="button" class="gear-btn" id="gear-btn"
                             aria-haspopup="dialog" aria-expanded="false"
@@ -233,6 +237,22 @@
             </div>
         </div>
     </div>
+
+    <!-- HOVER-HELP SURFACE (v0.3.0). One node, empty at rest. setupTooltips()
+         in js/main.js fills it from the data-tip-title / data-tip attributes
+         applyI18n() writes onto each anchor named in TIP_BINDINGS, builds it
+         with createElement + textContent (never innerHTML), and positions it
+         against the cursor.
+
+         OUTSIDE .container deliberately. .container is the 800 x 600 layout
+         box; the surface is position: fixed and clamps against the VIEWPORT,
+         so nesting it inside a flex column buys nothing and would hand any
+         future transform on .container the power to make "fixed" resolve
+         against that box instead.
+
+         Empty and hidden at rest, so it enters neither check-ui-labels' label
+         sweep nor check-i18n assertion 10's uncovered-text scan. -->
+    <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
     <script type="module" src="js/main.js"></script>
 </body>
