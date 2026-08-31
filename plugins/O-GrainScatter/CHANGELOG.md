@@ -1,5 +1,41 @@
 # Changelog
 
+## [2.6.0] - 2026-08-30
+
+Hover-help, in both languages. Every one of the 36 parameters now carries a tooltip, as do the gear and the language selector — 38 entries, English and French, drafted for review. **And the copy is not the whole change: this page had no way to paint a tooltip at all**, so a renderer and a surface land in the same commit.
+
+### Added
+- **38 `I18N` hover-help entries in `js/i18n.js`**, one per on-page control plus two for the chrome, each with an English and a French `{t, b}`. `I18N` and `TIP_BINDINGS` were both empty through v2.5.0, which was that version's correct state; `check-i18n` assertion 2 reported it as "0 tip(s) bound". It now reports **38**.
+- **`setupTooltips()` in `js/app.js` and the `.tooltip` rules + `#tooltip` surface in `index.html`.** `applyI18n()` writes `data-tip-title` and `data-tip` onto the bound anchors and stops there; the code that *reads* those attributes and paints a surface is per-plugin, and this page had none. Authoring the copy alone would have shipped **38 invisible strings past three green gates** — `check-i18n` only counts bindings, `check-ui-labels` has no tooltip awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. Ported from O-simpleFM's delegated renderer and styled in this plugin's own parchment palette.
+- **`tests/ui_tip_render_check.js`** — the only gate in this repo that can see a *rendered* tooltip. 796 assertions at the shipping 900 x 800 frame, in `en → fr → en`.
+
+### Changed
+- **Tip titles are the PAGE's caption, not the parameter's name.** Twelve of the 36 differ, and six of those are abbreviations forced by the 62 px `.knob-container` cap (`Size Rnd`, `Traj Speed`, `Dist LPF`, and the French `Alé. haut.`, `Vit. traj.`, `PB dist.`). A 280 px tooltip has no such cap, so every abbreviated title's **body opens by naming the control in full** — the title matches what the user is looking at, the body says what it is.
+- **All 36 units were recovered from the page's own formatters**, because all 36 rows of `.planning/params.tsv` carry an **empty `label` column**. `pctFormatter` (`app.js:249`) gives `%`, `grainSizeFormatter` (`:250`) and `spatialSmoothFormatter` (`:266`) give `ms`, `degreeFormatter` (`:259`) gives degrees, and `repeatsFormatter` (`:251`) gives a bare integer. Nothing was invented.
+- **Option words stay English inside French sentences.** `Free`, `Hann`, `Scatter`, `Trajectory` and the rest are `AudioParameterChoice` options, exempt on the page under D-01 arm 1 so the host automation lane agrees character for character — a French sentence that renamed them would be an instruction the user cannot follow. The page already made this choice once, in `label.spatialHint` at v2.5.0.
+
+### Fixed
+- Nothing. No existing behaviour changed, and no parameter ID, range, type, default, preset or DSP path was touched.
+
+### Testing
+- `check-i18n --strict-v2`: canon v2, ALL CHECKS PASS; **`[2] 38 tip(s) bound`**, every key resolved, zero orphans, zero dangling. Repo-wide, 43 plugins, ALL CHECKS PASS.
+- **`check-ui-labels` output is BYTE-IDENTICAL before and after this change** — same three states, same `moved=0`, same `[8b]` decoration counts of 65 / 27 / 59. That is the number that matters rather than the verdict: the O-Emulator defect was caught by an `[8b]` count moving 7 → 9 inside a *passing* run, and the focus latch below is why it does not move here.
+- `boot-all-uis`: 43 / 43 clean, 0 warn, 0 failed. O-GrainScatter's row is unchanged — `text=75 aria=3 title=0 i18n=47` — confirming the hidden surface adds no text node, and repo-wide native `title=` stays at **0**.
+- `tests/ui_tip_render_check.js`: **796 / 796**, 38 anchors driven in `en → fr → en`, every rendered title and body **byte-equal** to the table (not "contains"), every tip rect inside 900 x 800.
+- **French grows 25 of the 36 tips** against the 280 px cap — `93 → 109` px on most, `109 → 139` on `pitch_random`, `pitch_mode`, `spatial_mode` and `spatial_smooth`. None shrank. So the French pass measures different boxes from the English one rather than repeating it.
+- **19 of 36 tips place by FLIP and none needed the clamp**, on shipped copy — which is why the gate carries a *positive* control for the clamp as well as a negative one: a 616 px plant fits on neither side of the cursor, flips to `top = −180`, and is clamped to exactly **8.0 px**. Without the clamp-after-flip it would leave the frame (O-Bass's carried finding: one flip is not enough).
+- **Negative control:** a 4800-character plant renders **280 x 1570.7 px in an 800 px frame** and assertion 4 reports the overflow; restored from the table and green again at the same anchor. Sized against *this* frame deliberately — O-Tremolo's habit-sized plant fitted inside a 400 px frame and reported nothing.
+- **The focus latch, controlled both ways.** Deleting only `if (lastInputWasPointer) return;` — the declaration, the `pointerdown` write and the `keydown` clear all survive, so every static grep still matches — makes the gate report the gear's own tip **covering the settings popover by 3650 px²**, with the keyboard half still green. Deleting the gate's `activeElement.blur()` as well turns the suite back to **796 / 796**, which proves the blur line is load-bearing rather than tidying. Both plants restored from a namespaced scratchpad copy and checksum-verified — never `git checkout`, which is how this plugin lost a whole uncommitted edit in Stage K.
+- All 38 French entries are machine drafts, every one `reviewed: false`. Scanned for a decimal point, an angle bracket and a missing space before `%`: zero of each.
+
+### Notes
+- **FOURTEEN OF THE 36 CONTROLS CANNOT BE HOVERED IN THE PLUGIN'S DEFAULT STATE, and that is shipped behaviour rather than a tooltip bug.** `setupPitchGate` (`app.js:326-345`) dims Scale, Root Note and Pitch Mode while `pitch_random` is below 0.01 — via `.dimmed`, which is `opacity: .25` **plus `pointer-events: none`** (`index.html:287`) — and `setupSpatialGate` (`:351-375`) sets `pointerEvents = 'none'` on the ten spatial knobs and the Trajectory dropdown while Spatial Mode is Off. Both are the defaults. The information is not lost: `#pitch-hint` and `#spatial-hint` are visible in exactly those states and say what to raise. The gating was **not changed to suit the tooltips** — the render gate drives the page out of both states through the page's own `valueChangedEvent` listeners, and pins the rest state as an assertion so a future change to either gate is visible.
+- **`pointer-events: none` does not remove an element from the tab ring**, so the three gated `<select>`s still open their tip from the keyboard while being unreachable by mouse. Recorded, not fixed.
+- **The 27 knobs are `<div>`s and are not focusable**, so the keyboard half of hover-help reaches the 7 dropdowns, the 2 toggles and the 2 chrome controls — 11 of 38. Adding `tabindex` would change the page's tab order, which is a feature decision rather than a Stage M side effect.
+- **No hover-help on/off toggle**, matching the other 19 tooltip plugins in the suite; only O-Tapestop and O-Bitrot have one.
+- No geometry pin was added, so no negative control is owed for one.
+
+
 ## [2.5.0] - 2026-08-29
 
 The PAGE speaks French. Every visible caption on the UI is now localized, English or French, chosen from a gear popover and remembered with the session. No hover-help copy was authored — this plugin has none, and inventing it is a separate job.

@@ -671,6 +671,142 @@ function initI18n() {
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // Hover-help renderer (v2.6.0)
+    // ════════════════════════════════════════════════════════════════════
+    //
+    // THE COPY ALONE IS INVISIBLE. applyI18n() above writes data-tip-title and
+    // data-tip onto the anchors named in TIP_BINDINGS and stops there. Nothing
+    // on this page read those attributes before v2.6.0, so authoring 38 bodies
+    // into i18n.js without this function would have shipped 38 unpaintable
+    // strings past three GREEN gates: check-i18n only counts bindings,
+    // check-ui-labels has no tooltip awareness at all, and boot-all-uis counts
+    // aria-label and title and never data-tip. tests/ui_tip_render_check.js is
+    // the gate that can see a rendered tip, and it exists for that reason.
+    //
+    // Ported from plugins/O-simpleFM/Source/ui/public/js/app.js:384-462 and
+    // styled in this page's own parchment system. Every property below is
+    // load-bearing:
+    //
+    //  1. DELEGATED ON document, not querySelectorAll('[data-tip]') at setup.
+    //     No anchor carries data-tip until applyI18n() has run, so a setup-time
+    //     query binds NOTHING and fails silently.
+    //  2. pointerover / pointerout / focusin / focusout, because they BUBBLE.
+    //     pointerenter / focus do not, and delegation needs a bubbling event.
+    //  3. pointerout ignores a move between two descendants of the SAME anchor.
+    //     A .knob-container holds a caption, a 48 px circle and a readout;
+    //     without this the tip flickers off and on at every internal boundary.
+    //  4. createElement + textContent, NEVER innerHTML. Localized copy must not
+    //     reach a markup path — check-i18n assertion 9 already forbids an angle
+    //     bracket in an i18n.js string literal and this is the other half.
+    //  5. FLIP FIRST, THEN CLAMP, on all four edges with an 8 px margin. The
+    //     clamp runs unconditionally AFTER the flip rather than instead of it,
+    //     because a flipped tip can still overflow the other way (O-Bass, at
+    //     420x320). This frame is 900x800 and roomy, so the flip is the normal
+    //     path only along the bottom row and the right-hand spatial knobs — but
+    //     a body long enough to need both is exactly what the render gate's
+    //     negative control plants.
+    //  6. THE FOCUS ARM IS LATCHED TO THE KEYBOARD. A mouse click on a <button>
+    //     focuses it, so an unconditional focusin rule re-opens the tip that
+    //     pointerdown just hid and parks it on top of whatever the click opened
+    //     — measured on O-Emulator, where clicking the gear pinned the gear's
+    //     own tip across the settings popover. :focus-visible is deliberately
+    //     NOT the discriminator: Chromium reports it false for a programmatic
+    //     .focus() after a click, so a gate driving focus directly would measure
+    //     "no tip" and record that as correct. An explicit last-input-device
+    //     latch is the same rule and is drivable with real events.
+    //  7. Escape hides it; so does any pointerdown.
+    //
+    // Called AFTER initI18n(), inside the same deferred init and the same
+    // try/catch (pattern_module_toplevel_init_tdz).
+    function setupTooltips() {
+        const tip = document.getElementById('tooltip');
+        if (!tip) { console.warn('tooltip surface missing - hover-help unavailable'); return; }
+
+        const MARGIN = 8;
+        let active = null;
+        let lastInputWasPointer = false;
+
+        const position = (x, y) => {
+            const r = tip.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            let nx = x + 14;
+            let ny = y + 16;
+            // Flip to the other side of the cursor when the natural side overflows.
+            if (nx + r.width  > vw - MARGIN) nx = x - r.width  - 14;
+            if (ny + r.height > vh - MARGIN) ny = y - r.height - 12;
+            // Then clamp, unconditionally, on all four edges. Math.max on the
+            // upper bound keeps the arithmetic sane for a tip larger than the
+            // frame: it lands at MARGIN rather than at a negative coordinate.
+            nx = Math.min(Math.max(MARGIN, nx), Math.max(MARGIN, vw - r.width  - MARGIN));
+            ny = Math.min(Math.max(MARGIN, ny), Math.max(MARGIN, vh - r.height - MARGIN));
+            tip.style.left = `${nx}px`;
+            tip.style.top  = `${ny}px`;
+        };
+
+        const show = (el, x, y) => {
+            const title = el.getAttribute('data-tip-title');
+            const body  = el.getAttribute('data-tip');
+            if (!title && !body) return;
+            tip.textContent = '';
+            if (title) {
+                const t = document.createElement('span');
+                t.className = 'tip-title';
+                t.textContent = title;
+                tip.appendChild(t);
+            }
+            if (body) tip.appendChild(document.createTextNode(body));
+            tip.classList.add('show');
+            tip.setAttribute('aria-hidden', 'false');
+            position(x, y);
+        };
+
+        const hide = () => {
+            tip.classList.remove('show');
+            tip.setAttribute('aria-hidden', 'true');
+            active = null;
+        };
+
+        const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
+
+        document.addEventListener('pointerover', (e) => {
+            const el = anchorOf(e.target);
+            if (!el || el === active) return;
+            active = el;
+            show(el, e.clientX, e.clientY);
+        });
+        document.addEventListener('pointermove', (e) => {
+            if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+        });
+        document.addEventListener('pointerout', (e) => {
+            if (!active) return;
+            if (anchorOf(e.relatedTarget) === active) return;   // same anchor, child boundary
+            hide();
+        });
+        // A knob drag starts with a pointerdown on the anchor itself, so hiding
+        // here also keeps the tip out of the way for the whole drag: active is
+        // cleared and no further pointerover arrives while the button is held.
+        document.addEventListener('pointerdown', () => { lastInputWasPointer = true; hide(); });
+
+        document.addEventListener('focusin', (e) => {
+            if (lastInputWasPointer) return;
+            const el = anchorOf(e.target);
+            if (!el) return;
+            active = el;
+            const r = el.getBoundingClientRect();
+            show(el, r.left + r.width / 2, r.bottom);
+        });
+        document.addEventListener('focusout', hide);
+
+        // One keydown listener, two jobs: any key at all means the keyboard is
+        // driving again, which releases the latch above; Escape also hides.
+        document.addEventListener('keydown', (e) => {
+            lastInputWasPointer = false;
+            if (e.key === 'Escape') hide();
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // Initialization
     // ════════════════════════════════════════════════════════════════════
 
@@ -728,7 +864,11 @@ function initI18n() {
         // the page a knob, a dropdown or a visualization. The page then reads
         // English on its own authored markup, which is the correct degradation.
         initSettingsPopover();
-        try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+        // setupTooltips() sits INSIDE the same try/catch and AFTER initI18n(),
+        // deliberately on both counts: no anchor carries data-tip until
+        // applyI18n() has written it, and a throw in either must not cost the
+        // page a knob.
+        try { initI18n(); setupTooltips(); } catch (e) { console.error('i18n init failed:', e); }
     }
 
 // ES modules are deferred — DOM is ready when this runs

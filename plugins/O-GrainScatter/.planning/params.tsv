@@ -1,0 +1,40 @@
+# plugin	O-GrainScatter-dev
+# params	36
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+grain_size	Grain Size		2147483647	10.0	500.0	0.428571	100.0	automatable
+density	Density		2147483647	1.0	100.0	0.494949	50.0	automatable
+pitch_random	Pitch Random		2147483647	0.0	100.0	0.000000	0.0	automatable
+pan_random	Pan Random		2147483647	0.0	100.0	0.000000	0.0	automatable
+scale	Scale		5	Chromatic	Whole Tone	0.000000	Chromatic	automatable,discrete
+root_note	Root Note		12	C	B	0.000000	C	automatable,discrete
+reverse	Reverse		2147483647	0.0	100.0	0.000000	0.0	automatable
+feedback	Feedback		2147483647	0.0	100.0	0.000000	0.0	automatable
+dry_wet	Dry/Wet		2147483647	0.0	100.0	0.500000	50.0	automatable
+grain_shape	Grain Shape		6	Hann	Exp Decay	0.000000	Hann	automatable,discrete
+size_random	Size Random		2147483647	0.0	100.0	0.000000	0.0	automatable
+amp_random	Amp Random		2147483647	0.0	100.0	0.000000	0.0	automatable
+scan_position	Scan Position		2147483647	0.0	100.0	0.000000	0.0	automatable
+sync_mode	Sync Mode		7	Free	1/16T	0.000000	Free	automatable,discrete
+probability	Probability		2147483647	0.0	100.0	1.000000	100.0	automatable
+repeats	Repeats		16	1	16	0.200000	4	automatable
+stutter_gate	Stutter Gate		2	Off	On	0.000000	Off	automatable,discrete,boolean
+spread	Spread		2147483647	0.0	100.0	0.000000	0.0	automatable
+pitch_mode	Pitch Mode		4	Random	Pendulum	0.000000	Random	automatable,discrete
+freeze	Freeze		2	Off	On	0.000000	Off	automatable,discrete,boolean
+euclidean_pulses	Euclidean Pulses		16	1	16	0.200000	4	automatable
+euclidean_steps	Euclidean Steps		15	2	16	0.428571	8	automatable
+euclidean_rotation	Euclidean Rotation		16	0	15	0.000000	0	automatable
+euclidean_swing	Swing		2147483647	50.0	75.0	0.000000	50.0	automatable
+spatial_mode	Spatial Mode		3	Off	Trajectory	0.000000	Off	automatable,discrete
+azimuth	Azimuth		2147483647	0.0	360.0	0.000000	0.0	automatable
+elevation	Elevation		2147483647	-90.0	90.0	0.500000	0.0	automatable
+az_spread	Az. Spread		2147483647	0.0	360.0	0.250000	90.0	automatable
+el_spread	El. Spread		2147483647	0.0	180.0	0.250000	45.0	automatable
+distance	Distance		2147483647	0.0	100.0	0.500000	50.0	automatable
+spatial_width	Spatial Width		2147483647	0.0	100.0	0.500000	50.0	automatable
+trajectory	Trajectory		4	Static	Random	0.000000	Static	automatable,discrete
+traj_speed	Trajectory Speed		2147483647	0.0	400.0	0.250000	100.0	automatable
+dist_lpf	Distance LPF		2147483647	0.0	100.0	1.000000	100.0	automatable
+doppler	Doppler		2147483647	0.0	100.0	0.000000	0.0	automatable
+spatial_smooth	Spatial Smooth		2147483647	1.0	200.0	0.209548	5.0	automatable

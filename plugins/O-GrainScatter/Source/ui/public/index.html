@@ -455,6 +455,66 @@
         }
 
         .settings-select:focus { outline: 1px solid #6B8E4E; }
+
+        /* ── Hover-help surface (v2.6.0) ──────────────────────────────────────
+           NEW IN v2.6.0, along with setupTooltips() in js/app.js. applyI18n()
+           writes data-tip-title and data-tip onto the anchors named in
+           TIP_BINDINGS and stops there; nothing on this page read those
+           attributes before this version, so the 38 authored bodies would have
+           been 38 invisible strings past three green gates.
+
+           position: fixed and OUT OF FLOW, so adding it moves nothing — the
+           check-ui-labels geometry diff was run before and after and reports
+           the same zero.
+
+           visibility: hidden at rest rather than opacity alone. An empty
+           visible surface is an unkeyed text node to check-i18n assertion 10
+           and a permanent overlay in every screenshot; check-ui-labels is NOT
+           the gate that catches it (measured on O-Bass: un-hiding leaves that
+           gate byte-identically green, because a fixed box at 0,0 has the same
+           rectangle in both languages).
+
+           pointer-events: none, or the surface steals the hover that is keeping
+           it open and the tip flickers.
+
+           z-index: 70 clears .settings-popover's 61. #lang-select is itself an
+           anchor and lives INSIDE that popover, so a lower tip would open
+           BEHIND the panel that revealed the control.
+
+           max-width: 280px in a 900px frame. The wrap it forces is what makes
+           French taller than English, which is the case tests/ui_tip_render_check.js
+           drives in both languages rather than in English with a spot check. */
+        .tooltip {
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 70;
+            max-width: 280px;
+            padding: 7px 10px;
+            background: rgba(60,47,47,0.97);
+            color: #F5E6D3;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(60,47,47,0.45);
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-size: 11px;
+            line-height: 1.4;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.12s ease;
+            pointer-events: none;
+        }
+
+        .tooltip.show { opacity: 1; visibility: visible; }
+
+        .tooltip .tip-title {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #C9A27B;
+            margin-bottom: 3px;
+        }
     </style>
 </head>
 <body>
@@ -752,6 +812,12 @@
         </div>
     </div>
 </div>
+
+<!-- The hover-help surface. Empty until setupTooltips() fills it, LAST in the
+     body and outside .plugin-container on purpose: `position: fixed` resolves
+     against a transformed ancestor rather than the viewport when one exists,
+     and a tip clamped to the wrong box is a tip that leaves the frame. -->
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
 
 <script type="module" src="./js/app.js"></script>
 </body>
