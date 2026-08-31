@@ -3,6 +3,67 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.1] — 2026-08-31
+
+**The seventh tour button gets its hover-help, which it has never had.** One
+character class in one selector; the copy for it was written at v1.4.0 and has
+been sitting in `I18N` unreachable ever since, in both languages.
+
+### Fixed
+
+- **`.tour-btn[data-preset="Filtered & Enveloped"]` now binds.** The
+  `TIP_BINDINGS` row in `js/i18n.js` carried the selector as
+  `data-preset="Filtered &amp; Enveloped"` — the HTML entity, copied verbatim
+  out of the markup.
+
+  **Root cause.** `index.html:51` writes `data-preset="Filtered &amp;
+  Enveloped"`, which is *correct HTML*: `&` must be escaped in an attribute
+  value. But the HTML parser DECODES that entity when it builds the DOM, so the
+  live attribute value is `Filtered & Enveloped`. A CSS attribute selector
+  matches against the decoded value, and the JS string carried the literal
+  characters `&`, `a`, `m`, `p`, `;` — so `querySelector` returned `null`,
+  `applyI18n()` logged `i18n: tip target not found`, and the button silently
+  carried no `data-tip-title` and no `data-tip`. Six of the seven tour buttons
+  worked; the seventh never did, in either language.
+
+  The markup is untouched — its entity is right. Only the selector changed.
+
+### Why this took three versions to find
+
+The warning was real and was emitted on every single page load. Nothing read
+it. `check-i18n` is static and proves only that the *key* exists in `I18N`;
+`check-ui-labels` has no tooltip awareness; and `boot-all-uis` filtered the
+console to `type() === 'error'`, dropping every `console.warn` before examining
+it. O-simpleSampler has no `tests/ui_tip_render_check.js`, so no per-plugin
+gate covered it either.
+
+That blindness was fixed repo-wide the same day in `56cdbb37`, and this defect
+is what the new census found on its first run across all 43 plugins — the only
+DEAD binding in the suite.
+
+### Testing
+
+- `node scripts/boot-all-uis.js --plugin O-simpleSampler --strict-tips` —
+  **exit 2 → exit 0**, `DEAD bindings: 1 → 0`. The gate names the selector
+  before the fix and reports no i18n diagnostics after it.
+- Both languages, all seven buttons: every one carries a `data-tip-title` and a
+  non-empty body. The seventh reads `Filtered & Enveloped` (131 chars) in
+  English and `Filtré et mis en enveloppe` (157 chars) in French.
+- **Negative control:** with the fix reverted in place, that button reports
+  `title=null, body=0ch` in both languages while the other six stay green — so
+  the check targets the branch the fix changed rather than passing either way.
+- `node scripts/check-i18n.js --strict-v2 --plugin O-simpleSampler` — ALL
+  CHECKS PASS, canon v2.
+- No DSP, parameter, APVTS or state-format change. Presets and sessions are
+  unaffected.
+
+### Scope
+
+A repo-wide sweep confirmed this is the **only** `TIP_BINDINGS` selector across
+all 43 plugins carrying an HTML entity. Four other attributes in the suite hold
+entities (`data-label="Bore &amp; Resonance"` and similar), but nothing selects
+on `data-label`, so they are display-only and correct as written.
+
 ## [1.4.0] — 2026-08-28
 
 **The page speaks French, not only the hover help.** Every caption, heading,
