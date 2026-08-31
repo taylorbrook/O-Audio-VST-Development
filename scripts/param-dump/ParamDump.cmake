@@ -216,6 +216,16 @@ function(ouaricon_add_param_dump plugin_target plugin_source_dir)
 
             if(TARGET ${_pd_link})
                 list(APPEND _pd_extra_links ${_pd_link})
+            elseif(EXISTS "${_pd_link}")
+                # A plugin may link a provisioned library by PATH rather than by
+                # target — O-Texture links ONNX Runtime as
+                # "${ANIRA_ONNXRUNTIME_SHARED_LIB_PATH}/lib/libonnxruntime.dylib".
+                # Skipping it left the dump undefined on _OrtGetApiBase, because a
+                # static initializer in PluginProcessor.cpp calls into ORT before
+                # main(). Only an entry that EXISTS is carried: a bare linker flag
+                # or an unresolved generator expression is not a library path and
+                # must not be forwarded blind.
+                list(APPEND _pd_extra_links "${_pd_link}")
             endif()
         endforeach()
     endif()
