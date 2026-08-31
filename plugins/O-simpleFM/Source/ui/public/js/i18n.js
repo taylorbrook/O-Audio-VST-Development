@@ -30,20 +30,24 @@
 // termNote exemptions: 1, on label.knobFixedHz. Left as drafted: the rest.
 // reviewed: false throughout — no native speaker has read any of it.
 //
-// scripts/i18n-fr-lint.js went 63 findings -> 3. The three that remain are NOT
-// fixable from this file and are reported to the orchestrator:
+// scripts/i18n-fr-lint.js went 63 findings -> 3 at the moment of the pass, and
+// -> 2 within the hour, when the orchestrator's daed4a2e landed. What remains
+// is NOT fixable from this file and is reported:
 //   - F1 on label.knobFixedHz "Fréq. fixe". The glossary's own gloss on "fréq."
 //     says to keep it for a frequency in Hz, which this control is
 //     (FMVoice.h:210 uses it as fm when Fixed Mode is on). A termNote is the
 //     documented exemption mechanism and the lint DOES list it as EXEMPT — but
-//     termNote only suppresses G1, so F1 is still counted.
-//   - F1 on the carrierNull tip TITLE "Extinction de la porteuse". That string
-//     is the glossary's own settled term for "carrier null"
-//     (TERMS['carrier null']), and FORBIDDEN_IN_LABELS['extinction'] fires on
-//     it — while that entry's gloss says "unless it is a reverb tail OR A
-//     CARRIER NULL". Every G1-clean rendering of this key trips F1.
+//     termNote guards only the G1 branch, so F1 is still counted. daed4a2e does
+//     not reach this one: it clears F1 for a rendering the TERMS table accepts,
+//     and "Fixed Hz" is not a TERMS key at all.
 //   - G1 on label.carrierNull "porteuse nulle", kept for MEASURED width: see
 //     the badge note below.
+// The third, now closed: F1 fired on the carrierNull tip TITLE "Extinction de
+// la porteuse" — the glossary's OWN settled term for "carrier null" — because
+// FORBIDDEN_IN_LABELS['extinction'] matched it, while that entry's gloss reads
+// "unless it is a reverb tail OR A CARRIER NULL". The O-Chorus pilot hit the
+// same shape on "Écart total" and daed4a2e fixed both: a rendering the glossary
+// accepts for its English is never a forbidden word.
 //
 // Decisions the next reader needs:
 //  - THE ENVELOPE CAPTIONS TOOK THE ROOT TERMS, MEASURED. "Déclin" 38.4 px and
