@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Freeze page labels, English + French (v2.1.0)
+// i18n.js — O-Freeze page labels and hover-help, English + French (v2.2.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,15 +32,30 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v2.2.0: THIS PLUGIN NOW HAS HOVER-HELP ───────────────────────────
 //
-// v2.0.1 carried no data-tip, no data-tooltip and no native title= anywhere on
-// the page — the extractor reports `attr 0`. So there is no tooltip copy to
-// MOVE here and none is INVENTED: authoring hover-help prose is Stage M's job.
-// I18N is therefore empty and TIP_BINDINGS is empty, which is this plugin's
-// correct state rather than a gap. check-i18n assertion 2 reports it as
-// "0 tip(s) bound" instead of passing silently, and the emptiness is only
-// admissible BECAUSE no I18N entry carries a body.
+// v2.1.0 shipped with I18N and TIP_BINDINGS both empty, which was that
+// version's correct state: the page carried no data-tip, no data-tooltip and
+// no native title= anywhere, so there was nothing to MOVE and Stage K invented
+// nothing. Stage M authors that copy.
+//
+// FOURTEEN entries: one per parameter in .planning/params.tsv — all twelve
+// have a control on this page — plus the gear and the language selector.
+//
+// AUTHORING THE COPY DOES NOT MAKE IT VISIBLE. applyI18n() writes data-tip-title
+// and data-tip ATTRIBUTES onto the anchors named in TIP_BINDINGS and stops
+// there; the thing that reads those attributes and paints a surface is
+// per-plugin code, and on this plugin it did not exist before v2.2.0. Bodies
+// with no renderer would have shipped 28 invisible strings under a green gate
+// — check-i18n cannot see a rendered tip, check-ui-labels has no tooltip
+// awareness at all, and boot-all-uis counts aria-label and title but never
+// data-tip. The renderer lives in the inline module in index.html (setupTooltips)
+// and tests/ui_tip_render_check.js is the gate that actually sees it.
+//
+// THE BODIES ARE PROSE, AND PROSE TAKES FRENCH CONVENTION. The decimal comma
+// (0,01 à 10 Hz), a space before %, U+2212 for the minus. The READOUT keeps its
+// point — `0.50 Hz` renders identically in both languages — because D-03 exempts
+// the readout NODE, not the sentence describing it. They differ on purpose.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -53,14 +68,189 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately. See the header.
+// I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}.
 //
-// Exported all the same because the canonical import line names it and
-// trLabel() falls back through it, so Stage M can add bodies here without
-// touching the label keys below.
+// TITLES MIRROR THE VISIBLE CAPTION, NOT THE PARAMETER NAME, wherever the two
+// disagree. The dump calls GRAIN_SIZE "Grain Size", LFO_RATE "LFO Rate" and
+// LFO_DEPTH "LFO Depth"; the page says Size, Rate and Depth, inside a group
+// already captioned DRIFT LFO. The user is reading the page, not the automation
+// lane, and a tip headed "LFO Rate" over a knob captioned RATE reads as a
+// second control.
+//
+// RANGES COME FROM .planning/params.tsv, THE RUNTIME WALK — not from a regex
+// over createParameterLayout(). Eleven of the twelve carry a real `label`
+// column (dB, %, ms, Hz, cents) or are discrete and take their option words as
+// their range. GRAIN_COUNT is the ONE parameter with an empty label AND a
+// numeric range: index.html renders it `${Math.round(val)}`, a bare count with
+// no unit at all, so the body says "2 to 32 grains" and invents nothing.
+//
+// DETUNE IS THE ONE PLACE THE DUMP AND THE PAGE DISAGREE ABOUT A UNIT. The dump
+// says `cents`; the readout formatter abbreviates it to `ct`. The body spells
+// it out — a tooltip is prose and has room — and the readout is untouched.
+//
+// THE ENGLISH OPTION WORDS INSIDE A FRENCH BODY ARE DELIBERATE. Manual,
+// Threshold, Sine, Triangle and Random are AudioParameterChoice option strings
+// (PluginProcessor.cpp:55, :108). The strings themselves stay English so the
+// page and the host automation lane agree about the same setting — D-01 arm 1,
+// the Stage K decision this plugin already carries — while the SENTENCE naming
+// them is French. The two rules do not conflict: one governs the option, the
+// other the prose around it.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The centre button ───────────────────────────────────────────────────
+    // Anchored on #freeze-button, the 140 px box, not on #freeze-label: the
+    // caption is position:absolute with pointer-events:none, so it could never
+    // hold a tip open on its own. AudioParameterBool, range Off / On.
+    'tip.freeze': {
+        en: { t: 'Freeze',
+              b: 'Captures the incoming audio into a grain buffer and holds it as a sustained texture. Press again to release it and let the input through. Off or On; in Threshold mode the input level drives it instead.' },
+        fr: { t: 'Geler',
+              b: 'Capture l’audio entrant dans une mémoire de grains et le maintient comme une texture soutenue. Appuyer de nouveau pour relâcher et laisser passer l’entrée. Désactivé ou activé ; en mode Threshold, c’est le niveau d’entrée qui commande.',
+              reviewed: false },
+    },
+
+    // ── The reverse pill ────────────────────────────────────────────────────
+    // AudioParameterBool, range Off / On. The title matches label.reverse so the
+    // pill and its tip say the same word in both languages.
+    'tip.reverse': {
+        en: { t: 'Reverse',
+              b: 'Plays every grain backwards, which softens transients and turns the frozen texture inside out. It changes the character, not the pitch. Off or On.' },
+        fr: { t: 'Inverse',
+              b: 'Joue chaque grain à l’envers, ce qui adoucit les transitoires et retourne la texture gelée. Cela change le caractère, pas la hauteur. Désactivé ou activé.',
+              reviewed: false },
+    },
+
+    // ── The mode toggle ─────────────────────────────────────────────────────
+    // Bound to #mode-toggle, which has NO caption of its own on the page — the
+    // two buttons inside it are the option strings. So the title is the
+    // parameter's own name from the dump, and it happens to be spelled
+    // identically in French. The BODY differs, so assertion 4's passthrough
+    // guard is not tripped and sameAsEn is neither needed nor claimed.
+    'tip.mode': {
+        en: { t: 'Mode',
+              b: 'Chooses what starts the freeze. Manual arms the button in the centre of the panel; Threshold hands the decision to the input level and the knob beside it. Manual or Threshold.' },
+        fr: { t: 'Mode',
+              b: 'Choisit ce qui déclenche le gel. Manual arme le bouton au centre du panneau ; Threshold confie la décision au niveau d’entrée et au potentiomètre voisin. Manual ou Threshold.',
+              reviewed: false },
+    },
+
+    // ── The six main knobs ──────────────────────────────────────────────────
+    // THRESHOLD's title stays English in French, and that is the same decision
+    // I18N_EXEMPT records for the caption below it: the word is byte-identical
+    // to a MODE option string, the knob and the mode button name the SAME
+    // setting, and a tip headed SEUIL floating over a knob captioned THRESHOLD
+    // would describe one control as two. Only the body is French.
+    'tip.threshold': {
+        en: { t: 'Threshold',
+              b: 'The input level at which the freeze engages by itself, read only in Threshold mode. Lower it to catch quieter material; raise it so only peaks trigger. −60 to 0 dB.' },
+        fr: { t: 'Threshold',
+              b: 'Le niveau d’entrée à partir duquel le gel s’enclenche de lui-même, lu uniquement en mode Threshold. L’abaisser pour capter des passages plus discrets, le relever pour ne déclencher que sur les crêtes. De −60 à 0 dB.',
+              reviewed: false },
+    },
+
+    'tip.drift': {
+        en: { t: 'Drift',
+              b: 'Spreads the grain read positions apart so the frozen texture wanders instead of looping in place. A little removes the static ringing; a lot smears it into a cloud. 0 to 100%.' },
+        fr: { t: 'Dérive',
+              b: 'Écarte les positions de lecture des grains pour que la texture gelée se déplace au lieu de boucler sur place. Un peu suffit à supprimer la résonance statique ; beaucoup l’étale en nappe. De 0 à 100 %.',
+              reviewed: false },
+    },
+
+    'tip.size': {
+        en: { t: 'Size',
+              b: 'The length of each grain taken from the frozen buffer. Short grains give a granular, stuttering texture; long ones keep the source recognisable. 50 to 1000 ms.' },
+        fr: { t: 'Taille',
+              b: 'La longueur de chaque grain prélevé dans la mémoire gelée. Des grains courts donnent une texture granuleuse et hachée ; des grains longs gardent la source reconnaissable. De 50 à 1000 ms.',
+              reviewed: false },
+    },
+
+    // The one parameter whose unit had to be recovered from the page rather
+    // than from the dump: params.tsv leaves `label` empty and the readout is
+    // `${Math.round(val)}` — a bare integer. The range is a count of grains.
+    'tip.grains': {
+        en: { t: 'Grains',
+              b: 'How many grains play at once. A low count sounds sparse and rhythmic; a high count blends into a continuous pad and costs more CPU. 2 to 32 grains.' },
+        fr: { t: 'Grains',
+              b: 'Le nombre de grains joués simultanément. Un faible nombre donne un rendu clairsemé et rythmique ; un nombre élevé se fond en nappe continue et coûte plus de CPU. De 2 à 32 grains.',
+              reviewed: false },
+    },
+
+    'tip.detune': {
+        en: { t: 'Detune',
+              b: 'Spreads the pitch of individual grains across a range, thickening the freeze into a chorus. Small amounts add motion; large ones detune the texture audibly. 0 to 50 cents.' },
+        fr: { t: 'Écart',
+              b: 'Étale la hauteur des grains sur une plage, ce qui épaissit le gel en un effet de chœur. De faibles valeurs ajoutent du mouvement ; de fortes valeurs désaccordent la texture de façon audible. De 0 à 50 cents.',
+              reviewed: false },
+    },
+
+    'tip.mix': {
+        en: { t: 'Mix',
+              b: 'Balances the frozen texture against the untreated input. At 100% only the freeze is heard; pull it back to keep the live signal underneath. 0 to 100%.' },
+        fr: { t: 'Dosage',
+              b: 'Équilibre la texture gelée et le signal d’entrée non traité. À 100 %, seul le gel est audible ; en réduire la valeur laisse passer le signal direct. De 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── The Drift LFO group ─────────────────────────────────────────────────
+    'tip.rate': {
+        en: { t: 'Rate',
+              b: 'The speed of the LFO that modulates Drift. Slow settings breathe under a pad; fast ones flutter the grain positions. 0.01 to 10 Hz.' },
+        fr: { t: 'Vitesse',
+              b: 'La vitesse du LFO qui module la dérive. Les réglages lents font respirer une nappe ; les rapides font trembler la position des grains. De 0,01 à 10 Hz.',
+              reviewed: false },
+    },
+
+    // The title is PROF., the abbreviation the caption already carries: the
+    // knob has a hard 60.00 px budget and PROFONDEUR renders at 87.30. The tip
+    // has no such budget, so the BODY spells the idea out instead.
+    'tip.depth': {
+        en: { t: 'Depth',
+              b: 'How much of the Drift setting the LFO actually sweeps. At zero the LFO does nothing, however fast it runs. 0 to 100%.' },
+        fr: { t: 'Prof.',
+              b: 'La part de la dérive que le LFO balaie réellement. À zéro, le LFO n’a aucun effet, quelle que soit sa vitesse. De 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // Bound to #lfo-shape-toggle, which wraps the SHAPE caption and the three
+    // option buttons together — the cell the user aims at. The three buttons
+    // read Sin / Tri / Rnd, which are abbreviations and NOT the option strings,
+    // so they localize; the option strings themselves are Sine / Triangle /
+    // Random and stay English here for the automation lane.
+    'tip.shape': {
+        en: { t: 'Shape',
+              b: 'The waveform the drift LFO follows. Sine glides, Triangle turns sharply at each end, Random steps to a new value every cycle. Sine, Triangle or Random.' },
+        fr: { t: 'Forme',
+              b: 'La forme d’onde suivie par le LFO de dérive. Sine glisse, Triangle change de sens brusquement aux extrêmes, Random saute à une nouvelle valeur à chaque cycle. Sine, Triangle ou Random.',
+              reviewed: false },
+    },
+
+    // ── The chrome ──────────────────────────────────────────────────────────
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // describes ONLY what the popover actually contains. O-Tapestop's wording
+    // promises a hover-help toggle; this plugin has none, and a tip that lies
+    // is worse than no tip.
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel. It holds one control, the language of the interface, and the choice is remembered with the session.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages. Il contient une seule commande, la langue de l’interface, et le choix est conservé avec la session.',
+              reviewed: false },
+    },
+
+    // Bound BARE, not through a wrapper. #gear-btn and #lang-select share
+    // #settings-cluster, so a closest() walk would make hovering the selector
+    // resolve to the gear's tip (the O-Comp finding). Both anchors are their
+    // own hover cell here.
+    'tip.langSelect': {
+        en: { t: 'Language',
+              b: 'The language of these hover descriptions and of the labels on the page. English and French are available; the value readouts stay in English.' },
+        fr: { t: 'Langue',
+              b: 'La langue de ces descriptions au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -278,25 +468,60 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper].
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// FOURTEEN, and EVERY ONE IS BARE. That is a divergence worth naming, because
+// the naive reading of T17 — "bind to the ids the UI already uses" — was wrong
+// on five plugins out of five before this one, and the two halves of it fail
+// independently. Both halves were checked here:
+//
+//   the SELECTOR half — every anchor on this page HAS an id. Twelve controls,
+//   twelve ids, plus #gear-btn and #lang-select. No .knob[data-param] form is
+//   needed anywhere.
+//
+//   the TARGET half — the id is also the hover CELL, which is the half that
+//   failed on O-Comp and O-Tremolo. `.knob` is a flex COLUMN holding the 60 px
+//   visual, the caption and the readout, so #drift-knob already IS the cell a
+//   user aims at; there is no inner 4 px stroke to bind by mistake. #freeze-button
+//   is the whole 140 px box (its caption is pointer-events:none and could not
+//   hold a tip open). #mode-toggle and #lfo-shape-toggle wrap their own option
+//   buttons. So no closest() walk is needed, and adding one would be noise.
+//
+// #gear-btn and #lang-select are bare for the OPPOSITE reason: they share
+// #settings-cluster, so a wrapper walk there would make hovering the selector
+// resolve to the gear's tip. That is the O-Comp finding, and it applies here.
+//
+// applyI18n() warns `i18n: tip target not found: <selector>` for a binding that
+// resolves to nothing, and boot-all-uis is the gate that sees that warning.
+// tests/ui_tip_render_check.js asserts all fourteen resolve AND that each one
+// actually paints.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#freeze-button',    'tip.freeze'],
+    ['#reverse-toggle',   'tip.reverse'],
+    ['#mode-toggle',      'tip.mode'],
+    ['#threshold-knob',   'tip.threshold'],
+    ['#drift-knob',       'tip.drift'],
+    ['#grain-size-knob',  'tip.size'],
+    ['#grain-count-knob', 'tip.grains'],
+    ['#detune-knob',      'tip.detune'],
+    ['#mix-knob',         'tip.mix'],
+    ['#lfo-rate-knob',    'tip.rate'],
+    ['#lfo-depth-knob',   'tip.depth'],
+    ['#lfo-shape-toggle', 'tip.shape'],
+    ['#gear-btn',         'tip.settings'],
+    ['#lang-select',      'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v2.2.0: applyI18n() calls it once per TIP_BINDINGS entry, fourteen
+// times per language switch. Through v2.1.0 the loop was empty and this function
+// was exported unreferenced, purely so the canon block stayed byte-identical to
+// the other forty-two copies.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }

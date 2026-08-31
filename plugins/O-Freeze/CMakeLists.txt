@@ -3,7 +3,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Freeze
-    VERSION 2.1.0
+    VERSION 2.2.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFCR
@@ -75,3 +75,16 @@ target_compile_definitions(O-Freeze
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Freeze test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # Runtime parameter inventory (scripts/param-dump). A regex over
+    # createParameterLayout() is not authoritative: IDs can be concatenated and
+    # parameters can come from a factory lambda. Only a walk of
+    # AudioProcessor::getParameters() on a constructed processor sees the real set.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(O-Freeze ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+endif()
