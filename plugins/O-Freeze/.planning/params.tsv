@@ -1,0 +1,16 @@
+# plugin	O-Freeze
+# params	12
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+FREEZE	Freeze		2	Off	On	0.000000	Off	automatable,discrete,boolean
+THRESHOLD	Threshold	dB	2147483647	-60.0	0.0	0.333333	-40.0	automatable
+MODE	Mode		2	Manual	Threshold	0.000000	Manual	automatable,discrete
+DRIFT	Drift	%	2147483647	0.0	100.0	0.000000	0.0	automatable
+MIX	Mix	%	2147483647	0.0	100.0	1.000000	100.0	automatable
+GRAIN_SIZE	Grain Size	ms	2147483647	50	1000	0.368421	400	automatable
+GRAIN_COUNT	Grain Count		31	2	32	0.200000	8	automatable
+LFO_RATE	LFO Rate	Hz	2147483647	0.01	10.00	0.299400	0.50	automatable
+LFO_DEPTH	LFO Depth	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+LFO_SHAPE	LFO Shape		3	Sine	Random	0.000000	Sine	automatable,discrete
+REVERSE	Reverse		2	Off	On	0.000000	Off	automatable,discrete,boolean
+DETUNE	Detune	cents	2147483647	0.0	50.0	0.100000	5.0	automatable

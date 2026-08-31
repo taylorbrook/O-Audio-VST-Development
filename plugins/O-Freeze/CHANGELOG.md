@@ -2,6 +2,78 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.2.0] - 2026-08-30
+
+Hover-help, in both languages. Stage M batch M2 of the repo-wide i18n rollout.
+
+### Added
+- **Fourteen hover tooltips.** One per parameter — all twelve in
+  `.planning/params.tsv` have a control on this page — plus the gear and the
+  language selector. Each carries an English and a French `{title, body}`, and
+  each body says what the control does, when to reach for it, and its range.
+- **A tooltip renderer.** v2.1.0 had no `#tooltip` node, no `.tooltip` rule and
+  no hover handler, so authoring copy alone would have shipped twenty-eight
+  invisible strings: `applyI18n()` writes `data-tip-title` and `data-tip`
+  ATTRIBUTES and stops there. The renderer is delegated on `document`, follows
+  the cursor, flips to the other side of it and then clamps on all four edges
+  with an 8 px margin, and builds its content with `createElement` +
+  `textContent` — never `innerHTML`, so localized copy cannot reach a markup
+  path.
+- **A focus latch on the keyboard.** A mouse click on a `<button>` focuses it,
+  so an unconditional `focusin` rule parks a tip on screen after every click.
+  Hover-help opens on focus only when the last input was NOT a pointer.
+  `:focus-visible` is deliberately not the discriminator: Chromium reports it
+  false for a programmatic `.focus()` after a click, which would make a test
+  driving focus measure "no tip" and record that as correct.
+- **`tests/ui_tip_render_check.js`.** No existing gate in this repo can see a
+  rendered tooltip — `check-i18n` reads the table statically, `check-ui-labels`
+  has no tooltip awareness at all, and `boot-all-uis` counts `aria-label` and
+  `title` but never `data-tip`. 311 assertions at the shipping 550 x 530 frame,
+  in `en` / `fr` / `en`.
+- **`.planning/params.tsv`.** A runtime walk of `AudioProcessor::getParameters()`
+  through the `scripts/param-dump` console target, wired behind
+  `OUARICON_BUILD_TESTS` (OFF by default). It is the authoritative parameter
+  inventory that the tooltip ranges are written from; a regex over
+  `createParameterLayout()` is not.
+
+### Changed
+- `PluginProcessor.cpp` no longer includes `PluginEditor.h` at the top of the
+  translation unit. The include now sits behind `#if JUCE_WEB_BROWSER`
+  immediately above `createEditor()`, with a `GenericAudioProcessorEditor`
+  fallback, so the param-dump console target — which builds with
+  `JUCE_WEB_BROWSER=0` and no editor sources — links. Under a normal build
+  `JUCE_WEB_BROWSER=1` and behaviour is byte-identical to v2.1.0.
+
+### Not changed
+- **No hover-help on/off switch.** The settings popover still holds one row.
+  Two plugins in the suite have such a toggle and nineteen do not; making that
+  uniform is a separate pass across all 41, not a side effect of adding copy.
+- **No parameter IDs, ranges, types, defaults or DSP behaviour.** Presets and
+  automation from 2.1.0 load unchanged.
+- **No geometry.** `check-ui-labels --plugin O-Freeze` is BYTE-IDENTICAL before
+  and after this version, in both driven states: the surface is
+  `position: fixed` and hidden at rest, so it neither moves anything nor enters
+  the label sweep. `boot-all-uis` reports the same `text=25 aria=3 title=0
+  i18n=15` it did at v2.1.0. **No geometry pin was added, so none is owed a
+  negative control.** The two v2.1.0 pins are untouched.
+
+### Deliberately English inside a French tooltip
+`Manual`, `Threshold`, `Sine`, `Triangle` and `Random` are
+`AudioParameterChoice` option strings. The option strings themselves stay
+English so the page and the host automation lane agree about the same setting;
+the French SENTENCE naming them is French. `tip.threshold`'s TITLE also stays
+English in French, matching the caption below it, which v2.1.0 already exempts
+for the same reason: the knob and the mode button name the same setting, and a
+tip headed `SEUIL` over a knob captioned `THRESHOLD` describes one control as
+two.
+
+### French
+All 14 new tooltip entries are machine drafts flagged `reviewed: false`, taking
+the plugin's unreviewed total from 17 to 31. Bodies are prose and follow French
+convention — decimal comma (`0,01 à 10 Hz`), a space before `%`, U+2212 for the
+minus. The value READOUTS keep their decimal point, because D-03 exempts the
+readout node and not the sentence describing it.
+
 ## [2.1.0] - 2026-08-28
 
 The PAGE speaks French. Stage K batch 1 of the repo-wide i18n rollout, canon v2.
