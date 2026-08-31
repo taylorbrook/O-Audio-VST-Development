@@ -614,3 +614,51 @@ section wins.
 5. **Untracked `.planning/i18n-{index-draft.html,inventory.tsv,labels-skeleton.js}`
    exist for every plugin in the repo.** They are `i18n-extract.js` scratch, they
    are not yours, and they are not `params.tsv`. **Leave them uncommitted.**
+
+## From the orchestrator, applying the latch to the two pilots that landed without it
+
+1. **BLUR BEFORE THE CLICK, or your focus-latch assertion is DECORATION.**
+   This is the single most likely way to get this stage wrong, and the
+   orchestrator did get it wrong first — while writing the control for exactly
+   the trap O-Emulator had just reported.
+
+   An earlier section of a render gate leaves focus on `#gear-btn` (it is the
+   last thing the popover-open state touched). **Clicking an already-focused
+   element fires no `focusin` at all**, so "no tip after a click" is true for a
+   page with no latch whatsoever. The first version of the assertion passed
+   **125/125 with the latch deleted**.
+
+   ```js
+   await page.evaluate(() => document.activeElement && document.activeElement.blur());
+   await page.waitForTimeout(100);
+   await page.click('#gear-btn');
+   ```
+
+   With the blur, the control fires: **5110 px²** on O-Bass, **4669 px²** on
+   O-AnalogSaturation — and the keyboard half stayed green in all four runs,
+   which is what proves the two assertions are independent rather than one
+   assertion counted twice.
+
+   **Run your negative control BOTH ways.** A control that passes with the fix
+   removed is not a control; it is a second copy of the claim.
+
+2. **Measure the overlap, do not just observe the tip.** Intersecting the tip
+   rect with the popover rect turns "a tip is showing" into a number that a
+   later run can compare. `146 x 35` and `161 x 29` are what made this defect
+   reportable rather than arguable.
+
+3. **A green gate's COUNTS are evidence; its verdict is not.** `check-ui-labels`
+   passed on both plugins with the defect present, because it classes the
+   surface as `pointer-events: none` decoration. The count that moved was
+   `[8b]`, inside a passing run.
+
+4. **An already-open tip does not re-render on a language change** — canon
+   behaviour, shared by all 21 shipped tooltip plugins. Found by the
+   O-AnalogSaturation executor, with a consequence worth carrying: on that page
+   `check-ui-labels` assertion 7 is green **partly because of it**. The gate's
+   state driver clicks `#gear-btn`, which opens the gear's tip, so the surface
+   enters the non-label element set (26 → 28) — and its rect is identical in
+   `en` and `fr` **only because it never re-rendered**. If the canon is ever
+   taught to refresh an open tip, assertion 7 begins comparing tip rectangles
+   across languages on every Stage M plugin, and French wraps taller. Do not
+   "fix" this; it is canon-owned and it is a decision item.
