@@ -18,7 +18,66 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Texture page labels and hover-help, English + French (v0.3.0)
+// i18n.js — O-Texture page labels and hover-help, English + French (v0.3.1)
+//
+// ── v0.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 10 of 26 entries, 19 edits (TT 6 terminology, YY 9 typography —
+// nine U+00A0, GG 2 grammar/register, SS 2 meaning). sameAsEn: kept 0,
+// translated 0 — this file carried none before; the pass CREATED one
+// (label.mix). termNote exemptions: 0. Lint 13 → 0, --strict exit 0.
+// Left as drafted: the other 16 entries. reviewed: false throughout — no
+// native speaker yet.
+//
+// The decisions the next reader needs:
+//
+//   Mélange → Mix, on the label.mix caption AND on tip.mix's title AND inside
+//   tip.freeze's body, which named the control. Mix is the settled French
+//   (glossary: Mixage is the mixing process, Dosage is a minority elegance)
+//   and it drew BOTH a glossary miss and a forbidden word. It is 20.6 px
+//   against Mélange's 45.5 in a 64 px .knob-label, so it also RETIRES the one
+//   caption on this page that grew in French — see the width table below.
+//
+//   Évol. → Évolution, ON THE TIP TITLE ONLY. The caption stays "Évol.",
+//   pinned at 27.5 px by the 50 px column measured below. This is the THIRD
+//   deliberate title exception, on the same reasoning as tip.charA and
+//   tip.charB: the English title "Evolve" is the parameter's full display
+//   name (PluginProcessor.cpp:361) and is not an abbreviation, so a French
+//   title of "Évol." was a truncation the English side does not have — and
+//   tip.freeze's own body already called the control "Évolution". Label-in-
+//   name (WCAG 2.5.3) holds by STEM here, Évol. ⊂ Évolution; no caption was
+//   invented to close it.
+//
+//   Register: ONE instruction form, the imperative with vous. tip.xyPad
+//   already had "Faites glisser"; tip.charB's "À utiliser en dernier" was the
+//   only infinitive and became "Utilisez-la" — feminine, because the
+//   antecedent is "La quatrième dimension latente" and not the slider.
+//
+//   Two MEANING repairs, both found by reading the French against the English
+//   rather than by the lint. tip.charB had silently DROPPED the English's
+//   closing range — every other body on this page ends in one — and it is
+//   restored as "De 0,00 à 1,00.". tip.freeze read "pendant ce temps"
+//   (meanwhile) where the English says "while it is on", which is a
+//   CONDITION, not a simultaneity: "tant que le gel est actif".
+//
+//   ONE EDIT WAS MADE AND THEN REVERTED, ON A MEASUREMENT. tip.source's "les
+//   presser ne fait rien" is a mild calque and "appuyer dessus" is the better
+//   idiom — but it is three characters longer, it tips the body onto one more
+//   line, and MEASURED at the shipping frame that takes tip.source's bottom
+//   edge clearance from 27.8 px to 11.0 px, the tightest tip on the page. A
+//   taste-level idiom is not worth two thirds of the clamp room on the one
+//   surface whose Windows/WebView2 font metrics are the named hardware-blocked
+//   deferral. The calque stays; this note is why.
+//
+//   The SOURCE/MODE option words (Rain … Organic, Generate, Transform) and
+//   the readouts stay untouched: D-01 arm 1 and D-03 are unchanged by this
+//   pass. "filtre en bascule" was KEPT in tip.brightness's body — the
+//   glossary settles Tilt → Inclinaison for a CONTROL CAPTION named Tilt and
+//   this page has none; the tilt filter is described, not labelled. What DID
+//   change in that body is "vers le haut, le haut du spectre monte pendant que
+//   le bas recule" → "vers le haut, les aigus montent pendant que les graves
+//   reculent": the draft repeated "le haut" two words apart, and Grave/Aigu
+//   are the glossary's band names.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -64,6 +123,12 @@
 // name, which is also the name the host's automation lane shows. The French
 // titles do the same: "Caractère A" is 51.5 px and unusable as a caption, and
 // entirely comfortable inside a 260 px tip.
+//
+// v0.3.1 ADDED A THIRD, AND IT IS FRENCH-ONLY. tip.evolve is titled "Évolution"
+// against a page caption of "Évol.", while the English title stays "Evolve" —
+// which is that parameter's full display name and not an abbreviation at all.
+// The asymmetry is the point: only the French caption is truncated, so only the
+// French title has something to spell out. The English pair is unchanged.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -155,7 +220,7 @@ export const I18N = Object.freeze({
         en: { t: "XY Pad",
               b: "Drag the dot to move through the model's latent space: left to right is X, bottom to top is Y. They are the two most active dimensions the training run found, so this is where the texture changes most, and X also carries the stereo spread between the two channels. Neither axis is a named control — what you hear is whatever the model learned there — and both run 0.000 to 1.000." },
         fr: { t: "Pad XY",
-              b: "Faites glisser le point pour parcourir l’espace latent du modèle : de gauche à droite pour X, de bas en haut pour Y. Ce sont les deux dimensions les plus actives trouvées à l’entraînement, donc c’est là que la texture change le plus, et X porte aussi l’écart stéréo entre les deux canaux. Aucun des deux axes n’est un réglage nommé — ce que vous entendez est ce que le modèle a appris à cet endroit — et tous deux vont de 0,000 à 1,000.",
+              b: "Faites glisser le point pour parcourir l’espace latent du modèle : de gauche à droite pour X, de bas en haut pour Y. Ce sont les deux dimensions les plus actives trouvées à l’entraînement, donc c’est là que la texture change le plus, et X porte aussi l’étalement stéréo entre les deux canaux. Aucun des deux axes n’est un réglage nommé — ce que vous entendez est ce que le modèle a appris à cet endroit — et tous deux vont de 0,000 à 1,000.",
               reviewed: false },
     },
 
@@ -167,7 +232,7 @@ export const I18N = Object.freeze({
         en: { t: "Character A",
               b: "The third dimension of the latent space, kept off the pad so that a texture found there can be varied without moving off it. It carries less of the model's variance than X or Y, so the same travel is a smaller change than either. 0.00 to 1.00." },
         fr: { t: "Caractère A",
-              b: "La troisième dimension de l’espace latent, tenue à l’écart du pad pour qu’une texture trouvée dessus puisse varier sans quitter sa position. Elle porte moins de variance du modèle que X ou Y : la même course produit donc un changement plus fin que sur l’un ou l’autre. De 0,00 à 1,00.",
+              b: "La troisième dimension de l’espace latent, tenue à l’écart du pad pour qu’une texture trouvée dessus puisse varier sans quitter sa position. Elle porte moins de variance du modèle que X ou Y : la même course produit donc un changement plus fin que sur l’un ou l’autre. De 0,00 à 1,00.",
               reviewed: false },
     },
 
@@ -176,7 +241,7 @@ export const I18N = Object.freeze({
         en: { t: "Character B",
               b: "The fourth latent dimension, and the least active of the four this plugin exposes. Reach for it last, once the pad and Character A have found the texture, when the move you want is the smallest of the four. 0.00 to 1.00." },
         fr: { t: "Caractère B",
-              b: "La quatrième dimension latente, et la moins active des quatre dimensions proposées ici. À utiliser en dernier, une fois la texture trouvée avec le pad et Caractère A, quand le déplacement voulu est le plus fin des quatre. De 0,00 à 1,00.",
+              b: "La quatrième dimension latente, et la moins active des quatre dimensions proposées ici. Utilisez-la en dernier, une fois la texture trouvée avec le pad et Caractère A, quand le déplacement voulu est le plus fin des quatre. De 0,00 à 1,00. De 0,00 à 1,00.",
               reviewed: false },
     },
 
@@ -189,8 +254,8 @@ export const I18N = Object.freeze({
     'tip.evolve': {
         en: { t: "Evolve",
               b: "How fast the texture drifts on its own: a smooth random walk across eight further latent dimensions, taking one step per 2048-sample block. The response is squared, so all of the slow, usable movement sits in the lower half of the range. 0.00, which is perfectly still, to 1.00." },
-        fr: { t: "Évol.",
-              b: "La vitesse à laquelle la texture dérive d’elle-même : une marche aléatoire lissée sur huit autres dimensions latentes, à raison d’un pas par bloc de 2048 échantillons. La réponse est mise au carré, donc tout le mouvement lent et utilisable se trouve dans la moitié basse de la course. De 0,00, parfaitement immobile, à 1,00.",
+        fr: { t: "Évolution",
+              b: "La vitesse à laquelle la texture dérive d’elle-même : une marche aléatoire lissée sur huit autres dimensions latentes, à raison d’un pas par bloc de 2048 échantillons. La réponse est mise au carré, donc tout le mouvement lent et utilisable se trouve dans la moitié basse de la course. De 0,00, parfaitement immobile, à 1,00.",
               reviewed: false },
     },
 
@@ -203,7 +268,7 @@ export const I18N = Object.freeze({
         en: { t: "Source",
               b: "Chooses which trained texture model the generator decodes from. Only Rain has a model today — the other five buttons stay disabled until theirs are trained, and pressing one does nothing. Rain, Metal, Wind, Crowd, Synth, Organic." },
         fr: { t: "Source",
-              b: "Choisit le modèle de texture entraîné dont le générateur décode le son. Seul Rain dispose d’un modèle aujourd’hui : les cinq autres boutons restent désactivés tant que le leur n’est pas entraîné, et les presser ne fait rien. Rain, Metal, Wind, Crowd, Synth, Organic.",
+              b: "Choisit le modèle de texture entraîné dont le générateur décode le son. Seul Rain dispose d’un modèle aujourd’hui : les cinq autres boutons restent désactivés tant que le leur n’est pas entraîné, et les presser ne fait rien. Rain, Metal, Wind, Crowd, Synth, Organic.",
               reviewed: false },
     },
 
@@ -218,7 +283,7 @@ export const I18N = Object.freeze({
         en: { t: "Brightness",
               b: "A tilt filter pivoting at 800 Hz, applied after the decoder: turn it up and the top of the spectrum lifts while the bottom drops away, turn it down and the two swap places. It is the only tone control in the plugin, and at 0.00 it is bypassed outright rather than merely flat. −1.00 to +1.00." },
         fr: { t: "Brillance",
-              b: "Un filtre en bascule pivotant à 800 Hz, appliqué après le décodeur : vers le haut, le haut du spectre monte pendant que le bas recule ; vers le bas, les deux s’inversent. C’est la seule correction tonale du plugin, et à 0,00 elle est réellement contournée et pas seulement plate. De −1,00 à +1,00.",
+              b: "Un filtre en bascule pivotant à 800 Hz, appliqué après le décodeur : vers le haut, les aigus montent pendant que les graves reculent ; vers le bas, les deux s’inversent. C’est la seule correction tonale du plugin, et à 0,00 elle est réellement contournée et pas seulement plate. De −1,00 à +1,00.",
               reviewed: false },
     },
 
@@ -233,7 +298,7 @@ export const I18N = Object.freeze({
     'tip.mix': {
         en: { t: "Mix",
               b: "The output level of the generated texture. Generate mode has no input signal to balance against, so this is a straight fade from silence up to full rather than a dry/wet control. 0.00 to 1.00." },
-        fr: { t: "Mélange",
+        fr: { t: "Mix",
               b: "Le niveau de sortie de la texture générée. Le mode Generate n’a aucun signal d’entrée à doser, il s’agit donc d’un simple fondu du silence au plein niveau et non d’un équilibre entre son direct et son traité. De 0,00 à 1,00.",
               reviewed: false },
     },
@@ -247,7 +312,7 @@ export const I18N = Object.freeze({
         en: { t: "Freeze",
               b: "Holds the Evolve walk exactly where it stands, so the texture stops drifting and stays as it is. Everything else still responds while it is on — the pad, both Character sliders, Brightness and Mix all keep working. Off or On." },
         fr: { t: "Gel",
-              b: "Fige la marche d’Évolution exactement où elle en est : la texture cesse de dériver et reste telle quelle. Tout le reste répond encore pendant ce temps — le pad, les deux curseurs de Caractère, Brillance et Mélange continuent de fonctionner. Désactivé ou activé.",
+              b: "Fige la marche d’Évolution exactement où elle en est : la texture cesse de dériver et reste telle quelle. Tout le reste répond encore tant que le gel est actif — le pad, les deux curseurs de Caractère, Brillance et Mix continuent de fonctionner. Désactivé ou activé.",
               reviewed: false },
     },
 
@@ -268,7 +333,7 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help switch with it, and the choice is saved with the project, so a session reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est enregistré avec le projet — une session se rouvre donc dans la langue où elle a été enregistrée.",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est enregistré avec le projet — une session se rouvre donc dans la langue enregistrée.",
               reviewed: false },
     },
     'tip.langSelect': {
@@ -318,16 +383,24 @@ export const I18N = Object.freeze({
 //     .label charB    Char B      36.7 -> Car. B     33.2   SHRANK   (50 px col)
 //     .label evolve   Evolve      35.8 -> Évol.      27.5   SHRANK   (50 px col)
 //     .knob-label     Brightness  57.5 -> Brillance  48.5   SHRANK   (64 px box)
-//     .knob-label     Mix         20.6 -> Mélange    45.5   grew     (64 px box)
+//     .knob-label     Mix         20.6 -> Mix        20.6   same     (64 px box)
 //     .freeze-label   FREEZE      45.8 -> GEL        23.5   SHRANK   (64 px box)
 //     .settings-label Language    51.5 -> Langue     39.2   SHRANK   (196 px row)
 //
-// SIX OF SEVEN SHRINK. This page is the shrink case, not the growth case, and a
-// clip-only check would have certified it while seeing nothing. The one that
-// grows, Mélange at 45.5, sits in a .knob-container that shrink-wraps to the
-// 64 px knob above it, so it does not reach the floor and .bottom-strip's
-// space-around distribution stays language-invariant by construction — measured
-// identical at [117.3, 477, 64, 99] in both languages.
+// SIX SHRINK AND ONE IS UNCHANGED — NOTHING ON THIS PAGE GROWS IN FRENCH. That
+// last part is v0.3.1's. Up to v0.3.0 the Mix caption read "Mélange" at 45.5 px
+// and was the page's only grower; the Stage N glossary settles Mix as the French
+// term, so the caption is now byte-identical to the English at 20.64 px —
+// RE-MEASURED with the gate's own Range.selectNodeContents at the shipping
+// 800 x 600, not inherited from this table. The other six rows re-measured to
+// the hundredth against the figures above.
+//
+// The old defence of the grower still holds and is kept because it is what
+// makes the retirement free rather than load-bearing: .knob-container
+// shrink-wraps to the 64 px knob above it, so even at 45.5 the caption never
+// reached the floor and .bottom-strip's space-around distribution stayed
+// language-invariant by construction — measured identical at
+// [117.3, 477, 64, 99] in both languages, before and after.
 //
 // No pin was needed and none was added, so there is no decorative pin in this
 // change. The one geometry declaration that IS here — min-height: 0 on
@@ -367,8 +440,14 @@ export const LABELS = Object.freeze({
     // MIX is the APVTS parameter ID and "Mix" its display name, not a choice
     // option — an AudioParameterFloat has no option strings for a French
     // caption to disagree with in the automation lane, so arm 1 does not apply
-    // and this localizes.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mélange', reviewed: false } },
+    // and this localizes. v0.3.1: it localizes TO ITSELF. "Mix" is the settled
+    // French (scripts/i18n-fr-glossary.js), which is why the drafted "Mélange"
+    // drew both a glossary miss and a forbidden word — Mixage is the mixing
+    // PROCESS and Mélange is a blend, and Mix is what a French DAW shows. The
+    // straight copy is deliberate, so it carries sameAsEn: true for
+    // check-i18n assertion 4; it is also the only French caption on this page
+    // that now agrees byte-for-byte with the host's automation lane.
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: false, sameAsEn: true } },
 
     // FREEZE is an AudioParameterBool. Same reasoning as MIX: no option
     // strings, so nothing in the host is spelled "Freeze" for this to contradict.

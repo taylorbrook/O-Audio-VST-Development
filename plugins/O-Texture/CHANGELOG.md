@@ -5,6 +5,39 @@ All notable changes to O-Texture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **10 of 26 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint (`scripts/i18n-fr-lint.js`), which
+  went 13 findings to 0 with `--strict` exiting clean. 19 edits: 6 terminology,
+  9 typographic, 2 grammar/register, 2 meaning. The visible ones:
+  - **Mélange → Mix**, on the Mix caption, on its tooltip title and inside the
+    Freeze tooltip that named the control. *Mix* is what a French DAW shows;
+    *Mixage* is the mixing process and *Mélange* is a blend. It also retires the
+    only French caption on this page that was wider than its English — 20.6 px
+    against 45.5 — so nothing here grows in French any more.
+  - **The Evolve tooltip is now titled *Évolution*** where the caption is still
+    the width-pinned *Évol.*, matching what Character A and Character B already
+    did and what the Freeze tooltip's own sentence already called the control.
+    The English title is unchanged.
+  - **Nine no-break spaces** — before every colon and semicolon and between
+    *800* and *Hz*, as French typography requires and as no browser inserts for
+    you.
+  - **Two sentences that had drifted from the English**: the Character B tooltip
+    had lost its closing range and now ends *De 0,00 à 1,00.* like every other
+    body on the page, and the Freeze tooltip said *pendant ce temps* (meanwhile)
+    where the English states a condition — *tant que le gel est actif*.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+No English copy, key, binding, selector, exemption or stylesheet rule changed,
+and `reviewed: false` still stands on all 26 entries — this was a second machine
+reading against a glossary, not a native-speaker review.
+
 ## [0.3.0] - 2026-08-30
 
 Hover-help, in both languages — and the renderer that makes it visible, because
