@@ -701,3 +701,41 @@ section wins.
 5. **Decision item, carried up:** French tip ranges keep the readout's DECIMAL
    POINT (`0.1 à 100 ms`, not `0,1`), because the readout formats with a point
    in both languages under D-03. A reviewer must change both or neither.
+
+## From O-Tremolo (v1.8.0, `85e94b5f`) — control the control, and size the plant to the frame
+
+1. **THE BLUR IS LOAD-BEARING, and O-Tremolo is the one that proved it.** With
+   the latch removed AND `activeElement.blur()` deleted from the gate, the suite
+   passed **186/186**. That is a control ON the control: it demonstrates that
+   the blur line is what gives the focus assertion its power, rather than being
+   defensive tidying. Run it. If deleting the blur does not turn your failing
+   run green, your gate is not shaped the way you think it is.
+
+2. **A PLANT SIZED BY HABIT IS A CONTROL THAT CANNOT FAIL.** A 40x plant — 880
+   chars, roughly 390 px tall — **fit and reported nothing** on a 400 px frame
+   with 384 px of clamp room. The clamp is doing its job; the plant was simply
+   too small to defeat it. **Size the plant against your own frame and your own
+   `max-width`**, then confirm it actually overflows before you call the control
+   passed. A plant that fits is indistinguishable from a gate that cannot see.
+
+3. **A wrapper class can appear TWICE.** `.waveform-section` matches two nodes
+   on O-Tremolo's page, the second wrapping the canvas. `closest()` from the
+   `<select>` reaches the correct one; a bare `querySelector` on the class would
+   have been right **by luck**. Prefer the `[selector, key, wrapper]` triple's
+   `closest()` walk over a class query, and check whether your wrapper class is
+   unique before trusting either.
+
+4. **"Bind to the ids the UI already uses" — the score is now four out of four,
+   for a DIFFERENT reason each time.** O-Chorus: no ids at all. O-Emulator: 5 of
+   7 anchors are CSS selectors. O-Comp: every selector is an id but every target
+   is a wrapper. O-Tremolo: every selector is an id and 4 of 8 targets are
+   wrappers. **The selector half and the target half fail independently. Check
+   both.**
+
+5. **A correction to the orchestrator's own dispatch.** The O-Tremolo dispatch
+   said this plugin's Stage-K English-in-a-French-UI fix was recorded in its
+   `i18n.js` header comment. **It is not** — the fix is real and shipped at
+   v1.7.0 (`addSection()` takes a writer callback so the `'Factory'`/`'User'`
+   literals stay at the call site where assertion 13 can read them), but it is
+   recorded in commit `af3610dd` and in an `index.html` comment at the call site.
+   Read the commit, not only the header.
