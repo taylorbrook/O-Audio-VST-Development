@@ -246,7 +246,47 @@ gates; none of the ten M1 pages needs it.
    surface is a visible empty surface — but do not expect `check-ui-labels` to
    tell you.
 8. **Escape hides it. `pointerdown` hides it.**
-9. **Call it AFTER `initI18n()`**, inside the same deferred init and the same
+
+9. **THE FOCUS ARM MUST BE LATCHED TO THE KEYBOARD.** The O-simpleFM reference
+   opens a tip on any `focusin`. **A mouse click on a `<button>` focuses it**,
+   so the unconditional rule leaves a tip parked on screen after every click.
+   Measured on O-Emulator: clicking `#gear-btn` pinned the gear's own tip at
+   `[320, 284, 250x115]` directly across the settings popover the click had just
+   opened, and it stayed until focus moved. It also made the surface a VISIBLE
+   element inside `check-ui-labels`' state sweep — the `[8b]` inert-element count
+   went **7 → 9** (the surface plus its `.tip-title` span) purely because the
+   state driver clicks.
+
+   **`:focus-visible` is NOT the discriminator.** Chromium reports it false for
+   a programmatic `.focus()` following a click, so a gate driving focus directly
+   would measure "no tip" and record that as correct — a false pass built into
+   the fix. Use an explicit last-input-device latch, cleared by any keydown,
+   which is the same rule and is drivable with real events:
+
+   ```js
+   let lastInputWasPointer = false;
+   document.addEventListener('pointerdown', () => { lastInputWasPointer = true; hide(); });
+   document.addEventListener('focusin', (e) => {
+     if (lastInputWasPointer) return;
+     /* ... open the tip ... */
+   });
+   document.addEventListener('keydown', (e) => {
+     lastInputWasPointer = false;              // the keyboard is driving again
+     if (e.key === 'Escape') hide();
+   });
+   ```
+
+   **Reference: `plugins/O-Emulator/Source/ui/public/index.html:1278-1340`** —
+   read the comment as well as the code. If your page has a double-click value
+   editor, its `<input>` sits INSIDE an anchor and needs a specific suppression
+   (not a general "inputs are exempt" rule — `#lang-select` is a form control
+   AND an anchor, and its keyboard tip is the accessibility half of this
+   feature).
+
+   **Your render gate must assert BOTH halves separately**: a pointer click
+   leaves no tip, AND a real tab-ring walk still opens one. Asserting only the
+   first lets the feature silently become "focus never shows a tip".
+10. **Call it AFTER `initI18n()`**, inside the same deferred init and the same
    `try/catch`. A top-level call touching a lower `let`/`const` is a TDZ throw
    that kills every later initializer
    (`pattern_module_toplevel_init_tdz`).
@@ -549,3 +589,28 @@ section wins.
 6. **No pin added means no negative control is owed.** Say that explicitly
    rather than leaving the geometry section empty; an empty section reads as
    "not measured".
+
+
+## From O-Emulator (v1.2.0, `5cf6bba1`)
+
+1. **The renderer defect above.** It is now property 9 of "The renderer,
+   specified" and it is MANDATORY. O-Bass shipped without it and was fixed in a
+   follow-up; do not repeat that.
+
+2. **The tell was a number nobody had to chase.** `check-ui-labels` PASSED with
+   the defect present. What exposed it was the `[8b]` inert-element count moving
+   7 → 9 inside a passing run. **Read the counts in a green gate, not only its
+   verdict.**
+
+3. **A negative control can report the right verdict for the wrong reason.**
+   The first draft of O-Emulator's focus control called `.focus()` on an element
+   that was ALREADY focused, which fires no event at all — so "no tip appeared"
+   was true and meaningless. It now walks the real tab ring (12 presses to reach
+   the gear). If your control cannot fail, it is not a control.
+
+4. **"Bind to the ids the UI already uses" is false again** — 5 of O-Emulator's
+   7 anchors are CSS selectors, not ids. That is now three plugins out of three.
+
+5. **Untracked `.planning/i18n-{index-draft.html,inventory.tsv,labels-skeleton.js}`
+   exist for every plugin in the repo.** They are `i18n-extract.js` scratch, they
+   are not yours, and they are not `params.tsv`. **Leave them uncommitted.**
