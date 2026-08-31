@@ -344,7 +344,7 @@ const TERMS = {
     'signal path':              ['chaîne du signal'],
     'looped pad':               ['nappe bouclée', 'nappe'],
     'spectral decay':           ['décroissance spectrale', 'décroiss. spectrale'],
-    'carrier null':             ['extinction de la porteuse'],
+    'carrier null':             ['extinction de la porteuse', 'porteuse nulle'],   // 160.7 px vs a 102 px badge on O-simpleFM
     'rect click':               ['clic rectangulaire', 'clic rect'],
     'osc mix':                  ['mix des oscillateurs', 'mix osc'],
     'osc a':                    ['osc a'],

@@ -160,19 +160,21 @@ async function lintPlugin(name) {
         }
         // labels and titles from here on
         if (r.frObj.sameAsEn === true) info.sameAsEn.push(r);
-        if (typeof r.frObj.termNote === 'string' && r.frObj.termNote.trim()) {
-            info.termNote.push(r);
-        } else {
-            const allowed = G.TERMS[norm(r.en)];
-            if (allowed && !allowed.map(norm).includes(norm(r.fr)))
-                findings.push({ code: 'G1', ...r, note: `"${r.en}" → ${allowed.join(' | ')}` });
-        }
+        // A termNote is THE reasoned exemption, and it exempts the entry from
+        // both term checks — G1 and F1. The first draft guarded only G1, so an
+        // entry was printed as EXEMPT and counted as an F1 finding in the same
+        // run (O-simpleFM pilot, label.knobFixedHz "Fréq. fixe").
+        const exempt = typeof r.frObj.termNote === 'string' && r.frObj.termNote.trim() !== '';
+        if (exempt) info.termNote.push(r);
+        const allowed = G.TERMS[norm(r.en)];
+        const accepted = (allowed || []).map(norm).includes(norm(r.fr));
+        if (!exempt && allowed && !accepted)
+            findings.push({ code: 'G1', ...r, note: `"${r.en}" → ${allowed.join(' | ')}` });
         // A rendering the glossary itself accepts for this English is never a
         // forbidden word: "Écart total" is the settled term for "Total span"
         // and must not draw F1 for containing "écart". Found by the O-Chorus
         // pilot before any tuning-panel plugin could hit it.
-        const accepted = (G.TERMS[norm(r.en)] || []).map(norm).includes(norm(r.fr));
-        if (!accepted)
+        if (!exempt && !accepted)
             for (const w of forbidden(r.fr, G.FORBIDDEN_IN_LABELS))
                 findings.push({ code: 'F1', ...r, note: `"${w}" → ${G.FORBIDDEN_IN_LABELS[w]}` });
         if (isAllCaps(r.en) && hasLower(r.fr))
