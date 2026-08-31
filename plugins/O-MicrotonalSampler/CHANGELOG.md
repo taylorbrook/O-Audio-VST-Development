@@ -1,5 +1,81 @@
 # O-MicrotonalSampler Changelog
 
+## [1.25.0] - 2026-08-30
+
+### Added
+
+- **Hover-help, in both languages.** Twenty tooltips — eighteen parameters plus the settings
+  gear and the language selector — with a title and a two-or-three-sentence body that says
+  what the control does, when to reach for it, and its range and unit. All French is
+  machine-drafted and flagged `reviewed: false`; no native speaker has read it.
+  `node scripts/check-i18n.js` prints the worklist.
+- **A tooltip renderer, because there was none.** Canon v2's `applyI18n()` writes
+  `data-tip-title` and `data-tip` ATTRIBUTES onto the bound anchors and stops there; the code
+  that reads them and paints a surface is per-plugin, and at v1.24.0 this page had no
+  `#tooltip` element, no `#tooltip` rule and no hover handler. Authoring the copy without it
+  would have shipped twenty invisible strings past three green gates —
+  **measured: with `setupTooltips()` disabled, `check-i18n --plugin O-MicrotonalSampler`
+  still prints ALL CHECKS PASS while the new render gate fails 50 assertions.**
+  `setupTooltips()` in `js/sampler-app.js` is ported from O-simpleFM: delegated on
+  `document`, cursor-following, flipped then clamped on all four edges at an 8px margin,
+  built with `createElement` + `textContent` so localized copy never reaches a markup path.
+- **A last-input-device focus latch**, which the O-simpleFM reference does not have. A mouse
+  click on a `<button>` focuses it, so an unconditional `focusin` rule parks a tip on screen
+  after every click. `:focus-visible` is not the discriminator — Chromium reports it false
+  for a programmatic `.focus()` after a click, so a gate driving focus directly would measure
+  "no tip" and record that as correct.
+- **`tests/ui_tip_render_check.js`** — 349 assertions at the shipping 900x640 frame. No gate
+  in this repo can see a rendered tooltip: `check-i18n` reads the table statically,
+  `check-ui-labels` has no tooltip awareness at all, and `boot-all-uis` counts `aria-label`
+  and `title` and never `data-tip`. It hovers every anchor in English and again in French,
+  byte-compares the rendered title and body against the table, and measures the rectangle
+  against all four edges. Three negative controls: an over-long planted body sized against
+  THIS frame (4200 chars, measured 260 x 1357.5px, 725.5px past the bottom); the focus latch
+  in both halves; and the `pointerout` child-boundary rule.
+- **`.planning/params.tsv`** — the runtime parameter inventory, from a walk of
+  `AudioProcessor::getParameters()` on a constructed processor rather than a regex over
+  `createParameterLayout()`. Nineteen parameters. Wired behind a new
+  `OUARICON_BUILD_TESTS` cache option in `CMakeLists.txt`.
+
+### Changed
+
+- `Source/PluginProcessor.cpp` — `#include "PluginEditor.h"` moved from the top of the TU to
+  behind `#if JUCE_WEB_BROWSER` directly above `createEditor()`, with a
+  `GenericAudioProcessorEditor` fallback, so the param-dump console target (which builds with
+  `JUCE_WEB_BROWSER=0` and no editor sources) links. Under a normal build
+  `JUCE_WEB_BROWSER=1` and behaviour is byte-identical to v1.24.0.
+
+### Not changed, deliberately
+
+- **The 51 body-less `I18N` entries.** They are toasts, dialog copy and composed accessible
+  names reached through `trLabel()`, and the Stage K4 decision put them in `I18N` with
+  `b: ''` precisely so they would not demand a `TIP_BINDINGS` row. Verified: zero non-empty
+  `b` outside the new `tip.*` keys, asserted in the render gate so it cannot drift.
+  The consequence is worth recording — the first authored body flips `check-i18n`
+  assertion 2 from "0 tips bound is a state, not a gap" to "every bodied entry must be
+  bound", so the orphan check now runs against a table where 51 entries are legitimately
+  body-less.
+- **`rr_mode` has no tooltip, because it has no control on this page.** Round-Robin Mode
+  (Cycle / Random No-Repeat / Random) is automatable and host-reachable and page-unreachable
+  in every version. A body for it could not be bound and would fail assertion 2 as an orphan.
+  A control was NOT added to satisfy the count: that is a feature change with a geometry cost
+  on a control strip whose knobs are already `flex: 1 1 0` at `min-width: 56px`.
+- **The preset bar, the tab strip, the drop zone and the six dialogs get no tips.** They took
+  accessible names from their deleted native `title=` attributes at v1.24.0 and are
+  self-describing; tips there are polish, not this stage's scope.
+
+### Geometry
+
+- **Zero movement.** `check-ui-labels --plugin O-MicrotonalSampler` is byte-identical before
+  and after, across all 22 driven states, with `moved=0` throughout — controlled by re-running
+  the gate against the `HEAD` sources in the same session, because the first baseline run had
+  caught the `#anatomyOverlay` parallax transition mid-flight and reported a 0.6px
+  self-animation NOTE that the post-change runs did not. The `HEAD` re-run matched the
+  post-change output exactly, so that NOTE is a run-to-run transient of the page's own
+  animation and not a consequence of this release.
+- **No pin was added, so none is owed a negative control.** A hidden `position: fixed`
+  surface moves nothing; that is why it is `fixed` rather than merely off-screen.
+
 ## [1.24.0] - 2026-08-30
 
 ### Added

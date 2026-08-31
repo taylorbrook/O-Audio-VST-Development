@@ -1,0 +1,23 @@
+# plugin	O-MicrotonalSampler
+# params	19
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+attack	Attack	 s	2147483647	0.000	10.000	0.022361	0.005	automatable
+decay	Decay	 s	2147483647	0.000	10.000	0.100000	0.100	automatable
+sustain	Sustain		2147483647	0.000	1.000	1.000000	1.000	automatable
+release	Release	 s	2147483647	0.000	10.000	0.173205	0.300	automatable
+polyphony	Polyphony		16	1	16	1.000000	16	automatable
+velocity_crossfade	Velocity Crossfade		2147483647	0.000	1.000	1.000000	1.000	automatable
+expression	Expression	 %	2147483647	0	100	1.000000	100	automatable
+dynamics_mode	Dynamics Mode		2	Velocity	CC Crossfade	1.000000	CC Crossfade	automatable,discrete
+dynamic_range	Dynamic Range	 dB	2147483647	0.0	40.0	0.500000	20.0	automatable
+output_gain	Output Gain	 dB	2147483647	-24.0	24.0	0.500000	0.0	automatable
+rr_mode	Round-Robin Mode		3	Cycle	Random	0.500000	Random No-Repeat	automatable,discrete
+technique_count	Technique Count		8	1	8	1.000000	8	automatable
+technique_select	Technique Select		8	0	7	0.000000	0	automatable
+ks_enabled	Keyswitch Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+ks_low_note	Keyswitch Low Note		128	0	127	0.000000	0	automatable
+ks_high_note	Keyswitch High Note		128	0	127	0.055118	7	automatable
+cc_select_enabled	CC Select Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+cc_number	CC Number		120	0	119	0.268908	32	automatable
+pc_enabled	Program Change Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean

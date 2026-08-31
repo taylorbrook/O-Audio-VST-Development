@@ -2300,3 +2300,81 @@ body {
     display: inline-block;
     min-width: 53px;         /* EN 52.91 / FR 42.22 */
 }
+
+/* ============================================================================
+   v1.25.0 — HOVER-HELP SURFACE (Stage M)
+   ============================================================================
+   ONE floating surface for the whole page, refilled per anchor by
+   setupTooltips() from the data-tip-title / data-tip attributes applyI18n()
+   writes onto the anchors named in TIP_BINDINGS. It wears this page's own
+   vocabulary rather than another plugin's: the .settings-popover plate exactly
+   — the same paper2 wash over --bg-card, a 1px --border-warm hairline, a 4px
+   radius — with the title line in --accent-gold and the body in --text-body.
+
+   position: fixed AND visibility: hidden are both load-bearing, and NOT for the
+   reason they look like.
+
+     - fixed takes the surface out of #app's flex column entirely, so ADDING it
+       moves nothing. #app is position: relative with no transform, filter or
+       will-change, so it is not a containing block for a fixed child and cannot
+       clip it; html/body carry overflow: hidden, which a fixed box also escapes.
+
+     - visibility: hidden (with opacity: 0) is what keeps the empty surface OUT
+       of check-ui-labels' sweep: that gate's visibility predicate rejects
+       display:none, visibility:hidden and opacity:0 alike, so an unshown tip is
+       neither an element it measures nor a text node it demands a key for.
+       MEASURED CORRECTION, carried from O-Bass: un-hiding the surface leaves
+       check-ui-labels byte-identically GREEN, because a fixed box at 0,0 has the
+       same rectangle in both languages. What actually catches an un-hidden
+       surface is check-i18n assertion 10 and boot-all-uis' text count. It is
+       hidden because a visible empty surface is a visible empty surface, not
+       because check-ui-labels would tell us.
+
+   pointer-events: none, or the surface steals the hover that is keeping it open
+   and the tip flickers at every reposition.
+
+   z-index 1100 clears everything this page paints: .confirm-dialog and
+   #cell-context-menu at 1000, .settings-popover at 21 inside .settings-cluster
+   at 20, and #header at 2. #lang-select is itself an anchor and lives INSIDE
+   the popover, so its tip has to paint over the panel that contains it.
+
+   max-width 260px against a 900px frame. French runs 15-20% longer than English
+   and wraps to more lines inside this cap rather than widening, so the cap is
+   what turns extra French into extra HEIGHT — the dimension
+   tests/ui_tip_render_check.js drives hardest.
+*/
+#tooltip {
+    position: fixed;
+    z-index: 1100;
+    max-width: 260px;
+    padding: 7px 10px 8px;
+    font-family: 'Garamond', 'Times New Roman', serif;
+    font-size: 12px;
+    line-height: 1.38;
+    color: var(--text-body);
+    background: linear-gradient(rgba(235, 217, 199, 0.96),
+                                rgba(235, 217, 199, 0.96)),
+                url('/images/paper2.jpg') center/cover no-repeat,
+                var(--bg-card);
+    border: 1px solid var(--border-warm);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+}
+
+#tooltip.show { opacity: 1; visibility: visible; }
+
+/* The title line borrows .settings-label's letterspaced small-caps idiom —
+   the page's one "this is a caption" voice — in --accent-gold rather than
+   --text-secondary so it reads as the tip's own heading. */
+#tooltip .tip-title {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-gold);
+    margin-bottom: 3px;
+}

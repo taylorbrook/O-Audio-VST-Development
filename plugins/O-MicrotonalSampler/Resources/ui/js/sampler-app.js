@@ -209,6 +209,150 @@ window.__omsRefreshI18n = () => {
     catch (e) { console.warn('[sampler-app] i18n sweep failed', e); }
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+// v1.25.0 — HOVER-HELP RENDERER (Stage M)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// WHY THIS EXISTS AT ALL. Canon v2's applyI18n() writes data-tip-title and
+// data-tip ATTRIBUTES onto the anchors named in TIP_BINDINGS and stops there.
+// The code that reads those attributes and paints a surface is per-plugin and
+// this page had none of it at v1.24.0 — no #tooltip element, no tooltip rule,
+// no hover handler. Authoring 21 bodies and binding them WITHOUT this function
+// ships 21 invisible strings past three green gates: check-i18n reads the table
+// statically, check-ui-labels has no tooltip awareness whatsoever, and
+// boot-all-uis counts aria-label and title and never data-tip. That is why
+// tests/ui_tip_render_check.js exists beside this.
+//
+// Ported from plugins/O-simpleFM/Source/ui/public/js/app.js:384-462 — delegated
+// and cursor-following, ~90 lines against O-Tapestop's ~180 measure-then-pin
+// engine, which exists to serve a flip-above/below design with an arrow that
+// this page does not have.
+//
+// EIGHT PROPERTIES, each load-bearing and each with a scar behind it:
+//
+//   1. DELEGATED on document, never querySelectorAll('[data-tip]') at setup.
+//      No anchor carries data-tip until applyI18n() has run, so a setup-time
+//      query binds NOTHING and fails silently.
+//   2. pointerover / pointerout / focusin / focusout — they BUBBLE.
+//      pointerenter / pointerleave and focus / blur do not.
+//   3. pointerout ignores a move between two descendants of the SAME anchor.
+//      Every knob cell here holds an SVG, a caption, a readout and a hidden
+//      range input; without this the tip flickers off and on at each boundary.
+//   4. createElement + textContent, NEVER innerHTML. Localized copy must not
+//      reach a markup path — check-i18n assertion 9 already forbids an angle
+//      bracket in an i18n.js string literal and this is the other half of it.
+//   5. Clamped on ALL FOUR edges with an 8px margin, AFTER the flip. The clamp
+//      is applied after rather than instead of the flip so a tip that fits on
+//      neither side of the cursor still lands fully on screen; O-Bass measured
+//      at 420x320 that a flipped placement needs clamping again.
+//   6. pointer-events: none on the surface (CSS), or it steals the hover.
+//   7. Escape hides it, and so does any pointerdown.
+//   8. THE FOCUS ARM IS LATCHED TO THE KEYBOARD. A mouse click on a <button>
+//      focuses it, so the O-simpleFM reference's unconditional focusin rule
+//      leaves a tip parked on screen after every click — measured on
+//      O-Emulator at 4669-5280 px2 of overlap across nine M1 plugins, sitting
+//      on top of the very popover the click had just opened.
+//      :focus-visible is deliberately NOT the discriminator: Chromium reports
+//      it false for a programmatic .focus() following a click, so a gate
+//      driving focus directly would measure "no tip" and record that as
+//      correct — a false pass built into the fix. An explicit last-input-device
+//      latch is the same rule and is drivable with real events.
+//
+// A ninth, specific to this page: a knob drag is started on pointerdown and
+// takes a pointer capture, and a drag that travels out of its own cell must not
+// open the neighbour's tip mid-gesture. knobDrag.active is the guard. It is
+// declared BELOW this function; that is safe because nothing here runs until
+// setupTooltips() is called from the DOMContentLoaded handler at the foot of
+// the file, long after every top-level binding has been evaluated
+// (pattern_module_toplevel_init_tdz is about the CALL site, not the closure).
+function setupTooltips() {
+    const tip = document.getElementById('tooltip');
+    if (!tip) {
+        console.warn('[sampler-app] #tooltip surface missing — hover-help unavailable');
+        return;
+    }
+
+    const MARGIN = 8;
+    let active = null;
+    let lastInputWasPointer = false;
+
+    const position = (x, y) => {
+        const r  = tip.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let nx = x + 14;
+        let ny = y + 16;
+        // Flip to the other side of the cursor when the natural side overflows.
+        if (nx + r.width  > vw - MARGIN) nx = x - r.width  - 14;
+        if (ny + r.height > vh - MARGIN) ny = y - r.height - 12;
+        // Then clamp, unconditionally, on all four edges. Math.max on the upper
+        // bound keeps the arithmetic sane if a tip ever exceeds the frame.
+        nx = Math.min(Math.max(MARGIN, nx), Math.max(MARGIN, vw - r.width  - MARGIN));
+        ny = Math.min(Math.max(MARGIN, ny), Math.max(MARGIN, vh - r.height - MARGIN));
+        tip.style.left = `${nx}px`;
+        tip.style.top  = `${ny}px`;
+    };
+
+    const show = (el, x, y) => {
+        const title = el.getAttribute('data-tip-title');
+        const body  = el.getAttribute('data-tip');
+        if (!title && !body) return;
+        tip.textContent = '';
+        if (title) {
+            const t = document.createElement('span');
+            t.className = 'tip-title';
+            t.textContent = title;
+            tip.appendChild(t);
+        }
+        if (body) tip.appendChild(document.createTextNode(body));
+        tip.classList.add('show');
+        tip.setAttribute('aria-hidden', 'false');
+        position(x, y);
+    };
+
+    const hide = () => {
+        tip.classList.remove('show');
+        tip.setAttribute('aria-hidden', 'true');
+        active = null;
+    };
+
+    const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
+
+    document.addEventListener('pointerover', (e) => {
+        if (knobDrag.active) return;            // a drag is in flight — see above
+        const el = anchorOf(e.target);
+        if (!el || el === active) return;
+        active = el;
+        show(el, e.clientX, e.clientY);
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+    });
+    document.addEventListener('pointerout', (e) => {
+        if (!active) return;
+        if (anchorOf(e.relatedTarget) === active) return;   // same anchor, child boundary
+        hide();
+    });
+    document.addEventListener('pointerdown', () => { lastInputWasPointer = true; hide(); });
+
+    document.addEventListener('focusin', (e) => {
+        if (lastInputWasPointer) return;        // property 8
+        const el = anchorOf(e.target);
+        if (!el) return;
+        active = el;
+        const r = el.getBoundingClientRect();
+        show(el, r.left + r.width / 2, r.bottom);
+    });
+    document.addEventListener('focusout', hide);
+
+    // One keydown listener, two jobs: any key at all means the keyboard is
+    // driving again, which releases the latch; Escape additionally hides.
+    document.addEventListener('keydown', (e) => {
+        lastInputWasPointer = false;
+        if (e.key === 'Escape') hide();
+    });
+}
+
 // v1.16.10 (MEDIUM-05): guarded-number coercion for parsed JSON snapshots.
 // Replaces the `Number.isFinite(x) ? x : default` ternary pattern. Sites that
 // use Number.isFinite as a control-flow guard (e.g. `if (!Number.isFinite(x)) return`)
@@ -3902,5 +4046,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // is also what lets the first sweep see the control strip, which does not
     // exist in index.html until renderControlStrip() has run.
     initSettingsPopover();           // v1.24.0
-    try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+    // setupTooltips() sits INSIDE the same try/catch and strictly AFTER
+    // initI18n(), deliberately on both counts: no anchor carries data-tip until
+    // initI18n() has painted the attributes, and a throw out of either must not
+    // reach module scope (pattern_module_toplevel_init_tdz).
+    try { initI18n(); setupTooltips(); }
+    catch (e) { console.error('i18n init failed:', e); }
 });

@@ -18,14 +18,30 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-MicrotonalSampler UI copy, English + French (v1.24.0, canon v2)
+// i18n.js — O-MicrotonalSampler UI copy, English + French (v1.25.0, canon v2)
 //
-// LABELS ONLY. This plugin ships no hover-help: it had no data-tip renderer and
-// no tooltip copy at v1.23.10 — only native title= attributes, five in the
-// markup and ELEVEN written from JS, which contract §4 deletes rather than
-// localizes. Authoring hover-help prose is Stage M's job, so no entry below
-// carries a body and TIP_BINDINGS is []. check-i18n assertion 2 accepts zero
-// bindings only when no I18N entry has a body, which is exactly this state.
+// LABELS AND HOVER-HELP. v1.24.0 shipped labels only: this plugin had no
+// data-tip renderer and no tooltip copy, only native title= attributes — five
+// in the markup and ELEVEN written from JS — which contract §4 deletes rather
+// than localizes. v1.25.0 (Stage M) adds the hover-help this file's v1.24.0
+// header deferred: 20 bodied `tip.*` entries and 21 TIP_BINDINGS rows, plus the
+// renderer that paints them (setupTooltips in js/sampler-app.js, ported from
+// O-simpleFM) and the gate that sees them (tests/ui_tip_render_check.js).
+//
+// THE 51 EMPTY-BODY ENTRIES BELOW ARE UNCHANGED AND ARE NOT TOOLTIPS. They are
+// toasts, dialog copy and composed accessible names reached through trLabel(),
+// and the K4 decision put them in I18N with `b: ''` precisely so they would not
+// demand a binding. Adding a body to one, or binding one, would make it a
+// hover-help entry it is not.
+//
+// AND THAT DECISION NOW COSTS SOMETHING VISIBLE. check-i18n assertion 2 reads
+// "0 tips bound is a state, not a gap" only while NO I18N entry carries a body.
+// The first `tip.*` body below flips it: from here on every bodied entry must
+// appear in TIP_BINDINGS or it fails as ORPHANED. So the orphan check now runs
+// against a table where 51 entries are legitimately body-less — they pass
+// because `b: ''` is empty, not because anything special was said about them.
+// An entry that gains a body by accident, in either language, becomes an orphan
+// on the next run.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -274,6 +290,191 @@ export const I18N = Object.freeze({
     'aria.emptyPath': {
         en: { t: '(empty path)', b: '' },
         fr: { t: '(chemin vide)', b: '', reviewed: false } },
+
+    // ── HOVER-HELP, v1.25.0 (Stage M) — THE ONLY BODIED ENTRIES IN THIS FILE ──
+    //
+    // 18 parameter tips + 2 chrome tips = 20. Each is bound in TIP_BINDINGS at
+    // the foot of this file; an unbound bodied entry fails assertion 2 as an
+    // ORPHAN, which is the check that makes "the copy exists" mean "the copy is
+    // reachable".
+    //
+    // THE PARAMETER INVENTORY IS .planning/params.tsv — a RUNTIME walk of
+    // AudioProcessor::getParameters(), not a regex over createParameterLayout().
+    // 19 parameters. EIGHTEEN get a tip. `rr_mode` (Round-Robin Mode: Cycle /
+    // Random No-Repeat / Random) HAS NO CONTROL ON THIS PAGE in any version —
+    // it is automatable and host-reachable and page-unreachable, so a body for
+    // it could not be bound and would fail as an orphan. A control was NOT added
+    // to satisfy the count: that is a feature change with a geometry cost on a
+    // control strip whose knobs are already flex: 1 1 0 at min-width 56px.
+    //
+    // TITLES ARE THE PARAMETER'S FULL NAME, NOT THE PAGE'S CAPTION, and this is
+    // a deliberate departure from the Stage M brief's "the caption wins" rule.
+    // That rule is for a caption that DISAGREES with the parameter name. Here
+    // five captions — Poly, Vel-XF, Expr, Dyn Rng, Out Gain — are truncations
+    // forced by a 56px column, and expanding a truncation the user cannot read
+    // is the single most useful thing a 260px tooltip can do. Where the caption
+    // and the name agree (Attack, Decay, Sustain, Release) nothing changes.
+    //
+    // RANGES. Ten parameters carry a real `label` in the dump (s, %, dB) and are
+    // quoted as dumped. Three do not — sustain, polyphony and velocity_crossfade
+    // — and their ranges are phrased from the page's OWN formatter, KNOB_FORMATS
+    // in js/sampler-app.js: sustain and velocity_crossfade at :356-357 / :368-369
+    // render `v.toFixed(2)` with an EMPTY suffix, so the range is a bare 0.00 to
+    // 1.00 and no unit is invented; polyphony at :359-360 renders
+    // `Math.round(v)` with an empty suffix, so "voices" is the page's own word
+    // for what it counts, taken from the caption Poly rather than from a unit
+    // string. The six technique / keyswitch / CC / PC parameters have empty
+    // labels too, and their ranges are the min/max attributes on their own
+    // number inputs in index.html plus the option words from the dump's
+    // textAtMin / textAtMax.
+    //
+    // OPTION STRINGS INSIDE A BODY. `Velocity` and `CC Crossfade` are
+    // dynamics_mode AudioParameterChoice options, byte-identical, and are
+    // I18N_EXEMPT on the page under D-01 arm 1 so the segmented toggle and the
+    // host automation lane keep saying the same word. They appear UNTRANSLATED
+    // inside the French bodies as well, deliberately: the sentence around them
+    // is French, but the word the reader has to go and find on screen is the
+    // word that is on screen. The two rules do not conflict — the option is
+    // data, the sentence is prose.
+    //
+    // D-03 AND THE DECIMAL SEPARATOR. A tooltip body is PROSE and takes French
+    // convention: decimal COMMA, a space before %, U+2212 for the minus. The
+    // READOUT keeps its point, because D-03 exempts the readout NODE and that
+    // has not moved. They differ on purpose — the readout is a machine-formatted
+    // value, the body is a sentence. Settled by the developer 2026-08-30 after
+    // M1 split on it three ways.
+    //
+    // NOTE NAMES stay in letter notation in both languages, the same verdict the
+    // tuning panel's twelve note names carry above: the C++ TuningEngine, the
+    // .scl / .kbm formats and the exported HTML all speak the letter system.
+
+    'tip.attack': {
+        en: { t: 'Attack',
+              b: 'Fade-in time from note-on to full level. Raise it to soften a percussive sample onset; leave it near zero to keep the recording’s own transient. 0 to 10 s.' },
+        fr: { t: 'Attaque',
+              b: 'Temps de montée entre l’enfoncement de la note et le niveau maximal. Augmentez-le pour adoucir une attaque percussive ; laissez-le près de zéro pour conserver le transitoire de l’enregistrement. 0 à 10 s.',
+              reviewed: false } },
+    'tip.decay': {
+        en: { t: 'Decay',
+              b: 'Time to fall from the peak to the sustain level, once the attack has finished. It only bites when Sustain sits below 1.00. 0 to 10 s.' },
+        fr: { t: 'Déclin',
+              b: 'Temps de descente du sommet vers le niveau de maintien, une fois l’attaque terminée. Il n’agit que si le maintien est inférieur à 1,00. 0 à 10 s.',
+              reviewed: false } },
+    'tip.sustain': {
+        en: { t: 'Sustain',
+              b: 'Level a held note settles at after the decay, as a fraction of the sample’s own level. At 1.00 the sample plays untouched and Decay does nothing. 0.00 to 1.00.' },
+        fr: { t: 'Maintien',
+              b: 'Niveau auquel se stabilise une note tenue après le déclin, en fraction du niveau propre de l’échantillon. À 1,00 l’échantillon est joué tel quel et le déclin n’a aucun effet. 0,00 à 1,00.',
+              reviewed: false } },
+    'tip.release': {
+        en: { t: 'Release',
+              b: 'Fade-out time after note-off. A long value lets a hall tail ring on; a short one cuts the note clean. 0 to 10 s.' },
+        fr: { t: 'Extinction',
+              b: 'Temps de descente après le relâchement de la note. Une valeur longue laisse la queue de salle résonner ; une valeur courte coupe la note net. 0 à 10 s.',
+              reviewed: false } },
+    'tip.polyphony': {
+        en: { t: 'Polyphony',
+              b: 'Greatest number of notes that may sound at once. Lower it to cap CPU on a large library; past the limit the oldest voice is stolen. 1 to 16 voices.' },
+        fr: { t: 'Polyphonie',
+              b: 'Nombre maximal de notes pouvant sonner en même temps. Abaissez-le pour limiter le processeur sur une grande banque ; au-delà de la limite, la voix la plus ancienne est remplacée. 1 à 16 voix.',
+              reviewed: false } },
+    'tip.velocityCrossfade': {
+        en: { t: 'Velocity Crossfade',
+              b: 'How far neighbouring velocity layers blend into one another instead of switching abruptly. At 0.00 each layer starts exactly where the one below it stops. 0.00 to 1.00.' },
+        fr: { t: 'Fondu de vélocité',
+              b: 'Degré de fondu entre couches de vélocité voisines, au lieu d’un basculement net. À 0,00 chaque couche commence exactement là où s’arrête la précédente. 0,00 à 1,00.',
+              reviewed: false } },
+    'tip.expression': {
+        en: { t: 'Expression',
+              b: 'Overall playing level, driven live by MIDI CC 11. What it does depends on the Dynamics mode: a post-mix volume trim under Velocity, a layer morph under CC Crossfade. 0 to 100 %.' },
+        fr: { t: 'Expression',
+              b: 'Niveau de jeu global, piloté en direct par le CC MIDI 11. Son effet dépend du mode de dynamique : un simple réglage de volume après mixage en Velocity, un fondu entre couches en CC Crossfade. 0 à 100 %.',
+              reviewed: false } },
+    'tip.dynamicsMode': {
+        en: { t: 'Dynamics Mode',
+              b: 'Chooses what MIDI CC 11 controls. Velocity: note-on velocity picks the layer and CC 11 is only a volume trim. CC Crossfade: CC 11 morphs across every velocity layer mid-note, changing timbre as well as loudness.' },
+        fr: { t: 'Mode de dynamique',
+              b: 'Détermine ce que pilote le CC MIDI 11. Velocity : la vélocité choisit la couche et le CC 11 n’est qu’un réglage de volume. CC Crossfade : le CC 11 fond toutes les couches de vélocité en cours de note, changeant le timbre autant que l’intensité.',
+              reviewed: false } },
+    'tip.dynamicRange': {
+        en: { t: 'Dynamic Range',
+              b: 'How much quieter the softest layer sits below the loudest under CC Crossfade. Widen it for an exposed orchestral line, narrow it for a mix that must stay present throughout. 0.0 to 40.0 dB.' },
+        fr: { t: 'Plage dynamique',
+              b: 'Écart de niveau entre la couche la plus douce et la plus forte, en mode CC Crossfade. Élargissez-la pour une ligne orchestrale exposée, resserrez-la pour un mixage qui doit rester présent de bout en bout. 0,0 à 40,0 dB.',
+              reviewed: false } },
+    'tip.outputGain': {
+        en: { t: 'Output Gain',
+              b: 'Final level of the whole instrument, applied after every technique and layer trim. Use it to seat this instance against the rest of the mix. −24 to +24 dB.' },
+        fr: { t: 'Gain de sortie',
+              b: 'Niveau final de tout l’instrument, appliqué après chaque ajustement de technique et de couche. Utilisez-le pour caler cette instance sur le reste du mixage. −24 à +24 dB.',
+              reviewed: false } },
+    'tip.techniqueCount': {
+        en: { t: 'Technique Count',
+              b: 'How many playing-technique slots this instrument exposes. Add one for each articulation you have samples for; removing a slot hides its cells rather than deleting them. 1 to 8 slots.' },
+        fr: { t: 'Nombre de techniques',
+              b: 'Nombre d’emplacements de technique de jeu proposés par l’instrument. Ajoutez-en un par articulation dont vous avez des échantillons ; en retirer un masque ses cases sans les supprimer. 1 à 8 emplacements.',
+              reviewed: false } },
+    'tip.techniqueSelect': {
+        en: { t: 'Technique Select',
+              b: 'The technique slot currently sounding, and the one the sample map and the trims are editing. Click a tab to switch, right-click a tab to rename it. Slots 1 to 8.' },
+        fr: { t: 'Technique active',
+              b: 'L’emplacement de technique en cours de lecture, celui que la carte d’échantillons et les ajustements modifient. Cliquez sur un onglet pour changer, clic droit pour le renommer. Emplacements 1 à 8.',
+              reviewed: false } },
+    'tip.ksEnabled': {
+        en: { t: 'Keyswitch Enabled',
+              b: 'Turns keyswitching on: a note-on inside the range beside it selects a technique instead of sounding. It is off by default, so no note is ever swallowed until you ask for it. Off or On.' },
+        fr: { t: 'Commutation par touche',
+              b: 'Active la commutation par touche : une note jouée dans la plage voisine choisit une technique au lieu de sonner. Elle est désactivée par défaut, afin qu’aucune note ne soit absorbée sans votre accord. Arrêt ou Marche.',
+              reviewed: false } },
+    'tip.ksLowNote': {
+        en: { t: 'Keyswitch Low Note',
+              b: 'Bottom of the keyswitch range, as a MIDI note number. Keep it below the register you actually play — the default, MIDI 0, is well out of the way. 0 to 127.' },
+        fr: { t: 'Note basse de commutation',
+              b: 'Limite inférieure de la plage de commutation, en numéro de note MIDI. Gardez-la sous le registre que vous jouez réellement ; la valeur par défaut, MIDI 0, est largement à l’écart. 0 à 127.',
+              reviewed: false } },
+    'tip.ksHighNote': {
+        en: { t: 'Keyswitch High Note',
+              b: 'Top of the keyswitch range. Leave one semitone per slot above the low note, or two keys collapse onto the same technique. 0 to 127.' },
+        fr: { t: 'Note haute de commutation',
+              b: 'Limite supérieure de la plage de commutation. Laissez un demi-ton par emplacement au-dessus de la note basse, sans quoi deux touches visent la même technique. 0 à 127.',
+              reviewed: false } },
+    'tip.ccSelectEnabled': {
+        en: { t: 'CC Select Enabled',
+              b: 'Lets a MIDI controller choose the technique from its value, through the table below. Keyswitching still takes precedence wherever both are active. Off or On.' },
+        fr: { t: 'Sélection par CC',
+              b: 'Permet à un contrôleur MIDI de choisir la technique selon sa valeur, d’après le tableau ci-dessous. La commutation par touche reste prioritaire là où les deux sont actives. Arrêt ou Marche.',
+              reviewed: false } },
+    'tip.ccNumber': {
+        en: { t: 'CC Number',
+              b: 'Which MIDI controller drives technique selection. CC 32 is the default; avoid CC 11, which Expression already listens to. 0 to 119.' },
+        fr: { t: 'Numéro de CC',
+              b: 'Contrôleur MIDI qui pilote la sélection de technique. Le CC 32 est la valeur par défaut ; évitez le CC 11, déjà écouté par l’expression. 0 à 119.',
+              reviewed: false } },
+    'tip.pcEnabled': {
+        en: { t: 'Program Change Enabled',
+              b: 'Lets a MIDI program change select the technique, through the table below. It comes last in precedence, after keyswitching and CC. Off or On.' },
+        fr: { t: 'Changement de programme',
+              b: 'Permet à un changement de programme MIDI de choisir la technique, d’après le tableau ci-dessous. Il vient en dernier, après la commutation par touche et le CC. Arrêt ou Marche.',
+              reviewed: false } },
+
+    // ── the two chrome tips ────────────────────────────────────────────────
+    // The gear tip is what tells a user hover-help exists at all, so it must
+    // describe ONLY what this popover actually holds. It holds the language
+    // selector and nothing else — no hover-help toggle, which O-Tapestop's
+    // wording promises and this plugin does not have. A tip that lies is worse
+    // than no tip.
+    'tip.gear': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel. It holds the interface language and nothing else. Hover any control on this page for the same kind of help you are reading now.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages. Il contient la langue de l’interface, et rien d’autre. Survolez n’importe quelle commande de cette page pour obtenir la même aide que celle-ci.',
+              reviewed: false } },
+    'tip.langSelect': {
+        en: { t: 'Language',
+              b: 'Switches every caption, button and hover-help on this page between English and French. Value readouts, tuning names, note names and preset filenames stay exactly as they are.' },
+        fr: { t: 'Langue',
+              b: 'Bascule toutes les légendes, tous les boutons et toute l’aide au survol de cette page entre l’anglais et le français. Les valeurs affichées, les noms de systèmes d’accord, les noms de notes et les noms de fichiers de préréglages restent inchangés.',
+              reviewed: false } },
 });
 
 // ── LABELS — one string, no body ───────────────────────────────────────────
@@ -708,10 +909,82 @@ export const I18N_EXEMPT = [
      'emitted from PluginEditor.cpp on the non-WKWebView drop path, alongside the three module-owned strings above'],
 ];
 
-// No hover-help copy exists on this plugin and authoring it is Stage M's job.
-// check-i18n assertion 2 accepts an empty binding list only when no I18N entry
-// carries a body, which is the state above.
-export const TIP_BINDINGS = [];
+// ============================================================================
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper]
+//
+// applyI18n() does `document.querySelector(selector)`, then `closest(wrapper)`
+// where a wrapper is given, and writes data-tip-title + data-tip onto whatever
+// that lands on. setupTooltips() in js/sampler-app.js then walks UP from the
+// pointer's target with closest('[data-tip]'), so a tip is held open by the
+// whole subtree of its anchor.
+//
+// T17 SAYS "BIND TO THE IDS THE UI ALREADY USES." That was false on five M1
+// plugins out of five, for a different reason each time, and it is false here
+// too — in BOTH halves independently:
+//
+//   - THE SELECTOR HALF. The nine control-strip knobs carry no id of their own.
+//     `#ctrl-attack` is the 1x1px opacity-0 <input type="range"> INSIDE the
+//     knob, which is `pointer-events: none` (sampler-shell.css) and therefore
+//     cannot be hovered at all — a tip bound to it would be a tip nobody can
+//     open, and it would pass every static check. The addressable node is the
+//     cell itself, `[data-knob-id="ctrl-attack"]`, which renderControlStrip()
+//     writes. The dynamics toggle is the same shape: `.dynamics-mode-control`.
+//   - THE WRAPPER HALF. Six anchors ARE ids and still need the walk, because
+//     the id'd node is a checkbox or a number field a few px across sitting
+//     inside the label that names it. `.ks-range-label` MATCHES TWICE (low and
+//     high) and `.trigger-toggle-label` matches twice (CC and PC) — closest()
+//     from each input reaches its own, which a bare querySelector on the class
+//     would only do by luck for one of the pair (the O-Tremolo trap).
+//
+// THE CHROME BINDS BARE. #gear-btn and #lang-select share `.settings-cluster`,
+// so any wrapper walk would make hovering the selector resolve to the gear's
+// tip — O-Comp measured exactly that. Both are bound to themselves.
+//
+// TWO ROWS SHARE ONE KEY, and that is not the failure mode. `tip.techniqueCount`
+// is bound to BOTH `#technique-add` and `#technique-remove`, because one
+// parameter is what those two buttons move and neither is more the control than
+// the other. The thing that silently breaks is two bindings on the SAME NODE —
+// the second setAttribute overwrites the first while check-i18n cheerfully
+// reports two bound tips — and tests/ui_tip_render_check.js asserts every
+// binding resolves to a DISTINCT node by identity for that reason.
+//
+// NOT BOUND, deliberately: the preset bar (Save/Load), the tab strip, the drop
+// zone and the six dialogs. Those got accessible names from their deleted
+// native title= attributes in v1.24.0 and are self-describing; tips there are
+// polish, not this stage's scope.
+// ============================================================================
+export const TIP_BINDINGS = [
+    // ── the nine control-strip knobs (the cell, never the hidden input) ────
+    ['[data-knob-id="ctrl-attack"]',             'tip.attack'],
+    ['[data-knob-id="ctrl-decay"]',              'tip.decay'],
+    ['[data-knob-id="ctrl-sustain"]',            'tip.sustain'],
+    ['[data-knob-id="ctrl-release"]',            'tip.release'],
+    ['[data-knob-id="ctrl-polyphony"]',          'tip.polyphony'],
+    ['[data-knob-id="ctrl-velocity-crossfade"]', 'tip.velocityCrossfade'],
+    ['[data-knob-id="ctrl-expression"]',         'tip.expression'],
+    ['[data-knob-id="ctrl-dynamic-range"]',      'tip.dynamicRange'],
+    ['[data-knob-id="ctrl-output-gain"]',        'tip.outputGain'],
+
+    // ── the dynamics segmented toggle ─────────────────────────────────────
+    ['.dynamics-mode-control',                   'tip.dynamicsMode'],
+
+    // ── the technique bar ─────────────────────────────────────────────────
+    ['#technique-tabs',                          'tip.techniqueSelect'],
+    ['#technique-add',                           'tip.techniqueCount'],
+    ['#technique-remove',                        'tip.techniqueCount'],
+    ['#technique-ks-enabled',                    'tip.ksEnabled',   '.ks-toggle-label'],
+    ['#technique-ks-low',                        'tip.ksLowNote',   '.ks-range-label'],
+    ['#technique-ks-high',                       'tip.ksHighNote',  '.ks-range-label'],
+
+    // ── the CC + PC trigger panel ─────────────────────────────────────────
+    ['#cc-trigger-enabled',                      'tip.ccSelectEnabled', '.trigger-toggle-label'],
+    ['#cc-trigger-number',                       'tip.ccNumber',        '.trigger-cc-number-label'],
+    ['#pc-trigger-enabled',                      'tip.pcEnabled',       '.trigger-toggle-label'],
+
+    // ── chrome, BARE (see above) ──────────────────────────────────────────
+    ['#gear-btn',                                'tip.gear'],
+    ['#lang-select',                             'tip.langSelect'],
+];
 
 // The canon block imports this by name and calls it for every TIP_BINDINGS
 // entry. TIP_BINDINGS is empty here, so nothing calls it today — but the canon
