@@ -2,6 +2,80 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.3.0] - 2026-08-30
+
+Hover-help, in both languages — and the renderer that makes it visible.
+
+### Added
+- **Hover-help on every control that has a parameter behind it**, plus the gear and the
+  language selector: six tips, each with an English and a French title and body.
+  `INTENSITY`, `MODEL`, `QUALITY` and `AUTOGAIN` are the plugin's whole parameter set,
+  taken from a runtime dump of `AudioProcessor::getParameters()`
+  (`.planning/params.tsv`) rather than from a regex over `createParameterLayout()`.
+- **`.planning/params.tsv` and the `OUARICON_BUILD_TESTS` param-dump wiring.** The dump
+  target builds with `JUCE_WEB_BROWSER=0` and compiles no editor TU, so
+  `#include "PluginEditor.h"` moved from the top of `PluginProcessor.cpp` into a
+  `#if JUCE_WEB_BROWSER` guard above `createEditor()`, with a
+  `GenericAudioProcessorEditor` fallback. Under a normal build `JUCE_WEB_BROWSER=1` and
+  the behaviour is byte-identical.
+- **A tooltip renderer, because this page had none.** `applyI18n()` writes
+  `data-tip-title` and `data-tip` attributes onto the bound anchors and stops there —
+  the thing that reads them and paints a surface is per-plugin code, and this page had
+  no `#tooltip` element, no `.tooltip` rule and no hover handler. Six bodies bound with
+  no renderer would have shipped six invisible strings past three green gates, and that
+  was *measured, not assumed*: with the `setupTooltips()` call commented out,
+  `check-i18n` and `check-ui-labels` both still reported ALL CHECKS PASS.
+- **`tests/ui_tip_render_check.js`** — the gate that actually hovers. It drives every
+  anchor in both languages and asserts the tip becomes visible, that its rendered title
+  and body are *byte-equal* (not "contains") to the table entry, and that its rectangle
+  is inside the 600x450 frame on all four edges. It carries its own negative control: a
+  2400-character body planted on a live attribute must be reported as overflowing, or
+  the containment assertions are decoration.
+
+### Changed
+- The renderer is ported from O-simpleFM's `setupTooltips` — delegated on `document`
+  (no anchor carries `data-tip` until `applyI18n()` has run), `pointerover`/`pointerout`
+  and `focusin`/`focusout` because those bubble, `createElement` + `textContent` so
+  localized copy never reaches a markup path — but it **clamps all four edges** where
+  the original flips and then clamps only top and left. In a 450 px frame with
+  `#autogainToggle` and `.quality-buttons` both at y=395, every tip they open is placed
+  by the vertical flip, and French wraps taller.
+- The tooltip is styled in this page's own vocabulary — the aged-paper fill over a 2 px
+  `#3C5C1A` border that `.settings-popover` already uses — not in O-simpleFM's
+  dark-on-cream.
+- The gear popover is still one row. v1.3.0 has hover-help but no switch for it:
+  a switch needs a persisted preference through C++ and a `data-tip-always` bypass so
+  its own tip survives being switched off. The gear's tip says so rather than promising
+  a control that is not there.
+
+### Notes
+- **Two of the four parameters have no `id` anywhere near them.** `MODEL` and `QUALITY`
+  are rows of buttons, and the parameter is the row — `TIP_BINDINGS` uses the wrapper
+  form (`['.model-button', 'tip.model', '.model-buttons']`) so the whole row, including
+  the flex gaps, is the hover target. Binding one button would have left three quarters
+  of it dead.
+- **The seven option words stay English inside the French bodies.** MAGNETIC, TUBE,
+  TRANSFORMER, DIODE, LOW, MID and HIGH are `AudioParameterChoice` options and are what
+  the buttons say in both languages; a French body that translated them would send a
+  reader looking for a button that is not on the page. `AUTOGAIN`'s Off/On is an
+  `AudioParameterBool`'s default text, appears on no button, and *is* localized.
+  `tip.lang`'s body tells the user why, so the model and quality rows do not read as a
+  missed translation.
+- `INTENSITY`'s unit came from the dump's `label` column (`%`). It did not have to be
+  recovered from a formatter: this page renders no numeric readout for the knob at all.
+- All French is a machine draft, every entry `reviewed: false`. The worklist for this
+  plugin is now 15 entries — 6 tooltip, 9 label. No native speaker has read any of it.
+- Zero geometry movement, before and after: `check-ui-labels` assertion 7 reports no
+  non-label element moving between English and French in either driven state. The idle
+  tip is `visibility: hidden`, so it enters neither the label sweep nor the geometry
+  diff. No pin was needed, so none was added.
+- **Known, and not this plugin's to fix: a tip that is already open does not re-render
+  on a language change.** `applyI18n()` rewrites the anchors' attributes; nothing
+  re-reads them for the surface currently on screen, so switching language with the
+  pointer resting on `#lang-select` leaves that one tip in the old language until the
+  pointer leaves and returns. That is canon behaviour, shared with all 21 already-shipped
+  tooltip plugins, and a per-plugin workaround here would hide it.
+
 ## [1.2.0] - 2026-08-29
 
 The PAGE speaks French, not only a tooltip — because this plugin never had a tooltip.

@@ -1,0 +1,8 @@
+# plugin	O-AnalogSaturation
+# params	4
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+INTENSITY	Intensity	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+MODEL	Model		4	MAGNETIC	DIODE	0.000000	MAGNETIC	automatable,discrete
+QUALITY	Quality		3	LOW	HIGH	0.500000	MID	automatable,discrete
+AUTOGAIN	Auto Gain		2	Off	On	0.000000	Off	automatable,discrete,boolean
