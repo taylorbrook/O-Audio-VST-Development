@@ -18,13 +18,22 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bells UI copy, English + French (v4.2.0, canon v2)
+// i18n.js — O-Bells UI copy, English + French (v4.3.0, canon v2)
 //
-// LABELS ONLY. This plugin ships no hover-help: it had no data-tip renderer and
-// no tooltip copy at v4.1.5, only one native alt= and one native title= written
-// from JS. Authoring hover-help prose is Stage M's job, not this file's, so
-// I18N is EMPTY and TIP_BINDINGS is []. check-i18n assertion 2 accepts zero
-// bindings only when no I18N entry carries a body, which is exactly this state.
+// LABELS AND HOVER-HELP. v4.2.0 localized the page's captions and shipped I18N
+// empty with TIP_BINDINGS = [], because the plugin had no tooltip renderer at
+// all — no #tooltip surface, no .tooltip rule, no hover handler. v4.3.0 adds
+// the renderer (index.html, setupTooltips(), ported from O-simpleFM's delegated
+// cursor-following family) and 65 hover-help entries in the SAME commit.
+//
+// That pairing is the point. canon v2's applyI18n() writes data-tip-title and
+// data-tip ATTRIBUTES onto the anchors in TIP_BINDINGS and stops there; the
+// thing that reads them and paints a surface is per-plugin code outside the
+// canon. Authoring the copy alone would have shipped 65 invisible strings and
+// three green gates — check-i18n reads the table statically, check-ui-labels
+// has no tooltip awareness whatsoever, and boot-all-uis counts aria-label and
+// title and never data-tip. tests/ui_tip_render_check.js is the assertion none
+// of those three can make, and it is the first runnable gate this plugin has.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -87,11 +96,579 @@
 
 export const LANGUAGES = ['en', 'fr'];
 
-// EMPTY, and deliberately so. I18N holds hover-help — a title AND a body per
-// key. This plugin has none. trLabel() falls back to I18N when a key is absent
-// from LABELS, so the canon block is unchanged; there is simply nothing here to
-// fall back to.
-export const I18N = Object.freeze({});
+// ── HOVER-HELP (v4.3.0, Stage M batch M3) ──────────────────────────────────
+//
+// 63 parameter tips + 2 chrome tips = 65 entries, one per BOUND anchor below.
+// v4.2.0 shipped this object EMPTY and TIP_BINDINGS as [], because the page had
+// no renderer to paint what applyI18n() writes. v4.3.0 adds the renderer
+// (index.html, setupTooltips()) and this copy in the same commit; either one
+// alone is invisible.
+//
+// TITLE. The page's own caption, verbatim from LABELS, wherever the caption and
+// the parameter name agree. Where the caption is that name with letters missing
+// — P.Env Time, Pre-dly, Sub, Oct, Mid Freq, A4 REF — the tip spells it out:
+// a 260px surface is exactly where an abbreviation stops being necessary, and
+// the spelled form is also the automation-lane name. That is M2 finding 9's
+// rule, and it is NOT the same as overruling a caption that disagrees.
+//
+// BODY. What the control does, when to reach for it, ending with the range and
+// unit. Prose, so it takes FRENCH convention: decimal COMMA, a space before %,
+// U+2212 for the minus. The READOUT keeps its point (0.50, 1.00) because D-03
+// exempts the readout NODE and that has not moved. They differ on purpose.
+//
+// WHERE THE RANGES COME FROM. plugins/O-Bells/.planning/params.tsv is the
+// runtime inventory and is authoritative for the parameter's own range. 45 of
+// the 65 rows carry a real `label`; for the other 20 the unit is recovered from
+// the page's OWN formatter and the file:line is cited on the entry. Three
+// ranges are recovered even though a label exists, because the page's formatter
+// disagrees with the raw range and the user reads the page:
+//   - every 0..1 percentage renders 0-100 % (index.html:2034 and its 20 siblings);
+//   - delayTime dumps `s` 0.001..2.000 and the knob renders MILLISECONDS
+//     (index.html:3008, setupFxKnob('delayTime', ..., 1, 2000, ' ms'));
+//   - unisonDetune / partialTuning dump `cents` and the readout writes `ct`
+//     (index.html:2060, :2064) — the body says "cents" because that is the
+//     word, and the readout's abbreviation is not prose.
+//
+// CHOICE OPTION STRINGS INSIDE A BODY. Bronze / Cast Iron / Click / Ping /
+// Normal / PingPong / Linear stay in ENGLISH inside the French bodies, and this
+// is deliberate rather than an oversight: they are AudioParameterChoice options
+// the host shows in its automation lane and the page shows unlocalized under
+// D-01 arm 1 (see I18N_EXEMPT). A body that translated them would name buttons
+// that do not exist. The SENTENCE around them is French; the identifiers are
+// not. The Off/On of a boolean is a different case — Off and On are not
+// rendered anywhere as option text on this page, so the body says
+// "Arrêt ou Marche", matching the ui.off / ui.on captions the FX buttons wear.
+//
+// TWO PARAMETERS HAVE NO ENTRY, AND THAT IS A FINDING, NOT A GAP:
+// tuning_pitchBendRange and tuning_temperamentPreset are host-reachable and
+// page-unreachable. See the note above TIP_BINDINGS.
+//
+// ALL FRENCH IS A MACHINE DRAFT, `reviewed: false` on all 65.
+export const I18N = Object.freeze({
+
+    // ── Instrument tab: Synthesis ───────────────────────────────────────────
+    'tip.damping': {
+        en: { t: 'Damping',
+              b: 'Sets how quickly the bell’s partials give up their energy. Low values ring on for a long time; high values shorten the tail and thin the sustain. 0 to 100 %.' },
+        fr: { t: 'Amortissement',
+              b: 'Règle la vitesse à laquelle les partiels de la cloche perdent leur énergie. Une valeur basse laisse sonner longtemps ; une valeur haute raccourcit la queue et amincit la tenue. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.overtoneBrightness': {
+        en: { t: 'Overtone Brightness',
+              b: 'Balances the upper partials against the fundamental. Raise it for a glassy, bell-like shimmer; lower it for a darker, more wooden strike. 0 to 100 %.' },
+        fr: { t: 'Brillance harmonique',
+              b: 'Équilibre les partiels aigus par rapport au fondamental. Augmentez pour un miroitement vitreux ; diminuez pour une frappe plus sombre et boisée. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.acousticBrightness': {
+        en: { t: 'Acoustic Brightness',
+              b: 'Tilts the whole resonator towards the treble, the way a thinner casting or a harder alloy would. It colours the body rather than the strike. 0 to 100 %.' },
+        fr: { t: 'Brillance acoustique',
+              b: 'Incline tout le résonateur vers l’aigu, comme le ferait une fonte plus fine ou un alliage plus dur. Colore le corps plutôt que la frappe. 0 à 100 %.',
+              reviewed: false },
+    },
+    // The option words stay English on BOTH sides — D-01 arm 1, and they are
+    // also what the .param-value readout writes (arm 3). See I18N_EXEMPT.
+    'tip.material': {
+        en: { t: 'Material',
+              b: 'Chooses the alloy the resonator models, which sets its partial ratios and its natural decay. Bronze is the orchestral tubular-bell voice; Cast Iron is the heaviest and the slowest to die away. Bronze, Brass, Steel, Aluminum or Cast Iron.' },
+        fr: { t: 'Matériau',
+              b: 'Choisit l’alliage modélisé par le résonateur, ce qui fixe ses rapports de partiels et sa décroissance naturelle. Bronze est la voix de cloche tubulaire d’orchestre ; Cast Iron est la plus lourde et la plus lente à s’éteindre. Bronze, Brass, Steel, Aluminum ou Cast Iron.',
+              reviewed: false },
+    },
+    'tip.inharmonicity': {
+        en: { t: 'Inharmonicity',
+              b: 'Pushes the partials away from whole-number ratios, which is what makes a bell sound like a bell rather than an organ pipe. Too much and the pitch turns ambiguous. 0 to 100 %.' },
+        fr: { t: 'Inharmonicité',
+              b: 'Écarte les partiels des rapports entiers, ce qui donne à une cloche son timbre plutôt que celui d’un tuyau d’orgue. Trop d’inharmonicité rend la hauteur ambiguë. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.airAbsorption': {
+        en: { t: 'Air Absorption',
+              b: 'Models the high frequencies losing energy to the air as the note travels. It darkens the tail progressively rather than all at once. 0 to 100 %.' },
+        fr: { t: 'Absorption air',
+              b: 'Modélise la perte d’énergie des aigus dans l’air pendant que la note voyage. Assombrit la queue progressivement plutôt que d’un seul coup. 0 à 100 %.',
+              reviewed: false },
+    },
+    // UNIT RECOVERED — params.tsv `label` is empty. index.html:2038-2042 renders
+    // ms below one second and seconds above it.
+    'tip.airAbsorptionTime': {
+        en: { t: 'Air Time',
+              b: 'Sets how long that air-absorption darkening takes to run its course. Short values dull the tail almost immediately; long values keep the top open for seconds. 100 ms to 10.0 s.' },
+        fr: { t: 'Durée air',
+              b: 'Règle le temps que met cet assombrissement par absorption de l’air à s’accomplir. Les valeurs courtes ternissent la queue presque aussitôt ; les longues gardent l’aigu ouvert pendant des secondes. 100 ms à 10,0 s.',
+              reviewed: false },
+    },
+    // UNIT RECOVERED — empty `label`; index.html:2048 renders 25 + v*375 ms.
+    'tip.bloomSpeed': {
+        en: { t: 'Bloom Speed',
+              b: 'Bloom is the swell that arrives just after the strike, as the partials come into phase. This sets how long that swell takes to arrive. 25 to 400 ms.' },
+        fr: { t: 'Vitesse éclosion',
+              b: 'L’éclosion est l’enflement qui suit immédiatement la frappe, quand les partiels se mettent en phase. Règle le temps que met cet enflement à venir. 25 à 400 ms.',
+              reviewed: false },
+    },
+    'tip.bloomAmount': {
+        en: { t: 'Bloom Amount',
+              b: 'Sets how much of that post-strike swell is audible. At zero the bell simply decays from its loudest point. 0 to 100 %.' },
+        fr: { t: 'Dosage éclosion',
+              b: 'Règle l’ampleur audible de cet enflement après la frappe. À zéro, la cloche décroît simplement depuis son maximum. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.shimmer': {
+        en: { t: 'Shimmer',
+              b: 'Adds a slow beating between closely detuned partials — the flutter a real bell gets from its own asymmetry. 0 to 100 %.' },
+        fr: { t: 'Shimmer',
+              b: 'Ajoute un battement lent entre des partiels légèrement désaccordés — le frémissement qu’une vraie cloche tient de sa propre asymétrie. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.bloomFineEnabled': {
+        en: { t: 'Bloom Fine Controls',
+              b: 'Replaces the two main Bloom sliders with six per-band controls, so low, mid and high partials can bloom at different speeds and depths. The two main sliders are disabled while it is on. Off or On.' },
+        fr: { t: 'Réglages fins d’éclosion',
+              b: 'Remplace les deux curseurs principaux d’éclosion par six commandes par bande, afin que les partiels graves, médiums et aigus éclosent à des vitesses et des profondeurs différentes. Les deux curseurs principaux sont désactivés tant qu’il est actif. Arrêt ou Marche.',
+              reviewed: false },
+    },
+    // UNIT RECOVERED for all three — empty `label`; index.html:2051, :2052,
+    // :2053 render 15 + v*235, 25 + v*375 and 50 + v*750 milliseconds.
+    'tip.bloomSpeedLow': {
+        en: { t: 'Speed Low',
+              b: 'Sets the bloom time for the low partials alone. Large bells swell slowest down here. Available only while Bloom Fine Controls is on. 15 to 250 ms.' },
+        fr: { t: 'Vitesse grave',
+              b: 'Règle le temps d’éclosion des seuls partiels graves. C’est ici que les grandes cloches enflent le plus lentement. Disponible seulement quand les réglages fins d’éclosion sont actifs. 15 à 250 ms.',
+              reviewed: false },
+    },
+    'tip.bloomSpeedMid': {
+        en: { t: 'Speed Mid',
+              b: 'Sets the bloom time for the middle partials, the band that carries most of the perceived pitch. Available only while Bloom Fine Controls is on. 25 to 400 ms.' },
+        fr: { t: 'Vitesse médium',
+              b: 'Règle le temps d’éclosion des partiels médiums, la bande qui porte l’essentiel de la hauteur perçue. Disponible seulement quand les réglages fins d’éclosion sont actifs. 25 à 400 ms.',
+              reviewed: false },
+    },
+    'tip.bloomSpeedHigh': {
+        en: { t: 'Speed High',
+              b: 'Sets the bloom time for the high partials. Slow values here make the top of the bell arrive noticeably after the strike. Available only while Bloom Fine Controls is on. 50 to 800 ms.' },
+        fr: { t: 'Vitesse aigu',
+              b: 'Règle le temps d’éclosion des partiels aigus. Une valeur lente fait arriver le haut de la cloche nettement après la frappe. Disponible seulement quand les réglages fins d’éclosion sont actifs. 50 à 800 ms.',
+              reviewed: false },
+    },
+    'tip.bloomAmountLow': {
+        en: { t: 'Amount Low',
+              b: 'Sets how much bloom the low partials get. Available only while Bloom Fine Controls is on. 0 to 100 %.' },
+        fr: { t: 'Dosage grave',
+              b: 'Règle la quantité d’éclosion appliquée aux partiels graves. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.bloomAmountMid': {
+        en: { t: 'Amount Mid',
+              b: 'Sets how much bloom the middle partials get. Available only while Bloom Fine Controls is on. 0 to 100 %.' },
+        fr: { t: 'Dosage médium',
+              b: 'Règle la quantité d’éclosion appliquée aux partiels médiums. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.bloomAmountHigh': {
+        en: { t: 'Amount High',
+              b: 'Sets how much bloom the high partials get. Available only while Bloom Fine Controls is on. 0 to 100 %.' },
+        fr: { t: 'Dosage aigu',
+              b: 'Règle la quantité d’éclosion appliquée aux partiels aigus. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Ensemble ────────────────────────────────────────────
+    // UNIT RECOVERED — empty `label`; index.html:2059 renders a bare count.
+    'tip.unisonCount': {
+        en: { t: 'Unison',
+              b: 'Stacks slightly detuned copies of the bell for a wider, thicker strike. Every extra voice costs CPU on every note. 1 to 4 voices.' },
+        fr: { t: 'Unisson',
+              b: 'Empile des copies légèrement désaccordées de la cloche pour une frappe plus large et plus épaisse. Chaque voix supplémentaire coûte du processeur à chaque note. 1 à 4 voix.',
+              reviewed: false },
+    },
+    'tip.unisonDetune': {
+        en: { t: 'Detune',
+              b: 'Spreads the unison voices apart in pitch. A little thickens; a lot produces a chorus and then sours. Has no effect at one voice. 0 to 50 cents.' },
+        fr: { t: 'Désaccord',
+              b: 'Écarte les voix d’unisson en hauteur. Un peu épaissit ; beaucoup produit un chorus puis une fausseté. Sans effet à une seule voix. 0 à 50 cents.',
+              reviewed: false },
+    },
+    'tip.octaveBlendSub': {
+        en: { t: 'Sub Octave',
+              b: 'Blends in a copy of the bell an octave below, for weight underneath the strike. 0 to 100 %.' },
+        fr: { t: 'Sous-octave',
+              b: 'Mélange une copie de la cloche une octave plus bas, pour donner du poids sous la frappe. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.octaveBlendOct': {
+        en: { t: 'Octave Up',
+              b: 'Blends in a copy of the bell an octave above, for sparkle on the attack. 0 to 100 %.' },
+        fr: { t: 'Octave supérieure',
+              b: 'Mélange une copie de la cloche une octave plus haut, pour donner de l’éclat à l’attaque. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.stereoSpread': {
+        en: { t: 'Spread',
+              b: 'Places the unison and octave voices across the stereo field. At zero everything sits in the centre. 0 to 100 %.' },
+        fr: { t: 'Étalement',
+              b: 'Répartit les voix d’unisson et d’octave dans le champ stéréo. À zéro, tout reste au centre. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Onsets ──────────────────────────────────────────────
+    'tip.strikePosition': {
+        en: { t: 'Strike',
+              b: 'Moves the striking point along the bell. Near the rim the upper partials dominate; near the crown the fundamental does. 0 to 100 %.' },
+        fr: { t: 'Frappe',
+              b: 'Déplace le point de frappe le long de la cloche. Près du bord, les partiels aigus dominent ; près du sommet, c’est le fondamental. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.malletHardness': {
+        en: { t: 'Mallet',
+              b: 'Sets how hard the mallet head is. Soft heads excite the low partials and little else; hard heads put a bright click on the front of the note. 0 to 100 %.' },
+        fr: { t: 'Mailloche',
+              b: 'Règle la dureté de la tête de mailloche. Une tête douce n’excite guère que les partiels graves ; une tête dure place un clic brillant en tête de la note. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.attackLevel': {
+        en: { t: 'Attack Amount',
+              b: 'Sets how loud the strike transient is against the ringing body that follows it. 0 to 100 %.' },
+        fr: { t: 'Dosage attaque',
+              b: 'Règle le niveau du transitoire de frappe par rapport au corps résonant qui le suit. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.strikeNoiseChar': {
+        en: { t: 'Noise',
+              b: 'Chooses the character of the contact noise at the instant of the strike. Click is dry and wooden, Thud is dull and low, Ping is bright and metallic. Click, Thud or Ping.' },
+        fr: { t: 'Bruit',
+              b: 'Choisit le caractère du bruit de contact à l’instant de la frappe. Click est sec et boisé, Thud est sourd et grave, Ping est brillant et métallique. Click, Thud ou Ping.',
+              reviewed: false },
+    },
+    // The BODY names the three buttons the page shows (Linear / Exp / Log), not
+    // the parameter's own option list (Linear / Exponential / Logarithmic): the
+    // user is reading the page. Exp and Log are keyed captions; Linear is the
+    // one of the three that is byte-identical to its option and therefore exempt.
+    'tip.velocityCurve': {
+        en: { t: 'Velocity',
+              b: 'Maps how hard you play onto how loud the bell speaks. Linear is one-to-one, Exp needs a firmer touch for the same level, and Log lifts quiet playing. Linear, Exp or Log.' },
+        fr: { t: 'Vélocité',
+              b: 'Détermine comment la force de jeu se traduit en niveau sonore. Linear est proportionnel, Exp demande un toucher plus ferme pour le même niveau, et Log relève le jeu doux. Linear, Exp ou Log.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Advanced ────────────────────────────────────────────
+    'tip.partialTuning': {
+        en: { t: 'Partial Tune',
+              b: 'Detunes the upper partials against the fundamental without moving the perceived pitch. It is the shortest road from a tuned bell to a clangorous one. −100 to +100 cents.' },
+        fr: { t: 'Accord des partiels',
+              b: 'Désaccorde les partiels aigus par rapport au fondamental sans déplacer la hauteur perçue. C’est le chemin le plus court d’une cloche juste à une cloche clangoreuse. −100 à +100 cents.',
+              reviewed: false },
+    },
+    'tip.pitchEnvelope': {
+        en: { t: 'Pitch Envelope',
+              b: 'Sets how far the pitch falls away from its struck value in the first instants of the note — the drop a heavy bell makes as it settles. 0 to 100 %.' },
+        fr: { t: 'Enveloppe de hauteur',
+              b: 'Règle l’ampleur de la chute de hauteur dans les premiers instants de la note — l’affaissement d’une cloche lourde qui se stabilise. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.pitchEnvTime': {
+        en: { t: 'Pitch Envelope Time',
+              b: 'Sets how long that pitch drop takes to complete. Short values read as a click on the attack; long values as an audible bend. 5 to 200 ms.' },
+        fr: { t: 'Durée d’enveloppe de hauteur',
+              b: 'Règle la durée de cette chute de hauteur. Les valeurs courtes s’entendent comme un clic sur l’attaque ; les longues comme un glissando audible. 5 à 200 ms.',
+              reviewed: false },
+    },
+    'tip.nonlinearEffects': {
+        en: { t: 'Nonlinear',
+              b: 'Adds the amplitude-dependent coupling a real bell shows when it is struck hard: partials trade energy and the timbre changes with level. 0 to 100 %.' },
+        fr: { t: 'Non linéaire',
+              b: 'Ajoute le couplage dépendant de l’amplitude qu’une vraie cloche manifeste sous une frappe forte : les partiels échangent de l’énergie et le timbre change avec le niveau. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Multi-Stage Envelope ────────────────────────────────
+    'tip.strikeTime': {
+        en: { t: 'Strike Time',
+              b: 'Sets the length of the first envelope stage — the strike itself — before the body of the note takes over. 5 to 100 ms.' },
+        fr: { t: 'Durée frappe',
+              b: 'Règle la durée de la première étape d’enveloppe — la frappe elle-même — avant que le corps de la note prenne le relais. 5 à 100 ms.',
+              reviewed: false },
+    },
+    'tip.brilliance': {
+        en: { t: 'Brilliance',
+              b: 'Sets how long the highest partials survive into the decay. Low values let the top die first, which is what a large bell does. 0 to 100 %.' },
+        fr: { t: 'Brillance',
+              b: 'Règle la durée de survie des partiels les plus aigus dans la décroissance. Une valeur basse laisse l’aigu mourir en premier, comme le fait une grande cloche. 0 à 100 %.',
+              reviewed: false },
+    },
+    // UNIT RECOVERED for the upper end — params.tsv gives `ms` 100..5000 and
+    // index.html:2074-2077 switches the readout to seconds at 1000 ms.
+    'tip.bodyTime': {
+        en: { t: 'Body Time',
+              b: 'Sets the length of the middle envelope stage — the ringing body between the strike and the hum. 100 ms to 5.0 s.' },
+        fr: { t: 'Durée corps',
+              b: 'Règle la durée de l’étape médiane de l’enveloppe — le corps résonant entre la frappe et le bourdon. 100 ms à 5,0 s.',
+              reviewed: false },
+    },
+    'tip.humSustain': {
+        en: { t: 'Hum Sustain',
+              b: 'Sets how long the hum note holds — the lowest partial, an octave under the strike tone — once everything above it has gone. 0 to 100 %.' },
+        fr: { t: 'Tenue bourdon',
+              b: 'Règle la durée de tenue du bourdon — le partiel le plus grave, une octave sous le son de frappe — une fois que tout ce qui est au-dessus a disparu. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Filter ──────────────────────────────────────────────
+    'tip.lpFilterEnabled': {
+        en: { t: 'LP Filter',
+              b: 'Switches a low-pass filter into the output path, for taming the top of a bright bell without retuning it. Off or On.' },
+        fr: { t: 'Filtre passe-bas',
+              b: 'Insère un filtre passe-bas dans le trajet de sortie, pour adoucir l’aigu d’une cloche brillante sans la réaccorder. Arrêt ou Marche.',
+              reviewed: false },
+    },
+    // UNIT RECOVERED — empty `label`; index.html:2080-2084 renders Hz below one
+    // kilohertz and kHz above it.
+    'tip.lpFilterCutoff': {
+        en: { t: 'Cutoff',
+              b: 'Sets where that low-pass filter starts to cut. It does nothing until LP Filter is switched on. 200 Hz to 20.0 kHz.' },
+        fr: { t: 'Coupure',
+              b: 'Règle la fréquence à laquelle ce filtre passe-bas commence à couper. Sans effet tant que le filtre passe-bas n’est pas activé. 200 Hz à 20,0 kHz.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Performance ─────────────────────────────────────────
+    // The BODY is the v4.1.5 .toggle-tooltip prose VERBATIM, both languages,
+    // plus the range sentence every body ends with. That bespoke :hover-only
+    // note was DELETED in v4.3.0 — it was a second hover surface at z-index 100
+    // and would have painted alongside this one. No new prose invented, which
+    // is the same rule contract §4 applies to a native title=.
+    'tip.highFidelity': {
+        en: { t: 'High Fidelity',
+              b: 'Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony. Off or On.' },
+        fr: { t: 'Haute fidélité',
+              b: 'Désactive l’élagage des voix pour une tenue maximale. Peut surcharger le processeur avec des préréglages à longue décroissance et une polyphonie dense. Arrêt ou Marche.',
+              reviewed: false },
+    },
+
+    // ── Instrument tab: Output ──────────────────────────────────────────────
+    'tip.humanize': {
+        en: { t: 'Humanize',
+              b: 'Varies timing, level and tuning very slightly from note to note, so repeated strikes stop sounding identical. 0 to 100 %.' },
+        fr: { t: 'Humanisation',
+              b: 'Fait varier très légèrement le placement, le niveau et l’accord d’une note à l’autre, pour que les frappes répétées cessent d’être identiques. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.outputGain': {
+        en: { t: 'Gain',
+              b: 'Sets the level leaving the plugin, after the whole effects chain. −24 to +12 dB.' },
+        fr: { t: 'Gain',
+              b: 'Règle le niveau en sortie, après toute la chaîne d’effets. −24 à +12 dB.',
+              reviewed: false },
+    },
+
+    // ── Tuning tab (js/tuning-panel.js, lazily imported) ────────────────────
+    // These two anchors live in the panel imported at index.html:3051, which is
+    // absent from the DOM when initI18n() runs. They bind on the
+    // window.__reapplyI18n() the panel's own init calls once it has mounted —
+    // see the note above TIP_BINDINGS, which records the cost.
+    //
+    // A4 stays A4 in the French body. Letter pitch notation is deliberately not
+    // localized anywhere on this page (see the note above I18N_EXEMPT); writing
+    // "la3" here would name something the panel does not say.
+    'tip.tuning_masterTune': {
+        en: { t: 'A4 Reference',
+              b: 'Sets the reference frequency the whole tuning is built from — A4, the concert-pitch anchor. Drag the knob up or down. 400.0 to 480.0 Hz.' },
+        fr: { t: 'Référence A4',
+              b: 'Règle la fréquence de référence sur laquelle repose tout l’accord — A4, l’ancrage du diapason. Glisser le bouton vers le haut ou vers le bas. 400,0 à 480,0 Hz.',
+              reviewed: false },
+    },
+    // UNIT RECOVERED — empty `label`, and the value is a RATIO with no unit:
+    // js/tuning-panel.js:972 renders it as a bare two-decimal number.
+    'tip.tuning_octaveStretch': {
+        en: { t: 'Octave Stretch',
+              b: 'Widens or narrows every octave by a fixed ratio, the way a piano is stretch-tuned so its inharmonic partials agree. 1.00 leaves the octave pure. 0.95 to 1.25.' },
+        fr: { t: 'Étirement d’octave',
+              b: 'Élargit ou resserre chaque octave d’un rapport fixe, comme un piano dont l’accord étiré fait concorder les partiels inharmoniques. 1,00 laisse l’octave pure. 0,95 à 1,25.',
+              reviewed: false },
+    },
+
+    // ── Effects tab: Chorus ─────────────────────────────────────────────────
+    // A bypass button's own caption is Marche / Arrêt (ui.on / ui.off), so the
+    // tip is titled with the SECTION it switches, which is what sits beside it.
+    'tip.chorusBypass': {
+        en: { t: 'Chorus',
+              b: 'Switches the chorus section in and out of the signal path. The button reads On while the effect is running. Off or On.' },
+        fr: { t: 'Chorus',
+              b: 'Insère ou retire la section chorus du trajet du signal. Le bouton affiche Marche tant que l’effet fonctionne. Arrêt ou Marche.',
+              reviewed: false },
+    },
+    'tip.chorusRate': {
+        en: { t: 'Chorus Rate',
+              b: 'Sets how fast the chorus delay is modulated. Slow settings widen the image; fast settings warble. 0.10 to 10.00 Hz.' },
+        fr: { t: 'Vitesse du chorus',
+              b: 'Règle la vitesse de modulation du retard du chorus. Les réglages lents élargissent l’image ; les rapides font trembler. 0,10 à 10,00 Hz.',
+              reviewed: false },
+    },
+    'tip.chorusDepth': {
+        en: { t: 'Chorus Depth',
+              b: 'Sets how far the chorus delay swings. A little thickens; a lot detunes audibly. 0 to 100 %.' },
+        fr: { t: 'Profondeur du chorus',
+              b: 'Règle l’amplitude du balayage du retard du chorus. Un peu épaissit ; beaucoup désaccorde de façon audible. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.chorusMix': {
+        en: { t: 'Chorus Mix',
+              b: 'Balances the chorused signal against the dry bell. 0 to 100 %.' },
+        fr: { t: 'Dosage du chorus',
+              b: 'Équilibre le signal traité par le chorus et la cloche sèche. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Effects tab: Delay ──────────────────────────────────────────────────
+    'tip.delayBypass': {
+        en: { t: 'Delay',
+              b: 'Switches the delay section in and out of the signal path. The button reads On while the effect is running. Off or On.' },
+        fr: { t: 'Délai',
+              b: 'Insère ou retire la section de délai du trajet du signal. Le bouton affiche Marche tant que l’effet fonctionne. Arrêt ou Marche.',
+              reviewed: false },
+    },
+    // RANGE RECOVERED FROM THE PAGE, against the dump. params.tsv gives `s`
+    // 0.001..2.000; the knob is built with a 1..2000 ms display range and a
+    // ' ms' suffix at index.html:2955. The user reads the knob.
+    'tip.delayTime': {
+        en: { t: 'Delay Time',
+              b: 'Sets the gap between the bell and its first echo. 1 to 2000 ms.' },
+        fr: { t: 'Durée du délai',
+              b: 'Règle l’écart entre la cloche et son premier écho. 1 à 2000 ms.',
+              reviewed: false },
+    },
+    'tip.delayFeedback': {
+        en: { t: 'Delay Feedback',
+              b: 'Sets how much of each echo is fed back to make the next one. High values build long trails that fade slowly. 0 to 95 %.' },
+        fr: { t: 'Réinjection du délai',
+              b: 'Règle la part de chaque écho réinjectée pour produire le suivant. Les valeurs élevées créent de longues traînées qui s’effacent lentement. 0 à 95 %.',
+              reviewed: false },
+    },
+    'tip.delayMode': {
+        en: { t: 'Delay Mode',
+              b: 'Chooses how the repeats are placed in the stereo field. Normal keeps each echo where the bell was; PingPong alternates them left and right. Normal or PingPong.' },
+        fr: { t: 'Mode de délai',
+              b: 'Choisit le placement des répétitions dans le champ stéréo. Normal garde chaque écho là où était la cloche ; PingPong les alterne à gauche et à droite. Normal ou PingPong.',
+              reviewed: false },
+    },
+    'tip.delayMix': {
+        en: { t: 'Delay Mix',
+              b: 'Balances the echoes against the dry bell. 0 to 100 %.' },
+        fr: { t: 'Dosage du délai',
+              b: 'Équilibre les échos et la cloche sèche. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Effects tab: EQ ─────────────────────────────────────────────────────
+    'tip.eqBypass': {
+        en: { t: 'EQ',
+              b: 'Switches the three-band equaliser in and out of the signal path. The button reads On while the effect is running. Off or On.' },
+        fr: { t: 'EQ',
+              b: 'Insère ou retire l’égaliseur trois bandes du trajet du signal. Le bouton affiche Marche tant que l’effet fonctionne. Arrêt ou Marche.',
+              reviewed: false },
+    },
+    'tip.eqLowGain': {
+        en: { t: 'EQ Low',
+              b: 'Cuts or boosts the low shelf, where the hum note lives. −12 to +12 dB.' },
+        fr: { t: 'EQ grave',
+              b: 'Atténue ou accentue le plateau grave, là où se trouve le bourdon. −12 à +12 dB.',
+              reviewed: false },
+    },
+    'tip.eqMidGain': {
+        en: { t: 'EQ Mid',
+              b: 'Cuts or boosts a peaking band centred on the Mid Freq knob beside it. −12 to +12 dB.' },
+        fr: { t: 'EQ médium',
+              b: 'Atténue ou accentue une cloche centrée sur la fréquence médium réglée par le bouton voisin. −12 à +12 dB.',
+              reviewed: false },
+    },
+    'tip.eqMidFreq': {
+        en: { t: 'EQ Mid Frequency',
+              b: 'Sets where the mid band sits. Sweep it to find the ringing partial you want to lift or tame. 200 to 8000 Hz.' },
+        fr: { t: 'Fréquence médium de l’EQ',
+              b: 'Règle la position de la bande médium. Balayez-la pour trouver le partiel résonant à relever ou à adoucir. 200 à 8000 Hz.',
+              reviewed: false },
+    },
+    'tip.eqHighGain': {
+        en: { t: 'EQ High',
+              b: 'Cuts or boosts the high shelf, where the strike noise and the brightest partials sit. −12 to +12 dB.' },
+        fr: { t: 'EQ aigu',
+              b: 'Atténue ou accentue le plateau aigu, là où se trouvent le bruit de frappe et les partiels les plus brillants. −12 à +12 dB.',
+              reviewed: false },
+    },
+
+    // ── Effects tab: Reverb ─────────────────────────────────────────────────
+    'tip.reverbBypass': {
+        en: { t: 'Reverb',
+              b: 'Switches the reverb section in and out of the signal path. The button reads On while the effect is running. Off or On.' },
+        fr: { t: 'Réverbe',
+              b: 'Insère ou retire la section de réverbération du trajet du signal. Le bouton affiche Marche tant que l’effet fonctionne. Arrêt ou Marche.',
+              reviewed: false },
+    },
+    'tip.reverbSize': {
+        en: { t: 'Reverb Size',
+              b: 'Sets how large the modelled space is, and with it how long the tail runs. 0 to 100 %.' },
+        fr: { t: 'Taille de la réverbe',
+              b: 'Règle la taille de l’espace modélisé, et par là même la longueur de la queue. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbDamp': {
+        en: { t: 'Reverb Damp',
+              b: 'Sets how fast the high frequencies disappear from the tail, as soft furnishings would take them. 0 to 100 %.' },
+        fr: { t: 'Amortissement de la réverbe',
+              b: 'Règle la vitesse à laquelle les aigus disparaissent de la queue, comme le feraient des matériaux absorbants. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbPredelay': {
+        en: { t: 'Reverb Pre-delay',
+              b: 'Holds the reverb back after the strike, which keeps the attack clear and pushes the room further away. 0 to 200 ms.' },
+        fr: { t: 'Pré-délai de la réverbe',
+              b: 'Retarde la réverbération après la frappe, ce qui garde l’attaque nette et éloigne la pièce. 0 à 200 ms.',
+              reviewed: false },
+    },
+    'tip.reverbMod': {
+        en: { t: 'Reverb Mod',
+              b: 'Moves the reverb’s internal delays slowly, which stops a long tail settling into a metallic ring. 0 to 100 %.' },
+        fr: { t: 'Modulation de la réverbe',
+              b: 'Déplace lentement les retards internes de la réverbération, ce qui empêche une longue queue de se figer en résonance métallique. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbShimmer': {
+        en: { t: 'Reverb Shimmer',
+              b: 'Feeds an octave-up copy of the tail back into the reverb, so the decay rises instead of only fading. 0 to 100 %.' },
+        fr: { t: 'Shimmer de la réverbe',
+              b: 'Réinjecte dans la réverbération une copie de la queue transposée à l’octave supérieure, de sorte que la décroissance monte au lieu de seulement s’effacer. 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbMix': {
+        en: { t: 'Reverb Mix',
+              b: 'Balances the reverb against the dry bell. 0 to 100 %.' },
+        fr: { t: 'Dosage de la réverbe',
+              b: 'Équilibre la réverbération et la cloche sèche. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Chrome ──────────────────────────────────────────────────────────────
+    // This body describes what the popover ACTUALLY holds — one row, the
+    // language selector — and nothing else. O-Tapestop's wording promises a
+    // hover-help on/off switch that this plugin does not have, and a tip that
+    // lies is worse than no tip.
+    'tip.gearBtn': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel below the gear. It holds one control: the interface language. Value readouts stay in English whichever language is chosen.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages sous l’engrenage. Il contient une seule commande : la langue de l’interface. Les valeurs affichées restent en anglais quelle que soit la langue choisie.',
+              reviewed: false },
+    },
+    'tip.langSelect': {
+        en: { t: 'Language',
+              b: 'Switches every caption and every hover-help note on the page between English and French. Value readouts stay in English so they keep matching the host’s automation lane. English or Français.' },
+        fr: { t: 'Langue',
+              b: 'Bascule chaque libellé et chaque bulle d’aide de la page entre l’anglais et le français. Les valeurs affichées restent en anglais afin de continuer à correspondre à la piste d’automation de l’hôte. English ou Français.',
+              reviewed: false },
+    },
+});
 
 export const LABELS = Object.freeze({
 
@@ -207,8 +784,15 @@ export const LABELS = Object.freeze({
     'label.cutoff':         { en: { t: 'Cutoff' },    fr: { t: 'Coupure', reviewed: false } },
     'label.secPerformance': { en: { t: 'Performance' }, fr: { t: 'Performance', reviewed: false, sameAsEn: true } },
     'label.highFidelity':   { en: { t: 'High Fidelity' }, fr: { t: 'Haute fidélité', reviewed: false } },
-    'label.hiFiNote':       { en: { t: 'Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony.' },
-                              fr: { t: 'Désactive l’élagage des voix pour une tenue maximale. Peut surcharger le processeur avec des préréglages à longue décroissance et une polyphonie dense.', reviewed: false } },
+    // RETIRED IN v4.3.0 — `label.hiFiNote` used to key the .hi-fi-toggle's own
+    // bespoke :hover-only note (a .toggle-tooltip div at z-index 100, shown by
+    // a CSS :hover rule). That was a SECOND hover surface: with the new
+    // renderer in place, hovering High Fidelity would have painted both at
+    // once. The div and its three CSS rules are deleted and the sentence moved
+    // VERBATIM, in both languages, into tip.highFidelity's body — the same
+    // "reuse the existing wording, invent nothing" rule contract §4 applies to
+    // a native title=. Leaving the key here would fail assertion 15 as a dead
+    // LABELS entry, so it is gone rather than orphaned.
     'label.secOutput':      { en: { t: 'Output' },   fr: { t: 'Sortie', reviewed: false } },
     'label.humanize':       { en: { t: 'Humanize' }, fr: { t: 'Humanisation', reviewed: false } },
     'label.level':          { en: { t: 'Level' },    fr: { t: 'Niveau', reviewed: false } },
@@ -407,10 +991,169 @@ export const I18N_EXEMPT = [
     ['Français', 'endonym — a language name is never translated'],
 ];
 
-// This plugin ships no hover-help, so nothing is bound. check-i18n assertion 2
-// accepts an empty list only when no I18N entry carries a body — which is the
-// state above, not an oversight. Authoring the copy is Stage M.
-export const TIP_BINDINGS = [];
+// ── TIP_BINDINGS ────────────────────────────────────────────────────────────
+//
+// [selector, key, wrapper]. applyI18n() runs document.querySelector(selector),
+// then el.closest(wrapper) — falling back to `el` itself when the walk finds
+// nothing. That FALLBACK is why tests/ui_tip_render_check.js asserts the wrapper
+// walk SEPARATELY and treats a miss as a hard FAIL: a broken wrapper still opens
+// a tip, on the wrong-sized cell, and every "the tip appeared with the right
+// text inside the viewport" assertion stays green (M2 finding 3, from O-Reed).
+//
+// "BIND TO THE IDS THE UI ALREADY USES" IS FALSE ON THIS PAGE, ON BOTH HALVES,
+// and the two halves fail for different reasons — which is the score on every
+// plugin in this stage but one.
+//
+//   SELECTOR half. 37 of the 65 anchors carry NO id at all: the instrument
+//   tab's sliders and its two choice groups are addressed as
+//   `[data-param="<id>"]`, the same attribute the page's own binding loop uses
+//   (index.html:2097). The other 28 do have ids — the 16 FX knobs are
+//   `#<paramId>Knob` from makeFxKnob(), the four bypass buttons are
+//   `#<fx>BypassBtn`, and the toggles and chrome are hand-authored ids.
+//
+//   TARGET half. 55 of the 65 need the closest() walk. `.slider` is a 6px-tall
+//   track and `#<id>Knob` is a 44px SVG box; what the user aims at is the
+//   `.param-control` column (caption + control + readout) or the
+//   `.knob-container` (knob + caption + readout). A tip bound to the bare track
+//   is a tip nobody can hold open.
+//
+// THE CHROME BINDS BARE, and it has to. `.settings-cluster` contains BOTH
+// #gear-btn and #settings-popover, so a wrapper walk from #lang-select would
+// reach the cluster and hovering the selector would open the GEAR's tip
+// (O-Comp's carried trap). #gear-btn is its own anchor; #lang-select walks only
+// as far as the `.settings-row` <label>, which does not contain the gear.
+//
+// TWO ANCHORS ARE IN THE LAZILY-IMPORTED TUNING PANEL, and the cost is stated
+// rather than hidden. `#ref-pitch-knob` and `#octave-stretch` are built by
+// js/tuning-panel.js, which index.html imports at :3051 inside an async IIFE —
+// so they are ABSENT from the DOM when initI18n() sweeps, and applyI18n()
+// console.warns "tip target not found" for each on that first pass.
+//
+//   They still bind, and this is where O-Bells diverges from O-Reed, whose
+//   referencePitch was reported page-unreachable in batch M2 for exactly this
+//   shape. This page ALREADY carries window.__reapplyI18n() (index.html:1992)
+//   and the panel's own init calls it after mounting (index.html:3066), so the
+//   second sweep resolves both selectors and writes both attribute pairs. The
+//   warning is the whole cost, and it is a console.warn: boot-all-uis filters
+//   on m.type() === 'error' (scripts/boot-all-uis.js:141) and never sees it.
+//   tests/ui_tip_render_check.js asserts the warning set is EXACTLY these two
+//   selectors rather than relaxing the assertion, so a third one appearing is
+//   still a failure.
+//
+// TWO PARAMETERS GET NO BINDING, AND NO BODY. `tuning_pitchBendRange` and
+// `tuning_temperamentPreset` are host-reachable and page-unreachable:
+//   - zero occurrences of either parameter ID anywhere in the served root;
+//   - `tuning_pitchBendRange` has a WebSliderRelay (PluginEditor.cpp:107) that
+//     nothing on the page ever asks for, and no native function at all;
+//   - `tuning_temperamentPreset` has BOTH halves of a native-function bridge
+//     (PluginEditor.cpp:517 setTemperamentPreset, :533 getTemperamentPreset)
+//     and neither name appears in index.html or js/tuning-panel.js. A dead
+//     bridge, not a missing file.
+// Both are automatable and both reach the TuningEngine through
+// parameterChanged() (PluginProcessor.cpp:1634, :1638). No control was added to
+// satisfy the count — that is a feature change with a geometry cost.
+//
+// The four preset-bar controls get no tips either. They took accessible names
+// from their deleted title= attributes in Stage K and are self-describing;
+// M1 decision item 2 put them out of scope for this stage.
+export const TIP_BINDINGS = [
+    // ── Instrument tab: Synthesis ───────────────────────────────────────────
+    ['.slider[data-param="damping"]',            'tip.damping',            '.param-control'],
+    ['.slider[data-param="overtoneBrightness"]', 'tip.overtoneBrightness', '.param-control'],
+    ['.slider[data-param="acousticBrightness"]', 'tip.acousticBrightness', '.param-control'],
+    ['.slider[data-param="material"]',           'tip.material',           '.param-control'],
+    ['.slider[data-param="inharmonicity"]',      'tip.inharmonicity',      '.param-control'],
+    ['.slider[data-param="airAbsorption"]',      'tip.airAbsorption',      '.param-control'],
+    ['.slider[data-param="airAbsorptionTime"]',  'tip.airAbsorptionTime',  '.param-control'],
+    ['.slider[data-param="bloomSpeed"]',         'tip.bloomSpeed',         '.param-control'],
+    ['.slider[data-param="bloomAmount"]',        'tip.bloomAmount',        '.param-control'],
+    ['.slider[data-param="shimmer"]',            'tip.shimmer',            '.param-control'],
+    // Bound BARE: the toggle is a chip inside a .param-control that holds
+    // nothing else, so the walk would widen the anchor over empty space.
+    ['#bloom-fine-toggle',                       'tip.bloomFineEnabled',   null],
+    ['.slider[data-param="bloomSpeedLow"]',      'tip.bloomSpeedLow',      '.param-control'],
+    ['.slider[data-param="bloomSpeedMid"]',      'tip.bloomSpeedMid',      '.param-control'],
+    ['.slider[data-param="bloomSpeedHigh"]',     'tip.bloomSpeedHigh',     '.param-control'],
+    ['.slider[data-param="bloomAmountLow"]',     'tip.bloomAmountLow',     '.param-control'],
+    ['.slider[data-param="bloomAmountMid"]',     'tip.bloomAmountMid',     '.param-control'],
+    ['.slider[data-param="bloomAmountHigh"]',    'tip.bloomAmountHigh',    '.param-control'],
+
+    // ── Instrument tab: Ensemble ────────────────────────────────────────────
+    ['.slider[data-param="unisonCount"]',        'tip.unisonCount',        '.param-control'],
+    ['.slider[data-param="unisonDetune"]',       'tip.unisonDetune',       '.param-control'],
+    ['.slider[data-param="octaveBlendSub"]',     'tip.octaveBlendSub',     '.param-control'],
+    ['.slider[data-param="octaveBlendOct"]',     'tip.octaveBlendOct',     '.param-control'],
+    ['.slider[data-param="stereoSpread"]',       'tip.stereoSpread',       '.param-control'],
+
+    // ── Instrument tab: Onsets ──────────────────────────────────────────────
+    ['.slider[data-param="strikePosition"]',     'tip.strikePosition',     '.param-control'],
+    ['.slider[data-param="malletHardness"]',     'tip.malletHardness',     '.param-control'],
+    ['.slider[data-param="attackLevel"]',        'tip.attackLevel',        '.param-control'],
+    // The two choice groups are .choice-group, not .slider — same wrapper.
+    ['.choice-group[data-param="strikeNoiseChar"]', 'tip.strikeNoiseChar', '.param-control'],
+    ['.choice-group[data-param="velocityCurve"]',   'tip.velocityCurve',   '.param-control'],
+
+    // ── Instrument tab: Advanced ────────────────────────────────────────────
+    ['.slider[data-param="partialTuning"]',      'tip.partialTuning',      '.param-control'],
+    ['.slider[data-param="pitchEnvelope"]',      'tip.pitchEnvelope',      '.param-control'],
+    ['.slider[data-param="pitchEnvTime"]',       'tip.pitchEnvTime',       '.param-control'],
+    ['.slider[data-param="nonlinearEffects"]',   'tip.nonlinearEffects',   '.param-control'],
+
+    // ── Instrument tab: Multi-Stage Envelope ────────────────────────────────
+    ['.slider[data-param="strikeTime"]',         'tip.strikeTime',         '.param-control'],
+    ['.slider[data-param="brilliance"]',         'tip.brilliance',         '.param-control'],
+    ['.slider[data-param="bodyTime"]',           'tip.bodyTime',           '.param-control'],
+    ['.slider[data-param="humSustain"]',         'tip.humSustain',         '.param-control'],
+
+    // ── Instrument tab: Filter / Performance / Output ───────────────────────
+    ['#lp-filter-toggle',                        'tip.lpFilterEnabled',    null],
+    ['.slider[data-param="lpFilterCutoff"]',     'tip.lpFilterCutoff',     '.param-control'],
+    ['#hi-fi-toggle',                            'tip.highFidelity',       null],
+    ['.slider[data-param="humanize"]',           'tip.humanize',           '.param-control'],
+    // The footer gain is NOT in a .param-control — it is the .footer-gain
+    // flex row beside the keyboard. A .param-control walk would find the
+    // nearest one two sections up the tree.
+    ['.slider[data-param="outputGain"]',         'tip.outputGain',         '.footer-gain'],
+
+    // ── Tuning tab (lazily mounted; see the note above) ─────────────────────
+    ['#ref-pitch-knob',   'tip.tuning_masterTune',    '.tuning-ref-section'],
+    ['#octave-stretch',   'tip.tuning_octaveStretch', '.octave-stretch-row'],
+
+    // ── Effects tab ─────────────────────────────────────────────────────────
+    // The bypass buttons bind BARE. .fx-header holds the section title AND the
+    // button, so a walk there would put the bypass tip over the title too.
+    ['#chorusBypassBtn',  'tip.chorusBypass',   null],
+    ['#chorusRateKnob',   'tip.chorusRate',     '.knob-container'],
+    ['#chorusDepthKnob',  'tip.chorusDepth',    '.knob-container'],
+    ['#chorusMixKnob',    'tip.chorusMix',      '.knob-container'],
+
+    ['#delayBypassBtn',   'tip.delayBypass',    null],
+    ['#delayTimeKnob',    'tip.delayTime',      '.knob-container'],
+    ['#delayFeedbackKnob','tip.delayFeedback',  '.knob-container'],
+    // The delay mode dropdown is the one FX control that is not a knob; its
+    // caption and <select> sit in a .fx-dropdown-container built at
+    // index.html:2942.
+    ['#delayModeSelect',  'tip.delayMode',      '.fx-dropdown-container'],
+    ['#delayMixKnob',     'tip.delayMix',       '.knob-container'],
+
+    ['#eqBypassBtn',      'tip.eqBypass',       null],
+    ['#eqLowGainKnob',    'tip.eqLowGain',      '.knob-container'],
+    ['#eqMidGainKnob',    'tip.eqMidGain',      '.knob-container'],
+    ['#eqMidFreqKnob',    'tip.eqMidFreq',      '.knob-container'],
+    ['#eqHighGainKnob',   'tip.eqHighGain',     '.knob-container'],
+
+    ['#reverbBypassBtn',  'tip.reverbBypass',   null],
+    ['#reverbSizeKnob',   'tip.reverbSize',     '.knob-container'],
+    ['#reverbDampKnob',   'tip.reverbDamp',     '.knob-container'],
+    ['#reverbPredelayKnob', 'tip.reverbPredelay', '.knob-container'],
+    ['#reverbModKnob',    'tip.reverbMod',      '.knob-container'],
+    ['#reverbShimmerKnob','tip.reverbShimmer',  '.knob-container'],
+    ['#reverbMixKnob',    'tip.reverbMix',      '.knob-container'],
+
+    // ── Chrome ──────────────────────────────────────────────────────────────
+    ['#gear-btn',    'tip.gearBtn',    null],
+    ['#lang-select', 'tip.langSelect', '.settings-row'],
+];
 
 export function tr(key, lang, vars) {
     const entry = I18N[key];

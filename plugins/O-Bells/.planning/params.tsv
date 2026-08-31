@@ -1,0 +1,69 @@
+# plugin	O-Bells
+# params	65
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+strikePosition	Strike	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+malletHardness	Mallet	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+damping	Damping	%	2147483647	0.00	1.00	0.700000	0.70	automatable
+overtoneBrightness	Overtone	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+acousticBrightness	Acoustic	%	2147483647	0.00	1.00	0.700000	0.70	automatable
+airAbsorption	Air	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+airAbsorptionTime	Air Time		2147483647	100 ms	10.0 s	0.438086	2.0 s	automatable
+material	Material		5	Bronze	Cast Iron	0.000000	Bronze	automatable,discrete
+inharmonicity	Inharm	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+bloomSpeed	Bloom Speed		2147483647	25 ms	400 ms	0.500000	212 ms	automatable
+bloomAmount	Bloom Amount	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+bloomFineEnabled	Bloom Fine Controls		2	Off	On	0.000000	Off	automatable,discrete,boolean
+bloomSpeedLow	Bloom Speed Low		2147483647	15 ms	250 ms	0.500000	132 ms	automatable
+bloomSpeedMid	Bloom Speed Mid		2147483647	25 ms	400 ms	0.500000	212 ms	automatable
+bloomSpeedHigh	Bloom Speed High		2147483647	50 ms	800 ms	0.500000	425 ms	automatable
+bloomAmountLow	Bloom Amount Low	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+bloomAmountMid	Bloom Amount Mid	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+bloomAmountHigh	Bloom Amount High	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+shimmer	Shimmer	%	2147483647	0.00	1.00	0.200000	0.20	automatable
+unisonCount	Unison		4	1	4	0.000000	1	automatable
+unisonDetune	Detune	cents	2147483647	0.0	50.0	0.200000	10.0	automatable
+octaveBlendSub	Sub	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+octaveBlendOct	Oct	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+stereoSpread	Spread	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+partialTuning	Partial Tune	cents	2147483647	-100.0	100.0	0.500000	0.0	automatable
+nonlinearEffects	Nonlinear	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+strikeNoiseChar	Noise		3	Click	Ping	0.000000	Click	automatable,discrete
+attackLevel	Attack Amount	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+velocityCurve	Velocity		3	Linear	Logarithmic	0.000000	Linear	automatable,discrete
+pitchEnvelope	Pitch Env	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+pitchEnvTime	P.Env Time	ms	2147483647	5	200	0.480384	50	automatable
+strikeTime	Strike Time	ms	2147483647	5.0	100.0	0.263158	30.0	automatable
+brilliance	Brilliance	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+bodyTime	Body Time	ms	2147483647	100	5000	0.285714	1500	automatable
+humSustain	Hum Sustain	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+humanize	Humanize	%	2147483647	0.00	1.00	0.300000	0.30	automatable
+lpFilterEnabled	LP Filter		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lpFilterCutoff	LP Cutoff		2147483647	200 Hz	20.0 kHz	1.000000	20.0 kHz	automatable
+tuning_masterTune	Master Tune	Hz	2147483647	400.0	480.0	0.500000	440.0	automatable
+tuning_octaveStretch	Octave Stretch		2147483647	0.950	1.250	0.166667	1.000	automatable
+tuning_pitchBendRange	Pitch Bend Range	st	2147483647	1	48	0.021277	2	automatable
+tuning_temperamentPreset	Temperament		11	Equal 12-TET	Custom	0.000000	Equal 12-TET	automatable,discrete
+highFidelity	High Fidelity		2	Off	On	0.000000	Off	automatable,discrete,boolean
+chorusBypass	Chorus Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+chorusRate	Chorus Rate	Hz	2147483647	0.10	10.00	0.090909	1.00	automatable
+chorusDepth	Chorus Depth	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+chorusMix	Chorus Mix	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+delayBypass	Delay Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+delayTime	Delay Time	s	2147483647	0.001	2.000	0.187094	0.375	automatable
+delayFeedback	Delay Feedback	%	2147483647	0.00	0.95	0.315789	0.30	automatable
+delayMode	Delay Mode		2	Normal	PingPong	0.000000	Normal	automatable,discrete
+delayMix	Delay Mix	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+eqBypass	EQ Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+eqLowGain	EQ Low	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+eqMidGain	EQ Mid	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+eqMidFreq	EQ Mid Freq	Hz	2147483647	200	8000	0.320256	1000	automatable
+eqHighGain	EQ High	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+reverbBypass	Reverb Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+reverbSize	Reverb Size	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+reverbDamp	Reverb Damp	%	2147483647	0.00	1.00	0.500000	0.50	automatable
+reverbPredelay	Reverb Pre-delay	ms	2147483647	0	200	0.100000	20	automatable
+reverbMix	Reverb Mix	%	2147483647	0.00	1.00	0.300000	0.30	automatable
+reverbMod	Reverb Mod	%	2147483647	0.00	1.00	0.200000	0.20	automatable
+reverbShimmer	Reverb Shimmer	%	2147483647	0.00	1.00	0.000000	0.00	automatable
+outputGain	Output	dB	2147483647	-24.0	12.0	0.666667	0.0	automatable
