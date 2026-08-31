@@ -1,0 +1,489 @@
+# Stage M executor brief — T17: hover-help for the 22 bare plugins
+
+Read this in full before touching a file. It is the standing brief for all 22
+dispatches across M1-M3; the dispatch prompt names only the plugin and its batch.
+
+Read `260826-ieq-STAGE-K-BRIEF.md` first for the parts this file does not
+repeat: the D-01 three-arm test, the `I18N_EXEMPT` contract, the build mutex,
+the scratchpad namespacing, the commit discipline, and the carried traps. Where
+the two disagree, THIS file wins.
+
+---
+
+## THE HEADLINE CORRECTION: this is not content work
+
+T17 says "Content work, not engineering." **That is wrong, and it was measured
+before the first dispatch.** All 22 plugins were scanned for a tooltip surface,
+tooltip CSS and a hover handler:
+
+```
+for P in <the 22>; do
+  grep -rl 'id="tooltip"' $ROOT ; grep -rn '\.tooltip {' $ROOT ;
+  grep -rn 'closest("\[data-tip\]")' $ROOT
+done
+```
+
+**All three are ZERO on all 22.** Not one of them has a tooltip renderer, a
+tooltip surface, tooltip CSS, or a hover handler.
+
+Canon v2's `applyI18n()` writes `data-tip-title` and `data-tip` **attributes**
+onto the anchors named in `TIP_BINDINGS`. That is all it does. The thing that
+reads those attributes and paints a surface is per-plugin code that lives
+outside the canon, and on these 22 plugins **it does not exist**.
+
+So authoring 72 tooltip bodies into `I18N` and binding them, with no other
+change, ships **72 invisible strings and a green gate**. `check-i18n` would pass
+(assertion 2 sees bindings > 0), `check-ui-labels` would pass (it has no tooltip
+awareness at all), and `boot-all-uis` would pass (it counts `aria-label` and
+`title`, never `data-tip`). That is the seventh instance in this task of a gate
+certifying the absence of a thing it cannot see, and it is the one you are
+standing in.
+
+**Each plugin therefore gets a renderer as well as copy.** The renderer is
+specified below, verbatim, so that 22 hand-copies do not become 22 dialects.
+
+---
+
+## The authority documents, in order
+
+1. `260826-ieq-STAGE-K-BRIEF.md` — the standing brief. Everything it says that
+   this file does not contradict still binds.
+2. `260826-ieq-PLAN.md`
+   - lines 195-299 — **CANONICAL CONTRACT V2**. Sections 1-8. Read every one.
+     §4 (native `title=` is DELETED) and §5 / D-03 (readouts stay English) are
+     the two that bite here.
+   - lines 1253-1290 — **T17**, this task.
+   - lines 741-800 — **T10**, whose step 10 staging and commit discipline this
+     stage reuses.
+3. `260826-ieq-SUMMARY.md` — the stage log. Read the **Stage L** section
+   (search `# STAGE L`) and the **K4** section (`# STAGE K — BATCH K4`).
+4. `scripts/i18n-canon.js` — canon v2, held as DATA. **Do not touch it.** This
+   stage adds no canon change: `applyI18n()` already writes the tip attributes.
+5. `scripts/param-dump/README.md` — the runtime parameter inventory.
+
+## The reference implementations
+
+- **The i18n table shape with tooltips:** `plugins/O-Tapestop/Source/ui/public/js/i18n.js`.
+  Read the header comment and the `TIP_BINDINGS` block at the foot. Note the
+  `[selector, key, wrapper]` triple: the selector finds an id'd child and
+  `closest(wrapper)` walks back up to the cell the tip belongs on.
+- **The renderer:** `plugins/O-simpleFM/Source/ui/public/js/app.js:379-462`
+  (`setupTooltips`) and `css/styles.css:683-709`. **This is the family M1
+  ports.** See "The renderer, specified" below.
+- **Your own plugin's Stage K commit.** `git log --oneline -- plugins/<Name>`
+  and read the `improve: <Name> ... the PAGE speaks French` commit. Its
+  `i18n.js` header comment records every measured cliff and geometry pin on your
+  page. That is the document that tells you where a tooltip has room.
+
+---
+
+## YOUR NUMBERS, MEASURED — and the param dumps are ALREADY RUN
+
+The plan's `~520` parameters was low. The real repo-wide figure is **607 across
+22 plugins**, established three independent ways that agree exactly: an `auval`
+runtime walk of the installed binaries, calibrated against O-Prism's param-dump
+(173 = 173); and, for M1, a fresh param-dump build from source.
+
+**The orchestrator has already wired and run every M1 param-dump.** `build/` is
+a shared resource and ten concurrent `cmake` invocations would corrupt it, so
+this was done once, serially, in an isolated build directory. You will find in
+your plugin's working tree, **uncommitted**:
+
+| Path | What it is |
+|---|---|
+| `plugins/<Name>/.planning/params.tsv` | your authoritative parameter inventory |
+| `plugins/<Name>/CMakeLists.txt` | +14 lines: `option(OUARICON_BUILD_TESTS ...)` and the `ouaricon_add_param_dump()` call |
+| `plugins/<Name>/Source/PluginProcessor.cpp` | +15 lines: `#include "PluginEditor.h"` moved behind `#if JUCE_WEB_BROWSER` above `createEditor()`, with a `GenericAudioProcessorEditor` fallback |
+
+**All three are YOURS to commit, in your one plugin commit.** They are not
+somebody else's work in flight. Read the diff (`git diff -- plugins/<Name>`)
+before you commit it — you are signing it.
+
+The processor change exists because the param-dump console target builds with
+`JUCE_WEB_BROWSER=0` and does not compile the editor TU, so a top-of-file
+`#include "PluginEditor.h"` breaks the link. Nine of the ten M1 plugins needed
+it; O-Emulator already had it. Under a normal build `JUCE_WEB_BROWSER=1` and
+behaviour is byte-identical.
+
+### Batch M1 — 10 plugins, 72 parameters
+
+| Plugin | Params | Frame | Served root | Page shape | Version → |
+|---|---|---|---|---|---|
+| O-AnalogSaturation | **4** | 600×450 | `Source/ui/public` | single-file | 1.2.0 → 1.3.0 |
+| O-Bass | **5** | 420×320 | `Source/ui/public` | single-file | 1.4.0 → 1.5.0 |
+| O-Emulator | **5** | 620×430 | `Source/ui/public` | single-file | 1.1.0 → 1.2.0 |
+| O-Comp | **7** | 620×360 | `Source/ui/public` | single-file | 1.6.0 → 1.7.0 |
+| O-Tremolo | **7** | 600×400 | `Source/ui/public` | single-file | 1.7.0 → 1.8.0 |
+| O-Chorus | **8** | **700×125** | `Source/ui/public` | single-file | 1.3.0 → 1.4.0 |
+| O-DigiDelay | **8** | 700×196 | `Source/ui/public` | single-file | 1.3.0 → 1.4.0 |
+| O-SimpleReverb | **8** | 500×350 | `Source/ui/public` | single-file | 1.6.0 → 1.7.0 |
+| O-Bassoon | **10** | 900×600 | `Resources/ui` | single-file | 1.1.0 → 1.2.0 |
+| O-Texture | **10** | 800×600 | `Source/ui/public` | `js/main.js` + `css/` | 0.2.0 → 0.3.0 |
+
+**"single-file" means what it says, and the plan does not describe it.** Nine of
+the ten have NO `css/` directory and NO controller `.js` beside `i18n.js` — the
+page is one `index.html` with inline `<style>` and inline
+`<script type="module">`. Your renderer and your tooltip CSS go INTO
+`index.html`. Only O-Texture has the `js/main.js` + `css/` shape the plan
+assumes. Verify the shape yourself; never assume it.
+
+**Version bumps are MINOR.** A user-visible feature is arriving. O-Bassoon's
+`CMakeLists.txt` spells its version `VERSION "1.1.0"` **with quotes** — keep
+them.
+
+### Starting i18n state — measured, per plugin
+
+| Plugin | `I18N` | `LABELS` | `I18N_EXEMPT` | `TIP_BINDINGS` |
+|---|---|---|---|---|
+| O-AnalogSaturation | 0 | 9 | 10 | 0 |
+| O-Bass | 0 | 19 | 4 | 0 |
+| O-Emulator | 0 | 15 | 16 | 0 |
+| **O-Comp** | **3** | 22 | 4 | 0 |
+| O-Tremolo | 0 | 21 | 11 | 0 |
+| O-Chorus | 0 | 18 | 4 | 0 |
+| O-DigiDelay | 0 | 22 | 5 | 0 |
+| O-SimpleReverb | 0 | 19 | 12 | 0 |
+| O-Bassoon | 0 | 32 | 4 | 0 |
+| O-Texture | 0 | 15 | 12 | 0 |
+
+**O-Comp's three `I18N` entries are `canvas.envelope`, `canvas.gainReduction`
+and `canvas.gr` — canvas `fillText` strings with EMPTY bodies, per the K4
+decision. They are NOT tooltips. Do not give them bodies, do not bind them, do
+not delete them.** The same rule holds repo-wide for the other empty-body
+entries (O-MicrotonalSampler 51, O-Formant 5) when their batches come.
+
+---
+
+## THE GATE FLIPS THE MOMENT YOU AUTHOR THE FIRST BODY
+
+`check-i18n` assertion 2, as it stands today (`scripts/check-i18n.js:529-556`):
+
+```js
+check(bindings.length > 0 || tipBodied.length === 0, ...)
+```
+
+`tipBodied` is every `I18N` key whose `en` or `fr` carries a **non-empty `b`**.
+So while your plugin has no bodies, `TIP_BINDINGS: []` passes and reports
+*"0 tip(s) bound — this plugin has no hover-help, which is a state, not a gap"*.
+
+**Your first authored body makes bindings MANDATORY.** An authored body with no
+binding fails as *"ORPHANED: N I18N entries carry a body that nothing binds"*.
+And every `TIP_BINDINGS[i][1]` must exist in `I18N` (the second half of
+assertion 2), so a typo'd key fails as *"dangling"*.
+
+Assertion 1 also tightens on you: **every `I18N` key needs `en` AND `fr`, each
+with a string `t` AND a string `b`.** An empty-body entry is legal (`b: ''`);
+a *missing* `b` is not.
+
+### T17's verify command does not work, twice over
+
+The plan gives:
+
+```bash
+node scripts/check-i18n.js 2>&1 | grep -c 'tips bound: 0'
+```
+
+The gate prints `[2] N tip(s) bound`. **`tips bound: 0` never appears**, so that
+command reports 0 whatever the truth is — a vacuous verify, the third instance
+of `pattern_recorded_gate_command_not_executable_as_spelled` in this task.
+
+The obvious repair is wrong too. `grep -c "0 tip(s) bound"` substring-matches
+**`80 tip(s) bound`** and **`70 tip(s) bound`** — O-IntonationPad and
+O-MultiBandCompressor — and reports 24 zero-tip plugins where there are 22. The
+orchestrator made exactly this mistake while establishing the baseline for this
+brief, which is the strongest evidence available that you would too.
+
+**The correct command, and the one to put in your report:**
+
+```bash
+node scripts/check-i18n.js 2>&1 | grep -cE '\[2\] 0 tip\(s\) bound'
+```
+
+Baseline before M1: **22**. After M1 it must read **12**.
+
+---
+
+## The renderer, specified
+
+Port `setupTooltips` from `plugins/O-simpleFM/Source/ui/public/js/app.js:384-462`.
+Read the whole function including its comments — they record why each choice is
+what it is — then reproduce its **behaviour** in your plugin's file, styled in
+your plugin's own visual system.
+
+Why this family and not O-Tapestop's: it is ~80 lines against ~180, it is
+delegated rather than per-element, it follows the cursor and clamps on all four
+edges, and it needs no help-toggle state. O-Tapestop's measure-then-pin
+placement engine exists to serve a flip-above/below design and three 40 KB clamp
+gates; none of the ten M1 pages needs it.
+
+**Non-negotiable properties.** Each is load-bearing and each has a scar behind it:
+
+1. **Delegated on `document`, not `querySelectorAll("[data-tip]")` at setup.**
+   No anchor carries `data-tip` until `applyI18n()` has run. A setup-time
+   query binds nothing at all and fails silently.
+2. **`pointerover` / `pointerout` / `focusin` / `focusout`** — they bubble;
+   `pointerenter` / `focus` do not.
+3. **`pointerout` ignores a move between two descendants of the SAME anchor**,
+   or the tip flickers off and on at every child boundary.
+4. **`createElement` + `textContent`, never `innerHTML`.** Localized copy must
+   never reach a markup path. `check-i18n` assertion 9 already forbids an angle
+   bracket in an `i18n.js` string literal; this is the other half of that rule.
+5. **Clamp on all four edges** with an 8 px margin, and place the tip on the
+   opposite side of the cursor when it would overflow. In a 700×125 frame
+   (O-Chorus) and a 700×196 frame (O-DigiDelay) the clamp is not an edge case,
+   it is the normal path.
+6. **`pointer-events: none`** on the surface, or the tip steals the hover that
+   is keeping it open.
+7. **`position: fixed`, `visibility: hidden` until shown.** A visible empty
+   surface would enter `check-ui-labels`' text sweep and every geometry diff on
+   the page.
+8. **Escape hides it. `pointerdown` hides it.**
+9. **Call it AFTER `initI18n()`**, inside the same deferred init and the same
+   `try/catch`. A top-level call touching a lower `let`/`const` is a TDZ throw
+   that kills every later initializer
+   (`pattern_module_toplevel_init_tdz`).
+
+**No help on/off toggle in M1.** O-Tapestop and O-Bitrot have one; these ten do
+not, and adding one means a fourth control in the gear popover, a persisted
+preference through C++, and a `data-tip-always` bypass so the toggle's own tip
+still works when tips are off. That is a separate decision, recorded at the foot
+of this file. The gear popover in M1 keeps exactly the language selector it has.
+
+---
+
+## Which controls get a tip
+
+**Mandatory:** every parameter in `params.tsv`, plus `#gear-btn` and
+`#lang-select`. All ten M1 plugins carry both of those ids — verified.
+
+The gear tip is what tells a user hover-help exists at all. Its body must
+describe **only what that popover actually contains** — the language selector
+and nothing else. Do not copy O-Tapestop's wording, which promises a hover-help
+toggle these plugins do not have. A tip that lies is worse than no tip; this
+task has already had to rewrite two such sentences (T10 step 2).
+
+**Not in M1:** the preset bar. Those four controls got accessible names from
+their deleted `title=` attributes in Stage K and are self-describing. Adding tips
+there is optional polish, not scope.
+
+So M1's authored total is **72 parameter tips + 20 chrome tips = 92 entries**,
+each with an `en` and an `fr` `{t, b}`.
+
+### The anchor is not always an id
+
+T17 says "bind `TIP_BINDINGS` to the ids the UI already uses." **Verify that on
+your page; it is false on at least one.** O-Chorus's eight knobs carry no `id` —
+they are `.knob[data-param="rate"]` inside a `.knob-container`. `TIP_BINDINGS`
+takes any CSS selector, because `applyI18n` calls `document.querySelector(sel)`,
+so `['.knob[data-param="rate"]', 'tip.rate', '.knob-container']` is the correct
+form there.
+
+**Bind the WRAPPER the user aims at, not the 4 px SVG stroke.** The third
+element of the triple exists for this: the selector finds an addressable child,
+`closest(wrapper)` walks up to the cell that owns the hover area. A tip bound to
+`circle.knob-vine` is a tip nobody can open.
+
+Every `applyI18n` warning of the form `i18n: tip target not found: <selector>`
+is a binding that resolves to nothing. **`boot-all-uis` is the gate that sees
+those** — a console warning there is a real failure, not noise.
+
+---
+
+## Authoring the copy
+
+**Title** = the control's display name, from the dump's `name` column. Where the
+page's caption differs from the parameter's name, the caption wins — the user is
+reading the page, not the automation lane.
+
+**Body** = what the control does, when to reach for it, and it **ends with the
+range and unit**. Three sentences at most. This is a tooltip, not a manual.
+
+The range comes from the dump: `textAtMin`, `textAtMax`, and `label` for the
+unit. **`label` is empty far more often than the plan implies.** All 8 of
+O-Chorus's parameters have an empty `label`; so do all 10 of O-Texture's and all
+173 of O-Prism's. O-Comp is the one M1 plugin with real units (`dB`, `:1`, `ms`).
+
+Where `label` is empty, **read how the page renders that readout and phrase the
+range from the page's own formatter — never invent a unit.** O-Chorus's `rate`
+dumps `0.05 .. 5.00` with no label, and its `.knob-value` renders `1.00 Hz`; the
+unit is Hz because the formatter says so, not because a chorus rate is usually
+in Hz. Cite the formatter's line in your report for every parameter whose unit
+you had to recover this way.
+
+A `discrete` / `boolean` parameter's range is its option words, not a number:
+O-Comp's `auto_gain` is `Off` / `On`, O-Texture's `SOURCE` is a six-way choice.
+Where those option strings are `AudioParameterChoice` options they are **D-01
+arm 1 exempt on the page** — but inside a tooltip BODY they are prose describing
+the control, and prose is localized. The two rules do not conflict: the *option
+in the selector* stays English so the host automation lane agrees; the *sentence
+naming it* is French. Say which you did, and why, in the entry's comment.
+
+**D-03 still binds and it binds to NODES, not to sentences.** A readout node
+never becomes a `[data-i18n]` element and never gets localized. A number inside
+a localized tooltip body is ordinary prose — `−24 to +24 dB` becomes
+`−24 à +24 dB` — exactly as the 21 already-shipped tooltip plugins do it.
+
+**French is drafted, `reviewed: false`, every entry.** No exceptions, no
+`sameAsEn` unless the string genuinely is identical and you say why in a comment
+— that keeps it in the native-speaker worklist instead of hiding it in
+`I18N_EXEMPT` forever.
+
+---
+
+## The nine steps, per plugin
+
+1. **Read `plugins/<Name>/.planning/params.tsv`** and the diff already sitting in
+   your working tree (`git diff -- plugins/<Name>`). Reconcile the dump's rows
+   against the controls actually on the page. **Report any parameter with no
+   control and any control with no parameter** — both are real findings.
+2. **Read your plugin's Stage K `i18n.js` header comment in full.** It records
+   the measured cliffs and every geometry pin on your page. It is the only
+   document that tells you which captions are 1.89 px from a wrap.
+3. **`grep -rn 'setVisible' plugins/<Name>/Source/`** — abort and report if it
+   targets the web view. A hidden `WebBrowserComponent` drops native-function
+   completions.
+4. **Author `I18N`** — one entry per parameter plus the two chrome entries.
+   English first, French second, `reviewed: false` throughout. Keep the existing
+   `LABELS` and `I18N_EXEMPT` blocks untouched unless you have a reason, and
+   state the reason.
+5. **Bind `TIP_BINDINGS`** to the anchors the page actually has, wrapper form
+   where the id'd node is not the hover target.
+6. **Port the renderer** and its CSS into your plugin's own visual system, per
+   "The renderer, specified".
+7. **Write `plugins/<Name>/tests/ui_tip_render_check.js`** — the evidence seat.
+   See below. Commit it.
+8. **Both gates, then every gate in `plugins/<Name>/tests/`, then the build**
+   (under the mutex), then `auval`.
+9. **Version, CHANGELOG, staging and commit discipline as T10 step 10**, then
+   `git show --stat`. **Do not touch `PLUGINS.md`** — the orchestrator owns it.
+   Report the row you would have written.
+
+---
+
+## THE EVIDENCE SEAT: `tests/ui_tip_render_check.js`
+
+**No gate in this repo can see a rendered tooltip.** `check-i18n` reads the
+table statically. `check-ui-labels` has no tooltip awareness whatsoever.
+`boot-all-uis` counts `aria-label` and `title` and never `data-tip`. The three
+committed `ui_tooltip_clamp_check.js` gates belong to O-Tapestop, O-Bitrot and
+O-ReverseDelay and are built around the *other* renderer family.
+
+So you write the gate that sees it. **Do not port the 40 KB clamp gates** — they
+assume measure-then-pin placement with an above/below flip. Write a compact one,
+against the stub, at your plugin's **shipping viewport**, and make it assert:
+
+1. **Every `TIP_BINDINGS` selector resolves.** A binding that finds no element
+   is a FAIL, not a warning.
+2. **Hover each anchor → the tip becomes visible and carries non-empty text.**
+   This is the vacuity guard, and it is the assertion that catches the failure
+   this whole section exists for. A tip that never showed must FAIL.
+3. **The rendered title and body are byte-equal to the `en` entry.** Not
+   "contains" — equal. A `.tip-title` that silently kept a previous anchor's
+   text passes a `contains` check.
+4. **The tip rectangle is fully inside the viewport**, all four edges, at every
+   anchor. This is the assertion the small frames exist to break.
+5. **`window.__setLanguage('fr')`, then repeat 2-4 against the `fr` entries.**
+   French runs 15-20% longer, wraps to more lines against a `max-width` cap, and
+   grows the tip's height — so a tip that fits in English can overflow the
+   bottom in French. Then `en` again and confirm it comes back.
+6. **A negative control.** Plant an over-long body, confirm assertion 4 reports
+   the overflow, restore **from a namespaced scratchpad copy**. Never
+   `git checkout -- <file>` to restore a plant: it wipes your uncommitted fix
+   with it, and O-GrainScatter lost a whole edit that way.
+
+Report which states you drove and which you did not.
+
+---
+
+## Gates — all must pass before the commit
+
+```bash
+node scripts/check-i18n.js --plugin <Name> --strict-v2
+node scripts/check-ui-labels.js --plugin <Name>
+node plugins/<Name>/tests/ui_tip_render_check.js
+node scripts/boot-all-uis.js            # the only gate that sees a swallowed binding failure
+ls plugins/<Name>/tests/                # run every other gate in it too
+./scripts/build-and-install.sh <Name>   # UNDER THE MUTEX
+```
+
+`--strict-v2` is **accepted and is a no-op** as of `96b5f2eb` — canon v1 is
+deleted and strict is the default. Passing it is harmless; do not report it as a
+finding.
+
+`boot-all-uis.js` must stay green for **every** plugin, not just yours. Its
+per-plugin `title=` column must stay at **0** — repo-wide native `title=` is
+currently 0 and your renderer must not reintroduce one.
+
+**Geometry.** Adding a hidden `position: fixed` surface should move nothing. Run
+`check-ui-labels` before and after and confirm `moved=0`, and confirm the
+tooltip node does not enter the label sweep. If it does, it is not hidden
+correctly. Any pin you add must be **reverted alone and confirmed to re-break
+the gate** — check `dw`, not only `dx`; `dx` alone has mislabelled a pin as
+decoration seven times in this task.
+
+---
+
+## Shared resources — unchanged from the K brief
+
+- **`build/` is behind the mutex** at `/tmp/claude-501/stagek-build.lock`, and
+  so is anything touching the AU cache. Release it the moment the build and
+  `auval` are done. Everything else runs outside it.
+  **You do not need the mutex for the param-dump** — it is already run.
+- **`PLUGINS.md` is the orchestrator's.** Report your row; do not write it.
+- **`scripts/` is the orchestrator's.** Found a gate defect? **Stop and report
+  it** with the wrong assumption's shape and a negative control. Do not work
+  around it — a workaround in one plugin is what hides a repo-wide gate hole.
+  Ten gate fixes have landed in this task; an eleventh is likely.
+- **The scratchpad is shared. Write everything into `scratchpad/<yourplugin>/`.**
+  A bare `measure.js` or `before-en.json` at the root is not yours. The danger is
+  not a crash, it is a silent wrong number.
+- **`git add` the exact new paths, then `git commit -- <exact file list>`, then
+  `git show --stat`.** A pathspec commit takes only TRACKED files, and this
+  stage adds new ones (`tests/ui_tip_render_check.js`, `.planning/params.tsv`).
+  `HEAD~1` is not your commit's parent in a shared checkout — use `<sha>^`.
+- **Do not tag. Do not push. Do not run `screencapture`, for any reason.**
+
+Commit message shape:
+
+```
+improve: <Name> vX.Y.Z - hover-help, in both languages (Stage M batch M1)
+```
+
+followed by what was found, what diverged from this brief, what was deliberately
+not fixed and why, and the tip-render and geometry results.
+
+---
+
+## What to report back
+
+A compact report, not a transcript:
+
+- version shipped + commit sha + `git show --stat` file count
+- parameters: dump count vs controls on the page, and any mismatch
+- tips authored: parameter / chrome / total, and the `TIP_BINDINGS` count
+- every parameter whose unit had to be recovered from the page's formatter,
+  with the formatter's file:line
+- tip-render gate: anchors driven, states driven, states NOT driven, the
+  negative control's result
+- geometry: moved-before / moved-after, every pin with its negative control
+- `node scripts/check-i18n.js 2>&1 | grep -cE '\[2\] 0 tip\(s\) bound'`
+- every divergence from this brief's structural claims
+- anything found and deliberately NOT fixed, with the reason
+- what is NOT verified
+
+---
+
+## DECISION ITEMS — for the developer, not for you
+
+Record these; do not act on them.
+
+1. **No hover-help on/off toggle.** M1 ships tips that are always on. Two
+   shipped plugins (O-Tapestop, O-Bitrot) have a toggle; the other 19 tooltip
+   plugins do not. If the suite should be uniform, that is a separate pass
+   across 41 plugins, not a Stage M side effect.
+2. **The preset bar gets no tips in M1.**
+3. **Checkpoint 5 is still outstanding on all 43** — no human has seen any
+   French UI, and all 3202 French entries repo-wide are machine drafts.
+   Stage M adds roughly 184 more to that worklist in M1 alone.
+4. **`<html lang>` still does not follow the language selector.** Canon-owned,
+   all 43. Untouched by this stage.
