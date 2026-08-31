@@ -78,7 +78,7 @@ const TERMS = {
     'interface language':       ['langue de l\'interface'],
     'hover help':               ['aide au survol'],
     'toggle hover help':        ['activer ou désactiver l\'aide au survol'],
-    'save':                     ['enregistrer', 'enreg'],
+    'save':                     ['enregistrer', 'enreg', 'enr'],   // enr: O-Bass, a 28 px content box (Enreg. 38.84)
     'save preset':              ['enregistrer le préréglage'],
     'save current settings':    ['enregistrer les réglages actuels'],
     'save .scl':                ['enreg. .scl', 'enregistrer .scl'],
