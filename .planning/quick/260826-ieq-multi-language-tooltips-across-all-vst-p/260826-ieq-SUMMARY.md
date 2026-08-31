@@ -4727,3 +4727,285 @@ answers, decided by measurement.**
 - Six `<optgroup label>` strings: no gate scans them and canon has no attribute
   for them.
 - `<html lang>` does not follow the language selector. Canon-owned, all 43.
+
+# STAGE M — T17, BATCH M1: the ten cheapest of the 22 bare plugins — M1 COMPLETE, 10 of 10
+
+The first batch of the last stage. Ten plugins, one commit each, three
+orchestrator commits ahead of or behind them, and six brief amendments — every
+one of them written because a measurement contradicted the brief.
+
+| | |
+|---|---|
+| Plugins | **10 of 10** |
+| Parameters, dumped | **72** — matching `auval` and `params2.tsv` exactly, a third independent confirmation of the 607/22 scope |
+| Tips authored and bound | **87** = 67 parameter + 20 chrome |
+| Unreviewed French | 3202 → **3289**, exactly +87 |
+| Zero-tip plugins | 22 → **12**, the exact M2/M3 remainder |
+| `check-i18n` | **43/43 ALL PASS**, all canon v2 |
+| `boot-all-uis` | **43/43 clean**, 0 warn, 0 failed, native `title=` **0** repo-wide, 3789 text-bearing elements unchanged |
+| New per-plugin gates | 10 × `tests/ui_tip_render_check.js`, **all passing** |
+
+| Plugin | Version | Commit | Params → tips | Gate | Latch control |
+|---|---|---|---|---|---|
+| O-AnalogSaturation | 1.3.0 | `18f914b2` | 4 → 4+2 | pass | 4669 px² |
+| O-Bass | 1.5.0 | `a983fddd` | 5 → **3**+2 | 125 | 5110 px² |
+| O-Emulator | 1.2.0 | `5cf6bba1` | 5 → 5+2 | 123 | shipped WITH the latch |
+| O-Comp | 1.7.0 | `40a156b4` | 7 → 7+2 | 156 | 3800 px² |
+| O-Tremolo | 1.8.0 | `85e94b5f` | 7 → **6**+2 | 186 | 4600 px² |
+| O-Chorus | 1.4.0 | `8fc4a4e6` | 8 → 8+2 | 240 | 4672 px² |
+| O-DigiDelay | 1.4.0 | `c1878590` | 8 → **7**+2 | 216 | 4964 px² |
+| O-SimpleReverb | 1.7.0 | `a1fce025` | 8 → 8+2 | 169 | 5110 px² |
+| O-Bassoon | 1.2.0 | `493bbad9` | 10 → 10+2 | 198 | 5280 px² |
+| O-Texture | 0.3.0 | `d6473d63` | 10 → **9**+2 | 208 | 5130 px² |
+
+## THE HEADLINE: T17 said "content work, not engineering," and all three
+## detectors said zero
+
+Measured on all 22 bare plugins before the first dispatch: `id="tooltip"` **0**,
+`.tooltip {` **0**, `closest("[data-tip]")` **0**. Canon v2's `applyI18n()`
+writes `data-tip-title` and `data-tip` **attributes**; the code that reads them
+and paints a surface is per-plugin and did not exist on any of them.
+
+Authoring 72 bodies and binding them — exactly what T17 specifies — would have
+shipped **72 invisible strings past three green gates**. `check-i18n` reads the
+table statically; `check-ui-labels` has no tooltip awareness whatsoever;
+`boot-all-uis` counts `aria-label` and `title` and never `data-tip`. **Seventh
+instance in this task of a gate certifying the absence of a thing it cannot
+see**, and the first where the stage's whole deliverable sat inside the hole.
+
+**Measured on three separate plugins, not asserted:** with `setupTooltips()`
+disabled, `check-i18n --plugin` and `check-ui-labels --plugin` both print ALL
+CHECKS PASS while the new render gate fails 8 (O-AnalogSaturation), 150
+(O-Tremolo) and 158 (O-Chorus) assertions.
+
+## THE DEFECT IN THE RENDERER THE ORCHESTRATOR SPECIFIED
+
+The brief told ten executors to port O-simpleFM's `setupTooltips`. **It opens a
+tip on any `focusin`, and a mouse click on a `<button>` focuses it** — so the tip
+`pointerdown` had just hidden reopened immediately, pointer still on the anchor,
+nothing left to dismiss it, sitting on top of whatever the click had opened.
+
+O-Emulator's executor found it on its own page, stopped, and shipped a
+last-input-device latch. Measured overlap with the settings popover, per plugin,
+by intersecting the two rects: **3800 to 5280 px²** on all nine that lacked it.
+
+**Both gates were green the whole time.** `check-ui-labels` classes the surface
+as `pointer-events: none` decoration and has nothing to say about it. What
+exposed it was the `[8b]` inert-element count moving **7 → 9** *inside a passing
+run*. **Read the counts in a green gate, not only its verdict.**
+
+`:focus-visible` is not the discriminator: Chromium reports it false for a
+programmatic `.focus()` after a click, so a gate driving focus directly measures
+"no tip" and records that as correct — a false pass built into the fix.
+
+## AND THE ASSERTION FOR IT WAS DECORATION, twice
+
+The orchestrator wrote the focus assertion for the two pilots that had landed
+without the latch. **It passed 125/125 with the latch deleted.** An earlier
+section of each gate leaves focus on `#gear-btn`, and **clicking an
+already-focused element fires no `focusin` at all** — precisely the trap
+O-Emulator's executor had reported one message earlier.
+
+With `activeElement.blur()` first, the control fires. Four executors then ran the
+2×2 independently and O-Texture tabulated it:
+
+| latch | blur | click assertion | keyboard assertion |
+|---|---|---|---|
+| yes | yes | PASS | PASS |
+| yes | no | PASS | PASS |
+| **no** | yes | **FAIL 5130 px²** | PASS |
+| **no** | **no** | **PASS — decoration** | PASS |
+
+The keyboard half stayed green in all four, which is what proves the two
+assertions are independent rather than one counted twice.
+
+## THE SHIPPED DEFECT NO GATE COULD SEE: an unclickable language selector
+
+O-Bassoon's executor found that its settings popover had been **painted over
+since v1.1.0**. `body` is `display: flex`, so the header bar and tab bar are flex
+items — and `z-index` applies to a flex item at `position: static`, so each opens
+its own stacking context. Both were `z-index: 10`, a tie broken by document
+order. `#settings-popover`'s own `z-index: 21` is scoped **inside** the header's
+context and cannot climb out. `elementFromPoint` at `#lang-select`'s centre
+returned `.tab-btn`.
+
+**The only control the entire i18n feature adds could not be clicked.** No gate
+saw it: `check-ui-labels` compares rectangles, and **a rect is unchanged by paint
+order**. It surfaced only when a *new* render gate tried to HOVER `#lang-select`.
+
+That generalised into a repo-wide `elementFromPoint` hit-test over all 43
+plugins — blindness-checked first by reverting O-Bassoon's committed fix, which
+returned FULLY BLOCKED, covered by `BUTTON.tab-btn`.
+
+**Two more plugins were affected, both shipped that way since Stage K:**
+
+| Plugin | Blocker | Cause | Fix |
+|---|---|---|---|
+| O-Wind | `BUTTON.tab-btn` | `.preset-bar` / `.tab-bar` both `z-index: 10`, flex items of a flex body | `.preset-bar` → 30 |
+| O-MicrotonalSampler | `#tab-samplemap` | `#header` / `#tab-bodies` / `#control-strip` all `z-index: 1` | `#header` → 2 |
+
+Fixed in `9ade62fe`, each negative-controlled alone, both rebuilt and reinstalled,
+both AU-validating. **41 of 43 were reachable at all three probe points**; those
+two were the entire population. No version bump — O-Wind's latest tag is v1.9.0
+against a source 1.17.0, O-MicrotonalSampler's v1.9.1 against 1.24.0, so neither
+current version has been released.
+
+## A dumped parameter is not necessarily a control — 4 of 10
+
+72 parameters produced **67** parameter tips, and every gap is a finding rather
+than an omission. An authored body with no binding is an ORPHAN that assertion 2
+fails, so none of these was papered over and **no control was added to satisfy a
+count** — that is a feature change with a geometry cost.
+
+| Plugin | Parameter | Why it has no tip |
+|---|---|---|
+| O-Bass | `latency_mode`, `bypass` | **No control in the WebView in any version.** Automatable and host-reachable, page-unreachable. |
+| O-Tremolo | `SYNC_DIVISION_PARAM` | The Speed knob *becomes* its detented stepper when sync is on. Described inside `tip.speed` / `tip.tempoSync`. |
+| O-DigiDelay | `division` | Page-reachable, but only through `#time-knob`, which another parameter already anchors. A second `TIP_BINDINGS` row on the same node would silently overwrite the first. |
+| O-Texture | `X` / `Y` | Share one control, the `#xy-pad` canvas. One entry names both axes. |
+
+**`applyI18n` writes onto the element a selector resolves to, so two bindings on
+one node mean the second overwrites the first — while `check-i18n` cheerfully
+reports two bound tips.** Three plugins' gates now assert that all bindings land
+on **distinct** nodes by identity.
+
+## "Bind to the ids the UI already uses" — false on 9 of 10, for six reasons
+
+T17's one-line instruction failed on every plugin but O-DigiDelay, and the
+selector half and the target half fail **independently**:
+
+- **O-Chorus** — no knob carries an id at all. The only id inside a knob is the
+  SVG arc, and `.knob-vine` is `fill:none; stroke-width:3`: walked with
+  `elementFromPoint`, **147 of 4526 points (3.2%)** of the cell hit it, and that
+  target's size *moves with the parameter* because the painted length is
+  `stroke-dashoffset`.
+- **O-Emulator** — 5 of 7 anchors are CSS selectors.
+- **O-Comp, O-SimpleReverb, O-Tremolo** — every selector is an id; the target is
+  a wrapper anyway, because the id'd node is a 52 px vine face.
+- **O-Texture** — 5 of 11 are selectors, two with no per-parameter element at all.
+- **O-Bassoon** — selectors are not ids, and no wrapper is needed either: the
+  `.knob-control` IS the hover cell.
+- **O-DigiDelay** — **true**, and structurally so: its positioning block places
+  every control by id.
+
+Two further traps: **a wrapper class can match twice** (O-Tremolo's
+`.waveform-section`, the second wrapping the canvas — `closest()` reaches the
+right one, a bare `querySelector` would be right by luck); and **the chrome must
+bind BARE** wherever the gear and the selector share an ancestor, or hovering
+`#lang-select` resolves to the gear's tip (O-Comp, O-Chorus).
+
+## Probe artefacts that argue for deleting the fix
+
+1. **A keyboard-tab probe sampling DURING the 120 ms fade reports a false
+   "never opens" — and the obvious response is to delete the latch.** O-Comp's
+   first control slept 80 ms into the transition while treating anything under
+   opacity 0.99 as hidden, and reported "none in 20 tabs" for a path that works
+   at tab #5. O-SimpleReverb hit the identical artefact. O-Chorus settled 150 ms
+   past the transition and tested `visibility` instead.
+2. **A STATIC regex for `lastInputWasPointer` stays green with the guard clause
+   deleted** — the declaration, the write and the clear all survive. Only the
+   behavioural control discriminates.
+3. **A plant sized by habit is a control that cannot fail.** O-Tremolo's 40×
+   plant (880 chars, ≈390 px) *fit and reported nothing* on a 400 px frame with
+   384 px of clamp room.
+4. **`page.evaluate` given a function-source STRING** returns the function
+   object, is unserialisable, resolves to `undefined`, and sails through a
+   truthiness assertion over a surface nobody read (O-Bass).
+
+## Geometry — and the claim in the brief that was false
+
+**moved-before 0, moved-after 0 on all ten.** `check-ui-labels` output is
+byte-identical to each plugin's pre-change baseline. **No pin was added on any
+plugin**, so none was claimed and none was owed a negative control.
+
+The brief asserted that an un-hidden tooltip surface "would enter
+`check-ui-labels`' text sweep and every geometry diff." **O-Bass's executor
+negative-controlled it and it is false**: un-hiding the surface left that gate
+byte-identically green, because a fixed box at 0,0 has the same rect in both
+languages — it neither moves nor changes the visible set. What catches it is
+`check-i18n` assertion 10 and `boot-all-uis`' text count (14 → 16).
+
+**The clamp is the normal path, not an edge case.** O-DigiDelay measured 27 of
+27 hovers flipping above the cursor, 9 flipping left, and **19 landing on the
+8 px top rail**; a flip-only renderer puts 19 of 27 above the top edge, and a
+renderer that clamps *before* the flip passes every containment row while
+failing only an explicit second-clamp assertion. O-Chorus: **17 of 20**
+placements outside on both sides of the flip. O-Bass at 420×320: every anchor in
+both languages placed by flipping, two on the 8 px floor.
+
+## Units: the brief's tendency was wrong in both directions
+
+"O-Comp is the one M1 plugin with real units" was false at the second plugin.
+Measured: O-Comp (6 of 7), O-Bass (3 of 3), O-Emulator (4 of 5), O-Tremolo (3 of
+7) and O-DigiDelay (6 of 8) carry real `label` values. **O-Chorus, O-SimpleReverb
+and O-Texture carry none at all** and every range was recovered from the page's
+own formatter with a file:line citation.
+
+O-Chorus is the sharpest case and T17 understated it: **seven of its eight dumped
+ranges are wrong for a user**, because the formatter rescales them —
+`0.00 .. 1.00` renders as `50%`, and `tone`'s formatter *adds a sign*. Only
+`rate` is quotable as dumped.
+
+Two dump-vs-page disagreements reported and not fixed: O-Bassoon's
+`vibrato_depth` declares `" cents"` and renders `" c"`; O-SimpleReverb's
+`LP Filter Freq` / `LP Filter On` are backed by `makeHighPass`, and the page's
+`LOW CUT` caption is the correct one. Renaming an `AudioParameterFloat` is
+host-visible.
+
+## Other findings worth carrying
+
+- **A disabled control does not swallow pointer events** — Chromium retargets to
+  the nearest enabled ancestor, so a row-bound tip opens over all five disabled
+  source buttons (O-Texture). The strongest argument for the wrapper form.
+- **A decorative overlay can paint over the tip.** O-Texture's `body::after`
+  fern sits at `z-index: 1000` directly on `.freeze-toggle`; at the popover's
+  `z-index: 61` the tip would paint *under* it — invisible to any hover check
+  reading only `visibility`. Its gate asserts computed z-index against the fern's.
+- **An open tip does not re-render on a language change** — canon behaviour,
+  shared by all 21 shipped tooltip plugins. On O-AnalogSaturation
+  `check-ui-labels` assertion 7 is green **partly because of it**: the tip's rect
+  is identical in `en` and `fr` only because it never re-rendered. If the canon
+  is ever taught to refresh an open tip, assertion 7 begins comparing tip
+  rectangles across languages on every Stage M plugin, and French wraps taller.
+- **A pre-existing `SyntaxError` window is real during a concurrent batch.**
+  Two executors reported `boot-all-uis` failing on O-Chorus mid-run; it was that
+  executor's uncommitted mid-edit state and resolved when it landed. Both flagged
+  it rather than explaining it away, which is the K3 lesson working.
+- O-Chorus added `drag.active` beyond the reference family: this page starts a
+  knob drag on mousedown, and a drag crossing into a neighbouring container would
+  otherwise open that neighbour's tip mid-gesture. `pointerdown` alone cannot
+  cover it, because `pointerover` arrives after it.
+
+## NEEDS A HUMAN DECISION
+
+1. **French decimal separator, and M1 split on it.** O-Comp kept the readout's
+   POINT (`0.1 à 100 ms`) because `.value-display` formats with a point in both
+   languages under D-03. O-Chorus kept the suite's COMMA (`0,05 à 5,00 Hz`),
+   matching all 21 shipped tooltip plugins. Both stated their reasoning in
+   `i18n.js` rather than settling it unilaterally. **One rule is needed before M2.**
+2. **No hover-help on/off toggle.** M1 ships tips always-on. O-Tapestop and
+   O-Bitrot have a toggle; the other 41 do not. Uniformity is a separate pass.
+3. **`#lang-select` is 59.0 × 16.0 px on O-DigiDelay**, under WCAG 2.5.8's
+   24×24. Pre-existing at v1.3.0.
+4. **Keyboard reach is partial by design.** Knobs on most of these pages are
+   pointer-drag `div`s with no `tabindex` and never were keyboard-operable, so
+   the keyboard half of hover-help reaches only the natively focusable controls.
+   Adding `tabindex` is a feature change with focus-ring geometry cost.
+5. **O-Bassoon's PLUGINS.md state cell reads "Stage 0" against a STATUS.md of
+   stage 4.** Pre-existing; the M1 registry commit changed versions and dates only.
+
+## Not verified
+
+- **Checkpoint 5 outstanding on all 43.** No human has seen any French UI. All
+  **3289** French entries repo-wide are machine drafts, every one `reviewed:
+  false` — M1 added 87 to that worklist.
+- **No DAW test on any of the twelve plugins touched.** `auval` and the headless
+  harness only.
+- **The Standalone `.app` is stale everywhere** — `build-and-install.sh` builds
+  VST3 + AU only.
+- **Rendering was verified in headless Chromium**, against the tree `serve-ui.js`
+  assembles from the same `juce_add_binary_data` SOURCES list the build embeds —
+  **not inside a real WKWebView**.
+- **Windows/WebView2 font metrics** — the standing hardware-blocked deferral.
+  Nothing in this batch retires it, and tooltips are new surface area for it.
+- O-Texture's ONNX/inference path was neither touched nor exercised.
