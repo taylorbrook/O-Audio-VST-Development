@@ -931,9 +931,21 @@
       outline-offset: 1px;
     }
 
-    /* A pill rather than a circle so the caption fits. min-width covers the
-       widest of the four faces across both languages — On / Off / Oui / Non — so
-       switching either the state or the language cannot resize the row. */
+    /* A pill rather than a circle so the caption fits.
+
+       v1.14.1 CORRECTS THIS COMMENT, not the rule. It used to claim min-width
+       covered the widest of the four faces across both languages — On / Off /
+       Oui / Non — so that "switching either the state or the language cannot
+       resize the row". Stage N replaced Oui / Non with Activé / Désactivé
+       (Oui/Non are answers, not states), and those two faces are 47.33 px and
+       61.38 px border-box, so the BUTTON does grow past this 42 px floor.
+
+       The row still cannot move anything, for a different reason than the one
+       written here: .settings-popover is anchored right: 0 at min-width 190 px
+       and its widest French row measures 165.15 px, so the button grows
+       leftward into slack the popover already had. check-ui-labels [7] reports
+       0 non-label elements displaced between the two languages. The floor is
+       kept because it still sizes the two SHORT English faces alike. */
     .settings-toggle {
       min-width: 42px;
       padding: 2px 8px;
