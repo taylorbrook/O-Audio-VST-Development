@@ -1,5 +1,133 @@
 # O-AnalogEQ Changelog
 
+## [1.3.0] - 2026-08-30
+
+### Added — hover-help, in both languages (Stage M batch M2)
+
+- **Thirteen tooltip entries in `Source/ui/public/js/i18n.js`**, each with an
+  English and a French `{t, b}`, covering **fifteen of the plugin's sixteen
+  parameters** plus the gear button and the language selector. Every French
+  string is a machine draft flagged `reviewed: false`; no native speaker has
+  read one.
+- **A tooltip RENDERER and its CSS in `index.html`.** This is not a content-only
+  change and that was measured before a line was written: this page had no
+  `#tooltip` node, no `.tooltip` rule and no hover handler, and `applyI18n()`
+  only ever writes `data-tip-title` / `data-tip` ATTRIBUTES. Authoring thirteen
+  bodies and binding them, with nothing else, ships thirteen INVISIBLE strings
+  past three green gates. Negative-controlled: with `setupTooltips()` disabled,
+  `check-i18n` prints ALL CHECKS PASS and `check-ui-labels` is **byte-identical
+  to its pre-change baseline**, while the new render gate fails **204**
+  assertions.
+- **`tests/ui_tip_render_check.js`** — 308 assertions, the seat where a tip that
+  never appeared FAILS instead of passing quietly. It drives every anchor in
+  `en`, `fr` and `en` again, asserts the rendered title and body are BYTE-EQUAL
+  to the table (not "contains"), and asserts the tip rect is inside 920 x 220 on
+  all four edges at every anchor in both languages.
+- **`.planning/params.tsv`** and the `OUARICON_BUILD_TESTS` param-dump wiring in
+  `CMakeLists.txt` / `PluginProcessor.cpp`. The processor's
+  `#include "PluginEditor.h"` moved behind `#if JUCE_WEB_BROWSER` above
+  `createEditor()`, with a `GenericAudioProcessorEditor` fallback, because the
+  param-dump console target compiles this TU with `JUCE_WEB_BROWSER=0` and no
+  editor sources. Under a normal build `JUCE_WEB_BROWSER=1` and behaviour is
+  byte-identical to v1.2.0.
+
+### Findings — thirteen tips for sixteen parameters, and neither gap is an omission
+
+- **The four dual knobs carry TWO parameters each on ONE hover target, and the
+  page forces it.** `.knob-outer` (frequency) and `.knob-inner` (gain) are BOTH
+  `pointer-events: none`, so neither is hoverable and neither can carry a tip;
+  the only node that receives a pointer event is their parent
+  `.dual-knob-container`, which resolves outer-vs-inner from the cursor's
+  DISTANCE FROM THE CENTRE rather than from a child boundary. So each band gets
+  one tip naming both rings. A second `TIP_BINDINGS` row on the same node would
+  SILENTLY OVERWRITE the first while `check-i18n` reported two bound tips — the
+  gate now asserts all thirteen bindings land on distinct nodes.
+- **`output_gain` has no control on the page at all.** Deliberate and already
+  documented in the source: `PluginProcessor.cpp:88` records it as removed in
+  the v1.0.5 UI simplification (review item IN-01), kept because it is
+  host-automatable and because factory presets set it. Host-reachable,
+  page-unreachable. **No control was added to satisfy the count** — that is a
+  feature change with a geometry cost on a 220 px frame — and no body was
+  authored, because a body with nothing to bind is an ORPHAN.
+- **"Bind to the ids the UI already uses" is wrong here twice.** `#lf_freq_knob`
+  and `#lf_gain_knob` exist and are the naive reading; both are
+  `pointer-events: none`, so a tip bound to either could never open. And the
+  addressable container is 65 x 65 inside an 85 x 85 `.dual-knob-wrapper` that
+  also carries the frequency scale, so the wrapper walk widens the hover cell by
+  71% (4225 -> 7225 px2) without moving a pixel of paint.
+- **The chrome binds BARE.** `#gear-btn` and `#lang-select` share
+  `.settings-cluster`, whose own rect is the gear's 18 x 18 box, so a wrapper
+  walk on either would make hovering the language selector open the GEAR's tip.
+
+### Findings — the clamp, and a line in the renderer family that cannot fire
+
+- **This page is NOT its batch's O-Chorus.** 220 px is short, but a 204 px well
+  against tips that run 51.1 to 78.1 px leaves 126 px of headroom, and the
+  anchors sit at y 62..184 rather than filling the frame. Measured over 26
+  placements in both languages: **8 of 26** overflow the naive cursor offset
+  vertically and are placed by the flip; **0 of 26** are outside on both sides of
+  it. O-Chorus at 700 x 125 reports 20/20 and 17/20.
+- So the re-clamp ships UNEXERCISED by the shipped copy, and `[4c]` drives it
+  deliberately rather than relying on it: a searched 800-character plant on
+  `#lf_on` renders 145.6 px tall, which is outside BELOW the cursor (bottom
+  224.1 past 212) **and** outside ABOVE it (top −95.1 past 8). Deleting the
+  `Math.max(M, ny)` floor alone puts that tip at −95.1, **103 px off the top of
+  the page**, and `[4c]` reports it.
+- **The `ny = innerHeight - M - r.height` line in this renderer family is
+  unreachable BY CONSTRUCTION, on every frame.** After a flip
+  `ny = y - h - 12`, so `ny + r.height` collapses to `y - 12` — it no longer
+  mentions the tip's size at all — and that can exceed `innerHeight - M` only
+  for a cursor outside the viewport. The same collapse holds on the x axis
+  (`nx + r.width` becomes `x - 14`). What actually re-clamps a flipped result is
+  the `Math.max(M, …)` floor beneath it. The lines are KEPT so this port stays
+  byte-shaped with the other ten copies, and DOCUMENTED because O-Chorus's copy
+  credits them with a placement the floor is making.
+- **No `drag.active` flag is needed here**, and that is a property of this page
+  rather than an omission: `setPointerCapture(e.pointerId)` retargets every
+  pointer event for the rest of a knob drag, so a drag crossing into a
+  neighbouring cell fires no boundary event there. Driven and asserted.
+
+### Geometry
+
+**Zero elements moved, and no pin was added, so none is owed a negative
+control.** `check-ui-labels --plugin O-AnalogEQ` output after this change is
+**byte-identical** to its v1.2.0 baseline — moved-before 0, moved-after 0 —
+which is the expected result of adding a `position: fixed`, `visibility:
+hidden` surface: it is out of flow, and a fixed box at 0,0 has the same
+rectangle in both languages.
+
+### Copy
+
+- The body ranges come from `.planning/params.tsv`, a runtime walk of
+  `getParameters()`. **Eleven of the sixteen parameters carry a real `label`**
+  (`Hz` on every `*_freq`, `dB` on every `*_gain`), each agreeing with the
+  page's own formatter — the brief's expectation that `label` is usually empty
+  is false on this plugin.
+- **One range had to be recovered from the formatter anyway:** `hf_freq` dumps
+  `textAtMax 20000.0`, but `index.html:970` renders
+  `hz >= 10000 ? (hz / 1000).toFixed(1) + 'k' : Math.round(hz)`, so the top of
+  that knob READS `20.0k Hz` and never `20000 Hz`. The body quotes what the user
+  sees.
+- **The numbers are spelled differently in the two languages, on purpose.** A
+  tooltip body is prose and takes French convention — decimal COMMA, U+2212 for
+  the minus — while the READOUT keeps its point, because D-03 exempts the
+  readout NODE. So `−12.0 to +12.0 dB` here is `−12,0 à +12,0 dB` there while
+  `#lf_db` still renders `-12.0 dB` in both languages.
+- **`WIDE` / `MED` / `TIGHT` and `Off` / `On` stay English inside the French
+  sentences.** They are `AudioParameterChoice` options, exempt on the page under
+  D-01 arm 1 so the face and the host automation lane agree; inside a body they
+  are being NAMED rather than displayed, so the sentence around them is French
+  and the words are not.
+- **`#gear-btn`'s body describes only what that popover actually holds** — the
+  language selector and nothing else. This plugin has no hover-help on/off
+  toggle, and the wording two other plugins in the suite use would promise one.
+
+### Not changed
+
+No parameter IDs, ranges, types, defaults or DSP behaviour. No layout change, no
+new CSS pin, no new file in `juce_add_binary_data` SOURCES — the renderer and its
+styles went into `index.html` and the copy into the already-embedded `js/i18n.js`.
+
 ## [1.2.0] - 2026-08-28
 
 ### Added — the PAGE speaks French (Stage K batch K2, canon v2)

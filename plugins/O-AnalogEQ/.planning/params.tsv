@@ -1,0 +1,20 @@
+# plugin	Ouaricon Analog EQ
+# params	16
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+lf_freq	LF Frequency	Hz	2147483647	30.0	500.0	0.564807	100.0	automatable
+lf_gain	LF Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+lf_on	LF On		2	Off	On	1.000000	On	automatable,discrete,boolean
+lmf_freq	LMF Frequency	Hz	2147483647	100.0	2000.0	0.626602	500.0	automatable
+lmf_gain	LMF Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+lmf_q	LMF Q		3	WIDE	TIGHT	0.500000	MED	automatable,discrete
+lmf_on	LMF On		2	Off	On	1.000000	On	automatable,discrete,boolean
+hmf_freq	HMF Frequency	Hz	2147483647	500.0	8000.0	0.617034	2000.0	automatable
+hmf_gain	HMF Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+hmf_q	HMF Q		3	WIDE	TIGHT	0.500000	MED	automatable,discrete
+hmf_on	HMF On		2	Off	On	1.000000	On	automatable,discrete,boolean
+hf_freq	HF Frequency	Hz	2147483647	2000.0	20000.0	0.719223	8000.0	automatable
+hf_gain	HF Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+hf_on	HF On		2	Off	On	1.000000	On	automatable,discrete,boolean
+output_gain	Output Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+analog	Analog		2	Off	On	1.000000	On	automatable,discrete,boolean
