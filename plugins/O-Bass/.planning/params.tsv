@@ -1,0 +1,9 @@
+# plugin	O-Bass
+# params	5
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+crossover_freq	Crossover	Hz	2147483647	40	200	0.500000	80	automatable
+latency_mode	Mode		2	Low Latency	High Fidelity	0.000000	Low Latency	automatable,discrete
+bypass	Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+enhance	Enhance	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+output	Output	dB	2147483647	-18.0	18.0	0.500000	0.0	automatable
