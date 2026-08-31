@@ -111,6 +111,9 @@ function setLabel(el, key, vars) {
 
 function applyI18n(lang) {
     uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    // <html lang> follows the selector: screen readers pick the French voice,
+    // and CSS hyphens:auto / quotes resolve in the page's actual language.
+    document.documentElement.lang = uiLanguage;
     for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
         const el = document.querySelector(selector);
         if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
