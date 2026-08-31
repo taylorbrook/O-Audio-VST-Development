@@ -1,0 +1,22 @@
+# plugin	O-Detune
+# params	18
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+blend	Blend		2147483647	0.00	1.00	0.500000	0.50	automatable
+wobble_era	Wobble Era		3	60s	80s	0.500000	70s	automatable,discrete
+wobble_rate	Wobble Rate	Hz	2147483647	0.10	10.00	0.438086	2.00	automatable
+wobble_depth	Wobble Depth	cents	2147483647	0.0	100.0	0.250000	25.0	automatable
+wobble_shape	Wobble Shape		3	Sine	Random	0.000000	Sine	automatable,discrete
+wobble_sync	Wobble Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+unison_voices	Unison Voices		5	2	7	0.250000	3	automatable,discrete
+unison_detune	Unison Detune	cents	2147483647	0.0	50.0	0.300000	15.0	automatable
+unison_dist	Unison Distribution		3	Linear	Random	0.000000	Linear	automatable,discrete
+unison_spread	Unison Spread	%	2147483647	0.0	100.0	0.750000	75.0	automatable
+width	Width	%	2147483647	0.0	200.0	0.500000	100.0	automatable
+mix	Mix	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+focus_low	Focus Low	Hz	2147483647	20	500	0.000000	20	automatable
+focus_high	Focus High	Hz	2147483647	1000	20000	1.000000	20000	automatable
+mono_safe	Mono Safe		2	Off	On	1.000000	On	automatable,discrete,boolean
+delay	Pre-Delay	ms	2147483647	0.0	50.0	0.000000	0.0	automatable
+feedback	Feedback	%	2147483647	0.0	80.0	0.000000	0.0	automatable
+random_amt	Randomization	%	2147483647	0.0	100.0	0.150000	15.0	automatable
