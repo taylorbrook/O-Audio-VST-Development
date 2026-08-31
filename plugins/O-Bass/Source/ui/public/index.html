@@ -178,9 +178,14 @@
            border box rounded up with a pixel of headroom — 47.78 -> 49 and
            44.83 -> 46 — which grows the row by 2.39 px into a 20 px margin and
            makes both rectangles language-invariant.
-           Both French captions SHRINK (LIRE 24.22 vs LOAD 29.78, ENR 21.50 vs
-           SAVE 26.83), so unpinned these two contract and re-centre the row;
-           removed alone, each reports the whole preset cluster moved. */
+           Both French captions SHRINK (v1.5.1: OUV 23.17 vs LOAD 29.78, ENR
+           21.50 vs SAVE 26.83), so unpinned these two contract and re-centre
+           the row; removed alone, each reports the whole preset cluster moved.
+           v1.5.1 replaced LIRE (24.22) with OUV: the glossary reads "lire" as
+           to read or to play, and "ouv." is not a substring of the accessible
+           name "Ouvrir un préréglage depuis un fichier" while "ouv" is
+           (WCAG 2.5.3). OUV. (24.89) would have fit the same 31 px content box.
+           NOTHING HERE MOVED: the pins are what make that true. */
         .preset-load-btn,
         .preset-save-btn {
             text-align: center;
@@ -497,15 +502,23 @@
             margin-top: 10px;
         }
 
-        /* v1.4.0 GUARD, NOT A PIN, and labelled as such.
+        /* v1.4.0 GUARD, NOW LOAD-BEARING — v1.5.1 collected on it.
            .meter-row is centred over this caption and a 180 px meter, so cliff
            C applies with no threshold: every px of caption width moves the
-           meter by half a px. The shipped French is OUT — sameAsEn, reasoned in
-           js/i18n.js — so this rule's negative control PASSES today and the
-           batch rule says a pin whose control passes is decoration.
-           It ships anyway, declared: 24 px is the English box (23.56) rounded
-           up, and it converts the NEXT French edit here from a silent 8.42 px
-           meter shift (SORTIE, 40.41) into a loud assertion-4 clip failure. */
+           meter by half a px. 24 px is the English box (23.56) rounded up.
+
+           v1.4.0 shipped OUT in French (sameAsEn) and recorded that this
+           rule's negative control PASSED — a pin with nothing behind it,
+           declared as such and kept because it would convert the NEXT French
+           edit here from a silent meter shift into a loud failure.
+
+           v1.5.1 IS THAT EDIT. Stage N translated OUT -> SOR (22.45 px; SOR.
+           25.95 and SORTIE 40.41 are past the box), and with the pin in place
+           assertion 7 still reports 0 non-label elements moved. Removed, the
+           gate now FAILS: #outputMeter dx=-0.6 and .meter-row dw=-1.1 between
+           English and French — measured, plant restored byte-identical. The
+           control that used to pass now fails, which is what a load-bearing
+           pin looks like. */
         .meter-label {
             font-size: 10px;
             color: #3C2F2F;
