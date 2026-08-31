@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Comp page labels and hover-help, English + French (v1.7.0)
+// i18n.js — O-Comp page labels and hover-help, English + French (v1.7.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -31,6 +31,83 @@
 // converting them to underscores, so a file named i18n-fr.js would have to be
 // reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens). One
 // combined file for both languages sidesteps the question.
+//
+// ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────
+//
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 18 of the 43 rows the lint counts, across 16 of the 34 fr entries
+// (8 terminology, 11 typography, 1 grammar/agreement, 3 meaning — a row can
+// carry more than one). sameAsEn: kept 1 (label.ratio, which is the term in
+// French audio too), translated 0. termNote exemptions: 0 — every glossary
+// term this page needed either fit or had a listed abbreviation that fit, so
+// nothing had to be exempted. Lint 39 findings → 0, --strict exit 0.
+// Left as drafted: the rest. reviewed: false throughout — no native speaker
+// has read this file, and this pass is a second MACHINE reading, not that one.
+//
+// SAUVER → ENREG., AND THE WIDTH THAT JUSTIFIED SAUVER DOES NOT SURVIVE
+// RE-MEASUREMENT. Sauver is a calque and the glossary forbids it; the root
+// term Enregistrer is 39.98 against this button's 30px content box, which is
+// why v1.7.0 reached for Sauver. But the glossary's abbreviation ENREG. is
+// 23.75 in that same .preset-action-btn — NARROWER than Sauver's 25.00 and
+// than Ouvrir's 24.00 — so there was no geometry defending the calque. Every
+// v1.7.0 figure was re-measured this pass with the gate's own method
+// (Range.selectNodeContents on the real element, at the shipping 620x360) and
+// every one reproduced to the hundredth. See the note above label.load.
+//
+// RELÂCHE → RELÂCH. on the caption, RELÂCHEMENT in the tip title. Same shape:
+// the abbreviation is 36.80, narrower than Relâche (38.94) and than English
+// Release (37.70), and the .control-group stays at exactly 52. v1.7.0 recorded
+// that the only alternative to Relâche was a layout change to the row; the
+// glossary's abbreviation was the alternative.
+//
+// GENOU → COUDE in the caption, the tip title and the tip body. Not a
+// geometry choice in either direction (31.23 against 31.83, group 52 either
+// way) — genou is the body part.
+//
+// PARAMÈTRES → RÉGLAGES on aria.settings, which was an INTERNAL contradiction
+// as well as a glossary miss: the gear's tooltip title already said Réglages
+// while the gear's own accessible name said Paramètres, so a speech user and
+// a sighted user had two different names for one control. English said
+// "Settings" on both, so this was French-only and no en string moved.
+//
+// THE CANVAS GR CAPTION TAKES ITS NO-BREAK SPACE AND NOTHING ELSE. Measured in
+// this page's own 2D context at 11px Garamond, serif: U+00A0 is 2.75px, the
+// same width as the ASCII space it replaces, and the whole string is 62.34
+// either way — unchanged from the v1.7.0 figure. U+00A0 is not missing from
+// that font: a not-defined probe (U+FFFF) measures 7.944 in the same context,
+// so a tofu box would have been 5px wide and visible. The {v} minus and the
+// space before dB belong to the READOUT, are composed by index.html, and stay
+// ASCII under D-03.
+//
+// TYPOGRAPHY WAS APPLIED TO FRENCH STRING VALUES ONLY, and counted afterwards:
+// 21 straight apostrophes → U+2019, 16 U+00A0 inserted (6 before a colon, 2
+// before a semicolon, 8 between a number and its unit), 2 hyphen-minuses
+// before a negative number → U+2212. No U+202F anywhere. Verified that every
+// U+00A0 in the file sits on a line carrying t: or b: — none reached a key, a
+// selector or a comment. The decimal comma was already correct (settled
+// 2026-08-30, below) and no \d.\d survives in any French string.
+//
+// THREE SENTENCES CHANGED MEANING. None of them is a range, a unit or a claim
+// about the DSP — every range was re-checked against createParameterLayout and
+// every one was already right.
+//   tip.attack   "la transitoire" → "le transitoire". A transient is
+//                masculine in French signal-processing usage.
+//   tip.release  "sur une matière tenue" → "sur des sons tenus", a calque of
+//                "sustained material" that no French engineer writes; and
+//                "les temps courts ... peuvent pomper" → "peuvent faire
+//                pomper le signal", because a release time does not pump, the
+//                compressor does. The English shorthand is idiomatic in
+//                English and is left alone.
+//   tip.langSelect "sous les boutons" → "sous les boutons rotatifs". French
+//                uses one word for a push-button and a knob and this page has
+//                both; the readouts are under the six knobs only.
+//
+// KNOWN STALE, NOT FIXED HERE: the CSS comment at index.html:203-213 still
+// reasons about "Ouvrir (24.0) and Sauver (25.0)" and closes with "Ouvrir
+// clears by 6.0px, Sauver by 5.0px". Its CONCLUSION is unaffected — the button
+// is still floored at width: 32px with an 18 → 30 content box, and Enreg.
+// clears by 6.25px — but the string it names is gone. Stage N does not touch
+// CSS, so it is reported rather than edited.
 //
 // ── v1.7.0: HOVER-HELP ARRIVES, COPY AND RENDERER TOGETHER ──────────────────
 //
@@ -121,7 +198,7 @@ export const LANGUAGES = ['en', 'fr'];
 // `output_gain` is named "Output Gain" in the APVTS and captioned "Output" on
 // the page, so the tip is titled Output / Sortie. Same rule for the French
 // terms inside the bodies: they reuse this page's own captions (Seuil, Ratio,
-// Genou, Sortie, Gain auto, ARRÊT / MARCHE) so a user can match a sentence to a
+// Coude, Sortie, Gain auto, ARRÊT / MARCHE) so a user can match a sentence to a
 // control by eye.
 //
 // EACH BODY ENDS WITH THE RANGE AND THE UNIT, and every unit came from the
@@ -143,7 +220,7 @@ export const I18N = Object.freeze({
         en: { t: "Threshold",
               b: "The level the detector has to cross before compression starts. Detection is peak and stereo-linked — the louder channel decides, so both sides duck together and the image stays put. -60 to 0 dB." },
         fr: { t: "Seuil",
-              b: "Le niveau que le détecteur doit franchir pour que la compression commence. La détection se fait sur la crête et en liaison stéréo : le canal le plus fort décide, les deux côtés baissent ensemble et l'image reste en place. -60 à 0 dB.",
+              b: "Le niveau que le détecteur doit franchir pour que la compression commence. La détection se fait sur la crête et en liaison stéréo : le canal le plus fort décide, les deux côtés baissent ensemble et l’image reste en place. −60 à 0 dB.",
               reviewed: false },
     },
 
@@ -155,7 +232,7 @@ export const I18N = Object.freeze({
         en: { t: "Ratio",
               b: "How much of each decibel above the threshold survives: at 4:1 an overshoot of 4 dB leaves as 1 dB. At 1:1 nothing is compressed however far the signal goes over, and past roughly 10:1 the behaviour is limiting rather than compression. 1:1 to 20:1." },
         fr: { t: "Ratio",
-              b: "La part de chaque décibel au-dessus du seuil qui subsiste : à 4:1 un dépassement de 4 dB ressort à 1 dB. À 1:1 rien n'est comprimé, quelle que soit l'ampleur du dépassement, et au-delà d'environ 10:1 le comportement devient celui d'un limiteur. 1:1 à 20:1.",
+              b: "La part de chaque décibel au-dessus du seuil qui subsiste : à 4:1 un dépassement de 4 dB ressort à 1 dB. À 1:1 rien n’est comprimé, quelle que soit l’ampleur du dépassement, et au-delà d’environ 10:1 le comportement devient celui d’un limiteur. 1:1 à 20:1.",
               reviewed: false },
     },
 
@@ -166,7 +243,7 @@ export const I18N = Object.freeze({
         en: { t: "Attack",
               b: "How quickly the detector rises once the signal is over the threshold. Short times catch the transient and flatten the front of a drum; long times let the stick through and start compressing behind it. 0.1 to 100 ms." },
         fr: { t: "Attaque",
-              b: "La vitesse à laquelle le détecteur monte une fois le signal au-dessus du seuil. Les temps courts saisissent la transitoire et aplatissent le début d'une frappe ; les temps longs laissent passer l'attaque et compriment derrière elle. 0,1 à 100 ms.",
+              b: "La vitesse à laquelle le détecteur monte une fois le signal au-dessus du seuil. Les temps courts saisissent le transitoire et aplatissent le début d’une frappe ; les temps longs laissent passer l’attaque et compriment derrière elle. 0,1 à 100 ms.",
               reviewed: false },
     },
 
@@ -174,8 +251,8 @@ export const I18N = Object.freeze({
     'tip.release': {
         en: { t: "Release",
               b: "How quickly the gain comes back once the signal drops under the threshold again. Short times sound lively and can pump audibly on sustained material; long times hold the reduction steady between hits. 10 to 1000 ms." },
-        fr: { t: "Relâche",
-              b: "La vitesse à laquelle le gain revient une fois le signal repassé sous le seuil. Les temps courts sonnent vifs et peuvent pomper de façon audible sur une matière tenue ; les temps longs maintiennent la réduction stable entre les frappes. 10 à 1000 ms.",
+        fr: { t: "Relâchement",
+              b: "La vitesse à laquelle le gain revient une fois le signal repassé sous le seuil. Les temps courts sonnent vif et peuvent faire pomper le signal de façon audible sur des sons tenus ; les temps longs maintiennent la réduction stable entre les frappes. 10 à 1000 ms.",
               reviewed: false },
     },
 
@@ -186,8 +263,8 @@ export const I18N = Object.freeze({
     'tip.knee': {
         en: { t: "Knee",
               b: "The width of the band around the threshold where the ratio arrives gradually instead of all at once. It is centred on the threshold, so half of it sits below and compression begins before the reading reaches the setting. At 0 the knee is hard and the transfer curve corners. 0 to 20 dB." },
-        fr: { t: "Genou",
-              b: "La largeur de la bande autour du seuil où le ratio s'installe progressivement au lieu d'un seul coup. Elle est centrée sur le seuil : la moitié se trouve en dessous, et la compression commence avant que la lecture n'atteigne le réglage. À 0 le genou est dur et la courbe de transfert forme un angle. 0 à 20 dB.",
+        fr: { t: "Coude",
+              b: "La largeur de la bande autour du seuil où le ratio s’installe progressivement au lieu d’un seul coup. Elle est centrée sur le seuil : la moitié se trouve en dessous, et la compression commence avant que la lecture n’atteigne le réglage. À 0 le coude est dur et la courbe de transfert forme un angle. 0 à 20 dB.",
               reviewed: false },
     },
 
@@ -199,7 +276,7 @@ export const I18N = Object.freeze({
         en: { t: "Output",
               b: "Makeup gain applied after the compressor, to bring the level back to where it started. It is added to whatever Auto-Gain is contributing rather than replacing it, and the sum is smoothed over 20 ms so an automation move cannot zipper. -12 to +24 dB." },
         fr: { t: "Sortie",
-              b: "Gain de compensation appliqué après le compresseur, pour ramener le niveau là où il était. Il s'ajoute à ce qu'apporte le Gain auto au lieu de le remplacer, et la somme est lissée sur 20 ms pour qu'un mouvement d'automation ne crépite pas. -12 à +24 dB.",
+              b: "Gain de compensation appliqué après le compresseur, pour ramener le niveau là où il était. Il s’ajoute à ce qu’apporte le Gain auto au lieu de le remplacer, et la somme est lissée sur 20 ms pour qu’un mouvement d’automation ne crépite pas. −12 à +24 dB.",
               reviewed: false },
     },
 
@@ -215,7 +292,7 @@ export const I18N = Object.freeze({
         en: { t: "Auto-Gain",
               b: "Adds makeup gain worked out from the current Threshold and Ratio — half the theoretical amount, so it compensates without overshooting — and follows both as you move them. It stacks with the Output knob rather than replacing it. Two settings: OFF and ON." },
         fr: { t: "Gain auto",
-              b: "Ajoute un gain de compensation calculé à partir du Seuil et du Ratio courants — la moitié de la valeur théorique, pour compenser sans dépasser — et suit les deux quand vous les déplacez. Il s'ajoute au réglage Sortie au lieu de le remplacer. Deux positions : ARRÊT et MARCHE.",
+              b: "Ajoute un gain de compensation calculé à partir du Seuil et du Ratio courants — la moitié de la valeur théorique, pour compenser sans dépasser — et suit les deux quand vous les déplacez. Il s’ajoute au réglage Sortie au lieu de le remplacer. Deux positions : ARRÊT et MARCHE.",
               reviewed: false },
     },
 
@@ -229,7 +306,7 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d'autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
               reviewed: false },
     },
 
@@ -241,7 +318,7 @@ export const I18N = Object.freeze({
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available. The value readings under the knobs and the preset names stay in English, so the page and the host agree on what a setting is called." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles. Les valeurs affichées sous les boutons et les noms de préréglages restent en anglais, pour que la page et l'hôte s'accordent sur le nom d'un réglage.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées sous les boutons rotatifs et les noms de préréglages restent en anglais, pour que la page et l’hôte s’accordent sur le nom d’un réglage.",
               reviewed: false },
     },
 
@@ -269,11 +346,13 @@ export const I18N = Object.freeze({
     // used to pick between `GR: -x dB` and `GR: 0.0 dB`, and that branch is now
     // on the VALUE, where no language can reach it.
     //
-    // French puts a space before a colon. Measured 59.59 -> 62.34 at the widest
-    // reading, drawn at x = 10 in a 308px canvas.
+    // French puts a NO-BREAK space before a colon (v1.7.1; it was an ASCII space
+    // at v1.7.0). Measured 59.59 -> 62.34 at the widest reading, drawn at x = 10
+    // in a 308px canvas, and U+00A0 is 2.75px in this context — byte for byte the
+    // width of the space it replaces, so 62.34 is unchanged.
     'canvas.gr': {
         en: { t: 'GR: {v} dB',  b: '' },
-        fr: { t: 'RG : {v} dB', b: '', reviewed: false },
+        fr: { t: 'RG : {v} dB', b: '', reviewed: false },
     },
 });
 
@@ -322,14 +401,23 @@ export const I18N = Object.freeze({
 // reads that overflow as a French spill its offsetParent did not have in
 // English. The budget is the fix; the pin would only move the failure.
 //
+// Re-measured at v1.7.1 with the same method. Every v1.7.0 figure reproduced
+// to the hundredth; two of the French strings changed (Stage N, above).
+//
 // Threshold 49.11 -> Seuil 25.13    Attack 32.33 -> Attaque 38.33
-// Ratio     26.34 -> Ratio 26.34    Release 37.70 -> Relâche 38.94
-// Knee      25.22 -> Genou 31.83    Output 33.56 -> Sortie 29.28
+// Ratio     26.34 -> Ratio 26.34    Release 37.70 -> Relâch. 36.80
+// Knee      25.22 -> Coude 31.23    Output 33.56 -> Sortie 29.28
 // Auto-Gain 51.55 -> Gain auto 47.58
 //
-// FRENCH SHRINKS ON THREE OF THE SEVEN. A gate that only looked for growth
-// would have certified this page and missed that Seuil takes 24px off the
-// widest caption on the row.
+// FRENCH SHRINKS ON FOUR OF THE SEVEN — it was three at v1.7.0, and Relâch.
+// is the fourth: at 36.80 the glossary abbreviation is narrower than English
+// Release itself. A gate that only looked for growth would have certified this
+// page and missed that Seuil takes 24px off the widest caption on the row.
+//
+// The two French strings that GROW still clear the budget with room: Attaque
+// 38.33 and Coude 31.23 against 52. Every .control-group was read back at 52px
+// after the change, and check-ui-labels assertion 7 reports 0 non-label
+// elements moved between the languages — the same 0 it reported before.
 // ============================================================================
 
 export const LABELS = Object.freeze({
@@ -341,13 +429,19 @@ export const LABELS = Object.freeze({
     // is its min-content, and every candidate below is under 30px, so the
     // .preset-bar row keeps its 164px and the whole header stays put.
     //
-    // OUVRIR / SAUVER rather than CHARGER / ENREGISTRER: measured in this
-    // plugin's own .preset-action-btn, Charger is 28.83 against a 30px content
-    // box (1.17px of margin, tighter than anything shipped in Stage K so far)
-    // and Enregistrer is 39.98 and does not fit at all. Ouvrir 24.00 and
-    // Sauver 25.00 leave 5-6px.
+    // OUVRIR / ENREG. — the Stage K measurements below all reproduced this pass
+    // to the hundredth, but the CONCLUSION changed on the Save button. Measured
+    // in this plugin's own .preset-action-btn against its 30px content box:
+    // Charger 28.83 (1.17px of margin, and not taken), Enregistrer 39.98 (does
+    // not fit), Ouvrir 24.00, Sauver 25.00 — and ENREG. 23.75, NARROWER than
+    // both of the strings v1.7.0 chose for width. So Sauver, which the glossary
+    // lists as a calque, had no geometry defending it after all.
+    //
+    // Ouvrir stays: the glossary accepts it for Load where the button opens a
+    // file dialog, and #preset-load calls loadPresetFromFile() — a native open
+    // dialog (modules/preset-manager.js). #preset-save is savePresetWithDialog().
     'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Sauver', reviewed: false } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
 
     // ── The six knob captions ───────────────────────────────────────────────
     'label.threshold': { en: { t: 'Threshold' }, fr: { t: 'Seuil',   reviewed: false } },
@@ -361,20 +455,24 @@ export const LABELS = Object.freeze({
 
     'label.attack': { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: false } },
 
-    // "Relâche", NOT "Relâchement", and the reason is the 52px budget above:
-    // Relâchement measures 62.92 in this plugin's .param-label and would widen
-    // the Release column to 62.92, sliding its knob 5.46px left of every other
-    // knob on the row. Relâche is 38.94 and changes nothing.
+    // "Relâch.", the glossary's ABBREVIATION — and the v1.7.0 note that the only
+    // alternative to Relâche was a layout change was wrong. Re-measured in this
+    // plugin's .param-label: Relâchement 62.92 (widens the .control-group to
+    // 62.92 and slides the knob 5.46px, confirmed by reading the group box back),
+    // Relâche 38.94, English Release 37.70 — and Relâch. 36.80, NARROWER than all
+    // three, with the group staying at exactly 52. The register is recovered
+    // where there is no budget: the tip TITLE is the full "Relâchement".
     //
-    // FLAGGED FOR THE REVIEWER: Relâchement is the fuller term a French
-    // compressor UI would normally use, and this entry trades register for the
-    // column staying where it is. If a native speaker rejects Relâche, the
-    // alternative is not a longer string — it is a layout change to the row.
-    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâche', reviewed: false } },
+    // A caption that is the parameter name with letters missing is not a caption
+    // that DISAGREES with the parameter name, so the tip carries the full form
+    // rather than the truncation (Stage M2 carried trap 9).
+    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
 
-    // "Genou" is the standard French rendering of a compressor knee (genou
-    // doux / genou dur). "Coude" measured 31.23 and would also fit.
-    'label.knee':   { en: { t: 'Knee' },   fr: { t: 'Genou',  reviewed: false } },
+    // "Coude". The v1.7.0 claim that Genou is the standard French rendering of a
+    // compressor knee does not survive the glossary, which lists genou as the
+    // body part and coude as the term. Coude 31.23 against Genou 31.83 — the
+    // .control-group stays 52 either way, so this was never a geometry choice.
+    'label.knee':   { en: { t: 'Knee' },   fr: { t: 'Coude',  reviewed: false } },
     'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: false } },
 
     // ── The auto-gain toggle ────────────────────────────────────────────────
@@ -426,21 +524,31 @@ export const LABELS = Object.freeze({
     // DELETES. Nothing here is invented: each string is the one that was on the
     // element at v1.5.0, translated.
     //
-    // LABEL-IN-NAME (WCAG 2.5.3) HELD IN BOTH LANGUAGES. The accessible name of
-    // a control with a visible caption must CONTAIN that caption, so a speech
-    // user can say what they read. English: "Load" inside "Load preset",
-    // "Save" inside "Save preset". French: "Ouvrir" inside "Ouvrir un
-    // préréglage", "Sauver" inside "Sauver un préréglage". Choosing CHARGER for
-    // the button and leaving "Ouvrir un préréglage" on the name is exactly the
-    // defect found on O-DigiDelay in batch K2, and it is only visible when the
-    // two strings are read together.
+    // LABEL-IN-NAME (WCAG 2.5.3). The accessible name of a control with a
+    // visible caption must CONTAIN that caption, so a speech user can say what
+    // they read. English: "Load" inside "Load preset", "Save" inside "Save
+    // preset". French load still holds exactly: "Ouvrir" inside "Ouvrir un
+    // préréglage". Choosing CHARGER for the button and leaving "Ouvrir un
+    // préréglage" on the name is exactly the defect found on O-DigiDelay in
+    // batch K2, and it is only visible when the two strings are read together.
+    //
+    // FRENCH SAVE NOW HOLDS BY STEM, NOT BYTE-EXACTLY, AND THAT IS FLAGGED.
+    // The caption is the glossary's abbreviation "Enreg." and the name is the
+    // glossary's only accepted rendering of "Save preset", "Enregistrer le
+    // préréglage": the name contains "Enreg" but not the caption's terminal
+    // period. Closing that gap needs either a caption the 30px box cannot hold
+    // (Enregistrer, 39.98) or an invented third form, which the glossary
+    // forbids. Recorded for the developer rather than worked around.
+    //
+    // The "un"/"le" asymmetry is deliberate and is the glossary's: Save acts on
+    // the preset that is loaded, Load picks an arbitrary one.
     'aria.prevPreset':    { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',              reviewed: false } },
     'aria.nextPreset':    { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                reviewed: false } },
     'aria.browsePresets': { en: { t: 'Click to browse presets' }, fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
     'aria.loadPreset':    { en: { t: 'Load preset' },            fr: { t: 'Ouvrir un préréglage',              reviewed: false } },
-    'aria.savePreset':    { en: { t: 'Save preset' },            fr: { t: 'Sauver un préréglage',              reviewed: false } },
-    'aria.settings':      { en: { t: 'Settings' },               fr: { t: 'Paramètres',                        reviewed: false } },
-    'aria.langSelect':    { en: { t: 'Interface language' },     fr: { t: "Langue de l'interface",             reviewed: false } },
+    'aria.savePreset':    { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',         reviewed: false } },
+    'aria.settings':      { en: { t: 'Settings' },               fr: { t: 'Réglages',                          reviewed: false } },
+    'aria.langSelect':    { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',             reviewed: false } },
 });
 
 // ============================================================================
