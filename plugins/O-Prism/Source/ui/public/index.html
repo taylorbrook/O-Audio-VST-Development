@@ -1068,6 +1068,52 @@ body {
 .tab-content::-webkit-scrollbar { width: 6px; }
 .tab-content::-webkit-scrollbar-track { background: transparent; }
 .tab-content::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.4); border-radius: 3px; }
+
+/* ─── HOVER-HELP SURFACE (v1.22.0) ───
+   The single tooltip surface. One node, moved and refilled per anchor — see
+   setupTooltips() in the module below for why it is delegated rather than
+   per-element.
+
+   z-index 10000 is MEASURED, not conventional: this page's tallest stack is the
+   preset menu at 9999 (line 233) and the settings popover at 9998. `#lang-select`
+   is itself a tip anchor and lives INSIDE that popover, so a surface that did not
+   out-stack it would open BEHIND the control that revealed it.
+
+   `visibility: hidden` at rest rather than only `opacity: 0`. Un-hiding it leaves
+   check-ui-labels byte-identically green — a fixed box at 0,0 has the same rect in
+   both languages, so it neither moves nor changes the visible set (measured on
+   O-Bass). What catches it is check-i18n assertion 10 and boot-all-uis' text count.
+   It is hidden because a visible empty surface is a visible empty surface.
+
+   `pointer-events: none` or the surface steals the hover that is keeping it open. */
+.tooltip {
+    position: fixed;
+    left: 0; top: 0;
+    z-index: 10000;
+    max-width: 280px;
+    background: #3C2F2F;
+    color: #F5E6D3;
+    border: 1px solid #8B7355;
+    border-radius: 3px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+    padding: 7px 10px;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    font-size: 11px;
+    line-height: 1.4;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+}
+.tooltip.show { opacity: 1; visibility: visible; }
+.tooltip .tip-title {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #C9A27B;
+    margin-bottom: 3px;
+}
 </style>
 </head>
 <body>
@@ -1909,6 +1955,157 @@ function localizeSubtree(root) {
         applyI18nAttributes(el);
 }
 window.__localizeSubtree = localizeSubtree;
+
+// ── hover-help renderer (v1.22.0) ───────────────────────────────────────────
+//
+// THE CANON DOES NOT PAINT ANYTHING. applyI18n() writes `data-tip-title` and
+// `data-tip` ATTRIBUTES onto the anchors named in TIP_BINDINGS, in the current
+// language, and rewrites both on every language change. That is all it does.
+// The thing that reads those attributes and paints a surface is this function,
+// and before v1.22.0 this page did not have one — so authoring 107 tooltip
+// bodies and binding them, with no other change, would have shipped 107
+// INVISIBLE strings past three green gates: check-i18n counts TIP_BINDINGS rows
+// statically, check-ui-labels has no tooltip awareness at all, and boot-all-uis
+// counts aria-label and title and never data-tip. `tests/ui_tip_render_check.js`
+// is the gate that can see it, and it is the first runnable gate this plugin has.
+//
+// TEN PROPERTIES, each load-bearing, each with a scar behind it:
+//
+//  1. DELEGATED ON `document`, not querySelectorAll('[data-tip]') at setup time.
+//     No anchor carries data-tip until applyI18n() has run, so a setup-time
+//     query binds nothing at all and fails silently.
+//  2. pointerover / pointerout / focusin / focusout — they BUBBLE.
+//     pointerenter / focus do not.
+//  3. pointerout ignores a move between two descendants of the SAME anchor, or
+//     the tip flickers off and on at every child boundary. On this page a knob
+//     anchor holds an svg, two circles, a caption and a readout.
+//  4. createElement + textContent, never innerHTML. Localized copy must never
+//     reach a markup path; check-i18n assertion 9 forbids an angle bracket in an
+//     i18n.js string literal and this is the other half of that rule.
+//  5. FLIP FIRST, THEN CLAMP, on all four edges with an 8 px margin. The clamp
+//     runs unconditionally AFTER the flip rather than instead of it, because a
+//     flipped tip can still overflow the other way (O-Bass, at 420x320). This
+//     frame is 1200x800 — the largest in the suite — so the flip is the normal
+//     path only along the bottom footer and the right-hand tuning column, and
+//     the clamp is a real assertion rather than the normal path. The render
+//     gate drives it directly with a plant sized against THIS frame.
+//  6. pointer-events: none on the surface, or the tip steals the hover keeping
+//     it open.
+//  7. position: fixed, visibility: hidden until shown.
+//  8. Escape hides it. pointerdown hides it.
+//  9. THE FOCUS ARM IS LATCHED TO THE KEYBOARD. A mouse click on a <button>
+//     FOCUSES it, so the unconditional focusin rule re-opens the tip that
+//     pointerdown just hid and parks it across whatever the click opened —
+//     measured on O-Emulator as the gear's own tip lying over the settings
+//     popover. `:focus-visible` is deliberately NOT the discriminator: Chromium
+//     reports it false for a programmatic .focus() following a click, so a gate
+//     driving focus directly would measure "no tip" and record that as correct.
+//     An explicit last-input-device latch is the same rule and is drivable with
+//     real events; any keydown releases it.
+// 10. A DRAG GUARD, and on this page it is REQUIRED rather than optional.
+//     bindKnob() starts a drag on `mousedown` and tracks `document.mousemove`
+//     (see below, ~line 2420) — it does NOT call setPointerCapture, so boundary
+//     events are NOT retargeted for the duration of a drag. Without the guard,
+//     turning a knob and straying one pixel into the neighbouring cell fires
+//     pointerover there and opens the NEIGHBOUR's tip over the control being
+//     turned. `pointerdown` alone cannot cover it: pointerover arrives after it.
+//     The flag is cleared on pointerup AND pointercancel — a guard that is only
+//     ever set is a permanent off switch that passes every other assertion.
+//
+// Called AFTER initI18n(), inside the same deferred init and the same
+// try/catch (pattern_module_toplevel_init_tdz).
+function setupTooltips() {
+    const tip = document.getElementById('tooltip');
+    if (!tip) { console.warn('tooltip surface missing — hover-help unavailable'); return; }
+
+    const MARGIN = 8;
+    let active = null;
+    let lastInputWasPointer = false;
+    let pointerHeld = false;
+
+    const position = (x, y) => {
+        const r = tip.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let nx = x + 14;
+        let ny = y + 16;
+        // Flip to the other side of the cursor when the natural side overflows.
+        if (nx + r.width  > vw - MARGIN) nx = x - r.width  - 14;
+        if (ny + r.height > vh - MARGIN) ny = y - r.height - 12;
+        // Then clamp, unconditionally, on all four edges. The Math.max on the
+        // upper bound keeps the arithmetic sane for a tip taller than the frame:
+        // it lands at MARGIN rather than at a negative coordinate.
+        nx = Math.min(Math.max(MARGIN, nx), Math.max(MARGIN, vw - r.width  - MARGIN));
+        ny = Math.min(Math.max(MARGIN, ny), Math.max(MARGIN, vh - r.height - MARGIN));
+        tip.style.left = `${nx}px`;
+        tip.style.top  = `${ny}px`;
+    };
+
+    const show = (el, x, y) => {
+        const title = el.getAttribute('data-tip-title');
+        const body  = el.getAttribute('data-tip');
+        if (!title && !body) return;
+        tip.textContent = '';
+        if (title) {
+            const t = document.createElement('span');
+            t.className = 'tip-title';
+            t.textContent = title;
+            tip.appendChild(t);
+        }
+        if (body) tip.appendChild(document.createTextNode(body));
+        tip.classList.add('show');
+        tip.setAttribute('aria-hidden', 'false');
+        position(x, y);
+    };
+
+    const hide = () => {
+        tip.classList.remove('show');
+        tip.setAttribute('aria-hidden', 'true');
+        active = null;
+    };
+
+    const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
+
+    document.addEventListener('pointerover', (e) => {
+        if (pointerHeld) return;              // property 10 — mid-drag
+        const el = anchorOf(e.target);
+        if (!el || el === active) return;
+        active = el;
+        show(el, e.clientX, e.clientY);
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+    });
+    document.addEventListener('pointerout', (e) => {
+        if (!active) return;
+        if (anchorOf(e.relatedTarget) === active) return;   // same anchor, child boundary
+        hide();
+    });
+    document.addEventListener('pointerdown', () => {
+        lastInputWasPointer = true;
+        pointerHeld = true;
+        hide();
+    });
+    document.addEventListener('pointerup',     () => { pointerHeld = false; });
+    document.addEventListener('pointercancel', () => { pointerHeld = false; });
+
+    document.addEventListener('focusin', (e) => {
+        if (lastInputWasPointer) return;
+        const el = anchorOf(e.target);
+        if (!el) return;
+        active = el;
+        const r = el.getBoundingClientRect();
+        show(el, r.left + r.width / 2, r.bottom);
+    });
+    document.addEventListener('focusout', hide);
+
+    // One keydown listener, two jobs: any key at all means the keyboard is
+    // driving again, which releases the latch; Escape additionally hides.
+    document.addEventListener('keydown', (e) => {
+        lastInputWasPointer = false;
+        if (e.key === 'Escape') hide();
+    });
+}
 
 // ── the settings popover ────────────────────────────────────────────────────
 (function initSettingsPopover() {
@@ -4190,7 +4387,11 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
 // expandKnobMarkup() has generated all 64 .knob-label spans, the preset bar has
 // been built, and the panels above have been declared. The tuning IIFE's own
 // injectors call localizeSubtree() on whatever they build after this point.
-try { initI18n(); } catch (e) { console.error('[i18n] init failed:', e); }
+//
+// setupTooltips() sits AFTER initI18n() and inside the SAME try/catch,
+// deliberately on both counts: no anchor carries data-tip until applyI18n() has
+// written it, and a throw in either must not cost the page a knob.
+try { initI18n(); setupTooltips(); } catch (e) { console.error('[i18n] init failed:', e); }
 </script>
 
 <!-- Wavetable Manager Modal -->
@@ -4201,6 +4402,11 @@ try { initI18n(); } catch (e) { console.error('[i18n] init failed:', e); }
         <button class="wt-modal-close" id="wt-modal-close" data-i18n="label.close">Close</button>
     </div>
 </div>
+
+<!-- Hover-help surface. ONE node for the whole page, filled and positioned by
+     setupTooltips(). Placed last in the body so it is the final child of the
+     stacking root and needs no help from a transformed ancestor. -->
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
 <link rel="stylesheet" href="./css/wavetable-editor.css">
 <script src="./js/wavetable-editor.js"></script>

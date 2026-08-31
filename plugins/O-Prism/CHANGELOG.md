@@ -1,5 +1,26 @@
 # O-Prism Changelog
 
+## v1.22.0 (2026-08-31)
+
+### Added
+- **Hover-help, in both languages.** 107 tooltips — 105 parameter tips and 2 chrome tips — each with a title and a two-or-three-sentence body ending in the control's range and unit. Every French string is machine-drafted and flagged `reviewed: false`; no native speaker has read any of it. The page's 262 unreviewed entries are now the largest single block in the repo's native-speaker worklist.
+- **A tooltip renderer, because the canon does not paint anything.** `applyI18n()` writes `data-tip-title` and `data-tip` ATTRIBUTES onto the anchors named in `TIP_BINDINGS` and stops there; the surface that reads them is per-plugin page code, and v1.21.0 had none — no `#tooltip` node, no `.tooltip` rule, no hover handler. Authoring 107 bodies without it would have shipped 107 invisible strings past three green gates: `check-i18n` counts table rows statically, `check-ui-labels` has no tooltip awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. `setupTooltips()` is delegated on `document`, flips then clamps on all four edges at an 8 px margin, builds its content with `createElement` + `textContent` and never `innerHTML`, latches the focus arm to the keyboard, and guards against a mid-drag neighbour opening its own tip. It is called after `initI18n()` inside the same `try/catch`.
+- **`tests/ui_tip_render_check.js` — the first runnable gate this plugin has ever had.** `tests/` previously held `i18n-states.json` and `ui-stub/generic-overrides.json`: data, both of them. 2180 assertions at the shipping 1200×800 frame, in `en` → `fr` → `en`, driving all five tabs and the four sync-gated dropdowns through the page's own clicks.
+
+### Changed
+- **All 173 parameter units were recovered from the page's own formatters.** O-Prism is the only plugin in the suite whose parameter dump carries an empty `label` column for **every** parameter — 0 %, against O-Bells' 69 % — so there was no unit to inherit and inventing one is forbidden. Each of the 21 formatters is cited by `index.html` line in `js/i18n.js`.
+- Two readout quirks are stated in the copy rather than rounded away: `delayFeedback` tops out at **95 %** and not 100, and `lfoNRate`'s one-decimal readout renders the bottom of its 0.01–20 Hz range as **`0.0 Hz`**.
+- The five bypass buttons read the **inverse** of their parameter — the face is `ON` while the effect is running, but the parameter is named `<fx>Bypass` and its host text is `Off`/`On`, so the automation lane's `On` is the button's `OFF`. Each of the five tips says so. A tip that hid it would be a tip that lies.
+
+### Not fixed — reported instead
+- **64 of the 173 parameters cannot be reached by `TIP_BINDINGS` at all.** `#mod-matrix-rows` is empty in the static markup (`index.html:1599`); an `async` IIFE at `:2989` awaits `getModSourceNames()`/`getModDestNames()` and only then builds 16 rows with `const prefix = 'modSlot' + i`. Because of the `await`, all 64 anchors are absent from the DOM when `applyI18n()` runs, so a binding for any of them resolves to null and warns. Measurable statically: **0 of the 64 `modSlot*` IDs appear as a whole string literal anywhere in the served root.** The page's own injected-subtree hook, `localizeSubtree()` (`:1905`), does **not** solve it — it loops `applyLabel` over `[data-i18n]` and `applyI18nAttributes` over aria/placeholder/alt, writes no tip attributes, and the mod-matrix builder never calls it. Extending it is a canon-shaped change and needs a decision, not a one-plugin workaround.
+- **`tonic` is in the same class.** It HAS a control — the `.tonic-selector` arrows — but that markup is injected by `updateIntervalListUI()` (`:3918`) after `await getTonicNote()`, from an IIFE that starts on `setTimeout(tryInit, 300)`.
+- **Three parameters have no control at all.** `tuningPreset` — the page takes a slider state for it (`:3017`) only to LISTEN; the library loads a tuning through the `loadEmbeddedTuning` native fn and `PluginEditor.cpp:167` forces the parameter to Custom on a hand edit. `stereoWidth` and `velocityCurve` — zero occurrences anywhere in the served root, both live DSP (`PluginProcessor.cpp:889-902`, `PrismVoice.cpp:131`), both set by factory presets. A DAW can automate a stereo width and a velocity response the user cannot see. **No control was added to satisfy a count.**
+- **Two dead `bindKnob()` calls.** `bindKnob('masterTune', …)` at `index.html:2721` and `bindKnob('octaveStretch', …)` at `:2722` look for `#knob-masterTune` and `#knob-octaveStretch`, neither of which exists, and return at the first guard. Both parameters have working bespoke controls elsewhere (`#ref-pitch-knob` at `:4038`, `#octave-stretch` at `:4110`), so nothing is broken — but `octStretchFmt`'s three-decimal formatter is passed to a call that never runs, while the readout the user actually sees prints two decimals from a different line. Harmless today, and a trap for whoever next edits either. Left alone: deleting a call is a behaviour change this dispatch has no mandate for.
+
+### Fixed
+- Nothing. No pre-existing defect was exposed by authoring this copy, which makes O-Prism the exception in a stage that has now found five.
+
 ## v1.21.0 (2026-08-30)
 
 ### Added
