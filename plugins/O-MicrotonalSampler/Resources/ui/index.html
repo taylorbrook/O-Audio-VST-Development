@@ -693,6 +693,26 @@
          that mirrors the input's normalised value via input events. -->
     <footer id="control-strip">
     </footer>
+
+    <!-- ============== v1.25.0: HOVER-HELP SURFACE (Stage M) ==============
+         ONE tooltip for the whole page, refilled per anchor by setupTooltips()
+         in js/sampler-app.js from the data-tip-title / data-tip attributes
+         applyI18n() writes onto the anchors named in TIP_BINDINGS.
+
+         BORN EMPTY, and it stays empty until a pointer or a keyboard focus
+         reaches an anchor. There is no authored copy in this element and there
+         must never be any: a literal here would be a string outside the i18n
+         table, which check-i18n assertion 10 would demand a key for and which
+         would ship English in both languages.
+
+         A direct child of #app. It is position: fixed, so its place in the
+         markup decides nothing about where it paints — only what it inherits
+         and which stacking context it belongs to. #app creates none (position:
+         relative, no transform), so #tooltip's z-index: 1100 is compared
+         against the page's own 1000 / 21 / 2 rather than being scoped inside
+         anything — which is the failure #header:z-index:2 exists to fix one
+         level up. -->
+    <div id="tooltip" role="tooltip" aria-hidden="true"></div>
   </div>
 
   <!-- App entry point. Must come after #app so it can query DOM. -->
