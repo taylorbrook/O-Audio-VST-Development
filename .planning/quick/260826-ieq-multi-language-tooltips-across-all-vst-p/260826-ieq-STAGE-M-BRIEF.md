@@ -932,3 +932,302 @@ is most likely to reproduce:
 5. **The root `CMAKE_OSX_DEPLOYMENT_TARGET` is 10.13 and O-TextureForge cannot
    build at it.** See the finding above. Latent fresh-clone / CI hazard, one
    plugin, root-CMakeLists-owned.
+
+---
+
+# BATCH M2 COMPLETE — 8 of 8, and what M3 inherits
+
+All eight landed 2026-08-30 22:35–22:45. **The zero-tip count went 12 → 4**, and the
+four are exactly O-Bells, O-Formant, O-Prism, O-Wind — the M3 set. Repo-wide
+`check-i18n` ALL CHECKS PASS across 43; `boot-all-uis` 43/43 clean, 0 warn,
+0 failed, native `title=` still 0 repo-wide.
+
+| Plugin | Version | Commit | Files | Params → controls | Tips | Render gate |
+|---|---|---|---|---|---|---|
+| O-Detune | 1.7.0 | `a4c243af` | 7 | 18 → 16 | 18 | 393/393 |
+| O-Freeze | 2.2.0 | `4090e6ac` | 7 | 12 → 12 | 14 | 311/311 |
+| O-TextureForge | 1.2.0 | `56be79ca` | 9 | 12 → 12 | 14 | 287/287 |
+| O-AnalogEQ | 1.3.0 | `308b3360` | 7 | 16 → 15 | 13 | 308/308 |
+| O-Bowed | 1.6.0 | `eb62babf` | 7 | 29 → 28 | 30 | 457/457 |
+| O-Reed | 1.3.0 | `fadd9b7e` | 7 | 35 → 33 | 35 | 523/523 |
+| O-MicrotonalSampler | 1.25.0 | `adb7fc4f` (+`9a29b026`) | 10 | 19 → 18 | 21 | 349/349 |
+| O-GrainScatter | 2.6.0 | `5398b5a2` | 8 | 36 → 36 | 38 | 796/796 |
+
+**183 tips authored** (166 parameter + 16 chrome + 1 double-binding), every French
+entry `reviewed: false`. **3424 render-gate assertions**, 0 failures. Zero decimal
+points in any French body across all eight — the comma held.
+
+## SEVEN parameters are host-reachable and page-unreachable
+
+M1 found one (O-Bass). M2 found seven across five plugins, and **not one is
+vestigial** — each is automatable, each reaches the DSP:
+
+| Plugin | Parameter | Why there is no control |
+|---|---|---|
+| O-Detune | `focus_low`, `focus_high` | DSP writes their coefficients every block (`PluginProcessor.cpp:602-603`), relayed to the WebView, page even builds slider states and formatters. A DAW can automate a band-limit the user cannot see. |
+| O-AnalogEQ | `output_gain` | Removed in the v1.0.5 UI simplification, documented at `PluginProcessor.cpp:88`, kept because factory presets set it. |
+| O-Bowed | `tuningSystem` | `PluginEditor.cpp:78` builds a `WebComboBoxRelay`; the page's `bindComboBox()` helper (`index.html:1275`) is never called. |
+| O-Reed | `referencePitch` | Its control is in the **shared** `scala-tuning-engine` panel, lazy-mounted on first Tuning-tab click, absent from the DOM when `applyI18n()` runs. |
+| O-Reed | `tuningSystem` | `bindComboBox('tuningSystem','tuningSystem')` resolves to `null` and warns on every load. |
+| O-MicrotonalSampler | `rr_mode` | No control in any version; no `setRrMode` native fn exists. |
+
+**The rule held: none of the eight added a control to satisfy the count.** Three
+plugins — O-Freeze, O-TextureForge, O-GrainScatter — matched exactly, in both
+directions.
+
+---
+
+# CORRECTIONS AND CARRIED TRAPS FROM M2
+
+Where this section disagrees with anything above, THIS section wins.
+
+## 1. THE POST-FLIP RE-CLAMP IS UNREACHABLE BY CONSTRUCTION — on all eleven ports
+
+From O-AnalogEQ, and it reaches back across every M1 plugin. In `position()` the
+re-clamp reads `ny = innerHeight - M - r.height`, then `Math.max(M, ny)`. **After
+a flip `ny = y - h - 12`, so the test `ny + r.height > innerHeight - M` collapses
+to `y - 12 > innerHeight - M` — it stops mentioning the tip's size at all**, and
+can only fire for a cursor outside the viewport. Same collapse on x
+(`nx + r.width` → `x - 14`).
+
+O-Chorus's copy credits that line with *"every vertical placement on this page
+lands on the line below, not on the flip above it"*. **The behaviour is real; the
+credited line is not producing it.** The `Math.max(M, ny)` floor is. Deleting the
+floor puts a tip at `top −95.1` — 103 px off the page — while all 13 shipped tips
+stay green.
+
+**M3: do not delete the line, and do not claim it.** Drive the floor directly with
+its own assertion, the way O-AnalogEQ's `[4c]` does. This is
+`pattern_review_recomputes_instead_of_measuring` wearing a clamp.
+
+## 2. A TENTH RENDERER PROPERTY — the drag guard — and it is CONDITIONAL
+
+From O-TextureForge. Knobs that start a drag on `mousedown` and track
+`document.mousemove` will open a NEIGHBOUR's tip over the control being turned
+when the drag strays into another cell. **`pointerdown` alone cannot cover it —
+`pointerover` arrives after it.** The fix is a `pointerHeld` flag cleared on
+`pointerup`/`pointercancel`, and the control must assert the RELEASE as well as
+the hold, or it is a permanent off switch that passes.
+
+**But O-AnalogEQ needed none**: `setPointerCapture(e.pointerId)` retargets every
+boundary event for the duration of a drag, so the guard is already there in the
+page's own code. **Check which shape your page has before adding a flag** — and
+drive the drag either way, because "no guard needed" is a measurement, not a
+default.
+
+## 3. `applyI18n` FALLS BACK `el.closest(w) || el` — so the hover sweep is BLIND to a broken wrapper
+
+From O-Reed, and it is the most important gate-shape finding of the batch. Break
+one binding's wrapper and:
+
+- assertion **[1] fails** (the selector resolves, the wrapper does not)
+- assertions **[2], [3], [4] all still PASS**, in both languages
+
+Because the fallback hands back the bare element, the tip still opens — on the
+wrong-sized cell. **A gate that checks only "the tip appeared with the right text
+inside the viewport" cannot see a broken wrapper at all.** That is why [1] must be
+a hard FAIL and never a warning. Same family as finding 1: an assertion that looks
+like it covers something it cannot see.
+
+## 4. AN ANCHOR CAN BE UNOPENABLE WHILE PASSING EVERY STATIC CHECK
+
+Three distinct shapes, three plugins:
+
+- **O-MicrotonalSampler** — `#ctrl-attack` is the **1×1 px, opacity-0,
+  `pointer-events: none`** `<input type="range">` inside the cell. It is an id,
+  it resolves, `check-i18n` is happy, and no human could ever open its tip. The
+  addressable node is `[data-knob-id="ctrl-attack"]`.
+- **O-AnalogEQ** — `.knob-outer` and `.knob-inner` are **both**
+  `pointer-events: none` (`index.html:229, :271`). The only node receiving a
+  pointer event is their parent, which resolves outer-vs-inner from the cursor's
+  **distance from the centre** (`INNER_THRESHOLD 0.60`), not a child boundary. So
+  **two parameters share one hover target and one tip naming both rings.**
+- **O-GrainScatter** — 14 of 36 controls are `pointer-events: none` **in the
+  DEFAULT state**, from two feature gates (`setupPitchGate` `app.js:326-345`,
+  `setupSpatialGate` `:351-375`).
+
+**Assert a minimum hover area, and assert that every binding lands on a DISTINCT
+node.** Four of the eight added the distinct-node assertion independently; make it
+standard. A second row silently overwriting the first passes `check-i18n` while
+reporting two bound tips.
+
+## 5. DRIVE OUT OF A HIDDEN STATE THROUGH THE PAGE'S OWN PATH, NEVER BY STRIPPING THE CLASS
+
+O-GrainScatter's 14 gated controls, O-Bowed's `#sympAmount-ctrl` (`display: none`
+at `sympatheticCount`'s default of 0), O-Detune's Width slider (`.disabled` →
+`pointer-events: none` while `mono_safe` is on). All are default states.
+
+Every one of the three drove the parameter through the stub's own
+`valueChangedEvent` handler rather than removing the class. **Stripping the class
+tests a state the plugin never reaches.** O-GrainScatter's gate then pins the rest
+state as its own assertion, so the gating cannot silently disappear either.
+
+Note also: **`pointer-events: none` does NOT remove an element from the tab ring.**
+O-GrainScatter's three gated `<select>`s open their tip from the keyboard while
+unreachable by mouse. Half-reachable is a state; report it rather than calling it
+dead.
+
+## 6. THE BLUR IS LOAD-BEARING ON SEVEN OF EIGHT — and the eighth is the instructive one
+
+O-TextureForge ran the full 2×2 and found the blur made **no difference**: latch
+removed fails at 4648 px² with or without it, because the section preceding that
+control is pure mouse work and the French sweep had already blurred the gear.
+
+**It kept the blur and recorded in the gate that this is an accident of section
+order, one edit from decoration.** That is the correct handling. O-Tremolo's
+finding is about a CLASS of gate, not a universal law — **run the 2×2 and report
+which cell you are in**, rather than asserting the blur matters because a previous
+plugin said so.
+
+The static-grep half is now confirmed on six plugins: **deleting only
+`if (lastInputWasPointer) return;` leaves every `grep -c lastInputWasPointer`
+green.** Label that grep a presence note in your gate, never the control.
+
+## 7. THE EXECUTABLE GATE MAY NOT LIVE IN `tests/`
+
+O-MicrotonalSampler's `tests/` holds only DATA — `i18n-states.json`, `fixtures/`,
+`ui-stub/`. The runnable gate is **`Source/tests/ui_frontend_check.js`** (20/20).
+The brief's "run every gate in `tests/`" would have missed it. **Look in
+`Source/tests/` too**, and in `tests/render-harness/`.
+
+**And run the render harness where one exists.** O-Bowed's canonical preset
+rendered **bit-identical** to the committed golden
+(`93124fb8dd8223caafac5948c988a226230363d79a17323d386e9a1db34c8891`) — which is
+the only MEASURED evidence in this stage that the `PluginProcessor.cpp` include-
+guard change is DSP-neutral. Everywhere else it is argued.
+
+## 8. "BIND TO THE IDS THE UI ALREADY USES" — one plugin in eight, and it is not the rule
+
+M2's score, with the reason each time:
+
+| Plugin | Selector half | Target half |
+|---|---|---|
+| **O-Freeze** | **TRUE** | **TRUE** — `.knob` is a flex COLUMN holding visual + caption + readout, so the id already IS the cell. Every binding bare, no `closest()` anywhere. |
+| O-Detune | TRUE | false — 11 of 18 walk to a wrapper |
+| O-Bowed | false (28 of 30 have no id) | not needed — `.knob-control` IS the 62 px cell |
+| O-Reed | false for 27 of 35 | true for those 27, false for the 5 `<select>`s |
+| O-AnalogEQ | false — the naive ids are `pointer-events: none` | false — the walk widens the cell 4225 → 7225 px², +71% |
+| O-TextureForge | false — 11 of 14 have no id | false — caption and readout are SIBLINGS of the 44 px circle |
+| O-MicrotonalSampler | false — the id is a 1×1 px hidden input | false — and two wrapper classes match TWICE |
+| O-GrainScatter | false — **3 of 38**, the page has 4 ids total | false — the same 34 need `closest()` |
+
+**O-Freeze is the only plugin in fourteen where the naive reading of T17 is
+correct on both halves.** Check the two halves separately, every time.
+
+**Chrome binds BARE on all eight** — `.settings-cluster` (or its equivalent) holds
+the gear and the popover on every page in this batch. O-TextureForge found the
+mirror image as well: `#midi-mode` shares `.bottom-controls` with `#drop-zone`, so
+a wrapper would put the MIDI tip over the drop zone.
+
+## 9. "THE CAPTION WINS" REVERSES WHEN THE CAPTION IS A TRUNCATION
+
+O-Reed (27 captions cut to a 68 px box, three ending in a truncating period),
+O-MicrotonalSampler (`Poly`, `Vel-XF`, `Expr`, `Dyn Rng`, `Out Gain` at a 56 px
+column) and O-Bowed all shipped the parameter's FULL name as the tip title.
+
+**The rule is for a caption that DISAGREES with the parameter name. A caption that
+is the same name with letters missing is not a disagreement** — and a 260 px
+tooltip is precisely where `Reed Hard.` should become `Reed Hardness`, which is
+also the automation-lane name. O-GrainScatter took the other branch and shipped
+six abbreviated French titles; it flagged them for the native-speaker review and
+opened each body by naming the control in full. Both are defensible; **say which
+you chose and why.**
+
+## 10. TWO SHIPPED DEFECTS FOUND WHILE WRITING COPY — this is what the stage is for
+
+Neither is a tooltip bug. Both were found because somebody had to describe what a
+control does and looked:
+
+- **O-TextureForge: three readouts have been blank since v1.0.0.** `setupKnob` is
+  passed `(n) => ''` for `grainSize`, `grainDensity` and `outputGain`
+  (`src/app.js:705, :706, :708`), so the first `updateDisplay()` erases the
+  authored fallbacks `50ms`, `8`, `0 dB` and nothing replaces them. Measured in
+  the harness. Not fixed — webpack-input edit plus a bundle rebuild.
+- **O-Reed: `instrumentPreset` is a dead parameter.** `pInstrumentPreset` is
+  fetched at `ReedWindVoice.cpp:50` and never `load()`ed anywhere in `Source/`.
+  The dropdown moves the automation lane and nothing else. The 21 factory presets
+  carrying those voicings are unreachable from the UI (no preset bar) and from the
+  host (`getNumPrograms()` returns 1).
+- **O-Reed: reported latency does not follow Oversampling.** `setLatencySamples()`
+  is called once in `prepareToPlay()` from the default 2× path
+  (`PluginProcessor.cpp:392-394`, its own comment admits it), so 4× leaves the
+  host compensating by the 2× figure.
+
+Both plugins put the truth in the tooltip body rather than describing the feature
+as intended. **A tip that lies is worse than no tip** — that principle has now
+rewritten five sentences in this task.
+
+## 11. TWO MORE PLACES A TIP WOULD HAVE LIED
+
+- **O-Bowed's gear popover opens BELOW** (`top: calc(100% + 8px)`). Copying
+  O-Chorus's "above" wording would have shipped a false sentence.
+- **O-MicrotonalSampler's `technique_select` is 0..7 in the host and 1..8 on the
+  page.** The body says "Slots 1 to 8" because the user reads the page.
+  Re-ranging an `AudioParameterInt` is host-visible and was not done.
+
+## 12. RESTORE A PLANT FROM A NAMESPACED COPY — eight for eight
+
+Every executor restored by file copy from `scratchpad/<plugin>/`, and several
+re-checksummed afterwards. **Nobody ran `git checkout --`.** The scar that rule
+comes from is O-GrainScatter's, and O-GrainScatter is the plugin that kept
+`.PRISTINE` copies and verified them.
+
+**Size the plant against YOUR frame, and prove it overflows before you call the
+control passed.** O-Detune measured ~448 px of clamp room and noted a habitual 40×
+plant would have fit and reported nothing. O-AnalogEQ SEARCHED for a plant size
+that fails on both sides of the flip rather than guessing one.
+
+## 13. `--amend` IS UNSAFE IN THIS CHECKOUT
+
+O-MicrotonalSampler needed to fix three stale line citations in its own comment
+and **committed a second time rather than amending**, because HEAD is shared with
+seven concurrent executors and `--amend` rewrites whichever commit is HEAD at the
+instant it runs. Correct call. `9a29b026` is comment-only, and it rebuilt and
+re-`auval`'d so the installed binary matches HEAD.
+
+Every executor used `<sha>^` rather than `HEAD~1`, and every one of them was
+right to: another commit landed between in five of eight cases.
+
+---
+
+## DECISION ITEMS — added by M2
+
+6. **`sanisizer` is pinned to a MOVING BRANCH.**
+   `build/_deps/subpar-src/extern/CMakeLists.txt:4-9` declares it with
+   `GIT_TAG master`. Upstream rewrote a commit; the local checkout and
+   `origin/master` diverged 1↔1, so every CMake **regenerate** runs
+   `git pull --rebase`, replays the local copy onto the upstream rewrite of
+   itself, and conflicts in `include/sanisizer/float.hpp`. Any `CMakeLists.txt`
+   change triggers a regenerate — which was all eight of us. Resolved in the
+   DERIVED directory only (`reset --hard origin/master`, under the mutex), and
+   provably neutral: the entire delta between the two SHAs is one added comment
+   line. **The fix is to pin that FetchContent to a SHA.** Same dependency chain
+   as decision item 5.
+7. **O-TextureForge's three blank readouts** (finding 10). Webpack-input edit plus
+   a bundle rebuild — deliberately out of a tooltip stage's scope.
+8. **O-Reed's dead `instrumentPreset` and its oversampling-blind latency**
+   (finding 10). Both host-visible; both need a decision, not a patch.
+9. **The unreachable post-flip re-clamp across eleven plugins** (finding 1). It is
+   per-plugin page code, not `scripts/`, so fixing it is an eleven-file sweep.
+10. **O-AnalogEQ's two Q toggles clip their own `TIGHT` option in ENGLISH.**
+    `.three-way-option` is `flex: 1` without `min-width: 0`, so three items sit at
+    min-content (109.87 px in a 108 px box) and `overflow: hidden` takes 1.87 px
+    off `TIGHT`'s right edge. Carried unchanged from v1.2.0, invisible to both
+    gates (those nodes are exempt and never keyed).
+11. **Keyboard reach is partial on most of this batch by design.** Knob cells are
+    pointer-drag `<div>`s with no `tabindex`, so hover-help's keyboard half
+    reaches only the chrome and any natively focusable control — 11 of 38 on
+    O-GrainScatter, 3 of 14 on O-TextureForge, 2 of 13 on O-AnalogEQ. Adding
+    `tabindex` is a feature change with a focus-ring cost. **This is the largest
+    open accessibility question the stage has surfaced.**
+12. **Checkpoint 5 is now further out, not closer.** M2 adds **183** machine-drafted
+    French entries to a worklist no native speaker has started. Repo total 3471.
+
+## STILL NOT VERIFIED, on all eight
+
+No DAW test — `auval` and headless Chromium only, never a real WKWebView. The
+Standalone `.app` is stale (`build-and-install.sh` builds VST3 + AU only).
+Checkpoint 4 (host session save/reopen) reasoned, not executed. Windows/WebView2
+font metrics remain the standing hardware-blocked deferral, and **tooltips are new
+surface for it** — French wraps taller inside a fixed `max-width`, so a wider face
+shows there first.
