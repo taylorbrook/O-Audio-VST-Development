@@ -200,17 +200,20 @@
        and the English caption "Load" renders 18.5px of text. The shipped
        v1.5.0 button was already 0.5px over its own content box in ENGLISH and
        cleared check-ui-labels assertion 4 by exactly the 0.5px tolerance and
-       nothing more. Ouvrir (24.0) and Sauver (25.0) fail it outright.
+       nothing more. Ouvrir (24.0) and Enreg. (23.75) fail it outright.
 
        Nothing MOVES either way: the button is border-box with a pinned 32px
        width, so padding redistributes inside a rectangle that cannot change,
        and the caption is centred by `justify-content: center` rather than by
        the padding. Nor can the button grow — a flex item with a definite
        preferred size takes min(specified, content) as its automatic minimum,
-       so `width: 32px` floors it at 32 even though Sauver's min-content plus
-       the old padding was 37.
+       so `width: 32px` floors it at 32 even though the widest French caption's
+       min-content plus the old padding was 37.
 
-       Content box goes 18 -> 30: Ouvrir clears by 6.0px, Sauver by 5.0px.
+       Content box goes 18 -> 30: Ouvrir clears by 6.0px, Enreg. by 6.25px.
+       (Stage N, v1.7.1: the Save caption was SAUVER 25.0 and is now ENREG.
+       23.75 — the glossary term is NARROWER than the calque it replaced, so
+       this comment's conclusion is unchanged and its margin grew.)
        Negative control: revert this one line and [4][fr] fails again by name
        on both buttons. */
     .preset-action-btn {
