@@ -27,27 +27,27 @@ Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
 | O-Bells | 📦 Installed | 4.2.0 | Synth (Physical Modeling Bells) | 2026-08-29 |
-| O-Tremolo | 📦 Installed | 1.7.0 | Audio Effect (Tremolo) | 2026-08-29 |
-| O-AnalogSaturation | 📦 Installed | 1.2.0 | Audio Effect (Saturation) | 2026-08-29 |
+| O-Tremolo | 📦 Installed | 1.8.0 | Audio Effect (Tremolo) | 2026-08-30 |
+| O-AnalogSaturation | 📦 Installed | 1.3.0 | Audio Effect (Saturation) | 2026-08-30 |
 | O-Marimba | 📦 Installed | 1.13.0 | Synth (Physical Model) | 2026-08-28 |
-| O-Comp | 📦 Installed | 1.6.0 | Audio Effect (Compressor) | 2026-08-29 |
+| O-Comp | 📦 Installed | 1.7.0 | Audio Effect (Compressor) | 2026-08-30 |
 | O-AnalogEQ | 📦 Installed | 1.2.0 | Audio Effect (EQ) | 2026-08-28 |
-| O-DigiDelay | 📦 Installed | 1.3.0 | Audio Effect (Delay) | 2026-08-28 |
-| O-SimpleReverb | 📦 Installed | 1.6.0 | Audio Effect (Reverb) | 2026-08-29 |
+| O-DigiDelay | 📦 Installed | 1.4.0 | Audio Effect (Delay) | 2026-08-30 |
+| O-SimpleReverb | 📦 Installed | 1.7.0 | Audio Effect (Reverb) | 2026-08-30 |
 | O-Polystutter | 📦 Installed | 1.14.0 | Audio Effect (Beat Repeater) | 2026-08-28 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.4.1 | Synth (Physical Modeling Harp) | 2026-08-29 |
 | O-MultiBandCompressor | 📦 Installed | 1.11.0 | Audio Effect (Dynamics) | 2026-08-27 |
-| O-Bass | 📦 Installed | 1.4.0 | Audio Effect (Bass Enhancer) | 2026-08-29 |
+| O-Bass | 📦 Installed | 1.5.0 | Audio Effect (Bass Enhancer) | 2026-08-30 |
 | O-IntonationPad | 📦 Installed | 2.9.0 | Synth (Wavetable Pad) | 2026-08-28 |
 | O-Detune | 📦 Installed | 1.6.0 | Audio Effect (Detuning) | 2026-08-28 |
 | O-Freeze | 📦 Installed | 2.1.0 | Audio Effect (Granular Freeze) | 2026-08-28 |
 | O-FreqPulse | 📦 Installed | 1.18.0 | Audio Effect (Spectral Sequencer) | 2026-08-28 |
 | O-SpectralShaper | 📦 Installed | 1.7.0 | Audio Effect (Spectral Transient Shaper) | 2026-08-28 |
 | O-GrainScatter | 📦 Installed | 2.5.0 | Audio Effect (Granular Stutter Engine) | 2026-08-29 |
-| O-Chorus | 📦 Installed | 1.3.0 | Audio Effect (Chorus) | 2026-08-28 |
+| O-Chorus | 📦 Installed | 1.4.0 | Audio Effect (Chorus) | 2026-08-30 |
 | O-Orbit | 📦 Installed | 1.2.0-dev | Audio Effect (Spatial Orbiter) | 2026-08-28 |
 | O-TextureForge | 📦 Installed | 1.1.0 | Instrument (Concatenative Synth) | 2026-08-28 |
-| O-Texture | 📦 Installed | 0.2.0 | Instrument/Effect (Neural Texture Synth) | 2026-08-28 |
+| O-Texture | 📦 Installed | 0.3.0 | Instrument/Effect (Neural Texture Synth) | 2026-08-30 |
 | O-Prism | 📦 Installed | 1.21.0 | Synth (Microtonal Wavetable) | 2026-08-30 |
 | O-Gain | 📦 Installed | 1.3.0 | Audio Effect (Gain Staging Utility) | 2026-08-28 |
 | O-Formant | 📦 Installed | 1.26.0 | Synth (Physical Model Vocal) | 2026-08-29 |
@@ -55,7 +55,7 @@ Ouaricon Plugins:
 | O-Reed | 📦 Installed | 1.2.0 | Synth (Physical Modeling Reed Wind) | 2026-08-29 |
 | O-Wind | 📦 Installed | 1.17.0 | Synth (Physical Model Flute) | 2026-08-29 |
 | O-Contrabass | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed Bass) | 2026-08-27 |
-| O-Bassoon | 🚧 Stage 0 | 1.1.0 | Synth (Physical Model Bassoon) | 2026-08-28 |
+| O-Bassoon | 🚧 Stage 0 | 1.2.0 | Synth (Physical Model Bassoon) | 2026-08-30 |
 | O-MicrotonalSampler | 📦 Installed | 1.24.0 | Synth (Microtonal Sampler) | 2026-08-30 |
 | O-simpleFM | 📦 Installed | 1.3.0 | Synth (Pedagogical 2-Op FM) | 2026-08-28 |
 | O-simpleAdditive | ✅ Working | 1.1.0 | Synth (Pedagogical Additive + Wavetable) | 2026-08-27 |
@@ -68,7 +68,7 @@ Ouaricon Plugins:
 | O-Octagon | 📦 Installed | 1.11.0-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-27 |
 | O-Bitrot | 📦 Installed | 1.15.0 | Audio Effect (Broken-Media Degradation) | 2026-08-27 |
 | O-Tapestop | 📦 Installed | 1.6.0 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-08-27 |
-| O-Emulator | 📦 Installed | 1.1.0 | Audio Effect (Retro Console Emulation) | 2026-08-28 |
+| O-Emulator | 📦 Installed | 1.2.0 | Audio Effect (Retro Console Emulation) | 2026-08-30 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`
