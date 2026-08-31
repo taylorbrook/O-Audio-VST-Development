@@ -5,6 +5,110 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-30
+
+Hover-help, in both languages — and the renderer that makes it visible, because
+this page had no way to paint one.
+
+### Added
+
+- **Twelve tooltips in `Resources/ui/js/i18n.js`** — all ten APVTS parameters
+  plus `#gear-btn` and `#lang-select` — each with an English and a French
+  `{title, body}`, every French entry `reviewed: false`. Every body ends with
+  the control's range and unit, taken from the runtime parameter dump
+  (`.planning/params.tsv`), and every body describes THIS model rather than a
+  generic control: the vibrato freezing into a fixed detune at 0 Hz, CC2's
+  half-second takeover window, `tone` touching only partials 6–16, the
+  attack-character snapshot at note-on, the missing decay and sustain stages,
+  the 2.5 s modal tail a short Release truncates, and the release-tail-first
+  voice stealing.
+- **A hover-help RENDERER, in the same commit as the copy.** v1.1.0 had no
+  `#tooltip` element, no `.tooltip` rule and no hover handler, and canon v2's
+  `applyI18n()` only writes `data-tip-title` / `data-tip` onto the anchors. The
+  copy alone would therefore have shipped twelve invisible strings past three
+  green gates. `setupTooltips()` is ported from O-simpleFM's delegated,
+  cursor-following family — delegated on `document`, `pointerover`/`pointerout`/
+  `focusin`/`focusout` because those bubble, a child-boundary guard so the tip
+  does not flicker inside a `.knob-control`, `createElement` + `textContent`
+  never `innerHTML`, and a flip-then-clamp on all four edges at an 8 px margin.
+  Styled in this page's own naturalist vocabulary: the `.settings-popover`
+  plate, with the title line in `--green-dark`.
+- **A last-input-device latch on the focus arm.** A mouse click on a `<button>`
+  focuses it, so the reference renderer's unconditional `focusin` rule leaves a
+  tip parked over whatever the click just opened. Measured here with the latch
+  removed: clicking `#gear-btn` pins a 260 × 137 tip across the settings popover
+  by **5280 px²**. `:focus-visible` is deliberately not the discriminator —
+  Chromium reports it false for a programmatic `.focus()` after a click, so a
+  gate driving focus directly would measure "no tip" and record that as correct.
+- **`tests/ui_tip_render_check.js`** — 198 assertions at the shipping 900 × 600
+  frame. Every binding resolves; every anchor SHOWS a tip when a DESCENDANT is
+  hovered (which is what exercises the delegated `closest()` walk); the rendered
+  title and body are BYTE-EQUAL to the table, not "contains"; the rect is inside
+  the frame on all four edges and within the `max-width` cap; then the whole
+  sweep again in French and back. `TIP_BINDINGS`, `setSize` and the `max-width`
+  cap are all PARSED from the shipped files, never retyped.
+
+### Fixed
+
+- **The settings popover was painted UNDERNEATH the tab bar, and had been since
+  it shipped in v1.1.0.** `body` is `display: flex`, so `.header-bar`,
+  `.tab-bar` and `.tab-content` are flex items — and `z-index` applies to a flex
+  item at `position: static`, so each opened its own stacking context.
+  `.header-bar` and `.tab-bar` both carried `z-index: 10`, a tie broken by
+  document order, so the tab bar painted over everything inside the header,
+  including `.settings-popover` — whose own `z-index: 21` is scoped inside the
+  header's context and cannot reach out of it. Measured at v1.1.0:
+  `document.elementFromPoint` at the popover's top-left AND at `#lang-select`'s
+  centre both returned `.tab-btn`, and only the bottom 3 px of the 40 px panel
+  was reachable. **The language selector — the only control the entire i18n
+  feature adds — was unclickable from the moment it shipped.** `.header-bar`
+  moves to `z-index: 30`; the two bars do not overlap, so nothing that was
+  visible stops being visible and no rectangle changes. No gate saw this:
+  `check-ui-labels` drives a "settings popover open" state and compares rects,
+  and a rect is unchanged by paint order. It surfaced only when the new render
+  gate tried to HOVER `#lang-select` and got a `pointerover` on `.tab-btn`.
+
+### Notes
+
+- **No hover-help on/off toggle, and the gear's tip says so.** Two shipped
+  plugins have one; nineteen do not. The popover keeps exactly the language
+  selector it had, and `tip.gearBtn`'s body describes only that — a tip that
+  promises a control the plugin does not have is worse than no tip.
+- **No `tabindex` was added to `.knob-control`.** The knobs are mouse-drag only
+  and have never been keyboard-operable, so ten new tab stops would be ten stops
+  for controls the keyboard still could not move — and a tip popping open
+  mid-drag. `#gear-btn` and `#lang-select` are natively focusable and reach the
+  focus arm through `closest()`.
+- **Units for four parameters were recovered from the page's own formatter, not
+  invented.** `breath`, `tone`, `attack_character` and `voice_count` carry an
+  empty `label` in the dump; `PARAMS` in `index.html` declares `unit: ''` for
+  all four (lines 813–815, 818) and `formatValue` (line 907) appends nothing, so
+  they are genuinely unitless and the bodies say "0 to 1" and "1 to 16 voices".
+  `vibrato_depth`'s APVTS label is `" cents"` while the readout renders `" c"`;
+  the body spells it out, because a tooltip is where the abbreviation gets
+  explained.
+- **Geometry: zero movement.** `check-ui-labels --plugin O-Bassoon` is
+  BYTE-IDENTICAL to the v1.1.0 baseline, in all three driven states, `moved=0`
+  before and after — the surface is `position: fixed` + `visibility: hidden` +
+  `opacity: 0` at rest, and that gate's visibility predicate rejects all three.
+  `boot-all-uis` reads `text=35 aria=6 title=0 i18n=26` before and after,
+  unchanged. No geometry pin was added, so none is claimed; the one CSS change
+  is the `z-index` fix above, and reverting it ALONE re-breaks the render gate
+  with two FAILs.
+- **Both negative controls were run in both directions.** Removing the focus
+  latch makes `[NC-2a]` fail by 5280 px² while `[NC-2b]`, the keyboard half,
+  stays green — which is what makes them independent rather than one assertion
+  counted twice. Removing the gate's `blur()` before the click makes `[NC-2a]`
+  pass with the latch still removed, so that one line is the whole reason the
+  assertion can fail at all. An over-long body planted in the served `i18n.js`
+  is reported as leaving the frame, and the restore is proved byte-identical by
+  hash.
+- **All twelve French tooltip bodies are machine drafts.** The native-speaker
+  worklist for this plugin is now 44 entries (12 tooltip, 32 label).
+- **The Tuning tab still stays English for a French user** — every caption in it
+  belongs to the shared `scala-tuning-engine` module. `tip.langSelect`'s body
+  now says so, rather than leaving a user to read it as a bug.
+
 ## [1.1.0] - 2026-08-28
 
 The PAGE speaks French, not only a tooltip — because this plugin never had a
