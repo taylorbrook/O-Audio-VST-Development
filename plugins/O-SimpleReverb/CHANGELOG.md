@@ -2,6 +2,31 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.7.0] - 2026-08-30
+
+### Added
+
+- **Hover-help, in both languages.** Ten tooltips — the eight APVTS parameters plus the gear button and the language selector — authored in English and French in `Source/ui/public/js/i18n.js` and bound in `TIP_BINDINGS`. Each body says what the control does, when to reach for it, and ends with its range and unit. All French is machine-drafted and flagged `reviewed: false`; the native-speaker worklist for this plugin is now 29 entries (10 tooltip, 19 label).
+- **A renderer, because the page had no way to show one.** v1.6.0 had no `#tooltip` element, no `.tooltip` rule and no hover handler; canon v2's `applyI18n()` only writes `data-tip-title` and `data-tip` onto the anchors and stops. Authoring the copy alone would have shipped ten INVISIBLE strings past three green gates — `check-i18n` only counts bindings, `check-ui-labels` has no tooltip awareness, and `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. So `setupTooltips()` lands in the same commit: the delegated, cursor-following family ported from O-simpleFM, clamped on all four edges at an 8 px margin, styled in this page's own cream-and-brown-ink vocabulary with the title line in the olive `#3C5C1A` the VU bezel and the active toggle already use.
+- **`tests/ui_tip_render_check.js`** — 169 assertions, the evidence seat no shipped gate can provide. Drives the real page at the shipping 500 x 350, hovers all ten anchors in English and French and back, asserts the rendered title and body are BYTE-EQUAL to the table (not "contains" — a stale title passes a contains check) and that the tip rectangle is inside the frame on all four edges. `TIP_BINDINGS`, the `max-width` cap, the clamp margin and `setSize` are all PARSED out of the shipped files, never retyped.
+- **Runtime parameter inventory.** `.planning/params.tsv` plus the `OUARICON_BUILD_TESTS` / `ouaricon_add_param_dump()` wiring in `CMakeLists.txt`. A regex over `createParameterLayout()` is not authoritative; only a walk of `getParameters()` on a constructed processor is.
+
+### Changed
+
+- **The focus arm is latched to the keyboard.** A mouse click on a `<button>` focuses it, so the reference renderer's unconditional `focusin` rule re-opens the tip `pointerdown` just hid and parks it over whatever the click opened — measured at 5110 px² across this plugin's own settings popover with the latch removed. `:focus-visible` is deliberately not the discriminator: Chromium reports it false for a programmatic `.focus()` following a click, so a gate driving focus directly would measure "no tip" and record that as correct. A `lastInputWasPointer` latch cleared by any keydown gates the arm, and the render gate asserts BOTH halves separately — a click opens no tip, AND a real tab-ring walk still does.
+- **The opacity transition moved onto `.tooltip.show`**, so the surface fades in and SNAPS out. `check-ui-labels`' state driver clicks `#gear-btn` and `#LPFREQ-value`, both of which are anchors; a two-way transition would leave the surface at an intermediate opacity for 120 ms after each click, and a sweep measuring English inside that window and French outside it would see two different visible element sets.
+
+### Geometry
+
+- **Zero movement.** `check-ui-labels --plugin O-SimpleReverb` is BYTE-IDENTICAL to the pre-change baseline in all three driven states — `moved=0` before and after, the same 10 of 10 `[data-i18n]` elements, and the `[8b]` non-label count unchanged at 1 (the botanical overlay). The hidden surface enters neither the label sweep nor the geometry diff. **No pin was added, so none is claimed and none is owed a negative control.**
+- `boot-all-uis`: `text=26 aria=7 title=0 i18n=10`, identical to v1.6.0. An empty hidden surface adds nothing to the text count.
+
+### Known
+
+- **`LPFREQ` / `LPON` are named "LP Filter Freq" / "LP Filter On" and the DSP is a HIGH-pass** (`makeHighPass`, `PluginProcessor.cpp:603`). The page's `LOW CUT` caption is the half that is right, and the tips follow the caption. Deliberately NOT repaired: renaming an `AudioParameterFloat` changes what every host shows in its automation lane.
+- All eight parameters declare no `withLabel()`, so every unit in the tooltip copy was recovered from the page's own formatter rather than from the dump.
+- The footer wordmark still reads a hard-coded `Ouaricon Audio v1.5.5` and is stale against this version, for the same reason recorded at v1.6.0.
+
 ## [1.6.0] - 2026-08-29
 
 ### Added

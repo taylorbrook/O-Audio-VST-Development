@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-SimpleReverb page labels, English + French (v1.6.0)
+// i18n.js — O-SimpleReverb page labels and hover-help, English + French (v1.7.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,16 +32,28 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.7.0 GIVES THIS PLUGIN HOVER-HELP, AND A WAY TO SHOW IT ───────────────
 //
-// v1.5.7 carried no data-tip and no data-tooltip anywhere on the page — only
-// four native title= attributes on the preset bar, which contract §4 DELETES
-// rather than localizes, moving their existing text into data-i18n-aria. No
-// hover-help prose is INVENTED here: authoring it is Stage M's job. I18N is
-// therefore empty and TIP_BINDINGS is empty, which is this plugin's correct
-// state rather than a gap. check-i18n assertion 2 reports it as "0 tip(s)
-// bound", and the emptiness is only admissible BECAUSE no I18N entry carries a
-// body — an emptied TIP_BINDINGS over a bodied table would be orphaned copy.
+// v1.6.0 carried no data-tip and no data-tooltip anywhere on the page — only
+// four native title= attributes on the preset bar, which contract §4 DELETED
+// rather than localized, moving their existing text into data-i18n-aria. I18N
+// and TIP_BINDINGS were both empty, which was that version's CORRECT state
+// (check-i18n assertion 2 reported it as "0 tip(s) bound") rather than a gap.
+//
+// v1.7.0 authors ten entries — the eight APVTS parameters plus the gear and
+// the language selector — and binds all ten.
+//
+// AUTHORING THE COPY ALONE WOULD HAVE SHIPPED TEN INVISIBLE STRINGS. applyI18n()
+// only WRITES data-tip-title and data-tip onto the anchors named in
+// TIP_BINDINGS; the thing that READS those attributes and paints a surface is
+// per-plugin code living outside the canon, and this page had none of it — no
+// #tooltip element, no .tooltip rule, no hover handler (measured: three greps,
+// all zero). All three shipped gates would have stayed green anyway —
+// check-i18n assertion 2 only counts bindings, check-ui-labels has no tooltip
+// awareness at all, and boot-all-uis counts aria-label and title and never
+// data-tip — so the renderer lands in the SAME commit (index.html,
+// setupTooltips()), and tests/ui_tip_render_check.js is the gate that can
+// actually see a painted tip.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -54,17 +66,243 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {en:{t, b}, fr:{t, b, reviewed}}.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin with no tooltips today, so Stage M can
-// add bodies here without touching the label keys below.
+// TEN entries: the EIGHT APVTS parameters, plus the gear and the language
+// selector. Eight of eight, with nothing reported as unreachable — every row
+// of .planning/params.tsv has a control on this page, which is not what the
+// batch's other plugins found (O-Bass dumps five and exposes three).
+//
+// The preset bar deliberately gets none: its four controls took accessible
+// names from their deleted title= attributes at v1.6.0 and are self-describing
+// (Stage M brief, "Not in M1").
+//
+// ── THE TITLES ARE THE PAGE'S CAPTIONS, AND TWICE THAT IS NOT THE DUMP ──────
+//
+// The brief's rule is that where the page's caption differs from the
+// parameter's name, the CAPTION wins — the user is reading the page, not the
+// automation lane. Two rows here diverge, and BOTH diverge in the same
+// direction and for the same reason:
+//
+//   params.tsv name     page caption     tip title
+//   LP Filter Freq      LOW CUT          Low Cut
+//   LP Filter On        (the ON/OFF      Low Cut On
+//                        toggle inside
+//                        the same knob)
+//
+// The parameter IDs and names say "LP Filter", and the DSP is a HIGH-pass:
+// PluginProcessor.cpp:603 calls ArrayCoefficients::makeHighPass(sr, lpFreqValue).
+// So the parameter's own name is wrong about its own filter and the page's
+// caption is right. This is REPORTED, not repaired — renaming an
+// AudioParameterFloat changes what a host shows in its automation lane and what
+// every saved session's parameter list reads, which is a host-visible change
+// unrelated to localization.
+//
+// ── THE FRENCH TITLE SPELLS OUT WHAT THE CAPTION ABBREVIATES ────────────────
+//
+// label.lowCut's French is COUPE-B., an abbreviation forced by cliff A (57.22
+// px for COUPE-BAS against a 52.00 px knob box — the measurement is in LABELS
+// below). A tooltip has no such cliff: it is a fixed, max-width-capped surface
+// that owns its own box. So tip.lowCut's French title is the FULL word,
+// Coupe-bas, and the tip is the one place on the page a French user can find
+// out what the abbreviated caption stands for. Same move O-Emulator made for
+// its GB segment and the Game Boy option behind it.
+//
+// ── RANGES AND UNITS: EVERY ONE RECOVERED FROM THE PAGE'S FORMATTER ─────────
+//
+// ALL EIGHT ROWS OF params.tsv HAVE AN EMPTY `label` COLUMN. Not one parameter
+// declares withLabel(), so the dump gives bare numbers — 0.0 .. 100.0,
+// 0.50 .. 2.00, 20 .. 400 — and says nothing about what any of them counts. The
+// brief predicts this tendency and then warns that it is a tendency and not a
+// fact; here it is the fact, on all eight, so every unit below was read back out
+// of the page's own renderer rather than invented:
+//
+//   WET, DRY, SIZE   %      index.html:1205,1206,1209 — `${(norm*100).toFixed(0)}%`
+//   DECAY            x      index.html:1208 — `${(0.5 + 1.5*Math.pow(norm,1.585)).toFixed(1)}x`
+//   CHARACTER        %      index.html:1201,1202 — `warm ${...}%` / `bright ${...}%`,
+//                           with the bare word `neutral` inside the dead zone
+//   LPFREQ           Hz     index.html:714-715 — the two .hz-label spans reading
+//                           20 and 400, whose class is the only place the page
+//                           spells the unit; the C++ range agrees
+//                           (PluginProcessor.cpp:213, 20.0f .. 400.0f)
+//   LPON             words  OFF / ON — the ui.off / ui.on LABELS entries, which
+//                           this page KEYS (the D-01 arm-3 overrule in LABELS)
+//   TYPE             words  the six AudioParameterChoice options
+//
+// ── WHICH ENGLISH WORDS SURVIVE INTO A FRENCH BODY, AND WHY ─────────────────
+//
+// Three sets of on-screen words are named inside these bodies, and they do NOT
+// all follow the same rule. The discriminator is whether the PAGE localizes the
+// word, not whether the word is English:
+//
+//   1. The six TYPE options — Booth, Room, Hall, Spring, Plate, Ambient — stay
+//      ENGLISH in the French body, because the selector keeps them English
+//      (D-01 arm 1, I18N_EXEMPT below: the page and the host automation lane
+//      must agree). A French body naming them "Cabine" would name something the
+//      user cannot find in the dropdown.
+//   2. The CHARACTER readout words — warm, bright, neutral — stay ENGLISH for a
+//      different reason: #CHARACTER-value is a READOUT node, exempt under D-01
+//      arm 3, so the formatter writes the same English in both languages. Same
+//      outcome, different arm.
+//   3. The low-cut toggle's caption is the opposite case. #LPFREQ-value IS
+//      keyed (the arm-3 overrule recorded in LABELS), so it reads OFF/ON in
+//      English and DÉS./ACT. in French. The French bodies of tip.lowCut and
+//      tip.lowCutOn therefore say DÉS. and ACT., because that is what the user
+//      is looking at. A body that said "ON" there would be pointing at a word
+//      the French page does not contain.
+//
+// ── NUMBERS INSIDE A BODY ARE PROSE (D-03) ─────────────────────────────────
+//
+// D-03 exempts readout NODES, not digits. `0 to 100 %` becomes `0 à 100 %`,
+// `0.5x to 2.0x` becomes `de 0.5x à 2.0x`, exactly as the 21 already-shipped
+// tooltip plugins do it.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The eight parameters, in the page's own top-to-bottom order ─────────
+
+    // TYPE — AudioParameterChoice, six options, default Room (index 1).
+    // The French title is byte-identical to the English: "Type" is the same
+    // word for the same thing in both languages. The BODY differs, so
+    // assertion 4 (which flags an entry only when t AND b both match) does not
+    // fire and no sameAsEn flag is needed — `reviewed: false` keeps the entry
+    // in the native-speaker worklist regardless.
+    //
+    // The "still a booth" sentence is the one thing a user cannot discover by
+    // turning Size: finalRoomSize = preset.baseRoomSize * (0.5 + size/2)
+    // (PluginProcessor.cpp:432-433), and Booth's base is 0.15 against Hall's
+    // 0.85, so Booth at 100 % (0.150) really is smaller than Hall at 0 %
+    // (0.425).
+    'tip.type': {
+        en: { t: "Type",
+              b: "Picks the reverb algorithm: each name is a whole configuration — room size, damping, stereo width, pre-delay, early-reflection spread, and on most types a voicing filter — not just a bigger or smaller room. Size and Decay then scale whatever the type sets, so Size at 100 % on Booth is still a booth. Six settings: Booth, Room, Hall, Spring, Plate, Ambient." },
+        fr: { t: "Type",
+              b: "Choisit l'algorithme de réverbération : chaque nom est une configuration complète — taille de la pièce, amortissement, largeur stéréo, pré-délai, étalement des premières réflexions et, sur la plupart des types, un filtre de voicing — et non simplement une pièce plus grande ou plus petite. Taille et Déclin viennent ensuite mettre à l'échelle ce que le type a posé : Taille à 100 % sur Booth reste une cabine. Six réglages : Booth, Room, Hall, Spring, Plate, Ambient.",
+              reviewed: false },
+    },
+
+    // CHARACTER — AudioParameterFloat, -100 .. +100, default 0.
+    // The dead zone is the sentence, because it is what the readout's third
+    // state means: PluginProcessor.cpp:563-568 puts Warm below -0.5, Bright
+    // above +0.5 and Neutral between, and Neutral runs no filter at all.
+    // Warm is a low-pass from 20 kHz down to 2 kHz (line 581); Bright is a
+    // 4 kHz high shelf reaching +6 dB (lines 589-592). Both act on wetContext
+    // only, which is why "the dry signal is never filtered" is safe to say.
+    'tip.character': {
+        en: { t: "Character",
+              b: "Tilts the tone of the reverb tail only; the dry signal is never filtered. Turned left it is warm, a low-pass closing from 20 kHz down to 2 kHz, and turned right it is bright, a high shelf at 4 kHz reaching +6 dB. The readout reads neutral inside a narrow dead zone at the centre, where the filter is bypassed outright: warm 100 % to bright 100 %." },
+        fr: { t: "Caractère",
+              b: "Incline la couleur de la seule queue de réverbération ; le signal direct n'est jamais filtré. Vers la gauche le son est chaud, un passe-bas qui se referme de 20 kHz jusqu'à 2 kHz, et vers la droite il est brillant, un plateau aigu à 4 kHz atteignant +6 dB. L'affichage indique neutral dans une étroite zone morte au centre, où le filtre est purement contourné : de warm 100 % à bright 100 %.",
+              reviewed: false },
+    },
+
+    // WET — AudioParameterFloat, 0 .. 100 %, default 25.
+    // Independent GAIN, not a crossfade: the mix loop at
+    // PluginProcessor.cpp:617 is `dry*dryGain + wet*wetGain` with the two
+    // read from separate parameters. That is the non-obvious half and it is
+    // what the tip is for; the percentage a user can read off the knob.
+    'tip.wet': {
+        en: { t: "Wet",
+              b: "Sets how much reverb is added to the output. It is an independent gain and not a crossfade: turning it up does not turn Dry down, so the two together set the total level as well as the balance. 0 to 100 %." },
+        fr: { t: "Effet",
+              b: "Règle la quantité de réverbération ajoutée à la sortie. C'est un gain indépendant et non un fondu : l'augmenter ne baisse pas Direct, si bien que les deux ensemble déterminent aussi le niveau global et pas seulement l'équilibre. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // DRY — AudioParameterFloat, 0 .. 100 %, default 100.
+    // The other half of the same finding, from the other side.
+    'tip.dry': {
+        en: { t: "Dry",
+              b: "Sets how much of the untouched input reaches the output. It is independent of Wet, so pulling it to 0 leaves the reverb tail alone on the output — the setting to use on a send bus — while leaving it at 100 keeps the source at full level. 0 to 100 %." },
+        fr: { t: "Direct",
+              b: "Règle la quantité de signal d'entrée intact qui atteint la sortie. Elle est indépendante d'Effet : la ramener à 0 ne laisse que la queue de réverbération en sortie — le réglage à utiliser sur un bus de départ — tandis que la laisser à 100 conserve la source à plein niveau. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // DECAY — AudioParameterFloat, 0.5 .. 2.0, default 1.0, skew 0.6309.
+    // "The centre is exactly 1.0x" is a measured claim, not a rounding: the
+    // skew was chosen to put 1.0x at the knob's midpoint (the CR-02 note at
+    // PluginProcessor.cpp:188-193) and params.tsv agrees — defaultNorm
+    // 0.500016 renders defaultText 1.00. It scales room size UP and damping
+    // DOWN together (lines 435-441), which is why it reads as a multiplier
+    // rather than a time.
+    'tip.decay': {
+        en: { t: "Decay",
+              b: "Stretches or shortens the tail the Type set, by growing the room and easing its damping together. The centre of the knob is exactly 1.0x — the type's own untouched decay — so this is a trim, not a time in seconds. 0.5x to 2.0x." },
+        fr: { t: "Déclin",
+              b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1.0x, soit le déclin propre du type : c'est donc un ajustement et non une durée en secondes. De 0.5x à 2.0x.",
+              reviewed: false },
+    },
+
+    // SIZE — AudioParameterFloat, 0 .. 100 %, default 50.
+    // Relative, never absolute. See the arithmetic in tip.type's comment.
+    'tip.size': {
+        en: { t: "Size",
+              b: "Scales the room the Type chose, from half its size at 0 % to its full size at 100 %. It is relative rather than absolute — Booth at 100 % is still smaller than Hall at 0 % — and it moves only the space, leaving the length of the tail to Decay. 0 to 100 %." },
+        fr: { t: "Taille",
+              b: "Met à l'échelle la pièce choisie par le Type, de la moitié de sa taille à 0 % jusqu'à sa taille entière à 100 %. C'est une valeur relative et non absolue — Booth à 100 % reste plus petit que Hall à 0 % — et elle ne déplace que l'espace, la longueur de la queue restant l'affaire de Déclin. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // LPFREQ — AudioParameterFloat, 20 .. 400 Hz, default 200.
+    // Title from the CAPTION, not from the dump's "LP Filter Freq": the DSP is
+    // makeHighPass (PluginProcessor.cpp:603) and the caption is the half that
+    // is right. It runs on wetContext only and ONLY when LPON is on
+    // (line 600), which is the sentence a user cannot get from the dial.
+    // The French title is the full word where the caption is COUPE-B.
+    'tip.lowCut': {
+        en: { t: "Low Cut",
+              b: "A high-pass on the reverb tail only, for clearing mud out of the bottom of the space without thinning the dry signal. It does nothing at all until the switch below the dial reads ON, and the two small figures either side of the dial are the ends of its travel. 20 to 400 Hz." },
+        fr: { t: "Coupe-bas",
+              b: "Un passe-haut appliqué à la seule queue de réverbération, pour dégager le bas du spectre sans amaigrir le signal direct. Il ne fait rien tant que l'interrupteur sous le cadran n'affiche pas ACT., et les deux petits chiffres de part et d'autre du cadran sont les extrémités de sa course. De 20 à 400 Hz.",
+              reviewed: false },
+    },
+
+    // LPON — AudioParameterFloat over NormalisableRange(0, 1, 1), default 0.
+    // NOT an AudioParameterBool and NOT an AudioParameterChoice, so D-01 arm 1
+    // cannot fire on its two words and there is no host option string for the
+    // body to disagree with. Its control is #LPFREQ-value, the same node that
+    // displays the state — the one anchor on this page that is nested inside
+    // another anchor's wrapper (see TIP_BINDINGS).
+    'tip.lowCutOn': {
+        en: { t: "Low Cut On",
+              b: "Switches the low cut in and out; click the word itself to toggle it. While it reads OFF the dial above is dimmed and the filter is bypassed entirely, so an unused low cut costs nothing. Two settings: OFF and ON." },
+        fr: { t: "Coupe-bas actif",
+              b: "Met le coupe-bas en service ou hors service ; cliquez sur le mot lui-même pour basculer. Tant qu'il affiche DÉS. le cadran au-dessus est estompé et le filtre est totalement contourné : un coupe-bas inutilisé ne coûte rien. Deux réglages : DÉS. et ACT.",
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // describes ONLY what the popover actually contains. This plugin has no
+    // hover-help on/off toggle — not a C++ one, not a localStorage one — so the
+    // panel holds the language selector and nothing else, and the tip says
+    // exactly that. O-Tapestop's wording promises a toggle that does not exist
+    // here; a tip that lies is worse than no tip.
+    'tip.gearBtn': {
+        en: { t: "Settings",
+              b: "Opens the settings panel, which on this plugin holds a single row: the interface language. Nothing else lives in there — every reverb control is on the front panel." },
+        fr: { t: "Réglages",
+              b: "Ouvre le panneau de réglages, qui ne contient sur ce plugin qu'une seule ligne : la langue de l'interface. Rien d'autre ne s'y trouve — toutes les commandes de la réverbération sont sur la face avant.",
+              reviewed: false },
+    },
+
+    // The two endonyms are named as the selector spells them, and the selector
+    // never translates them (I18N_EXEMPT below). "Saved with the plugin's
+    // state" is measured, not assumed: setUiLanguage writes
+    // processorRef.uiLanguage (PluginEditor.cpp:153-163) and
+    // getStateInformation persists it onto parameters.state as the uiLanguage
+    // property (PluginProcessor.cpp:659-660).
+    'tip.langSelect': {
+        en: { t: "Interface language",
+              b: "Switches every caption, accessible name and hover-help on this page between English and French. The change is immediate and is saved with the plugin's state, so it comes back with the session. Two settings: English and Français." },
+        fr: { t: "Langue de l'interface",
+              b: "Bascule toutes les légendes, tous les noms accessibles et toute l'aide contextuelle de cette page entre l'anglais et le français. Le changement est immédiat et il est enregistré avec l'état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -446,25 +684,79 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key, wrapper]. TEN, one per I18N entry.
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), walks closest(wrapper)
+// when a wrapper is given, and writes data-tip-title + data-tip onto whatever
+// that lands on. The renderer in index.html then reads those attributes off
+// the nearest ancestor-or-self carrying data-tip.
+//
+// ── THE WRAPPER IS THE GRID CELL, NOT THE 3 px SVG STROKE ───────────────────
+//
+// T17 says "bind to the ids the UI already uses". On this page the ids exist —
+// six #X-knob divs, #TYPE, #gear-btn, #lang-select — so the SELECTORS are all
+// ids here, which is the first plugin in this stage where that claim holds.
+// But an id is not automatically the right hover TARGET. A .knob is
+// `column; align-items: center` and is only max(labelWidth, 52) px wide; its
+// .knob-control parent is the `1fr` grid cell, 97.50 px on the top row and
+// 124.66 px on the bottom, and the gaps between cells belong to nobody. So the
+// six knobs bind through closest('.knob-control') and the user aims at the
+// whole column, caption and readout included, not at the dial alone.
+//
+// ── ONE ANCHOR IS NESTED INSIDE ANOTHER, DELIBERATELY ───────────────────────
+//
+// #LPFREQ-value is the LPON control (a click on it flips the parameter) AND it
+// sits inside #LPFREQ-knob, inside the .knob-control that carries tip.lowCut.
+// So the low-cut cell holds two anchors, one inside the other:
+//
+//   .knob-control  (from #LPFREQ-knob)  -> tip.lowCut
+//     #LPFREQ-value                     -> tip.lowCutOn
+//
+// This resolves correctly and does NOT need ordering luck, for two separate
+// reasons. The two bindings write to two DIFFERENT nodes, so neither can
+// overwrite the other's attributes whichever order the loop runs in. And the
+// renderer resolves an anchor with closest('[data-tip]'), which is
+// ancestor-OR-SELF and stops at the innermost match — so the pointer gets
+// tip.lowCutOn over the ON/OFF word and tip.lowCut everywhere else in the
+// cell. Moving between the two fires a real pointerout with a relatedTarget
+// that is NOT inside the anchor being left, so the surface is refilled rather
+// than left stale.
+//
+// Giving #LPFREQ-value the '.knob-control' wrapper instead would have
+// collapsed both bindings onto the SAME node, and the second write would have
+// silently won — one parameter's tip lost with every gate still green.
+//
+// ── ORDER IS THE PAGE'S READING ORDER ───────────────────────────────────────
+//
+// Type, then the top knob row left to right, then the bottom row, then the two
+// chrome controls. Nothing depends on it; it is here so a reader can check the
+// list against the page without cross-referencing.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#TYPE',           'tip.type'],
+
+    ['#CHARACTER-knob', 'tip.character', '.knob-control'],
+    ['#LPFREQ-knob',    'tip.lowCut',    '.knob-control'],
+    ['#LPFREQ-value',   'tip.lowCutOn'],
+    ['#WET-knob',       'tip.wet',       '.knob-control'],
+    ['#DRY-knob',       'tip.dry',       '.knob-control'],
+
+    ['#DECAY-knob',     'tip.decay',     '.knob-control'],
+    ['#SIZE-knob',      'tip.size',      '.knob-control'],
+
+    ['#gear-btn',       'tip.gearBtn'],
+    ['#lang-select',    'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v1.7.0: applyI18n() calls it once per TIP_BINDINGS row, ten times
+// per language change. It was exported verbatim through v1.6.0 while the list
+// was empty so the canon block stayed byte-identical to the other forty-two
+// copies; nothing in its shape had to change to turn it on.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }

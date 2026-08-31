@@ -1,0 +1,12 @@
+# plugin	O-SimpleReverb
+# params	8
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+TYPE	Type		6	Booth	Ambient	0.200000	Room	automatable,discrete
+CHARACTER	Character		2147483647	-100.0	100.0	0.500000	0.0	automatable
+WET	Wet		2147483647	0.0	100.0	0.250000	25.0	automatable
+DRY	Dry		2147483647	0.0	100.0	1.000000	100.0	automatable
+DECAY	Decay		2147483647	0.50	2.00	0.500016	1.00	automatable
+SIZE	Size		2147483647	0.0	100.0	0.500000	50.0	automatable
+LPFREQ	LP Filter Freq		2147483647	20	400	0.473684	200	automatable
+LPON	LP Filter On		2147483647	0	1	0.000000	0	automatable

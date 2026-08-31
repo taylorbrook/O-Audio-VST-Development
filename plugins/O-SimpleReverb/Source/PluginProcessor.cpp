@@ -38,7 +38,10 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+// PluginEditor.h is deliberately NOT included at the top of this TU — the
+// include lives inside the #if JUCE_WEB_BROWSER guard directly above
+// createEditor(), so a console target that compiles this TU with
+// JUCE_WEB_BROWSER=0 and no editor sources (scripts/param-dump) links.
 
 // Define the type presets with distinct DSP characteristics
 const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typePresets[6] = {
@@ -631,9 +634,19 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 
+#if JUCE_WEB_BROWSER
+#include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* OSimpleReverbAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OSimpleReverbAudioProcessorEditor(*this);
+#else
+    // The param-dump console target builds with JUCE_WEB_BROWSER=0 and no
+    // editor sources. It never opens an editor; this keeps the TU linkable.
+    return new juce::GenericAudioProcessorEditor(*this);
+#endif
 }
 
 void OSimpleReverbAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
