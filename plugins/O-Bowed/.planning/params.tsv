@@ -1,0 +1,33 @@
+# plugin	O-Bowed
+# params	29
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+bowSpeed	Bow Speed	m/s	2147483647	0.02	2.00	0.301511	0.20	automatable
+bowPressure	Bow Pressure	N	2147483647	0.01	5.00	0.313363	0.50	automatable
+bowPosition	Bow Position		2147483647	0.02	0.30	0.357143	0.12	automatable
+rosin	Rosin		2147483647	0.00	1.00	0.500000	0.50	automatable
+bowNoise	Bow Noise		2147483647	0.00	1.00	0.000000	0.00	automatable
+bodyMaterial	Material		2147483647	0.00	1.00	0.400000	0.40	automatable
+bodySize	Size		2147483647	0.00	1.00	0.500000	0.50	automatable
+brightness	Brightness	Hz	2147483647	20	20000	0.794972	8000	automatable
+sympatheticAmount	Sympathetic Amount		2147483647	0.00	1.00	0.000000	0.00	automatable
+sympatheticCount	Sympathetic Strings		13	0	12	0.000000	0	automatable
+sympatheticDecay	Sympathetic Decay		2147483647	0.00	1.00	0.500000	0.50	automatable
+bodyAmount	Body Amount		2147483647	0.00	1.00	0.600000	0.60	automatable
+stringGauge	String Gauge		2147483647	0.10	2.00	0.458831	0.50	automatable
+bowHairStiffness	Bow Hair Stiffness		2147483647	0.00	1.00	0.000000	0.00	automatable
+width	Stereo Width		2147483647	0.00	2.00	0.500000	1.00	automatable
+outputLevel	Output Level	dB	2147483647	-60.0	12.0	0.833333	0.0	automatable
+infiniteSustain	Infinite Sustain		2147483647	0.00	1.00	0.000000	0.00	automatable
+reversedFriction	Reversed Friction		2147483647	0.00	1.00	0.000000	0.00	automatable
+subHarmonics	Sub-Harmonics		2147483647	0.00	1.00	0.000000	0.00	automatable
+referencePitch	Reference Pitch	Hz	2147483647	220.0	880.0	0.333333	440.0	automatable
+tuningSystem	Tuning System		3	Scala/TUN	12-TET	1.000000	12-TET	automatable,discrete
+humanizeSpeedRange	Speed Humanize		2147483647	0.00	1.00	0.000000	0.00	automatable
+humanizeSpeedRate	Speed Humanize Rate		2147483647	0.00	1.00	0.250000	0.25	automatable
+humanizePressureRange	Pressure Humanize		2147483647	0.00	1.00	0.000000	0.00	automatable
+humanizePressureRate	Pressure Humanize Rate		2147483647	0.00	1.00	0.300000	0.30	automatable
+humanizePositionRange	Position Humanize		2147483647	0.00	1.00	0.000000	0.00	automatable
+humanizePositionRate	Position Humanize Rate		2147483647	0.00	1.00	0.200000	0.20	automatable
+humanizeRosinRange	Rosin Humanize		2147483647	0.00	1.00	0.000000	0.00	automatable
+humanizeRosinRate	Rosin Humanize Rate		2147483647	0.00	1.00	0.350000	0.35	automatable

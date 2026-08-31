@@ -18,7 +18,8 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bowed on-page copy, English + French (v1.5.0, canon v2)
+// i18n.js — O-Bowed on-page copy and hover-help, English + French
+//           (v1.6.0, canon v2)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,11 +33,21 @@
 // reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens). One
 // combined file for both languages sidesteps the question.
 //
-// THIS PLUGIN HAS NO HOVER-HELP. v1.4.1 carried no data-tip anywhere — only
-// three native title= attributes, which contract §4 DELETES rather than
-// localizes. So I18N is empty and TIP_BINDINGS is empty, and check-i18n
-// assertion 2 reports "0 tip(s) bound" as the correct state rather than a gap.
-// Authoring hover-help prose is Stage M's job, not this stage's.
+// HOVER-HELP ARRIVED AT v1.6.0, AND THE TABLE IS ONLY HALF OF IT. v1.5.0 had
+// an empty I18N and an empty TIP_BINDINGS, correctly: v1.4.1 carried no
+// data-tip anywhere, only three native title= attributes that contract §4
+// DELETES rather than localizes. v1.6.0 authors 30 entries — 28 parameters
+// plus the gear and the language selector — and binds every one.
+//
+// CANON v2 WRITES ATTRIBUTES AND STOPS THERE. applyI18n() puts data-tip-title
+// and data-tip onto each anchor named in TIP_BINDINGS; the code that reads
+// them and paints a surface is setupTooltips() in index.html, added in the
+// same commit. Measured across all 22 bare plugins before this stage began:
+// id="tooltip" 0, `.tooltip {` 0, closest("[data-tip]") 0. Landing this file
+// alone would ship 30 invisible strings past three green gates — check-i18n
+// reads the table statically, check-ui-labels has no tooltip awareness at all,
+// and boot-all-uis counts aria-label and title but never data-tip. The
+// assertion those three cannot make lives in tests/ui_tip_render_check.js.
 //
 // ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
@@ -70,10 +81,483 @@
 
 export const LANGUAGES = ['en', 'fr'];
 
-// EMPTY BY CONSTRUCTION, not by omission. A tooltip entry is the one carrying a
-// non-empty body `b`; there are none, which is why TIP_BINDINGS may be empty
-// without assertion 2 going vacuous.
-export const I18N = Object.freeze({});
+// ============================================================================
+// I18N — hover-help, added at v1.6.0 (Stage M batch M2)
+//
+// An entry is {en:{t,b}, fr:{t,b,reviewed}}. `t` is the tooltip TITLE, `b` the
+// body. Canon v2's applyI18n() writes both onto the anchor named in
+// TIP_BINDINGS as data-tip-title / data-tip and stops there; the code that
+// READS those attributes and paints a surface is setupTooltips() in
+// index.html, added in the same commit. Attributes without a renderer are 30
+// invisible strings past three green gates — which is what v1.5.0 would have
+// shipped had this file changed alone.
+//
+// ── TITLES ──────────────────────────────────────────────────────────────────
+//
+// The title is the parameter's display name from .planning/params.tsv, EXCEPT
+// where the page's caption carries something the dump's name does not. Two
+// rules, applied per entry and stated because they disagree with each other:
+//
+//   * where the caption is a genuinely different word, the CAPTION wins — the
+//     user is reading the page, not the automation lane.
+//   * where the caption is the dump name minus its section prefix ("Speed"
+//     inside the Bow box) or an abbreviation of it ("Rev. Friction",
+//     "Ref Pitch", "Body Amt"), the tip carries the FULL DUMP NAME. A tooltip
+//     floats free of the section box that disambiguates the caption, and this
+//     page has a second "Speed", a second "Position" and a second "Rosin" in
+//     the Humanize grid. Restoring the prefix is not a third name; it is the
+//     page's own composition, and it is what the host automation lane shows.
+//
+// The one place they genuinely diverge is sympatheticCount: the dump says
+// "Sympathetic Strings", the caption says "Count". The dump name is used, and
+// the body names the caption's word, because "Count" alone in a floating tip
+// says nothing about what is being counted.
+//
+// ── RANGES AND UNITS ────────────────────────────────────────────────────────
+//
+// Only 5 of the 28 dumped parameters that have a control carry a `label` in
+// params.tsv: bowSpeed (m/s), bowPressure (N), brightness (Hz), outputLevel
+// (dB), referencePitch (Hz). The other 23 have an EMPTY label column, and
+// every one of them is genuinely dimensionless — recovered from the page's own
+// formatter, not invented: index.html:1170 formatValue() is
+// `rawValue.toFixed(def.decimals) + def.unit`, and every one of those 23 rows
+// in the PARAMS table at index.html:1077-1114 declares `unit: ''`. So the
+// range in each body is a bare number at the decimals the readout uses, which
+// is what a user comparing tip to knob actually sees.
+//
+// sympatheticCount is the exception inside that group: it is an
+// AudioParameterInt rendered at 0 decimals, so its range is stated as a count
+// of strings rather than a bare number.
+//
+// The eight Humanize Rate knobs read 0.00-1.00 on the page and there is no
+// unit to recover, but the number is meaningless on its own — HumanizeEngine.h:83
+// maps it to a 0.15-8 Hz smoothing corner. Each body states the mapping AND
+// the on-page range, because the tip has to agree with the readout beside it.
+//
+// ── FRENCH ──────────────────────────────────────────────────────────────────
+//
+// A tooltip body is PROSE and takes French convention: decimal COMMA, U+2212
+// for the minus. SETTLED for the whole task on 2026-08-30 by the developer,
+// after M1 split on it and one plugin shipped a point without flagging it.
+// The value READOUT keeps its point — D-03 exempts the readout NODE, and
+// .knob-value is machine-formatted rather than prose. They differ on purpose.
+//
+// D-01 arm 1 does not arise on this page. O-Bowed has exactly one
+// AudioParameterChoice, `tuningSystem` ("Scala/TUN" / "MTS-ESP" / "12-TET"),
+// and it has NO control in the WebView at all — see the FINDING at the foot of
+// TIP_BINDINGS. No option string is named in any body below, in either
+// language, so the "option stays English, the sentence naming it is French"
+// split never had to be made here.
+//
+// ALL FRENCH BELOW IS MACHINE-DRAFTED, every entry `reviewed: false`.
+// ============================================================================
+
+export const I18N = Object.freeze({
+
+    // ── Bow ─────────────────────────────────────────────────────────────────
+    // Caption "Speed" inside the Bow box; dump name "Bow Speed". Prefix
+    // restored — the Humanize grid has its own "Speed" column.
+    'tip.bowSpeed': {
+        en: { t: 'Bow Speed',
+              b: 'How fast the bow is drawn across the string. Faster bowing drives the string '
+               + 'harder and brightens the tone; too fast for the pressure currently set and the '
+               + 'string slips into a whistle instead of speaking. 0.02 to 2.00 m/s.' },
+        fr: { t: 'Vitesse d’archet',
+              b: 'La vitesse à laquelle l’archet est tiré sur la corde. Un archet rapide excite '
+               + 'davantage la corde et éclaircit le timbre ; trop rapide pour la pression '
+               + 'réglée, la corde siffle au lieu de parler. 0,02 à 2,00 m/s.',
+              reviewed: false },
+    },
+    'tip.bowPressure': {
+        en: { t: 'Bow Pressure',
+              b: 'The normal force the bow presses onto the string. Low pressure gives a thin, '
+               + 'airy surface tone; high pressure grips harder and thickens the sound until it '
+               + 'crunches. 0.01 to 5.00 N.' },
+        fr: { t: 'Pression d’archet',
+              b: 'La force normale que l’archet exerce sur la corde. Une pression faible donne '
+               + 'un son de surface fin et aéré ; une pression forte accroche davantage et '
+               + 'épaissit le son jusqu’au grincement. 0,01 à 5,00 N.',
+              reviewed: false },
+    },
+    'tip.bowPosition': {
+        en: { t: 'Bow Position',
+              b: 'Where the bow contacts the string, as a fraction of its length from the '
+               + 'bridge. Small values are sul ponticello — glassy and rich in upper partials; '
+               + 'large values move toward sul tasto and soften the tone. 0.02 to 0.30.' },
+        fr: { t: 'Position d’archet',
+              b: 'Le point de contact de l’archet sur la corde, en fraction de sa longueur '
+               + 'depuis le chevalet. Les petites valeurs donnent un jeu sul ponticello, vitreux '
+               + 'et riche en partiels aigus ; les grandes tendent vers le sul tasto et '
+               + 'adoucissent le timbre. 0,02 à 0,30.',
+              reviewed: false },
+    },
+    'tip.rosin': {
+        en: { t: 'Rosin',
+              b: 'Shapes the friction curve between hair and string, from smooth to aggressive. '
+               + 'More rosin makes the stick-slip cycle snap harder, which sharpens the attack '
+               + 'and adds bite. 0.00 to 1.00.' },
+        fr: { t: 'Colophane',
+              b: 'Modèle la courbe de friction entre le crin et la corde, du lisse à l’agressif. '
+               + 'Plus de colophane fait claquer le cycle adhérence-glissement, ce qui aiguise '
+               + 'l’attaque et ajoute du mordant. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.bowNoise': {
+        en: { t: 'Bow Noise',
+              b: 'Adds the broadband scrape of hair on string on top of the pitched tone. A '
+               + 'little restores the breath a pure waveguide leaves out; a lot pushes toward a '
+               + 'pressed, unvoiced sound with no clear note in it. 0.00 to 1.00.' },
+        fr: { t: 'Bruit d’archet',
+              b: 'Ajoute le frottement large bande du crin sur la corde par-dessus le son '
+               + 'harmonique. Un peu redonne le souffle qu’un guide d’ondes pur laisse de côté ; '
+               + 'beaucoup pousse vers un son écrasé, sans note claire. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    // Caption "Hair Stiff." is an abbreviation forced by the 62 px .knob-label
+    // cap recorded in this file's LABELS header. The tip has 260 px, so it
+    // carries the dump name unabbreviated.
+    'tip.hairStiff': {
+        en: { t: 'Bow Hair Stiffness',
+              b: 'Blends between the simple friction core and a full elasto-plastic bristle '
+               + 'model. At 0 the tone matches the classic O-Bowed voice, which is why every '
+               + 'factory preset leaves it there; raising it lets the hair bend and release, '
+               + 'loosening the attack. 0.00 to 1.00.' },
+        fr: { t: 'Raideur du crin',
+              b: 'Fond le noyau de friction simple avec un modèle de crin élasto-plastique '
+               + 'complet. À 0 le timbre correspond à la voix classique d’O-Bowed, ce qui '
+               + 'explique que tous les préréglages d’usine l’y laissent ; en montant, le crin '
+               + 'fléchit puis relâche et l’attaque s’assouplit. 0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Humanize ────────────────────────────────────────────────────────────
+    // Eight knobs captioned "Amt" and "Rate" under four column headings. The
+    // caption alone identifies nothing, so every title here is the dump name.
+    // The Rate bodies name the column caption the knob depends on ("Speed Amt"
+    // / "Qté Vitesse") because that is the control the user has to find, and
+    // "Coloph." rather than "Colophane" in French because label.rosinShort is
+    // what that column actually renders.
+    'tip.humSpeedAmt': {
+        en: { t: 'Speed Humanize',
+              b: 'How far bow speed wanders on its own, independently per voice, so two '
+               + 'repetitions of a note are never identical. At 0 the drift is off entirely and '
+               + 'the Rate knob beside it does nothing. 0.00 to 1.00.' },
+        fr: { t: 'Humanisation de la vitesse',
+              b: 'L’ampleur de la dérive spontanée de la vitesse d’archet, indépendante pour '
+               + 'chaque voix, afin que deux répétitions d’une note ne soient jamais '
+               + 'identiques. À 0 la dérive est entièrement désactivée et le bouton Fréq. voisin '
+               + 'reste sans effet. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humSpeedRate': {
+        en: { t: 'Speed Humanize Rate',
+              b: 'How quickly the bow-speed drift moves, from a slow swell to a fast tremble. '
+               + 'The knob maps internally to a 0.15 to 8 Hz smoothing corner, and it does '
+               + 'nothing while Speed Amt is 0. 0.00 to 1.00.' },
+        fr: { t: 'Fréquence d’humanisation de la vitesse',
+              b: 'La rapidité de la dérive de vitesse d’archet, d’une houle lente à un '
+               + 'tremblement rapide. Le bouton correspond en interne à une coupure de lissage '
+               + 'de 0,15 à 8 Hz, et il reste sans effet tant que Qté Vitesse vaut 0. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humPressAmt': {
+        en: { t: 'Pressure Humanize',
+              b: 'How far bow pressure wanders on its own, independently per voice, so a held '
+               + 'chord breathes instead of sitting still. At 0 the drift is off entirely and '
+               + 'the Rate knob beside it does nothing. 0.00 to 1.00.' },
+        fr: { t: 'Humanisation de la pression',
+              b: 'L’ampleur de la dérive spontanée de la pression d’archet, indépendante pour '
+               + 'chaque voix, afin qu’un accord tenu respire au lieu de rester figé. À 0 la '
+               + 'dérive est entièrement désactivée et le bouton Fréq. voisin reste sans effet. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humPressRate': {
+        en: { t: 'Pressure Humanize Rate',
+              b: 'How quickly the bow-pressure drift moves. The knob maps internally to a 0.15 '
+               + 'to 8 Hz smoothing corner, and it does nothing while Pressure Amt is 0. '
+               + '0.00 to 1.00.' },
+        fr: { t: 'Fréquence d’humanisation de la pression',
+              b: 'La rapidité de la dérive de pression d’archet. Le bouton correspond en interne '
+               + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
+               + 'Pression vaut 0. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humPosAmt': {
+        en: { t: 'Position Humanize',
+              b: 'How far the bow contact point wanders on its own, independently per voice — '
+               + 'the drift a player’s arm makes across a long note. At 0 it is off entirely and '
+               + 'the Rate knob beside it does nothing. 0.00 to 1.00.' },
+        fr: { t: 'Humanisation de la position',
+              b: 'L’ampleur de la dérive spontanée du point de contact, indépendante pour chaque '
+               + 'voix — celle que le bras d’un instrumentiste imprime sur une note longue. À 0 '
+               + 'elle est entièrement désactivée et le bouton Fréq. voisin reste sans effet. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humPosRate': {
+        en: { t: 'Position Humanize Rate',
+              b: 'How quickly the contact-point drift moves. The knob maps internally to a 0.15 '
+               + 'to 8 Hz smoothing corner, and it does nothing while Position Amt is 0. '
+               + '0.00 to 1.00.' },
+        fr: { t: 'Fréquence d’humanisation de la position',
+              b: 'La rapidité de la dérive du point de contact. Le bouton correspond en interne '
+               + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
+               + 'Position vaut 0. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humRosinAmt': {
+        en: { t: 'Rosin Humanize',
+              b: 'How far the friction-curve setting wanders on its own, independently per '
+               + 'voice, so the grip of the attack varies from note to note. At 0 it is off '
+               + 'entirely and the Rate knob beside it does nothing. 0.00 to 1.00.' },
+        fr: { t: 'Humanisation de la colophane',
+              b: 'L’ampleur de la dérive spontanée du réglage de colophane, indépendante pour '
+               + 'chaque voix, afin que l’accroche de l’attaque varie d’une note à l’autre. À 0 '
+               + 'elle est entièrement désactivée et le bouton Fréq. voisin reste sans effet. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.humRosinRate': {
+        en: { t: 'Rosin Humanize Rate',
+              b: 'How quickly the rosin drift moves. The knob maps internally to a 0.15 to 8 Hz '
+               + 'smoothing corner, and it does nothing while Rosin Amt is 0. 0.00 to 1.00.' },
+        fr: { t: 'Fréquence d’humanisation de la colophane',
+              b: 'La rapidité de la dérive de colophane. Le bouton correspond en interne à une '
+               + 'coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté Coloph. '
+               + 'vaut 0. 0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Impossible physics ──────────────────────────────────────────────────
+    // Three captions abbreviated against the 62 px cap; all three tips carry
+    // the full dump name.
+    'tip.infSustain': {
+        en: { t: 'Infinite Sustain',
+              b: 'Removes damping from the string so a bowed note keeps ringing after the bow '
+               + 'has left it. At 1 the loop loses almost nothing per pass and the note holds '
+               + 'indefinitely. 0.00 to 1.00.' },
+        fr: { t: 'Tenue infinie',
+              b: 'Retire l’amortissement de la corde : une note archetée continue de sonner une '
+               + 'fois l’archet parti. À 1 la boucle ne perd presque rien à chaque passage et la '
+               + 'note se tient indéfiniment. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.revFriction': {
+        en: { t: 'Reversed Friction',
+              b: 'Inverts the friction curve, so the string grips harder the faster it slips '
+               + 'instead of letting go. No real bow hair can do this; the result is a '
+               + 'sputtering, unstable attack that settles into an odd steady tone. '
+               + '0.00 to 1.00.' },
+        fr: { t: 'Friction inversée',
+              b: 'Inverse la courbe de friction : la corde accroche d’autant plus qu’elle glisse '
+               + 'vite, au lieu de lâcher. Aucun crin réel n’en est capable ; il en résulte une '
+               + 'attaque instable et crachotante qui se résout en un son tenu étrange. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.subHarm': {
+        en: { t: 'Sub-Harmonics',
+              b: 'Feeds the string back through a nonlinearity that adds content an octave and '
+               + 'more below the played note. Useful for weight under a thin high register; at '
+               + 'high settings the pitch itself starts to fold down. 0.00 to 1.00.' },
+        fr: { t: 'Sous-harmoniques',
+              b: 'Renvoie la corde dans une non-linéarité qui ajoute du contenu à l’octave '
+               + 'inférieure et en dessous. Utile pour donner du poids sous un registre aigu '
+               + 'maigre ; à réglage élevé, la hauteur elle-même commence à se replier. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Body ────────────────────────────────────────────────────────────────
+    // "Material" and "Size" are the dump names AND the captions — no prefix to
+    // restore, and each body opens by naming the body resonator so a floating
+    // tip is not ambiguous about what is being sized.
+    'tip.material': {
+        en: { t: 'Material',
+              b: 'Morphs the body resonator through membrane, wood, metal and glass as it is '
+               + 'raised. Wood sits around the middle of the travel and is what the factory '
+               + 'presets assume. 0.00 to 1.00.' },
+        fr: { t: 'Matière',
+              b: 'Fait évoluer le résonateur de caisse de la membrane au bois, puis au métal et '
+               + 'au verre à mesure qu’on le monte. Le bois se situe vers le milieu de la course '
+               + 'et c’est ce que supposent les préréglages d’usine. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.size': {
+        en: { t: 'Size',
+              b: 'Scales the body resonator’s frequencies, from a violin-sized box at the bottom '
+               + 'of the travel to a double-bass-sized one at the top. Larger bodies move their '
+               + 'formants down and add low-mid weight. 0.00 to 1.00.' },
+        fr: { t: 'Taille',
+              b: 'Met à l’échelle les fréquences du résonateur de caisse, d’un volume de violon '
+               + 'en bas de course à un volume de contrebasse en haut. Les grandes caisses '
+               + 'descendent leurs formants et ajoutent du poids dans le bas-médium. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.brightness': {
+        en: { t: 'Brightness',
+              b: 'Sets the bridge filter cutoff, which is the top edge of everything the string '
+               + 'sends into the body. Lower it to darken a harsh bow; the knob is skewed so '
+               + 'most of its travel sits in the musically useful part of the range. '
+               + '20 to 20000 Hz.' },
+        fr: { t: 'Brillance',
+              b: 'Règle la coupure du filtre de chevalet, soit la limite haute de tout ce que la '
+               + 'corde envoie dans la caisse. Baissez-la pour assombrir un archet dur ; le '
+               + 'bouton est incurvé afin que l’essentiel de sa course couvre la partie '
+               + 'réellement utile de la plage. 20 à 20000 Hz.',
+              reviewed: false },
+    },
+    'tip.bodyAmt': {
+        en: { t: 'Body Amount',
+              b: 'The dry/wet blend between the bare string and the body resonator. At 0 you '
+               + 'hear the waveguide alone, which is thin and synthetic; at 1 the body '
+               + 'dominates. 0.00 to 1.00.' },
+        fr: { t: 'Quantité de caisse',
+              b: 'Le dosage entre la corde nue et le résonateur de caisse. À 0 on entend le '
+               + 'guide d’ondes seul, mince et synthétique ; à 1 la caisse domine. '
+               + '0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── String ──────────────────────────────────────────────────────────────
+    'tip.gauge': {
+        en: { t: 'String Gauge',
+              b: 'Sets the string’s wave impedance — thin and bright at the bottom of the '
+               + 'travel, thick and dark at the top. It changes how much of the bow’s energy the '
+               + 'string accepts, so a heavy gauge needs more pressure to speak. 0.10 to 2.00.' },
+        fr: { t: 'Calibre de corde',
+              b: 'Règle l’impédance d’onde de la corde : fine et brillante en bas de course, '
+               + 'épaisse et sombre en haut. Elle change la part d’énergie que la corde accepte '
+               + 'de l’archet, si bien qu’un gros calibre demande plus de pression pour parler. '
+               + '0,10 à 2,00.',
+              reviewed: false },
+    },
+
+    // ── Sympathetic strings ─────────────────────────────────────────────────
+    // THE ONE PLACE THE DUMP NAME AND THE CAPTION GENUINELY DISAGREE: the dump
+    // says "Sympathetic Strings", the caption says "Count". The dump name is
+    // used and the body names the caption's word, because "Count" alone in a
+    // floating tip says nothing about what is being counted.
+    'tip.count': {
+        en: { t: 'Sympathetic Strings',
+              b: 'How many passive strings ring along with the bowed one, viola d’amore '
+               + 'fashion — this is the knob captioned Count. At 0 the section is off and its '
+               + 'Amount knob is hidden. 0 to 12 strings.' },
+        fr: { t: 'Cordes sympathiques',
+              b: 'Le nombre de cordes passives qui vibrent avec la corde archetée, à la manière '
+               + 'd’une viole d’amour — c’est le bouton intitulé Nombre. À 0 la section est '
+               + 'désactivée et son bouton Quantité est masqué. 0 à 12 cordes.',
+              reviewed: false },
+    },
+    'tip.amount': {
+        en: { t: 'Sympathetic Amount',
+              b: 'How strongly the bowed string couples into the passive strings, and so how '
+               + 'loud their halo sits under the note. This knob is only on screen while '
+               + 'Count is above 0. 0.00 to 1.00.' },
+        fr: { t: 'Quantité de sympathiques',
+              b: 'L’intensité du couplage entre la corde archetée et les cordes passives, donc '
+               + 'le volume du halo qu’elles posent sous la note. Ce bouton n’est à l’écran que '
+               + 'lorsque Nombre est supérieur à 0. 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.decay': {
+        en: { t: 'Sympathetic Decay',
+              b: 'How long the sympathetic strings keep ringing once excited, set by their loss '
+               + 'per round trip. Short values give a brief shimmer, long ones a wash that '
+               + 'outlasts the note that started it. 0.00 to 1.00.' },
+        fr: { t: 'Déclin des sympathiques',
+              b: 'La durée pendant laquelle les cordes sympathiques continuent de sonner une '
+               + 'fois excitées, fixée par leur perte à chaque aller-retour. Les valeurs courtes '
+               + 'donnent un miroitement bref, les longues une nappe qui survit à la note qui '
+               + 'l’a déclenchée. 0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Footer ──────────────────────────────────────────────────────────────
+    'tip.refPitch': {
+        en: { t: 'Reference Pitch',
+              b: 'The frequency of the reference A that the tuning system is built from. Move it '
+               + 'to join an ensemble tuned away from concert pitch; every note follows it. '
+               + '220.0 to 880.0 Hz.' },
+        fr: { t: 'Diapason',
+              b: 'La fréquence du la de référence sur laquelle le système d’accord est '
+               + 'construit. Déplacez-la pour rejoindre un ensemble accordé hors du diapason de '
+               + 'concert ; toutes les notes suivent. 220,0 à 880,0 Hz.',
+              reviewed: false },
+    },
+    'tip.width': {
+        en: { t: 'Stereo Width',
+              b: 'Spreads the string and body output across the stereo field. 1.00 is the '
+               + 'natural image, below it narrows toward mono, above it widens past the '
+               + 'speakers. 0.00 to 2.00.' },
+        fr: { t: 'Largeur stéréo',
+              b: 'Étale la sortie de la corde et de la caisse dans le champ stéréo. 1,00 est '
+               + 'l’image naturelle, en dessous elle se resserre vers le mono, au-dessus elle '
+               + 's’élargit au-delà des enceintes. 0,00 à 2,00.',
+              reviewed: false },
+    },
+    // The only parameter on this page with a negative range. U+2212 in BOTH
+    // languages: a typographic minus is correct in English prose too, and an
+    // entry that spells its own number two ways invites the reviewer to
+    // "fix" one of them.
+    'tip.output': {
+        en: { t: 'Output Level',
+              b: 'Master gain on the way out, applied after the body resonator and the stereo '
+               + 'stage. Physical models vary a lot in level between presets, so this is the '
+               + 'trim that matches them to each other. −60.0 to +12.0 dB.' },
+        fr: { t: 'Niveau de sortie',
+              b: 'Le gain général en sortie, appliqué après le résonateur de caisse et l’étage '
+               + 'stéréo. Les modèles physiques varient beaucoup de niveau d’un préréglage à '
+               + 'l’autre ; c’est ici qu’on les égalise entre eux. −60,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    // ── The gear ────────────────────────────────────────────────────────────
+    //
+    // THIS BODY DESCRIBES ONLY WHAT THE POPOVER ACTUALLY HOLDS. O-Tapestop's
+    // wording promises a hover-help on/off toggle; this plugin has no such
+    // control and Stage M does not add one, so promising it would be a tip
+    // that lies. And it opens DOWNWARDS here — .settings-popover is
+    // `top: calc(100% + 8px)`, because the gear sits in a 40 px header strip
+    // at the top of a 600 px frame. O-Chorus's tip says "above" and is right
+    // about O-Chorus; copying it would have been wrong about this page.
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel below this button. It holds the interface language '
+               + 'and nothing else. Press Escape to close it.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages sous ce bouton. Il contient la langue de '
+               + 'l’interface et rien d’autre. Appuyez sur Échap pour le fermer.',
+              reviewed: false },
+    },
+
+    // ── The language selector ───────────────────────────────────────────────
+    //
+    // The two option words are ENDONYMS in both bodies — a language name is
+    // never translated. They are not AudioParameterChoice options, so D-01
+    // arm 1 is not in play.
+    //
+    // THE TUNING CLAUSE IS LOAD-BEARING AND IT IS TRUE. This plugin's Tuning
+    // page is the SHARED module (CMakeLists.txt embeds
+    // modules/tuning/scala-tuning-engine/js/tuning-panel.js by reference), so
+    // it is English in both languages — the same verdict K4 recorded for
+    // O-Wind. Leaving the clause out would make this the one tip on the page
+    // that overpromises.
+    'tip.language': {
+        en: { t: 'Language',
+              b: 'Chooses the language of every caption, tooltip and accessible name on this '
+               + 'panel, and the choice is saved with the plugin. Value readouts and the Tuning '
+               + 'page stay in English. English or Français.' },
+        fr: { t: 'Langue',
+              b: 'Choisit la langue de tous les libellés, info-bulles et noms accessibles de ce '
+               + 'panneau ; le choix est enregistré avec le plugin. Les valeurs affichées et la '
+               + 'page Accord restent en anglais. English ou Français.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the on-page text
@@ -219,9 +703,105 @@ export const I18N_EXEMPT = [
                + 'not resolve "Violon"'],
 ];
 
-// This plugin has no hover-help. See the header: empty here is the correct
-// state, and check-i18n assertion 2 reports it rather than passing silently.
-export const TIP_BINDINGS = [];
+// ============================================================================
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper]
+//
+// applyI18n() runs document.querySelector(sel), then closest(wrapper) if a
+// third element is present, and writes data-tip-title + data-tip onto whatever
+// it lands on. A binding that resolves to nothing only console.warns, so
+// tests/ui_tip_render_check.js asserts every one of these resolves and that
+// boot-all-uis sees no "tip target not found" line.
+//
+// ── "BIND TO THE IDS THE UI ALREADY USES" IS WRONG HERE TOO, and for the
+//    sixth distinct reason in this stage ──────────────────────────────────────
+//
+// The two halves of that instruction fail INDEPENDENTLY and this page fails
+// only the first. Measured, both ways:
+//
+//   SELECTOR half — FALSE. 28 of the 30 anchors below carry no id at all.
+//     The knobs are addressed the way the page's own bindSliderParam() does it
+//     (index.html:1191), by `.knob-control[data-param="..."]`. Exactly two
+//     .knob-control nodes have an id (#sympAmount-ctrl, #sympDecay-ctrl, added
+//     for the conditional-visibility path) and using them would make two rows
+//     read differently from the other twenty-six for no gain.
+//
+//   WRAPPER half — NOT NEEDED. .knob-control IS the hover cell: a 62 px column
+//     holding the 55 px SVG, the caption and the readout, and nothing else
+//     (index.html:400 `.knob-control { width: 62px }`). There is no 4 px
+//     stroke to aim at and no shrink-wrapping parent to walk up to, so every
+//     binding is a bare two-element row. This is the O-Bassoon shape, not the
+//     O-Comp one.
+//
+// ── THE CHROME BINDS BARE, and on this page it MUST ─────────────────────────
+//
+// #gear-btn and #settings-popover are both inside .settings-cluster
+// (index.html:769). A wrapper walk to that cluster would make hovering
+// #lang-select resolve to the gear's own tip — the O-Comp trap, and the same
+// ancestor shape. Both rows are bare.
+//
+// ── FINDING: one dumped parameter has NO CONTROL and therefore NO TIP ────────
+//
+// `tuningSystem` — AudioParameterChoice, 3 options ("Scala/TUN", "MTS-ESP",
+// "12-TET"), default 12-TET (PluginProcessor.cpp:224-230). It is automatable
+// and host-reachable, and PluginEditor.cpp:78 even builds a WebComboBoxRelay
+// for it — but there is no <select> anywhere on the page bound to it, and the
+// page's own bindComboBox() helper (index.html:1275) is never called. The
+// shared tuning panel does not carry one either. So the dump's 29 parameters
+// produce 28 controls and 28 parameter tips.
+//
+// NOT FIXED, deliberately. Adding a selector is a feature change with a
+// geometry cost and a host-visible surface, which is not this stage's scope,
+// and authoring a body for it would be an ORPHAN that check-i18n assertion 2
+// fails by design.
+// ============================================================================
+
+export const TIP_BINDINGS = [
+    // Bow
+    ['.knob-control[data-param="bowSpeed"]',              'tip.bowSpeed'],
+    ['.knob-control[data-param="bowPressure"]',           'tip.bowPressure'],
+    ['.knob-control[data-param="bowPosition"]',           'tip.bowPosition'],
+    ['.knob-control[data-param="rosin"]',                 'tip.rosin'],
+    ['.knob-control[data-param="bowNoise"]',              'tip.bowNoise'],
+    ['.knob-control[data-param="bowHairStiffness"]',      'tip.hairStiff'],
+
+    // Humanize
+    ['.knob-control[data-param="humanizeSpeedRange"]',    'tip.humSpeedAmt'],
+    ['.knob-control[data-param="humanizeSpeedRate"]',     'tip.humSpeedRate'],
+    ['.knob-control[data-param="humanizePressureRange"]', 'tip.humPressAmt'],
+    ['.knob-control[data-param="humanizePressureRate"]',  'tip.humPressRate'],
+    ['.knob-control[data-param="humanizePositionRange"]', 'tip.humPosAmt'],
+    ['.knob-control[data-param="humanizePositionRate"]',  'tip.humPosRate'],
+    ['.knob-control[data-param="humanizeRosinRange"]',    'tip.humRosinAmt'],
+    ['.knob-control[data-param="humanizeRosinRate"]',     'tip.humRosinRate'],
+
+    // Impossible physics
+    ['.knob-control[data-param="infiniteSustain"]',       'tip.infSustain'],
+    ['.knob-control[data-param="reversedFriction"]',      'tip.revFriction'],
+    ['.knob-control[data-param="subHarmonics"]',          'tip.subHarm'],
+
+    // Body
+    ['.knob-control[data-param="bodyMaterial"]',          'tip.material'],
+    ['.knob-control[data-param="bodySize"]',              'tip.size'],
+    ['.knob-control[data-param="brightness"]',            'tip.brightness'],
+    ['.knob-control[data-param="bodyAmount"]',            'tip.bodyAmt'],
+
+    // String
+    ['.knob-control[data-param="stringGauge"]',           'tip.gauge'],
+
+    // Sympathetic
+    ['.knob-control[data-param="sympatheticCount"]',      'tip.count'],
+    ['.knob-control[data-param="sympatheticAmount"]',     'tip.amount'],
+    ['.knob-control[data-param="sympatheticDecay"]',      'tip.decay'],
+
+    // Footer
+    ['.knob-control[data-param="referencePitch"]',        'tip.refPitch'],
+    ['.knob-control[data-param="width"]',                 'tip.width'],
+    ['.knob-control[data-param="outputLevel"]',           'tip.output'],
+
+    // Chrome — BARE, see above
+    ['#gear-btn',                                         'tip.settings'],
+    ['#lang-select',                                      'tip.language'],
+];
 
 export function tr(key, lang, vars) {
     const entry = I18N[key];
