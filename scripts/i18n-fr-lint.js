@@ -220,7 +220,6 @@ async function lintPlugin(name) {
     console.log('  ' + 'TOTAL'.padEnd(28) + '      ' + CODES.map((c) => String(totals[c]).padStart(4)).join('') + `   ${String(Object.values(totals).reduce((a, b) => a + b, 0)).padStart(5)}`);
 
     for (const r of details) {
-        if (!r.findings.length && !r.info.termNote.length) continue;
         console.log(`\n-- ${r.name}`);
         const shown = r.findings.slice(0, MAX_SHOWN);
         for (const f of shown) {
