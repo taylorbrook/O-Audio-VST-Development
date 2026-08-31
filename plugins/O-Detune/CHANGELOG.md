@@ -1,5 +1,70 @@
 # O-Detune Changelog
 
+## [1.7.0] - 2026-08-30
+
+### Added
+
+- **Hover-help, in English and French, on every control the page has.** Eighteen
+  tooltips — sixteen parameters plus the gear and the language selector — each
+  with a title, a body saying what the control does and when to reach for it,
+  and a closing range in the unit the readout actually shows. Every French body
+  is a machine draft flagged `reviewed: false`; no native speaker has read one.
+- **A renderer to paint them, because the canon does not.** `applyI18n()` writes
+  `data-tip-title` and `data-tip` ATTRIBUTES onto the bound anchors and stops
+  there; v1.6.0 had no tooltip surface, no tooltip CSS and no hover handler, so
+  eighteen bound bodies with no other change would have shipped eighteen
+  invisible strings past three green gates. `index.html` now carries a
+  `#tooltip` surface, a `.tooltip` rule in this page's own paper-and-walnut
+  vocabulary, and a delegated `setupTooltips()` ported from O-simpleFM: it
+  follows the cursor, flips to the other side of it and then clamps on all four
+  edges at 8 px, and it is called after `initI18n()` inside the same try/catch.
+- **A focus latch, so a mouse click cannot park a tip on screen.** A click on a
+  `<button>` focuses it, and an unconditional `focusin` rule re-opens the tip
+  that `pointerdown` has just hidden. Here that put the gear's own tip square on
+  the language selector the click had opened — **5624 px² of overlap**, measured
+  by removing the latch and re-running the gate. `:focus-visible` is
+  deliberately not the discriminator: Chromium reports it false for a
+  programmatic `.focus()` after a click, so a gate driving focus directly would
+  measure "no tip" and record that as correct.
+- **`tests/ui_tip_render_check.js` — the only gate in this repo that can see a
+  rendered tooltip on this page.** 393 assertions: every binding resolves, every
+  anchor shows a tip with non-empty text, the rendered title and body are
+  byte-equal to the table in both languages, and the tip rectangle stays inside
+  600 × 480 at every anchor. It drives `en → fr → en` across four states, plants
+  a 3200-character body and confirms the viewport assertion reports the
+  overflow, and asserts both halves of the focus latch separately.
+
+### Changed
+
+- Version 1.6.0 → 1.7.0. No parameter IDs, ranges, types or DSP behaviour
+  changed; no label, caption or accessible name changed.
+
+### Notes
+
+- **Two parameters are host-reachable and not page-reachable.** `focus_low`
+  (20–500 Hz) and `focus_high` (1–20 kHz) are automatable, are implemented in
+  the DSP, are relayed to the WebView and are even given slider states and
+  formatters by the page — but they have no element. They therefore get no
+  tooltip, because a body with nothing to bind to fails the gate and adding two
+  controls to a 600 × 480 frame is a feature change, not a localization.
+  Reported, not fixed.
+- **The Width tooltip cannot be opened with a pointer while Mono-Safe is on.**
+  Mono-Safe defaults on and puts `.disabled` on `.slider-container`, which has
+  been `pointer-events: none` since v1.5.4. The keyboard still reaches it —
+  focus is unaffected by `pointer-events` — so the tip is half-reachable rather
+  than dead. Making a disabled control hoverable is a UX decision, not a
+  localization, so nothing was changed.
+- **Option words stay English inside a French body where they are visible on the
+  page.** `Sine`, `Triangle`, `Random`, `Linear`, `Exp`, `60s`/`70s`/`80s` and
+  the voice-count digits are `AudioParameterChoice` options, exempt under D-01
+  arm 1, and read English in both languages — so a French body naming "Sinus"
+  would point at a word that is not on screen. Where the option string appears
+  nowhere on the page (the two toggles render as a switch with no text), the
+  range is ordinary prose and is localized.
+- French bodies take French convention — decimal comma, a space before `%` —
+  while the value readouts keep their point, because D-03 exempts the readout
+  node and that has not moved.
+
 ## [1.6.0] - 2026-08-28
 
 ### Added
