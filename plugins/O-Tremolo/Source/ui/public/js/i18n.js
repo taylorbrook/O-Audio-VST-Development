@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Tremolo page labels, English + French (v1.7.0)
+// i18n.js — O-Tremolo page labels and hover-help, English + French (v1.8.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -33,16 +33,31 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── HOVER-HELP ARRIVES IN v1.8.0, AND SO DOES THE THING THAT PAINTS IT ──────
 //
-// v1.6.0 carried no data-tip and no data-tooltip anywhere on the page — only
-// five native title= attributes on the preset bar, which contract §4 DELETES
-// rather than localizes, moving their existing English into data-i18n-aria. No
-// hover-help prose is INVENTED here: authoring it is Stage M's job. I18N is
-// therefore empty and TIP_BINDINGS is empty, which is this plugin's correct
-// state rather than a gap. check-i18n assertion 2 reports it as "0 tip(s)
-// bound", and that emptiness is admissible only BECAUSE no I18N entry carries
-// a body — an emptied TIP_BINDINGS over a bodied table would be orphaned copy.
+// v1.7.0 carried no data-tip and no data-tooltip anywhere on the page: the only
+// hover text it ever had was five native title= attributes on the preset bar,
+// which contract §4 DELETED rather than localized, moving their existing
+// English into data-i18n-aria. I18N was empty and TIP_BINDINGS was empty, which
+// was that version's correct state rather than a gap.
+//
+// v1.8.0 authors eight bodies — six parameters plus the gear and the language
+// selector — and binds every one. THE COPY ALONE WOULD HAVE BEEN INVISIBLE.
+// applyI18n() writes data-tip-title and data-tip onto the anchors named in
+// TIP_BINDINGS and stops there; the code that reads those attributes and paints
+// a surface is per-plugin and this page had none. check-i18n assertion 2 counts
+// bindings, check-ui-labels has no tooltip awareness at all, and boot-all-uis
+// counts aria-label and title and never data-tip — so eight unpaintable strings
+// would have shipped past three green gates. setupTooltips() lands in
+// index.html in the same commit, and tests/ui_tip_render_check.js is the gate
+// that can see a rendered tip.
+//
+// SEVEN PARAMETERS, SIX TIPS. SYNC_DIVISION_PARAM has no control of its own on
+// this page — the Speed knob BECOMES its stepper while Tempo Sync is engaged
+// (index.html speedSyncActive()), so there is no element to bind a seventh tip
+// to. An authored body with no binding is an ORPHAN and check-i18n assertion 2
+// fails it, so the division is described inside tip.speed and tip.tempoSync
+// where the user meets it, rather than given a tip nobody could open.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -55,17 +70,189 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy, authored in v1.8.0. {t, b}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin with no tooltips today, so Stage M can
-// add bodies here without touching the label keys below.
+// TITLE = the control's caption AS THE PAGE SPELLS IT, not as params.tsv spells
+// it, on the two rows where they differ. WAVEFORM_PARAM is named "Waveform" in
+// the automation lane and the French caption on the page is ONDE (the 88 px
+// select ceiling chose that word in v1.7.0 — see budget C below), so tip.
+// waveform's fr title is "Onde". PAN_SYNC_PARAM / TEMPO_SYNC_PARAM are "Pan
+// Sync" / "Tempo Sync" and their French buttons read SYNC PAN / SYNC TEMPO, so
+// the tips do too. The user is reading the page, not the automation lane.
+//
+// BODY = what the control does, when to reach for it, and it ENDS WITH THE
+// RANGE AND UNIT. Three sentences at most.
+//
+// ── EVERY UNIT CAME OUT OF THE DUMP, NOT OUT OF A FORMATTER ─────────────────
+//
+// The M brief warns that `label` is empty far more often than the plan implies
+// and asks for the page's own formatter to be cited wherever a unit had to be
+// recovered. NOTHING HAD TO BE RECOVERED HERE, and that was checked rather than
+// assumed: .planning/params.tsv carries Hz on SPEED_PARAM and % on DEPTH_PARAM
+// and SMOOTHING_PARAM, straight from the withLabel-equivalent fourth argument
+// of the AudioParameterFloat constructors (PluginProcessor.cpp:78, 87, 105).
+// Speed and Depth agree independently with the page — index.html passes ' Hz'
+// and '%' into setupKnob() — and SMOOTHING has no readout node at all, so the
+// dump is its only source and there was no formatter to consult. The three
+// parameters with an EMPTY label are the choice and the two bools, exactly as
+// the brief describes, and their range is their option words rather than a
+// number.
+//
+// ── THE OPTION STRINGS INSIDE A BODY ARE PROSE, AND THAT IS NOT A CONFLICT ──
+//
+// D-01 arm 1 keeps Sine / Triangle / Phasor / Noise / Square / Pulse ENGLISH in
+// the <select>, because they are byte-identical WAVEFORM_PARAM choices and the
+// page and the host automation lane must agree on what the waveform is called.
+// They are quoted verbatim inside tip.waveform's FRENCH body for the same
+// reason: a French user hunting for "Pulse" in the selector must be told
+// "Pulse". The sentence AROUND them is French; the option names are not.
+// The two bools are the other side of that line — Off / On are JUCE's own
+// AudioParameterBool strings and appear nowhere on this page, so nothing has to
+// agree with them visually and the French says "désactivé ou activé".
+//
+// The musical divisions (1/1 … 1/32Q) are SYNC_DIVISION_PARAM choice strings
+// verbatim and stay so in both languages, exactly as the #speedValue readout
+// already does.
+//
+// D-03 BINDS TO NODES, NOT TO SENTENCES. A readout node is never localized —
+// #speedValue keeps rendering "4.5 Hz" and "1/8T" in French. A number inside a
+// tooltip BODY is ordinary prose, so "0.1 to 20.0 Hz" becomes "0,1 à 20,0 Hz"
+// with the French decimal comma, the way the 21 already-shipped tooltip plugins
+// write theirs.
+//
+// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
+// speaker has read one word of it.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The two knobs ───────────────────────────────────────────────────────
+    //
+    // SPEED CARRIES THE SYNCED BEHAVIOUR because SYNC_DIVISION_PARAM has no
+    // control of its own: while Tempo Sync is on, this knob stops being a
+    // continuous Hz control and becomes a detented stepper through the sixteen
+    // divisions (index.html speedSyncActive() / PX_PER_DIVISION). A tip that
+    // named only the Hz range would be wrong half the time the plugin is used.
+    'tip.speed': {
+        en: { t: 'Speed',
+              b: 'Sets how fast the tremolo sweeps. With Tempo Sync on, the knob becomes a stepper '
+               + 'and runs through musical divisions instead, 1/1 down to 1/32Q. '
+               + 'Free-running range 0.1 to 20.0 Hz.' },
+        fr: { t: 'Vitesse',
+              b: 'Règle la rapidité du balayage du trémolo. Avec Sync Tempo activé, le bouton '
+               + 'devient un sélecteur et parcourt plutôt les divisions musicales, de 1/1 à 1/32Q. '
+               + 'Plage libre de 0,1 à 20,0 Hz.',
+              reviewed: false },
+    },
+
+    'tip.depth': {
+        en: { t: 'Depth',
+              b: 'How far the tremolo pulls the level down at the bottom of each cycle. '
+               + 'At 0 % nothing moves; at 100 % the signal reaches silence. '
+               + 'Range 0 to 100 %.' },
+        fr: { t: 'Profondeur',
+              b: 'Détermine à quel point le trémolo abaisse le niveau au creux de chaque cycle. '
+               + 'À 0 % rien ne bouge; à 100 % le signal atteint le silence. '
+               + 'Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── The waveform select and the smoothing slider ─────────────────────────
+    //
+    // The six option names stay English inside the French body — D-01 arm 1,
+    // see the head of this section. The French TITLE is Onde rather than Forme
+    // d'onde because that is the caption the page shows above the select.
+    'tip.waveform': {
+        en: { t: 'Waveform',
+              b: 'Chooses the shape of the modulating wave, from a smooth swell to a hard '
+               + 'on-off chop. Noise holds four random levels per cycle and Pulse is a narrow '
+               + 'gate. Six shapes: Sine, Triangle, Phasor, Noise, Square, Pulse.' },
+        fr: { t: 'Onde',
+              b: 'Choisit la forme de l’onde de modulation, du gonflement doux au hachage franc. '
+               + 'Noise tient quatre niveaux aléatoires par cycle et Pulse est une porte étroite. '
+               + 'Six formes : Sine, Triangle, Phasor, Noise, Square, Pulse.',
+              reviewed: false },
+    },
+
+    // SMOOTHING IS THE ONE PARAMETER WITH NO READOUT ANYWHERE ON THE PAGE —
+    // #smoothingSlider is a bare range input with a caption and nothing else —
+    // so the % in this body comes from params.tsv and from the C++ range, and
+    // there is no formatter to disagree with it.
+    'tip.smoothing': {
+        en: { t: 'Smoothing',
+              b: 'Rounds the corners of the modulating wave and softens the clicks a square or '
+               + 'pulse shape can make. A sine is already smooth, so it changes little there. '
+               + 'Range 0 to 100 %.' },
+        fr: { t: 'Lissage',
+              b: 'Arrondit les angles de l’onde de modulation et adoucit les clics que peuvent '
+               + 'produire une onde carrée ou une impulsion. Une sinusoïde est déjà lisse et '
+               + 'change donc peu. Plage de 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── The two sync toggles ────────────────────────────────────────────────
+    //
+    // PAN SYNC IS A STEREO-ONLY EFFECT and the body says so, because the
+    // processor's branch is `panSyncEnabled && numChannels == 2`
+    // (PluginProcessor.cpp:352) — on a mono track the button lights up and
+    // nothing changes, which is precisely the state a tooltip exists to explain.
+    'tip.panSync': {
+        en: { t: 'Pan Sync',
+              b: 'Offsets the right channel by half a cycle, so the tremolo swings across the '
+               + 'stereo image instead of ducking both channels together. It needs a stereo '
+               + 'signal to be heard at all. Off or On.' },
+        fr: { t: 'Sync Pan',
+              b: 'Décale le canal droit d’un demi-cycle : le trémolo balaie alors l’image stéréo '
+               + 'au lieu d’abaisser les deux canaux ensemble. Un signal stéréo est nécessaire '
+               + 'pour l’entendre. Désactivé ou activé.',
+              reviewed: false },
+    },
+
+    // The 120 BPM fallback is in the body because it is audible: in the
+    // Standalone, and in any host that reports no tempo, a synced rate is still
+    // produced rather than the plugin falling silent or freezing
+    // (PluginProcessor.cpp:313).
+    'tip.tempoSync': {
+        en: { t: 'Tempo Sync',
+              b: 'Locks the tremolo rate to the host tempo. The Speed knob then steps through '
+               + 'musical divisions from 1/1 to 1/32Q rather than free Hz, and 120 BPM is '
+               + 'assumed when the host reports none. Off or On.' },
+        fr: { t: 'Sync Tempo',
+              b: 'Verrouille la vitesse du trémolo sur le tempo de l’hôte. Le bouton Vitesse '
+               + 'parcourt alors les divisions musicales de 1/1 à 1/32Q plutôt que des Hz '
+               + 'libres, et 120 BPM est présumé si l’hôte n’en indique aucun. '
+               + 'Désactivé ou activé.',
+              reviewed: false },
+    },
+
+    // ── The two chrome tips ─────────────────────────────────────────────────
+    //
+    // THE GEAR TIP DESCRIBES ONLY WHAT THE POPOVER ACTUALLY HOLDS. O-Tapestop's
+    // wording promises a hover-help on/off toggle; this plugin has one row and
+    // that row is the language selector. A tip that lies about a control is
+    // worse than no tip, and this task has already had to rewrite two of them.
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel. It holds the interface language and nothing else.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages. Il ne contient que la langue de l’interface.',
+              reviewed: false },
+    },
+
+    // The endonyms are quoted as they appear in the selector — a language name
+    // is never translated, which is why they are in I18N_EXEMPT below.
+    'tip.language': {
+        en: { t: 'Language',
+              b: 'Chooses the language of the interface text and of this hover-help. '
+               + 'Parameter names in the host automation lane and the values on screen stay '
+               + 'English. English or Français.' },
+        fr: { t: 'Langue',
+              b: 'Choisit la langue du texte de l’interface et de cette aide contextuelle. '
+               + 'Les noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
+               + 'affichées restent en anglais. English ou Français.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -342,16 +529,60 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY, and that is this plugin's correct state.
+// TIP_BINDINGS — eight anchors, authored in v1.8.0.
 //
-// [selector, key] or [selector, key, wrapperSelector]. There is nothing to bind
-// because there is no hover-help copy: v1.6.0 had none and this commit authors
-// none. check-i18n assertion 2 accepts an empty list only while no I18N entry
-// carries a body, which is exactly the case here — so an emptied TIP_BINDINGS
-// over a bodied table still fails, on this plugin as on every other.
+// [selector, key] or [selector, key, wrapperSelector]. applyI18n() runs
+// document.querySelector(selector), then closest(wrapper) when a third element
+// is present, and writes data-tip-title + data-tip onto whatever that lands on.
+//
+// ── "BIND TO THE IDS THE UI ALREADY USES" IS HALF TRUE HERE ─────────────────
+//
+// Every anchor below IS addressable by id, which makes this the first M1 plugin
+// of four where T17's claim about ids holds at the SELECTOR. It does not hold
+// at the TARGET: four of the eight bind a WRAPPER, because the id'd node is not
+// the thing a user aims at.
+//
+//   #speedKnob / #depthKnob are 60 x 60 circles with a caption and a readout
+//   stacked underneath them inside .knob-container. Binding the circle alone
+//   would leave the caption and the value — the two parts a user reads before
+//   they reach for the control — outside the hover area, and would make the tip
+//   flicker as the pointer crossed from knob to label. The wrapper is the whole
+//   column, 60 x ~85.
+//
+//   #waveformSelect and #smoothingSlider sit under captions of their own inside
+//   .waveform-section and .slider-container. Same reason. .waveform-section
+//   appears TWICE on the page — the second one wraps the canvas — and
+//   closest() from the select can only reach the first, which is the correct
+//   one; a document.querySelector('.waveform-section') would have picked the
+//   same node by luck rather than by construction, and the difference matters
+//   the day a third section is added above it.
+//
+// #panButton and #tempoButton are the control outright, so they bind to
+// themselves. #gear-btn and #lang-select likewise.
+//
+// NO TABINDEX WAS ADDED TO .knob-container, and that is deliberate. These knobs
+// are mouse-drag only (mousedown + document mousemove) and have never been
+// keyboard-operable, so a tab stop there would add two stops for controls the
+// keyboard still could not move, and would pop a tip open in the middle of a
+// click-drag. The other six anchors are natively focusable, so the keyboard arm
+// of setupTooltips() reaches them through closest() and the accessibility half
+// of hover-help is intact — tests/ui_tip_render_check.js asserts a real tab
+// walk still opens a tip rather than assuming it.
+//
+// THE PRESET BAR GETS NO TIPS (M1 scope). Its five controls took accessible
+// names from their deleted title= attributes at v1.7.0 and are self-describing.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#speedKnob',       'tip.speed',      '.knob-container'],
+    ['#depthKnob',       'tip.depth',      '.knob-container'],
+    ['#waveformSelect',  'tip.waveform',   '.waveform-section'],
+    ['#smoothingSlider', 'tip.smoothing',  '.slider-container'],
+    ['#panButton',       'tip.panSync'],
+    ['#tempoButton',     'tip.tempoSync'],
+    ['#gear-btn',        'tip.settings'],
+    ['#lang-select',     'tip.language'],
+];
 
 export function tr(key, lang, vars) {
     const entry = I18N[key];

@@ -5,6 +5,36 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-08-30
+
+Hover-help, in both languages — and the thing that paints it. Eight tooltips (six parameters plus the gear and the language selector), authored in English and French, bound in `TIP_BINDINGS`, and a renderer, because v1.7.0 had nothing on this page that could show one.
+
+**The copy alone would have been invisible.** `applyI18n()` writes `data-tip-title` and `data-tip` onto the bound anchors and stops there; the code that reads those attributes and paints a surface is per-plugin, and this plugin had none. That was measured rather than assumed: with `setupTooltips()` disabled and everything else identical, `check-i18n --plugin O-Tremolo` and `check-ui-labels --plugin O-Tremolo` both still report **ALL CHECKS PASS**, and `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. Eight unpaintable strings would have shipped past three green gates. Only the new `tests/ui_tip_render_check.js` sees it, and it fails 150 assertions.
+
+### Added
+
+- **Eight tooltip entries in `Source/ui/public/js/i18n.js`**, each `{t, b}` in English and French: Speed, Depth, Waveform, Smoothing, Pan Sync, Tempo Sync, the settings gear and the language selector. Every body says what the control does, when to reach for it, and ends with its range and unit.
+- **`setupTooltips()` and a `#tooltip` surface** in `Source/ui/public/index.html`, ported from O-simpleFM's delegated cursor-following renderer and dressed in this page's own vocabulary — the `.preset-dropdown` cream plate, a 2 px `#5C4033` border, and the title line in the `#2C3E10` olive the toggle buttons already use. Delegated on `document` (no anchor carries `data-tip` until `applyI18n()` has run, so a setup-time `querySelectorAll` would bind nothing and fail silently); `pointerover`/`pointerout`/`focusin`/`focusout` because those bubble; `createElement` + `textContent`, never `innerHTML`; clamped on all four edges at 8 px **after** the flip; `pointer-events: none`; `position: fixed` + `visibility: hidden` at rest. Called AFTER `initI18n()` inside the same `try/catch` at the foot of `DOMContentLoaded`.
+- **A keyboard latch on the focus arm.** A mouse click on a `<button>` focuses it, so an unconditional `focusin` rule parks a tip on screen after every click — measured on two sibling plugins at 146 x 35 px and 161 x 29 px over the popover the click had just opened. `lastInputWasPointer`, set by any `pointerdown` and cleared by any `keydown`, gates it. `:focus-visible` was rejected as the discriminator: Chromium reports it false for a programmatic `.focus()` after a click, so a gate driving focus directly would measure "no tip" and record that as correct.
+- **`tests/ui_tip_render_check.js`** — 186 assertions, the only gate in this repo that can see a rendered tooltip. Drives the real page at the shipping 600 x 400 read out of `PluginEditor.cpp`, hovers all eight anchors in `en`, `fr` and `en` again, asserts the rendered title and body are **byte-equal** to the table (not "contains" — a stale `.tip-title` passes a contains check), and asserts the tip rectangle is inside the frame on all four edges. Both halves of the latch are asserted separately, so the feature cannot silently decay into "focus never shows a tip".
+- **`.planning/params.tsv`** — the runtime parameter inventory, and the `OUARICON_BUILD_TESTS` / `ouaricon_add_param_dump()` wiring in `CMakeLists.txt` that produces it. A regex over `createParameterLayout()` is not authoritative; only a walk of `getParameters()` on a constructed processor is.
+
+### Changed
+
+- **`PluginProcessor.cpp` includes `PluginEditor.h` behind `#if JUCE_WEB_BROWSER`**, directly above `createEditor()`, with a `GenericAudioProcessorEditor` fallback. The param-dump console target compiles this TU with `JUCE_WEB_BROWSER=0` and no editor sources, so a top-of-file include breaks the link. Under a normal build `JUCE_WEB_BROWSER=1` and behaviour is byte-identical.
+
+### Notes
+
+- **Seven parameters, six tips.** `SYNC_DIVISION_PARAM` has no control of its own on this page — the Speed knob BECOMES its stepper while Tempo Sync is engaged — so there is no element to bind a seventh tip to. An authored body with no binding is an orphan that `check-i18n` assertion 2 fails, so the division is described inside the Speed and Tempo Sync tips where the user actually meets it. No control was added to make the count come out; that would be a feature change with a geometry cost.
+- **Four of the eight bindings use a wrapper.** The two knobs bind `.knob-container` and the select and slider bind `.waveform-section` / `.slider-container`, so the hover target is the whole caption/control/readout cell rather than a 60 px circle with its caption outside the hover area. No `tabindex` was added to `.knob-container`: these knobs are mouse-drag only and a tab stop there would add stops for controls the keyboard still could not move, and would pop a tip open mid click-drag.
+- **No unit had to be recovered from a formatter.** `params.tsv` carries `Hz` on Speed and `%` on Depth and Smoothing; Speed and Depth agree independently with the page's own `setupKnob()` suffixes, and Smoothing has no readout node at all. The three parameters with an empty `label` are the choice and the two bools, whose range is their option words.
+- **The six waveform names stay English inside the French tooltip body**, because they are byte-identical `WAVEFORM_PARAM` `AudioParameterChoice` options and a French user hunting for "Pulse" in the selector must be told "Pulse". The sentence around them is French. The same holds for the musical divisions.
+- **Zero geometry movement.** `check-ui-labels --plugin O-Tremolo` output is **byte-identical** to the v1.7.0 baseline in all three driven states — `moved=0` before and after, the same 10 `[data-i18n]` elements, the same 4 decoration elements in the `[8b]` count. No pin was added and none was needed: the surface is `position: fixed` + `visibility: hidden` + `opacity: 0` at rest, which that gate's visibility predicate rejects, so an unshown tip is neither measured nor swept for text. **No pin means no negative control is owed.**
+- **The gear tip describes only what the popover holds** — the language selector and nothing else. O-Tapestop's wording promises a hover-help on/off toggle this plugin does not have, and a tip that lies is worse than no tip.
+- **The preset bar gets no tips.** Its five controls took accessible names from their deleted `title=` attributes at v1.7.0 and are self-describing.
+- **All eight French tooltip bodies are machine-drafted and flagged `reviewed: false`.** No native speaker has read one word of them; the worklist for this plugin is now 29 entries (8 tooltip, 21 label).
+- **Non-breaking.** No parameter is added, removed or renamed, and no DSP changed.
+
 ## [1.7.0] - 2026-08-29
 
 The page speaks French. Every visible caption, every accessible name and the two image `alt` strings now resolve through a label table, and a gear popover in the bottom-right corner switches the interface between English and French. The choice is remembered with the session.

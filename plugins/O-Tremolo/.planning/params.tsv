@@ -1,0 +1,11 @@
+# plugin	O-Tremolo
+# params	7
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+SPEED_PARAM	Speed	Hz	2147483647	0.1	20.0	0.221106	4.5	automatable
+DEPTH_PARAM	Depth	%	2147483647	0.0	100.0	0.750000	75.0	automatable
+WAVEFORM_PARAM	Waveform		6	Sine	Pulse	0.000000	Sine	automatable,discrete
+SMOOTHING_PARAM	Smoothing	%	2147483647	0.0	100.0	0.300000	30.0	automatable
+PAN_SYNC_PARAM	Pan Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+TEMPO_SYNC_PARAM	Tempo Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+SYNC_DIVISION_PARAM	Sync Division		16	1/1	1/32Q	0.200000	1/8	automatable,discrete
