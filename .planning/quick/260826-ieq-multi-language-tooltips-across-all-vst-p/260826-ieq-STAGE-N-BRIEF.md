@@ -304,3 +304,29 @@ numbers in the batch table are pre-fix.**
     claim, check it against the source before trusting either language.
 14. `HEAD~1` was not the parent for two of three pilots — other executors' commits landed
     between. `<sha>^`.
+
+## From N2 (first three to land: O-AnalogSaturation `d793390e`, O-Texture `8fad691a`, O-Bass `86dae51d`)
+
+15. **`sameAsEn: true` is a key you WILL add, and the brief was wrong to say otherwise.**
+    When a glossary root term is the English word (*Mix*, *Ratio*, *Dither*, *Ducking*,
+    *Shimmer*, *Swing*, *Sync*, *Mono*, *Min*, *Max*, *Mode*, *Type*, *Position*, *Tempo*,
+    *Distance*, *Diffusion*, *Phase*, *Sub*, *Grains*, *Notes*), applying it makes the
+    French a straight copy, and `check-i18n` assertion 4 hard-FAILS a LABELS entry (or an
+    I18N entry whose title AND body both match) until it carries `sameAsEn: true`. Add it —
+    it is the existing, correct declaration that a human looked and agreed the word is
+    French too. `termNote` remains the only key that is NEW to this stage.
+16. **The lint's straight-copy INFO now counts the CONDITION (`fr === en`), not the flag**,
+    and lists unflagged copies per plugin (`INFO straight copy, unflagged:`). Use that list
+    for step 3.4; the old counter printed 0 on a page that had one.
+17. **A glossary term can be right as a caption and wrong inside a body on the same
+    page.** O-AnalogSaturation kept *gain d'entrée* for "input drive" because on a plugin
+    named for saturation, *la saturation d'entrée* names the effect where the sentence
+    means the gain into it. O-Texture kept *filtre en bascule* for a tilt filter that is
+    described, not captioned. Bodies are not matched against TERMS; do not `termNote` a
+    body. Record the choice in the header.
+18. **An idiom that is better and three characters longer can cost 17 px of tip
+    clearance.** O-Texture measured *appuyer dessus* (27.8 → 11.0 px bottom clearance) and
+    reverted to *les presser*. On the tightest tip of a page, the calque stays.
+19. **A French body that DROPPED a clause the English has is a meaning defect** — O-Texture
+    restored a closing range ("De 0,00 à 1,00.") the draft had lost; O-AnalogSaturation
+    restored DIODE's "harder". Read for omissions, not only for errors.
