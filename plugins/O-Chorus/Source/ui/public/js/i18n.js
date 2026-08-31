@@ -18,7 +18,37 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Chorus page labels and hover-help, English + French (v1.4.0)
+// i18n.js — O-Chorus page labels and hover-help, English + French (v1.4.1)
+//
+// ── v1.4.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 19 of 28 entries. By AXIS, and an entry can be on two: 6 terminology,
+// 10 casing, 8 typography, 4 grammar/register, 0 meaning — no French sentence
+// said anything its English did not, so nothing was re-translated.
+// sameAsEn: kept 1 (LFO), translated 0, added 1 (Mix — see label.mix).
+// termNote exemptions: 0. Left as drafted: the rest.
+// reviewed: false throughout — no native speaker yet.
+//
+// Decisions the next reader needs:
+//   · CASING IS INVISIBLE HERE. Every caption node on this page carries
+//     text-transform: uppercase, so VITESSE and Vitesse render and MEASURE
+//     identically (41.61 px, measured in the real node). The table was
+//     lower-cased anyway, for lint C1 and for the accessible name. Nothing
+//     moved. See the LABELS comment; it is Stage N decision item 28.
+//   · THREE GLOSSARY ROOT TERMS DO NOT FIT and ship as the glossary's listed
+//     abbreviation: Profondeur -> Prof. (68.02 px vs a 62 px wrap cliff),
+//     Saturation -> Satur. (63.52), Étalement -> Étal. (60.47, over the 50 px
+//     GATE cliff — the root would move .knob and trip check-ui-labels [7]).
+//     Enregistrer -> Enreg. on the Save button (78.52 px vs a 62 px pin).
+//     Each tooltip TITLE spells its abbreviation out.
+//   · MIX STAYS "MIX". The glossary settles it, it is what French DAWs show,
+//     and it is keyed sameAsEn rather than exempted so a human still has to
+//     agree with it.
+//   · LOANWORDS LEFT: LFO, chorus, vibrato, tanh, mono, stéréo, English,
+//     Français. "Piste sèche" kept in tip.tone — the glossary settles the
+//     Traité/Direct CAPTION pair and names Effet/Sec as also correct, and
+//     "piste sèche" is the idiom in French prose.
+//   · U+00A0 x25, all inside fr tooltip BODIES, none in a key or a selector.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -84,7 +114,8 @@
 // are not [data-i18n] elements and never become one. A number INSIDE a
 // localized tooltip body is ordinary prose, so "0 to 100%" becomes
 // "0 à 100 %" here, exactly as the 21 already-shipped tooltip plugins do it:
-// French decimal comma, a space before the percent sign, U+2212 for the minus.
+// French decimal comma, a NO-BREAK space (U+00A0, v1.4.1) before the percent
+// sign and between a number and its unit, U+2212 for the minus.
 //
 // THE DECIMAL SEPARATOR IS A COMMA — SETTLED BY THE DEVELOPER, 2026-08-30, and
 // this file was already on the right side of it. Exactly one string on this
@@ -116,13 +147,14 @@ export const LANGUAGES = ['en', 'fr'];
 // I18N — hover-help copy. {t, b}: a title and a body.
 //
 // TITLE = the control's own caption, EXCEPT where French had to abbreviate it.
-// The knob captions live in a 62 px cell with a wrap cliff at 62.00 px, which
-// forced PROFONDEUR down to PROF. and SATURATION down to SATUR. (see the LABELS
-// comment below for the measurements). A tooltip has no such cell, so the two
-// titles here spell the abbreviation out — which is the one place on the page
-// where a user can learn what PROF. is short for. The other six French titles
-// are the caption's own word in sentence case; .tip-title applies
-// text-transform: uppercase, so what renders is byte-identical to the caption.
+// The knob captions live in a 62 px cell with a wrap cliff at 62.00 px and a
+// gate cliff at 50.00 px, which forced Profondeur down to Prof., Saturation
+// down to Satur. and — new at v1.4.1 — Étalement down to Étal. (see the LABELS
+// comment below for the measurements). A tooltip has no such cell, so those
+// THREE titles spell the abbreviation out, which is the one place on the page
+// where a user can learn what PROF. is short for. The other five French titles
+// are the caption's own word, byte-identical to it; .tip-title and .knob-label
+// both apply text-transform: uppercase, so table casing changes neither.
 //
 // BODY = what the control does, when to reach for it, and it ENDS WITH THE
 // RANGE AND UNIT. Three sentences at most — this is a tooltip, not a manual.
@@ -163,8 +195,9 @@ export const I18N = Object.freeze({
                + 'toward vibrato. 0.05 to 5.00 Hz.' },
         fr: { t: 'Vitesse',
               b: 'Règle la vitesse à laquelle le LFO balaie le temps de retard de chaque voix '
-               + '— la vitesse du mouvement du chorus. Les réglages lents dérivent et '
-               + 'élargissent ; les rapides se resserrent vers le vibrato. 0,05 à 5,00 Hz.',
+               + '— l’allure du mouvement du chorus. Les réglages lents dérivent et '
+               + 'élargissent le son ; les rapides se resserrent vers le vibrato. '
+               + '0,05 à 5,00 Hz.',
               reviewed: false },
     },
 
@@ -179,9 +212,9 @@ export const I18N = Object.freeze({
                + 'to ±5 ms. Low values thicken the sound without audible pitch movement; high '
                + 'values sing. 0 to 100%.' },
         fr: { t: 'Profondeur',
-              b: 'Règle l’amplitude du balayage du LFO autour du retard central de 10 ms, '
-               + 'jusqu’à ±5 ms. Les valeurs basses épaississent sans mouvement de hauteur '
-               + 'audible ; les valeurs hautes chantent. 0 à 100 %.',
+              b: 'Règle l’amplitude du balayage du LFO autour du retard central de 10 ms, '
+               + 'jusqu’à ±5 ms. Les valeurs basses épaississent le son sans mouvement de '
+               + 'hauteur audible ; les valeurs hautes chantent. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -199,9 +232,9 @@ export const I18N = Object.freeze({
                + '1 to 8.' },
         fr: { t: 'Voix',
               b: 'Nombre de copies retardées additionnées au signal traité, chacune avec sa '
-               + 'propre phase de LFO et sa position stéréo. Plus de voix épaissit et lisse le '
-               + 'chorus ; le niveau étant compensé, la valeur peut être changée en jouant. '
-               + '1 à 8.',
+               + 'propre phase de LFO et sa position stéréo. Plus de voix épaississent et '
+               + 'lissent le chorus ; le niveau étant compensé, le nombre peut être changé '
+               + 'pendant le jeu. 1 à 8.',
               reviewed: false },
     },
 
@@ -214,10 +247,10 @@ export const I18N = Object.freeze({
               b: 'Offsets each voice’s base delay away from the others, by up to ±15 ms, so '
                + 'the copies no longer sit on top of one another. Low values give one tight '
                + 'ensemble; high values give a scattered, doubled feel. 0 to 100%.' },
-        fr: { t: 'Écart',
+        fr: { t: 'Étalement',
               b: 'Décale le retard de base de chaque voix par rapport aux autres, jusqu’à '
-               + '±15 ms, pour que les copies ne se superposent plus. Les valeurs basses '
-               + 'donnent un ensemble serré ; les hautes, un doublage dispersé. 0 à 100 %.',
+               + '±15 ms, pour que les copies ne se superposent plus. Les valeurs basses '
+               + 'donnent un ensemble serré ; les hautes, un doublage dispersé. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -233,8 +266,8 @@ export const I18N = Object.freeze({
                + 'at 100% they span the whole field. 0 to 100%.' },
         fr: { t: 'Largeur',
               b: 'Règle l’écartement des voix dans l’image stéréo, selon une loi à puissance '
-               + 'constante. À 0 % toutes les voix restent au centre, pour un chorus '
-               + 'compatible mono ; à 100 % elles occupent tout le champ. 0 à 100 %.',
+               + 'constante. À 0 % toutes les voix restent au centre, pour un chorus '
+               + 'compatible mono ; à 100 % elles occupent tout le champ. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -252,9 +285,9 @@ export const I18N = Object.freeze({
                + 'effect under a bright dry track; positive values let it shimmer. '
                + '−100 to +100%.' },
         fr: { t: 'Timbre',
-              b: 'Incline la brillance du seul signal traité, par un passe-bas allant de 2 kHz '
-               + 'à 20 kHz et centré sur 8 kHz. Les valeurs négatives glissent l’effet sous une '
-               + 'piste sèche brillante ; les positives le font scintiller. −100 à +100 %.',
+              b: 'Incline la brillance du seul signal traité, par un passe-bas allant de 2 kHz '
+               + 'à 20 kHz et centré sur 8 kHz. Les valeurs négatives glissent l’effet sous une '
+               + 'piste sèche brillante ; les positives le font scintiller. −100 à +100 %.',
               reviewed: false },
     },
 
@@ -267,10 +300,10 @@ export const I18N = Object.freeze({
               b: 'Blends the dry input against the chorused signal. At 50% the two sit level '
                + 'for a classic doubling; past that the effect leads, and at 100% the dry path '
                + 'is gone entirely. 0 to 100%.' },
-        fr: { t: 'Dosage',
-              b: 'Équilibre le signal direct et le signal traité. À 50 % les deux sont à '
-               + 'niveau égal, pour un doublage classique ; au-delà l’effet domine, et à 100 % '
-               + 'le signal direct disparaît. 0 à 100 %.',
+        fr: { t: 'Mix',
+              b: 'Équilibre le signal direct et le signal traité. À 50 % les deux sont à '
+               + 'niveau égal, pour un doublage classique ; au-delà l’effet domine, et à 100 % '
+               + 'le signal direct disparaît. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -279,7 +312,7 @@ export const I18N = Object.freeze({
     // saturate() at ChorusEngine.cpp:146-159 — an asymmetric tanh (the positive
     // half driven 1.0x, the negative 0.9x) applied per voice BEFORE the sum,
     // which is where a bucket-brigade chorus gets its softness. Readout at
-    // index.html:693 is a percentage. The French title spells out SATUR.
+    // index.html:693 is a percentage. The French title spells out Satur.
     'tip.drive': {
         en: { t: 'Drive',
               b: 'Adds an asymmetric tanh saturation to each delayed voice before they are '
@@ -287,8 +320,9 @@ export const I18N = Object.freeze({
                + 'circuitry. Keep it low for warmth, raise it for grit. 0 to 100%.' },
         fr: { t: 'Saturation',
               b: 'Ajoute une saturation tanh asymétrique à chaque voix retardée avant la '
-               + 'somme : l’écrêtage doux qu’un chorus à ligne à retard analogique tient de '
-               + 'son propre circuit. Basse pour la chaleur, haute pour le grain. 0 à 100 %.',
+               + 'somme : l’écrêtage doux qu’un chorus à ligne à retard analogique tient de '
+               + 'son propre circuit. Gardez-la basse pour la chaleur, montez-la pour le '
+               + 'grain. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -357,19 +391,33 @@ export const I18N = Object.freeze({
 //              the container width the caption wraps to two lines, .knob grows
 //              from 73 to 83 px tall and pushes .knob-value down 10 px.
 //
-// MEASURED, at 700 x 125, rendered text width against the 50 px gate cliff:
+// MEASURED, at 700 x 125, rendered text width against the 50 px gate cliff.
+// Re-measured at v1.4.1 in the real .knob-label node after the glossary pass:
 //
-//     Rate   25.70 -> VITESSE 41.61   8.39 spare
-//     Depth  33.00 -> PROF.   28.05  21.95 spare   SHRANK
-//     Voices 37.31 -> VOIX    25.70  24.30 spare   SHRANK
-//     Spread 39.31 -> ECART   32.97  17.03 spare   SHRANK
-//     Width  34.00 -> LARGEUR 48.11   1.89 spare   <- the tightest on the page
-//     Tone   27.05 -> TIMBRE  38.81  11.19 spare
-//     Mix    19.91 -> DOSAGE  41.31   8.69 spare
-//     Drive  31.50 -> SATUR.  35.56  14.44 spare
+//     Rate   25.70 -> Vitesse 41.61   8.39 spare
+//     Depth  33.00 -> Prof.   28.05  21.95 spare   SHRANK
+//     Voices 37.31 -> Voix    25.70  24.30 spare   SHRANK
+//     Spread 39.31 -> Étal.   28.53  21.47 spare   SHRANK
+//     Width  34.00 -> Largeur 48.11   1.89 spare   <- the tightest on the page
+//     Tone   27.05 -> Timbre  38.81  11.19 spare
+//     Mix    19.91 -> Mix     19.91  30.09 spare   sameAsEn
+//     Drive  31.50 -> Satur.  35.56  14.44 spare
 //     LFO    18.72 -> LFO     18.72   sameAsEn
 //
 // THREE OF EIGHT SHRINK. A clip-only check would have certified this page.
+//
+// ── THE CASING IN THIS TABLE IS INVISIBLE ON SCREEN ─────────────────────────
+//
+// .knob-label carries text-transform: uppercase (index.html), and so do
+// .preset-action, .settings-label and .tooltip .tip-title. So VITESSE and
+// Vitesse RENDER IDENTICALLY and MEASURE IDENTICALLY — 41.61 px either way,
+// measured in the real node, not argued. v1.4.1 lower-cased the eight knob
+// captions and the two preset buttons anyway, because lint C1 reads the TABLE
+// and so does the accessible name: a screen reader given VITESSE may spell it,
+// and a French caption follows the casing of the English caption it replaces
+// (Rate, Depth, Voices … are all mixed-case). Nothing on this page moved by a
+// pixel. Whether pages like this one should drop the CSS transform and carry
+// real caps in the table is the developer's call — Stage N decision item 28.
 //
 // ── GEOMETRY ────────────────────────────────────────────────────────────────
 //
@@ -393,43 +441,58 @@ export const LABELS = Object.freeze({
     // exists in the authored markup and nothing had to be split here.
 
     // "Vitesse" rather than "Taux": this is the LFO's rate in Hz, and a French
-    // modulation section calls that its speed.
-    'label.rate': { en: { t: 'Rate' }, fr: { t: 'VITESSE', reviewed: false } },
+    // modulation section calls that its speed. The glossary's root term.
+    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: false } },
 
-    // PROFONDEUR is the word a French user expects and it does not fit: 68.02
+    // Profondeur is the word a French user expects and it does not fit: 68.02
     // px against a 62 px wrap cliff, so it would render on two lines and push
-    // the value readout down inside a 125 px frame. AMPLEUR fits at 48.61 but
-    // leaves 1.39 px against the gate cliff and means "breadth" rather than
-    // "depth". PROF. is the standard French abbreviation OF the expected word,
-    // and it is the only option that is both recognisable and comfortable.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'PROF.', reviewed: false } },
+    // the value readout down inside a 125 px frame. Ampleur fits at 48.61 but
+    // leaves 1.39 px against the gate cliff, means "breadth" rather than
+    // "depth", and the glossary forbids it. Prof. is the glossary's listed
+    // abbreviation OF the expected word, and it is the only option that is both
+    // recognisable and comfortable. tip.depth's title spells it out.
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: false } },
 
-    'label.voices': { en: { t: 'Voices' }, fr: { t: 'VOIX', reviewed: false } },
+    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: false } },
 
-    // Spread offsets the voices' LFO phases and delay times from one another,
-    // so the quantity is the gap between them. ETALEMENT (60.47) and
-    // DISPERSION (60.02) are both nearer the wrap cliff than the gate cliff.
-    'label.spread': { en: { t: 'Spread' }, fr: { t: 'ÉCART', reviewed: false } },
+    // v1.4.1: ÉCART -> Étal. The glossary settles Spread on Étalement (Étal.)
+    // and gives Écart to Detune, because Écart was doing both jobs across the
+    // suite. The root term does NOT fit: Étalement measures 60.47 px, which is
+    // under the 62 px WRAP cliff but 10.47 px over the 50 px GATE cliff, so it
+    // widens .knob from 50 to 60.47 and check-ui-labels assertion 7 reports a
+    // non-label element moved. Étal. is 28.53 px and moves nothing.
+    // tip.spread's title spells it out.
+    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: false } },
 
     // THE TIGHTEST STRING ON THE PAGE, 1.89 px under the gate cliff. Crossing
     // it widens .knob by fractions of a pixel and nothing else; the wrap cliff
-    // is 13.89 px further out. STÉRÉO measures 38.81 and is the obvious lever
-    // if a reviewer wants margin rather than the literal translation.
-    'label.width': { en: { t: 'Width' }, fr: { t: 'LARGEUR', reviewed: false } },
+    // is 13.89 px further out. Stéréo measures 38.81 and is the obvious lever
+    // if a reviewer wants margin rather than the literal translation — but the
+    // glossary settles Width on Largeur (Larg., 30.75), so the margin is there
+    // without leaving the list.
+    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: false } },
 
     // A tilt control, dark to bright. "Timbre" is the French word for that
-    // quality; TONALITÉ measures 50.73 and would cross the gate cliff.
-    'label.tone': { en: { t: 'Tone' }, fr: { t: 'TIMBRE', reviewed: false } },
+    // quality and the glossary's term for Tone; Tonalité measures 50.73 and
+    // would cross the gate cliff.
+    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: false } },
 
-    // The wet/dry blend. "Dosage" is what a French plugin calls it.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'DOSAGE', reviewed: false } },
+    // v1.4.1: DOSAGE -> Mix. The glossary settles it — Mix is what every French
+    // DAW shows, Mixage is the mixing PROCESS, and Dosage is elegant French
+    // that nobody else in the suite uses. Keyed sameAsEn rather than exempted,
+    // for the same reason label.lfo is: an identical string that is identical
+    // ON PURPOSE still needs a human to agree with it. It also shrinks the
+    // caption 41.31 -> 19.91 px, both sides of the 50 px gate cliff, so nothing
+    // moves.
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: false, sameAsEn: true } },
 
-    // SATURATION measures 63.52 — past the WRAP cliff, not merely the gate one,
-    // so the full word would put a second line under this knob. SATUR. is the
-    // abbreviation of the actual DSP (a tanh drive stage), which is why it is
-    // preferred over CHALEUR (48.11, "warmth" — a marketing word for the same
-    // thing, and 1.89 px from the gate cliff).
-    'label.drive': { en: { t: 'Drive' }, fr: { t: 'SATUR.', reviewed: false } },
+    // Saturation measures 63.52 — past the WRAP cliff, not merely the gate one,
+    // so the full word would put a second line under this knob. Satur. is the
+    // glossary's listed abbreviation and it is the actual DSP (a tanh drive
+    // stage), which is why it is preferred over Chaleur (48.11, "warmth" — a
+    // marketing word for the same thing, and 1.89 px from the gate cliff).
+    // tip.drive's title spells it out.
+    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: false } },
 
     // ── The LFO ring heading ────────────────────────────────────────────────
     //
@@ -444,18 +507,38 @@ export const LABELS = Object.freeze({
     // .preset-action is PINNED to 62 px for these two (index.html). Rendered
     // border-box widths against that pin — text + 10 px padding + 2 px border:
     //
-    //     Load 39.00 -> CHARGER 58.52   3.48 px spare
-    //     Save 36.34 -> SAUVER  51.02  10.98 px spare
+    //     Load 39.00 -> Charger 58.52   3.48 px spare
+    //     Save 36.34 -> Enreg.  47.25  14.75 px spare
     //
-    // ENREGISTRER is the word a French user would rather see and it needs an
-    // 78.52 px box — a 26 px widening of BOTH buttons over what ships here,
-    // which moves the preset arrows and the preset name a further 32 px left in
-    // ENGLISH. A reviewer who upgrades SAUVER to ENREGISTRER must raise the
-    // .preset-action pin with it; leaving the pin at 62 would wrap an
-    // 11-character caption inside a 14 px-high button, which is the failure
-    // shape check-ui-labels gained a vertical assertion for in fbdb6930.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'CHARGER', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'SAUVER', reviewed: false } },
+    // v1.4.1: SAUVER -> Enreg. Sauver is a calque and the glossary forbids it
+    // outright (Sauvegarder is a backup, Lire is to read or play). Enregistrer
+    // is the root term and it does NOT fit: 78.52 px against the 62 px
+    // .preset-action pin, measured — scrollWidth goes 60 -> 72 and
+    // check-ui-labels assertion 4 would report the clip. Raising the pin is not
+    // an option Stage N has, because it widens BOTH buttons and moves the
+    // preset arrows and the preset name a further 32 px left IN ENGLISH; and
+    // leaving the pin at 62 would wrap an 11-character caption inside a
+    // 14 px-high button, the failure shape check-ui-labels gained a vertical
+    // assertion for in fbdb6930. Enreg. is the glossary's listed abbreviation.
+    //
+    // LABEL IN NAME, degraded from exact to stem. aria.savePreset is the
+    // glossary's "Enregistrer le préréglage", which does not contain the
+    // literal caption "Enreg." (the period). It contains the stem "Enreg", and
+    // a voice-control user saying the caption is matched on the spoken word,
+    // not the period. The exact-containment that SAUVER / "Sauver le
+    // préréglage" had is the one thing this change costs, and it is a smaller
+    // cost than shipping a word the suite has settled against. #preset-load is
+    // unaffected: "Charger" is contained in "Charger un préréglage depuis un
+    // fichier" whole.
+    //
+    // STALE COMMENT LEFT STANDING, DELIBERATELY. index.html:148-150 carries the
+    // same two-row width table above the .preset-action rule and still names
+    // SAUVER at 51.02 px. It is now wrong. Stage N's scope is this file, the
+    // version sites and the CHANGELOG, so it was REPORTED rather than fixed
+    // here — the pin itself (62 px) and its reasoning are unchanged and still
+    // correct, only the second row's caption and number are out of date.
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: false } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
 
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
     'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
@@ -483,7 +566,7 @@ export const LABELS = Object.freeze({
     'aria.prevPreset': { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',                 reviewed: false } },
     'aria.nextPreset': { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                   reviewed: false } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: false } },
-    'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Sauver le préréglage',                 reviewed: false } },
+    'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',            reviewed: false } },
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
