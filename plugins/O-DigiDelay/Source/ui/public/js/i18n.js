@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-DigiDelay page labels, English + French (v1.3.0)
+// i18n.js — O-DigiDelay page labels and hover-help, English + French (v1.4.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,17 +32,54 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.4.0 GIVES THIS PLUGIN HOVER-HELP, AND A RENDERER TO PAINT IT ────────
 //
-// v1.2.12 carried no data-tip and no data-tooltip anywhere on the page — only
-// five native title= attributes on the preset bar, which contract §4 DELETES
-// rather than localizes, moving their existing text into data-i18n-aria. No
-// hover-help prose is INVENTED here: authoring it is Stage M's job. I18N is
-// therefore empty and TIP_BINDINGS is empty, which is this plugin's correct
-// state rather than a gap. check-i18n assertion 2 reports it as "0 tip(s)
-// bound" instead of passing silently, and the emptiness is only admissible
-// BECAUSE no I18N entry carries a body — an emptied TIP_BINDINGS over a bodied
-// table would be orphaned copy and would fail.
+// v1.3.0 shipped an EMPTY I18N and an EMPTY TIP_BINDINGS, which was that
+// version's correct state: the page carried no data-tip and no data-tooltip
+// anywhere, so there was no tooltip copy to move and none was invented.
+// v1.4.0 authors it — NINE entries, seven controls plus the gear and the
+// language selector.
+//
+// AUTHORING COPY ALONE WOULD HAVE SHIPPED NINE INVISIBLE STRINGS. applyI18n()
+// only WRITES data-tip-title and data-tip onto the anchors named below; the
+// thing that reads those attributes and paints a surface is per-plugin code,
+// and this plugin had none of it — no #tooltip element, no .tooltip rule, no
+// hover handler. All three repo gates would have stayed green anyway:
+// check-i18n assertion 2 sees bindings > 0, check-ui-labels has no tooltip
+// awareness at all, and boot-all-uis counts aria-label and title and never
+// data-tip. So the renderer lands in the same commit (index.html,
+// setupTooltips()), and tests/ui_tip_render_check.js is the gate that can
+// actually see a painted tip.
+//
+// ── WHAT THE BODIES DO NOT RESTATE ─────────────────────────────────────────
+//
+// The Stage K inventory found FOUR js-prose strings and ONE js-composed string
+// on this page, and all five are already resolved — no tip body repeats them as
+// if they were new copy:
+//
+//   label.on / label.off        the two faces of #sync, written by
+//                               setupToggle() through setLabel(). tip.sync ends
+//                               with those two words as its RANGE ("Off or On"
+//                               / "Arret ou Marche"), spelled exactly as the
+//                               page's own faces spell them, so the tip and the
+//                               control agree.
+//   label.presets /             the preset dropdown's header and its empty
+//   label.noPresets             line, written by showPresetDropdown() through
+//                               setLabel(). The preset bar gets NO tips in this
+//                               stage, so nothing here touches them.
+//   `${Math.round(1.0 + normalized * 1999.0)} ms`
+//                               the delay-time readout, the page's one COMPOSED
+//                               string (index.html, setupTimeKnob). It is a
+//                               readout and D-03 exempts it outright. tip.time
+//                               ends "1 to 2000 ms" — the same numbers as PROSE
+//                               inside a localized body, which is a different
+//                               thing from the readout NODE and is localized
+//                               ("1 a 2000 ms") exactly as the 21 shipped
+//                               tooltip plugins do it.
+//
+// tip.langSelect is where the user is told that readouts, the note divisions
+// and preset names stay in English. That sentence exists once, in one entry,
+// rather than being repeated into every knob's body.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -55,17 +92,177 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {en:{t, b}, fr:{t, b, reviewed}}.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin with no tooltips today, so Stage M can
-// add bodies here without touching the label keys below.
+// NINE entries: the seven controls the page actually carries, plus the gear and
+// the language selector. The preset bar deliberately gets none — its five
+// controls already carry accessible names (data-i18n-aria, v1.3.0) and are
+// self-describing — and the OUT meter gets none either: it is a readout, not a
+// control, and D-03 keeps readouts out of the localized set.
+//
+// ── SEVEN CONTROLS FOR EIGHT PARAMETERS, AND THE EIGHTH IS NOT A GAP ───────
+//
+// .planning/params.tsv dumps EIGHT parameters. The page has SEVEN hover cells:
+// #sync-container and six #<param>-container knobs. `division` has no cell of
+// its own — it SHARES the TIME knob. When `sync` is on, a drag or a wheel on
+// #time-knob steps `division` instead of `time` (index.html, setupTimeKnob),
+// and #time-value shows the note name rather than a millisecond figure.
+//
+// So `division` is page-reachable, unlike O-Bass's latency_mode and bypass
+// which are host-reachable only. It still gets no entry of its own, because a
+// second TIP_BINDINGS row on the same anchor would simply overwrite the first
+// one's data-tip attributes — last write wins, silently. Instead tip.time and
+// tip.sync each carry the sentence that explains the shared knob, which is
+// where a user pointing at that cell will look for it.
+//
+// ── TITLES ARE THE PAGE'S CAPTIONS, BYTE-IDENTICAL TO LABELS ───────────────
+//
+// Not the dump's `name` column, where the two disagree. The user is reading the
+// page: the cell they are pointing at says RÉINJ., so the tip above it says
+// RÉINJ. too. Those French captions are abbreviations forced by a 60 px
+// .knob-label box (see the LABELS block below); a tooltip has 300 px and no
+// such constraint, so each BODY opens by spelling the full word out —
+// "Réinjection :" under a title reading RÉINJ. That keeps one string per idea
+// and still gives the fuller word somewhere on screen.
+//
+// ── RANGES ─────────────────────────────────────────────────────────────────
+//
+// Every body ends with its range and unit, and on this plugin NO unit had to be
+// recovered from a formatter: six of the eight parameters carry a real `label`
+// in the dump (ms on `time`, % on the other five) and every one agrees with the
+// page's own readout formatter. The two with an empty label are the two
+// discrete parameters, whose range is words rather than a number — `sync` is
+// Off / On and `division` is a twelve-way note choice.
+//
+// D-01 ARM 1 AND THE OPTION WORDS. `division`'s twelve option strings ("1/4"
+// ... "1/16(5)") appear in tip.sync's body as prose naming a set, and they stay
+// in their canonical form in BOTH languages: a fraction is a fraction, and the
+// page writes those same twelve strings into #time-value where arms 1 and 3
+// both exempt them. `sync` is an AudioParameterBool, not a Choice, so its
+// Off/On has no automation lane to disagree with — the page already localizes
+// those two faces (label.on / label.off, v1.3.0), and tip.sync's range names
+// them the same way the faces do.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The seven controls, in the page's own left-to-right order ───────────
+
+    // sync — AudioParameterBool, default Off. Named first because it changes
+    // what the knob beside it means.
+    //
+    // The tempo caveat is the one thing a user cannot discover by clicking it:
+    // processBlock only overrides the millisecond time when getPlayHead()
+    // returns a position WITH a bpm (PluginProcessor.cpp:206-222), so in a host
+    // that reports none — or in the Standalone with no transport — SYNC on
+    // still plays the TIME knob's milliseconds.
+    'tip.sync': {
+        en: { t: "SYNC",
+              b: "Locks the delay to the host's tempo, so the TIME knob chooses a note value instead of a time in milliseconds: 1/4, 1/8 and 1/16, each of them straight, dotted, triplet or quintuplet. If the host reports no tempo the delay keeps its millisecond time. Off or On." },
+        fr: { t: "SYNCHRO",
+              b: "Verrouille le délai sur le tempo de l'hôte : le bouton TEMPS choisit alors une valeur de note au lieu d'une durée en millisecondes — 1/4, 1/8 et 1/16, chacune simple, pointée, en triolet ou en quintolet. Si l'hôte n'annonce aucun tempo, le délai garde sa durée en millisecondes. Arrêt ou Marche.",
+              reviewed: false },
+    },
+
+    // time — 1 .. 2000 ms, default 500. This is also the entry that documents
+    // the shared knob, because #time-container is the cell `division` lives in.
+    'tip.time': {
+        en: { t: "TIME",
+              b: "How long an echo waits before it repeats. With SYNC off this knob is a free delay time in milliseconds; with SYNC on the same knob steps through note values instead, and the readout shows the division rather than a figure. 1 to 2000 ms." },
+        fr: { t: "TEMPS",
+              b: "Le temps qu'un écho attend avant de se répéter. SYNCHRO à l'arrêt, ce bouton donne une durée de retard libre en millisecondes ; SYNCHRO en marche, le même bouton parcourt des valeurs de note et l'affichage montre la division au lieu d'un chiffre. 1 à 2000 ms.",
+              reviewed: false },
+    },
+
+    // feedback — 0 .. 100 %, default 30. The 0.95 ceiling is the sentence: the
+    // knob reads 100 but processBlock clamps the return to 0.95
+    // (PluginProcessor.cpp:245), so the tail always decays.
+    'tip.feedback': {
+        en: { t: "FEEDBACK",
+              b: "How much of each echo is fed back into the delay line, which is what sets how many repeats you hear and how slowly they fade. The return is capped just under unity, so even at the top of the range the tail decays instead of running away. 0 to 100 %." },
+        fr: { t: "RÉINJ.",
+              b: "Réinjection : la part de chaque écho renvoyée dans la ligne à retard, ce qui décide du nombre de répétitions et de la lenteur de leur extinction. Le retour est plafonné juste sous l'unité, donc même en haut de la course la traîne s'éteint au lieu de s'emballer. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // spread — 0 .. 100 %, default 0. It offsets the RIGHT channel only, by up
+    // to 15 ms (PluginProcessor.cpp:252, 256-257). "Widens" is the effect;
+    // "right channel" is the mechanism, and it is why a mono track still
+    // spreads and a mono OUTPUT does not.
+    'tip.spread': {
+        en: { t: "SPREAD",
+              b: "Offsets the right channel's delay from the left by up to 15 ms, so the repeats reach each ear at slightly different times and the echo widens. At 0 both channels share one delay time and the tail stays centred. 0 to 100 %." },
+        fr: { t: "ÉCART",
+              b: "Décale le retard du canal droit par rapport au gauche jusqu'à 15 ms : les répétitions atteignent chaque oreille à des instants légèrement différents et l'écho s'élargit. À 0 les deux canaux partagent la même durée et la traîne reste centrée. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // mod — 0 .. 100 %, default 0. One 0.3 Hz sine (prepareToPlay, lfo
+    // setFrequency 0.3f) moving BOTH delay lines by up to 10 ms
+    // (PluginProcessor.cpp:253). Both channels share the LFO, which is exactly
+    // what makes it a thickener rather than a widener — the distinction from
+    // SPREAD is the reason the sentence is here.
+    'tip.mod': {
+        en: { t: "MOD",
+              b: "A slow sine at 0.3 Hz that wanders the delay time by up to 10 ms, detuning each repeat the way tape wow does. Both channels move on the same wave, so it thickens the echo rather than widening it. 0 to 100 %." },
+        fr: { t: "MOD",
+              b: "Une sinusoïde lente à 0,3 Hz qui fait dériver la durée du retard jusqu'à 10 ms et désaccorde chaque répétition comme le pleurage d'une bande. Les deux canaux suivent la même onde : cela épaissit l'écho au lieu de l'élargir. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // wet — 0 .. 100 %, default 30. WET and DRY are two independent gains
+    // summed at the output (PluginProcessor.cpp:265, 275), NOT the two halves
+    // of one mix control, and that is the thing a user cannot see from the
+    // panel. The pair is documented as a pair, once from each side.
+    'tip.wet': {
+        en: { t: "WET",
+              b: "The level of the delayed signal at the output. It is a level of its own rather than one half of a mix knob, so it does not take anything away from DRY and the two can be raised together. 0 to 100 %." },
+        fr: { t: "EFFET",
+              b: "Le niveau du signal retardé en sortie. C'est un niveau à part entière et non la moitié d'un réglage de dosage : il ne retire rien à DIRECT et les deux peuvent monter ensemble. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // dry — 0 .. 100 %, default 100. The send case is the one that earns the
+    // second sentence: on an aux bus the useful setting is DRY at 0.
+    'tip.dry': {
+        en: { t: "DRY",
+              b: "The level of the untouched input at the output. Independent of WET, so pulling it to the bottom leaves the echoes alone on an effect send, and leaving it at the top keeps the source at full level. 0 to 100 %." },
+        fr: { t: "DIRECT",
+              b: "Le niveau de l'entrée intacte en sortie. Indépendant d'EFFET : le ramener en bas ne laisse que les échos sur un départ d'effet, le laisser en haut garde la source à plein niveau. 0 à 100 %.",
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user that hover-help exists at all, so its
+    // body describes ONLY what the popover actually contains. This plugin has
+    // no hover-help on/off toggle — not a C++ one, not a localStorage one — so
+    // the panel holds the language selector and nothing else, and the tip says
+    // exactly that. A tip that promised a toggle would be a tip that lies.
+    //
+    // Both titles are byte-identical to an existing accessible name
+    // (aria.settings) and an existing caption (label.language) respectively, so
+    // the tip, the caption and the screen reader all say one word.
+    'tip.gearBtn': {
+        en: { t: "Settings",
+              b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
+        fr: { t: "Réglages",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d'autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
+              reviewed: false },
+    },
+
+    // The one entry that tells a user what does NOT change with the selector.
+    // The three things named are exactly this page's exempt set: the readouts
+    // (D-03, including the composed "500 ms"), `division`'s twelve option
+    // strings (D-01 arms 1 and 3), and preset names (D-02).
+    'tip.langSelect': {
+        en: { t: "Language",
+              b: "The language of the labels on this page and of this hover help. English and French are available. Value readouts, the note divisions and preset names stay in English, so the page and the host always name the same thing the same way." },
+        fr: { t: "Langue",
+              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles. Les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais, pour que la page et l'hôte nomment toujours la même chose de la même façon.",
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -360,25 +557,64 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key, wrapper?, vars?]
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), then closest(wrapper) if a
+// wrapper is given, and writes data-tip-title / data-tip onto whatever it lands
+// on.
+//
+// ── EVERY ANCHOR HERE IS AN ID, AND THAT IS A DIVERGENCE ───────────────────
+//
+// The Stage M brief records that "bind TIP_BINDINGS to the ids the UI already
+// uses" was false on all three M1 pilots — O-Chorus's knobs carry no id,
+// O-Emulator needed CSS selectors for five of seven anchors. It is TRUE here,
+// and for a structural reason rather than luck: this page positions each
+// control by id (#sync-container, #time-container ... #dry-container are the
+// CONTROL POSITIONING block in index.html), so the cell a user aims at already
+// has to be addressable. No wrapper walk is needed on any row.
+//
+// THE CONTAINER IS THE HOVER TARGET, not the knob inside it. #time-knob is the
+// 60 x 60 visual alone; #time-container is the caption, the knob and the
+// readout stacked with a 4 px gap — 60 x 91 px, and the tip opens anywhere in
+// it, including over the caption the tip is titled after. Binding to
+// circle.knob-vine, a 3 px stroke, would be a tip nobody could open.
+//
+// #gear-btn and #lang-select are bound directly. #lang-select's parent is the
+// .settings-row label, and putting the tip there would make the row's caption
+// ("Language") open a tip titled "Language", which reads as a bug.
+//
+// SEVEN ROWS FOR EIGHT PARAMETERS. `division` shares #time-container with
+// `time` and gets no row of its own: applyI18n writes onto the anchor, so two
+// rows naming the same element would leave whichever ran last, silently. See
+// the I18N header.
+//
+// EVERY BINDING MUST RESOLVE. applyI18n() logs `i18n: tip target not found:
+// <selector>` for one that does not, and boot-all-uis is the gate that sees
+// that console warning. tests/ui_tip_render_check.js asserts resolution AND
+// that each anchor actually paints a tip, which is the assertion no repo-wide
+// gate can make.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#sync-container',     'tip.sync'],
+    ['#time-container',     'tip.time'],
+    ['#feedback-container', 'tip.feedback'],
+    ['#spread-container',   'tip.spread'],
+    ['#mod-container',      'tip.mod'],
+    ['#wet-container',      'tip.wet'],
+    ['#dry-container',      'tip.dry'],
+
+    ['#gear-btn',           'tip.gearBtn'],
+    ['#lang-select',        'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v1.4.0: applyI18n() calls it once per TIP_BINDINGS row, on every
+// language change, and setupTooltips() in index.html paints what it returns.
+// Through v1.3.0 the loop was empty and this function ran zero times.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }

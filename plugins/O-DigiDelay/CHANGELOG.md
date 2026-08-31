@@ -5,6 +5,69 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-08-30
+
+### Added
+
+- **Hover-help, in both languages.** Nine tooltips: the SYNC toggle, all six
+  knobs, the settings gear and the language selector. Each carries an English
+  and a French title and body in `js/i18n.js`, every French string
+  `reviewed: false`. Hovering a control opens a small plate near the cursor;
+  moving away, pressing Escape or pressing anywhere closes it. Tabbing to a
+  control opens its tip too — which on this page reaches the gear and the
+  language selector, the only two focusable anchors; the knobs and the sync
+  toggle are `div`s with no `tabindex` and have never been keyboard-operable, so
+  a tip is not offered where the control itself is not reachable either.
+- **A renderer to paint them, because this plugin had none.** `applyI18n()` only
+  writes `data-tip-title` / `data-tip` attributes onto the anchors named in
+  `TIP_BINDINGS`; the code that reads those and paints a surface is per-plugin,
+  and v1.3.0 had no `#tooltip` element, no `.tooltip` rule and no hover handler.
+  Authoring the copy alone would have shipped nine invisible strings past three
+  green gates — `check-i18n` sees bindings > 0, `check-ui-labels` has no tooltip
+  awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never
+  `data-tip`. `setupTooltips()` in `index.html` is the missing half, ported from
+  O-simpleFM's delegated cursor-following family and styled in this page's own
+  cream-and-olive vocabulary.
+- `tests/ui_tip_render_check.js` — the gate that can actually SEE a painted tip.
+  216 assertions at the shipping 700 x 196 frame, in English and French and back
+  to English: every binding resolves, every anchor really opens a tip, the
+  rendered title and body are byte-EQUAL to the table (not "contains"), and the
+  tip rectangle is fully inside the frame at all four edges.
+
+### Fixed
+
+- **A click no longer parks a tip over the panel it just opened.** The reference
+  renderer opens a tip on any `focusin`, and a mouse click on a `<button>`
+  focuses it — so the tip `pointerdown` had just hidden reopened immediately and
+  sat on top of the settings popover. Measured here by deleting the guard:
+  4964 px² of the popover covered. The fix is an explicit last-input-device
+  latch cleared by any keydown, not `:focus-visible` (Chromium reports that
+  false for a programmatic focus following a click, so a gate driving focus
+  directly would measure "no tip" and record it as correct).
+
+### Changed
+
+- **`.tooltip` is capped at 300 px, not the 250 px the wider-framed plugins
+  use.** This frame is 700 x 196 — short, not narrow. The cap converts longer
+  French into extra HEIGHT, which is the one dimension 196 px cannot spare, so
+  it is set wide enough to buy back about a line and a half.
+- The clamp runs **after** the flip and unconditionally. Measured over 27 hovers
+  at this frame: 27 flipped above the cursor, and 19 of those then had to be
+  pushed back down onto the 8 px top rail. With the second clamp removed, 19 of
+  27 tips land outside the top edge.
+
+### Not changed
+
+- No parameter IDs, ranges, types, defaults or DSP behaviour. `division` gets no
+  tip of its own: it has no control of its own either — it shares the TIME knob
+  when SYNC is on — and a second binding on the same anchor would silently
+  overwrite the first. `tip.time` and `tip.sync` carry that explanation instead.
+- The preset bar gets no tips; its five controls already carry accessible names.
+  There is still no hover-help on/off toggle — these tips are always on, as on
+  nineteen of the suite's twenty-one other tooltip plugins.
+- All French is machine-drafted and flagged `reviewed: false`; no native speaker
+  has read it. The worklist is now 31 entries — 22 labels and 9 tooltips.
+
 ## [1.3.0] - 2026-08-29
 
 ### Added

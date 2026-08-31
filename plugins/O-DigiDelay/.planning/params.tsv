@@ -1,0 +1,12 @@
+# plugin	O-DigiDelay
+# params	8
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+time	Time	ms	2147483647	1.0	2000.0	0.249625	500.0	automatable
+sync	Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+division	Division		12	1/4	1/16(5)	0.090909	1/8	automatable,discrete
+feedback	Feedback	%	2147483647	0.0	100.0	0.300000	30.0	automatable
+spread	Spread	%	2147483647	0.0	100.0	0.000000	0.0	automatable
+mod	Mod	%	2147483647	0.0	100.0	0.000000	0.0	automatable
+wet	Wet	%	2147483647	0.0	100.0	0.300000	30.0	automatable
+dry	Dry	%	2147483647	0.0	100.0	1.000000	100.0	automatable
