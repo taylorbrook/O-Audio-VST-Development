@@ -662,3 +662,42 @@ section wins.
    taught to refresh an open tip, assertion 7 begins comparing tip rectangles
    across languages on every Stage M plugin, and French wraps taller. Do not
    "fix" this; it is canon-owned and it is a decision item.
+
+## From O-Comp (v1.7.0, `40a156b4`) — the trap whose obvious fix is deleting the fix
+
+1. **A STATIC regex for `lastInputWasPointer` stays green with the latch's guard
+   clause removed.** The declaration, the `pointerdown` write and the `keydown`
+   clear all survive; only `if (lastInputWasPointer) return;` is gone, and every
+   grep still matches. **Only the behavioural control discriminates.** If your
+   gate checks for the latch by searching the source, it is checking that
+   somebody typed a variable name.
+
+2. **A keyboard-tab probe that samples DURING the fade reports a false "never
+   opens" — and the obvious response to that failure is to delete the latch.**
+   O-Comp's first tab-ring control slept 80 ms into a 120 ms opacity transition
+   while treating anything below opacity 0.99 as hidden, and reported "none in
+   20 tabs" for a path that demonstrably works (tab #5). An executor who trusts
+   that reading concludes the latch broke the keyboard half and removes it,
+   which makes the click defect green again by way of a probe artefact.
+
+   **Await the transition, or assert on `visibility` rather than a hard opacity
+   threshold.** And when a keyboard control fails, verify the failure by hand
+   before touching the renderer — this is
+   `pattern_quiesce_before_stimulus_in_async_ui_gates` with a fix-deleting
+   consequence attached.
+
+3. **Bind the chrome BARE, not through a wrapper**, wherever the gear and the
+   language selector share an ancestor. On O-Comp `.settings-cluster` contains
+   both the gear and the popover, so a wrapper walk makes hovering `#lang-select`
+   resolve to the gear's tip.
+
+4. **"The anchor is not always an id" was FALSE on O-Comp** — every knob
+   container and the toggle carry ids. The *wrapper* half is still load-bearing
+   there: `#threshold-knob` is only the 52 px vine face, so the binding walks
+   `closest('.control-group')`. **Four plugins out of four**, the naive reading
+   of T17 ships a tip nobody can hold open — but the reason differs per plugin.
+   Check both halves separately.
+
+5. **Decision item, carried up:** French tip ranges keep the readout's DECIMAL
+   POINT (`0.1 à 100 ms`, not `0,1`), because the readout formats with a point
+   in both languages under D-03. A reviewer must change both or neither.
