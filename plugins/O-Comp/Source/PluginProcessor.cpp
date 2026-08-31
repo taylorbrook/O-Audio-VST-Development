@@ -28,7 +28,10 @@
 */
 
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+// PluginEditor.h is deliberately NOT included at the top of this TU — the
+// include lives inside the #if JUCE_WEB_BROWSER guard directly above
+// createEditor(), so a console target that compiles this TU with
+// JUCE_WEB_BROWSER=0 and no editor sources (scripts/param-dump) links.
 
 juce::AudioProcessorValueTreeState::ParameterLayout OCompAudioProcessor::createParameterLayout()
 {
@@ -306,9 +309,19 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     currentEnvelopeDB.store(envelopeDB);
 }
 
+#if JUCE_WEB_BROWSER
+#include "PluginEditor.h"
+#endif
+
 juce::AudioProcessorEditor* OCompAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OCompAudioProcessorEditor(*this);
+#else
+    // The param-dump console target builds with JUCE_WEB_BROWSER=0 and no
+    // editor sources. It never opens an editor; this keeps the TU linkable.
+    return new juce::GenericAudioProcessorEditor(*this);
+#endif
 }
 
 void OCompAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
