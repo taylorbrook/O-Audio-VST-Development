@@ -50,6 +50,21 @@
   `#batch-loop-btn` stay disabled and six dialog states are unreachable — the harness died on
   a hidden button rather than reporting them.
 
+### Fixed
+- **The settings popover was painted over, so the language selector could not be clicked.**
+  Present since the settings popover was added in Stage K. `#tab-samplemap` painted on top of `#settings-popover`, whose own
+  `z-index: 21` is scoped inside `#header`'s stacking context — `#header`, `#tab-bodies` and `#control-strip` were all `z-index: 1`, a tie broken by document order, and `#tab-bodies` comes later.
+  Measured with `elementFromPoint` at `#lang-select`'s centre, which returned
+  `#tab-samplemap` at every probe point: the language selector, the only control the
+  whole i18n feature adds, was unreachable.
+
+  **No gate saw it.** `check-ui-labels` compares rectangles, and a rect is unchanged by
+  paint order. It surfaced only from a repo-wide hit-test written after O-Bassoon's
+  executor hit the same shape on its own page.
+
+  Fix is paint order only — `#header` gets `z-index: 2` — and the two layers do not overlap in layout.
+  Negative control: reverting it alone returns the probe to FULLY BLOCKED.
+
 ## [1.23.10] - 2026-08-08
 
 ### Fixed

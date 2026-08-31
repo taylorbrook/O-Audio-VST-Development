@@ -97,6 +97,21 @@ uniform 66 px, re-centring the four rows. The 66 px floor is set by ENGLISH
 
 All French is a machine draft: 67/67 entries `reviewed: false`.
 
+### Fixed
+- **The settings popover was painted over, so the language selector could not be clicked.**
+  Present since the settings popover was added in Stage K. `BUTTON.tab-btn` painted on top of `#settings-popover`, whose own
+  `z-index: 21` is scoped inside `.preset-bar`'s stacking context — `body` is `display: flex`, so `.preset-bar` and `.tab-bar` are flex ITEMS, and `z-index` applies to a flex item at `position: static`. Both were `z-index: 10`, a tie broken by document order, and `.tab-bar` comes later.
+  Measured with `elementFromPoint` at `#lang-select`'s centre, which returned
+  `BUTTON.tab-btn` at every probe point: the language selector, the only control the
+  whole i18n feature adds, was unreachable.
+
+  **No gate saw it.** `check-ui-labels` compares rectangles, and a rect is unchanged by
+  paint order. It surfaced only from a repo-wide hit-test written after O-Bassoon's
+  executor hit the same shape on its own page.
+
+  Fix is paint order only — `.preset-bar` goes from `z-index: 10` to `30` — and the two layers do not overlap in layout.
+  Negative control: reverting it alone returns the probe to FULLY BLOCKED.
+
 ## [1.16.3] - 2026-07-10
 
 ### Fixed — final CODE_REVIEW.md info-finding sweep (IN-01, IN-08..10, IN-12..15, IN-17)

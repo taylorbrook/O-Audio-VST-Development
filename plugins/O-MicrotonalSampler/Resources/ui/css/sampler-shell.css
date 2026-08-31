@@ -125,6 +125,18 @@ body {
     z-index: 1;
 }
 
+/* ...and the HEADER must sit above #tab-bodies, not merely tie with it.
+   All three were z-index:1, a tie broken by document order, so #tab-bodies —
+   later in the markup — painted over #settings-popover, whose own z-index:21 is
+   scoped inside #header's stacking context. Measured: elementFromPoint at
+   #lang-select's centre returned #tab-samplemap, so the language selector, the
+   only control the i18n feature adds, could not be clicked. No gate saw it:
+   check-ui-labels compares rects, and a rect is unchanged by paint order.
+   Paint order only — the header and the tab bodies do not overlap in layout. */
+#header {
+    z-index: 2;
+}
+
 /* ============== HEADER ============== */
 #header {
     display: flex;
