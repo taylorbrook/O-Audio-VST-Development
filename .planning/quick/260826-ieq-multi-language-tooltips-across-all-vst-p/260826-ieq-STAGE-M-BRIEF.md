@@ -698,9 +698,22 @@ section wins.
    of T17 ships a tip nobody can hold open — but the reason differs per plugin.
    Check both halves separately.
 
-5. **Decision item, carried up:** French tip ranges keep the readout's DECIMAL
-   POINT (`0.1 à 100 ms`, not `0,1`), because the readout formats with a point
-   in both languages under D-03. A reviewer must change both or neither.
+5. **SETTLED, 2026-08-30 — the French decimal separator is a COMMA.** M1 split
+   on this: O-Comp and O-SimpleReverb shipped the readout's POINT
+   (`0.1 à 100 ms`), reasoning that `.value-display` formats with a point in
+   both languages under D-03; O-Chorus shipped the COMMA, matching all 21
+   already-shipped tooltip plugins. **The developer chose the comma.** Both
+   plugins were corrected in `f0eb50c8`.
+
+   **The rule, for every remaining plugin:** a tooltip body is PROSE and takes
+   French convention — decimal comma, a space before `%`, U+2212 for the minus.
+   The READOUT keeps its point, because D-03 exempts the readout NODE and that
+   has not moved. They differ on purpose: the readout is a machine-formatted
+   value, the body is prose.
+
+   Scan your own French entries for `\d+\.\d+` before you commit. O-SimpleReverb
+   shipped a point without flagging it at all, so the split was wider than the
+   one plugin that reported it.
 
 ## From O-Tremolo (v1.8.0, `85e94b5f`) — control the control, and size the plant to the frame
 

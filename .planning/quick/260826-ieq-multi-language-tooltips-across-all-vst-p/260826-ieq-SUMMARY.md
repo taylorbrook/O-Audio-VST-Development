@@ -4978,11 +4978,19 @@ host-visible.
 
 ## NEEDS A HUMAN DECISION
 
-1. **French decimal separator, and M1 split on it.** O-Comp kept the readout's
-   POINT (`0.1 à 100 ms`) because `.value-display` formats with a point in both
-   languages under D-03. O-Chorus kept the suite's COMMA (`0,05 à 5,00 Hz`),
-   matching all 21 shipped tooltip plugins. Both stated their reasoning in
-   `i18n.js` rather than settling it unilaterally. **One rule is needed before M2.**
+1. ~~**French decimal separator, and M1 split on it.**~~ **RESOLVED by the
+   developer, 2026-08-30: the COMMA.** It is correct French and it is what all
+   21 already-shipped tooltip plugins write. The readout keeps its point — D-03
+   exempts the readout NODE — so a body and its readout spell the number
+   differently on purpose: one is prose, the other a machine-formatted value.
+
+   The split was **wider than reported**. O-Chorus flagged it and O-Comp
+   documented the opposite choice, but a scan of all ten plugins' French entries
+   for `\d+\.\d+` found **O-SimpleReverb had shipped the point too, silently** —
+   and its own header comment claimed the comma while the entry below it used a
+   point. Two entries changed (`tip.attack`, `tip.decay`), three comments were
+   rewritten, three plugins rebuilt. Fixed in `f0eb50c8`. **A convention that
+   two executors argue about is one a third gets wrong without noticing.**
 2. **No hover-help on/off toggle.** M1 ships tips always-on. O-Tapestop and
    O-Bitrot have a toggle; the other 41 do not. Uniformity is a separate pass.
 3. **`#lang-select` is 59.0 × 16.0 px on O-DigiDelay**, under WCAG 2.5.8's

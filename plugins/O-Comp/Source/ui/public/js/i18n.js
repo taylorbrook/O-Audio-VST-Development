@@ -51,14 +51,24 @@
 // cursor-following renderer and styled in this page's own paper-and-brown-ink
 // vocabulary.
 //
-// NUMBERS IN A BODY KEEP THE READOUT'S OWN SPELLING. D-03 exempts the readout
-// NODE, not a number written into prose, so "-60 to 0 dB" localizes to
-// "-60 à 0 dB". The DECIMAL SEPARATOR deliberately does not follow French
-// convention: the ranges below name values the user reads back in
-// .value-display, which formats "0.1 ms" and "4.0:1" with a point in both
-// languages, and a tip saying "0,1" beside a readout saying "0.1" describes a
-// control the page does not have. Flagged here so a reviewer changes both or
-// neither.
+// NUMBERS IN A BODY KEEP FRENCH SPELLING — THE DECIMAL SEPARATOR IS A COMMA.
+// D-03 exempts the readout NODE, not a number written into prose, so
+// "-60 to 0 dB" localizes to "-60 à 0 dB" and "0.1 to 100 ms" to
+// "0,1 à 100 ms".
+//
+// SETTLED BY THE DEVELOPER, 2026-08-30. This file originally shipped the
+// POINT, reasoning that .value-display formats "0.1 ms" and "4.0:1" with a
+// point in both languages under D-03, so a tip saying "0,1" beside a readout
+// saying "0.1" describes a control the page does not have. O-Chorus's executor
+// went the other way in the same batch, on the grounds that every one of the 21
+// already-shipped tooltip plugins writes the comma. The developer chose the
+// COMMA: it is correct French, and it is the house style the rest of the suite
+// already has.
+//
+// The readout keeps its point — that is D-03 and it does not move. The tip and
+// the readout therefore spell the number differently ON PURPOSE, because the
+// readout is a machine-formatted value and the body is prose. Exactly one
+// string on this page was affected: tip.attack.
 //
 // ── I18N IS NOT EMPTY HERE, AND THE REASON IS THE CANVAS ────────────────────
 //
@@ -156,7 +166,7 @@ export const I18N = Object.freeze({
         en: { t: "Attack",
               b: "How quickly the detector rises once the signal is over the threshold. Short times catch the transient and flatten the front of a drum; long times let the stick through and start compressing behind it. 0.1 to 100 ms." },
         fr: { t: "Attaque",
-              b: "La vitesse à laquelle le détecteur monte une fois le signal au-dessus du seuil. Les temps courts saisissent la transitoire et aplatissent le début d'une frappe ; les temps longs laissent passer l'attaque et compriment derrière elle. 0.1 à 100 ms.",
+              b: "La vitesse à laquelle le détecteur monte une fois le signal au-dessus du seuil. Les temps courts saisissent la transitoire et aplatissent le début d'une frappe ; les temps longs laissent passer l'attaque et compriment derrière elle. 0,1 à 100 ms.",
               reviewed: false },
     },
 
