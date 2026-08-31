@@ -52,7 +52,7 @@ target_compile_definitions(O-simpleFM-render-test PRIVATE
     # stale literal here makes every harness run rewrite the user's REAL
     # factory-preset directory with the wrong version stamp.
     JucePlugin_VersionString="${OSIMPLEFM_VERSION}"
-    JucePlugin_VersionCode=0x10202
+    JucePlugin_VersionCode=0x10301
 
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
