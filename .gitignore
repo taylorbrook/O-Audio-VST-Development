@@ -272,3 +272,6 @@ scratch-pv/
 *.pkg
 *.dmg
 *.msi
+
+# Per-session working files (probes, gate output, build logs). Never a deliverable.
+scratchpad/
