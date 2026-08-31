@@ -121,6 +121,7 @@ window.__setLanguage = applyI18n;
 // label without app.js having to export anything — O-Bitrot's controller is an
 // inline <script type="module">, where an export declaration has nowhere to go.
 window.__setLabel = setLabel;
+window.__reapplyI18n = () => applyI18n(uiLanguage);
 
 function initI18n() {
     try {
@@ -145,15 +146,6 @@ function initI18n() {
         if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
     });
 }
-
-// A re-sweep at the CURRENT language, for code that has just rebuilt part of the
-// DOM. updateIntervalListUI() replaces the whole interval column with
-// innerHTML, and the [data-i18n] header, the "Tonic:" caption and the three
-// tonic accessible names inside it are brand-new nodes the last sweep never saw.
-// Declared OUTSIDE the canon block on purpose: the region from `let uiLanguage`
-// to the close of initI18n() is byte-compared against scripts/i18n-canon.js and
-// may not gain a line.
-window.__reapplyI18n = () => applyI18n(uiLanguage);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // The settings popover (v1.13.0)

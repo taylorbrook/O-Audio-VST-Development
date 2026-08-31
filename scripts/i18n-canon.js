@@ -182,6 +182,20 @@ window.__setLanguage = applyI18n;
 // label without app.js having to export anything — O-Bitrot's controller is an
 // inline <script type="module">, where an export declaration has nowhere to go.
 window.__setLabel = setLabel;
+// Re-runs the sweep at the CURRENT language, for a subtree built AFTER the last
+// one. It cannot be window.__setLanguage, which needs a language argument the
+// caller does not have: uiLanguage lives in this module's scope and nothing
+// outside can read it, so guessing 'en' would silently reset a French page every
+// time a panel remounted.
+//
+// This is in the canon because three plugins wrote it independently, OUTSIDE the
+// byte-compared region, each with a comment explaining that the region "may not
+// gain a line" — O-Bells (index.html:1992), O-Marimba and O-IntonationPad
+// (js/app.js). Three authors hitting the same wall and working around it the
+// same way is the canon's job, not theirs. Declaring it here changes no
+// behaviour on a page that never calls it; it only means a page that needs it no
+// longer has to reach around the gate to get it.
+window.__reapplyI18n = () => applyI18n(uiLanguage);
 
 function initI18n() {
     try {
