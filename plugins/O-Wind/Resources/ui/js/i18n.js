@@ -18,7 +18,25 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Wind visible-text table, English + French (v1.17.0)
+// i18n.js — O-Wind visible-text table and hover-help copy, EN + FR (v1.18.0)
+//
+// v1.18.0 (Stage M) ADDS THE 52 HOVER-HELP ENTRIES AND THEIR BINDINGS. v1.17.0
+// shipped 67 LABELS with I18N and TIP_BINDINGS both empty, because v1.16.3 had
+// no data-tip anywhere and authoring the copy was deferred. The LABELS block,
+// the I18N_EXEMPT block and every geometry note below are UNCHANGED from
+// v1.17.0 — nothing in this release re-opens a Stage K decision.
+//
+// AND IT ADDS A RENDERER, WHICH IS NOT WHAT THE PLAN SAID THIS STAGE WAS.
+// applyI18n() writes data-tip-title and data-tip ATTRIBUTES onto the anchors
+// and stops. The thing that reads those attributes and paints a surface is
+// per-plugin code outside the canon, and at v1.17.0 O-Wind had none: no
+// #tooltip element, no .tooltip rule, no hover handler. Authoring 52 bodies
+// and binding them with no other change would have shipped 52 INVISIBLE
+// strings behind three green gates — check-i18n counts bindings, check-ui-
+// labels has no tooltip awareness at all, and boot-all-uis counts aria-label
+// and title and never data-tip. setupTooltips() in index.html is the other
+// half, and tests/ui_tip_render_check.js is the only thing in this repo that
+// can see it work.
 //
 // An ES module that EXPORTS ONLY. A bare top-level statement here throws out of
 // module evaluation and takes every later initializer on the page with it
@@ -39,6 +57,58 @@
 //
 // ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
+//
+// ── SIX PARAMETERS HAVE NO CONTROL ON THIS PAGE (v1.18.0) ───────────────────
+//
+// .planning/params.tsv dumps 56 parameters from a runtime walk of the
+// constructed processor. FIFTY have a control here; six do not, and that is a
+// FINDING rather than a gap. No control was added to satisfy a count.
+//
+//   attackChiff     AudioParameterFloat 0..1, read at FluteSynthVoice.cpp:289
+//   humanize        AudioParameterFloat 0..1, read at FluteSynthVoice.cpp:290
+//   vibratoOnset    AudioParameterFloat 0..1000 ms, FluteSynthVoice.cpp:283
+//   inharmonicity   AudioParameterFloat 0..1, FluteSynthVoice.cpp:293
+//     — four live DSP parameters with no relay, no native function and zero
+//       occurrences of the id anywhere in the served root. Automatable and
+//       host-reachable; not reachable from this page at all.
+//
+//   referencePitch  AudioParameterFloat 400..480 Hz. NOT vestigial and NOT
+//     absent from the UI — it is reachable, under a different name, through a
+//     native-function ALIAS. The shared tuning panel's master-tune knob
+//     (#ref-pitch-indicator / #ref-pitch-value, tuning-panel.js:940-1000)
+//     calls getMasterTune / setMasterTune, and PluginEditor.cpp:337-355 routes
+//     both straight onto this parameter. The id therefore appears NOWHERE in
+//     the served root or in the panel, which is why a static scan reports it
+//     unreachable. It gets no tip because that panel is lazy-`import()`ed on
+//     the first Tuning-tab click (index.html:2232) and is absent from the DOM
+//     when applyI18n() runs — O-Reed's referencePitch trap, in a second shape —
+//     and because the panel is the SHARED module, out of a per-plugin commit's
+//     scope. The panel was not force-mounted to satisfy the count.
+//
+//   tuningSystem    AudioParameterChoice { Scala/TUN, MTS-ESP, 12-TET }. A
+//     SIXTH, not named in the batch measurement, and it is a genuine one: zero
+//     occurrences in the served root, zero in the shared panel, and the shared
+//     panel has no tuning-mode selector at all (its only mode switch is the
+//     visualisation mode, tuning-panel.js:385). The parameter is a MIRROR —
+//     PluginProcessor.cpp:529-530 writes it from setStateInformation so the
+//     APVTS choice follows the engine's own mode. A host can automate a tuning
+//     system the page cannot show.
+//
+//     This also CORRECTS a sentence in the v1.17.0 header and in I18N_EXEMPT
+//     below, which said the three tuningSystem option strings "appear only
+//     inside the Tuning tab". They appear nowhere on the page at all. The
+//     exemption stands on its other leg — every caption inside the Tuning tab
+//     belongs to the shared module — and is left as written rather than edited
+//     inside a hover-help commit.
+//
+// ── ONE DEAD PARAMETER, AND ITS TIP SAYS SO ─────────────────────────────────
+//
+// toneHoleToggle has a control, moves, and does nothing audible.
+// PluginProcessor.cpp:316-319 records that the tone-hole scattering DSP was
+// never implemented and that its scaffolding was removed in v1.16.2. A scan of
+// Source/ confirms it: the id appears in the layout, the relay and the
+// attachment, and in no DSP file. `tip.toneHoleToggle` says that outright. A
+// tip that lies is worse than no tip.
 //
 // ── WHAT THE EXTRACTOR COULD NOT SEE, AND IS THE REAL FINDING HERE ──────────
 //
@@ -136,17 +206,473 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {t, b}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. v1.16.3 had no data-tip
-// anywhere and this stage does not author hover-help — that is Stage M. The
-// table is exported all the same, because the canonical import line names it
-// and trLabel() falls back through it: a control whose tooltip title already IS
-// its caption is meant to carry ONE key, and that fallback must exist even on a
-// plugin with no tooltips today.
+// FIFTY-TWO entries as of v1.18.0: 50 parameter tips and 2 chrome tips. The
+// count is 50 rather than 56 because six of this plugin's parameters have no
+// control on this page at all — see the header for the measurement.
+//
+// TITLES ARE THE PARAMETER'S FULL NAME, not the knob caption. This page's
+// captions are TRUNCATIONS — "Vib Pitch", "Jet Refl.", "Sub Harm.", "Pre-dly",
+// "Damp", "Flut Rate" — because `.knob-label` is a 72 px box with
+// text-overflow: ellipsis and English already measures 70.73 px in it
+// ("Embouchure"). A caption that is the same name with letters missing is not
+// a caption DISAGREEING with the parameter; a 260 px tooltip is exactly where
+// "Reverb Pre-delay" belongs, and it is also the automation-lane name. The
+// rule "the caption wins" is kept for the two places the caption says
+// something genuinely different: the tone-hole switch is captioned "Tone
+// Holes" (plural) and the ADSR switch has no caption of its own, so its title
+// is the section legend "ADSR Envelope" the user actually reads beside it.
+//
+// RANGES COME FROM THE PAGE'S OWN FORMATTER, never invented. Only 16 of the 56
+// parameters carry a `label` in .planning/params.tsv (28%). The other 40 are
+// phrased from `PARAMS` (index.html:1750-1777) and `formatValue()`
+// (index.html:1870-1877) for the Sound tab, and from the `setupFxKnob()` call
+// sites (index.html:2540-2555) for the Effects tab, where the display factor
+// and the suffix are passed as arguments.
+//
+// TWO PLACES THE DUMP AND THE PAGE DISAGREE, and the PAGE wins because the user
+// is reading the page:
+//   delayTime    dumps `s` over 0.001..2.000; setupFxKnob passes displayFactor
+//                1000 and the suffix ' ms' (index.html:2543), so the readout
+//                says `375 ms`. The body says milliseconds and says why.
+//   adsrAttack / adsrDecay / adsrRelease
+//                dump `s`; formatValue() switches to milliseconds below one
+//                second (index.html:1874-1875), so one knob shows both units.
+//
+// FRENCH BODIES ARE PROSE AND TAKE FRENCH CONVENTION — decimal COMMA, a space
+// before %, U+2212 for the minus. The READOUT keeps its point, because D-03
+// exempts the readout NODE and that has not moved. They differ on purpose: the
+// readout is a machine-formatted value, the body is a sentence.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false` on every entry.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── Excitation ──────────────────────────────────────────────────────────
+    'tip.breathPressure': {
+        en: { t: 'Breath Pressure',
+              b: 'How hard the player blows across the embouchure hole. Low values give a soft, breathy tone that barely speaks; high values push the jet into a loud, harmonically rich regime. Range 0.00 to 1.00.' },
+        fr: { t: 'Pression du souffle',
+              b: 'Force avec laquelle le souffle passe sur le biseau. Les valeurs basses donnent un son doux et soufflé qui parle à peine ; les valeurs hautes poussent le jet vers un régime fort et riche en harmoniques. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.embouchure': {
+        en: { t: 'Embouchure',
+              b: 'Shapes the air jet against the edge of the embouchure hole — the ratio of jet width to bore. Lower values darken and steady the tone; higher values brighten it and make the octave break easier. Range 0.00 to 1.00.' },
+        fr: { t: 'Embouchure',
+              b: 'Règle la forme du jet d’air sur le biseau — le rapport entre la largeur du jet et la perce. Les valeurs basses assombrissent et stabilisent le son ; les hautes l’éclaircissent et facilitent le passage à l’octave. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.breathNoise': {
+        en: { t: 'Breath Noise',
+              b: 'Turbulence mixed into the air jet. A little keeps the tone alive; too much buries the pitch under wind. Range 0.00 to 1.00.' },
+        fr: { t: 'Bruit de souffle',
+              b: 'Turbulence mêlée au jet d’air. Un peu garde le son vivant ; trop enterre la hauteur sous le vent. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Resonator ───────────────────────────────────────────────────────────
+    'tip.material': {
+        en: { t: 'Material',
+              b: 'A timbral macro across the bore material: 0.00 is dark wood or bamboo, 1.00 is bright metal. Reach for it first when an instrument sounds right but the wrong colour. Range 0.00 to 1.00.' },
+        fr: { t: 'Matériau',
+              b: 'Macro de timbre sur la matière de la perce : 0,00 pour un bois ou un bambou sombre, 1,00 pour un métal brillant. À utiliser en premier quand un instrument sonne juste mais dans la mauvaise couleur. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.toneColor': {
+        en: { t: 'Tone Color',
+              b: 'Tilts the spectrum, trading weight in the fundamental against harmonic brightness. It works after Material rather than instead of it. Range 0.00 to 1.00.' },
+        fr: { t: 'Timbre',
+              b: 'Incline le spectre, échangeant le poids du fondamental contre la brillance harmonique. Il agit après Matériau plutôt qu’à sa place. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.airColumn': {
+        en: { t: 'Air Column',
+              b: 'Scales the effective bore length, which sets where the resonances sit against the played pitch. Low values feel short and piercing like a piccolo; high values long and hollow. Range 0.00 to 1.00.' },
+        fr: { t: 'Colonne d’air',
+              b: 'Met à l’échelle la longueur utile de la perce, qui fixe la position des résonances par rapport à la note jouée. Les valeurs basses donnent un tube court et perçant façon piccolo ; les hautes, un tube long et creux. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.jetReflection': {
+        en: { t: 'Jet Reflection',
+              b: 'Reflection coefficient at the junction between jet and bore. Negative values invert the returning wave and thin the tone; positive values reinforce it. Range −1.00 to 1.00.' },
+        fr: { t: 'Réflexion du jet',
+              b: 'Coefficient de réflexion à la jonction entre le jet et la perce. Les valeurs négatives inversent l’onde de retour et amincissent le son ; les positives le renforcent. Plage −1,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.endReflection': {
+        en: { t: 'End Reflection',
+              b: 'Reflection coefficient at the open end of the bore. It sets how much energy returns instead of radiating away, so low values leak and high values ring. Range −1.00 to 1.00.' },
+        fr: { t: 'Réflexion du bout',
+              b: 'Coefficient de réflexion à l’extrémité ouverte de la perce. Il fixe l’énergie qui revient au lieu de rayonner : les valeurs basses fuient, les hautes font sonner. Plage −1,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── ADSR envelope ───────────────────────────────────────────────────────
+    // The switch carries no caption of its own — the legend beside it reads
+    // "ADSR Envelope", and that is what a user reads. The automation lane names
+    // the parameter "ADSR Enabled"; the body says so rather than leaving the
+    // two names to be discovered.
+    'tip.adsrEnabled': {
+        en: { t: 'ADSR Envelope',
+              b: 'Switches the amplitude envelope on. With it off a note follows breath pressure alone, which is how a wind instrument normally behaves, and the four knobs beside it do nothing. The automation lane names it ADSR Enabled; it reads Off or On.' },
+        fr: { t: 'Enveloppe ADSR',
+              b: 'Active l’enveloppe d’amplitude. Désactivée, une note ne suit que la pression du souffle, ce qui est le comportement normal d’un instrument à vent, et les quatre potentiomètres voisins n’ont aucun effet. La ligne d’automation la nomme ADSR Enabled ; elle affiche Off ou On.',
+              reviewed: false },
+    },
+    'tip.adsrAttack': {
+        en: { t: 'ADSR Attack',
+              b: 'Time the envelope takes to reach full level after a note starts. Only active while the ADSR envelope is switched on. Range 1 ms to 5 s, shown in milliseconds below one second.' },
+        fr: { t: 'Attaque ADSR',
+              b: 'Temps que met l’enveloppe pour atteindre son niveau maximal après le début d’une note. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 5 s, affichée en millisecondes sous une seconde.',
+              reviewed: false },
+    },
+    'tip.adsrDecay': {
+        en: { t: 'ADSR Decay',
+              b: 'Time to fall from the attack peak down to the sustain level. Only active while the ADSR envelope is switched on. Range 1 ms to 5 s, shown in milliseconds below one second.' },
+        fr: { t: 'Chute ADSR',
+              b: 'Temps de descente du sommet de l’attaque jusqu’au niveau de maintien. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 5 s, affichée en millisecondes sous une seconde.',
+              reviewed: false },
+    },
+    'tip.adsrSustain': {
+        en: { t: 'ADSR Sustain',
+              b: 'Level the note holds once the decay has finished, as a fraction of the attack peak. Only active while the ADSR envelope is switched on. Range 0.00 to 1.00.' },
+        fr: { t: 'Maintien ADSR',
+              b: 'Niveau auquel la note se tient une fois la chute terminée, en fraction du sommet de l’attaque. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.adsrRelease': {
+        en: { t: 'ADSR Release',
+              b: 'Time the note takes to fade out after the key is let go. Only active while the ADSR envelope is switched on. Range 1 ms to 10 s, shown in milliseconds below one second.' },
+        fr: { t: 'Relâche ADSR',
+              b: 'Temps que met la note à s’éteindre après le relâchement de la touche. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 10 s, affichée en millisecondes sous une seconde.',
+              reviewed: false },
+    },
+
+    // ── Expression ──────────────────────────────────────────────────────────
+    'tip.vibratoRate': {
+        en: { t: 'Vibrato Rate',
+              b: 'Speed of the pitch vibrato. Around 5 Hz is the orchestral norm; slower reads as a swell, faster as a nervous shake. Range 2.0 to 8.0 Hz.' },
+        fr: { t: 'Vitesse du vibrato',
+              b: 'Vitesse du vibrato de hauteur. Environ 5 Hz est la norme orchestrale ; plus lent donne une houle, plus rapide un tremblement nerveux. Plage 2,0 à 8,0 Hz.',
+              reviewed: false },
+    },
+    'tip.vibratoDepth': {
+        en: { t: 'Vibrato Pitch',
+              b: 'How far the vibrato bends the pitch. At 0.00 the vibrato is silent no matter what Vibrato Rate is doing. Range 0.00 to 1.00.' },
+        fr: { t: 'Hauteur du vibrato',
+              b: 'Amplitude de la déviation de hauteur du vibrato. À 0,00 le vibrato est muet quoi que fasse la vitesse du vibrato. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.vibratoTremolo': {
+        en: { t: 'Vibrato Tremolo',
+              b: 'Adds amplitude modulation locked to the vibrato’s own phase, so the note breathes in level as well as in pitch. Range 0.00 to 1.00.' },
+        fr: { t: 'Trémolo du vibrato',
+              b: 'Ajoute une modulation d’amplitude verrouillée sur la phase du vibrato, de sorte que la note respire en niveau autant qu’en hauteur. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.vibratoDriftDepth': {
+        en: { t: 'Vibrato Drift Depth',
+              b: 'How far the vibrato’s rate and depth wander on their own. A small amount stops a machine-steady vibrato from sounding synthetic. Range 0.00 to 1.00.' },
+        fr: { t: 'Profondeur de la dérive',
+              b: 'Ampleur de l’errance spontanée de la vitesse et de la profondeur du vibrato. Un peu suffit pour qu’un vibrato d’une régularité mécanique cesse de sonner synthétique. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.vibratoDriftSpeed': {
+        en: { t: 'Vibrato Drift Speed',
+              b: 'How fast that wandering evolves. It does nothing while Vibrato Drift Depth sits at zero. Range 0.10 to 2.00 Hz.' },
+        fr: { t: 'Vitesse de la dérive',
+              b: 'Vitesse d’évolution de cette errance. Sans effet tant que la profondeur de la dérive reste à zéro. Plage 0,10 à 2,00 Hz.',
+              reviewed: false },
+    },
+    'tip.flutterTongue': {
+        en: { t: 'Flutter Tongue',
+              b: 'Depth of the flutter-tongue amplitude modulation — the rolled-r a player makes with the tongue while blowing. Range 0.00 to 1.00.' },
+        fr: { t: 'Frullato',
+              b: 'Profondeur de la modulation d’amplitude du frullato — le r roulé que le joueur produit avec la langue en soufflant. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.flutterRate': {
+        en: { t: 'Flutter Rate',
+              b: 'Speed of the flutter-tongue modulation. It does nothing while Flutter Tongue sits at zero. Range 15.0 to 30.0 Hz.' },
+        fr: { t: 'Vitesse du frullato',
+              b: 'Vitesse de la modulation du frullato. Sans effet tant que le frullato reste à zéro. Plage 15,0 à 30,0 Hz.',
+              reviewed: false },
+    },
+    'tip.growl': {
+        en: { t: 'Growl',
+              b: 'A second oscillator modulating the bore feedback, standing in for the vocal-fold coupling a player gets by humming while blowing. It roughens the tone rather than sweetening it. Range 0.00 to 1.00.' },
+        fr: { t: 'Growl',
+              b: 'Un second oscillateur qui module la réinjection de la perce, à la place du couplage des cordes vocales qu’un joueur obtient en chantant dans l’instrument. Il rugosifie le son plutôt qu’il ne l’adoucit. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Output ──────────────────────────────────────────────────────────────
+    'tip.width': {
+        en: { t: 'Width',
+              b: 'Stereo spread of the output. 0.00 is mono, 1.00 is the natural width and 2.00 pushes past it. Range 0.00 to 2.00.' },
+        fr: { t: 'Largeur',
+              b: 'Étalement stéréo de la sortie. 0,00 pour du mono, 1,00 pour la largeur naturelle, et 2,00 va au-delà. Plage 0,00 à 2,00.',
+              reviewed: false },
+    },
+    'tip.formant': {
+        en: { t: 'Formant',
+              b: 'Prominence of the headjoint formant resonance — a fixed peak that colours every note the same way. It adds up to 6 dB of gain at the peak. Range 0.00 to 1.00.' },
+        fr: { t: 'Formant',
+              b: 'Importance de la résonance de formant de la tête — un pic fixe qui colore toutes les notes de la même façon. Il ajoute jusqu’à 6 dB de gain au sommet. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.outputLevel': {
+        en: { t: 'Output Level',
+              b: 'Master gain on the way out, applied after the effects chain. Range −60.0 to +12.0 dB.' },
+        fr: { t: 'Niveau de sortie',
+              b: 'Gain général en sortie, appliqué après la chaîne d’effets. Plage −60,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    // ── Impossible physics ──────────────────────────────────────────────────
+    'tip.infiniteSustain': {
+        en: { t: 'Infinite Sustain',
+              b: 'Removes damping from the bore so the note keeps ringing after the breath stops. At 1.00 it barely decays at all. Range 0.00 to 1.00.' },
+        fr: { t: 'Tenue infinie',
+              b: 'Retire l’amortissement de la perce pour que la note continue de sonner une fois le souffle arrêté. À 1,00 elle ne décroît presque plus. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.reversedJet': {
+        en: { t: 'Reversed Jet',
+              b: 'Inverts the direction of the jet delay, which no real flute can do. It hollows the tone and moves where the octave breaks. Range 0.00 to 1.00.' },
+        fr: { t: 'Jet inversé',
+              b: 'Inverse le sens du retard du jet, ce qu’aucune flûte réelle ne peut faire. Cela creuse le son et déplace le point de passage à l’octave. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+    'tip.subHarmonics': {
+        en: { t: 'Sub-Harmonics',
+              b: 'Adds sub-octave content through nonlinear feedback in the bore. Small amounts thicken the low register; large amounts growl. Range 0.00 to 1.00.' },
+        fr: { t: 'Sous-harmoniques',
+              b: 'Ajoute du contenu à l’octave inférieure par réinjection non linéaire dans la perce. En petite dose cela épaissit le grave ; en grande dose cela gronde. Plage 0,00 à 1,00.',
+              reviewed: false },
+    },
+
+    // ── Instrument strip ────────────────────────────────────────────────────
+    //
+    // A TIP THAT LIES IS WORSE THAN NO TIP. toneHoleToggle is a DEAD parameter:
+    // PluginProcessor.cpp:316-319 records that the tone-hole scattering DSP was
+    // never implemented and that its scaffolding was removed in v1.16.2, and a
+    // scan of Source/ confirms it — the id appears only in the layout, the
+    // relay and the attachment. No DSP reads it, no factory preset sets it.
+    // The switch moves, the automation lane moves, and nothing is heard. The
+    // body says that rather than describing a feature that does not exist.
+    'tip.toneHoleToggle': {
+        en: { t: 'Tone Holes',
+              b: 'This switch currently does nothing you can hear. The tone-hole scattering was never implemented and its scaffolding was removed in v1.16.2; the parameter is kept registered only so that existing sessions and automation stay valid. It reads Off or On.' },
+        fr: { t: 'Trous de jeu',
+              b: 'Cet interrupteur n’a pour l’instant aucun effet audible. La diffusion par les trous de jeu n’a jamais été implémentée et son échafaudage a été retiré en v1.16.2 ; le paramètre reste déclaré uniquement pour que les sessions et les automations existantes restent valides. Il affiche Off ou On.',
+              reviewed: false },
+    },
+    'tip.instrumentPreset': {
+        en: { t: 'Instrument Preset',
+              b: 'Picks one of eight bore and jet configurations, from Concert Flute to Ocarina. It rewrites the physical model rather than the knob positions, so the change is heard at once and nothing on this page moves. Eight choices, numbered 0 to 7 in the automation lane.' },
+        fr: { t: 'Préréglage d’instrument',
+              b: 'Choisit une des huit configurations de perce et de jet, de Concert Flute à Ocarina. Il réécrit le modèle physique et non la position des potentiomètres : le changement s’entend aussitôt et rien ne bouge sur cette page. Huit choix, numérotés de 0 à 7 dans la ligne d’automation.',
+              reviewed: false },
+    },
+
+    // ── Effects: chorus ─────────────────────────────────────────────────────
+    //
+    // THE FOUR BYPASS BUTTONS ARE INVERTED AGAINST THEIR PARAMETER AND THE BODY
+    // SAYS SO. setupFxBypassToggle() reads the parameter as `bypassed`, so the
+    // face says "On" when the parameter is Off. Describing the button without
+    // naming the inversion would put a false sentence in front of anyone
+    // reading the automation lane at the same time.
+    'tip.chorusBypass': {
+        en: { t: 'Chorus Bypass',
+              b: 'Takes the chorus in and out of the signal path. The button reads On while the effect is running, which is the automation parameter Chorus Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement du chorus',
+              b: 'Met le chorus en ou hors du trajet du signal. Le bouton affiche On quand l’effet fonctionne, ce qui correspond au paramètre d’automation Chorus Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
+              reviewed: false },
+    },
+    'tip.chorusRate': {
+        en: { t: 'Chorus Rate',
+              b: 'Speed of the chorus oscillator. Slow settings widen and drift; fast settings shimmer. Range 0.10 to 10.00 Hz.' },
+        fr: { t: 'Vitesse du chorus',
+              b: 'Vitesse de l’oscillateur du chorus. Les réglages lents élargissent et font dériver ; les rapides font miroiter. Plage 0,10 à 10,00 Hz.',
+              reviewed: false },
+    },
+    'tip.chorusDepth': {
+        en: { t: 'Chorus Depth',
+              b: 'How far the chorus oscillator sweeps its delay line. Range 0 to 100 %.' },
+        fr: { t: 'Profondeur du chorus',
+              b: 'Amplitude du balayage de la ligne à retard par l’oscillateur du chorus. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.chorusMix': {
+        en: { t: 'Chorus Mix',
+              b: 'Balance between the dry signal and the chorused one. It ships at 0 %, so the chorus is inaudible until this is raised. Range 0 to 100 %.' },
+        fr: { t: 'Mixage du chorus',
+              b: 'Équilibre entre le signal direct et le signal traité par le chorus. Il est livré à 0 %, donc le chorus reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Effects: delay ──────────────────────────────────────────────────────
+    'tip.delayBypass': {
+        en: { t: 'Delay Bypass',
+              b: 'Takes the delay in and out of the signal path. The button reads On while the effect is running, which is the automation parameter Delay Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement du délai',
+              b: 'Met le délai en ou hors du trajet du signal. Le bouton affiche On quand l’effet fonctionne, ce qui correspond au paramètre d’automation Delay Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
+              reviewed: false },
+    },
+    'tip.delayTime': {
+        en: { t: 'Delay Time',
+              b: 'Time between repeats. The readout is in milliseconds even though the host automation lane reports the same parameter in seconds. Range 1 to 2000 ms.' },
+        fr: { t: 'Durée du délai',
+              b: 'Temps entre les répétitions. L’affichage est en millisecondes alors que la ligne d’automation de l’hôte donne le même paramètre en secondes. Plage 1 à 2000 ms.',
+              reviewed: false },
+    },
+    'tip.delayFeedback': {
+        en: { t: 'Delay Feedback',
+              b: 'How much of each repeat is fed back into the line. It stops short of unity so the delay cannot run away. Range 0 to 95 %.' },
+        fr: { t: 'Réinjection du délai',
+              b: 'Proportion de chaque répétition renvoyée dans la ligne. Elle s’arrête avant l’unité pour que le délai ne s’emballe pas. Plage 0 à 95 %.',
+              reviewed: false },
+    },
+    // The two option words stay English on the page — they are the delayMode
+    // AudioParameterChoice options verbatim, so the page and the host lane must
+    // name them identically (D-01 arm 1, and both carry an I18N_EXEMPT entry).
+    // Naming them inside a FRENCH sentence is a different thing: the option in
+    // the selector is exempt, the sentence describing it is prose and is
+    // localized. The words themselves are quoted unchanged in both languages.
+    'tip.delayMode': {
+        en: { t: 'Delay Mode',
+              b: 'Normal repeats on both channels together; PingPong alternates them left and right through cross-feedback. Both option words stay English because the host automation lane names them that way. Normal or PingPong.' },
+        fr: { t: 'Mode du délai',
+              b: 'Normal répète sur les deux canaux ensemble ; PingPong les fait alterner à gauche et à droite par réinjection croisée. Les deux mots restent en anglais parce que la ligne d’automation de l’hôte les nomme ainsi. Normal ou PingPong.',
+              reviewed: false },
+    },
+    'tip.delayMix': {
+        en: { t: 'Delay Mix',
+              b: 'Balance between the dry signal and the delayed one. It ships at 0 %, so the delay is inaudible until this is raised. Range 0 to 100 %.' },
+        fr: { t: 'Mixage du délai',
+              b: 'Équilibre entre le signal direct et le signal retardé. Il est livré à 0 %, donc le délai reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Effects: EQ ─────────────────────────────────────────────────────────
+    'tip.eqBypass': {
+        en: { t: 'EQ Bypass',
+              b: 'Takes the equaliser in and out of the signal path. The button reads On while the effect is running, which is the automation parameter EQ Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement de l’EQ',
+              b: 'Met l’égaliseur en ou hors du trajet du signal. Le bouton affiche On quand l’effet fonctionne, ce qui correspond au paramètre d’automation EQ Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
+              reviewed: false },
+    },
+    'tip.eqLowGain': {
+        en: { t: 'EQ Low Gain',
+              b: 'Shelving cut or boost on the low band. Range −12.0 to +12.0 dB.' },
+        fr: { t: 'Gain des graves',
+              b: 'Atténuation ou accentuation en plateau sur la bande grave. Plage −12,0 à +12,0 dB.',
+              reviewed: false },
+    },
+    'tip.eqMidGain': {
+        en: { t: 'EQ Mid Gain',
+              b: 'Peaking cut or boost on the mid band, centred wherever EQ Mid Freq is set. Range −12.0 to +12.0 dB.' },
+        fr: { t: 'Gain des médiums',
+              b: 'Atténuation ou accentuation en cloche sur la bande médium, centrée là où est réglée la fréquence des médiums. Plage −12,0 à +12,0 dB.',
+              reviewed: false },
+    },
+    'tip.eqMidFreq': {
+        en: { t: 'EQ Mid Freq',
+              b: 'Centre frequency of the mid band. It changes nothing while EQ Mid Gain sits at 0 dB. Range 200 to 8000 Hz.' },
+        fr: { t: 'Fréquence des médiums',
+              b: 'Fréquence centrale de la bande médium. Sans effet tant que le gain des médiums reste à 0 dB. Plage 200 à 8000 Hz.',
+              reviewed: false },
+    },
+    'tip.eqHighGain': {
+        en: { t: 'EQ High Gain',
+              b: 'Shelving cut or boost on the high band. Range −12.0 to +12.0 dB.' },
+        fr: { t: 'Gain des aigus',
+              b: 'Atténuation ou accentuation en plateau sur la bande aiguë. Plage −12,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    // ── Effects: reverb ─────────────────────────────────────────────────────
+    'tip.reverbBypass': {
+        en: { t: 'Reverb Bypass',
+              b: 'Takes the reverb in and out of the signal path. The button reads On while the effect is running, which is the automation parameter Reverb Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement de la réverbération',
+              b: 'Met la réverbération en ou hors du trajet du signal. Le bouton affiche On quand l’effet fonctionne, ce qui correspond au paramètre d’automation Reverb Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
+              reviewed: false },
+    },
+    'tip.reverbSize': {
+        en: { t: 'Reverb Size',
+              b: 'Size of the simulated room, which sets how long the tail runs. Range 0 to 100 %.' },
+        fr: { t: 'Taille de la réverbération',
+              b: 'Taille de la salle simulée, qui fixe la longueur de la traîne. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbDamp': {
+        en: { t: 'Reverb Damping',
+              b: 'How fast the high frequencies die away inside the tail. More damping reads as soft furnishings; less as bare stone. Range 0 to 100 %.' },
+        fr: { t: 'Amortissement de la réverbération',
+              b: 'Vitesse à laquelle les aigus s’éteignent dans la traîne. Beaucoup d’amortissement évoque une salle meublée ; peu, la pierre nue. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbPredelay': {
+        en: { t: 'Reverb Pre-delay',
+              b: 'Gap between the dry note and the first reflections. A little keeps the attack clear of the tail. Range 0 to 200 ms.' },
+        fr: { t: 'Pré-délai de la réverbération',
+              b: 'Écart entre la note directe et les premières réflexions. Un peu suffit pour dégager l’attaque de la traîne. Plage 0 à 200 ms.',
+              reviewed: false },
+    },
+    'tip.reverbMod': {
+        en: { t: 'Reverb Mod',
+              b: 'Modulates the reverb’s delay lines so the tail moves instead of ringing on one pitch. Range 0 to 100 %.' },
+        fr: { t: 'Modulation de la réverbération',
+              b: 'Module les lignes à retard de la réverbération pour que la traîne bouge au lieu de sonner sur une seule hauteur. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbShimmer': {
+        en: { t: 'Reverb Shimmer',
+              b: 'Feeds an octave-up copy of the tail back into the reverb, so the sound rises as it decays. Range 0 to 100 %.' },
+        fr: { t: 'Shimmer de la réverbération',
+              b: 'Réinjecte dans la réverbération une copie transposée à l’octave supérieure de la traîne, si bien que le son monte en décroissant. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+    'tip.reverbMix': {
+        en: { t: 'Reverb Mix',
+              b: 'Balance between the dry signal and the reverberated one. It ships at 0 %, so the reverb is inaudible until this is raised. Range 0 to 100 %.' },
+        fr: { t: 'Mixage de la réverbération',
+              b: 'Équilibre entre le signal direct et le signal réverbéré. Il est livré à 0 %, donc la réverbération reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── Chrome ──────────────────────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user hover-help exists at all, so it must
+    // describe ONLY what this popover contains. O-Wind has no hover-help
+    // on/off toggle, and the panel opens BELOW the button
+    // (.settings-popover is `top: calc(100% + 8px)`), not above it — copying
+    // another plugin's wording would have shipped two false sentences.
+    'tip.gear': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel just below this button. It holds the interface language, and nothing else.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages juste sous ce bouton. Il ne contient que la langue de l’interface.',
+              reviewed: false },
+    },
+    // The third sentence is a scope statement, not a boast. O-Wind consumes the
+    // tuning panel from the SHARED module by reference (CMakeLists.txt:97-98),
+    // so localizing it is a cross-plugin change and one of this plugin's three
+    // tabs stays English for a French user. Saying so here is cheaper than
+    // letting it be discovered.
+    'tip.langSelect': {
+        en: { t: 'Interface language',
+              b: 'Switches every caption and every hover-help sentence between English and French. Number readouts keep their English format, and the Tuning tab stays English in both languages.' },
+        fr: { t: 'Langue de l’interface',
+              b: 'Bascule chaque légende et chaque bulle d’aide entre l’anglais et le français. Les valeurs numériques gardent leur format anglais, et l’onglet Accord reste en anglais dans les deux langues.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -428,17 +954,132 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. This plugin has no hover-help: v1.16.3 carried no
-// data-tip anywhere, and authoring that copy is Stage M's job.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper].
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; omitting the export and editing
-// the canon block to match would put this plugin's copy of the runtime out of
-// step with the other forty-plus, which is the whole drift the canon gate
-// exists to prevent.
+// FIFTY-TWO anchors: 50 parameters with a control plus the two chrome
+// controls. applyI18n() resolves `selector` with document.querySelector and,
+// where a wrapper is given, walks `closest(wrapper)` to the cell the tip
+// belongs on.
+//
+// "BIND TO THE IDS THE UI ALREADY USES" IS FALSE ON BOTH HALVES HERE, and the
+// two halves fail for different reasons — check them separately.
+//
+//   SELECTOR HALF, false for 26 of 52. Not one .knob-control on the Sound tab
+//   carries an id; they are addressed as .knob-control[data-param="..."],
+//   which is also how the page's own bindSliderParam() finds them
+//   (index.html:1910). The other 26 selectors ARE ids.
+//
+//   TARGET HALF, false for 18 of 52. The 26 Sound-tab cells need NO wrapper —
+//   .knob-control is itself the 72 x 87.8 px flex column holding the SVG, the
+//   caption and the readout, so the id-less selector already lands on the cell
+//   the pointer aims at. The 16 Effects knobs DO need one: #<id>Knob is only
+//   the 44 x 44 px vine face, and .knob-container is the 66 x 70.8 px cell that
+//   also holds the caption and the readout. #instrument-select and
+//   #delayModeSelect walk to their label + control pair the same way.
+//
+// THE CHROME BINDS BARE, both of them. .settings-cluster contains BOTH
+// #gear-btn AND #settings-popover, so a wrapper walk would make hovering
+// #lang-select resolve to the gear's anchor and show the gear's tip over the
+// panel the user just opened. Carried from O-Comp, and true here too.
+//
+// THE FOUR BYPASS BUTTONS ALSO BIND BARE. .fx-header holds the section title
+// and the bypass button, so a wrapper there would put the bypass tip over a
+// caption that is not the bypass.
+//
+// TWENTY-ONE OF THESE ANCHORS LIVE INSIDE #tab-effects, which is a
+// `.tab-panel` and therefore `display: none` until its tab is clicked. They
+// still RESOLVE at applyI18n() time — initializeEffects() has already built
+// them, and initI18n() is called after it — so nothing here is a
+// "tip target not found". They simply cannot be HOVERED until the tab is
+// active, which is why tests/ui_tip_render_check.js clicks the tab through the
+// page's own handler rather than stripping the class.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+
+    // ── Sound tab: excitation ───────────────────────────────────────────────
+    ['.knob-control[data-param="breathPressure"]',    'tip.breathPressure'],
+    ['.knob-control[data-param="embouchure"]',        'tip.embouchure'],
+    ['.knob-control[data-param="breathNoise"]',       'tip.breathNoise'],
+
+    // ── Sound tab: resonator ────────────────────────────────────────────────
+    ['.knob-control[data-param="material"]',          'tip.material'],
+    ['.knob-control[data-param="toneColor"]',         'tip.toneColor'],
+    ['.knob-control[data-param="airColumn"]',         'tip.airColumn'],
+    ['.knob-control[data-param="jetReflection"]',     'tip.jetReflection'],
+    ['.knob-control[data-param="endReflection"]',     'tip.endReflection'],
+
+    // ── Sound tab: ADSR ─────────────────────────────────────────────────────
+    // #adsr-toggle is bare: its parent .section-label also holds the
+    // "ADSR Envelope" caption span, which is a different control's text.
+    ['#adsr-toggle',                                  'tip.adsrEnabled'],
+    ['.knob-control[data-param="adsrAttack"]',        'tip.adsrAttack'],
+    ['.knob-control[data-param="adsrDecay"]',         'tip.adsrDecay'],
+    ['.knob-control[data-param="adsrSustain"]',       'tip.adsrSustain'],
+    ['.knob-control[data-param="adsrRelease"]',       'tip.adsrRelease'],
+
+    // ── Sound tab: expression ───────────────────────────────────────────────
+    ['.knob-control[data-param="vibratoRate"]',       'tip.vibratoRate'],
+    ['.knob-control[data-param="vibratoDepth"]',      'tip.vibratoDepth'],
+    ['.knob-control[data-param="vibratoTremolo"]',    'tip.vibratoTremolo'],
+    ['.knob-control[data-param="vibratoDriftDepth"]', 'tip.vibratoDriftDepth'],
+    ['.knob-control[data-param="vibratoDriftSpeed"]', 'tip.vibratoDriftSpeed'],
+    ['.knob-control[data-param="flutterTongue"]',     'tip.flutterTongue'],
+    ['.knob-control[data-param="flutterRate"]',       'tip.flutterRate'],
+    ['.knob-control[data-param="growl"]',             'tip.growl'],
+
+    // ── Sound tab: output ───────────────────────────────────────────────────
+    ['.knob-control[data-param="width"]',             'tip.width'],
+    ['.knob-control[data-param="formant"]',           'tip.formant'],
+    ['.knob-control[data-param="outputLevel"]',       'tip.outputLevel'],
+
+    // ── Sound tab: impossible physics ───────────────────────────────────────
+    ['.knob-control[data-param="infiniteSustain"]',   'tip.infiniteSustain'],
+    ['.knob-control[data-param="reversedJet"]',       'tip.reversedJet'],
+    ['.knob-control[data-param="subHarmonics"]',      'tip.subHarmonics'],
+
+    // ── Sound tab: instrument strip ─────────────────────────────────────────
+    // #tone-hole-toggle IS the 130 x 28 px cell (track + caption), bare.
+    // #instrument-select walks to .instrument-selector, the label + select
+    // pair; that class matches exactly once on this page.
+    ['#tone-hole-toggle',                             'tip.toneHoleToggle'],
+    ['#instrument-select',                            'tip.instrumentPreset', '.instrument-selector'],
+
+    // ── Effects tab: chorus ─────────────────────────────────────────────────
+    ['#chorusBypassBtn',                              'tip.chorusBypass'],
+    ['#chorusRateKnob',                               'tip.chorusRate',     '.knob-container'],
+    ['#chorusDepthKnob',                              'tip.chorusDepth',    '.knob-container'],
+    ['#chorusMixKnob',                                'tip.chorusMix',      '.knob-container'],
+
+    // ── Effects tab: delay ──────────────────────────────────────────────────
+    // .fx-dropdown-container is created only for the delay mode selector, so
+    // the walk is unambiguous — verified, one node on the page.
+    ['#delayBypassBtn',                               'tip.delayBypass'],
+    ['#delayTimeKnob',                                'tip.delayTime',      '.knob-container'],
+    ['#delayFeedbackKnob',                            'tip.delayFeedback',  '.knob-container'],
+    ['#delayModeSelect',                              'tip.delayMode',      '.fx-dropdown-container'],
+    ['#delayMixKnob',                                 'tip.delayMix',       '.knob-container'],
+
+    // ── Effects tab: EQ ─────────────────────────────────────────────────────
+    ['#eqBypassBtn',                                  'tip.eqBypass'],
+    ['#eqLowGainKnob',                                'tip.eqLowGain',      '.knob-container'],
+    ['#eqMidGainKnob',                                'tip.eqMidGain',      '.knob-container'],
+    ['#eqMidFreqKnob',                                'tip.eqMidFreq',      '.knob-container'],
+    ['#eqHighGainKnob',                               'tip.eqHighGain',     '.knob-container'],
+
+    // ── Effects tab: reverb ─────────────────────────────────────────────────
+    ['#reverbBypassBtn',                              'tip.reverbBypass'],
+    ['#reverbSizeKnob',                               'tip.reverbSize',     '.knob-container'],
+    ['#reverbDampKnob',                               'tip.reverbDamp',     '.knob-container'],
+    ['#reverbPredelayKnob',                           'tip.reverbPredelay', '.knob-container'],
+    ['#reverbModKnob',                                'tip.reverbMod',      '.knob-container'],
+    ['#reverbShimmerKnob',                            'tip.reverbShimmer',  '.knob-container'],
+    ['#reverbMixKnob',                                'tip.reverbMix',      '.knob-container'],
+
+    // ── Chrome. BARE, both — see the header. ────────────────────────────────
+    ['#gear-btn',                                     'tip.gear'],
+    ['#lang-select',                                  'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty

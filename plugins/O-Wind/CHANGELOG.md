@@ -1,5 +1,153 @@
 # O-Wind Changelog
 
+## [1.18.0] - 2026-08-31
+
+### Added — hover-help, in both languages (Stage M batch M3)
+
+Fifty-two tooltip entries — 50 parameters with a control on the page plus the
+gear button and the language selector — each with an English and a French
+`{title, body}`, bound through `TIP_BINDINGS`, and **a renderer to paint them**.
+MINOR: a new user-facing feature, no parameter, range or state-format change.
+
+**The renderer is the part the plan did not say this stage needed.** Canon v2's
+`applyI18n()` writes `data-tip-title` and `data-tip` ATTRIBUTES onto the anchors
+and stops; the code that reads them and paints a surface is per-plugin and lives
+outside the canon. O-Wind had none of it at v1.17.0 — no `#tooltip` element, no
+`.tooltip` rule, no hover handler. Authoring 52 bodies and binding them with no
+other change would have shipped **52 invisible strings behind three green
+gates**: `check-i18n` counts bindings, `check-ui-labels` has no tooltip
+awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never
+`data-tip`. `setupTooltips()` in `index.html` is the other half, ported from
+O-simpleFM's delegated cursor-following renderer with two properties the
+reference does not have:
+
+- **A focus latch.** A mouse click on a `<button>` focuses it, so an
+  unconditional `focusin` rule parks a tip on screen after every click.
+  `:focus-visible` is not the discriminator — Chromium reports it false for a
+  programmatic `.focus()` after a click — so the latch is an explicit
+  last-input-device flag that any keydown releases.
+- **A drag guard.** Both knob families here start a drag on `mousedown` and
+  track `document` `mousemove`, and **neither calls `setPointerCapture`** —
+  checked rather than assumed, because O-AnalogEQ needed no guard for exactly
+  that reason. Without `pointerHeld`, a drag straying into a neighbouring cell
+  opens that cell's tip over the control being turned.
+
+### Added — `tests/ui_tip_render_check.js`, the first runnable gate in this plugin
+
+`plugins/O-Wind/tests/` held only `i18n-states.json`, and there is no
+`Source/tests/` here. The new gate drives the real page at the shipping
+900 x 600 frame and asserts, per anchor and in both languages: the selector
+resolves, the wrapper walk resolves, all 52 land on **distinct** nodes, a hover
+on a real descendant makes the surface visible, the rendered title and body are
+**byte-equal** to the table, and the rectangle is inside the frame on all four
+edges. **774 assertions, 0 failures.**
+
+The wrapper is checked separately from the selector because `applyI18n` falls
+back `el.closest(w) || el`: a broken wrapper still opens a tip, on the
+wrong-sized cell, and the visibility, byte-equality and in-frame assertions all
+sail over it in both languages. Confirmed here — breaking `#reverbSizeKnob`'s
+wrapper fails `[1]` alone, while all twelve of its `[2]`/`[3]`/`[4]` lines stay
+green in English *and* French.
+
+Five negative controls, every one run BOTH ways:
+
+| Control | Fix present | Fix removed |
+|---|---|---|
+| NC-1 over-long body / NC-5 the 8 px floor | in frame, 116.8 px | overflow REPORTED: 1169 px tall, bottom edge −577 |
+| NC-2a focus latch, pointer click | no tip | tip pinned over the popover, **5280 px²** |
+| NC-2b focus latch, keyboard tab | tip on tab #4 | unchanged — the halves are independent |
+| NC-3 child-boundary guard | 0 class mutations | 10 mutations, **5 of them a hide** |
+| NC-4 mid-drag guard | no tip | neighbour's tip opens mid-drag: "Air Column" |
+
+**The blur before the click is load-bearing here, and that was measured rather
+than inherited.** The full 2 x 2: latch on / blur on 774 pass; latch on / blur
+off 774 pass; latch **off** / blur on **1 FAIL**; latch off / blur **off** 774
+pass. Deleting the blur alone turns the failing cell green, which is the
+O-Tremolo result — the blur is what gives the assertion its power, because
+clicking an already-focused element fires no `focusin` at all.
+
+**NC-3 needed three attempts, and the first two are the finding.** A post-hoc
+read — hover the wrapper, hover the caption, read the tip — passed **774/774
+with the guard deleted**. So did a per-frame opacity sampler: minimum opacity
+1 over 25 frames. `pointerout` and `pointerover` for one pointer move land in
+the SAME task, so the surface is hidden and reopened before the style system
+settles and before any frame renders; neither instrument can see the pair. A
+`MutationObserver` on the `class` attribute records each mutation individually
+and is the only one that can. The naive assertion is still in the file, one
+line below, and it passes in both directions — kept deliberately, labelled, as
+a standing example of an assertion that looks like it covers something it
+cannot see.
+
+### Added — `.planning/params.tsv` and the param-dump wiring
+
+A runtime walk of `AudioProcessor::getParameters()` on a constructed processor,
+56 rows. `CMakeLists.txt` gains the `ouaricon_add_param_dump()` call behind the
+suite-wide `OUARICON_BUILD_TESTS` option (OFF by default, so a normal build is
+unchanged), and `PluginProcessor.cpp` moves `#include "PluginEditor.h"` behind
+`#if JUCE_WEB_BROWSER` above `createEditor()` with a
+`GenericAudioProcessorEditor` fallback — the console dump target compiles this
+TU with `JUCE_WEB_BROWSER=0` and no editor sources, so a top-of-file include
+breaks the link. Under a normal build `JUCE_WEB_BROWSER=1` and behaviour is
+byte-identical to v1.17.0.
+
+### Fixed — nothing. Found, and reported instead
+
+- **`toneHoleToggle` is a DEAD parameter, and its tooltip says so.**
+  `PluginProcessor.cpp:316-319` records that the tone-hole scattering DSP was
+  never implemented and that its scaffolding was removed in v1.16.2. A scan of
+  `Source/` confirms it: the id appears in the parameter layout, the relay and
+  the attachment, and in no DSP file. The switch moves, the automation lane
+  moves, and nothing is heard. `tip.toneHoleToggle` states that outright rather
+  than describing a feature that does not exist. Deleting the parameter is
+  host-visible and is a decision, not a patch.
+- **The four FX bypass buttons are inverted against their parameter**, and the
+  four bodies say so. `setupFxBypassToggle()` reads the parameter as
+  `bypassed`, so the face reads `On` while `chorusBypass` sits at `Off`.
+- **Six of the 56 parameters have no control on this page**, which is a finding
+  and not a gap. No control was added to satisfy a count. See
+  `Resources/ui/js/i18n.js` for the per-parameter evidence.
+
+### Changed — the tooltip range wording follows the PAGE, not the dump
+
+Only 16 of the 56 parameters carry a unit `label` in `params.tsv` (28%). The
+other 40 are phrased from the page's own formatters — `PARAMS`
+(`index.html:1750-1777`) with `formatValue()` (`:1870-1877`) for the Sound tab,
+and the `setupFxKnob()` call sites (`:2540-2555`) for the Effects tab, where the
+display factor and the unit suffix are passed as arguments. Two places the two
+sources disagree and the page wins, because the user is reading the page:
+`delayTime` dumps seconds and renders milliseconds, and the three ADSR times
+dump seconds and render milliseconds below one second.
+
+French bodies take French convention — decimal comma, a space before `%`,
+U+2212 for the minus — while the READOUT keeps its point, because D-03 exempts
+the readout NODE. They differ on purpose: the readout is a machine-formatted
+value, the body is a sentence.
+
+### Geometry — nothing moved, and no pin was added
+
+`check-ui-labels --plugin O-Wind` produces **byte-for-byte identical output**
+before and after this release: all three states, both languages, `moved = 0`
+throughout, and the `[8b]` inert-element counts unchanged at 33 / 34 / 34. The
+hidden `position: fixed` surface does not enter the label sweep, and — because
+that gate's state driver clicks `#gear-btn` — the unchanged `[8b]` count is also
+independent corroboration that the focus latch works. **No geometry pin was
+added, so none is owed a negative control.** The eight pins from v1.17.0 are
+untouched.
+
+### Verified
+
+- `check-i18n --plugin O-Wind --strict-v2` ALL PASS, canon v2, `[2] 52 tip(s)
+  bound`, 119 / 119 French entries `reviewed: false`.
+- `check-ui-labels --plugin O-Wind` ALL CHECKS PASSED, output identical to
+  v1.17.0.
+- `tests/ui_tip_render_check.js` 774 / 774.
+- `boot-all-uis.js` clean across the suite, `title=` still 0 for this plugin.
+- `build-and-install.sh O-Wind` inside the shared build mutex, then
+  `auval -v aumu OWnd OuDv`.
+
+All French is a machine draft: 119 / 119 entries `reviewed: false`. No native
+speaker has read any of it.
+
 ## [1.17.0] - 2026-08-29
 
 ### Added — the PAGE speaks French (Stage K batch K4, canon v2)

@@ -9,7 +9,7 @@ juce_add_plugin(O-Wind
     PLUGIN_CODE OWnd
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Wind${OUARICON_DEV_SUFFIX}"
-    VERSION "1.17.0"
+    VERSION "1.18.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -111,3 +111,17 @@ target_compile_definitions(O-Wind
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Wind test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # Runtime parameter inventory. Static parsing of createParameterLayout()
+    # provably undercounts in this repo — IDs can be string-concatenated and
+    # parameters can come from a factory lambda. Only a walk of
+    # AudioProcessor::getParameters() on a constructed processor sees the real set.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(O-Wind ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+endif()
