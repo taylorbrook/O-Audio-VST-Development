@@ -745,7 +745,7 @@ export const TIP_BINDINGS = [
     ['.tour-btn[data-preset="Reversed Swell"]',            'lessonReversedSwell'],
     ['.tour-btn[data-preset="Repitch vs Stretch A/B"]',    'lessonRepitchStretch'],
     ['.tour-btn[data-preset="SP-1200 Crunch"]',            'lessonSp1200'],
-    ['.tour-btn[data-preset="Filtered &amp; Enveloped"]',  'lessonFilteredEnv'],
+    ['.tour-btn[data-preset="Filtered & Enveloped"]',      'lessonFilteredEnv'],
 ];
 
 export function tr(key, lang, vars) {
