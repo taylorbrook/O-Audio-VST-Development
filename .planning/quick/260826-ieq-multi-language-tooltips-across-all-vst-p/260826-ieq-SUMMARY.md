@@ -5723,3 +5723,89 @@ the Stage K mutex. Results appended below as they land.
   vocabulary — not a native speaker's. The pilots are the first test of whether the
   settled terms fit the frames they were pinned on.
 - `<html lang>` verified headless in Chromium only, never in a WKWebView.
+
+# STAGE N — BATCH N1 COMPLETE, 3 of 3 — and three lint defects the pilots found
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-Comp | 1.7.1 | `55a81c59` (+`c080de9c` comment) | 39 → 0 | 16 of 34 fr entries | moved 0 → 0 | 156/156 |
+| O-Chorus | 1.4.1 | `cbbda46b` (+`bba4626b` comment) | 43 → 0 | 19 of 28 | 0 → 0 | 240/240 |
+| O-simpleFM | 1.3.1 | `6bb4cf32` (+`fbffc088` fixture, `f8494bae`) | 63 → 0* | 41 of 107 rows | 0 → 0 | scratchpad probe, 336 |
+
+\* 63 → 2 at commit; → 0 once `6eb042c8` landed, with no plugin change.
+
+## THE HEADLINE: the pilots found three defects in the lint, and none in the glossary
+
+- **`termNote` guarded G1 only** — an exempted entry was printed EXEMPT and counted as F1
+  in the same run (O-simpleFM, `label.knobFixedHz`). Fixed `6eb042c8`.
+- **A glossary-accepted rendering could draw F1** — `écart` matched inside *Écart total*,
+  the glossary's own settled term for *Total span*; O-Chorus found it by reading the two
+  tables against each other, on a plugin that could not hit it, before N8 could. Fixed
+  `daed4a2e`; 2145 → 1991, ~25 of the delta this false positive suite-wide.
+- **T7 caught the wrong space and not the missing one** (`440Hz` passed clean), and `%`
+  reported twice. O-Comp proved it with a five-string control. Fixed `8a387f1c`;
+  1991 → 1837, the whole delta the `%` double-count.
+
+The glossary itself needed one addition: `porteuse nulle` as the short form of *carrier
+null* (160.7 px vs a 102 px badge). **No settled term was wrong.**
+
+## Two of three header geometry defences were false, measured
+
+O-Comp's v1.7.0 header defended `Sauver` on width against a 30 px content box; `Enreg.`
+is **23.75 px against Sauver's 25.00** — narrower. O-Chorus's `Relâch.` is **36.80 against
+Relâche 38.94 and English Release 37.70**. The glossary's abbreviation fit where the
+header said the calque was the tight one. **`Relâchement` had two verdicts on two pages**:
+62.92 px widens O-Comp's 52 px `.control-group`, and fits O-simpleFM's 56 px envelope cell
+at 77.3 px nowrap with 15.5 px clearance — one term, measured twice, two right answers.
+
+## Defects found by reading French, in the English
+
+- **O-simpleFM's `Ratio C:M` is inverted.** `FMVoice.h:210` computes `fm = carrierHz *
+  ratio` and the harness puts the carrier at the played note (`a440 = 0.6299`), so the knob
+  is modulator-to-carrier: at 2.00 the modulator runs at twice the carrier, C:M = 1:2. The
+  caption, tip title, automation-lane name and `FactoryPresets.cpp` comments are backwards;
+  the tip *body* and the Clarinet lesson are correct. Not fixed — English, and host-visible.
+  **Decision item 30.**
+- **O-Comp's gear button had two French names** — *Réglages* in the tip, *Paramètres* in
+  `aria-label`. Fixed (French only).
+- O-simpleFM's render-harness `CMakeLists.txt` hard-coded `VersionCode=0x10202` (1.2.2,
+  three releases stale) beside a correctly interpolated `VersionString`. Fixed as a version
+  site, DSP-neutral by measurement.
+
+## Meaning changes — the category the lint cannot see
+
+O-Comp 3 (*la transitoire* → *le transitoire*; a release time does not pump, the compressor
+does; *boutons* → *boutons rotatifs* on a page with both). O-simpleFM 6 (*accordé* "in
+tune" → *à hauteur définie* "pitched", four bodies; the Tubular tip named a control the page
+does not show; the Clang tip said the sidebands were non-integer when it is their multiples
+that are). O-Chorus 0 — the smallest table, and every claim held.
+
+## Casing under CSS — item 28 has its numbers
+
+O-Chorus's captions all carry `text-transform: uppercase`; `Vitesse` and `VITESSE` measure
+41.61 px each, eight for eight identical to the hundredth. Lower-cased anyway: the lint and
+the accessible name read the table, and a screen reader handed `VITESSE` may spell it.
+
+## Decision items added
+
+30. O-simpleFM `Ratio C:M` inverted in English (caption, title, automation lane, presets).
+31. **21 plugins have no committed hover-help render gate** (Stage I/J predate
+    `ui_tip_render_check.js`). O-simpleFM proved the gap: a planted wrong French body passed
+    281/281 of its probe until a language-difference arm was added. Scratchpad probes carry
+    Stage N; nothing committed catches a French tip regression on those 21.
+32. French label-in-name (WCAG 2.5.3) holds only by stem where the caption is an
+    abbreviation (`Enreg.` ⊂ `Enregistrer le préréglage`) — O-Comp Save, and every plugin
+    that abbreviates.
+33. Stale width tables in `index.html`/`styles.css` comments after a caption change — two
+    comment-only follow-up commits in N1; expect one per plugin whose header duplicates its
+    measurements into CSS.
+
+## Not verified
+
+- **No native speaker.** 169 entries stay `reviewed: false` across the three.
+- Headless Chromium at the shipping frame; `auval`; no DAW, no WKWebView, Standalone stale.
+- O-simpleFM's canvas-free page had a scratchpad probe only — nothing committed (item 31).
+- O-Comp's three `fillText` strings are seen by no gate; the U+00A0 was verified by
+  `measureText` (2.75 px, identical to the ASCII space; a U+FFFF probe at 7.944 proves tofu
+  would have been visible) and by grep in the binary. Nobody has seen it rendered.
+- Repo lint total after N1 and the three fixes: **1835** (from 2145).

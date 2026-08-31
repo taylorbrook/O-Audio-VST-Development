@@ -243,3 +243,64 @@ Record; do not act.
 
 Appended as they land. Where this section disagrees with anything above, THIS section
 wins.
+
+## From the N1 pilots (O-Comp v1.7.1 `55a81c59`, O-Chorus v1.4.1 `cbbda46b`, O-simpleFM v1.3.1 `6bb4cf32`)
+
+All three: lint → 0 `--strict`, 0 non-label elements moved, render gates unchanged,
+`boot-all-uis` 43/43 / 0 DEAD, `auval` PASS, installed bundles verified with
+`LC_ALL=C grep -a`. Three lint defects were found by the pilots and fixed at repo level
+(`daed4a2e`, `8a387f1c`, `6eb042c8`) — **re-run your baseline after reading this; the
+numbers in the batch table are pre-fix.**
+
+1. **A `termNote` now exempts both G1 and F1.** The first draft printed an exempted entry
+   as EXEMPT *and* counted it as F1 in the same run. If your baseline still shows that
+   shape, you are on a stale `scripts/`; `git log -1 -- scripts/i18n-fr-lint.js` should
+   be `6eb042c8` or later.
+2. **A glossary-accepted rendering is never a forbidden word** (*Écart total*, *Fréq. méd.*
+   no longer draw F1). **T7 catches a missing number–unit space** (`440Hz`) and `%` reports
+   under T3 only.
+3. **The glossary gained `porteuse nulle`** for *carrier null* (the settled term is 160.7 px
+   into a 102 px badge). When a root term does not fit and no abbreviation is listed,
+   report the measured width — that is how the list grows; do not invent one.
+4. **Measure before you believe a header's geometry defence.** O-Comp's v1.7.0 header
+   defended `Sauver` on width; measured, `Enreg.` is 23.75 px against `Sauver` 25.00 —
+   *narrower*. O-Chorus's `Relâch.` 36.80 is narrower than `Relâche` 38.94 *and* than
+   English `Release` 37.70. Two of three pilots found the abbreviation the glossary lists
+   fits where the header said the root's competitor was the tight fit. Re-measure with the
+   gate's own method (`Range.selectNodeContents` on the real node at the shipping frame).
+5. **Root terms that do NOT fit, measured** (keep the listed abbreviation): *Étalement*
+   60.47 px over a 50 px `.knob` gate cliff; *Profondeur* 68.02 and *Saturation* 63.52 past a
+   62 px wrap cliff; *Enregistrer* 78.52 border-box against a 62 px `.preset-action` pin;
+   *Relâchement* 62.92 against a 52 px `.control-group` (O-Comp) — but it FITS in
+   O-simpleFM's 56 px envelope cells (77.3 px, nowrap, symmetric overflow, 15.5 px
+   clearance). Same term, two verdicts: measure on your page.
+6. **Scope the typography pass with a state machine over the `fr:` blocks, not a regex over
+   the file.** All three pilots did; O-Chorus kept the dry-run diff and a scope-leak
+   assertion. Audit afterwards: `grep -n $'\xc2\xa0' i18n.js | grep -v "t:\|b:"` must be
+   empty; count `en:` lines changed = 0 by importing both revisions and comparing.
+7. **The binary control must grep the shipped VALUE, not the word.** Your header comment
+   now discusses the old words, and `juce_add_binary_data` embeds the whole file — so the
+   old word is still in the binary. Grep `t: 'Enreg.'`, not `Enreg`.
+8. **A stale width table in `index.html` or `styles.css` is a separate, comment-only
+   `docs(<Name>):` commit**, after your release commit — the shape O-Chorus (`bba4626b`)
+   and O-Comp (`c080de9c`) used. Stage N still touches no CSS rule.
+9. **Casing under `text-transform: uppercase` is byte-identical on screen** (O-Chorus
+   measured eight captions to the hundredth). Follow the English casing in the table
+   anyway — the lint and the accessible name read the table. Item 28 has its evidence.
+10. **If your plugin has no committed render gate** (Stage I/J plugins predate
+    `ui_tip_render_check.js` — check `ls plugins/<Name>/tests/`), drive hover-help from a
+    **scratchpad** probe as O-simpleFM did: every anchor, both languages, tip inside the
+    frame, tip text CHANGES between languages (the arm that catches a French body equal to
+    its English). Do not author a new committed gate in Stage N; report the gap.
+11. **Two French names for one control is a real defect** — O-Comp's gear said *Réglages* in
+    its tip and *Paramètres* in its `aria-label`. Read `aria.*` keys against the tip title
+    of the same control.
+12. **French label-in-name (WCAG 2.5.3) can hold only by stem** when a caption is an
+    abbreviation (`Enreg.` ⊂ `Enregistrer le préréglage`). Record it in the header; do not
+    invent a caption to close it.
+13. **The C:M ratio on O-simpleFM is inverted in ENGLISH** (`FMVoice.h:210`: modulator =
+    carrier × ratio, so the caption `Ratio C:M` is backwards). Decision item 30. The French
+    mirrors the English deliberately. If your plugin's tooltips make a ratio/direction
+    claim, check it against the source before trusting either language.
+14. `HEAD~1` was not the parent for two of three pilots — other executors' commits landed
+    between. `<sha>^`.
