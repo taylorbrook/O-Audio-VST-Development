@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-AnalogSaturation page labels, English + French (v1.2.0)
+// i18n.js — O-AnalogSaturation page copy, English + French (v1.3.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,16 +32,34 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.3.0 GIVES THIS PLUGIN HOVER-HELP, RENDERER INCLUDED ──────────────────
 //
-// v1.1.6 carried no data-tip, no data-tooltip and no native title= anywhere on
-// the page — the boot report reads `title= 0`. So there is no tooltip copy to
-// MOVE here and none is INVENTED: authoring hover-help prose is Stage M's job.
-// I18N is therefore empty and TIP_BINDINGS is empty, which is this plugin's
-// correct state rather than a gap. check-i18n assertion 2 reports it as
-// "0 tip(s) bound" instead of passing silently, and the emptiness is only
-// admissible BECAUSE no I18N entry carries a body — an emptied TIP_BINDINGS
-// over a bodied table would be orphaned copy and would fail.
+// v1.2.0 shipped an EMPTY I18N and an EMPTY TIP_BINDINGS, correctly: the page
+// carried no data-tip, no data-tooltip and no native title= anywhere, and the
+// boot report read `title= 0`. v1.3.0 authors the copy — six entries, four
+// parameters plus the two chrome controls.
+//
+// AUTHORING THE COPY WAS NEVER ENOUGH ON ITS OWN. applyI18n() writes
+// data-tip-title and data-tip ATTRIBUTES onto the anchors named below and stops
+// there; the thing that READS those attributes and paints a surface is
+// per-plugin code outside the canon, and this page had none of it — no
+// #tooltip element, no .tooltip rule, no hover handler. Six bodies bound with
+// no renderer would have passed check-i18n (assertion 2 only counts bindings),
+// check-ui-labels (no tooltip awareness at all) and boot-all-uis (counts
+// aria-label and title, never data-tip) while showing the user nothing. So
+// v1.3.0 ports the renderer into index.html beside the copy, and
+// tests/ui_tip_render_check.js is the gate that actually hovers each anchor and
+// reads the surface back.
+//
+// THE OPTION WORDS STAY ENGLISH INSIDE THE FRENCH BODIES. MAGNETIC, TUBE,
+// TRANSFORMER, DIODE, LOW, MID and HIGH are AudioParameterChoice option strings
+// (I18N_EXEMPT below, D-01 arm 1) and they are what the BUTTONS say in both
+// languages. A French body that translated them would send a French reader
+// looking for a button that is not on the page, and would disagree with the
+// host's automation lane. The sentence AROUND them is French; the tokens are
+// not. AUTOGAIN's Off/On is different — it is an AudioParameterBool, its Off/On
+// is JUCE's default bool text and appears on no button here, so that pair is
+// ordinary prose and IS localized.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -54,17 +72,116 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {t, b}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin that has no tooltips today, so Stage M
-// can add bodies here without touching the label keys below.
+// SIX entries: the four APVTS parameters (INTENSITY, MODEL, QUALITY, AUTOGAIN —
+// the runtime dump in .planning/params.tsv, not a regex over
+// createParameterLayout()) plus #gear-btn and #lang-select.
+//
+// TITLES ARE THE PAGE'S OWN CAPTIONS, not the parameter display names, wherever
+// the two differ: the user is reading the page. .tip-title is
+// text-transform: uppercase, so "Intensity" paints as INTENSITY and "Gain auto"
+// as GAIN AUTO — byte-for-byte what the caption under the control says in that
+// language. MODEL is the one control with no caption at all on this page (the
+// four buttons ARE the row), so its title falls back to the parameter's display
+// name, "Model".
+//
+// EVERY BODY ENDS WITH THE RANGE. INTENSITY's unit came straight from the dump's
+// `label` column (%) — it did NOT have to be recovered from a formatter,
+// because this page renders no numeric readout for the knob at all: the value is
+// shown by the indicator dot and by the snake's opacity. The other three are
+// discrete, so their range is their option words.
+//
+// THE NUMBERS INSIDE A BODY ARE PROSE AND THEY LOCALIZE (D-03 binds to NODES,
+// not to sentences): "0 to 100 %" becomes "0 à 100 %", and the decimal comma is
+// used in French. A READOUT NODE would be exempt; there is no readout node here.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The settings popover ────────────────────────────────────────────────
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // describes ONLY what this popover actually holds. It deliberately does NOT
+    // copy O-Tapestop's wording, which promises a hover-help toggle: there is no
+    // such toggle on this plugin, and a tip that lies is worse than no tip.
+    'tip.gear': {
+        en: { t: 'Settings',
+              b: 'Opens the panel holding the interface language. That is all it holds here — there is no hover-help switch and no other preference. The choice is saved with the session, so a project reopens in the language it was saved in.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau qui contient la langue de l’interface. C’est tout ce qu’il contient ici : ni interrupteur d’aide au survol, ni autre préférence. Le choix est enregistré avec la session, donc un projet se rouvre dans la langue où il a été enregistré.',
+              reviewed: false },
+    },
+
+    // The last sentence is not decoration: it is the page telling the user why
+    // seven of its captions stay English when everything around them turns
+    // French. Without it the model and quality rows read as a missed translation.
+    'tip.lang': {
+        en: { t: 'Language',
+              b: 'The language of this page’s labels and of this hover help. English and French are available. The model and quality buttons keep their English names on purpose, so the page and the host’s automation lane name the same setting the same way.' },
+        fr: { t: 'Langue',
+              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les boutons de modèle et de qualité gardent leur nom anglais à dessein, afin que la page et la voie d’automation de l’hôte désignent le même réglage de la même façon.',
+              reviewed: false },
+    },
+
+    // ── The four parameters ─────────────────────────────────────────────────
+
+    // INTENSITY — AudioParameterFloat, 0..100, label "%", default 50
+    // (PluginProcessor.cpp:41-47). It is BOTH the input drive into the model and
+    // the wet proportion of the dry/wet mix — mixDryWet() weights the wet path
+    // by intensity/100 (PluginProcessor.cpp:518-524) while each model scales its
+    // own drive by the same figure. The body says both, because a user who
+    // reads only "drive" cannot explain why 0 % is silent-clean.
+    'tip.intensity': {
+        en: { t: 'Intensity',
+              b: 'Sets the input drive into the selected model and, with it, how much of the saturated signal is mixed back over the clean one. Low values add a gentle harmonic warmth; high values round the peaks and thicken the tone. 0 to 100 %.' },
+        fr: { t: 'Intensité',
+              b: 'Règle le gain d’entrée dans le modèle choisi et, du même geste, la proportion de signal saturé remélangée au signal propre. Les valeurs basses ajoutent une chaleur harmonique discrète ; les valeurs hautes arrondissent les crêtes et épaississent le timbre. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // MODEL — AudioParameterChoice, 4 options (PluginProcessor.cpp:50).
+    // The four option words appear VERBATIM in both bodies; see the header.
+    // The descriptions are read off the implementations rather than invented:
+    // MAGNETIC is a Jiles-Atherton hysteresis model with a head-bump peak and an
+    // HF rolloff (processMagneticSample); TUBE clips asymmetrically and lifts
+    // 3 kHz (processTubeSample); TRANSFORMER is a tanh core with a 60 Hz bump
+    // and an 8 kHz shelf (processTransformerSample); DIODE is the symmetric
+    // TS-style x/(1+|x|)^n clipper (processDiodeSample).
+    'tip.model': {
+        en: { t: 'Model',
+              b: 'Chooses the saturation circuit. MAGNETIC models tape hysteresis, with a low head bump and softened highs; TUBE clips asymmetrically for even harmonics and a presence lift; TRANSFORMER is a soft tanh curve with low-end weight and top-end sheen; DIODE clips symmetrically for a harder, odd-harmonic edge. Four settings: MAGNETIC, TUBE, TRANSFORMER, DIODE.' },
+        fr: { t: 'Modèle',
+              b: 'Choisit le circuit de saturation. MAGNETIC modélise l’hystérésis de la bande, avec une bosse dans le grave et des aigus adoucis ; TUBE écrête de façon asymétrique, pour des harmoniques paires et un relief de présence ; TRANSFORMER est une courbe tanh douce, avec du poids en bas et de l’éclat en haut ; DIODE écrête symétriquement, pour un mordant d’harmoniques impaires. Quatre réglages : MAGNETIC, TUBE, TRANSFORMER, DIODE.',
+              reviewed: false },
+    },
+
+    // QUALITY — AudioParameterChoice, 3 options (PluginProcessor.cpp:58).
+    // The factors are read from osFactorForQuality() and the latency claim from
+    // computeLatencyForQuality(), which returns 0 for LOW and the oversampler's
+    // own FIR latency for MID and HIGH. Saying "adds latency" is not padding:
+    // it is the one consequence of this control a user cannot hear until they
+    // are looking for a timing problem.
+    'tip.quality': {
+        en: { t: 'Quality',
+              b: 'Sets the internal oversampling that keeps the saturation from folding aliasing back down into the audible band. LOW runs at the host’s own rate and adds no latency; MID oversamples 2x and HIGH 4x, each reporting its filter latency to the host for compensation. LOW, MID or HIGH.' },
+        fr: { t: 'Qualité',
+              b: 'Règle le suréchantillonnage interne qui empêche la saturation de replier du repliement dans la bande audible. LOW travaille à la fréquence de l’hôte et n’ajoute aucune latence ; MID suréchantillonne 2x et HIGH 4x, chacun signalant sa latence de filtre à l’hôte pour compensation. LOW, MID ou HIGH.',
+              reviewed: false },
+    },
+
+    // AUTOGAIN — AudioParameterBool, default false (PluginProcessor.cpp:63-67).
+    // NOT an AudioParameterChoice, so its Off/On is JUCE's default bool text and
+    // appears on no button on this page — D-01 arm 1 does not reach it and the
+    // pair is localized as ordinary prose, unlike the seven option words above.
+    // The 0.1..10 bound is the jlimit in applyAutoGain().
+    'tip.autogain': {
+        en: { t: 'Autogain',
+              b: 'Matches the output level back to the input level, so a change of intensity or of model is judged on tone rather than on loudness. It follows the signal’s RMS on a smoothed ramp and is bounded to a factor of 0.1 to 10, so it lifts a quiet passage without running away. Off or On.' },
+        fr: { t: 'Gain auto',
+              b: 'Ramène le niveau de sortie au niveau d’entrée, pour qu’un changement d’intensité ou de modèle se juge au timbre plutôt qu’au volume. Il suit la valeur efficace du signal sur une rampe lissée et reste borné à un facteur de 0,1 à 10, de sorte qu’un passage discret est relevé sans s’emballer. Désactivé ou activé.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -198,25 +315,55 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper].
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), then closest(wrapper) when
+// a wrapper is given, and writes data-tip-title + data-tip onto whatever that
+// resolves to. Any CSS selector is legal, so an anchor does NOT have to be an
+// id — and on this page two of the four parameters have no id anywhere near
+// them.
+//
+// BIND THE BOX THE USER AIMS AT.
+//
+//   MODEL and QUALITY have no id and no per-parameter element at all: each is a
+//   ROW of buttons (.model-buttons, .quality-buttons) and the parameter is the
+//   row, not any one button. Binding a single button would leave three quarters
+//   of the target dead; the wrapper form binds the row, including the 10 px
+//   flex gaps between the buttons, and closest() finds it from any child.
+//
+//   INTENSITY does have an id, #intensityKnob, but its two visible children
+//   (.knob-segments, .knob-indicator) are pointer-events: none and the caption
+//   .knob-label is a SEPARATE absolutely-positioned box outside the container.
+//   .knob-container is the 90x90 cell the user actually points at.
+//
+// Every selector here is asserted to RESOLVE by
+// tests/ui_tip_render_check.js §1 — an applyI18n console warning
+// "tip target not found" is a real failure, not noise, and boot-all-uis is the
+// gate that would otherwise see it first.
+//
+// NOT BOUND, deliberately: the .knob-label caption (pointer-events: none, so it
+// could not receive a hover even if it were bound), the two VU meters and their
+// IN/OUT captions (readouts, not controls — no parameter behind them), the
+// title, the version label and the snake plate.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#gear-btn',       'tip.gear'],
+    ['#lang-select',    'tip.lang'],
+
+    ['#intensityKnob',  'tip.intensity', '.knob-container'],
+    ['.model-button',   'tip.model',     '.model-buttons'],
+    ['.quality-button', 'tip.quality',   '.quality-buttons'],
+    ['#autogainToggle', 'tip.autogain'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// Live as of v1.3.0: applyI18n() calls it once per TIP_BINDINGS row, six times
+// per language change. It is exported verbatim, byte-identical to the other
+// forty-two copies, so the canon gate has one shape to compare against.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
