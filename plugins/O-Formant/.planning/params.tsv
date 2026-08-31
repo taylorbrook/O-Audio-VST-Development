@@ -1,0 +1,68 @@
+# plugin	O-Formant
+# params	64
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+vowelX	Vowel X		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+vowelY	Vowel Y		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+vowelFocus	Vowel Focus		2147483647	1.0000000	6.0000000	0.300000	2.5000000	automatable
+glottalRd	Voice Quality		2147483647	0.3000000	2.7000000	0.291667	1.0000000	automatable
+breathiness	Breathiness		2147483647	0.0000000	1.0000000	0.100000	0.1000000	automatable
+vibratoRate	Vibrato Rate	Hz	2147483647	0.5000000	12.0000000	0.434783	5.5000000	automatable
+vibratoDepth	Vibrato Depth	cents	2147483647	0.0000000	100.0000000	0.150000	15.0000010	automatable
+vibratoDelay	Vibrato Delay	ms	2147483647	0.0000000	2000.0000000	0.468205	299.9999695	automatable
+jitter	Jitter		2147483647	0.0000000	1.0000000	0.150000	0.1500000	automatable
+shimmer	Shimmer		2147483647	0.0000000	1.0000000	0.100000	0.1000000	automatable
+rdModDepth	Rd Mod Depth		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+spectralTilt	Spectral Tilt	dB	2147483647	-12.0000000	12.0000000	0.500000	0.0000000	automatable
+consonantLevel	Consonant Level		2147483647	0.0000000	2.0000000	0.150000	0.3000000	automatable
+consonantTone	Place		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+sibilance	Manner		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+consonantVoicing	Voicing		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+autoConsonant	Auto Consonant		2	Off	On	0.000000	Off	automatable,discrete,boolean
+consonantAttack	Cons Attack	ms	2147483647	1.0	100.0	0.438086	20.0	automatable
+consonantHold	Cons Hold	ms	2147483647	0.0	200.0	0.150000	30.0	automatable
+consonantDecay	Cons Decay	ms	2147483647	5.0	200.0	0.423659	40.0	automatable
+consonantVOT	VOT		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+consonantTransition	Transition		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+attack	Attack	s	2147483647	0.0010000	5.0000000	0.150179	0.0100000	automatable
+decay	Decay	s	2147483647	0.0010000	5.0000000	0.429572	0.3000000	automatable
+sustain	Sustain		2147483647	0.0000000	1.0000000	0.800000	0.8000000	automatable
+release	Release	s	2147483647	0.0010000	10.0000000	0.406858	0.4999999	automatable
+formantTopology	Formant Topology		3	Cascade	Hybrid	0.000000	Cascade	automatable,discrete
+formantShift	Formant Shift	st	2147483647	-24.0000000	24.0000000	0.500000	0.0000000	automatable
+formantSpread	Formant Spread		2147483647	0.5000000	2.0000000	0.333333	1.0000000	automatable
+pitchGlide	Pitch Glide	ms	2147483647	0.0000000	1000.0000000	0.000000	0.0000000	automatable
+transitionTime	Transition Time		2147483647	0.0000000	1.0000000	0.400000	0.4000000	automatable
+sourceFilterCoupling	Source-Filter Coupling		2147483647	0.0000000	1.0000000	0.300000	0.3000000	automatable
+singersFormant	Singer's Formant		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+nasalCoupling	Nasality		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+nasalPlace	Nasal Place		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+outputGain	Output Gain	dB	2147483647	-60.0000000	12.0000000	0.833333	-0.0000014	automatable
+stereoWidth	Stereo Width		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+tuning_masterTune	Master Tune	Hz	2147483647	400.0	480.0	0.500000	440.0	automatable
+tuning_tuningMode	Tuning Mode		3	12-TET	MTS-ESP	0.000000	12-TET	automatable,discrete
+tuning_octaveStretch	Octave Stretch		2147483647	0.950	1.250	0.166667	1.000	automatable
+tuning_pitchBendRange	Pitch Bend Range	st	2147483647	1	48	0.021277	2	automatable
+tuning_temperamentPreset	Temperament		11	Equal 12-TET	Custom	0.000000	Equal 12-TET	automatable,discrete
+chorusBypass	Chorus Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+chorusRate	Chorus Rate	Hz	2147483647	0.1000000	10.0000000	0.090909	1.0000000	automatable
+chorusDepth	Chorus Depth		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+chorusMix	Chorus Mix		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+delayBypass	Delay Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+delayTime	Delay Time	s	2147483647	0.0010000	2.0000000	0.187094	0.3750000	automatable
+delayFeedback	Delay Feedback		2147483647	0.0000000	0.9500000	0.315789	0.3000000	automatable
+delayMode	Delay Mode		2	Normal	PingPong	0.000000	Normal	automatable,discrete
+delayMix	Delay Mix		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+reverbBypass	Reverb Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+reverbSize	Reverb Size		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+reverbDamp	Reverb Damping		2147483647	0.0000000	1.0000000	0.500000	0.5000000	automatable
+reverbPredelay	Reverb Pre-delay	ms	2147483647	0.0000000	200.0000000	0.100000	20.0000000	automatable
+reverbMix	Reverb Mix		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+reverbMod	Reverb Modulation		2147483647	0.0000000	1.0000000	0.200000	0.2000000	automatable
+reverbShimmer	Reverb Shimmer		2147483647	0.0000000	1.0000000	0.000000	0.0000000	automatable
+eqBypass	EQ Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+eqLowGain	EQ Low Gain	dB	2147483647	-12.0000000	12.0000000	0.500000	0.0000000	automatable
+eqMidGain	EQ Mid Gain	dB	2147483647	-12.0000000	12.0000000	0.500000	0.0000000	automatable
+eqMidFreq	EQ Mid Freq	Hz	2147483647	200.0000000	8000.0000000	0.102564	1000.0000000	automatable
+eqHighGain	EQ High Gain	dB	2147483647	-12.0000000	12.0000000	0.500000	0.0000000	automatable
+lyricsEnabled	Lyrics Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean

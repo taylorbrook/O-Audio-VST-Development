@@ -980,6 +980,49 @@ canvas#consonant-xy-pad {
 .tuning-file-btn:hover { background: var(--tuning-hover); }
 .tuning-export-btn { grid-column: span 2; background: var(--tuning-accent); border-color: var(--tuning-accent); color: white; font-weight: 600; }
 .tuning-export-btn:hover { filter: brightness(1.1); }
+
+/* ── Hover-help surface (v1.27.0) ──────────────────────────────────────────
+   position: fixed and hidden at rest. The reason for hiding is simply that a
+   visible empty surface is a visible empty surface — do NOT expect
+   check-ui-labels to tell you: O-Bass negative-controlled un-hiding it and that
+   gate stayed byte-identically green, because a fixed box at 0,0 has the same
+   rectangle in both languages and so neither moves nor changes the visible set.
+   What catches an un-hidden surface is check-i18n assertion 10 and
+   boot-all-uis' text count.
+   pointer-events: none, or the surface steals the hover that is keeping it up.
+   z-index 200 out-stacks .settings-popover (60): #lang-select is itself an
+   anchor and lives inside that panel, so a lower tip would open BEHIND the
+   control that revealed it. max-width 260px is the wrap cap French is measured
+   against — French runs 15-20% longer and grows the tip's HEIGHT, which is why
+   tests/ui_tip_render_check.js runs every clamp assertion in both languages. */
+.tooltip {
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 200;
+  max-width: 260px;
+  padding: 7px 10px;
+  background: rgba(60,47,47,0.97);
+  color: #F5E6D3;
+  border: 1px solid #8B7355;
+  border-radius: 4px;
+  box-shadow: 2px 4px 12px rgba(60,47,47,0.45);
+  font-family: 'Garamond', 'Times New Roman', serif;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+.tooltip.show { opacity: 1; visibility: visible; }
+.tooltip .tip-title {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #C4A882;
+  margin-bottom: 3px;
+}
 </style>
 </head>
 <body>
@@ -1438,5 +1481,10 @@ async function initTuningPanel() {
     }
 }
 </script>
+<!-- Hover-help surface. ONE node for the whole page: the renderer in
+     js/main.js is delegated on document and repaints this element's text on
+     every pointerover, so there is no per-anchor node to keep in step. It is
+     empty and hidden at rest, and its aria-hidden flips with .show. -->
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
 </body>
 </html>
