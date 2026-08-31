@@ -62,6 +62,31 @@ gate that can actually see a rendered tip.
   read any of it.
 - **No parameter IDs, ranges, types, defaults or DSP behaviour changed.**
 
+### Fixed
+- **A pointer click no longer leaves the tip parked over what the click just opened.**
+  The renderer this stage ported opens a tip on any `focusin`, and a mouse click on a
+  `<button>` focuses it — so the tip that `pointerdown` had just hidden reopened
+  immediately, with the pointer still on the anchor and no further `pointerover` coming.
+  Measured here: clicking the gear left its own tip covering the settings popover by
+  **146 x 35 px**. Both gates stayed green throughout; `check-ui-labels` classes the surface
+  as `pointer-events: none` decoration and never as a label.
+
+  The fix is an explicit last-input-device latch cleared by any keydown.
+  **`:focus-visible` is deliberately not the discriminator** — Chromium reports it false
+  for a programmatic `.focus()` following a click, so a gate driving focus directly would
+  measure "no tip" and record that as correct.
+
+  `tests/ui_tip_render_check.js` now asserts **both halves separately**: a pointer click
+  opens no tip, *and* a real tab-ring walk still does. Asserting only the first would let
+  the feature decay into "focus never shows a tip", which passes it perfectly while
+  silently removing the keyboard half of hover-help.
+
+  **The first version of that assertion was decoration, and its negative control is what
+  said so.** An earlier section of the gate leaves focus on `#gear-btn`, and clicking an
+  already-focused element fires no `focusin` at all — so with the latch removed the check
+  still passed. It now blurs first, and with the latch removed it fails by
+  5110 px².
+
 ## [1.4.0] - 2026-08-29
 
 ### Added
