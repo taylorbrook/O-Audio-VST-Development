@@ -52,9 +52,13 @@ all 80 entries stay `reviewed: false`, which is what that flag means.**
   inside the 99 px `.tour-label` pin.
 
 ### Verified
-- `i18n-fr-lint` 63 → 3, and the three that remain are structural: two are a
-  contradiction between the glossary's TERMS table and its FORBIDDEN list, one
-  is the badge width above. Reported, not worked around.
+- `i18n-fr-lint` 63 → 3 at the moment of the pass, → 2 once the orchestrator's
+  `daed4a2e` landed (a rendering the glossary accepts for its English is never a
+  forbidden word — it closed the F1 on the carrier-null tip title, which was the
+  glossary's own settled term). The two that remain are structural and reported,
+  not worked around: `termNote` guards only the glossary branch, so the reasoned
+  exemption on *Fréq. fixe* is listed as EXEMPT and still counted; and the badge
+  width above.
 - `check-ui-labels` all assertions pass, with **0 non-label elements moved**
   between English and French at the 760 × 980 frame — unchanged from before the
   pass. Negative control: a caption 51 px wider than the shipped *Relâchement*
