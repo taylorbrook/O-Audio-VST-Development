@@ -103,7 +103,17 @@
             background: var(--brown-frame);
             color: var(--bg-paper);
             gap: 8px;
-            z-index: 10;
+            /* 30, not 10. `body` is display:flex, so this and .tab-bar are flex
+               ITEMS — and z-index applies to a flex item at position:static, so
+               each opens its own stacking context. Both were 10, a tie broken by
+               document order, so .tab-bar painted over everything in this bar
+               INCLUDING .settings-popover, whose own z-index:21 is scoped inside
+               this context. Measured: elementFromPoint at #lang-select's centre
+               returned BUTTON.tab-btn — the language selector, the only control
+               the i18n feature adds, could not be clicked. No gate saw it,
+               because a rect is unchanged by paint order. Paint order only; the
+               two bars do not overlap in layout. */
+            z-index: 30;
         }
 
         .preset-nav-btn {
