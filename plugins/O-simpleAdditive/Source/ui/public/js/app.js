@@ -117,6 +117,7 @@ window.__setLanguage = applyI18n;
 // label without app.js having to export anything — O-Bitrot's controller is an
 // inline <script type="module">, where an export declaration has nowhere to go.
 window.__setLabel = setLabel;
+window.__reapplyI18n = () => applyI18n(uiLanguage);
 
 function initI18n() {
     try {

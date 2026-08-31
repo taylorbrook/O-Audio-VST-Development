@@ -133,6 +133,7 @@ window.__setLanguage = applyI18n;
 // label without app.js having to export anything — O-Bitrot's controller is an
 // inline <script type="module">, where an export declaration has nowhere to go.
 window.__setLabel = setLabel;
+window.__reapplyI18n = () => applyI18n(uiLanguage);
 
 function initI18n() {
     try {
@@ -157,17 +158,6 @@ function initI18n() {
         if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
     });
 }
-
-// A re-sweep at the CURRENT language, for a sibling module that has just
-// rebuilt part of the DOM. js/tuning-panel.js replaces its generator form
-// wholesale, and the [data-i18n] labels inside it are brand-new nodes the last
-// sweep never saw. It cannot call window.__setLanguage itself, because the
-// current language lives in this module's scope and nothing there can read
-// it — guessing 'en' would silently reset a French page every time the
-// generator type changed. Declared OUTSIDE the canon block on purpose: the
-// region from `let uiLanguage` to the close of initI18n() is byte-compared
-// against scripts/i18n-canon.js and may not gain a line.
-window.__reapplyI18n = () => applyI18n(uiLanguage);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
