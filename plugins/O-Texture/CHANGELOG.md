@@ -5,6 +5,111 @@ All notable changes to O-Texture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-30
+
+Hover-help, in both languages — and the renderer that makes it visible, because
+v0.2.0 had no way to paint one.
+
+### Added
+- **Eleven tooltips, English and French**, covering all ten APVTS parameters plus
+  `#gear-btn` and `#lang-select`. Authored into `I18N` in
+  `Source/ui/public/js/i18n.js` and bound in `TIP_BINDINGS`.
+- **`setupTooltips()` in `Source/ui/public/js/main.js`, and its surface and
+  styling.** Canon v2's `applyI18n()` writes `data-tip-title` and `data-tip` onto
+  the bound anchors and stops there; the code that reads those attributes and
+  paints a surface is per-plugin, and this page had none of it — no tooltip
+  element, no `.tooltip` rule, no hover handler. **Copy alone would have shipped
+  eleven invisible strings past three green gates:** `check-i18n` assertion 2 only
+  counts bindings, `check-ui-labels` has no tooltip awareness whatsoever (its
+  output is byte-identical before and after this whole change), and
+  `boot-all-uis` counts `aria-label` and `title` and never `data-tip`.
+  Ported from O-simpleFM's delegated, cursor-following renderer — delegated on
+  `document` because no anchor carries `data-tip` until `applyI18n()` has run;
+  `pointerover`/`pointerout`/`focusin`/`focusout` because those bubble;
+  `createElement` + `textContent`, never `innerHTML`; flip to the other side of
+  the cursor and then clamp on all four edges at 8 px. Styled in this page's own
+  aged-paper vocabulary: the same ground, rule, shadow and Garamond
+  `.settings-popover` already wears, with the title line in `--botanical-green-dark`.
+- **`tests/ui_tip_render_check.js`** — 208 assertions, the gate no existing gate
+  could stand in for. Drives the real page at the shipping 800 x 600 read out of
+  `PluginEditor.cpp`, hovers all eleven anchors in `en` then `fr` then `en` again,
+  asserts the rendered title and body are **byte-equal** to the table (not
+  "contains" — a `.tip-title` that silently kept the previous anchor's text passes
+  a contains check, and a deliberately broken title path produced 22 failures
+  here), and asserts the rect is inside the frame on all four edges.
+  `TIP_BINDINGS`, the `max-width` cap, the clamp margin and `setSize` are all
+  PARSED from their sources, never retyped.
+- **`.planning/params.tsv`, and the param-dump wiring that produced it** —
+  `option(OUARICON_BUILD_TESTS)` plus `ouaricon_add_param_dump()` in
+  `CMakeLists.txt`, and `PluginEditor.h` moved behind an `#if JUCE_WEB_BROWSER`
+  guard in `PluginProcessor.cpp` with a `GenericAudioProcessorEditor` fallback, so
+  the console dump target links without the editor TU. Under a normal build
+  `JUCE_WEB_BROWSER=1` and behaviour is byte-identical.
+
+### Fixed
+- **A click would have parked a tip across the popover it just opened.** The
+  reference renderer opens a tip on any `focusin`, and a mouse click on a
+  `<button>` focuses it — so the tip `pointerdown` had just hidden reopens
+  immediately, pointer still on the anchor and no further `pointerover` coming.
+  Measured here with the latch removed: the gear's own tip covered the settings
+  popover by **5130 px²**. A `lastInputWasPointer` latch, cleared by any keydown,
+  gates the focus arm. `:focus-visible` is deliberately NOT the discriminator —
+  Chromium reports it false for a programmatic `.focus()` after a click, so a gate
+  driving focus directly would measure "no tip" and record that as correct.
+
+### Notes
+- **Ten parameters, nine parameter tips — arithmetic, not a gap.** `X` and `Y`
+  share one control, the XY pad canvas, and `applyI18n()` writes the tip
+  attributes onto the element a selector resolves to, so two bindings on
+  `#xy-pad` would have the second overwrite the first and leave one entry
+  permanently unrenderable. `tip.xyPad` names both axes instead. The gate asserts
+  that every binding lands on a **distinct** element, so this cannot regress
+  silently.
+- **Every one of the ten parameters has an empty `label` in the dump — there is
+  not one unit anywhere in the set.** Six are latent-space coordinates, one a
+  drift rate, one a normalised level, one a bipolar tilt, two are choices. No unit
+  was invented: each range is quoted the way the page renders that control
+  (`main.js:361` and `main.js:466`, both `scaledValue.toFixed(2)`). The XY pad has
+  **no readout node at all**, so `tip.xyPad` is the only range on this page taken
+  from the dump's own `textAtMin`/`textAtMax` rather than from a formatter, and it
+  is spelled with three decimals for that reason.
+- **`Mix` is a level, not a blend, and the tooltip says so.** `processBlock` ends
+  with a plain `applyGain(mix)`; Generate mode is a source, the sidechain input bus
+  ships disabled and nothing reads it, so there is no dry path to balance against.
+- **`Character A` and `Character B` are titled in full**, against the rule that the
+  page's caption wins. "Char A" is an abbreviation forced by a hard 50 px column
+  ("Caractère A" measures 51.5 px and wraps); the tooltip is the one surface here
+  with room for the parameter's real display name, which is also the name the host
+  shows.
+- **Binding the ROW, not the buttons, keeps hover-help alive over the disabled
+  ones.** Five of the six source buttons and one of the two mode buttons ship
+  `disabled`, which is exactly where a user asks why nothing happens. Chromium
+  retargets a pointer event over a disabled form control to the nearest enabled
+  ancestor, so a tip on `.source-selector` / `.mode-toggle` opens over all of them.
+  Measured and asserted, not assumed.
+- **`z-index: 1200` on the surface is load-bearing.** `body::after` paints a
+  180 x 180 fern at `z-index: 1000` over the bottom-right corner — directly on top
+  of `.freeze-toggle` — so a surface at the popover's `z-index: 61` would be
+  printed under it. A hover check reading only `visibility` cannot see that, so the
+  gate asserts the computed `z-index` against the fern's.
+- **No `tabindex` was added.** The XY pad, the three sliders and the two knobs are
+  pointer-drag only and have never been keyboard-operable; a tab stop there would
+  add noise for a control the keyboard still could not move and would pop a tip
+  open mid click-drag. `#gear-btn`, `#lang-select` and the two enabled buttons
+  carry the keyboard half.
+- **Zero geometry movement.** `check-ui-labels --plugin O-Texture` is
+  **byte-identical** to the pre-change baseline in all driven states, `moved=0`
+  before and after, still 7 `[data-i18n]` elements measured, and no inert-element
+  note appeared. The idle surface is `position: fixed` + `visibility: hidden` +
+  `opacity: 0`, which that gate's visibility predicate rejects on all three counts.
+  No geometry pin was added, so none is claimed and none is owed a negative control.
+- **No hover-help on/off toggle.** The gear popover keeps exactly the language
+  selector it had, and `tip.gearBtn` says so in as many words rather than promising
+  O-Tapestop's toggle. Two of the suite's 43 plugins have one; making them agree is
+  a decision across all 43.
+- All eleven French bodies are machine drafts, `reviewed: false`. The
+  native-speaker worklist for this plugin is now 26 entries (11 tooltip, 15 label).
+
 ## [0.2.0] - 2026-08-28
 
 The PAGE speaks French, not only a tooltip — because this plugin never had a

@@ -39,7 +39,7 @@ juce_add_plugin(${PROJECT_NAME}
     PLUGIN_CODE OuTx
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Texture${OUARICON_DEV_SUFFIX}"
-    VERSION 0.2.0
+    VERSION 0.3.0
     IS_SYNTH TRUE
     # MIDI input is required by the AU spec for MusicDevice (aumu) — auval
     # fails without it — even though v0.1.x ignores all MIDI (IN-07).
@@ -177,4 +177,17 @@ if(APPLE)
             )
         endif()
     endforeach()
+endif()
+
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Texture test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # Runtime parameter inventory (scripts/param-dump). A regex over
+    # createParameterLayout() is not authoritative: IDs can be concatenated and
+    # parameters can come from a factory lambda. Only a walk of
+    # AudioProcessor::getParameters() on a constructed processor sees the real set.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 endif()
