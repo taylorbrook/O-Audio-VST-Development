@@ -38,6 +38,13 @@
 // 3 meaning — an entry can carry more than one). sameAsEn: kept 2, translated
 // 0. termNote exemptions: 0 — no contextual glossary exemption was needed here.
 // i18n-fr-lint 20 findings -> 0, --strict exit 0 (7 T4, 5 T5, 4 T7, 2 G1, 2 F1).
+// The lint also lists FOUR straight copies (fr === en once normalised): LMF and
+// HMF, which carry sameAsEn, plus label.analog "ANALOG." and tip.analog's title
+// "Analog.", which do NOT. Those two are the French ABBREVIATION of Analogique
+// — 66.70 px against a 57.00 px box, see the label.analog block — and they are
+// spelled like the English word only because the English word is the stem they
+// share. They are not left untranslated, so they are not flagged sameAsEn, and
+// the glossary settles "analog" as "analog" in any case.
 // Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
 //
 // The decisions a later reader needs:

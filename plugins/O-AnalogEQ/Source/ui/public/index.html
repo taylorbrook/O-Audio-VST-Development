@@ -462,14 +462,21 @@
     /*
        v1.2.0 — THE ONE LOAD-BEARING PIN ON THIS PAGE, and its negative control
        fires. `.preset-bar` is a right-anchored flex row and these two buttons
-       shrink to fit their caption, so SAUVER (39.25 vs SAVE 24.52) and CHARGER
-       (46.80 vs LOAD 27.16) widen the row by 34.37 px and shove #prevPreset,
-       #presetName, #nextPreset and the bar itself LEFT by that amount. None of
-       those four is a [data-i18n] element, so that is a check-ui-labels
-       assertion 7 failure, and assertion 4 is blind to it — the caption still
-       fits its own grown box.
+       shrink to fit their caption, so the French pair widens the row and shoves
+       #prevPreset, #presetName, #nextPreset and the bar itself LEFT by that
+       amount. None of those four is a [data-i18n] element, so that is a
+       check-ui-labels assertion 7 failure, and assertion 4 is blind to it — the
+       caption still fits its own grown box.
 
-       Removed alone, assertion 7 reports exactly those four at dx=-34.37.
+       RE-MEASURED AT v1.3.1, because the French save caption changed from
+       SAUVER to ENREG. (Stage N). Removing the pin — nothing else — and reading
+       the four rects in each language: the cluster sits 44.33 px further RIGHT
+       in English (SAVE 38.52 / LOAD 41.16 unpinned, both under 62) and 13.71 px
+       further right in French (ENREG. 49.50 / CHARGER 60.80), so the
+       French-minus-English displacement the pin closes is 30.62 px. It was
+       34.37 px at v1.2.0 with SAUVER, and it is not a recomputation from two
+       glyph widths — the pin was removed, the rects were read, and the pin was
+       restored to a byte-identical layout.
 
        62 px is O-Chorus's and O-DigiDelay's number, kept so the suite's preset
        bar is one shape across batch K2. Content box 48 px (62 less 2 border and
