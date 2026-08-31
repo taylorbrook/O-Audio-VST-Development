@@ -234,9 +234,17 @@ gates; none of the ten M1 pages needs it.
    it is the normal path.
 6. **`pointer-events: none`** on the surface, or the tip steals the hover that
    is keeping it open.
-7. **`position: fixed`, `visibility: hidden` until shown.** A visible empty
-   surface would enter `check-ui-labels`' text sweep and every geometry diff on
-   the page.
+7. **`position: fixed`, `visibility: hidden` until shown.**
+   **CORRECTED, and the correction is measured.** The first draft of this brief
+   said a visible empty surface "would enter `check-ui-labels`' text sweep and
+   every geometry diff on the page." The O-Bass executor negative-controlled it:
+   un-hiding the surface left `check-ui-labels` **byte-identically green**,
+   because a fixed box at 0,0 has the same rectangle in both languages — it
+   neither moves nor changes the visible set. What actually catches an un-hidden
+   surface is **`check-i18n` assertion 10** and **`boot-all-uis`'s text count**
+   (14 → 16 on O-Bass). Hide it anyway — the reason is that a visible empty
+   surface is a visible empty surface — but do not expect `check-ui-labels` to
+   tell you.
 8. **Escape hides it. `pointerdown` hides it.**
 9. **Call it AFTER `initI18n()`**, inside the same deferred init and the same
    `try/catch`. A top-level call touching a lower `let`/`const` is a TDZ throw
@@ -253,8 +261,18 @@ of this file. The gear popover in M1 keeps exactly the language selector it has.
 
 ## Which controls get a tip
 
-**Mandatory:** every parameter in `params.tsv`, plus `#gear-btn` and
-`#lang-select`. All ten M1 plugins carry both of those ids — verified.
+**Mandatory:** every parameter in `params.tsv` **that has a control on the
+page**, plus `#gear-btn` and `#lang-select`. All ten M1 plugins carry both of
+those ids — verified.
+
+**A parameter with no control gets no tip, and that is a FINDING, not a gap.**
+O-Bass dumps 5 parameters and exposes 3: `latency_mode`
+(`AudioParameterChoice`) and `bypass` (`AudioParameterBool`) have no control in
+the WebView in any version, though both are automatable and host-reachable.
+Authoring a body you cannot bind makes it an ORPHAN and fails assertion 2, so
+the rule as first written was unsatisfiable there. **Do not add a control to
+satisfy the count** — that is a feature change with a geometry cost. Report the
+parameter, its type, and that it is host-reachable but not page-reachable.
 
 The gear tip is what tells a user hover-help exists at all. Its body must
 describe **only what that popover actually contains** — the language selector
@@ -302,6 +320,11 @@ The range comes from the dump: `textAtMin`, `textAtMax`, and `label` for the
 unit. **`label` is empty far more often than the plan implies.** All 8 of
 O-Chorus's parameters have an empty `label`; so do all 10 of O-Texture's and all
 173 of O-Prism's. O-Comp is the one M1 plugin with real units (`dB`, `:1`, `ms`).
+
+**Check your own dump; the sentence above is a tendency, not a fact about your
+plugin.** O-Bass's three exposed parameters each carry a real `label` (`Hz`,
+`%`, `dB`), every one agreeing with the page's own formatter — so "O-Comp is the
+one M1 plugin with real units" was already false at the second plugin.
 
 Where `label` is empty, **read how the page renders that readout and phrase the
 range from the page's own formatter — never invent a unit.** O-Chorus's `rate`
@@ -487,3 +510,42 @@ Record these; do not act on them.
    Stage M adds roughly 184 more to that worklist in M1 alone.
 4. **`<html lang>` still does not follow the language selector.** Canon-owned,
    all 43. Untouched by this stage.
+
+
+---
+
+# CORRECTIONS AND CARRIED TRAPS FROM THE M1 PILOTS
+
+Appended as they land. Where this section disagrees with anything above, THIS
+section wins.
+
+## From O-Bass (v1.5.0, `a983fddd`)
+
+1. **A dumped parameter is not necessarily a control.** See "Which controls get
+   a tip" above, now corrected. Reconcile the dump against the page before you
+   author anything.
+
+2. **`page.evaluate` with a function-source STRING is a false pass.** Passing
+   the *source text* of a function returns the function object, which is
+   unserialisable, so the call resolves to `undefined` — and `undefined !== null`
+   sails through a truthiness assertion over a surface nobody ever read. The
+   gate's first run passed this way. Pass a real function, and assert on a
+   value whose shape you can name.
+
+3. **One flip is not enough on a narrow frame.** At 420x320 every anchor in both
+   languages placed by flipping to the opposite side of the cursor, two of them
+   also hit the 8 px floor, and **the flipped result needs clamping again**. If
+   your clamp runs before the flip, or only once, it is wrong on the small
+   frames.
+
+4. **"Single-file page" means the markup, the style and the controller are all
+   in `index.html`.** There is still a `js/` directory holding `i18n.js` and the
+   JUCE bridge, and a `modules/` directory holding the vendored preset manager.
+   Do not read the phrase as "this plugin has no `js/`".
+
+5. **The dev manufacturer code is `OuDv`, not `Ouar`** — for `auval -v <type>
+   <subtype> OuDv`.
+
+6. **No pin added means no negative control is owed.** Say that explicitly
+   rather than leaving the geometry section empty; an empty section reads as
+   "not measured".
