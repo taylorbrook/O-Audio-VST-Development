@@ -1,0 +1,177 @@
+# plugin	O-Prism
+# params	173
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+oscATable	Osc A Wavetable		28	0	27	0.000000	0	automatable
+oscAPos	Osc A Position		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscALevel	Osc A Level		2147483647	0.000	1.000	0.800000	0.800	automatable
+oscAPan	Osc A Pan		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+oscACoarse	Osc A Coarse		49	-24	24	0.500000	0	automatable
+oscAFine	Osc A Fine		2147483647	-100.0	100.0	0.500000	0.0	automatable
+oscAPhase	Osc A Phase		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscAUnison	Osc A Unison		8	1	8	0.000000	1	automatable
+oscADetune	Osc A Detune		2147483647	0.000	1.000	0.200000	0.200	automatable
+oscAWidth	Osc A Width		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscAWarpType	Osc A Warp Type		5	Off	Window	0.000000	Off	automatable,discrete
+oscAWarpAmt	Osc A Warp Amount		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscBTable	Osc B Wavetable		28	0	27	0.000000	0	automatable
+oscBPos	Osc B Position		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscBLevel	Osc B Level		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscBPan	Osc B Pan		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+oscBCoarse	Osc B Coarse		49	-24	24	0.500000	0	automatable
+oscBFine	Osc B Fine		2147483647	-100.0	100.0	0.500000	0.0	automatable
+oscBPhase	Osc B Phase		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscBUnison	Osc B Unison		8	1	8	0.000000	1	automatable
+oscBDetune	Osc B Detune		2147483647	0.000	1.000	0.200000	0.200	automatable
+oscBWidth	Osc B Width		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscBWarpType	Osc B Warp Type		5	Off	Window	0.000000	Off	automatable,discrete
+oscBWarpAmt	Osc B Warp Amount		2147483647	0.000	1.000	0.000000	0.000	automatable
+subShape	Sub Shape		4	Sine	Square	0.000000	Sine	automatable,discrete
+subOctave	Sub Octave		4	-1 Oct	-4 Oct	0.000000	-1 Oct	automatable,discrete
+subLevel	Sub Level		2147483647	0.000	1.000	0.000000	0.000	automatable
+noiseType	Noise Type		6	White	Wind	0.000000	White	automatable,discrete
+noiseLevel	Noise Level		2147483647	0.000	1.000	0.000000	0.000	automatable
+subRouting	Sub Routing		2	Post-Filter	Pre-Filter	0.000000	Post-Filter	automatable,discrete
+ampAttack	Amp Attack		2147483647	0.001	10.000	0.085901	0.010	automatable
+ampDecay	Amp Decay		2147483647	0.001	10.000	0.292752	0.300	automatable
+ampSustain	Amp Sustain		2147483647	0.000	1.000	0.700000	0.700	automatable
+ampRelease	Amp Release		2147483647	0.001	20.000	0.330467	0.500	automatable
+filtAttack	Filter Attack		2147483647	0.001	10.000	0.085901	0.010	automatable
+filtDecay	Filter Decay		2147483647	0.001	10.000	0.350228	0.500	automatable
+filtSustain	Filter Sustain		2147483647	0.000	1.000	0.500000	0.500	automatable
+filtRelease	Filter Release		2147483647	0.001	20.000	0.330467	0.500	automatable
+filtAEnvDepth	Filter A Env Depth		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+filtBEnvDepth	Filter B Env Depth		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+filtAType	Filter A Type		7	LP12	Notch	0.166667	LP24	automatable,discrete
+filtACutoff	Filter A Cutoff		2147483647	20.0	20000.0	1.000000	20000.0	automatable
+filtARes	Filter A Resonance		2147483647	0.000	1.000	0.000000	0.000	automatable
+filtADrive	Filter A Drive		2147483647	0.000	1.000	0.000000	0.000	automatable
+filtAKeyTrack	Filter A KeyTrack		2147483647	0.000	1.000	0.000000	0.000	automatable
+filtBType	Filter B Type		7	LP12	Notch	0.166667	LP24	automatable,discrete
+filtBCutoff	Filter B Cutoff		2147483647	20.0	20000.0	1.000000	20000.0	automatable
+filtBRes	Filter B Resonance		2147483647	0.000	1.000	0.000000	0.000	automatable
+filtBDrive	Filter B Drive		2147483647	0.000	1.000	0.000000	0.000	automatable
+filtBKeyTrack	Filter B KeyTrack		2147483647	0.000	1.000	0.000000	0.000	automatable
+filtRouting	Filter Routing		2	Serial	Parallel	0.000000	Serial	automatable,discrete
+tuningPreset	Tuning Preset		11	12-TET	Custom	0.000000	12-TET	automatable,discrete
+tonic	Tonic		12	C	B	0.000000	C	automatable,discrete
+masterTune	Master Tune		2147483647	420.0	460.0	0.500000	440.0	automatable
+octaveStretch	Octave Stretch		2147483647	0.950	1.250	0.166667	1.000	automatable
+pitchBendRange	Pitch Bend Range		48	1	48	0.021277	2	automatable
+glideMode	Glide Mode		3	Off	Always	0.000000	Off	automatable,discrete
+glideTime	Glide Time		2147483647	0.001	5.000	0.253433	0.100	automatable
+reverbBypass	Reverb Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+reverbSize	Reverb Size		2147483647	0.000	1.000	0.500000	0.500	automatable
+reverbDamp	Reverb Damping		2147483647	0.000	1.000	0.500000	0.500	automatable
+reverbPredelay	Reverb Pre-delay		2147483647	0.0	200.0	0.316228	20.0	automatable
+reverbMix	Reverb Mix		2147483647	0.000	1.000	0.000000	0.000	automatable
+reverbModDepth	Reverb Mod Depth		2147483647	0.000	1.000	0.300000	0.300	automatable
+reverbModRate	Reverb Mod Rate		2147483647	0.10	5.00	0.428571	1.00	automatable
+delayBypass	Delay Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+delayTime	Delay Time		2147483647	0.001	2.000	0.556187	0.375	automatable
+delayFeedback	Delay Feedback		2147483647	0.000	0.950	0.315789	0.300	automatable
+delaySync	Delay Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+delayDivision	Delay Division		18	1/1	1/32T	0.117647	1/4	automatable,discrete
+delayMode	Delay Mode		2	Normal	PingPong	0.000000	Normal	automatable,discrete
+delayMix	Delay Mix		2147483647	0.000	1.000	0.000000	0.000	automatable
+chorusBypass	Chorus Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+chorusRate	Chorus Rate		2147483647	0.10	10.00	0.383215	1.00	automatable
+chorusDepth	Chorus Depth		2147483647	0.000	1.000	0.500000	0.500	automatable
+chorusMix	Chorus Mix		2147483647	0.000	1.000	0.000000	0.000	automatable
+distBypass	Distortion Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+distType	Distortion Type		4	SoftClip	Fold	0.000000	SoftClip	automatable,discrete
+distDrive	Distortion Drive		2147483647	0.000	1.000	0.000000	0.000	automatable
+distMix	Distortion Mix		2147483647	0.000	1.000	0.000000	0.000	automatable
+eqBypass	EQ Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+eqLowGain	EQ Low Gain		2147483647	-12.0	12.0	0.500000	0.0	automatable
+eqMidGain	EQ Mid Gain		2147483647	-12.0	12.0	0.500000	0.0	automatable
+eqMidFreq	EQ Mid Freq		2147483647	200.0	8000.0	0.450659	1000.0	automatable
+eqHighGain	EQ High Gain		2147483647	-12.0	12.0	0.500000	0.0	automatable
+lfo1Rate	LFO 1 Rate		2147483647	0.01	20.00	0.349291	1.00	automatable
+lfo1Shape	LFO 1 Shape		5	Sine	S&H	0.000000	Sine	automatable,discrete
+lfo1Sync	LFO 1 Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo1Division	LFO 1 Division		18	1/1	1/32T	0.117647	1/4	automatable,discrete
+lfo1FreeRun	LFO 1 Free Run		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo2Rate	LFO 2 Rate		2147483647	0.01	20.00	0.349291	1.00	automatable
+lfo2Shape	LFO 2 Shape		5	Sine	S&H	0.000000	Sine	automatable,discrete
+lfo2Sync	LFO 2 Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo2Division	LFO 2 Division		18	1/1	1/32T	0.117647	1/4	automatable,discrete
+lfo2FreeRun	LFO 2 Free Run		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo3Rate	LFO 3 Rate		2147483647	0.01	20.00	0.349291	1.00	automatable
+lfo3Shape	LFO 3 Shape		5	Sine	S&H	0.000000	Sine	automatable,discrete
+lfo3Sync	LFO 3 Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo3Division	LFO 3 Division		18	1/1	1/32T	0.117647	1/4	automatable,discrete
+lfo3FreeRun	LFO 3 Free Run		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo4Rate	LFO 4 Rate		2147483647	0.01	20.00	0.349291	1.00	automatable
+lfo4Shape	LFO 4 Shape		5	Sine	S&H	0.000000	Sine	automatable,discrete
+lfo4Sync	LFO 4 Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
+lfo4Division	LFO 4 Division		18	1/1	1/32T	0.117647	1/4	automatable,discrete
+lfo4FreeRun	LFO 4 Free Run		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot0Src	Mod 1 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot0Dst	Mod 1 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot0Amt	Mod 1 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot0On	Mod 1 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot1Src	Mod 2 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot1Dst	Mod 2 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot1Amt	Mod 2 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot1On	Mod 2 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot2Src	Mod 3 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot2Dst	Mod 3 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot2Amt	Mod 3 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot2On	Mod 3 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot3Src	Mod 4 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot3Dst	Mod 4 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot3Amt	Mod 4 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot3On	Mod 4 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot4Src	Mod 5 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot4Dst	Mod 5 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot4Amt	Mod 5 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot4On	Mod 5 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot5Src	Mod 6 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot5Dst	Mod 6 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot5Amt	Mod 6 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot5On	Mod 6 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot6Src	Mod 7 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot6Dst	Mod 7 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot6Amt	Mod 7 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot6On	Mod 7 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot7Src	Mod 8 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot7Dst	Mod 8 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot7Amt	Mod 8 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot7On	Mod 8 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot8Src	Mod 9 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot8Dst	Mod 9 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot8Amt	Mod 9 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot8On	Mod 9 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot9Src	Mod 10 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot9Dst	Mod 10 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot9Amt	Mod 10 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot9On	Mod 10 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot10Src	Mod 11 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot10Dst	Mod 11 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot10Amt	Mod 11 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot10On	Mod 11 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot11Src	Mod 12 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot11Dst	Mod 12 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot11Amt	Mod 12 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot11On	Mod 12 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot12Src	Mod 13 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot12Dst	Mod 13 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot12Amt	Mod 13 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot12On	Mod 13 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot13Src	Mod 14 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot13Dst	Mod 14 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot13Amt	Mod 14 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot13On	Mod 14 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot14Src	Mod 15 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot14Dst	Mod 15 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot14Amt	Mod 15 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot14On	Mod 15 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+modSlot15Src	Mod 16 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
+modSlot15Dst	Mod 16 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot15Amt	Mod 16 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+modSlot15On	Mod 16 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+masterVol	Master Volume		2147483647	0.000	1.000	0.800000	0.800	automatable
+stereoWidth	Stereo Width		2147483647	0.000	2.000	0.500000	1.000	automatable
+oscMix	Osc Mix		2147483647	0.000	1.000	0.500000	0.500	automatable
+velocityCurve	Velocity Curve		4	Linear	Fixed	0.000000	Linear	automatable,discrete
