@@ -1,0 +1,60 @@
+# plugin	O-Wind
+# params	56
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+breathPressure	Breath Pressure		2147483647	0.00	1.00	0.500000	0.50	automatable
+embouchure	Embouchure		2147483647	0.00	1.00	0.500000	0.50	automatable
+breathNoise	Breath Noise		2147483647	0.00	1.00	0.150000	0.15	automatable
+toneColor	Tone Color		2147483647	0.00	1.00	0.500000	0.50	automatable
+airColumn	Air Column		2147483647	0.00	1.00	0.500000	0.50	automatable
+jetReflection	Jet Reflection		2147483647	-1.00	1.00	0.750000	0.50	automatable
+endReflection	End Reflection		2147483647	-1.00	1.00	0.750000	0.50	automatable
+attackChiff	Attack Chiff		2147483647	0.00	1.00	0.500000	0.50	automatable
+humanize	Humanize		2147483647	0.00	1.00	0.300000	0.30	automatable
+flutterTongue	Flutter Tongue		2147483647	0.00	1.00	0.000000	0.00	automatable
+flutterRate	Flutter Rate	Hz	2147483647	15.0	30.0	0.466667	22.0	automatable
+growl	Growl		2147483647	0.00	1.00	0.000000	0.00	automatable
+vibratoRate	Vibrato Rate	Hz	2147483647	2.00	8.00	0.500000	5.00	automatable
+vibratoDepth	Vibrato Pitch		2147483647	0.00	1.00	0.300000	0.30	automatable
+vibratoTremolo	Vibrato Tremolo		2147483647	0.00	1.00	0.000000	0.00	automatable
+vibratoOnset	Vibrato Onset	ms	2147483647	0	1000	0.300000	300	automatable
+vibratoDriftDepth	Vibrato Drift Depth		2147483647	0.00	1.00	0.500000	0.50	automatable
+vibratoDriftSpeed	Vibrato Drift Speed	Hz	2147483647	0.10	2.00	0.157895	0.40	automatable
+material	Material		2147483647	0.00	1.00	0.500000	0.50	automatable
+width	Width		2147483647	0.00	2.00	0.500000	1.00	automatable
+formant	Formant		2147483647	0.00	1.00	0.500000	0.50	automatable
+outputLevel	Output Level	dB	2147483647	-60.0	12.0	0.833333	0.0	automatable
+inharmonicity	Inharmonicity		2147483647	0.00	1.00	0.200000	0.20	automatable
+infiniteSustain	Infinite Sustain		2147483647	0.00	1.00	0.000000	0.00	automatable
+reversedJet	Reversed Jet		2147483647	0.00	1.00	0.000000	0.00	automatable
+subHarmonics	Sub-Harmonics		2147483647	0.00	1.00	0.000000	0.00	automatable
+adsrEnabled	ADSR Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
+adsrAttack	ADSR Attack	s	2147483647	0.001	5.000	0.150179	0.010	automatable
+adsrDecay	ADSR Decay	s	2147483647	0.001	5.000	0.308337	0.100	automatable
+adsrSustain	ADSR Sustain		2147483647	0.00	1.00	0.800000	0.80	automatable
+adsrRelease	ADSR Release	s	2147483647	0.001	10.000	0.308794	0.200	automatable
+toneHoleToggle	Tone Hole		2	Off	On	0.000000	Off	automatable,discrete,boolean
+instrumentPreset	Instrument Preset		8	0	7	0.000000	0	automatable
+referencePitch	Reference Pitch	Hz	2147483647	400.0	480.0	0.500000	440.0	automatable
+tuningSystem	Tuning System		3	Scala/TUN	12-TET	1.000000	12-TET	automatable,discrete
+chorusBypass	Chorus Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+chorusRate	Chorus Rate	Hz	2147483647	0.10	10.00	0.090909	1.00	automatable
+chorusDepth	Chorus Depth		2147483647	0.00	1.00	0.500000	0.50	automatable
+chorusMix	Chorus Mix		2147483647	0.00	1.00	0.000000	0.00	automatable
+delayBypass	Delay Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+delayTime	Delay Time	s	2147483647	0.001	2.000	0.187094	0.375	automatable
+delayFeedback	Delay Feedback		2147483647	0.00	0.95	0.315789	0.30	automatable
+delayMode	Delay Mode		2	Normal	PingPong	0.000000	Normal	automatable,discrete
+delayMix	Delay Mix		2147483647	0.00	1.00	0.000000	0.00	automatable
+eqBypass	EQ Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+eqLowGain	EQ Low Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+eqMidGain	EQ Mid Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+eqMidFreq	EQ Mid Freq	Hz	2147483647	200	8000	0.102564	1000	automatable
+eqHighGain	EQ High Gain	dB	2147483647	-12.0	12.0	0.500000	0.0	automatable
+reverbBypass	Reverb Bypass		2	Off	On	0.000000	Off	automatable,discrete,boolean
+reverbSize	Reverb Size		2147483647	0.00	1.00	0.500000	0.50	automatable
+reverbDamp	Reverb Damping		2147483647	0.00	1.00	0.500000	0.50	automatable
+reverbPredelay	Reverb Pre-delay	ms	2147483647	0	200	0.100000	20	automatable
+reverbMix	Reverb Mix		2147483647	0.00	1.00	0.000000	0.00	automatable
+reverbMod	Reverb Mod		2147483647	0.00	1.00	0.200000	0.20	automatable
+reverbShimmer	Reverb Shimmer		2147483647	0.00	1.00	0.000000	0.00	automatable
