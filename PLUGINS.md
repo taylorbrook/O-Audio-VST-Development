@@ -30,7 +30,7 @@ Ouaricon Plugins:
 | O-Tremolo | 📦 Installed | 1.8.0 | Audio Effect (Tremolo) | 2026-08-30 |
 | O-AnalogSaturation | 📦 Installed | 1.3.0 | Audio Effect (Saturation) | 2026-08-30 |
 | O-Marimba | 📦 Installed | 1.13.0 | Synth (Physical Model) | 2026-08-28 |
-| O-Comp | 📦 Installed | 1.7.0 | Audio Effect (Compressor) | 2026-08-30 |
+| O-Comp | 📦 Installed | 1.7.1 | Audio Effect (Compressor) | 2026-08-31 |
 | O-AnalogEQ | 📦 Installed | 1.3.0 | Audio Effect (EQ) | 2026-08-30 |
 | O-DigiDelay | 📦 Installed | 1.4.0 | Audio Effect (Delay) | 2026-08-30 |
 | O-SimpleReverb | 📦 Installed | 1.7.0 | Audio Effect (Reverb) | 2026-08-30 |
@@ -44,7 +44,7 @@ Ouaricon Plugins:
 | O-FreqPulse | 📦 Installed | 1.18.0 | Audio Effect (Spectral Sequencer) | 2026-08-28 |
 | O-SpectralShaper | 📦 Installed | 1.7.0 | Audio Effect (Spectral Transient Shaper) | 2026-08-28 |
 | O-GrainScatter | 📦 Installed | 2.6.0 | Audio Effect (Granular Stutter Engine) | 2026-08-30 |
-| O-Chorus | 📦 Installed | 1.4.0 | Audio Effect (Chorus) | 2026-08-30 |
+| O-Chorus | 📦 Installed | 1.4.1 | Audio Effect (Chorus) | 2026-08-31 |
 | O-Orbit | 📦 Installed | 1.2.0-dev | Audio Effect (Spatial Orbiter) | 2026-08-28 |
 | O-TextureForge | 📦 Installed | 1.2.0 | Instrument (Concatenative Synth) | 2026-08-30 |
 | O-Texture | 📦 Installed | 0.3.0 | Instrument/Effect (Neural Texture Synth) | 2026-08-30 |
@@ -57,7 +57,7 @@ Ouaricon Plugins:
 | O-Contrabass | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed Bass) | 2026-08-27 |
 | O-Bassoon | 🚧 Stage 0 | 1.2.0 | Synth (Physical Model Bassoon) | 2026-08-30 |
 | O-MicrotonalSampler | 📦 Installed | 1.25.0 | Synth (Microtonal Sampler) | 2026-08-30 |
-| O-simpleFM | 📦 Installed | 1.3.0 | Synth (Pedagogical 2-Op FM) | 2026-08-28 |
+| O-simpleFM | 📦 Installed | 1.3.1 | Synth (Pedagogical 2-Op FM) | 2026-08-31 |
 | O-simpleAdditive | ✅ Working | 1.1.0 | Synth (Pedagogical Additive + Wavetable) | 2026-08-27 |
 | O-simpleGrain | 📦 Installed | 1.4.0 | Synth (Pedagogical Granular) | 2026-08-28 |
 | O-simpleSubtractive | ✅ Working | 1.3.0 | Synth (Pedagogical Subtractive) | 2026-08-27 |
