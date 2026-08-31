@@ -3,12 +3,12 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F, G, H, I, J]
-stage_k_batches_complete: [K1, K2, K3]
-stage_k_batches_remaining: [K4]
-stages_remaining: [K, L, M]
+stages_complete: [A, B, C, D, E, F, G, H, I, J, K, L, M]
+stages_remaining: []
+decision_items_closed: [1, 17, 18, 26]
+checkpoint_5_french_review: OPEN — 3751 entries, 0 reviewed
 i18n_exempt_contract: RESOLVED — scoped entries landed between K1 and K2
-stopped_at: "STAGE K BATCH K3 COMPLETE — 17 of 21 plugins. O-Comp v1.6.0 (`ec8a4c88`), O-Tremolo v1.7.0 (`af3610dd`), O-GrainScatter v2.5.0 (`1791397b`), O-Bowed v1.5.0 (`9ff19bf4`), O-Reed v1.2.0 (`819a6113`), rows in `8ba0b8b8`. `check-i18n --strict-v2` reports **38 canon v2, 0 canon v1**; `boot-all-uis` **43/43 clean, 0 warn, 0 failed**. ALL FIVE RAN CONCURRENTLY and **ZERO repo-level gate fixes were needed** — the first batch in the whole task with none, after six in K1 and two in K2. No executor was blocked; none edited `scripts/`. NEXT: batch K4 — O-Wind (61), O-Bells (79), O-Formant (94, 21 READOUT rows, the most in the stage), then **O-MicrotonalSampler ALONE** (146 LABEL, 19 UNSURE, 36 JS strings — harder than the plan says by a wide margin). K4 is concurrent for the first three. **THE ONE THING K4 NEEDS DECIDED FIRST: canvas `ctx.fillText` prose.** Three of five K3 executors hit it independently and the batch shipped TWO DIFFERENT ANSWERS — O-Comp localized its three strings, O-GrainScatter exempted its one with a reason. O-Bowed reported 15 and ran the control that settles the mechanism: a `trLabel()` call inside a `fillText` **fails assertion 15 as a dead key**, because 15 collects markup attributes, literal `setLabel` keys and `.dataset.i18n*` writes and a `trLabel()` call is in none of them. **O-Comp’s shape is the one that works inside the contract as written** — house canvas strings in `I18N` with empty bodies, never in `LABELS`. 16 files repo-wide paint text to canvas and `plugins/O-Formant/Source/ui/public/js/main.js` is one of them, so K4 meets this whichever way it is decided. A SECOND INDIRECTION SHAPE is equally invisible: O-Tremolo’s `header.textContent = headerText`, where the English literals sit one frame away at the call site — assertion 12 scans for literals and a variable defeats it. Both shapes ship English inside a French UI with every gate green. **A PRE-EXISTING SHIPPED `SyntaxError` was found in TWO plugins**: O-Bowed and O-Reed each loaded `js/juce/index.js` as a classic `<script src>` AND as an ES module, throwing `Unexpected token 'export'` on every load at HEAD in the shipping plugin. Found independently by both, fixed by both, zero survivors repo-wide. The **`PLUGIN_VERSION` human-decision item is CORRECTED by measurement**: seven plugins mention it, only **two** lack a real `VERSION` keyword and therefore actually ship 1.0.0 to the host — **O-Reed and O-Marimba**, confirmed with PlistBuddy against the installed bundles. **O-MicrotonalSampler was on the standing list and is NOT affected** (its bundle reports 1.23.9). Three more pre-existing ENGLISH defects were exposed by keying and fixed with negative controls. Executors’ own geometry predictions were wrong three times and the negative control caught all three."
+stopped_at: "ALL STAGES A–M COMPLETE, 43 of 43 plugins localized (labels + hover-help, EN/FR). Decision items 17 (`56cdbb37`), 18 (`cec3f857`) and 26 (`242983a4`, O-simpleSampler v1.4.1) CLOSED; extractor artifacts for the remaining 36 plugins committed (`aaab5318`). Baseline re-run 2026-08-31: `check-i18n --strict-v2` ALL CHECKS PASS, 43 canon v2 / 0 canon v1; `boot-all-uis` 43/43 clean, 0 warn, 0 failed, 0 DEAD tip bindings (19 late, all correct: O-Bells 2, O-IntonationPad 17); native title= 0 repo-wide. OPEN: Checkpoint 5 — 3751 French entries, all `reviewed: false`, none read by a native speaker. Open per-plugin items: 19 (O-Prism 64 mod-matrix params unreachable by TIP_BINDINGS), item-18 ROLLOUT call sites (O-Reed/O-Wind referencePitch live in the shared scala-tuning-engine tuning-panel.js; O-Formant tuning panel), `<html lang=\"en\">` hard-coded on all 43 (canon-owned, never follows the selector), items 2/11 (toggle uniformity, keyboard reach), and the non-i18n findings 5–10, 20–24. Status stays incomplete ONLY because Checkpoint 5 is a plan checkpoint that has not run."
 
 plugins_shipped:
   - name: O-Gain
@@ -5600,3 +5600,36 @@ is the one now in use, rather than a leftover.
   dangling-binding question by `boot-all-uis`, and by nothing else.
 - **`--strict-tips` is not wired into any CI or script.** It exists; nothing
   calls it. It will report red on O-simpleSampler until item 26 is fixed.
+
+# ITEM 26 — CLOSED, and the post-M baseline (2026-08-31)
+
+**26 — CLOSED** (`242983a4`, O-simpleSampler v1.4.1). One character class in one
+selector: `js/i18n.js:748` bound `.tour-btn[data-preset="Filtered &amp; Enveloped"]`,
+the entity copied verbatim out of the markup; the DOM attribute is the DECODED
+`Filtered & Enveloped`. The fix is the decoded string. `boot-all-uis` now reports
+**0 DEAD** across 43, so `--strict-tips` would exit 0 repo-wide for the first time.
+
+The extractor artifacts (`i18n-inventory.tsv`, `i18n-index-draft.html`,
+`i18n-labels-skeleton.js`) for the 36 plugins left untracked through Stages J–M
+were committed in `aaab5318`, so every shipped `i18n.js` now has its input in the
+tree.
+
+## Baseline, re-run from a clean tree
+
+- `check-i18n --strict-v2`: **ALL CHECKS PASS — 43 localized plugins**, canon v2 43 / v1 0.
+- `boot-all-uis`: **clean 43/43**, warn 0, failed 0; **DEAD 0**; late 19 (O-Bells 2,
+  O-IntonationPad 17 — all bind after the settle); rendered text-bearing elements
+  3787, aria-label 771, **native `title=` 0**.
+- French entries: **3751 / 3751 `reviewed: false`** — Checkpoint 5 has not begun.
+
+## What is still open, sorted by who owns it
+
+| Owner | Item |
+|---|---|
+| a French reader | **Checkpoint 5** — 3751 machine-drafted entries, none vetted |
+| canon (`scripts/i18n-canon.js`, 43-file sync) | `<html lang="en">` is hard-coded on all 43 and never follows `#lang-select` |
+| shared module `scala-tuning-engine` | item-18 rollout — `referencePitch` on O-Reed / O-Wind is `#ref-pitch-knob` inside the module's `tuning-panel.js`, which has no `__reapplyI18n` call site (O-Bells and O-IntonationPad carry their own copies with one) |
+| O-Formant | item-18 rollout — its tuning panel; also item 22 (A4 lost on reopen) |
+| O-Prism | item 19 — 64 mod-matrix params need addressable row nodes before they can carry tips |
+| suite-wide, separate pass | item 2 (hover-help toggle on 2 of 43), item 11 (keyboard reach on pointer-drag knobs) |
+| not i18n | items 5–10, 20–24 |
