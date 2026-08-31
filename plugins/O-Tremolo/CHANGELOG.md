@@ -5,6 +5,30 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout — a second reading of every French entry against the suite glossary (`scripts/i18n-fr-glossary.js`) and the ten-check French lint (`scripts/i18n-fr-lint.js`), which did not exist when the drafts were written. `node scripts/i18n-fr-lint.js --plugin O-Tremolo` went from **14 findings to 0**, `--strict` exits 0.
+
+`reviewed: false` stays `false` on all 29 entries. That flag means *a native speaker read this*, and none has. This pass is a machine reading against a list; the header comment records it, the flag records them.
+
+### Changed
+
+- **11 French entries of 29 revised** — 9 whose value changed and 2 that gained only a `termNote`. By category, double-counting where a change carried two: 3 terminology, 6 typography, 2 grammar, 1 meaning. The two visible on screen:
+  - **`LIRE` → `OUV`** on the preset Load button. *Lire* means to read or to play; the glossary settles Load as **Charger**, with **Ouvrir** accepted where the button opens a file dialog — which this one does. Neither root fits the 30.00 px content box (CHARGER 51.30, OUVRIR 41.34, CHARG 37.52), so the glossary's own listed abbreviation ships: **OUV, 23.17 px**. It carries no period for the same reason ENR does not — label-in-name (WCAG 2.5.3) matches case-insensitively, and "ouv" is a substring of *Ouvrir un préréglage depuis un fichier* while "ouv." is not. The preset bar now reads **OUV / ENR**, a matched pair.
+  - **`aria.loadPreset`: *Lire un préréglage depuis un fichier* → *Ouvrir un préréglage depuis un fichier***, the glossary form.
+- **Typography: ten U+00A0 no-break spaces**, French rule — between a number and its unit (*20,0 Hz*, *120 BPM*) and before `%`, `:` and `;` (*0 %*, *Six formes : …*, *rien ne bouge ; …*). Every one is inside a French tooltip **body**; none is in a key, a selector, an English string or a readout. The readouts (`#speedValue`, `#depthValue`) are untouched and keep rendering `4.5 Hz` and `1/8T` in both languages.
+- **Three copy corrections in the French tooltips.** *Noise **tient** quatre niveaux* → ***maintient*** (a calque of "holds"). *Une sinusoïde est déjà lisse et change donc peu* → *…**est déjà lisse : le réglage y** change donc peu*, which is what the English says — the sine does not change, the smoothing does little to it. *120 BPM est présumé* → *le plugin suppose 120 BPM*, avoiding a plural unit count under a singular participle. And *aide contextuelle* → ***aide au survol***, the settled suite term for hover-help.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
+
+### Notes
+
+- **Three glossary terms were kept against the lint, each with a `termNote` carrying its measurement.** All three were re-measured with the geometry gate's own `Range.selectNodeContents` at the shipping 600 × 400 frame rather than trusted from the v1.8.0 header, and each was then **planted and confirmed to fail a gate by name**:
+  - **`ENR`** — *Enregistrer* 73.28 px and *Enreg* 35.84 px both overrun the 27.00 px content box; *Enr* is 21.50. Planted, `check-ui-labels` [4][fr] reports `label.save "Enreg" 35.8>27.0`.
+  - **`SYNC TEMPO`** — *Synchro Tempo* wraps to a widest line of 51.30 px inside a 42.00 px content box that is `overflow: hidden`. Planted, [4][fr] reports it twice, for the clip (75 > 66) and for the text width. *Synchro Pan* is the same 51.30 px, and the glossary has a `tempo sync` key and no `pan sync` key — so the pair **SYNC PAN / SYNC TEMPO** stays whole rather than half-converted.
+  - **`ONDE`** — a glossary-**accepted** rendering of Waveform, not a miss. Re-measured anyway: *Forme d'onde* is 107.00 px against the select's intrinsic 88.00 and grows the section, the caption and the select together; planted, assertion 7 reports two moved elements.
+- **No English, key, binding, selector, CSS rule or `I18N_EXEMPT` entry changed.** Verified by importing both revisions and comparing: 0 `en` values differ, the key list is identical, `TIP_BINDINGS`, `I18N_EXEMPT` and `LANGUAGES` are byte-equal.
+- **Gates:** `i18n-fr-lint --strict` exit 0 · `check-i18n` ALL CHECKS PASS · `check-ui-labels` ALL CHECKS PASSED, **0 non-label elements moved** between English and French, unchanged from baseline · `tests/ui_tip_render_check.js` **186/186**, every French tip rect inside the frame · `boot-all-uis` 43/43 clean.
+
 ## [1.8.0] - 2026-08-30
 
 Hover-help, in both languages — and the thing that paints it. Eight tooltips (six parameters plus the gear and the language selector), authored in English and French, bound in `TIP_BINDINGS`, and a renderer, because v1.7.0 had nothing on this page that could show one.

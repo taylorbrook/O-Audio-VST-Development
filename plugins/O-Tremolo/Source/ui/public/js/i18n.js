@@ -18,7 +18,56 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Tremolo page labels and hover-help, English + French (v1.8.0)
+// i18n.js — O-Tremolo page labels and hover-help, English + French (v1.8.1)
+//
+// ── v1.8.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 11 entries of 29 — 9 whose fr VALUE changed, 2 that gained only a
+// termNote. By category, and entries double-count where a change carried two:
+//   3 terminology  label.load, aria.loadPreset, tip.language
+//   6 typography   tip.speed, tip.depth, tip.waveform, tip.smoothing,
+//                  tip.panSync, tip.tempoSync  (10 individual T3/T4/T5/T7 marks)
+//   2 grammar      tip.waveform (tient -> maintient), tip.tempoSync (agreement)
+//   1 meaning      tip.smoothing (the referent of "it changes little there")
+//   2 termNote only, value unchanged: label.save, label.tempoSync
+// sameAsEn: kept 0, translated 0 — this file carries no sameAsEn entry and no
+// fr value is byte-equal to its en. termNote exemptions: 3 (listed below).
+// Left as drafted: the other 18.
+// reviewed: false throughout — no native speaker yet.
+//
+// Decisions the next reader needs:
+//   - LIRE -> OUV on #loadPreset. "Lire" is FORBIDDEN_IN_LABELS (it means to
+//     read or to play); the glossary settles Load as Charger (Charg.) with
+//     Ouvrir (Ouv.) accepted where the button opens a file dialog and the K
+//     header pinned the width. This button does open one. CHARGER is 51.30 px
+//     and OUVRIR 41.34 px against a 30.00 px content box; OUV is 23.17 px.
+//     THE PERIOD IS DROPPED for the same reason ENR drops its: label-in-name
+//     (WCAG 2.5.3) matches case-insensitively, "ouv" IS a substring of
+//     "Ouvrir un préréglage depuis un fichier" and "ouv." is NOT. The two
+//     preset buttons now read OUV / ENR, a matched pair of three-letter
+//     abbreviations where v1.8.0 had LIRE / ENR.
+//   - ENR KEPT, with a termNote. The v1.8.0 header defended it on width and
+//     the N1 pilots warn that such a defence is often wrong when re-measured —
+//     so it was re-measured with the gate's own Range.selectNodeContents at
+//     the shipping 600 x 400 frame. It holds: Enregistrer 73.28 and Enreg
+//     35.84 both overrun the 27.00 px content box, Enr is 21.50.
+//   - SYNC TEMPO KEPT, with a termNote. The glossary root is "Synchro Tempo",
+//     which wraps to a widest line of 51.30 px inside #tempoButton's 42.00 px
+//     content box (width: 70px, overflow: hidden) and is clipped. No
+//     abbreviation is listed for "tempo sync". SYNC PAN is the same 51.30 px
+//     as SYNCHRO PAN and is not flagged at all — the glossary has a "tempo
+//     sync" key and no "pan sync" key, so changing only one would break a
+//     visually matched pair on this page. REPORTED so the list can grow.
+//   - ONDE KEPT. It is a glossary-accepted rendering of Waveform, not a miss.
+//     Re-measured anyway: FORME D'ONDE is 107.00 px in this page's own
+//     .section-label (v1.7.0 recorded 106.34) against the select's intrinsic
+//     88.00 px, and it grows .waveform-section, the caption and the select
+//     together — assertion 7 reports two moved elements. Budget C stands.
+//   - "aide contextuelle" -> "aide au survol" in tip.language, the settled
+//     suite term for hover-help. Bodies are not lint-matched against TERMS,
+//     so this one was a read, not a finding.
+//   - The four width claims above were each PLANTED and the gate reported each
+//     BY NAME before the plant was restored from a namespaced copy.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -118,7 +167,11 @@ export const LANGUAGES = ['en', 'fr'];
 // #speedValue keeps rendering "4.5 Hz" and "1/8T" in French. A number inside a
 // tooltip BODY is ordinary prose, so "0.1 to 20.0 Hz" becomes "0,1 à 20,0 Hz"
 // with the French decimal comma, the way the 21 already-shipped tooltip plugins
-// write theirs.
+// write theirs — and, since v1.8.1, with a U+00A0 NO-BREAK SPACE between the
+// number and its unit and before % : ; ! ? (Stage N, lint T3–T7). There are
+// ten of them in this file and every one is inside an `fr` BODY: none is in a
+// key, a selector, an `en` string or a readout. The readout keeps its point
+// AND its ordinary space — D-03 binds to nodes, and #speedValue is a node.
 //
 // ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
 // speaker has read one word of it.
@@ -141,7 +194,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse',
               b: 'Règle la rapidité du balayage du trémolo. Avec Sync Tempo activé, le bouton '
                + 'devient un sélecteur et parcourt plutôt les divisions musicales, de 1/1 à 1/32Q. '
-               + 'Plage libre de 0,1 à 20,0 Hz.',
+               + 'Plage libre de 0,1 à 20,0 Hz.',
               reviewed: false },
     },
 
@@ -152,8 +205,8 @@ export const I18N = Object.freeze({
                + 'Range 0 to 100 %.' },
         fr: { t: 'Profondeur',
               b: 'Détermine à quel point le trémolo abaisse le niveau au creux de chaque cycle. '
-               + 'À 0 % rien ne bouge; à 100 % le signal atteint le silence. '
-               + 'Plage de 0 à 100 %.',
+               + 'À 0 % rien ne bouge ; à 100 % le signal atteint le silence. '
+               + 'Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -169,8 +222,8 @@ export const I18N = Object.freeze({
                + 'gate. Six shapes: Sine, Triangle, Phasor, Noise, Square, Pulse.' },
         fr: { t: 'Onde',
               b: 'Choisit la forme de l’onde de modulation, du gonflement doux au hachage franc. '
-               + 'Noise tient quatre niveaux aléatoires par cycle et Pulse est une porte étroite. '
-               + 'Six formes : Sine, Triangle, Phasor, Noise, Square, Pulse.',
+               + 'Noise maintient quatre niveaux aléatoires par cycle et Pulse est une porte étroite. '
+               + 'Six formes : Sine, Triangle, Phasor, Noise, Square, Pulse.',
               reviewed: false },
     },
 
@@ -185,8 +238,8 @@ export const I18N = Object.freeze({
                + 'Range 0 to 100 %.' },
         fr: { t: 'Lissage',
               b: 'Arrondit les angles de l’onde de modulation et adoucit les clics que peuvent '
-               + 'produire une onde carrée ou une impulsion. Une sinusoïde est déjà lisse et '
-               + 'change donc peu. Plage de 0 à 100 %.',
+               + 'produire une onde carrée ou une impulsion. Une sinusoïde est déjà lisse : '
+               + 'le réglage y change donc peu. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -202,7 +255,7 @@ export const I18N = Object.freeze({
                + 'stereo image instead of ducking both channels together. It needs a stereo '
                + 'signal to be heard at all. Off or On.' },
         fr: { t: 'Sync Pan',
-              b: 'Décale le canal droit d’un demi-cycle : le trémolo balaie alors l’image stéréo '
+              b: 'Décale le canal droit d’un demi-cycle : le trémolo balaie alors l’image stéréo '
                + 'au lieu d’abaisser les deux canaux ensemble. Un signal stéréo est nécessaire '
                + 'pour l’entendre. Désactivé ou activé.',
               reviewed: false },
@@ -220,9 +273,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Sync Tempo',
               b: 'Verrouille la vitesse du trémolo sur le tempo de l’hôte. Le bouton Vitesse '
                + 'parcourt alors les divisions musicales de 1/1 à 1/32Q plutôt que des Hz '
-               + 'libres, et 120 BPM est présumé si l’hôte n’en indique aucun. '
+               + 'libres, et le plugin suppose 120 BPM si l’hôte n’en indique aucun. '
                + 'Désactivé ou activé.',
-              reviewed: false },
+              reviewed: false,
+              termNote: 'Synchro Tempo (glossary root) wraps to a widest line of 51.30 px inside #tempoButton’s 42.00 px content box, which is overflow: hidden — measured at the shipping 600 x 400 frame. The tip title mirrors the button caption on purpose, so it carries the same abbreviation.' },
     },
 
     // ── The two chrome tips ─────────────────────────────────────────────────
@@ -247,7 +301,7 @@ export const I18N = Object.freeze({
                + 'Parameter names in the host automation lane and the values on screen stay '
                + 'English. English or Français.' },
         fr: { t: 'Langue',
-              b: 'Choisit la langue du texte de l’interface et de cette aide contextuelle. '
+              b: 'Choisit la langue du texte de l’interface et de cette aide au survol. '
                + 'Les noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
                + 'affichées restent en anglais. English ou Français.',
               reviewed: false },
@@ -270,16 +324,18 @@ export const I18N = Object.freeze({
 // one.
 //
 //   A. THE PRESET BAR is right-anchored by `justify-content: space-between` on
-//      .header, and #loadPreset / #savePreset are shrink-to-fit. Unpinned, LIRE
-//      and ENR contract those two buttons by 5.56 and 5.33 px, .preset-bar
-//      contracts with them, and space-between slides #prevPreset, #presetName
-//      and #nextPreset 10.89 px to the RIGHT. Both buttons are therefore PINNED
-//      in index.html to their own English border box rounded up — 48 px and
-//      45 px against 47.78 and 44.83 — and the two pins together add 0.39 px
-//      to a header with 114.06 px of slack, which moves nothing.
+//      .header, and #loadPreset / #savePreset are shrink-to-fit. Unpinned, the
+//      two French captions contract those buttons, .preset-bar contracts with
+//      them, and space-between slides #prevPreset, #presetName and #nextPreset
+//      to the RIGHT. Both buttons are therefore PINNED in index.html to their
+//      own English border box rounded up — 48 px and 45 px against 47.78 and
+//      44.83 — and the two pins together add 0.39 px to a header with 114.06 px
+//      of slack, which moves nothing. THE PINS ARE WHY v1.8.1 COULD SWAP LIRE
+//      FOR OUV with no geometry consequence: assertion 7 stayed green through
+//      the change, and a planted CHARGER failed assertion 4 by name instead.
 //
-//        content box 30.00   LOAD 29.78 -> LIRE 24.22
-//        content box 27.00   SAVE 26.83 -> ENR  21.50
+//        content box 30.00   LOAD 29.78 -> OUV 23.17   (v1.8.0 shipped LIRE 24.22)
+//        content box 27.00   SAVE 26.83 -> ENR 21.50
 //
 //   B. THE TWO KNOB COLUMNS are 60 px wide because the knob is, and
 //      .knob-container is shrink-to-fit, so a caption WIDER than 60 px grows
@@ -301,8 +357,13 @@ export const I18N = Object.freeze({
 //      a `width: 100%` <select>, and the SELECT's own intrinsic width (88 px)
 //      is the larger of the two — so any caption at or below 88 px leaves the
 //      section, the select and everything centred beside them exactly where
-//      they are. FORME D'ONDE is 106.34 px and would grow all three; ONDE is
-//      38.67 px and moves nothing. The budget is what chose the word.
+//      they are. FORME D'ONDE is 107.00 px and would grow all three; ONDE is
+//      38.67 px and moves nothing. The budget is what chose the word, and ONDE
+//      is a glossary-ACCEPTED rendering of Waveform rather than a compromise.
+//      (v1.7.0 recorded 106.34 for FORME D'ONDE; v1.8.1 re-measured it in the
+//      same node at the same frame and got 107.00. Same verdict, and the plant
+//      confirmed it: assertion 7 reports .waveform-section and the select as
+//      moved.)
 //
 //   D. THE SMOOTHING ROW has the same shape with a much larger budget: the
 //      range input's intrinsic 129 px sets .slider-container, and LISSAGE is
@@ -315,19 +376,33 @@ export const LABELS = Object.freeze({
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
-    // See budget A above for the pins. WHY NOT THE FULL WORDS: CHARGER is
-    // 51.30 px and SAUVER 43.02 px against 30 px and 27 px content boxes —
-    // both spill, and both would have to grow the button rather than fit it.
+    // See budget A above for the pins. WHY NOT THE FULL WORDS, re-measured at
+    // v1.8.1 with the gate's own Range.selectNodeContents at the shipping
+    // 600 x 400 frame, against 30.00 px and 27.00 px content boxes:
     //
-    // ENR CARRIES NO PERIOD, AND THAT IS THE POINT. aria.savePreset's French is
-    // "Enregistrer les réglages actuels"; label-in-name (WCAG 2.5.3) matches
-    // case-insensitively, and "enr" IS a substring of "enregistrer" while
-    // "enr." is NOT. Dropping the period is what keeps a voice-control user's
-    // "ENR" hitting the button. ENR. would fit the pin just as well and would
-    // break the rule silently. LIRE is a whole word, so aria.loadPreset simply
-    // begins with it.
-    'label.load':      { en: { t: 'Load' },       fr: { t: 'Lire',       reviewed: false } },
-    'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr',        reviewed: false } },
+    //   CHARGER     51.30   OUVRIR      41.34   CHARG  37.52   -> all spill
+    //   ENREGISTRER 73.28   ENREG       35.84                  -> both spill
+    //   OUV         23.17   ENR         21.50                  -> both fit
+    //
+    // v1.8.0 shipped LIRE here, which the suite glossary FORBIDS in a label:
+    // "lire" is to read or to play, and Load is Charger with Ouvrir accepted
+    // where the button opens a file dialog — which this one does
+    // (aria.loadPreset: "Load preset from file"). Neither root fits, so the
+    // glossary's own listed abbreviation OUV is what ships. ENR is not on the
+    // glossary's list at all and carries a termNote with the measurement.
+    //
+    // NEITHER ABBREVIATION CARRIES A PERIOD, AND THAT IS THE POINT.
+    // aria.savePreset's French is "Enregistrer les réglages actuels" and
+    // aria.loadPreset's is "Ouvrir un préréglage depuis un fichier";
+    // label-in-name (WCAG 2.5.3) matches case-insensitively, and "enr" IS a
+    // substring of "enregistrer" and "ouv" of "ouvrir", while "enr." and "ouv."
+    // are NOT. Dropping the period is what keeps a voice-control user's "ENR"
+    // and "OUV" hitting their buttons. Both WOULD fit the pin with a period,
+    // and would break the rule silently. The glossary normalises a trailing
+    // period away, so "Ouv" matches its listed "ouv" either way.
+    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv',        reviewed: false } },
+    'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr',        reviewed: false,
+                                                        termNote: 'Enregistrer 73.28 px and Enreg 35.84 px both overrun #savePreset’s 27.00 px content box, measured at the shipping 600 x 400 frame with the gate’s own Range.selectNodeContents; Enr is 21.50 px and fits. The period stays dropped so label-in-name (WCAG 2.5.3) still matches aria.savePreset — “enr” is a substring of “enregistrer”, “enr.” is not.' } },
 
     // ── The two sync toggles ────────────────────────────────────────────────
     //
@@ -342,8 +417,19 @@ export const LABELS = Object.freeze({
     // the same line-box width, because French reorders the two words rather
     // than lengthening either. PANORAMIQUE (78.48, one line) was measured and
     // rejected: it overruns the 42 px content box outright.
+    //
+    // v1.8.1: SYNCHRO, THE GLOSSARY ROOT FOR Sync, DOES NOT FIT EITHER SIDE.
+    // SYNCHRO TEMPO and SYNCHRO PAN both wrap to a widest line of 51.30 px —
+    // the word SYNCHRO alone — against the same 42.00 px content box, and
+    // overflow: hidden clips it. Planted, assertion 4 reports label.tempoSync
+    // twice, once for the clip (75 > 66) and once for the text width
+    // (51.3 > 42.0). The glossary has a "tempo sync" key and NO "pan sync"
+    // key, so the lint flags only one half of a pair the page renders as a
+    // matched pair; changing one and not the other would be worse French AND
+    // worse design. Both stay, and label.tempoSync carries the termNote.
     'label.panSync':   { en: { t: 'Pan Sync' },   fr: { t: 'Sync Pan',   reviewed: false } },
-    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync Tempo', reviewed: false } },
+    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync Tempo', reviewed: false,
+                          termNote: 'Synchro Tempo, the glossary root, wraps to a widest line of 51.30 px inside this button’s 42.00 px content box (width: 70px, overflow: hidden), measured at the shipping 600 x 400 frame. Synchro Pan is the same 51.30 px. No abbreviation is listed for tempo sync; Sync Tempo is 36.41 px and holds the two-line box the English caption already occupies.' } },
 
     // ── The two knob captions ───────────────────────────────────────────────
     //
@@ -446,7 +532,7 @@ export const LABELS = Object.freeze({
     'aria.presetList': { en: { t: 'Click to see all presets' },
                          fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Lire un préréglage depuis un fichier', reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
     'aria.savePreset': { en: { t: 'Save current settings' },
                          fr: { t: 'Enregistrer les réglages actuels', reviewed: false } },
 
