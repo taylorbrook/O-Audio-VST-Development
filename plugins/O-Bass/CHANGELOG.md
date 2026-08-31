@@ -1,5 +1,40 @@
 # O-Bass Changelog
 
+## [1.5.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **9 French entries of 24 revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint, which went from 12 findings to 0 at `--strict`:
+  5 terminology, 4 typography, 2 grammar/idiom, 2 meaning.
+  - The two preset buttons now read **OUV** and **ENR**. *Lire* was wrong twice over — the
+    glossary reads it as *to read* or *to play* — and its accessible name moves with it, from
+    *Lire un préréglage depuis un fichier* to **Ouvrir un préréglage depuis un fichier**. The
+    period is dropped for the same reason ENR has none: WCAG 2.5.3 matches the visible caption
+    as a substring of the accessible name, and *ouv.* is not a substring of *Ouvrir…* while
+    *ouv* is.
+  - The output meter's caption is now **SOR** rather than the English **OUT** it shipped as.
+    Its box is pinned to 24 px, so the change moves nothing — measured, not assumed.
+  - The preset list's accessible name is now **Cliquer pour voir tous les préréglages**, the
+    infinitive the rest of the suite carries, not the conjugated *Cliquez…*.
+  - **French typography throughout the hover-help**: no-break spaces before `%`, `:` and `;`
+    and between every number and its unit — *200 Hz*, *+18 dB*, *100 %*.
+  - **Three sentences that were English in French words** were rewritten: a *sépare … entre*
+    calque, a pair of clauses opening on a bare adverb, and *un clic à côté* where the English
+    says *a click elsewhere*. The language tip also said *bulle d’aide* where the other 42
+    plugins say *aide au survol*, and had dropped *Parameter* from *Parameter values*.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive
+  technology reads the page in the language it is displayed in.
+
+### Unchanged, deliberately
+- **SAVE stays ENR.** *Enregistrer* measures 73.28 px and *Enreg.* 38.84 px against a 28 px
+  content box; neither fits, and widening the pin is a CSS change on a preset row with 0.00 px
+  of slack. Carried as a `termNote` with the measurement in it.
+- **LIM. stays LIM.** *Limite* is 43.27 px against a 36 px pin.
+- Every French entry is still `reviewed: false`. That flag means *a native speaker read this*,
+  and none has.
+
 ## [1.5.0] - 2026-08-30
 
 ### Added

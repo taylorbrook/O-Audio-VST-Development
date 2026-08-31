@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bass page labels and hover-help, English + French (v1.5.0)
+// i18n.js — O-Bass page labels and hover-help, English + French (v1.5.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -31,6 +31,93 @@
 // converting them to underscores, so a second file named i18n-fr.js would have
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
+//
+// ── v1.5.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+//
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 9 entries of 24 (5 terminology, 4 typography, 2 grammar/idiom,
+// 2 meaning — three entries carry more than one). sameAsEn: kept 0,
+// translated 1 (Out). termNote exemptions: 1 (label.save, listed there).
+// Left as drafted: the other 15. reviewed: false throughout — no native
+// speaker has read any of it, and this pass is not one.
+//
+// Lint went 12 findings -> 0, `--strict` exit 0
+// (5 G1 glossary, 2 F1 forbidden word, 5 typography: 2 T7 number-unit,
+//  1 T3 percent, 1 T4 colon, 1 T5 semicolon).
+//
+// THE DECISIONS A LATER READER NEEDS:
+//
+//   OUT -> SOR, and the pin is why it is three glyphs. .meter-label is
+//   pinned to 24 px (the v1.4.0 guard), and re-measured in the real node at
+//   420x320: SOR 22.45 fits, SOR. 25.95 is 1.95 px over, SORT. 31.72 and
+//   SORTIE 40.41 are far past. The glossary lists sor as an accepted
+//   rendering of Out and normalises the trailing period away, so SOR is the
+//   listed abbreviation and not a third form invented here. Because the
+//   caption is pinned, this change moves NOTHING: assertion 7 reports 0
+//   non-label elements moved, before and after. v1.5.0's sameAsEn argument
+//   ("OUT is what French meters are silk-screened with") is retired: Out is
+//   an English word on a French page, and step 3.4 of the Stage N brief
+//   translates those.
+//
+//   LOAD -> OUV, NOT OUV. — the same label-in-name rule that dropped ENR's
+//   period. WCAG 2.5.3 matches the visible caption as a substring of the
+//   accessible name, case-insensitively: "ouv" IS a substring of
+//   "Ouvrir un préréglage depuis un fichier" and "ouv." is NOT. OUV measures
+//   23.17 px against the 31 px content box of the 49 px .preset-load-btn pin
+//   (OUV. 24.89 would also have fit — the period was dropped for the rule,
+//   not for the width). aria.loadPreset moves Lire -> Ouvrir with it, so the
+//   stem still matches. LIRE was both a G1 and an F1: the glossary reads it
+//   as "to read or to play".
+//
+//   SAVE STAYS ENR, and it is the one glossary term this page cannot carry.
+//   Measured: Enregistrer 73.28 px, Enreg. 38.84 px, against a 28 px content
+//   box. Neither fits, widening the pin is a CSS change on a preset row with
+//   0.00 px of slack, and Stage N touches no CSS. Carried as a termNote on
+//   the entry with the measurement in it, and reported so the glossary can
+//   grow a 3-glyph abbreviation.
+//
+//   LIM. IS UNTOUCHED. "Limit" is not a glossary key, LIMITE measures 43.27
+//   against a 36 px pin, and LIM. 26.92 is what French-market limiters carry.
+//
+//   THE STAGE K HEADER'S NUMBERS ARE HONEST. Every width it records was
+//   re-measured with the gate's own method (Range.selectNodeContents on the
+//   live node at the shipping frame) and every one agreed to the hundredth —
+//   85.02 / 84.34, 67.02 / 65.25, 56.02 / 50.94, 23.56 / 40.41, 29.78 /
+//   24.22, 26.83 / 21.50, 35.55 / 26.92. Two of the three N1 pilots found
+//   their header's geometry defence overstated; this one is not. What the
+//   header MISSED is that it never measured OUV. or OUV at all.
+//
+//   TYPOGRAPHY. Five U+00A0 added, all inside fr string VALUES: before the
+//   unit in "200 Hz", "+18 dB", before "%" in "100 %", before ";" and before
+//   ":". U+00A0 and never U+202F — some of the shipped web fonts have no
+//   U+202F and would render a box where no gate looks. Audited afterwards:
+//   `grep -n $'\xc2\xa0' | grep -v "t: |b: |+ '"` is empty, and the two
+//   revisions were imported and compared entry by entry — 0 en values, 0
+//   keys, 0 TIP_BINDINGS rows and 0 I18N_EXEMPT entries differ.
+//
+//   THE PROSE FIXES, and they are the ones a lint cannot see. tip.frequency
+//   said "sépare le signal entre X et Y", which is a calque — séparer takes
+//   "en", répartir takes "entre" — and the passive "renforcée par ce plugin"
+//   became the active relative clause the English has. tip.enhance opened
+//   two clauses with a bare adverb as subject ("Un peu soude…, beaucoup
+//   reconstruit…"), which is English word order in French words; both now
+//   carry a noun. tip.settings said "un clic à côté" (a click NEXT TO it)
+//   where the English says "a click elsewhere" — a small, real meaning drift
+//   — and now says "ailleurs". tip.language dropped "Parameter" from
+//   "Parameter values" and used "bulle d’aide" where 21 sibling plugins say
+//   "aide au survol"; both restored.
+//
+//   REGISTER IS vous THROUGHOUT, and the imperative is the one instruction
+//   form on this page (tip.frequency's "Descendez-le / montez-le"). Captions
+//   and tip titles are nouns; aria.presetList moved from the conjugated
+//   "Cliquez pour voir tous les préréglages" to the infinitive the glossary
+//   settles, which is also what the other 42 plugins carry.
+//
+//   TIP TITLES STILL AGREE WITH THEIR CAPTIONS, checked after the edits:
+//   tip.frequency/label.frequency Fréquence, tip.enhance/label.enhance
+//   Renfort, tip.output/label.output Sortie, tip.settings/aria.settings
+//   Réglages, tip.language/label.language Langue. Two French names for one
+//   control was an N1 finding on O-Comp; this page has none.
 //
 // ── v1.5.0: THIS PLUGIN NOW HAS HOVER-HELP, AND IT HAD NO RENDERER ────────
 //
@@ -113,10 +200,10 @@ export const I18N = Object.freeze({
                + 'reinforcement on the sub alone, up to thicken the low mids as well. '
                + '40 to 200 Hz.' },
         fr: { t: 'Fréquence',
-              b: 'Règle le point de coupure qui sépare le signal entrant entre la bande grave '
-               + 'renforcée par ce plugin et les aigus qu’il laisse intacts. Descendez-le pour '
+              b: 'Règle le point de coupure qui répartit le signal entrant entre la bande grave '
+               + 'que ce plugin renforce et les aigus qu’il laisse intacts. Descendez-le pour '
                + 'ne renforcer que le sub, montez-le pour épaissir aussi le bas-médium. '
-               + '40 à 200 Hz.',
+               + '40 à 200 Hz.',
               reviewed: false },
     },
 
@@ -132,8 +219,8 @@ export const I18N = Object.freeze({
                + 'can still hear. 0 to 100 %.' },
         fr: { t: 'Renfort',
               b: 'Règle la quantité de renfort ajoutée à la bande située sous le point de '
-               + 'coupure. Un peu soude le mixage ; beaucoup reconstruit un grave qu’une petite '
-               + 'enceinte laisse encore entendre. 0 à 100 %.',
+               + 'coupure. Un léger renfort soude le mixage ; un renfort marqué reconstruit un '
+               + 'grave qu’une petite enceinte laisse encore entendre. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -154,7 +241,7 @@ export const I18N = Object.freeze({
               b: 'Ajuste le niveau en sortie du plugin pour comparer le signal renforcé au '
                + 'signal d’origine. Le vumètre en dessous affiche le résultat, et le témoin à '
                + 'côté s’allume tant que le limiteur interne retient les crêtes. '
-               + '−18 à +18 dB.',
+               + '−18 à +18 dB.',
               reviewed: false },
     },
 
@@ -173,9 +260,9 @@ export const I18N = Object.freeze({
                + 'written in. Nothing in it changes the sound or the current preset. Escape or '
                + 'a click elsewhere closes it again.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre un petit panneau contenant un seul réglage : la langue de cette '
+              b: 'Ouvre un petit panneau contenant un seul réglage : la langue de cette '
                + 'interface. Rien n’y modifie le son ni le préréglage en cours. Échap ou un clic '
-               + 'à côté le referme.',
+               + 'ailleurs le referme.',
               reviewed: false },
     },
 
@@ -198,9 +285,9 @@ export const I18N = Object.freeze({
                + 'English and French. Parameter values, units and preset names stay as they '
                + 'are. The choice is saved with the plugin and comes back with the session.' },
         fr: { t: 'Langue',
-              b: 'Bascule chaque libellé, nom accessible et bulle d’aide de cette page entre '
-               + 'l’anglais et le français. Les valeurs, les unités et les noms de préréglages '
-               + 'restent inchangés. Le choix est enregistré avec le plugin et revient avec la '
+              b: 'Bascule chaque libellé, chaque nom accessible et l’aide au survol de cette '
+               + 'page entre l’anglais et le français. Les valeurs des paramètres, les unités '
+               + 'et les noms de préréglages restent inchangés. Le choix est enregistré avec le plugin et revient avec la '
                + 'session.',
               reviewed: false },
     },
@@ -362,7 +449,7 @@ export const LABELS = Object.freeze({
     // SORTIE, because its container has 14 px of slack and this one has none.
     // The same English word gets two different answers on one page, decided by
     // geometry. That is a legitimate thing to disagree with.
-    'label.out': { en: { t: 'Out' }, fr: { t: 'Out', reviewed: false, sameAsEn: true } },
+    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: false } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -397,8 +484,17 @@ export const LABELS = Object.freeze({
     // broken on O-DigiDelay's CHARGER/Ouvrir pair.
     //
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Lire', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enr',  reviewed: false } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: false } },
+    'label.save': { en: { t: 'Save' },
+                    fr: { t: 'Enr', reviewed: false,
+                          termNote: 'the 46 px .preset-save-btn pin is a 28 px content box and '
+                                  + 'the glossary lists no form that fits it: Enregistrer measures '
+                                  + '73.28 px and Enreg. 38.84 px, both past it, and widening the pin '
+                                  + 'is a CSS change on a preset row with 0.00 px of slack. Enr (21.50) '
+                                  + 'is the shipped stem, and it is also the only one that keeps WCAG '
+                                  + '2.5.3 label-in-name against aria.savePreset — enr is a substring of '
+                                  + 'Enregistrer les réglages actuels, enreg. is not. Reported to Stage N '
+                                  + 'so the glossary can grow a 3-glyph abbreviation.' } },
 
     // ── The preset dropdown, written through setLabel() ─────────────────────
     //
@@ -469,9 +565,9 @@ export const LABELS = Object.freeze({
     'aria.nextPreset': { en: { t: 'Next preset' },
                          fr: { t: 'Préréglage suivant',   reviewed: false } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquez pour voir tous les préréglages', reviewed: false } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Lire un préréglage depuis un fichier', reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
     'aria.savePreset': { en: { t: 'Save current settings' },
                          fr: { t: 'Enregistrer les réglages actuels', reviewed: false } },
 
