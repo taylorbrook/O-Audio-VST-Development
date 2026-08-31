@@ -164,8 +164,14 @@ async function lintPlugin(name) {
             if (allowed && !allowed.map(norm).includes(norm(r.fr)))
                 findings.push({ code: 'G1', ...r, note: `"${r.en}" → ${allowed.join(' | ')}` });
         }
-        for (const w of forbidden(r.fr, G.FORBIDDEN_IN_LABELS))
-            findings.push({ code: 'F1', ...r, note: `"${w}" → ${G.FORBIDDEN_IN_LABELS[w]}` });
+        // A rendering the glossary itself accepts for this English is never a
+        // forbidden word: "Écart total" is the settled term for "Total span"
+        // and must not draw F1 for containing "écart". Found by the O-Chorus
+        // pilot before any tuning-panel plugin could hit it.
+        const accepted = (G.TERMS[norm(r.en)] || []).map(norm).includes(norm(r.fr));
+        if (!accepted)
+            for (const w of forbidden(r.fr, G.FORBIDDEN_IN_LABELS))
+                findings.push({ code: 'F1', ...r, note: `"${w}" → ${G.FORBIDDEN_IN_LABELS[w]}` });
         if (isAllCaps(r.en) && hasLower(r.fr))
             findings.push({ code: 'C1', ...r, note: 'English caption is all-caps; French is not' });
         else if (hasLower(r.en) && isAllCaps(r.fr) && letters(r.fr).length >= 4)
