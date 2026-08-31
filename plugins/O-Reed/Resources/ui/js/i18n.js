@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Reed page labels, English + French (v1.2.0)
+// i18n.js — O-Reed page labels and hover-help, English + French (v1.3.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -33,22 +33,23 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.2.0 HAD NO HOVER-HELP; v1.3.0 AUTHORS IT ────────────────────────────
 //
 // v1.1.0 carried NO data-tip, NO data-tooltip and — measured, not assumed —
 // ZERO native title=, aria-label=, placeholder= and alt= attributes anywhere in
 // index.html. The measured inventory's "0 attributes" column is correct, which
 // is worth saying out loud because it is the one column that is a claim about
 // absence. There was therefore nothing for contract §4 to delete and nothing to
-// move into data-i18n-aria, and NO NEW PROSE WAS INVENTED. The two aria keys
-// below belong to the two elements this commit ADDS (the gear button and the
-// language selector) and match the O-Bassoon precedent verbatim.
+// move into data-i18n-aria, and NO NEW PROSE WAS INVENTED into v1.2.0. The two
+// aria keys below belong to the two elements v1.2.0 ADDED (the gear button and
+// the language selector) and match the O-Bassoon precedent verbatim.
 //
-// Authoring hover-help copy is Stage M's job. I18N is therefore empty and
-// TIP_BINDINGS is empty, which is this plugin's correct state rather than a
-// gap: check-i18n assertion 2 reports it as "0 tip(s) bound" instead of passing
-// silently, and the emptiness is only admissible BECAUSE no I18N entry carries
-// a body.
+// v1.3.0 authors 35 tooltips — 33 parameters plus the gear and the language
+// selector — AND the renderer that paints them, in one commit, because the
+// canon writes the tip ATTRIBUTES and nothing else. See the I18N and
+// TIP_BINDINGS headers below. Native title= is still ZERO after the renderer
+// lands; contract §4 forbids reintroducing one and tests/ui_tip_render_check.js
+// asserts it.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -63,17 +64,478 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin that has no tooltips today, so Stage M
-// can add bodies here without touching the label keys below.
+// AUTHORED IN v1.3.0. Until then this table was empty and TIP_BINDINGS was
+// empty with it, which was this plugin's correct state rather than a gap:
+// v1.2.0 carried no data-tip anywhere and — measured — no native title=
+// either, so there was nothing to migrate and nothing to delete.
+//
+// ── 35 ENTRIES: 33 PARAMETERS + 2 CHROME. THE DUMP SAYS 35 PARAMETERS ───────
+//
+// .planning/params.tsv is the runtime walk of AudioProcessor::getParameters()
+// on a constructed processor, not a regex over createParameterLayout(), and it
+// reports 35. TWO of them have no control on this page and therefore get no
+// tip, because a body nothing binds is an ORPHAN and fails check-i18n
+// assertion 2:
+//
+//   referencePitch  AudioParameterFloat, 220..880 Hz. Its control EXISTS but it
+//                   belongs to the SHARED module — #ref-pitch-knob in
+//                   modules/tuning/scala-tuning-engine/js/tuning-panel.js —
+//                   which is lazy-mounted on the first Tuning-tab activation
+//                   and is absent from the DOM when applyI18n() first runs.
+//                   Binding it would log `tip target not found` on every load,
+//                   which boot-all-uis reports, and editing the module to add
+//                   an anchor is a cross-plugin change reverted by
+//                   /module-upgrade. index.html's own bindSliderParam()
+//                   already warns `No control for: referencePitch` at load for
+//                   the same reason (index.html:1273).
+//   tuningSystem    AudioParameterChoice, Scala/TUN | MTS-ESP | 12-TET. It has
+//                   NO control anywhere: bindComboBox('tuningSystem',
+//                   'tuningSystem') (index.html:1744) resolves
+//                   getElementById('tuningSystem') to null and warns `No select
+//                   for: tuningSystem` on every load. Host-reachable and
+//                   automatable; not page-reachable in any version.
+//
+// Both are reported rather than fixed. Adding a control to satisfy the count is
+// a feature change with a geometry cost, which this stage does not have.
+//
+// ── THE TITLE IS THE PARAMETER'S FULL NAME, NOT THE PAGE'S CAPTION ──────────
+//
+// This REVERSES the stage brief's default ("where the page's caption differs
+// from the parameter's name, the caption wins"). That rule exists so the
+// tooltip names what the user is reading, and on this page it would do the
+// opposite: all 27 knob captions were cut to fit the 68px `.knob-control` box
+// measured in v1.2.0, and the cut is visible — `Reed Hard.`, `Inf. Sustain`,
+// `Rev. Bore` each end in a truncating period, and `Vib Depth`, `Vib Rate`,
+// `Chiff`, `Character`, `Diameter`, `Length`, `Opening`, `Mass`, `Damping`,
+// `Mouthpiece`, `Register`, `Tone Hole`, `Growl`, `Flutter`, `Feedback` and
+// `Output` are each a head word lifted out of a longer name. A 260px tooltip is
+// exactly where `Reed Hard.` becomes `Reed Hardness`. Repeating the
+// abbreviation into a box with room for the word teaches nothing, and the full
+// form is also what the host's automation lane shows, so page and lane agree.
+// The French titles are the full French forms of the same names, which is why
+// they are longer than the LABELS captions below them.
+//
+// ── WHERE THE RANGES COME FROM ──────────────────────────────────────────────
+//
+// Every body ends with the range and unit. FIVE of the 35 dump rows carry a
+// non-empty `label`: toneHoleCutoff (Hz), vibratoRate (Hz), dronePitch (cents),
+// referencePitch (Hz, no control) and outputGain (dB). The other 30 are EMPTY,
+// so 24 of the 33 authored ranges were recovered from THE PAGE'S OWN FORMATTER
+// rather than invented — the PARAMS table at index.html:1114-1143 and
+// formatValue() at index.html:1260-1264, which is
+// `rawValue.toFixed(def.decimals) + def.unit`:
+//
+//   23 knobs   unit: '', decimals: 2  ->  renders `0.50`  ->  unitless, "0 to 1"
+//   maxVoices  unit: '', decimals: 0  ->  renders `8`     ->  a count, "1 to 16 voices"
+//
+// The remaining 6 authored ranges are the option words of the five Choice
+// parameters and the one Bool, which are not numbers at all.
+//
+// ONE DUMP/PAGE DIVERGENCE, deliberate and not a defect: dronePitch's APVTS
+// label is `cents` while the page's readout renders ` ct` (index.html:1138).
+// The body spells the unit out, because a tooltip is where a user learns what
+// the abbreviation on the readout stands for. Same reasoning as O-Bassoon's
+// vibrato_depth in batch M1.
+//
+// ── D-01 ARM 1 INSIDE A TOOLTIP BODY, AND WHAT WAS DECIDED ──────────────────
+//
+// Six parameters are AudioParameterChoice (five with a control) plus one
+// AudioParameterBool, so their option strings are D-01 arm 1 EXEMPT ON THE PAGE
+// — the `<select>` must name them byte-for-byte as the host's automation lane
+// does. A tooltip body is prose and prose is localized, and the two rules do
+// not conflict, but they leave one thing to decide per entry: is the option
+// TOKEN inside a French sentence translated, or reproduced verbatim?
+//
+// DECIDED: THE PROSE IS FRENCH, THE TOKEN IS VERBATIM ENGLISH, in guillemets.
+// The rule is "match what the page shows", which is the same rule the two M1
+// precedents follow from opposite sides: O-Comp's body says ARRÊT / MARCHE
+// because its on-page faces are LABELS entries and ARE localized, and
+// O-Texture's body says "Rain, Metal, Wind, Crowd, Synth, Organic" because its
+// on-page buttons are not. On O-Reed the six `<select>` elements are EMPTY in
+// index.html and are filled at runtime from the host's own choice properties
+// (bindComboBox, index.html:1350-1372), so what the user reads 20px from the
+// tooltip is the English option string. Translating `Multi-segment` inside the
+// French body would name a value that appears nowhere on the control.
+//
+// The knob captions are the opposite case and are handled the opposite way: a
+// French body naming another knob calls it by its LOCALIZED caption (Caractère
+// de la perce, Voix maximales, Double perce), because those ARE keyed and the
+// page shows the French.
+//
+// ── THE BODIES DESCRIBE THIS MODEL, NOT A GENERIC SYNTH ─────────────────────
+//
+// This is a reed/bore waveguide, so most of these knobs name a physical
+// quantity rather than a familiar effect control, and the tooltip is the only
+// place a user can find out what one does. Each body was written against the
+// DSP that implements it — ReedModel.h, BoreWaveguide.h, BreathEnvelope.h,
+// BreathNoise.h, MouthpieceChamber.h and ReedWindVoice.cpp — rather than from
+// the parameter's name, and each states something a user cannot discover by
+// turning the knob. The measured mappings behind the numbers in the copy:
+//
+//   reedHardness    k_r  2e6 .. 20e6 N/m^3          ReedModel.h:79
+//   reedOpening     H    0.1mm .. 1.5mm             ReedModel.h:82
+//   reedMass        mu_r 1e-4 .. 0.06 kg/m^2        ReedModel.h:73
+//   reedDamping     g_r  500 .. 6000 s^-1           ReedModel.h:76
+//   boreDiameter    throat radius 2mm .. 20mm       BoreWaveguide.h:163
+//   boreLength      0.2m .. 1.5m                    BoreWaveguide.h:166
+//   bellSize        bell cutoff 800Hz .. 6000Hz     BoreWaveguide.h:210
+//   toneHoleCutoff  200Hz = ALL FOUR HOLES OPEN     BoreWaveguide.h:243-250
+//                   8000Hz = all four CLOSED         (the reading is inverted)
+//   mouthpieceVol   0 .. 15 cm^3 Helmholtz          ReedWindVoice.cpp:432
+//   growlAmount     120Hz sine, +/-30% on p_mouth   ReedWindVoice.cpp:526-531
+//   flutterTongue   25Hz half-wave, -40% on p_mouth ReedWindVoice.cpp:534-540
+//   subtone         +0.3 air, +0.3 emb, -30% press  ReedWindVoice.cpp:494-510
+//   attackChiff     overshoot 1 + chiff*vel*0.3     BreathEnvelope.h:60
+//   velocity        attack 50ms (v=0) .. 5ms (v=1)  BreathEnvelope.h:55
+//   feedbackPath    blend up to 0.5 of bore2        ReedWindVoice.cpp:529-532
+//   infiniteSustain bell -> Nyquist, visc g -> 1.0  BoreWaveguide.h:214,235
+//   reverseBore     segment centres 0.25/0.75 swap  BoreWaveguide.h:190
+//   boreProfile     taper ratios 1.0/1.0 -> 0.5/1.5 BoreWaveguide.h:172-174
+//   vibratoSource   Lip +/-0.15 emb, Breath +/-10%  ReedWindVoice.cpp:518-522
+//                   p_mouth, Throat +/-3% bore scale
+//
+// ── ONE BODY REPORTS A DEAD CONTROL, DELIBERATELY ───────────────────────────
+//
+// tip.instrumentPreset says the dropdown does not change the sound, because it
+// does not. `pInstrumentPreset` is fetched in ReedWindVoice.cpp:50 and is never
+// load()ed anywhere in Source/ — the parameter has no consumer. A tip that lies
+// is worse than no tip, and O-Texture's tip.source is the M1 precedent for
+// saying so in the copy. Reported as a defect and NOT fixed here: wiring it is
+// an audio change, not an i18n one.
+//
+// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
+// speaker has read it. French bodies take FRENCH convention — decimal COMMA, a
+// space before %, U+2212 for the minus — while the readout NODES keep their
+// point, because D-03 exempts the readout and a body is prose. Settled
+// repo-wide on 2026-08-30.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── The XY pad's dropdown ───────────────────────────────────────────────
+    //
+    // THE DEAD CONTROL. See the note above. The 21 option strings are verbatim
+    // English in both bodies (the `<select>` is filled from the host's choice
+    // properties and shows them in English), and the two named here are the
+    // dump's textAtMin and textAtMax.
+    'tip.instrumentPreset': {
+        en: { t: 'Instrument Preset',
+              b: 'Records which of the twenty-one instruments this patch is aiming at, and it rides with the session and with the host’s automation lane. It moves no other control and no part of the sound reads it: the instrument is shaped by the pad above and by the bore and reed knobs below. Bb Clarinet to Impossible Bore, 21 choices.' },
+        fr: { t: 'Préréglage d’instrument',
+              b: 'Indique lequel des vingt-et-un instruments ce patch vise ; la valeur est conservée avec la session et exposée à l’automation de l’hôte. Elle ne déplace aucune autre commande et aucune partie du son ne la lit : l’instrument se façonne avec le pavé ci-dessus et avec les boutons de perce et d’anche en dessous. De « Bb Clarinet » à « Impossible Bore », 21 choix.',
+              reviewed: false },
+    },
+
+    // ── Primary Controls ────────────────────────────────────────────────────
+    'tip.breath': {
+        en: { t: 'Breath Pressure',
+              b: 'Mouth pressure on the reed, and the main dynamic control here: at zero the reed never beats and the note does not speak, and raising it opens and brightens the tone. Note velocity shortens the attack on top of this, from 50 ms down to 5 ms, so the same setting speaks differently under a hard strike. 0 to 1.' },
+        fr: { t: 'Pression du souffle',
+              b: 'La pression de la bouche sur l’anche, et le principal réglage de nuance ici : à zéro l’anche ne bat pas et la note ne parle pas, et en montant le son s’ouvre et s’éclaircit. La vélocité raccourcit l’attaque par-dessus, de 50 ms à 5 ms, si bien que le même réglage parle autrement sous une frappe forte. 0 à 1.',
+              reviewed: false },
+    },
+
+    // The French body names the Lip option verbatim (arm 1, the token the
+    // `<select>` shows) and Source du vibrato in French (a keyed caption).
+    'tip.embouchure': {
+        en: { t: 'Embouchure',
+              b: 'Lip force on the reed: raising it stiffens the reed, damps it and closes its rest opening, so the tone brightens, the pitch lifts a little and the note is harder to start. It is also the target the Lip setting of Vibrato Source modulates. 0 to 1.' },
+        fr: { t: 'Embouchure',
+              b: 'La force des lèvres sur l’anche : en montant, l’anche se raidit, s’amortit et se referme, donc le son s’éclaircit, la hauteur monte un peu et la note démarre plus difficilement. C’est aussi la cible que module le réglage « Lip » de Source du vibrato. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.reedHard': {
+        en: { t: 'Reed Hardness',
+              b: 'Stiffness of the reed, from a soft one to a hard one. A soft reed speaks easily and stays dark under pressure; a hard reed needs more breath, takes longer to start and holds its brightness in the loud dynamics. 0 to 1.' },
+        fr: { t: 'Dureté de l’anche',
+              b: 'La raideur de l’anche, d’une anche souple à une anche dure. Une anche souple parle facilement et reste sombre sous la pression ; une anche dure demande plus de souffle, met plus de temps à démarrer et garde sa brillance dans les nuances fortes. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.output': {
+        en: { t: 'Output Gain',
+              b: 'Master level, applied after the bore, the radiation filter and the output limiter. It is the last stage, so it cannot be used to drive the model harder — Breath Pressure is the control for that. −60.0 to +12.0 dB.' },
+        fr: { t: 'Gain de sortie',
+              b: 'Le niveau général, appliqué après la perce, le filtre de rayonnement et le limiteur de sortie. C’est le dernier étage : il ne permet pas de pousser le modèle plus fort — Pression du souffle est la commande faite pour cela. −60,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    // ── Bore & Resonance ────────────────────────────────────────────────────
+    'tip.character': {
+        en: { t: 'Bore Character',
+              b: 'Morphs the bore from cylindrical to conical, and it is the X axis of the pad above. A cylinder resonates at a quarter wavelength and sounds odd harmonics only — the hollow clarinet register; a cone resonates at a half wavelength and sounds the whole series, the saxophone and oboe end. 0 to 1.' },
+        fr: { t: 'Caractère de la perce',
+              b: 'Fait passer la perce du cylindre au cône, et c’est l’axe X du pavé ci-dessus. Un cylindre résonne au quart d’onde et ne sonne que les harmoniques impaires — le registre creux de la clarinette ; un cône résonne à la demi-onde et sonne toute la série, du côté du saxophone et du hautbois. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.diameter': {
+        en: { t: 'Bore Diameter',
+              b: 'Width of the bore at the throat, from about 2 mm to 20 mm. A narrow bore loses more high frequency to wall friction and sounds darker and more resistant; a wide one is brighter and blows freer. 0 to 1.' },
+        fr: { t: 'Diamètre de la perce',
+              b: 'La largeur de la perce à la gorge, d’environ 2 mm à 20 mm. Une perce étroite perd davantage d’aigu par frottement aux parois et sonne plus sombre et plus résistante ; une perce large est plus claire et se joue plus librement. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.bellSize': {
+        en: { t: 'Bell Size',
+              b: 'Flare of the bell, which sets the frequency above which the bore stops reflecting and starts radiating — 800 Hz at the bottom of the range, 6 kHz at the top. A small bell keeps the energy inside the tube and sounds contained; a large one projects and brightens. 0 to 1.' },
+        fr: { t: 'Taille du pavillon',
+              b: 'L’évasement du pavillon, qui fixe la fréquence au-dessus de laquelle la perce cesse de réfléchir et se met à rayonner — 800 Hz en bas de la course, 6 kHz en haut. Un petit pavillon garde l’énergie dans le tube et sonne contenu ; un grand projette et éclaircit. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.length': {
+        en: { t: 'Bore Length',
+              b: 'Effective length of the tube, about 20 cm to 1.5 m. The played pitch does not follow it — that comes from the keyboard and from the tuning system — this sets how far the cone has flared along the tube, so it colours the tone instead of transposing it, and it does nothing at all while Bore Character is fully cylindrical. 0 to 1.' },
+        fr: { t: 'Longueur de la perce',
+              b: 'La longueur utile du tube, d’environ 20 cm à 1,5 m. La hauteur jouée ne la suit pas — elle vient du clavier et du système d’accord — ce réglage fixe l’évasement du cône le long du tube : il colore le timbre au lieu de transposer, et il ne fait rien tant que Caractère de la perce est entièrement cylindrique. 0 à 1.',
+              reviewed: false },
+    },
+
+    // The one knob on this page whose reading is INVERTED, which is exactly the
+    // thing a user cannot discover by turning it.
+    'tip.toneHole': {
+        en: { t: 'Tone Hole Cutoff',
+              b: 'Opens and closes four tone holes together, and it reads backwards from a filter cutoff: at 200 Hz all four are open and the tone is dark and vented, at 8000 Hz all four are closed and the bore rings its full length. They open one at a time as the value falls, so the change arrives in steps rather than smoothly. 200 to 8000 Hz.' },
+        fr: { t: 'Coupure des trous de jeu',
+              b: 'Ouvre et ferme quatre trous de jeu ensemble, et la lecture est inversée par rapport à une fréquence de coupure : à 200 Hz les quatre sont ouverts et le son est sombre et aéré, à 8000 Hz les quatre sont fermés et la perce sonne sur toute sa longueur. Ils s’ouvrent un par un à mesure que la valeur descend : le changement arrive par paliers. 200 à 8000 Hz.',
+              reviewed: false },
+    },
+
+    'tip.register': {
+        en: { t: 'Register Hole',
+              b: 'Opens the register hole — the small vent a player uses to overblow into the upper register. It is a narrower junction than the tone holes, so it thins the fundamental and lets the second mode take over rather than simply darkening the tone. 0 to 1.' },
+        fr: { t: 'Trou de registre',
+              b: 'Ouvre le trou de registre — le petit évent dont le joueur se sert pour passer dans le registre supérieur. C’est une jonction plus étroite que les trous de jeu : il affaiblit le fondamental et laisse le deuxième mode prendre le dessus au lieu de simplement assombrir le son. 0 à 1.',
+              reviewed: false },
+    },
+
+    // Both option tokens verbatim English in both languages: the `<select>`
+    // beside this tooltip is filled from the host's choice properties.
+    'tip.boreProfile': {
+        en: { t: 'Bore Profile',
+              b: 'Chooses how the cone’s taper is spread along the tube: Simple gives one even taper, and Multi-segment narrows the first half and flares the second, which is closer to a real saxophone and puts weight in the low register. Neither does anything while Bore Character is fully cylindrical. Simple or Multi-segment.' },
+        fr: { t: 'Profil de perce',
+              b: 'Choisit la répartition de la conicité le long du tube : « Simple » donne une conicité uniforme, « Multi-segment » resserre la première moitié et évase la seconde, ce qui se rapproche d’un vrai saxophone et donne du corps au grave. Ni l’un ni l’autre n’agit tant que Caractère de la perce est entièrement cylindrique. « Simple » ou « Multi-segment ».',
+              reviewed: false },
+    },
+
+    // ── Reed ────────────────────────────────────────────────────────────────
+    'tip.opening': {
+        en: { t: 'Reed Opening',
+              b: 'How far the reed sits off the lay when nothing is blowing, from 0.1 mm to 1.5 mm. A wide opening gives a large dynamic range but needs more breath to close; a narrow one speaks at a whisper and saturates early. 0 to 1.' },
+        fr: { t: 'Ouverture de l’anche',
+              b: 'L’écart entre l’anche et la table quand rien ne souffle, de 0,1 mm à 1,5 mm. Une grande ouverture donne une large dynamique mais demande plus de souffle pour se fermer ; une petite ouverture parle dans un murmure et sature tôt. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.mass': {
+        en: { t: 'Reed Mass',
+              b: 'Mass per unit area of the reed. A light reed follows the air almost instantly and gives a clean, fast onset; a heavy one lags, rings at its own resonance and puts a thicker, slower transient in front of every note. 0 to 1.' },
+        fr: { t: 'Masse de l’anche',
+              b: 'La masse par unité de surface de l’anche. Une anche légère suit l’air presque instantanément et donne une attaque nette et rapide ; une anche lourde traîne, résonne sur sa propre fréquence et place un transitoire plus épais et plus lent devant chaque note. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.damping': {
+        en: { t: 'Reed Damping',
+              b: 'How quickly the reed’s own vibration dies away. Low values let the reed ring alongside the bore and add a reedy edge; high values mute it, and the tone is then driven almost entirely by the tube. 0 to 1.' },
+        fr: { t: 'Amortissement de l’anche',
+              b: 'La vitesse à laquelle la vibration propre de l’anche s’éteint. Des valeurs basses laissent l’anche résonner à côté de la perce et ajoutent un mordant d’anche ; des valeurs hautes l’étouffent, et le son est alors porté presque entièrement par le tube. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.doubleReed': {
+        en: { t: 'Double Reed',
+              b: 'Moves the reed from single to double, and it is the Y axis of the pad above. A double reed confines the airflow between two blades instead of a blade and a lay, which narrows the opening and brings in the buzz and the compressed dynamics of the oboe and duduk family. 0 to 1.' },
+        fr: { t: 'Anche double',
+              b: 'Fait passer l’anche de simple à double, et c’est l’axe Y du pavé ci-dessus. Une anche double confine le flux entre deux lames au lieu d’une lame et d’une table : l’ouverture se resserre, et l’on gagne le grain et la dynamique resserrée de la famille du hautbois et du duduk. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.mouthpiece': {
+        en: { t: 'Mouthpiece Volume',
+              b: 'Volume of the mouthpiece chamber, from nothing to about 15 cm³. At zero the chamber is bypassed entirely and the reed drives the bore directly; opening it adds a Helmholtz compliance that flattens the upper register and rounds the attack. 0 to 1.' },
+        fr: { t: 'Volume du bec',
+              b: 'Le volume de la chambre du bec, de rien à environ 15 cm³. À zéro la chambre est court-circuitée et l’anche attaque la perce directement ; en l’ouvrant, on ajoute une compliance de Helmholtz qui baisse le registre aigu et arrondit l’attaque. 0 à 1.',
+              reviewed: false },
+    },
+
+    // ── Expression ──────────────────────────────────────────────────────────
+    'tip.vibDepth': {
+        en: { t: 'Vibrato Depth',
+              b: 'Depth of the vibrato. Where it lands is set by Vibrato Source, so one depth can read as a pitch bend, a swell or a throat flutter — and at zero the modulator is skipped entirely rather than running silently. 0 to 1.' },
+        fr: { t: 'Profondeur du vibrato',
+              b: 'La profondeur du vibrato. Sa cible est fixée par Source du vibrato : à profondeur égale, il peut s’entendre comme une inflexion de hauteur, un gonflement ou un battement de gorge — et à zéro le modulateur est court-circuité plutôt que de tourner en silence. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.vibRate': {
+        en: { t: 'Vibrato Rate',
+              b: 'Speed of the vibrato. Wind players sit between about 4 and 7 Hz — below that it reads as a swell, above it as a bleat — and the phase restarts at every note, so repeated notes vibrate identically. 1.0 to 10.0 Hz.' },
+        fr: { t: 'Vitesse du vibrato',
+              b: 'La vitesse du vibrato. Les vents se tiennent entre 4 et 7 Hz environ — plus lent, cela s’entend comme un gonflement, plus rapide comme un chevrotement — et la phase repart à chaque note, si bien que des notes répétées vibrent à l’identique. 1,0 à 10,0 Hz.',
+              reviewed: false },
+    },
+
+    // Arm 1 again: all three option tokens verbatim English inside the French.
+    'tip.vibratoSource': {
+        en: { t: 'Vibrato Source',
+              b: 'Chooses what the vibrato modulates. Lip moves the embouchure and reads as a vibrato of pitch and colour; Breath moves the mouth pressure and reads as a swell; Throat modulates the bore itself and gives a shallower, more internal flutter. Lip, Breath or Throat.' },
+        fr: { t: 'Source du vibrato',
+              b: 'Choisit ce que module le vibrato. « Lip » agit sur l’embouchure et s’entend comme un vibrato de hauteur et de couleur ; « Breath » agit sur la pression de bouche et s’entend comme un gonflement ; « Throat » module la perce elle-même et donne un battement plus discret et plus interne. « Lip », « Breath » ou « Throat ».',
+              reviewed: false },
+    },
+
+    'tip.growl': {
+        en: { t: 'Growl Amount',
+              b: 'Adds the growl a player gets by humming into the instrument: a fixed 120 Hz modulation of the mouth pressure, up to 30% deep. The rate does not follow the note, so the growl beats against the played pitch instead of tracking it. 0 to 1.' },
+        fr: { t: 'Quantité de growl',
+              b: 'Ajoute le growl qu’un joueur obtient en chantant dans l’instrument : une modulation fixe de la pression de bouche à 120 Hz, jusqu’à 30 % de profondeur. La vitesse ne suit pas la note : le growl bat contre la hauteur jouée au lieu de la suivre. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.flutter': {
+        en: { t: 'Flutter Tongue',
+              b: 'Flutter tongue — the rolled tongue against the reed, built here from a 25 Hz half-wave that digs into the mouth pressure by up to 40%. It only ever takes pressure away and never adds any, so raising it lowers the average level as well as roughening the tone. 0 to 1.' },
+        fr: { t: 'Flatterzunge',
+              b: 'Le flatterzunge — la langue roulée contre l’anche, réalisé ici par une demi-onde à 25 Hz qui creuse la pression de bouche jusqu’à 40 %. Elle ne fait que retirer de la pression, jamais en ajouter : en montant, on baisse aussi le niveau moyen en plus de rendre le son plus rugueux. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.subtone': {
+        en: { t: 'Subtone',
+              b: 'The breathy subtone a player gets by damping the reed with the lip and blowing softly. It does three things at once — adds air noise, tightens the embouchure and takes up to 30% off the mouth pressure — so the note goes quieter as well as breathier. 0 to 1.' },
+        fr: { t: 'Subtone',
+              b: 'Le subtone soufflé qu’un joueur obtient en amortissant l’anche avec la lèvre et en soufflant doucement. Il fait trois choses à la fois — il ajoute du bruit d’air, resserre l’embouchure et retire jusqu’à 30 % de la pression de bouche — la note devient donc à la fois plus douce et plus soufflée. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.chiff': {
+        en: { t: 'Attack Chiff',
+              b: 'The pressure overshoot at the start of a note — the chiff a wind instrument makes before the tone settles. It is scaled by velocity as well as by this control, up to 30% above the held pressure, so at a soft velocity it barely appears however high this is set. 0 to 1.' },
+        fr: { t: 'Bruit d’attaque',
+              b: 'Le dépassement de pression au début de la note — le bruit d’attaque qu’un instrument à vent produit avant que le son s’installe. Il est pondéré par la vélocité autant que par ce réglage, jusqu’à 30 % au-dessus de la pression tenue, si bien qu’à faible vélocité il s’entend à peine quel que soit le réglage. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.airNoise': {
+        en: { t: 'Air Noise',
+              b: 'Breath noise mixed in at the reed. It is scaled by the airflow and by the mouth pressure rather than sitting there as a fixed layer, so it swells with the dynamics and disappears when the note is not sounding. 0 to 1.' },
+        fr: { t: 'Bruit d’air',
+              b: 'Le bruit de souffle mêlé au niveau de l’anche. Il est pondéré par le débit d’air et par la pression de bouche plutôt que d’être une couche fixe : il enfle avec la nuance et disparaît quand la note ne sonne pas. 0 à 1.',
+              reviewed: false },
+    },
+
+    // ── Sound Design ────────────────────────────────────────────────────────
+    'tip.infSustain': {
+        en: { t: 'Infinite Sustain',
+              b: 'Removes the bore’s losses: the bell stops radiating and reflects everything back, and the wall losses fall away to nothing. At 1 the tube is lossless and rings on indefinitely after the breath stops, instead of decaying. 0 to 1.' },
+        fr: { t: 'Tenue infinie',
+              b: 'Supprime les pertes de la perce : le pavillon cesse de rayonner et renvoie tout, et les pertes aux parois tombent à zéro. À 1, le tube est sans pertes et continue de sonner indéfiniment après l’arrêt du souffle au lieu de s’éteindre. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.revBore': {
+        en: { t: 'Reverse Bore',
+              b: 'Runs the bore’s taper backwards, so the tube narrows toward the bell instead of flaring — nothing is built this way, and the result sits somewhere between a pinched hichiriki and no acoustic parallel at all. It does nothing while Bore Character is fully cylindrical, because a cylinder has no taper to reverse. 0 to 1.' },
+        fr: { t: 'Perce inversée',
+              b: 'Inverse la conicité de la perce : le tube se resserre vers le pavillon au lieu de s’évaser — rien ne se fabrique ainsi, et le résultat tient du hichiriki pincé et de rien de connu. Le réglage ne fait rien tant que Caractère de la perce est entièrement cylindrique, puisqu’un cylindre n’a pas de conicité à inverser. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.feedback': {
+        en: { t: 'Feedback Path',
+              b: 'Cross-couples the two bores: the reed hears a blend of its own tube and the drone tube instead of its own alone, up to half and half. It has no effect unless Dual Bore is on, and high settings lock the two tubes together so the drone pulls the played pitch. 0 to 1.' },
+        fr: { t: 'Chemin de réinjection',
+              b: 'Couple les deux perces : l’anche entend un mélange de son propre tube et du tube de bourdon au lieu du sien seul, jusqu’à moitié-moitié. Le réglage reste sans effet si Double perce n’est pas activée, et en position haute les deux tubes se verrouillent, si bien que le bourdon tire la hauteur jouée. 0 à 1.',
+              reviewed: false },
+    },
+
+    // The readout beside this knob renders ` ct`; the body spells the unit out,
+    // which is what a tooltip is for. The dump's label is `cents`.
+    'tip.dronePitch': {
+        en: { t: 'Drone Pitch',
+              b: 'Tunes the second bore against the played note, in cents: 0 is a unison, ±1200 is an octave and ±2400 is two. It has no effect unless Dual Bore is on. −2400 to +2400 cents.' },
+        fr: { t: 'Hauteur du bourdon',
+              b: 'Accorde la seconde perce par rapport à la note jouée, en cents : 0 pour l’unisson, ±1200 pour l’octave et ±2400 pour deux octaves. Le réglage reste sans effet si Double perce n’est pas activée. −2400 à +2400 cents.',
+              reviewed: false },
+    },
+
+    // The one AudioParameterBool. Off / On are its option strings and are kept
+    // verbatim in the French for the same reason as the Choice tokens.
+    'tip.dualBore': {
+        en: { t: 'Dual Bore',
+              b: 'Runs a second waveguide in parallel with the first, tuned by Drone Pitch — the arghul and launeddas drone. It doubles the bore cost of every voice, and it is what both Drone Pitch and Feedback Path are waiting on before either of them does anything. Off or On.' },
+        fr: { t: 'Double perce',
+              b: 'Fait tourner une seconde perce en parallèle de la première, accordée par Hauteur du bourdon — le bourdon de l’arghul et des launeddas. Elle double le coût de perce de chaque voix, et c’est elle que Hauteur du bourdon et Chemin de réinjection attendent tous deux pour agir. « Off » ou « On ».',
+              reviewed: false },
+    },
+
+    // ── Voice ───────────────────────────────────────────────────────────────
+    'tip.maxVoices': {
+        en: { t: 'Max Voices',
+              b: 'Ceiling on how many notes can sound at once, and it only applies while Polyphony Mode is Polyphonic — in Monophonic the instrument plays one note whatever this says. Each voice is a full waveguide, so the CPU cost rises with it. 1 to 16 voices.' },
+        fr: { t: 'Voix maximales',
+              b: 'Le plafond du nombre de notes simultanées, et il ne s’applique que si Mode de polyphonie est sur « Polyphonic » — en « Monophonic », l’instrument ne joue qu’une note quel que soit ce réglage. Chaque voix est un guide d’onde complet : le coût processeur monte avec elle. 1 à 16 voix.',
+              reviewed: false },
+    },
+
+    'tip.polyMode': {
+        en: { t: 'Polyphony Mode',
+              b: 'Monophonic plays one note at a time, which is what a real reed instrument does and what the legato and voice-stealing behaviour is written for. Polyphonic lets notes overlap, up to the Max Voices ceiling and at the matching cost in CPU. Monophonic or Polyphonic.' },
+        fr: { t: 'Mode de polyphonie',
+              b: '« Monophonic » ne joue qu’une note à la fois, ce que fait un vrai instrument à anche et ce pour quoi le legato et le vol de voix sont écrits. « Polyphonic » laisse les notes se superposer, jusqu’au plafond de Voix maximales et pour le coût processeur correspondant. « Monophonic » ou « Polyphonic ».',
+              reviewed: false },
+    },
+
+    // The latency clause is measured, not hedged: setLatencySamples() is called
+    // once in prepareToPlay() from the DEFAULT 2x oversampler
+    // (PluginProcessor.cpp:392-394) and is never re-reported when this control
+    // changes. Reported as a defect and not fixed here — it is an audio-timing
+    // change, not an i18n one — but a tip that omitted it would be misleading
+    // about the one thing a user cannot hear.
+    'tip.oversampling': {
+        en: { t: 'Oversampling',
+              b: 'Internal sample-rate multiplier for the reed and the bore, which are nonlinear and would alias without it. 4x is cleaner on high notes and at extreme reed settings and costs roughly twice the CPU; the latency the plugin reports to the host is fixed at the 2x figure and does not follow this control. 2x or 4x.' },
+        fr: { t: 'Suréchantillonnage',
+              b: 'Le multiplicateur de fréquence d’échantillonnage interne de l’anche et de la perce, qui sont non linéaires et créeraient du repliement sans lui. « 4x » est plus propre dans l’aigu et sur les réglages d’anche extrêmes, pour environ deux fois le coût processeur ; la latence annoncée à l’hôte reste celle de « 2x » et ne suit pas ce réglage. « 2x » ou « 4x ».',
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // describes ONLY what this popover actually holds. O-Reed has no hover-help
+    // on/off toggle — not in C++, not in localStorage — and O-Tapestop's wording
+    // promises one, so it is not copied. This body is byte-equal to O-Bassoon's
+    // because the popover is byte-equal to O-Bassoon's: one row, one selector.
+    'tip.gearBtn': {
+        en: { t: 'Settings',
+              b: 'Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help change with it, and the choice is kept with the session, so a project reopens in the language it was saved in.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
+              reviewed: false },
+    },
+
+    // The last sentence lists this page's THREE standing English regions, each
+    // of which is an I18N_EXEMPT entry below with its reason: the option words
+    // inside the six dropdowns (D-01 arm 1), the fifteen XY-pad instrument
+    // markers, and the whole Tuning tab (shared module). A user who switches to
+    // French and then meets one of them deserves to have been told, rather than
+    // reading it as a bug.
+    'tip.langSelect': {
+        en: { t: 'Language',
+              b: 'The language of the captions on this page and of this hover help. English and French are available. Value readouts, the option words inside the dropdowns and the fifteen instrument markers on the pad stay in English in both languages, and so does the Tuning tab — its panel comes from a shared module that is not part of this plugin.' },
+        fr: { t: 'Langue',
+              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées, les intitulés d’options des menus déroulants et les quinze repères d’instruments du pavé restent en anglais dans les deux langues, tout comme l’onglet Accord : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -558,25 +1020,127 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper].
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-plus, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() resolves each selector with document.querySelector, walks
+// closest(wrapper) when a third element is given, and writes data-tip-title and
+// data-tip onto the result in the current language. It rewrites both on every
+// language change. THAT IS ALL THE CANON DOES: the thing that reads those two
+// attributes and paints a surface is per-plugin code, and before v1.3.0 this
+// page had no #tooltip element, no .tooltip rule and no hover handler at all.
+// Authoring the table above without it would have shipped 35 INVISIBLE STRINGS
+// past three green gates — check-i18n only counts bindings, check-ui-labels has
+// no tooltip awareness whatsoever, and boot-all-uis counts aria-label and title
+// and never data-tip. The renderer therefore lands in index.html in the SAME
+// commit as this table, and tests/ui_tip_render_check.js is the gate that can
+// actually see a rendered tip.
+//
+// ── "BIND TO THE IDS THE UI ALREADY USES" IS HALF FALSE HERE ────────────────
+//
+// T17 says that; the M1 pilots found it wrong on five plugins out of five, for
+// a different reason each time, and the brief's own conclusion is that the
+// SELECTOR half and the TARGET half fail independently. On O-Reed they fail on
+// opposite sides of the same page:
+//
+//   SELECTOR half, FALSE for 27 of 35. None of the 27 knobs carries an id —
+//   they are `.knob-control[data-param="..."]`, which is what the controller
+//   itself queries (index.html:1273). The 8 non-knob anchors ARE ids.
+//
+//   TARGET half, FALSE for 6 of 35, and TRUE for the 27 knobs. Unlike O-Comp
+//   and O-Tremolo, `.knob-control` IS the hover cell here — a 68px flex column
+//   holding the 50px SVG, the caption and the readout — so a wrapper argument
+//   on a knob would be a no-op dressed as a decision. The five `<select>`
+//   elements are the opposite case: a bare 26px control with its caption in a
+//   sibling `<div class="dropdown-label">`, so each walks up to its own
+//   `.dropdown-control` and the caption becomes part of the hover area.
+//
+// ── THE CHROME IS BOUND BARE AND HALF-WRAPPED, WHICH IS DELIBERATE ──────────
+//
+// O-Comp's carried trap: bind the chrome BARE wherever the gear and the
+// selector share an ancestor, or hovering #lang-select resolves to the gear's
+// tip. Here `.settings-cluster` contains BOTH the gear button and the popover,
+// so #gear-btn is bound BARE — a wrapper walk to `.settings-cluster` would make
+// every hover anywhere in the open popover show the gear's tip.
+//
+// #lang-select walks to `.settings-row` instead, which is the `<label>` INSIDE
+// the popover holding the caption and the select and NOT the gear. It is one
+// node, it cannot reach the gear, and it makes the word "Language" part of the
+// selector's own hover area. Checked both ways: `.settings-row` matches exactly
+// one node on this page and `closest()` from #lang-select reaches it.
+//
+// #dualBore-toggle is bound bare for the same reason `.knob-control` is: the
+// id is already on the wrapper that holds the track and the caption.
+//
+// The popover ships `hidden`, so #lang-select has no box until the gear is
+// pressed. querySelector still finds it, so the binding resolves at load; the
+// render gate opens the popover before hovering it.
+//
+// Order matches the page's reading order — the XY dropdown, then the six
+// sections top to bottom, then the header cluster — so a reviewer walking this
+// list walks the UI.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    // XY pad info panel
+    ['#instrumentPreset',                             'tip.instrumentPreset', '.dropdown-control'],
+
+    // Primary Controls
+    ['.knob-control[data-param="breathPressure"]',    'tip.breath'],
+    ['.knob-control[data-param="embouchure"]',        'tip.embouchure'],
+    ['.knob-control[data-param="reedHardness"]',      'tip.reedHard'],
+    ['.knob-control[data-param="outputGain"]',        'tip.output'],
+
+    // Bore & Resonance
+    ['.knob-control[data-param="boreCharacter"]',     'tip.character'],
+    ['.knob-control[data-param="boreDiameter"]',      'tip.diameter'],
+    ['.knob-control[data-param="bellSize"]',          'tip.bellSize'],
+    ['.knob-control[data-param="boreLength"]',        'tip.length'],
+    ['.knob-control[data-param="toneHoleCutoff"]',    'tip.toneHole'],
+    ['.knob-control[data-param="registerHole"]',      'tip.register'],
+    ['#boreProfile',                                  'tip.boreProfile',      '.dropdown-control'],
+
+    // Reed
+    ['.knob-control[data-param="reedOpening"]',       'tip.opening'],
+    ['.knob-control[data-param="reedMass"]',          'tip.mass'],
+    ['.knob-control[data-param="reedDamping"]',       'tip.damping'],
+    ['.knob-control[data-param="doubleReed"]',        'tip.doubleReed'],
+    ['.knob-control[data-param="mouthpieceVol"]',     'tip.mouthpiece'],
+
+    // Expression
+    ['.knob-control[data-param="vibratoDepth"]',      'tip.vibDepth'],
+    ['.knob-control[data-param="vibratoRate"]',       'tip.vibRate'],
+    ['.knob-control[data-param="growlAmount"]',       'tip.growl'],
+    ['.knob-control[data-param="flutterTongue"]',     'tip.flutter'],
+    ['.knob-control[data-param="subtone"]',           'tip.subtone'],
+    ['.knob-control[data-param="attackChiff"]',       'tip.chiff'],
+    ['.knob-control[data-param="airNoise"]',          'tip.airNoise'],
+    ['#vibratoSource',                                'tip.vibratoSource',    '.dropdown-control'],
+
+    // Sound Design
+    ['.knob-control[data-param="infiniteSustain"]',   'tip.infSustain'],
+    ['.knob-control[data-param="reverseBore"]',       'tip.revBore'],
+    ['.knob-control[data-param="feedbackPath"]',      'tip.feedback'],
+    ['.knob-control[data-param="dronePitch"]',        'tip.dronePitch'],
+    ['#dualBore-toggle',                              'tip.dualBore'],
+
+    // Voice
+    ['.knob-control[data-param="maxVoices"]',         'tip.maxVoices'],
+    ['#polyMode',                                     'tip.polyMode',         '.dropdown-control'],
+    ['#oversampling',                                 'tip.oversampling',     '.dropdown-control'],
+
+    // Header cluster
+    ['#gear-btn',                                     'tip.gearBtn'],
+    ['#lang-select',                                  'tip.langSelect',       '.settings-row'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to every other copy and Stage M can
-// add bodies to I18N without touching this file's shape.
+// LIVE as of v1.3.0: applyI18n() calls it once per TIP_BINDINGS entry, 35 times
+// per language switch. Its shape is unchanged from v1.2.0 — it was exported
+// verbatim while the loop was empty precisely so that adding bodies here would
+// not need it edited, and it did not.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }

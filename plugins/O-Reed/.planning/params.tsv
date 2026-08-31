@@ -1,0 +1,39 @@
+# plugin	O-Reed
+# params	35
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+breathPressure	Breath Pressure		2147483647	0.00	1.00	0.500000	0.50	automatable
+embouchure	Embouchure		2147483647	0.00	1.00	0.400000	0.40	automatable
+reedHardness	Reed Hardness		2147483647	0.00	1.00	0.500000	0.50	automatable
+boreCharacter	Bore Character		2147483647	0.00	1.00	0.000000	0.00	automatable
+instrumentPreset	Instrument Preset		21	Bb Clarinet	Impossible Bore	0.000000	Bb Clarinet	automatable,discrete
+reedOpening	Reed Opening		2147483647	0.00	1.00	0.400000	0.40	automatable
+bellSize	Bell Size		2147483647	0.00	1.00	0.500000	0.50	automatable
+airNoise	Air Noise		2147483647	0.00	1.00	0.150000	0.15	automatable
+doubleReed	Double Reed		2147483647	0.00	1.00	0.000000	0.00	automatable
+boreDiameter	Bore Diameter		2147483647	0.00	1.00	0.500000	0.50	automatable
+reedMass	Reed Mass		2147483647	0.00	1.00	0.300000	0.30	automatable
+reedDamping	Reed Damping		2147483647	0.00	1.00	0.500000	0.50	automatable
+mouthpieceVol	Mouthpiece Volume		2147483647	0.00	1.00	0.000000	0.00	automatable
+toneHoleCutoff	Tone Hole Cutoff	Hz	2147483647	200	8000	1.000000	8000	automatable
+registerHole	Register Hole		2147483647	0.00	1.00	0.000000	0.00	automatable
+boreLength	Bore Length		2147483647	0.00	1.00	0.500000	0.50	automatable
+boreProfile	Bore Profile		2	Simple	Multi-segment	0.000000	Simple	automatable,discrete
+vibratoDepth	Vibrato Depth		2147483647	0.00	1.00	0.000000	0.00	automatable
+vibratoRate	Vibrato Rate	Hz	2147483647	1.0	10.0	0.444444	5.0	automatable
+vibratoSource	Vibrato Source		3	Lip	Throat	0.000000	Lip	automatable,discrete
+growlAmount	Growl Amount		2147483647	0.00	1.00	0.000000	0.00	automatable
+flutterTongue	Flutter Tongue		2147483647	0.00	1.00	0.000000	0.00	automatable
+subtone	Subtone		2147483647	0.00	1.00	0.000000	0.00	automatable
+attackChiff	Attack Chiff		2147483647	0.00	1.00	0.300000	0.30	automatable
+infiniteSustain	Infinite Sustain		2147483647	0.00	1.00	0.000000	0.00	automatable
+reverseBore	Reverse Bore		2147483647	0.00	1.00	0.000000	0.00	automatable
+dualBore	Dual Bore		2	Off	On	0.000000	Off	automatable,discrete,boolean
+dronePitch	Drone Pitch	cents	2147483647	-2400	2400	0.500000	0	automatable
+feedbackPath	Feedback Path		2147483647	0.00	1.00	0.000000	0.00	automatable
+referencePitch	Reference Pitch	Hz	2147483647	220.0	880.0	0.333333	440.0	automatable
+tuningSystem	Tuning System		3	Scala/TUN	12-TET	1.000000	12-TET	automatable,discrete
+polyMode	Polyphony Mode		2	Monophonic	Polyphonic	0.000000	Monophonic	automatable,discrete
+maxVoices	Max Voices		16	1	16	0.466667	8	automatable
+oversampling	Oversampling		2	2x	4x	0.000000	2x	automatable,discrete
+outputGain	Output Gain	dB	2147483647	-60.0	12.0	0.833333	0.0	automatable
