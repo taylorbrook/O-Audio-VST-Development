@@ -2,6 +2,62 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.27.0] - 2026-08-31
+
+### Added — Hover-help, in both languages (Stage M batch M3)
+
+Every control on the page now has a tooltip: a title and two or three sentences saying what the control does, when to reach for it, and the range it covers. 57 entries, English and French, `reviewed: false` on every French one.
+
+**The copy alone would have been invisible, and three green gates would have said so.** Canon v2's `applyI18n()` writes `data-tip-title` and `data-tip` **attributes** onto the anchors named in `TIP_BINDINGS` and stops there. Before v1.27.0 this page had no `#tooltip` node, no `.tooltip` rule and no hover handler, so nothing read those attributes. `check-i18n` counts bindings; `check-ui-labels` has no tooltip awareness whatsoever; `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. So a renderer ships with the copy, and `tests/ui_tip_render_check.js` — the first runnable gate this plugin has ever had — is what can see the result.
+
+- **`Source/ui/public/js/i18n.js`** — 57 `tip.*` entries and a 57-row `TIP_BINDINGS`. The five `I18N` entries inherited from v1.26.0 (`canvas.lyrics`, `canvas.plosive`, `canvas.fricative`, `canvas.mixed`, `js.savePresetAs`) are canvas prose and a `prompt` caption, not tooltips; they keep `b: ''`, were not bound and were not deleted.
+- **`Source/ui/public/js/main.js`** — `setupTooltips()`, ported from `plugins/O-simpleFM/Source/ui/public/js/app.js:384-462` and styled in this page's own parchment system. Delegated on `document` (no anchor carries `data-tip` until `applyI18n()` has run), bubbling events only, `createElement` + `textContent` never `innerHTML`, flip-then-clamp on all four edges, `pointer-events: none`, hidden at rest, Escape and `pointerdown` hide it, and the focus arm latched to the keyboard. Called after `initI18n()` inside the same `try`/`catch`.
+- **`Source/ui/public/index.html`** — the `.tooltip` rule and one `#tooltip` surface.
+- **`plugins/O-Formant/tests/ui_tip_render_check.js` (new)** — 1360 assertions, 0 failures.
+- **`plugins/O-Formant/.planning/params.tsv` (new)** plus the `ouaricon_add_param_dump()` block in `CMakeLists.txt` and the `#if JUCE_WEB_BROWSER` include guard in `PluginProcessor.cpp`. The param-dump console target builds with `JUCE_WEB_BROWSER=0` and no editor sources, so a top-of-file `#include "PluginEditor.h"` would not link. Under a normal build `JUCE_WEB_BROWSER=1` and behaviour is byte-identical to v1.26.0.
+
+**64 parameters, 57 controls, 55 parameter tips.** Two controls carry two parameters each — the vowel pad is `vowelX` + `vowelY`, the consonant pad is `consonantTone` (Place) + `sibilance` (Manner) — so one tip on each names both of its axes. Plus two chrome tips (`#gear-btn`, `#lang-select`) makes 57.
+
+**Titles are the parameter's full name, not the page's caption.** Every caption here that differs from its parameter name differs by truncation — `Voice Q` for Voice Quality, `Atk` for Cons Attack, `Pre-dly` for Reverb Pre-delay — and a truncation is not a disagreement. A 260 px tooltip is where the full name belongs, and it is also the name the host automation lane shows.
+
+**Ranges come from the page's own formatter,** `updateKnobVisual()` at `js/main.js:887-911`, which prints `formatValue(getScaledValue())` and appends `props.label` **only when the parameter declares one**. 22 of the 64 parameters declare a unit; the other 42 render a bare number, so those bodies state a bare numeric range. No unit was invented for them.
+
+**French bodies take French convention** — decimal comma, U+2212 for the minus. The readouts keep their point and their English unit; D-03 exempts the readout NODE and that has not moved. `AudioParameterChoice` option words stay English inside a French body (`Cascade` / `Parallel` / `Hybrid`, `Normal` / `PingPong`) because the control itself keeps them, and a French body naming an option the selector does not offer would be a tip that lies.
+
+### Fixed — the language preference never reached C++ at all (v1.26.0 defect)
+
+`js/main.js` imported four **named** bindings from `./juce/index.js` and no namespace, while the canon block reaches the language pair as `Juce.getNativeFunction`. `Juce` was therefore never bound in that module, `initI18n()`'s first statement threw `ReferenceError: Juce is not defined`, and its own `try`/`catch` degraded the throw to the `Language preference not available, session-only` console **warning** — which no gate fails on, because `boot-all-uis` fails on `console.error`. So since v1.26.0 the UI language was never read from C++ when the editor opened and never written back when the selector changed, on a plugin whose entire C++ half (`PluginEditor.cpp:167-181`, `PluginProcessor`'s `uiLanguage` atomic, the `isVoid()` restore) was correct and complete. One added `import * as Juce from './juce/index.js';` fixes it. `pattern_webview_native_fn_bridge_gap`.
+
+Pinned as assertion `[0b]` of the new render gate, on the WARNING TEXT rather than on the presence of the import line: a static grep for `import * as Juce` would stay green if the canon were ever re-spelled.
+
+### Found and NOT fixed
+
+- **Three knobs on the page are wired to relays that do not exist.** `js/main.js:288-290` calls `getSliderState('consonantAttackSlider')`, `('consonantHoldSlider')` and `('consonantDecaySlider')`, and `PluginEditor.cpp` creates no such `WebSliderRelay` — it declares 54 relays and the page asks for 57 names. The three parameters themselves are live: they are declared, read by `FormantVoice.cpp:64-66` and set by all 16 consonant presets. What is dead is the page's control over them — turning `Atk`, `Hold` or `Decay` in the consonant envelope column moves nothing, and their readouts never receive a real value. The tooltip bodies describe what the parameters DO, because that is true of the parameters and of every preset that sets them; the broken bridge is a C++ change (three relays plus their `withOptionsFrom` and `withOptionsFrom`-adjacent attachments) and belongs to a decision, not to a tooltip release. `pattern_webview_native_fn_bridge_gap` again, in the other direction.
+- **Seven parameters have no control on this page at all**, verified against the served root, the vendored tuning panel and the panel's native-function names: `consonantVOT`, `sourceFilterCoupling`, `tuning_masterTune`, `tuning_tuningMode`, `tuning_octaveStretch`, `tuning_pitchBendRange`, `tuning_temperamentPreset`. All seven are automatable and host-reachable. No control was added to satisfy the tip count; the absence is pinned as assertion `[0e]` of the render gate.
+- **The tuning panel's A4 REF and Stretch knobs bypass their parameters.** They call the `setMasterTune` / `setOctaveStretch` native functions (`PluginEditor.cpp:327-345`), which write the `TuningEngine` directly and never touch `tuning_masterTune` or `tuning_octaveStretch`. `getStateInformation()` saves the engine's intervals, scale name, tonic and built-in preset but **not** its master tune or octave stretch, and `setStateInformation()` then pushes the (never-updated, still-default) parameters into the engine at `PluginProcessor.cpp:986-987`. A session saved with A4 at 442 Hz reopens at 440. Host-visible either way it is fixed, so it needs a decision.
+- **No tip is bound into the tuning panel.** `js/tuning-panel.js` is lazy-`import()`ed on the first click of the Tuning tab (`index.html:1424`), so it is absent from the DOM when `applyI18n()` runs and any selector into it would resolve to `null` and warn on every load — O-Reed's `referencePitch` trap. The panel was not force-mounted to satisfy a count.
+- **`serve-ui.js` seeds the generic stub by parameter ID, and this page asks for relay names.** `scripts/serve-ui.js:280-323` keys `stubSeed().sliders` on `params.tsv`'s `id` column, while the page calls `getSliderState('<id>Slider')`. Nothing matches, so `built.seedFrom` reports `param-dump (64 rows)` while `window.__stubReport.rangesFrom` reports `neutral-defaults` and every readout renders 0.50 in the harness. Harmless for this stage — the render gate proves layout and text, never a value — but the two fields disagreeing is the tell, and `scripts/` is the orchestrator's.
+
+### Testing
+
+`check-i18n --strict-v2` green (57 tips bound, canon v2, 182/182 French entries unreviewed). `check-ui-labels` green and **byte-identical** to v1.26.0 — measured by swapping the three edited files for their `HEAD` copies, re-running, and diffing; `moved=0` both ways, and the `[8b]` decoration count stayed at 61, which is how a correctly hidden surface stays out of the sweep. `boot-all-uis` 43/43 clean, native `title=` 0. `ui_tip_render_check` 1360/1360.
+
+Five negative controls, each run and each reported:
+
+| Control | Result |
+|---|---|
+| Focus latch removed, blur kept | `[7]` FAILS — the gear tip covers the settings popover by **7114 px²** |
+| Focus latch removed, blur also removed | `[7]` still FAILS, 7114 px² — so on this page the blur is an accident of section order, kept because it is one edit from load-bearing |
+| Latch kept, blur removed | PASSES 1360 — the fourth cell of the 2×2 |
+| One binding's wrapper broken | exactly ONE failure, `[1]`; `[2]`, `[3]` and `[4]` all pass at that anchor in both languages, because `applyI18n` falls back `closest(w) \|\| el` |
+| Post-flip clamp changed to the conditional form | `[6b]` FAILS at top **−367.61** — 368 px off the page — while all 171 shipped `[4]` assertions stay green |
+
+The negative-control plant was **searched for, not guessed**. On this 800×600 frame with a 260 px cap, a habitual 40× plant (640 chars) renders 248 px tall, fits, and reports nothing; break-even is between 1600 and 1920 characters. The shipped plant is 4800 chars and 1572 px tall, and the assertion under it confirms the overflow rather than assuming it.
+
+Deleting only `if (lastInputWasPointer) return;` leaves `grep -c lastInputWasPointer` at 3 rather than 0, so a static check for the latch would have stayed green through the whole failing run.
+
+**Not verified:** no DAW test — `auval` and headless Chromium only, never a real `WKWebView`. The Standalone `.app` is stale (`build-and-install.sh` builds VST3 + AU). Windows/WebView2 font metrics remain hardware-blocked, and tooltips are new surface for that: French wraps taller inside a fixed `max-width`, so a wider face shows there first.
+
 ## [1.26.0] - 2026-08-30
 
 ### Added — The PAGE speaks French (Stage K batch K4, canon v2)

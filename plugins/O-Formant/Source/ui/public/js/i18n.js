@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Formant on-page copy, English + French (v1.26.0, canon v2)
+// i18n.js — O-Formant on-page copy, English + French (v1.27.0, canon v2)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -36,11 +36,16 @@
 // index.html / main.js / tuning-panel.js carried through v1.25.4, taken from
 // scripts/i18n-extract.js's inventory rather than re-typed.
 //
-// ── WHY I18N CARRIES ONLY EMPTY BODIES ─────────────────────────────────────
-// This plugin has NO hover-help copy: TIP_BINDINGS is [] and Stage K does not
-// author tooltip prose (that is Stage M). check-i18n assertion 2 accepts zero
-// tips only while no I18N entry carries a non-empty body, so every entry below
-// is `b: ''`.
+// ── WHY FIVE I18N ENTRIES CARRY AN EMPTY BODY ──────────────────────────────
+// v1.27.0 adds hover-help: the 57 `tip.*` entries below carry a real body and
+// are bound in TIP_BINDINGS. The FIVE entries inherited from v1.26.0 —
+// canvas.lyrics, canvas.plosive, canvas.fricative, canvas.mixed and
+// js.savePresetAs — are NOT tooltips and keep `b: ''`. They were not given
+// bodies, were not bound and were not deleted, per the Stage K batch K4
+// decision. Note the gate consequence of the change: while no body existed
+// anywhere, check-i18n assertion 2 accepted `TIP_BINDINGS: []`; the first
+// authored body makes bindings MANDATORY, and a bodied entry nothing binds
+// fails as ORPHANED.
 //
 // I18N is used here for the strings that are NOT written into a DOM element:
 // canvas ctx.fillText prose and one window.prompt caption. Those are read
@@ -94,6 +99,594 @@ export const I18N = Object.freeze({
     'js.savePresetAs': {
         en: { t: 'Save preset as:', b: '' },
         fr: { t: 'Enregistrer le préréglage sous :', b: '', reviewed: false },
+    },
+
+    // ── HOVER-HELP (v1.27.0, Stage M batch M3) ──────────────────────────────
+    //
+    // 55 parameter tips + 2 chrome tips = 57, one per CONTROL on this page.
+    // Two of the controls carry two parameters each — the vowel pad is vowelX
+    // and vowelY, the consonant pad is consonantTone (Place) and sibilance
+    // (Manner) — so 57 parameters reach 55 tips. Seven of the plugin's 64
+    // parameters have no control at all and are listed in the v1.27.0
+    // CHANGELOG entry; a tip with nothing to bind to is an ORPHAN and fails
+    // check-i18n assertion 2, so none was authored.
+    //
+    // TITLES ARE THE DUMP'S `name` COLUMN, VERBATIM. Every caption on this page
+    // that differs from its parameter's name differs by TRUNCATION — "Voice Q"
+    // for Voice Quality, "Atk" for Cons Attack, "Pre-dly" for Reverb Pre-delay
+    // — and a truncation is not a disagreement (M2 finding 9). A 260 px tooltip
+    // is exactly where the full name belongs, and the full name is also what
+    // the host automation lane shows.
+    //
+    // RANGES COME FROM THE PAGE'S OWN FORMATTER, which is updateKnobVisual() at
+    // js/main.js:887-911: it prints formatValue(getScaledValue()) and appends
+    // `props.label` ONLY when the parameter declares one. 22 of the 64
+    // parameters declare a unit; the other 42 render a BARE NUMBER, so their
+    // bodies state a bare numeric range. No unit is invented for them.
+    //
+    // FRENCH BODIES TAKE FRENCH CONVENTION — decimal comma, U+2212 for the
+    // minus. The READOUTS keep their point and their English unit: D-03 exempts
+    // the readout NODE and that has not moved. A tooltip body is prose.
+    //
+    // AudioParameterChoice OPTION WORDS STAY ENGLISH INSIDE A FRENCH BODY —
+    // Cascade / Parallel / Hybrid, Normal / PingPong — because the control
+    // itself keeps them (D-01 arm 1, and they are I18N_EXEMPT below). A French
+    // body naming a French option the selector does not offer would be a tip
+    // that lies. The sentences AROUND them are French.
+
+    // ── Vowel Morph pad (vowelX + vowelY) ───────────────────────────────────
+    'tip.vowelPad': {
+        en: { t: 'Vowel Morph',
+              b: 'Drag the cursor to morph continuously between the vowels laid out on the pad; '
+               + 'left to right is Vowel X and bottom to top is Vowel Y. The IPA glyphs mark where '
+               + 'each cardinal vowel sits and the F1..F5 markers track the formants. '
+               + 'Both axes run 0 to 1.' },
+        fr: { t: 'Morphose vocalique',
+              b: 'Faites glisser le curseur pour passer continûment d’une voyelle à l’autre sur la '
+               + 'pastille ; de gauche à droite c’est Vowel X, de bas en haut Vowel Y. Les glyphes '
+               + 'API marquent la place de chaque voyelle cardinale et les repères F1..F5 suivent '
+               + 'les formants. Les deux axes vont de 0 à 1.', reviewed: false },
+    },
+    'tip.vowelFocus': {
+        en: { t: 'Vowel Focus',
+              b: 'Sets how sharply the pad snaps to the nearest cardinal vowel. Low values blend '
+               + 'the surrounding vowels smoothly, high values pull the sound onto whichever vowel '
+               + 'the cursor is closest to. Range 1 to 6.' },
+        fr: { t: 'Focale vocalique',
+              b: 'Règle la netteté avec laquelle la pastille se cale sur la voyelle cardinale la '
+               + 'plus proche. Les valeurs basses fondent les voyelles voisines, les valeurs hautes '
+               + 'tirent le son vers celle dont le curseur est le plus près. Plage 1 à 6.',
+              reviewed: false },
+    },
+
+    // ── Glottal source ──────────────────────────────────────────────────────
+    'tip.glottalRd': {
+        en: { t: 'Voice Quality',
+              b: 'Sets the Rd shape of the Liljencrants-Fant glottal pulse, from a tense, pressed '
+               + 'voice at the low end to a relaxed, breathy one at the high end. Reach for it '
+               + 'first when a voice sounds too hard or too soft. Range 0.30 to 2.70.' },
+        fr: { t: 'Qualité vocale',
+              b: 'Règle la forme Rd de l’impulsion glottique de Liljencrants-Fant, d’une voix '
+               + 'tendue et pressée en bas à une voix détendue et soufflée en haut. C’est le '
+               + 'premier réglage à toucher quand une voix sonne trop dure ou trop molle. '
+               + 'Plage 0,30 à 2,70.', reviewed: false },
+    },
+    'tip.breathiness': {
+        en: { t: 'Breathiness',
+              b: 'Mixes aspiration noise into the glottal source, the turbulence of air passing an '
+               + 'incompletely closed glottis. A little widens the formant bandwidths and softens '
+               + 'the tone; a lot turns the voice to a whisper. Range 0 to 1.' },
+        fr: { t: 'Souffle',
+              b: 'Mélange un bruit d’aspiration à la source glottique, la turbulence de l’air '
+               + 'traversant une glotte incomplètement fermée. Un peu élargit la bande passante '
+               + 'des formants et adoucit le timbre ; beaucoup transforme la voix en chuchotement. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+    'tip.vibratoRate': {
+        en: { t: 'Vibrato Rate',
+              b: 'Speed of the pitch vibrato. Around 5 to 7 Hz is the classical singing range; '
+               + 'slower reads as a wobble and faster as a tremble. Range 0.5 to 12 Hz.' },
+        fr: { t: 'Vitesse du vibrato',
+              b: 'Vitesse du vibrato de hauteur. La plage du chant classique se situe entre 5 et '
+               + '7 Hz ; plus lent s’entend comme une oscillation, plus rapide comme un '
+               + 'tremblement. Plage 0,5 à 12 Hz.', reviewed: false },
+    },
+    'tip.vibratoDepth': {
+        en: { t: 'Vibrato Depth',
+              b: 'How far the vibrato swings the pitch, in cents either side of the note. Operatic '
+               + 'vibrato sits near 50 cents; 15 is a light shimmer. Range 0 to 100 cents.' },
+        fr: { t: 'Ampleur du vibrato',
+              b: 'Amplitude du balancement de hauteur, en cents de part et d’autre de la note. Le '
+               + 'vibrato d’opéra tourne autour de 50 cents ; 15 donne un léger frémissement. '
+               + 'Plage 0 à 100 cents.', reviewed: false },
+    },
+    'tip.vibratoDelay': {
+        en: { t: 'Vibrato Delay',
+              b: 'How long a note is held before the vibrato fades in. Singers start a note straight '
+               + 'and add vibrato as it sustains, so a delay makes short notes read as speech rather '
+               + 'than song. Range 0 to 2000 ms.' },
+        fr: { t: 'Retard du vibrato',
+              b: 'Durée pendant laquelle la note est tenue avant l’entrée progressive du vibrato. '
+               + 'Les chanteurs attaquent droit et ajoutent le vibrato sur la tenue ; un retard fait '
+               + 'donc lire les notes brèves comme de la parole plutôt que du chant. '
+               + 'Plage 0 à 2000 ms.', reviewed: false },
+    },
+    'tip.jitter': {
+        en: { t: 'Jitter',
+              b: 'Cycle-to-cycle random variation in the glottal period. A small amount is what keeps '
+               + 'a synthetic voice from sounding like a buzzer; too much reads as a rough or creaky '
+               + 'voice. Range 0 to 1.' },
+        fr: { t: 'Jitter',
+              b: 'Variation aléatoire de la période glottique d’un cycle à l’autre. Une petite dose '
+               + 'empêche une voix de synthèse de sonner comme un vibreur ; trop donne une voix '
+               + 'rauque ou craquée. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.shimmer': {
+        en: { t: 'Shimmer',
+              b: 'Cycle-to-cycle random variation in the glottal amplitude, the loudness counterpart '
+               + 'of Jitter. Raise it alongside Jitter for an older or unsteady voice. '
+               + 'Range 0 to 1.' },
+        fr: { t: 'Shimmer',
+              b: 'Variation aléatoire de l’amplitude glottique d’un cycle à l’autre, l’équivalent en '
+               + 'intensité du Jitter. À monter avec le Jitter pour une voix âgée ou mal assurée. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+    'tip.rdModDepth': {
+        en: { t: 'Rd Mod Depth',
+              b: 'How much pitch, velocity and MPE pressure push the Voice Quality Rd around while a '
+               + 'note plays. At zero the voice keeps one fixed quality; higher values make loud, high '
+               + 'notes press and quiet ones relax. Range 0 to 1.' },
+        fr: { t: 'Mod Rd',
+              b: 'Degré auquel la hauteur, la vélocité et la pression MPE font varier le Rd de la '
+               + 'Qualité vocale pendant la note. À zéro la voix garde une qualité fixe ; plus haut, '
+               + 'les notes fortes et aiguës se pressent et les notes douces se détendent. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+    'tip.spectralTilt': {
+        en: { t: 'Spectral Tilt',
+              b: 'Tilts the overall spectrum of the source, darkening it below zero and brightening it '
+               + 'above. Use it to place the voice in a mix without touching the formants. '
+               + 'Range −12 to +12 dB.' },
+        fr: { t: 'Pente spectrale',
+              b: 'Incline le spectre général de la source : plus sombre en dessous de zéro, plus clair '
+               + 'au-dessus. Sert à placer la voix dans un mixage sans toucher aux formants. '
+               + 'Plage −12 à +12 dB.', reviewed: false },
+    },
+
+    // ── Consonant ───────────────────────────────────────────────────────────
+    'tip.consonantPad': {
+        en: { t: 'Consonant Place and Manner',
+              b: 'Drag to shape the consonant noise. Left to right sets Place, from labial through '
+               + 'alveolar and palatal to velar; bottom to top sets Manner, from plosive to '
+               + 'fricative. The corner readout shows the noise centre frequency and the manner it '
+               + 'lands in. Both axes run 0 to 1.' },
+        fr: { t: 'Lieu et mode de la consonne',
+              b: 'Faites glisser pour façonner le bruit de consonne. De gauche à droite le lieu '
+               + 'd’articulation, du labial à l’alvéolaire, au palatal puis au vélaire ; de bas en '
+               + 'haut le mode, de l’occlusive à la fricative. Le petit affichage d’angle donne la '
+               + 'fréquence centrale du bruit et le mode obtenu. Les deux axes vont de 0 à 1.',
+              reviewed: false },
+    },
+    'tip.consonantLevel': {
+        en: { t: 'Consonant Level',
+              b: 'Loudness of the consonant noise relative to the voiced sound. At zero the plugin '
+               + 'sings pure vowels. Range 0 to 2.' },
+        fr: { t: 'Niveau de consonne',
+              b: 'Intensité du bruit de consonne par rapport au son voisé. À zéro le plugiciel ne '
+               + 'chante que des voyelles. Plage 0 à 2.', reviewed: false },
+    },
+    'tip.consonantVoicing': {
+        en: { t: 'Voicing',
+              b: 'Blends the consonant between voiceless and voiced — the difference between an s and '
+               + 'a z, or a p and a b. Range 0 to 1.' },
+        fr: { t: 'Voisement',
+              b: 'Fait passer la consonne du non-voisé au voisé — la différence entre un s et un z, ou '
+               + 'entre un p et un b. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.autoConsonant': {
+        en: { t: 'Auto Consonant',
+              b: 'When on, every note-on fires a consonant before the vowel instead of waiting for one '
+               + 'to be triggered. Turn it on to play a whole consonant-and-vowel syllable from a '
+               + 'single key. Off or On.' },
+        fr: { t: 'Consonne auto',
+              b: 'Quand il est activé, chaque note déclenche une consonne avant la voyelle au lieu '
+               + 'd’attendre un déclenchement. À activer pour jouer une syllabe consonne-voyelle '
+               + 'complète depuis une seule touche. Arrêt ou Marche.', reviewed: false },
+    },
+    'tip.consonantAttack': {
+        en: { t: 'Cons Attack',
+              b: 'Rise time of the consonant noise envelope. Short values give a plosive click, longer '
+               + 'ones an approach that reads as a fricative. Range 1 to 100 ms.' },
+        fr: { t: 'Attaque de consonne',
+              b: 'Temps de montée de l’enveloppe du bruit de consonne. Les valeurs brèves donnent un '
+               + 'claquement occlusif, les plus longues une approche qui s’entend comme une '
+               + 'fricative. Plage 1 à 100 ms.', reviewed: false },
+    },
+    'tip.consonantHold': {
+        en: { t: 'Cons Hold',
+              b: 'How long the consonant noise stays at full level before it decays. Fricatives hold; '
+               + 'plosives barely do. Range 0 to 200 ms.' },
+        fr: { t: 'Tenue de consonne',
+              b: 'Durée pendant laquelle le bruit de consonne reste au niveau plein avant de '
+               + 'décroître. Les fricatives tiennent ; les occlusives à peine. Plage 0 à 200 ms.',
+              reviewed: false },
+    },
+    'tip.consonantDecay': {
+        en: { t: 'Cons Decay',
+              b: 'Fall time of the consonant noise envelope into the vowel that follows. '
+               + 'Range 5 to 200 ms.' },
+        fr: { t: 'Déclin de consonne',
+              b: 'Temps de descente de l’enveloppe du bruit de consonne vers la voyelle qui suit. '
+               + 'Plage 5 à 200 ms.', reviewed: false },
+    },
+    'tip.consonantTransition': {
+        en: { t: 'Transition',
+              b: 'How strongly the consonant pulls the second and third formants toward its own locus '
+               + 'as the vowel begins — the cue that tells a listener which consonant they heard. At '
+               + 'zero the formants jump straight to the vowel. Range 0 to 1.' },
+        fr: { t: 'Transition',
+              b: 'Force avec laquelle la consonne tire les deuxième et troisième formants vers son '
+               + 'propre locus au début de la voyelle — l’indice qui dit à l’auditeur quelle consonne '
+               + 'il a entendue. À zéro les formants sautent directement à la voyelle. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+
+    // ── Character ───────────────────────────────────────────────────────────
+    'tip.formantTopology': {
+        en: { t: 'Formant Topology',
+              b: 'Chooses how the five formant resonators are wired. Cascade is the Klatt series '
+               + 'chain and is the most natural for vowels, Parallel gives each formant its own gain '
+               + 'and suits noisier sounds, Hybrid runs both. Cascade, Parallel or Hybrid.' },
+        fr: { t: 'Topologie des formants',
+              b: 'Choisit le câblage des cinq résonateurs de formant. Cascade est la chaîne série de '
+               + 'Klatt, la plus naturelle pour les voyelles ; Parallel donne à chaque formant son '
+               + 'propre gain et convient aux sons plus bruités ; Hybrid combine les deux. Cascade, '
+               + 'Parallel ou Hybrid.', reviewed: false },
+    },
+    'tip.formantShift': {
+        en: { t: 'Formant Shift',
+              b: 'Moves every formant up or down together without changing the pitch. Down reads as a '
+               + 'larger body and a deeper throat, up as a smaller one. '
+               + 'Range −24 to +24 semitones.' },
+        fr: { t: 'Décalage des formants',
+              b: 'Déplace tous les formants ensemble vers le haut ou le bas sans toucher à la '
+               + 'hauteur. Vers le bas cela s’entend comme un corps plus grand et une gorge plus '
+               + 'profonde, vers le haut comme un corps plus petit. '
+               + 'Plage −24 à +24 demi-tons.', reviewed: false },
+    },
+    'tip.formantSpread': {
+        en: { t: 'Formant Spread',
+              b: 'Multiplies the spacing between the formants around the first one. Below 1 crowds '
+               + 'them together and thickens the vowel; above 1 opens them out. '
+               + 'Range 0.50 to 2.00.' },
+        fr: { t: 'Écart des formants',
+              b: 'Multiplie l’espacement entre les formants autour du premier. En dessous de 1 ils se '
+               + 'resserrent et la voyelle s’épaissit ; au-dessus de 1 ils s’écartent. '
+               + 'Plage 0,50 à 2,00.', reviewed: false },
+    },
+    'tip.pitchGlide': {
+        en: { t: 'Pitch Glide',
+              b: 'Time taken to slide from the previous note to the new one, the portamento of the '
+               + 'voice. At zero every note starts on pitch. Range 0 to 1000 ms.' },
+        fr: { t: 'Glissé de hauteur',
+              b: 'Temps mis pour glisser de la note précédente à la nouvelle, le portamento de la '
+               + 'voix. À zéro chaque note démarre juste. Plage 0 à 1000 ms.', reviewed: false },
+    },
+    'tip.transitionTime': {
+        en: { t: 'Transition Time',
+              b: 'How quickly the formant filters move when the vowel changes. Low values snap '
+               + 'between vowels, high values smear one into the next the way a real vocal tract '
+               + 'does. Range 0 to 1.' },
+        fr: { t: 'Temps de transition',
+              b: 'Rapidité avec laquelle les filtres de formant se déplacent au changement de '
+               + 'voyelle. Les valeurs basses passent d’un coup, les valeurs hautes fondent l’une '
+               + 'dans l’autre comme le fait un vrai conduit vocal. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.singersFormant': {
+        en: { t: 'Singer’s Formant',
+              b: 'Pulls the third, fourth and fifth formants into a cluster near 3 kHz and lifts it — '
+               + 'the resonance trained singers use to carry over an orchestra. Raise it when the '
+               + 'voice disappears in a dense mix. Range 0 to 1.' },
+        fr: { t: 'Formant du chanteur',
+              b: 'Rassemble les troisième, quatrième et cinquième formants en un amas autour de 3 kHz '
+               + 'et le rehausse — la résonance qui permet aux chanteurs formés de passer par-dessus '
+               + 'un orchestre. À monter quand la voix disparaît dans un mixage dense. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+    'tip.nasalCoupling': {
+        en: { t: 'Nasality',
+              b: 'Opens the velum, coupling the nasal cavity to the vocal tract and adding its '
+               + 'pole-zero pair. Needed for m, n and ng; a little on a vowel reads as a head cold. '
+               + 'Range 0 to 1.' },
+        fr: { t: 'Nasalité',
+              b: 'Ouvre le voile du palais, couplant la cavité nasale au conduit vocal et ajoutant sa '
+               + 'paire pôle-zéro. Indispensable pour m, n et ng ; un peu sur une voyelle s’entend '
+               + 'comme un rhume. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.nasalPlace': {
+        en: { t: 'Nasal Place',
+              b: 'Moves the nasal resonance along the tract, from m at the low end through n to ng at '
+               + 'the high end. Only audible while Nasality is above zero. Range 0 to 1.' },
+        fr: { t: 'Lieu nasal',
+              b: 'Déplace la résonance nasale le long du conduit, de m en bas à ng en haut en passant '
+               + 'par n. Audible seulement quand la Nasalité est au-dessus de zéro. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+
+    // ── Envelope and output ─────────────────────────────────────────────────
+    'tip.attack': {
+        en: { t: 'Attack',
+              b: 'Time the note takes to reach full level after a key is pressed. '
+               + 'Range 0.001 to 5 s.' },
+        fr: { t: 'Attaque',
+              b: 'Temps que met la note à atteindre son niveau plein après l’enfoncement d’une '
+               + 'touche. Plage 0,001 à 5 s.', reviewed: false },
+    },
+    'tip.decay': {
+        en: { t: 'Decay',
+              b: 'Time the note takes to fall from full level to the Sustain level. '
+               + 'Range 0.001 to 5 s.' },
+        fr: { t: 'Déclin',
+              b: 'Temps que met la note à redescendre du niveau plein au niveau de Maintien. '
+               + 'Plage 0,001 à 5 s.', reviewed: false },
+    },
+    'tip.sustain': {
+        en: { t: 'Sustain',
+              b: 'Level the note holds while the key stays down, as a fraction of full level. '
+               + 'Range 0 to 1.' },
+        fr: { t: 'Maintien',
+              b: 'Niveau que tient la note tant que la touche reste enfoncée, en fraction du niveau '
+               + 'plein. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.release': {
+        en: { t: 'Release',
+              b: 'Time the note takes to fade to silence after the key is let go. '
+               + 'Range 0.001 to 10 s.' },
+        fr: { t: 'Relâche',
+              b: 'Temps que met la note à s’éteindre après le relâchement de la touche. '
+               + 'Plage 0,001 à 10 s.', reviewed: false },
+    },
+    'tip.outputGain': {
+        en: { t: 'Output Gain',
+              b: 'Final level of the plugin, applied after the effects rack. '
+               + 'Range −60 to +12 dB.' },
+        fr: { t: 'Gain de sortie',
+              b: 'Niveau final du plugiciel, appliqué après le rack d’effets. '
+               + 'Plage −60 à +12 dB.', reviewed: false },
+    },
+    'tip.stereoWidth': {
+        en: { t: 'Stereo Width',
+              b: 'Spreads the voices across the stereo field by note number, low notes to the left and '
+               + 'high notes to the right. At zero every voice sits in the centre. Range 0 to 1.' },
+        fr: { t: 'Largeur stéréo',
+              b: 'Répartit les voix dans le champ stéréo selon le numéro de note, les graves à gauche '
+               + 'et les aigus à droite. À zéro toutes les voix sont au centre. Plage 0 à 1.',
+              reviewed: false },
+    },
+
+    // ── Effects: chorus ─────────────────────────────────────────────────────
+    'tip.chorusBypass': {
+        en: { t: 'Chorus Bypass',
+              b: 'Switches the chorus in and out of the signal path. The button reads On while the '
+               + 'chorus is running and Off while it is bypassed, so the caption and the parameter '
+               + 'name are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement du chorus',
+              b: 'Insère ou retire le chorus du trajet du signal. Le bouton affiche Marche quand le '
+               + 'chorus fonctionne et Arrêt quand il est contourné : la légende et le nom du '
+               + 'paramètre sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
+    },
+    'tip.chorusRate': {
+        en: { t: 'Chorus Rate',
+              b: 'Speed of the chorus delay modulation. Slow settings drift, fast ones warble. '
+               + 'Range 0.1 to 10 Hz.' },
+        fr: { t: 'Vitesse du chorus',
+              b: 'Vitesse de modulation du retard du chorus. Les réglages lents dérivent, les rapides '
+               + 'chevrotent. Plage 0,1 à 10 Hz.', reviewed: false },
+    },
+    'tip.chorusDepth': {
+        en: { t: 'Chorus Depth',
+              b: 'How far the chorus modulates its delay time, which is how much detuning you hear. '
+               + 'Range 0 to 1.' },
+        fr: { t: 'Profondeur du chorus',
+              b: 'Amplitude de la modulation du temps de retard, c’est-à-dire le désaccord que l’on '
+               + 'entend. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.chorusMix': {
+        en: { t: 'Chorus Mix',
+              b: 'Balance between the dry voice and the chorused copy. At zero the chorus is inaudible '
+               + 'even while it is running. Range 0 to 1.' },
+        fr: { t: 'Mix du chorus',
+              b: 'Équilibre entre la voix directe et la copie traitée par le chorus. À zéro le chorus '
+               + 'reste inaudible même en fonctionnement. Plage 0 à 1.', reviewed: false },
+    },
+
+    // ── Effects: delay ──────────────────────────────────────────────────────
+    'tip.delayBypass': {
+        en: { t: 'Delay Bypass',
+              b: 'Switches the delay in and out of the signal path. The button reads On while the '
+               + 'delay is running and Off while it is bypassed, so the caption and the parameter '
+               + 'name are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement du délai',
+              b: 'Insère ou retire le délai du trajet du signal. Le bouton affiche Marche quand le '
+               + 'délai fonctionne et Arrêt quand il est contourné : la légende et le nom du '
+               + 'paramètre sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
+    },
+    'tip.delayTime': {
+        en: { t: 'Delay Time',
+              b: 'Time between the voice and its first echo. Range 0.001 to 2 s.' },
+        fr: { t: 'Durée du délai',
+              b: 'Temps entre la voix et son premier écho. Plage 0,001 à 2 s.', reviewed: false },
+    },
+    'tip.delayFeedback': {
+        en: { t: 'Delay Feedback',
+              b: 'How much of each echo is fed back to make the next one, which sets how many repeats '
+               + 'you hear. The ceiling stops short of 1 so the line cannot run away. '
+               + 'Range 0 to 0.95.' },
+        fr: { t: 'Rétroaction du délai',
+              b: 'Part de chaque écho réinjectée pour produire le suivant, ce qui fixe le nombre de '
+               + 'répétitions entendues. Le plafond s’arrête avant 1 pour que la ligne ne s’emballe '
+               + 'pas. Plage 0 à 0,95.', reviewed: false },
+    },
+    'tip.delayMode': {
+        en: { t: 'Delay Mode',
+              b: 'Normal sends both channels through the same delay line. PingPong cross-feeds them so '
+               + 'the repeats alternate between left and right. Normal or PingPong.' },
+        fr: { t: 'Mode de délai',
+              b: 'Normal envoie les deux canaux dans la même ligne à retard. PingPong les croise pour '
+               + 'que les répétitions alternent entre la gauche et la droite. Normal ou PingPong.',
+              reviewed: false },
+    },
+    'tip.delayMix': {
+        en: { t: 'Delay Mix',
+              b: 'Balance between the dry voice and the delayed copy. At zero the delay is inaudible '
+               + 'even while it is running. Range 0 to 1.' },
+        fr: { t: 'Mix du délai',
+              b: 'Équilibre entre la voix directe et la copie retardée. À zéro le délai reste '
+               + 'inaudible même en fonctionnement. Plage 0 à 1.', reviewed: false },
+    },
+
+    // ── Effects: reverb ─────────────────────────────────────────────────────
+    'tip.reverbBypass': {
+        en: { t: 'Reverb Bypass',
+              b: 'Switches the reverb in and out of the signal path. The button reads On while the '
+               + 'reverb is running and Off while it is bypassed, so the caption and the parameter '
+               + 'name are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement de la réverb',
+              b: 'Insère ou retire la réverbération du trajet du signal. Le bouton affiche Marche '
+               + 'quand la réverb fonctionne et Arrêt quand elle est contournée : la légende et le '
+               + 'nom du paramètre sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
+    },
+    'tip.reverbSize': {
+        en: { t: 'Reverb Size',
+              b: 'Size of the simulated room, which sets how long the tail rings on. Range 0 to 1.' },
+        fr: { t: 'Taille de la réverb',
+              b: 'Taille de la salle simulée, ce qui fixe la longueur de la queue de réverbération. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+    'tip.reverbDamp': {
+        en: { t: 'Reverb Damping',
+              b: 'How fast the high frequencies are absorbed in the tail. Low values give a bright, '
+               + 'tiled room; high values a soft, curtained one. Range 0 to 1.' },
+        fr: { t: 'Amortissement de la réverb',
+              b: 'Rapidité d’absorption des aigus dans la queue. Les valeurs basses donnent une salle '
+               + 'claire et carrelée, les valeurs hautes une salle douce et tendue de rideaux. '
+               + 'Plage 0 à 1.', reviewed: false },
+    },
+    'tip.reverbPredelay': {
+        en: { t: 'Reverb Pre-delay',
+              b: 'Gap between the dry voice and the start of the reverb tail. A few tens of '
+               + 'milliseconds keeps the words intelligible inside a long reverb. '
+               + 'Range 0 to 200 ms.' },
+        fr: { t: 'Pré-délai de la réverb',
+              b: 'Intervalle entre la voix directe et le début de la queue de réverbération. Quelques '
+               + 'dizaines de millisecondes gardent les mots intelligibles dans une réverb longue. '
+               + 'Plage 0 à 200 ms.', reviewed: false },
+    },
+    'tip.reverbMod': {
+        en: { t: 'Reverb Modulation',
+              b: 'Modulates the comb delay lengths with a slow LFO bank so the tail cannot ring on '
+               + 'fixed resonances. A little removes the metallic colouration from a long tail. '
+               + 'Range 0 to 1.' },
+        fr: { t: 'Modulation de la réverb',
+              b: 'Module la longueur des lignes en peigne avec un banc d’OBF lents pour que la queue '
+               + 'ne s’installe pas sur des résonances fixes. Un peu suffit à retirer la coloration '
+               + 'métallique d’une queue longue. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.reverbShimmer': {
+        en: { t: 'Reverb Shimmer',
+              b: 'Feeds an octave-up copy of the tail back into the reverb, so it climbs as it decays. '
+               + 'Range 0 to 1.' },
+        fr: { t: 'Chatoiement de la réverb',
+              b: 'Réinjecte dans la réverb une copie de la queue transposée à l’octave supérieure, si '
+               + 'bien qu’elle monte en s’éteignant. Plage 0 à 1.', reviewed: false },
+    },
+    'tip.reverbMix': {
+        en: { t: 'Reverb Mix',
+              b: 'Balance between the dry voice and the reverb. At zero the reverb is inaudible even '
+               + 'while it is running. Range 0 to 1.' },
+        fr: { t: 'Mix de la réverb',
+              b: 'Équilibre entre la voix directe et la réverbération. À zéro la réverb reste '
+               + 'inaudible même en fonctionnement. Plage 0 à 1.', reviewed: false },
+    },
+
+    // ── Effects: EQ ─────────────────────────────────────────────────────────
+    'tip.eqBypass': {
+        en: { t: 'EQ Bypass',
+              b: 'Switches the equaliser in and out of the signal path. The button reads On while the '
+               + 'EQ is running and Off while it is bypassed, so the caption and the parameter name '
+               + 'are inverted on purpose. Off or On.' },
+        fr: { t: 'Contournement de l’EQ',
+              b: 'Insère ou retire l’égaliseur du trajet du signal. Le bouton affiche Marche quand '
+               + 'l’EQ fonctionne et Arrêt quand il est contourné : la légende et le nom du paramètre '
+               + 'sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
+    },
+    'tip.eqLowGain': {
+        en: { t: 'EQ Low Gain',
+              b: 'Cut or boost of the low shelf, hinged at 200 Hz. Range −12 to +12 dB.' },
+        fr: { t: 'Gain grave de l’EQ',
+              b: 'Atténuation ou accentuation du plateau grave, articulé à 200 Hz. '
+               + 'Plage −12 à +12 dB.', reviewed: false },
+    },
+    'tip.eqMidGain': {
+        en: { t: 'EQ Mid Gain',
+              b: 'Cut or boost of the mid peaking band, centred on EQ Mid Freq. '
+               + 'Range −12 to +12 dB.' },
+        fr: { t: 'Gain médium de l’EQ',
+              b: 'Atténuation ou accentuation de la cloche médium, centrée sur la Fréq. méd. de l’EQ. '
+               + 'Plage −12 à +12 dB.', reviewed: false },
+    },
+    'tip.eqMidFreq': {
+        en: { t: 'EQ Mid Freq',
+              b: 'Centre frequency of the mid peaking band. Most of the vowel character sits between '
+               + '500 and 3000 Hz. Range 200 to 8000 Hz.' },
+        fr: { t: 'Fréq. médium de l’EQ',
+              b: 'Fréquence centrale de la cloche médium. L’essentiel du caractère des voyelles se '
+               + 'situe entre 500 et 3000 Hz. Plage 200 à 8000 Hz.', reviewed: false },
+    },
+    'tip.eqHighGain': {
+        en: { t: 'EQ High Gain',
+              b: 'Cut or boost of the high shelf, hinged at 8 kHz. Range −12 to +12 dB.' },
+        fr: { t: 'Gain aigu de l’EQ',
+              b: 'Atténuation ou accentuation du plateau aigu, articulé à 8 kHz. '
+               + 'Plage −12 à +12 dB.', reviewed: false },
+    },
+
+    // ── Lyrics ──────────────────────────────────────────────────────────────
+    'tip.lyricsEnabled': {
+        en: { t: 'Lyrics Enabled',
+              b: 'Hands the vowel and consonant cursors to the lyrics engine, which steps through the '
+               + 'ARPABET phonemes typed above on every note. The two pads stop following the mouse '
+               + 'while it is on. Off or On.' },
+        fr: { t: 'Paroles activées',
+              b: 'Confie les curseurs de voyelle et de consonne au moteur de paroles, qui parcourt à '
+               + 'chaque note les phonèmes ARPABET saisis au-dessus. Les deux pastilles cessent de '
+               + 'suivre la souris tant qu’il est actif. Arrêt ou Marche.', reviewed: false },
+    },
+
+    // ── Chrome ──────────────────────────────────────────────────────────────
+    //
+    // The gear body describes ONLY what this popover actually contains. It
+    // opens BELOW the button (.settings-popover is top: 34px), and it holds the
+    // language selector and nothing else — there is no hover-help toggle on
+    // this plugin, so O-Tapestop's wording would be a tip that lies.
+    'tip.gear': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel just below this button. It holds the interface language '
+               + 'and nothing else.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages juste sous ce bouton. Il ne contient que la langue de '
+               + 'l’interface.', reviewed: false },
+    },
+    'tip.language': {
+        en: { t: 'Language',
+              b: 'Switches every label, heading, button caption and hover-help entry on the page '
+               + 'between English and French. Value readouts keep their English number format and '
+               + 'unit symbols. English or Français.' },
+        fr: { t: 'Langue',
+              b: 'Fait passer de l’anglais au français toutes les étiquettes, tous les titres, toutes '
+               + 'les légendes de bouton et toute l’aide contextuelle de la page. Les valeurs '
+               + 'affichées gardent leur format numérique et leurs unités en anglais. English ou '
+               + 'Français.', reviewed: false },
     },
 });
 
@@ -404,17 +997,147 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — empty by design
+// TIP_BINDINGS — 57 rows (v1.27.0)
 // ============================================================================
 //
-// O-Formant has NO hover-help copy. Stage K localizes a plugin's existing
-// visible text and does NOT author tooltip prose; that is Stage M. Nothing
-// here can regress a tooltip because there are none, and check-i18n
-// assertion 2 accepts zero bindings while no I18N entry carries a non-empty
-// body — which is why every I18N entry above is `b: ''`.
+// [selector, key] or [selector, key, wrapper]. applyI18n() calls
+// document.querySelector(selector), then closest(wrapper) when a wrapper is
+// declared, and writes data-tip-title / data-tip onto whatever it lands on.
+//
+// THE SELECTOR HALF AND THE TARGET HALF WERE CHECKED SEPARATELY, because they
+// fail independently — the naive reading of "bind to the ids the UI already
+// uses" has now been wrong on fifteen plugins for a different reason each time:
+//
+//   SELECTOR half — FALSE for 45 of 57. Not one knob on this page carries an
+//   id; they are `.knob-wrap[data-param="…"]`. The twelve id'd anchors are the
+//   two canvases, the two toggles, the topology segmented control, the
+//   delay-mode <select>, the four effect bypass buttons and the two chrome
+//   controls.
+//
+//   TARGET half — TRUE for 53 of 57, and for the O-Freeze reason: `.knob-wrap`
+//   is itself the flex COLUMN holding the dial (55 px, or 42 px in the
+//   consonant envelope), its caption and its readout, so the addressable node
+//   already IS the cell a user aims at and no closest() walk is needed. Four
+//   anchors declare a wrapper: the two XY pads, to pick up the 1 px border and
+//   — on the consonant pad — the absolutely-positioned Lab/Alv/Pal/Vél and
+//   Fric/Occl overlay that covers the canvas; and the two toggles, whose id is
+//   on the 42 x 22 px switch inside a 55 x 35 px cell that also holds its
+//   caption.
+//
+// closest('.toggle-wrap'), NOT querySelector('.toggle-wrap'): the class matches
+// TWICE on this page (autoConsonant on the synth tab, lyricsEnabled on the
+// lyrics tab), so a bare class query would be right only by document order
+// (M2 finding, from O-Tremolo's twice-matching .waveform-section).
+//
+// THE CHROME BINDS BARE. `.header` holds #gear-btn AND #settings-popover, so a
+// wrapper walk from #lang-select would resolve to the header and hand the
+// language selector the gear's own tip (M2 finding 7, from O-Comp).
+//
+// SEVEN PARAMETERS ARE NOT HERE because they have no control on this page:
+// consonantVOT, sourceFilterCoupling and the five tuning_* parameters. They are
+// host-reachable and page-unreachable; see the v1.27.0 CHANGELOG. A body with
+// nothing to bind to is an ORPHAN and fails check-i18n assertion 2, and adding
+// a control to satisfy a count is a feature change with a geometry cost.
+//
+// NOTHING IS BOUND INTO THE TUNING PANEL. js/tuning-panel.js is lazy-imported
+// on the first click of the Tuning tab (index.html:1424), so it is absent from
+// the DOM when applyI18n() runs and any selector into it would resolve to null
+// and warn `i18n: tip target not found` on every load — O-Reed's referencePitch
+// trap, and boot-all-uis prints that warning. Force-mounting the panel to
+// satisfy a count was not done.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    // ── Glottal source (9) ──
+    ['.knob-wrap[data-param="glottalRd"]', 'tip.glottalRd'],
+    ['.knob-wrap[data-param="breathiness"]', 'tip.breathiness'],
+    ['.knob-wrap[data-param="vibratoRate"]', 'tip.vibratoRate'],
+    ['.knob-wrap[data-param="vibratoDepth"]', 'tip.vibratoDepth'],
+    ['.knob-wrap[data-param="vibratoDelay"]', 'tip.vibratoDelay'],
+    ['.knob-wrap[data-param="jitter"]', 'tip.jitter'],
+    ['.knob-wrap[data-param="shimmer"]', 'tip.shimmer'],
+    ['.knob-wrap[data-param="rdModDepth"]', 'tip.rdModDepth'],
+    ['.knob-wrap[data-param="spectralTilt"]', 'tip.spectralTilt'],
+
+    // ── Consonant knobs (6) ──
+    ['.knob-wrap[data-param="consonantLevel"]', 'tip.consonantLevel'],
+    ['.knob-wrap[data-param="consonantVoicing"]', 'tip.consonantVoicing'],
+    ['.knob-wrap[data-param="consonantAttack"]', 'tip.consonantAttack'],
+    ['.knob-wrap[data-param="consonantHold"]', 'tip.consonantHold'],
+    ['.knob-wrap[data-param="consonantDecay"]', 'tip.consonantDecay'],
+    ['.knob-wrap[data-param="consonantTransition"]', 'tip.consonantTransition'],
+
+    // ── Character (8) ──
+    ['.knob-wrap[data-param="formantShift"]', 'tip.formantShift'],
+    ['.knob-wrap[data-param="formantSpread"]', 'tip.formantSpread'],
+    ['.knob-wrap[data-param="pitchGlide"]', 'tip.pitchGlide'],
+    ['.knob-wrap[data-param="transitionTime"]', 'tip.transitionTime'],
+    ['.knob-wrap[data-param="vowelFocus"]', 'tip.vowelFocus'],
+    ['.knob-wrap[data-param="singersFormant"]', 'tip.singersFormant'],
+    ['.knob-wrap[data-param="nasalCoupling"]', 'tip.nasalCoupling'],
+    ['.knob-wrap[data-param="nasalPlace"]', 'tip.nasalPlace'],
+
+    // ── Envelope and output (6) ──
+    ['.knob-wrap[data-param="attack"]', 'tip.attack'],
+    ['.knob-wrap[data-param="decay"]', 'tip.decay'],
+    ['.knob-wrap[data-param="sustain"]', 'tip.sustain'],
+    ['.knob-wrap[data-param="release"]', 'tip.release'],
+    ['.knob-wrap[data-param="outputGain"]', 'tip.outputGain'],
+    ['.knob-wrap[data-param="stereoWidth"]', 'tip.stereoWidth'],
+
+    // ── Effects: chorus (3) ──
+    ['.knob-wrap[data-param="chorusRate"]', 'tip.chorusRate'],
+    ['.knob-wrap[data-param="chorusDepth"]', 'tip.chorusDepth'],
+    ['.knob-wrap[data-param="chorusMix"]', 'tip.chorusMix'],
+
+    // ── Effects: delay (3) ──
+    ['.knob-wrap[data-param="delayTime"]', 'tip.delayTime'],
+    ['.knob-wrap[data-param="delayFeedback"]', 'tip.delayFeedback'],
+    ['.knob-wrap[data-param="delayMix"]', 'tip.delayMix'],
+
+    // ── Effects: reverb (6) ──
+    ['.knob-wrap[data-param="reverbSize"]', 'tip.reverbSize'],
+    ['.knob-wrap[data-param="reverbDamp"]', 'tip.reverbDamp'],
+    ['.knob-wrap[data-param="reverbPredelay"]', 'tip.reverbPredelay'],
+    ['.knob-wrap[data-param="reverbMod"]', 'tip.reverbMod'],
+    ['.knob-wrap[data-param="reverbShimmer"]', 'tip.reverbShimmer'],
+    ['.knob-wrap[data-param="reverbMix"]', 'tip.reverbMix'],
+
+    // ── Effects: EQ (4) ──
+    ['.knob-wrap[data-param="eqLowGain"]', 'tip.eqLowGain'],
+    ['.knob-wrap[data-param="eqMidGain"]', 'tip.eqMidGain'],
+    ['.knob-wrap[data-param="eqMidFreq"]', 'tip.eqMidFreq'],
+    ['.knob-wrap[data-param="eqHighGain"]', 'tip.eqHighGain'],
+
+    // ── The two XY pads — one control, TWO parameters each ──
+    // The vowel pad is vowelX + vowelY and the consonant pad is consonantTone
+    // (Place) + sibilance (Manner). One hover target cannot carry two tips, so
+    // each pad gets ONE tip naming both of its axes — the shape O-AnalogEQ used
+    // in M2 for its two concentric rings.
+    ['#xy-pad',               'tip.vowelPad',      '.xy-canvas-wrap'],
+    ['#consonant-xy-pad',     'tip.consonantPad',  '.consonant-xy-wrap'],
+
+    // ── Non-knob parameter controls ──
+    // #topology-control binds BARE. Its wrapper .segmented-wrap is 382 px wide
+    // against the control's own 157 px and the extra width is empty row, so a
+    // walk would arm a hover area the control does not occupy.
+    ['#topology-control',     'tip.formantTopology'],
+    ['#delayModeSelect',      'tip.delayMode'],
+    ['#autoConsonant-toggle', 'tip.autoConsonant', '.toggle-wrap'],
+    ['#lyricsEnabled-toggle', 'tip.lyricsEnabled', '.toggle-wrap'],
+
+    // ── Effect bypass buttons ──
+    // Bare: .fx-header holds the button AND the section title, so a walk would
+    // put the bypass tip across the whole header row.
+    ['#chorusBypassBtn',      'tip.chorusBypass'],
+    ['#delayBypassBtn',       'tip.delayBypass'],
+    ['#reverbBypassBtn',      'tip.reverbBypass'],
+    ['#eqBypassBtn',          'tip.eqBypass'],
+
+    // ── Chrome ──
+    ['#gear-btn',             'tip.gear'],
+    ['#lang-select',          'tip.language'],
+];
 
 export function tr(key, lang, vars) {
     const entry = I18N[key];
