@@ -2,6 +2,83 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.6.0] - 2026-08-30
+
+Hover-help, in both languages. Stage M batch M2 of the suite-wide i18n rollout.
+MINOR — a user-visible feature arrives. No param IDs/ranges/defaults changed and no DSP:
+the render harness renders the canonical preset bit-identical to the committed golden
+before and after.
+
+### Added
+
+- **Hover-help on 30 controls, English and French.** Every one of the 28 parameters that
+  has a control on the page, plus the gear and the language selector. Each entry is a
+  TITLE and a body of at most three sentences ending in the range and unit. All French is
+  a MACHINE DRAFT flagged `reviewed: false` — no native speaker has read it.
+- **A tooltip renderer, because the table alone shows nothing.** Canon v2's `applyI18n()`
+  writes `data-tip-title` and `data-tip` onto each bound anchor and stops there; the code
+  that reads those attributes and paints a surface is per-plugin and did not exist here.
+  Measured across all 22 bare plugins before this stage: `id="tooltip"` 0, `.tooltip {` 0,
+  `closest("[data-tip]")` 0. Ported from O-simpleFM's delegated, cursor-following family
+  (~80 lines) rather than O-Tapestop's measure-then-pin engine (~180), which exists to
+  serve a flip-above/below design with an arrow this page does not have.
+  - Delegated on `document`, not `querySelectorAll('[data-tip]')` at setup: no anchor
+    carries `data-tip` until `applyI18n()` has run, so a setup-time query binds nothing.
+  - Built with `createElement` + `textContent`, never `innerHTML` — localized copy must
+    not reach a markup path.
+  - Flip THEN clamp again, on both axes, 8 px margin. Measured over 60 hovers across both
+    languages on this 900 x 600 frame: 20 tips placed left of the cursor, 30 above it.
+  - **A last-input-device focus latch.** A mouse click on a `<button>` focuses it, so the
+    reference implementation's unconditional `focusin` rule reopens the tip `pointerdown`
+    just hid and parks it over whatever the click opened. `:focus-visible` is not the
+    discriminator — Chromium reports it false for a programmatic `.focus()` after a click.
+  - **A mid-drag guard.** A knob drag begins on `mousedown` and is tracked on `document`
+    mousemove, so a drag crossing into a neighbouring cell would otherwise open that
+    neighbour's tip mid-gesture. `pointerdown` alone cannot cover it: `pointerover`
+    arrives after it.
+  - Styled in this page's own vocabulary — `--brown-frame` on `--bg-paper` is `.preset-bar`
+    inverted, with `.settings-popover`'s 6 px radius and 1 px border, and `--green-accent`
+    on the title.
+- **`tests/ui_tip_render_check.js`** — 457 assertions, the gate that can see a rendered
+  tooltip, because no gate in this repo could. It drives the real page at the shipping
+  900 x 600, hovers a DESCENDANT of every anchor in both languages, byte-compares the
+  rendered title and body against the table, and measures all four edge clearances.
+  **Measured, not asserted: with `setupTooltips()` disabled, `check-i18n` and
+  `check-ui-labels` both print ALL CHECKS PASS while this gate fails 70.**
+- **`.planning/params.tsv`** — the runtime parameter inventory, from a walk of
+  `AudioProcessor::getParameters()` on a constructed processor. A regex over
+  `createParameterLayout()` is not authoritative: eight of this plugin's parameters come
+  from a factory lambda that CONCATENATES their IDs (`humanizeSpeed` + `Range`), which is
+  exactly the case static parsing cannot see. The `ouaricon_add_param_dump()` call joins
+  the render harness inside the existing `OUARICON_BUILD_TESTS` block rather than
+  declaring a second `option()`.
+
+### Changed
+
+- `PluginProcessor.cpp` no longer includes `PluginEditor.h` at the top of the translation
+  unit. The include moved behind `#if JUCE_WEB_BROWSER` directly above `createEditor()`,
+  with a `GenericAudioProcessorEditor` fallback, so the param-dump console target — which
+  builds this TU with `JUCE_WEB_BROWSER=0` and no editor sources — links. Under a normal
+  build `JUCE_WEB_BROWSER=1` and behaviour is byte-identical to v1.5.0. The render harness
+  also compiles with `JUCE_WEB_BROWSER=1` and is unaffected.
+
+### Findings, recorded and deliberately NOT fixed
+
+- **`tuningSystem` has no control anywhere in the WebView.** It is a real
+  `AudioParameterChoice` with three options, it is automatable and host-reachable, and
+  `PluginEditor.cpp:78` even builds a `WebComboBoxRelay` for it — but no `<select>` on the
+  page is bound to it, the page's own `bindComboBox()` helper is never called, and the
+  shared tuning panel does not carry one either. So 29 dumped parameters produce 28
+  controls and 28 parameter tips. Adding a selector is a feature change with a geometry
+  cost and a host-visible surface; authoring a body for it without a control would be an
+  ORPHAN that `check-i18n` assertion 2 fails by design.
+- **`tests/render-harness/CMakeLists.txt` still hardcodes `JucePlugin_VersionString="1.3.0"`
+  and `JucePlugin_VersionCode=0x10300`**, three minors stale. Reported in Stage K and still
+  a standing decision item; the harness is a console binary and nothing shipped reads it.
+- **The Tuning page is English in both languages.** It is the shared
+  `scala-tuning-engine` module consumed by reference, the same verdict Stage K recorded for
+  O-Wind. `tip.language`'s body says so rather than overpromising.
+
 ## [1.5.0] - 2026-08-29
 
 The page speaks French. Stage K batch K3 of the suite-wide i18n rollout, canon v2.

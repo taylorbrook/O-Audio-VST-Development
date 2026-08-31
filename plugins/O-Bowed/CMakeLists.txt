@@ -9,7 +9,7 @@ juce_add_plugin(O-Bowed
     PLUGIN_CODE OBwd
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bowed${OUARICON_DEV_SUFFIX}"
-    VERSION "1.5.0"
+    VERSION "1.6.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -124,4 +124,11 @@ target_compile_definitions(O-Bowed
 option(OUARICON_BUILD_TESTS "Build test harness binaries (e.g. O-Bowed-render-test)" OFF)
 if(OUARICON_BUILD_TESTS)
     add_subdirectory(tests/render-harness)
+
+    # Runtime parameter inventory (scripts/param-dump). A regex over
+    # createParameterLayout() is not authoritative: IDs can be concatenated and
+    # parameters can come from a factory lambda. Only a walk of
+    # AudioProcessor::getParameters() on a constructed processor sees the real set.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(O-Bowed ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 endif()
