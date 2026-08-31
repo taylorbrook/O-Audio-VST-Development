@@ -102,12 +102,15 @@
 //                uses one word for a push-button and a knob and this page has
 //                both; the readouts are under the six knobs only.
 //
-// KNOWN STALE, NOT FIXED HERE: the CSS comment at index.html:203-213 still
-// reasons about "Ouvrir (24.0) and Sauver (25.0)" and closes with "Ouvrir
-// clears by 6.0px, Sauver by 5.0px". Its CONCLUSION is unaffected — the button
-// is still floored at width: 32px with an 18 → 30 content box, and Enreg.
-// clears by 6.25px — but the string it names is gone. Stage N does not touch
-// CSS, so it is reported rather than edited.
+// THE DUPLICATE WIDTH TABLE IN index.html FOLLOWED, IN ITS OWN COMMIT. The CSS
+// comment above .preset-action-btn reasoned about "Ouvrir (24.0) and Sauver
+// (25.0)" and closed with "Ouvrir clears by 6.0px, Sauver by 5.0px". Its
+// CONCLUSION never depended on which French string won — the button is floored
+// at width: 32px with an 18 → 30 content box either way, and Enreg. clears by
+// 6.25px, MORE than the calque did — but it named a string that no longer
+// exists. Stage N changes no CSS, so it went out as a separate comment-only
+// docs commit rather than inside the French commit, following O-Chorus
+// (bba4626b) in this same batch.
 //
 // ── v1.7.0: HOVER-HELP ARRIVES, COPY AND RENDERER TOGETHER ──────────────────
 //
