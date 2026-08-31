@@ -18,7 +18,51 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-AnalogSaturation page copy, English + French (v1.3.0)
+// i18n.js — O-AnalogSaturation page copy, English + French (v1.3.1)
+//
+// ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en, against scripts/i18n-fr-glossary.js, and
+// — for every DSP claim — against PluginProcessor.cpp.
+// Changed: 5 of 15 entries, 16 individual changes (2 terminology, 8 typography,
+// 1 grammar, 5 meaning/idiom). sameAsEn: kept 0, translated 0 — no fr value on
+// this page equals its en. termNote exemptions: 0.
+// Left as drafted: the other 10 entries, all 9 LABELS among them.
+// reviewed: false throughout — no native speaker yet.
+//
+// The decisions the next reader needs:
+//
+//   "input drive" STAYS "gain d'entrée", not the glossary's 'drive' → saturation.
+//   On this page saturation is the WHOLE effect (the plugin is named for it and
+//   tip.model opens "Choisit le circuit de saturation"), so "la saturation
+//   d'entrée" would name the effect where the sentence means the input gain into
+//   it — and the code is literally an input multiply (drive = 1 + wetMix * RANGE,
+//   x = input * drive, processDiodeSample and its three siblings). No termNote:
+//   the lint's G1 runs on LABELS and tip TITLES only, and "drive" is neither here.
+//
+//   "clean" → "signal direct", not "signal propre". The glossary settles dry as
+//   'direct' and this IS the dry path — mixDryWet weights wet by intensity/100
+//   and dry by the complement (PluginProcessor.cpp:518-524).
+//
+//   "low-end weight / top-end sheen" → "dans le grave / dans l'aigu", not "en bas
+//   / en haut". Band names, not directions — the glossary's low/high rule. It
+//   also makes tip.model internally consistent: its MAGNETIC clause already said
+//   "dans le grave".
+//
+//   THREE CAPTIONS APPEAR IN TWO CASINGS ON THIS PAGE and each French follows its
+//   OWN English: LABELS carry INTENSITY / QUALITY / AUTOGAIN (all caps, accents
+//   ON the capitals — INTENSITÉ, QUALITÉ, GAIN AUTO) while the tip TITLES carry
+//   Intensity / Quality / Autogain (sentence case — Intensité, Qualité, Gain
+//   auto). .tip-title and .knob-label are both text-transform: uppercase, so the
+//   split is invisible on screen and visible to the lint and to the accessible
+//   name. Lint C1 is 0 either way; the table's casing is what was followed.
+//
+//   "2x" and "4x" kept as spelled in the English. A multiplier is not a unit;
+//   the lint's UNITS list does not carry it and French audio writes it the same.
+//
+// Typography: 8 U+00A0 inserted (5 before ';', 2 before ':', 1 before '%'), all
+// inside fr b: values — `grep -n $'\xc2\xa0' | grep -v "t: \|b: "` is empty and
+// re-importing both revisions reports 0 en entries changed, keys, TIP_BINDINGS
+// and I18N_EXEMPT byte-identical.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -108,7 +152,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Opens the panel holding the interface language. That is all it holds here — there is no hover-help switch and no other preference. The choice is saved with the session, so a project reopens in the language it was saved in.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau qui contient la langue de l’interface. C’est tout ce qu’il contient ici : ni interrupteur d’aide au survol, ni autre préférence. Le choix est enregistré avec la session, donc un projet se rouvre dans la langue où il a été enregistré.',
+              b: 'Ouvre le panneau qui contient la langue de l’interface. C’est tout ce qu’il contient ici : ni interrupteur d’aide au survol, ni autre préférence. Le choix est enregistré avec la session, donc un projet se rouvre dans la langue où il a été enregistré.',
               reviewed: false },
     },
 
@@ -135,7 +179,7 @@ export const I18N = Object.freeze({
         en: { t: 'Intensity',
               b: 'Sets the input drive into the selected model and, with it, how much of the saturated signal is mixed back over the clean one. Low values add a gentle harmonic warmth; high values round the peaks and thicken the tone. 0 to 100 %.' },
         fr: { t: 'Intensité',
-              b: 'Règle le gain d’entrée dans le modèle choisi et, du même geste, la proportion de signal saturé remélangée au signal propre. Les valeurs basses ajoutent une chaleur harmonique discrète ; les valeurs hautes arrondissent les crêtes et épaississent le timbre. 0 à 100 %.',
+              b: 'Règle le gain d’entrée dans le modèle choisi et, du même geste, la proportion de signal saturé remélangée au signal direct. Les valeurs basses ajoutent une chaleur harmonique discrète ; les valeurs hautes arrondissent les crêtes et épaississent le timbre. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -151,7 +195,7 @@ export const I18N = Object.freeze({
         en: { t: 'Model',
               b: 'Chooses the saturation circuit. MAGNETIC models tape hysteresis, with a low head bump and softened highs; TUBE clips asymmetrically for even harmonics and a presence lift; TRANSFORMER is a soft tanh curve with low-end weight and top-end sheen; DIODE clips symmetrically for a harder, odd-harmonic edge. Four settings: MAGNETIC, TUBE, TRANSFORMER, DIODE.' },
         fr: { t: 'Modèle',
-              b: 'Choisit le circuit de saturation. MAGNETIC modélise l’hystérésis de la bande, avec une bosse dans le grave et des aigus adoucis ; TUBE écrête de façon asymétrique, pour des harmoniques paires et un relief de présence ; TRANSFORMER est une courbe tanh douce, avec du poids en bas et de l’éclat en haut ; DIODE écrête symétriquement, pour un mordant d’harmoniques impaires. Quatre réglages : MAGNETIC, TUBE, TRANSFORMER, DIODE.',
+              b: 'Choisit le circuit de saturation. MAGNETIC modélise l’hystérésis de la bande, avec une bosse dans le grave et des aigus adoucis ; TUBE écrête de façon asymétrique, pour des harmoniques paires et un relèvement de présence ; TRANSFORMER est une courbe tanh douce, avec du poids dans le grave et de l’éclat dans l’aigu ; DIODE écrête symétriquement, pour un mordant plus dur, riche en harmoniques impaires. Quatre réglages : MAGNETIC, TUBE, TRANSFORMER, DIODE.',
               reviewed: false },
     },
 
@@ -165,7 +209,7 @@ export const I18N = Object.freeze({
         en: { t: 'Quality',
               b: 'Sets the internal oversampling that keeps the saturation from folding aliasing back down into the audible band. LOW runs at the host’s own rate and adds no latency; MID oversamples 2x and HIGH 4x, each reporting its filter latency to the host for compensation. LOW, MID or HIGH.' },
         fr: { t: 'Qualité',
-              b: 'Règle le suréchantillonnage interne qui empêche la saturation de replier du repliement dans la bande audible. LOW travaille à la fréquence de l’hôte et n’ajoute aucune latence ; MID suréchantillonne 2x et HIGH 4x, chacun signalant sa latence de filtre à l’hôte pour compensation. LOW, MID ou HIGH.',
+              b: 'Règle le suréchantillonnage interne qui empêche la saturation de rabattre du repliement de spectre dans la bande audible. LOW travaille à la fréquence d’échantillonnage de l’hôte et n’ajoute aucune latence ; MID suréchantillonne 2x et HIGH 4x, chacun signalant sa latence de filtre à l’hôte pour compensation. LOW, MID ou HIGH.',
               reviewed: false },
     },
 
@@ -178,7 +222,7 @@ export const I18N = Object.freeze({
         en: { t: 'Autogain',
               b: 'Matches the output level back to the input level, so a change of intensity or of model is judged on tone rather than on loudness. It follows the signal’s RMS on a smoothed ramp and is bounded to a factor of 0.1 to 10, so it lifts a quiet passage without running away. Off or On.' },
         fr: { t: 'Gain auto',
-              b: 'Ramène le niveau de sortie au niveau d’entrée, pour qu’un changement d’intensité ou de modèle se juge au timbre plutôt qu’au volume. Il suit la valeur efficace du signal sur une rampe lissée et reste borné à un facteur de 0,1 à 10, de sorte qu’un passage discret est relevé sans s’emballer. Désactivé ou activé.',
+              b: 'Ramène le niveau de sortie au niveau d’entrée, pour qu’un changement d’intensité ou de modèle se juge au timbre plutôt qu’au volume. Il suit la valeur efficace du signal sur une rampe lissée et reste borné à un facteur de 0,1 à 10, de sorte qu’il relève un passage de faible niveau sans s’emballer. Désactivé ou activé.',
               reviewed: false },
     },
 });

@@ -2,6 +2,25 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.3.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **5 of 15 French entries revised** against the suite glossary and lint — 16 individual
+  changes: 2 terminology, 8 typography, 1 grammar, 5 meaning and idiom. The visible ones:
+  the clean signal is now the *signal direct* rather than the *signal propre* (the suite's
+  settled word for dry); TRANSFORMER's weight and sheen sit *dans le grave* and *dans
+  l'aigu* rather than *en bas* and *en haut* (band names, not directions); QUALITY no
+  longer says the oversampling stops saturation *de replier du repliement* — it stops it
+  *de rabattre du repliement de spectre*; TUBE's presence lift became a *relèvement* rather
+  than a *relief*; DIODE's edge got its "harder" back; and AUTOGAIN's quiet passage is now
+  *un passage de faible niveau* that *il relève* — the old wording hung *sans s'emballer*
+  off the passage instead of off the compensation. Typography: no-break spaces before every
+  `;`, `:` and `%` in the French bodies, per the suite rule.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+
 ## [1.3.0] - 2026-08-30
 
 Hover-help, in both languages — and the renderer that makes it visible.
