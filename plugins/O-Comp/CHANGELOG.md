@@ -2,6 +2,38 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.7.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **18 French entries revised** against the suite glossary (`scripts/i18n-fr-glossary.js`)
+  and its lint, which went from 39 findings to 0 with `--strict` exiting 0. Eight are
+  terminology, eleven typography, one an agreement error and three a change of meaning.
+  The visible ones: the preset bar's **SAUVER → ENREG.** (Sauver is a calque; the
+  glossary's abbreviation measures 23.75px against the button's 30px content box, which
+  is *narrower* than the 25.00px the calque was chosen for), the knob captions
+  **RELÂCHE → RELÂCH.** and **GENOU → COUDE**, the gear's accessible name
+  **Paramètres → Réglages** — which also removes a contradiction with the gear's own
+  tooltip, that already said Réglages — and, throughout the hover-help, typographic
+  apostrophes for straight ones, no-break spaces before every colon and semicolon and
+  between every number and its unit, and a true minus sign in "−60 à 0 dB" and
+  "−12 à +24 dB". Three sentences said something the English did not and were corrected:
+  a transient is masculine in French, a release time does not pump (the compressor does),
+  and "boutons" alone does not say *knobs* on a page that also has buttons.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+
+### Not changed
+
+- **`reviewed: false` on all 34 French entries.** That flag records a *native speaker*
+  reading the copy, and this pass is a second machine reading against a glossary and a
+  lint. The `i18n.js` header records the pass; the flag still records the human, and
+  `node scripts/check-i18n.js` still prints the 34-entry worklist.
+- **No English copy, no keys, no bindings, no CSS.** The English strings are byte-identical
+  to v1.7.0, proven by importing both revisions and comparing every `en` value.
+
 ## [1.7.0] - 2026-08-30
 
 Hover-help, in both languages. Stage M batch M1 of the repo-wide i18n rollout.
