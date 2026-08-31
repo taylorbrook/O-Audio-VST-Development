@@ -69,3 +69,5 @@
 
 ## Last Updated
 2026-06-27 (O-simplePhysicalModelSynth Stage 3.3 — loop/flow SVG diagram + modal stems + tooltips)
+- O-Emulator: zero-hit bridge audits (grep for the raw backend global) are tripped by COMMENTS quoting it verbatim — O-Bitrot's inline comment contains the literal; reword audit-sensitive comments so authored files stay at 0 hits (the JUCE frontend library js/juce/index.js legitimately contains it and is exempt)
+- O-Emulator: when a plan says "WebBrowserComponent declared last", implement the proven Relays -> WebView -> Attachments order anyway (pattern #11 / O-Bitrot); a literally-last WebView is destroyed BEFORE the attachments and reintroduces the reload UAF
