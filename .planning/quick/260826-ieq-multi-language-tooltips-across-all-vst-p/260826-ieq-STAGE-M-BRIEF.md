@@ -752,3 +752,183 @@ section wins.
    literals stay at the call site where assertion 13 can read them), but it is
    recorded in commit `af3610dd` and in an `index.html` comment at the call site.
    Read the commit, not only the header.
+
+---
+
+# BATCH M2 — the eight cheapest of the remaining twelve
+
+Everything above still binds. This section carries M2's own measured numbers and
+the three places M2 diverges structurally from M1. Where it disagrees with the
+M1 tables above, THIS section wins for an M2 plugin.
+
+## Baseline, measured this session
+
+```
+node scripts/check-i18n.js 2>&1 | grep -cE '\[2\] 0 tip\(s\) bound'   →  12
+node scripts/check-i18n.js                                            →  ALL CHECKS PASS, 43 plugins
+```
+
+The twelve are O-AnalogEQ, O-Bells, O-Bowed, O-Detune, O-Formant, O-Freeze,
+O-GrainScatter, O-MicrotonalSampler, O-Prism, O-Reed, O-TextureForge, O-Wind.
+**M2 takes eight of them. After M2 the count must read 4** — O-Bells, O-Formant,
+O-Prism and O-Wind are M3.
+
+## THE PARAM DUMPS ARE WIRED AND RUN — by the orchestrator, this session
+
+Same contract as M1. In your plugin's working tree, **uncommitted**, and
+**yours to commit in your one plugin commit**:
+
+| Path | What it is |
+|---|---|
+| `plugins/<Name>/.planning/params.tsv` | your authoritative parameter inventory |
+| `plugins/<Name>/CMakeLists.txt` | the `option(OUARICON_BUILD_TESTS ...)` + `ouaricon_add_param_dump()` block |
+| `plugins/<Name>/Source/PluginProcessor.cpp` | the `#if JUCE_WEB_BROWSER` include guard + `GenericAudioProcessorEditor` fallback |
+
+Read the diff (`git diff -- plugins/<Name>`) before you commit it — you are
+signing it. **Both arms are already compile-verified**: the isolated configure
+built each plugin's own shared-code target (`JUCE_WEB_BROWSER=1`, editor TU
+compiled) *and* its `-param-dump` target (`JUCE_WEB_BROWSER=0`, editor TU
+excluded), 0 failures across all eight.
+
+The untracked `.planning/i18n-{index-draft.html,inventory.tsv,labels-skeleton.js}`
+beside `params.tsv` are `i18n-extract.js` scratch and are **not yours** — leave
+them uncommitted (carried from O-Emulator).
+
+### Divergence 1 — O-Bowed already declared `OUARICON_BUILD_TESTS`
+
+Its render harness owns the option. The param-dump `include(...)` +
+`ouaricon_add_param_dump()` were added **inside the existing block**, not as a
+second `option()` declaration. Seven plugins got the appended block; O-Bowed got
+an extended one.
+
+### Divergence 2 — O-TextureForge needed six guard sites, not one
+
+The M1 processor change was a two-line move. O-TextureForge's processor also
+calls the editor from four `dynamic_cast<TextureForgeEditor*>(getActiveEditor())`
+sites inside `setStateInformation()` and `loadCorpusFile()`, so the include stays
+at the top **behind `#if JUCE_WEB_BROWSER`** and each of the four call sites plus
+`createEditor()` carries the same guard (`+27 / -0`). Every guarded arm is the
+original code verbatim; the `#else` arms are `juce::ignoreUnused`. Under a normal
+build `JUCE_WEB_BROWSER=1` and behaviour is byte-identical to v1.1.0.
+
+### FINDING, not fixed — a fresh configure of this repo cannot build O-TextureForge
+
+`CMakeLists.txt:5` caches `CMAKE_OSX_DEPLOYMENT_TARGET` at **10.13**. At that
+target O-TextureForge fails to compile: `_deps/knncolle-src` needs
+`std::filesystem`, which is `unavailable: introduced in macOS 10.15` — 20+ errors
+in `Prebuilt.hpp`, `utils.hpp` and `distances.hpp` before `-ferror-limit` stops
+it. The committed `build/` only works because its cache says **11.0**, set at
+some point in the past and never written down.
+
+The M2 param-dump configure was rerun with `-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0`
+to match `build/`, and everything then built. **Nothing in the repo was changed
+for this.** It is a latent fresh-clone / CI hazard for one plugin and it belongs
+to whoever owns the root `CMakeLists.txt`, not to Stage M. Recorded as a decision
+item.
+
+## Batch M2 — 8 plugins, 177 parameters
+
+| Plugin | Params | Frame | Served root | Page shape | Version → |
+|---|---|---|---|---|---|
+| O-Freeze | **12** | 550×530 | `Source/ui/public` | single-file (3 inline modules) | 2.1.0 → 2.2.0 |
+| O-TextureForge | **12** | 900×600 | `Source/ui/public` | **webpack bundle + `js/i18n_init.js`** | 1.1.0 → 1.2.0 |
+| O-AnalogEQ | **16** | **920×220** | `Source/ui/public` | single-file (3 inline modules) | 1.2.0 → 1.3.0 |
+| O-Detune | **18** | 600×480 | `Source/ui/public` | single-file (3 inline modules) | 1.6.0 → 1.7.0 |
+| O-MicrotonalSampler | **19** | 900×640 | `Resources/ui` | `js/sampler-app.js` + `js/tuning-panel.js` + `css/` | 1.24.0 → 1.25.0 |
+| O-Bowed | **29** | 900×600 | `Resources/ui` | single-file (2 inline modules) | 1.5.0 → 1.6.0 |
+| O-Reed | **35** | 900×600 | `Resources/ui` | single-file (3 inline modules) | 1.2.0 → 1.3.0 |
+| O-GrainScatter | **36** | 900×800 | `Source/ui/public` | `js/app.js` + `js/i18n.js`, styles inline | 2.5.0 → 2.6.0 |
+
+Every dump count was produced by the runtime walk and agrees with the plan's
+figure for all eight. **Versions are MINOR** — a user-visible feature is arriving.
+**O-Bowed and O-Reed spell their version `VERSION "1.5.0"` / `VERSION "1.2.0"`
+with quotes — keep them.**
+
+**`O-AnalogEQ is 920×220.`** That is a 220 px tall frame carrying 16 tips. It is
+this batch's O-Chorus: the four-edge clamp is the normal path there, not an edge
+case, and O-Bass's carried trap 3 — *one flip is not enough, and the flipped
+result needs clamping again* — is the assertion most likely to catch you.
+
+### Divergence 3 — O-TextureForge's renderer does NOT go in the bundle
+
+It is the only webpack-bundled page in the suite. `Source/ui/src/app.js` compiles
+to `Source/ui/public/js/app.bundle.js`, and the canon deliberately does not live
+there: webpack would resolve `import './i18n.js'` at build time and inline the
+label table, leaving the served `js/i18n.js` read by nobody. That is why
+`js/i18n_init.js` exists — read its header comment, which explains it in full.
+
+**Your renderer and your tooltip CSS belong beside the canon in
+`js/i18n_init.js` and the page's own stylesheet — NOT in `src/app.js`.** Putting
+them in the bundle source means a webpack rebuild inside a plugin commit, which
+is not this stage's scope and produces a 220 KB diff nobody can review.
+
+## Starting i18n state — measured, per plugin
+
+| Plugin | `I18N` | `LABELS` | `I18N_EXEMPT` | `TIP_BINDINGS` |
+|---|---|---|---|---|
+| O-Freeze | 0 | 17 | 5 | 0 |
+| O-TextureForge | 0 | 27 | 14 | 0 |
+| O-AnalogEQ | 0 | 17 | 7 | 0 |
+| O-Detune | 0 | 29 | 15 | 0 |
+| **O-MicrotonalSampler** | **51** | 199 | 19 | 0 |
+| O-Bowed | 0 | 41 | 3 | 0 |
+| O-Reed | 0 | 55 | 7 | 0 |
+| O-GrainScatter | 0 | 49 | 24 | 0 |
+
+**O-MicrotonalSampler's 51 `I18N` entries are toast and JS-written strings with
+EMPTY bodies** — verified: zero non-empty `b:` in the whole block. Per the K4
+decision they are NOT tooltips. **Do not give them bodies, do not bind them, do
+not delete them.** Your authored tips are new keys alongside them, and only YOUR
+keys go in `TIP_BINDINGS`.
+
+All eight carry `#gear-btn` and `#lang-select` — verified, one occurrence each.
+All eight already have `tests/i18n-states.json`; O-Bowed also has
+`tests/render-harness/` and O-MicrotonalSampler `tests/fixtures/` and
+`tests/ui-stub/`. **Run every gate you find in `tests/`, not only the new one.**
+
+M2's authored total is **177 parameter tips + 16 chrome tips = 193 entries**,
+each with an `en` and an `fr` `{t, b}` — minus whatever your own reconciliation
+finds is a dumped parameter with no control on the page. That subtraction is a
+FINDING; report it, do not add a control to satisfy the count.
+
+## The French decimal separator is SETTLED — it is the COMMA
+
+Not a live question in M2. A tooltip body is PROSE and takes French convention:
+decimal comma, a space before `%`, U+2212 for the minus. The READOUT keeps its
+point (D-03 exempts the readout NODE). **Scan your own French entries for
+`\d+\.\d+` before you commit** — O-SimpleReverb shipped a point in M1 without
+flagging it at all.
+
+## The M1 traps that cost the most, in one list
+
+Read the six correction sections above in full. These are the ones an M2 executor
+is most likely to reproduce:
+
+1. **The focus latch is MANDATORY** (renderer property 9). A click focuses a
+   `<button>` and parks a tip on screen. `:focus-visible` is not the
+   discriminator.
+2. **`activeElement.blur()` before the click, or your focus assertion is
+   decoration.** O-Tremolo proved it: latch removed AND blur removed → 186/186
+   green. Run your negative control BOTH ways.
+3. **A static regex for `lastInputWasPointer` stays green with the guard clause
+   deleted.** Only a behavioural control discriminates.
+4. **A keyboard-tab probe sampling mid-fade reports a false "never opens", and
+   the obvious response is to delete the latch.** Await the transition or assert
+   on `visibility`.
+5. **Size the plant against YOUR frame.** A 40× plant fit inside a 400 px frame
+   and reported nothing. A plant that fits is indistinguishable from a gate that
+   cannot see. On a 220 px frame (O-AnalogEQ) the arithmetic is different again.
+6. **"Bind to the ids the UI already uses" was wrong on five plugins out of
+   five, for a different reason each time.** The selector half and the target
+   half fail independently. Check both.
+7. **Bind the chrome BARE where the gear and the selector share an ancestor**,
+   or hovering `#lang-select` resolves to the gear's tip.
+8. **Read the COUNTS in a green gate, not its verdict.** `check-ui-labels`
+   passed on two plugins with the focus defect present; the `[8b]` inert-element
+   count is what moved.
+
+## Batch M2 additions to the decision items
+
+5. **The root `CMAKE_OSX_DEPLOYMENT_TARGET` is 10.13 and O-TextureForge cannot
+   build at it.** See the finding above. Latent fresh-clone / CI hazard, one
+   plugin, root-CMakeLists-owned.
