@@ -1,0 +1,54 @@
+# plugin	O-Gain
+# uiRoot	Source/ui/public
+# generated	2026-08-29T01:21:10.203Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	546	div.title		LABEL	no	title.ouaricon-gain	Ouaricon Gain	prose survives the readout filter
+html-text	index.html	554	div.meter-label		LABEL	no	meter-label.input	Input	prose survives the readout filter
+html-text	index.html	565	#input-db-label		LABEL	no	input-db-label	-inf	prose survives the readout filter
+html-text	index.html	572	div.gain-display-label		LABEL	no	gain-display-label.gain-offset	Gain Offset	prose survives the readout filter
+html-text	index.html	575	span.gain-display-unit		UNIT	no	gain-display-unit.db	dB	unit symbol, language-neutral (D-03)
+html-text	index.html	587	div.knob-label		LABEL	no	knob-label.gain	Gain	prose survives the readout filter
+html-text	index.html	595	div.knob-label		LABEL	no	knob-label.trim	Trim	prose survives the readout filter
+html-text	index.html	596	#trim-value		READOUT	no	trim-value	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	602	#learn-btn		LABEL	yes	learn-btn	LEARN	prose survives the readout filter
+html-text	index.html	604	div.target-label		LABEL	no	target-label.target	Target	prose survives the readout filter
+html-text	index.html	605	#target-value		READOUT	no	target-value	-18.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	617	div.knob-label		LABEL	no	knob-label.target-level	Target Level	prose survives the readout filter
+html-text	index.html	624	div.meter-label		LABEL	no	meter-label.output	Output	prose survives the readout filter
+html-text	index.html	635	#output-db-label		LABEL	no	output-db-label	-inf	prose survives the readout filter
+html-text	index.html	642	div.mode-label		LABEL	no	mode-label.measure	Measure	prose survives the readout filter
+html-text	index.html	644	button.mode-option.active		UNIT	no	measurement-mode-selector.lufs	LUFS	unit symbol, language-neutral (D-03)
+html-text	index.html	645	button.mode-option		UNIT	no	measurement-mode-selector.rms	RMS	unit symbol, language-neutral (D-03)
+html-text	index.html	649	div.mode-label		LABEL	no	mode-label.meter	Meter	prose survives the readout filter
+html-text	index.html	651	button.mode-option		LABEL	no	meter-mode-selector.peak	Peak	prose survives the readout filter
+html-text	index.html	652	button.mode-option		UNIT	no	meter-mode-selector.rms	RMS	unit symbol, language-neutral (D-03)
+html-text	index.html	653	button.mode-option.active		LABEL	no	meter-mode-selector.vu	VU	prose survives the readout filter
+html-text	index.html	654	button.mode-option		UNIT	no	meter-mode-selector.lufs	LUFS	unit symbol, language-neutral (D-03)
+html-text	index.html	661	div.learn-info-title		LABEL	no	learn-info.learn-analysis	Learn Analysis	prose survives the readout filter
+html-text	index.html	664	span.learn-info-label		LABEL	no	learn-info.momentary	Momentary	prose survives the readout filter
+html-text	index.html	665	#lufs-momentary		READOUT	no	lufs-momentary	-- LUFS	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	668	span.learn-info-label		LABEL	no	learn-info.short-term	Short-term	prose survives the readout filter
+html-text	index.html	669	#lufs-short-term		READOUT	no	lufs-short-term	-- LUFS	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	672	span.learn-info-label		LABEL	no	learn-info.integrated	Integrated	prose survives the readout filter
+html-text	index.html	673	#lufs-integrated		READOUT	no	lufs-integrated	-- LUFS	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	676	span.learn-info-label		LABEL	no	learn-info.sample-peak	Sample Peak	prose survives the readout filter
+html-text	index.html	677	#lufs-true-peak		READOUT	no	lufs-true-peak	-- dBFS	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	680	span.learn-info-label		LABEL	no	learn-info.elapsed	Elapsed	prose survives the readout filter
+html-text	index.html	684	span.learn-info-label		LABEL	no	learn-info.confidence	Confidence	prose survives the readout filter
+html-text	index.html	692	#phase-l-btn		LABEL	yes	phase-l-btn	PH L	prose survives the readout filter
+html-text	index.html	693	#phase-r-btn		LABEL	yes	phase-r-btn	PH R	prose survives the readout filter
+html-text	index.html	694	#swap-btn		LABEL	yes	swap-btn	SWAP	prose survives the readout filter
+html-text	index.html	695	#mono-btn		LABEL	yes	mono-btn	MONO	prose survives the readout filter
+html-text	index.html	696	#ms-off-btn		LABEL	yes	ms-off-btn	M/S OFF	prose survives the readout filter
+html-text	index.html	697	#ms-enc-btn		LABEL	yes	ms-enc-btn	ENC	prose survives the readout filter
+html-text	index.html	698	#ms-dec-btn		LABEL	yes	ms-dec-btn	DEC	prose survives the readout filter
+html-attr	index.html	547	#help-btn	title	LABEL	no	help-btn	Toggle tooltips	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 703	847	value').textContent		LABEL	no	ui.trim	trim	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 703	849	value').textContent		LABEL	no	ui.target-level	target_level	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 703	1037	label').textContent		LABEL	no	ui.inf	-inf	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 703	1038	label').textContent		LABEL	no	ui.inf-2	-inf	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 703	1055	learnBtn.textContent		LABEL	no	ui.learning	LEARNING...	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 703	1062	learnBtn.textContent		LABEL	no	ui.too-quiet	TOO QUIET	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 703	1062	learnBtn.textContent		LABEL	no	ui.done	DONE	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 703	1065	learnBtn.textContent		LABEL	no	ui.learn	LEARN	prose survives the readout filter

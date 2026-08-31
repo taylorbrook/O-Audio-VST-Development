@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Texture, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Texture</title>
+    <link rel="stylesheet" href="css/ouaricon-naturalist.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header: Plugin name + settings + Mode toggle -->
+        <div class="header">
+            <!-- v0.2.0: h1 and the gear share the LEFT slot of the
+                 space-between header, so .mode-toggle keeps the right edge it
+                 already had and nothing on the page moves to make room. -->
+            <div class="header-left">
+                <!-- NOT a [data-i18n] element: a product name is never
+                     translated. Declared in I18N_EXEMPT with that reason, so a
+                     genuinely missed label cannot hide here as a deliberate
+                     one. -->
+                <h1data-i18n="ui.o-texture" >O-TEXTURE</h1>
+
+                <!-- v0.2.0: the settings cluster. ONE row, because this plugin
+                     has no hover-help to switch on or off - authoring that copy
+                     is Stage M's job and this commit does not invent it. -->
+                <div class="settings-cluster">
+                    <button type="button" class="gear-btn" id="gear-btn"
+                            aria-haspopup="dialog" aria-expanded="false"
+                            data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+                    <div class="settings-popover" id="settings-popover"
+                         role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                        <label class="settings-row" for="lang-select">
+                            <!-- data-label so a state updater that writes
+                                 textContent reads the authored caption back
+                                 instead of erasing it. -->
+                            <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                            <!-- ENDONYMS. Never localized: a French speaker
+                                 looking for their language looks for
+                                 "Fran&ccedil;ais". -->
+                            <select class="settings-select" id="lang-select"
+                                    data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                                <option value="en">English</option>
+                                <option value="fr">Fran&ccedil;ais</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The two captions are the MODE AudioParameterChoice option
+                 strings VERBATIM (PluginProcessor.cpp:339), so they are EXEMPT
+                 under D-01 arm 1 and carry no key: the page and the host
+                 automation lane have to agree about the same setting.
+                 v0.2.0: the native title= is DELETED per contract 4. Its text
+                 moves into the accessible NAME rather than replacing it -
+                 aria-label alone would have erased the caption "Transform" that
+                 a screen reader announces today. -->
+            <div class="mode-toggle">
+                <buttondata-i18n="ui.generate" >Generate</button>
+                <!-- Transform mode is not implemented in v0.1.x -->
+                <button data-i18n="ui.transform" disabled
+                        data-i18n-aria="aria.soon.transform"
+                        aria-label="Transform &#8212; coming soon">Transform</button>
+            </div>
+        </div>
+
+        <!-- Main area: XY pad + vertical sliders -->
+        <div class="main-area">
+            <div class="xy-pad-container">
+                <canvas id="xy-pad" class="xy-pad"></canvas>
+            </div>
+
+            <div class="vertical-sliders">
+                <!-- Character A -->
+                <div id="slider-charA" class="vertical-slider">
+                    <div class="label" data-i18n="label.charA" data-label="Char A">Char A</div>
+                    <div class="slider-track">
+                        <div class="slider-thumb"></div>
+                    </div>
+                    <div class="value">0.50</div>
+                </div>
+
+                <!-- Character B -->
+                <div id="slider-charB" class="vertical-slider">
+                    <div class="label" data-i18n="label.charB" data-label="Char B">Char B</div>
+                    <div class="slider-track">
+                        <div class="slider-thumb"></div>
+                    </div>
+                    <div class="value">0.50</div>
+                </div>
+
+                <!-- Evolve -->
+                <div id="slider-evolve" class="vertical-slider">
+                    <div class="label" data-i18n="label.evolve" data-label="Evolve">Evolve</div>
+                    <div class="slider-track">
+                        <div class="slider-thumb"></div>
+                    </div>
+                    <div class="value">0.30</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Source selector: only Rain has a trained model in v0.1.x; the
+             other sources are disabled until their models ship.
+
+             The six captions are the SOURCE AudioParameterChoice option strings
+             VERBATIM (PluginProcessor.cpp:335) - EXEMPT under D-01 arm 1, like
+             the mode row above.
+
+             v0.2.0: the five native title="Coming soon" attributes are DELETED
+             per contract 4. Each one's text moves into that button's accessible
+             NAME, keeping the visible caption in it: a bare
+             data-i18n-aria="Coming soon" would have REPLACED "Metal" as the
+             accessible name, losing the label-in-name a screen reader relies on
+             to match what the user sees. No new prose is invented - each name
+             is the button's own caption plus the status text the title already
+             carried. -->
+        <div class="source-selector">
+            <!-- Rain -->
+            <button class="source-button">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2 L12 10 M8 8 L8 14 M16 8 L16 14 M10 16 L10 20 M14 16 L14 20"/>
+                </svg>
+                <span data-i18n="label.rain" class="label">Rain</span>
+            </button>
+
+            <!-- Metal -->
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.metal"
+                    aria-label="Metal &#8212; coming soon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="7"/>
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 5 L12 8 M12 16 L12 19 M5 12 L8 12 M16 12 L19 12"/>
+                </svg>
+                <span data-i18n="label.metal" class="label">Metal</span>
+            </button>
+
+            <!-- Wind -->
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.wind"
+                    aria-label="Wind &#8212; coming soon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M3 8 Q8 6, 14 8 T20 8 M3 12 Q10 10, 16 12 T21 12 M3 16 Q7 14, 12 16 T19 16"/>
+                </svg>
+                <span data-i18n="label.wind" class="label">Wind</span>
+            </button>
+
+            <!-- Crowd -->
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.crowd"
+                    aria-label="Crowd &#8212; coming soon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="8" cy="7" r="2"/>
+                    <circle cx="16" cy="7" r="2"/>
+                    <circle cx="12" cy="7" r="2"/>
+                    <path d="M8 10 L8 16 M6 12 L10 12 M16 10 L16 16 M14 12 L18 12 M12 10 L12 16 M10 12 L14 12"/>
+                </svg>
+                <span data-i18n="label.crowd" class="label">Crowd</span>
+            </button>
+
+            <!-- Synth -->
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.synth"
+                    aria-label="Synth &#8212; coming soon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 12 L8 6 L12 16 L16 8 L20 12" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span data-i18n="label.synth" class="label">Synth</span>
+            </button>
+
+            <!-- Organic -->
+            <button class="source-button" disabled
+                    data-i18n-aria="aria.soon.organic"
+                    aria-label="Organic &#8212; coming soon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 4 Q8 8, 12 12 T12 20 M12 12 Q16 10, 18 12"/>
+                </svg>
+                <span data-i18n="label.organic" class="label">Organic</span>
+            </button>
+        </div>
+
+        <!-- Bottom strip: Brightness knob + Mix knob + Freeze toggle -->
+        <div class="bottom-strip">
+            <!-- Brightness Knob -->
+            <div class="knob-container">
+                <div id="knob-brightness" class="knob">
+                    <div class="knob-bg"></div>
+                    <div class="knob-indicator"></div>
+                </div>
+                <div class="knob-label" data-i18n="label.brightness" data-label="Brightness">Brightness</div>
+                <div class="knob-value">0.00</div>
+            </div>
+
+            <!-- Mix Knob -->
+            <div class="knob-container">
+                <div id="knob-mix" class="knob">
+                    <div class="knob-bg"></div>
+                    <div class="knob-indicator"></div>
+                </div>
+                <div class="knob-label" data-i18n="label.mix" data-label="Mix">Mix</div>
+                <div class="knob-value">1.00</div>
+            </div>
+
+            <!-- Freeze Toggle -->
+            <div class="freeze-toggle">
+                <button id="freeze-button" class="freeze-button">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2 L12 22 M2 12 L22 12 M6 6 L18 18 M18 6 L6 18"/>
+                    </svg>
+                </button>
+                <div class="freeze-label" data-i18n="label.freeze" data-label="Freeze">Freeze</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

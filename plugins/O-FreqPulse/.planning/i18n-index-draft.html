@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-FreqPulse, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ouaricon Frequency Pulse</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+    <div class="container" id="plugin-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-top">
+                <h1data-i18n="plugin-container.ouaricon-frequency-pulse" >Ouaricon Frequency Pulse</h1>
+                <div class="preset-bar">
+                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
+                    <span class="preset-name" id="presetName" title="Click to see all presets">Init</span>
+                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&gt;</button>
+                    <button data-i18n="loadPreset" class="preset-action-btn" id="loadPreset" title="Load preset from file">Load</button>
+                    <button data-i18n="savePreset" class="preset-action-btn" id="savePreset" title="Save current settings">Save</button>
+                    <div class="preset-dropdown" id="presetDropdown"></div>
+                </div>
+            </div>
+            <p data-i18n="plugin-container.frequency-band-step-sequencer" class="tagline">Frequency Band Step Sequencer</p>
+        </header>
+
+        <!-- Grid Area -->
+        <div class="grid-area" data-tooltip="Step sequencer grid. Each row is a frequency band; click cells to toggle steps on/off. Active steps highlight green during playback.">
+            <div id="grid-container"></div>
+        </div>
+
+        <!-- Euclidean Panel (hidden by default) -->
+        <div class="euclidean-panel" id="euclidean-panel">
+            <h3 data-i18n="euc-band-title" id="euc-band-title">Band Controls</h3>
+            <div class="euc-controls">
+                <div class="control-group" data-tooltip="Euclidean Steps: The total length of the Euclidean pattern. Steps beyond this wrap around.">
+                    <labeldata-i18n="euclidean-panel.steps" >Steps</label>
+                    <input type="range" class="slider" id="euc-steps" min="1" max="32" value="16">
+                    <span class="value-display" id="euc-steps-value">16</span>
+                </div>
+                <div class="control-group" data-tooltip="Euclidean Pulses: The number of active beats distributed as evenly as possible across the pattern length.">
+                    <labeldata-i18n="euclidean-panel.pulses" >Pulses</label>
+                    <input type="range" class="slider" id="euc-pulses" min="1" max="32" value="8">
+                    <span class="value-display" id="euc-pulses-value">8</span>
+                </div>
+                <div class="control-group" data-tooltip="Euclidean Offset: Rotates the generated pattern by this many steps, shifting where the rhythm starts.">
+                    <labeldata-i18n="euclidean-panel.offset" >Offset</label>
+                    <input type="range" class="slider" id="euc-offset" min="0" max="31" value="0">
+                    <span class="value-display" id="euc-offset-value">0</span>
+                </div>
+                <div class="control-group" data-tooltip="Phase: Shifts this band's pattern read position by N steps. Creates phase-shifted polyrhythmic patterns between bands. Works in both Manual and Euclidean modes.">
+                    <labeldata-i18n="euclidean-panel.phase" >Phase</label>
+                    <input type="range" class="slider" id="euc-phase" min="0" max="31" value="0">
+                    <span class="value-display" id="euc-phase-value">0</span>
+                </div>
+                <div class="control-group" data-tooltip="Band Steps: Override the global step count for this band (0 = follow global). Creates polymetric loops when bands have different step counts.">
+                    <labeldata-i18n="euclidean-panel.steps-2" >Steps</label>
+                    <input type="range" class="slider" id="euc-band-steps" min="0" max="32" value="0">
+                    <span data-i18n="euc-band-steps-value" class="value-display" id="euc-band-steps-value">Global</span>
+                </div>
+            </div>
+            <button class="close-btn" id="euc-close">×</button>
+        </div>
+
+        <!-- v1.5.0: Tooltip toggle button -->
+        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+
+        <!-- Tooltip element (positioned dynamically by JS) -->
+        <div class="tooltip" id="tooltip"></div>
+
+        <!-- Footer Controls -->
+        <footer class="footer">
+            <div class="global-controls">
+                <div class="control" data-tooltip="Mix: Blends between the dry (unprocessed) and wet (gated) signal. At 0% you hear only dry; at 100% only the gated output.">
+                    <labeldata-i18n="plugin-container.mix" >Mix</label>
+                    <input type="range" class="slider" id="mix" min="0" max="100" value="100">
+                    <span class="value-display" id="mix-value">100%</span>
+                </div>
+                <div class="control" data-tooltip="Steps: Sets the number of active steps in the sequence (2-32). Higher values create longer, more complex patterns.">
+                    <labeldata-i18n="plugin-container.steps" >Steps</label>
+                    <input type="range" class="slider" id="steps" min="2" max="32" value="16">
+                    <span class="value-display" id="steps-value">16</span>
+                </div>
+                <div class="control" data-tooltip="Rate: Sets the tempo-synced note division for each step. Smaller values (1/32) create faster patterns; larger values (1/1) create slower ones. T = triplet, D = dotted.">
+                    <labeldata-i18n="plugin-container.rate" >Rate</label>
+                    <select class="dropdown" id="rate">
+                        <option value="0">1/1</option>
+                        <option value="1">1/2</option>
+                        <option value="2">1/4</option>
+                        <option value="3">1/8</option>
+                        <option value="4" selected>1/16</option>
+                        <option value="5">1/32</option>
+                        <option value="6">1/8T</option>
+                        <option value="7">1/16T</option>
+                        <option value="8">1/4D</option>
+                        <option value="9">1/8D</option>
+                    </select>
+                </div>
+                <div class="control" data-tooltip="Swing: Delays every other step to create a shuffle/groove feel. At 0% timing is straight; higher values push odd steps later.">
+                    <labeldata-i18n="plugin-container.swing" >Swing</label>
+                    <input type="range" class="slider" id="swing" min="0" max="100" value="0">
+                    <span class="value-display" id="swing-value">0%</span>
+                </div>
+                <div class="control" data-tooltip="Attack: Fade-in time when a step turns ON (0-500ms). Lower values create sharper onsets; higher values create gentle swells.">
+                    <labeldata-i18n="plugin-container.attack" >Attack</label>
+                    <input type="range" class="slider" id="attack" min="0" max="1000" value="0">
+                    <span class="value-display" id="attack-value">5ms</span>
+                </div>
+                <div class="control" data-tooltip="Release: Fade-out time when a step turns OFF (0-500ms). Lower values create sharp cuts; higher values create gentle tails.">
+                    <labeldata-i18n="plugin-container.release" >Release</label>
+                    <input type="range" class="slider" id="release" min="0" max="1000" value="0">
+                    <span class="value-display" id="release-value">5ms</span>
+                </div>
+            </div>
+            <span class="version-label" id="version-label"></span>
+        </footer>
+    </div>
+</body>
+</html>

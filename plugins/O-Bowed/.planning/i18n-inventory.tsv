@@ -1,0 +1,58 @@
+# plugin	O-Bowed
+# uiRoot	Resources/ui
+# generated	2026-08-29T18:11:28.421Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	555	span.plugin-name		LABEL	no	plugin-name.o-bowed	O-Bowed	prose survives the readout filter
+html-text	index.html	557	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	562	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	563	#tuning-toggle		LABEL	no	tuning-toggle	Tuning	prose survives the readout filter
+html-text	index.html	564	span.brand-label		LABEL	no	brand-label.ouaricon	Ouaricon	prose survives the readout filter
+html-text	index.html	575	div.section-label		LABEL	no	section-label.bow	Bow	prose survives the readout filter
+html-text	index.html	579	div.knob-label		LABEL	no	knob-label.speed	Speed	prose survives the readout filter
+html-text	index.html	584	div.knob-label		LABEL	no	knob-label.pressure	Pressure	prose survives the readout filter
+html-text	index.html	589	div.knob-label		LABEL	no	knob-label.position	Position	prose survives the readout filter
+html-text	index.html	596	div.knob-label		LABEL	no	knob-label.rosin	Rosin	prose survives the readout filter
+html-text	index.html	601	div.knob-label		LABEL	no	knob-label.noise	Noise	prose survives the readout filter
+html-text	index.html	606	div.knob-label		LABEL	no	knob-label.hair-stiff	Hair Stiff.	prose survives the readout filter
+html-text	index.html	613	div.section-label		LABEL	no	section-label.humanize	Humanize	prose survives the readout filter
+html-text	index.html	616	div.humanize-col-label		LABEL	no	humanize-col-label.speed	Speed	prose survives the readout filter
+html-text	index.html	619	div.knob-label		LABEL	no	knob-label.amt	Amt	prose survives the readout filter
+html-text	index.html	624	div.knob-label		LABEL	no	knob-label.rate	Rate	prose survives the readout filter
+html-text	index.html	629	div.humanize-col-label		LABEL	no	humanize-col-label.pressure	Pressure	prose survives the readout filter
+html-text	index.html	632	div.knob-label		LABEL	no	knob-label.amt-2	Amt	prose survives the readout filter
+html-text	index.html	637	div.knob-label		LABEL	no	knob-label.rate-2	Rate	prose survives the readout filter
+html-text	index.html	642	div.humanize-col-label		LABEL	no	humanize-col-label.position	Position	prose survives the readout filter
+html-text	index.html	645	div.knob-label		LABEL	no	knob-label.amt-3	Amt	prose survives the readout filter
+html-text	index.html	650	div.knob-label		LABEL	no	knob-label.rate-3	Rate	prose survives the readout filter
+html-text	index.html	655	div.humanize-col-label		LABEL	no	humanize-col-label.rosin	Rosin	prose survives the readout filter
+html-text	index.html	658	div.knob-label		LABEL	no	knob-label.amt-4	Amt	prose survives the readout filter
+html-text	index.html	663	div.knob-label		LABEL	no	knob-label.rate-4	Rate	prose survives the readout filter
+html-text	index.html	674	button.viz-tab-btn.active		LABEL	no	viz-tab-btn.bow-string	Bow-String	prose survives the readout filter
+html-text	index.html	675	button.viz-tab-btn		LABEL	no	viz-tab-btn.body-spectrum	Body Spectrum	prose survives the readout filter
+html-text	index.html	676	button.viz-tab-btn		LABEL	no	viz-tab-btn.schelleng	Schelleng	prose survives the readout filter
+html-text	index.html	690	span.impossible-label		LABEL	no	impossible-label.impossible	Impossible	prose survives the readout filter
+html-text	index.html	693	div.knob-label		LABEL	no	knob-label.inf-sustain	Inf. Sustain	prose survives the readout filter
+html-text	index.html	698	div.knob-label		LABEL	no	knob-label.rev-friction	Rev. Friction	prose survives the readout filter
+html-text	index.html	703	div.knob-label		LABEL	no	knob-label.sub-harm	Sub Harm.	prose survives the readout filter
+html-text	index.html	712	div.section-label		LABEL	no	section-label.body	Body	prose survives the readout filter
+html-text	index.html	716	div.knob-label		LABEL	no	knob-label.material	Material	prose survives the readout filter
+html-text	index.html	721	div.knob-label		LABEL	no	knob-label.size	Size	prose survives the readout filter
+html-text	index.html	726	div.knob-label		LABEL	no	knob-label.brightness	Brightness	prose survives the readout filter
+html-text	index.html	727	div.knob-value		READOUT	no	knob-value.8000-hz	8000 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	731	div.knob-label		LABEL	no	knob-label.body-amt	Body Amt	prose survives the readout filter
+html-text	index.html	738	div.section-label		LABEL	no	section-label.string	String	prose survives the readout filter
+html-text	index.html	742	div.knob-label		LABEL	no	knob-label.gauge	Gauge	prose survives the readout filter
+html-text	index.html	749	div.section-label		LABEL	no	section-label.sympathetic	Sympathetic	prose survives the readout filter
+html-text	index.html	753	div.knob-label		LABEL	no	knob-label.count	Count	prose survives the readout filter
+html-text	index.html	758	div.knob-label		LABEL	no	sympamount-ctrl.amount	Amount	prose survives the readout filter
+html-text	index.html	763	div.knob-label		LABEL	no	sympdecay-ctrl.decay	Decay	prose survives the readout filter
+html-text	index.html	784	div.knob-label		LABEL	no	knob-label.ref-pitch	Ref Pitch	prose survives the readout filter
+html-text	index.html	785	div.knob-value		READOUT	no	knob-value.440-0-hz	440.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	789	div.knob-label		LABEL	no	knob-label.width	Width	prose survives the readout filter
+html-text	index.html	794	div.knob-label		LABEL	no	knob-label.output	Output	prose survives the readout filter
+html-text	index.html	795	div.knob-value		READOUT	no	knob-value.0-0-db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-attr	index.html	556	#preset-prev	title	LABEL	no	preset-prev	Previous Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	557	#preset-name	title	UNSURE	no	preset-name-2	Click to browse presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	561	#preset-next	title	LABEL	no	preset-next	Next Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 803	1735	container').innerHTML		LABEL	no	ui.tuning-panel-failed-to	Tuning panel failed to load.	prose survives the readout filter

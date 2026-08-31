@@ -1,0 +1,31 @@
+# plugin	O-Tremolo
+# uiRoot	Source/ui/public
+# generated	2026-08-29T18:10:28.138Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	630	h1.title		LABEL	no	title.o-tremolo	O-Tremolo	prose survives the readout filter
+html-text	index.html	633	#presetName		UNSURE	no	presetName	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	635	#loadPreset		LABEL	no	loadPreset	Load	prose survives the readout filter
+html-text	index.html	636	#savePreset		LABEL	no	savePreset	Save	prose survives the readout filter
+html-text	index.html	644	#panButton		LABEL	no	panButton	Pan Sync	prose survives the readout filter
+html-text	index.html	645	#tempoButton		LABEL	no	tempoButton	Tempo Sync	prose survives the readout filter
+html-text	index.html	653	div.knob-label		LABEL	no	knob-label.speed	Speed	prose survives the readout filter
+html-text	index.html	654	#speedValue		READOUT	no	speedValue	4.5 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	660	div.knob-label		LABEL	no	knob-label.depth	Depth	prose survives the readout filter
+html-text	index.html	668	label.section-label		LABEL	no	section-label.waveform	Waveform	prose survives the readout filter
+html-text	index.html	670	option		LABEL	no	waveformselect.sine	Sine	prose survives the readout filter
+html-text	index.html	671	option		LABEL	no	waveformselect.triangle	Triangle	prose survives the readout filter
+html-text	index.html	672	option		LABEL	no	waveformselect.phasor	Phasor	prose survives the readout filter
+html-text	index.html	673	option		LABEL	no	waveformselect.noise	Noise	prose survives the readout filter
+html-text	index.html	674	option		LABEL	no	waveformselect.square	Square	prose survives the readout filter
+html-text	index.html	675	option		LABEL	no	waveformselect.pulse	Pulse	prose survives the readout filter
+html-text	index.html	684	label.section-label		LABEL	no	section-label.smoothing	Smoothing	prose survives the readout filter
+html-text	index.html	692	span		LABEL	no	ui.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-attr	index.html	625	img.background	alt	LABEL	no	background.background-alt	Background	prose survives the readout filter
+html-attr	index.html	626	img.botanical-overlay	alt	LABEL	no	botanical-overlay.botanical-alt	Botanical	prose survives the readout filter
+html-attr	index.html	632	#prevPreset	title	LABEL	no	prevPreset	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	633	#presetName	title	UNSURE	no	presetName-2	Click to see all presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	634	#nextPreset	title	LABEL	no	nextPreset	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	635	#loadPreset	title	LABEL	no	loadPreset-2	Load preset from file	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	636	#savePreset	title	LABEL	no	savePreset-2	Save current settings	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 699	819	empty.textContent		LABEL	no	ui.no-presets-available	No presets available	prose survives the readout filter

@@ -1,0 +1,73 @@
+# plugin	O-ReverseDelay
+# uiRoot	Source/ui/public
+# generated	2026-08-27T19:07:23.071Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	35	h1.title		UNSURE	no	title.o-reverse	O – Reverse	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	35	span.title-accent		LABEL	no	knob-delayTime (reuses an existing entry)	Delay	prose survives the readout filter
+html-text	index.html	36	p.subtitle		LABEL	no	subtitle.granular-reverse-delay-a	Granular Reverse Delay · A Field Guide	prose survives the readout filter
+html-text	index.html	72	span.settings-label		LABEL	no	lang-select (reuses an existing entry)	Language	prose survives the readout filter
+html-text	index.html	78	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	79	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	105	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	106	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	107	#preset-load		LABEL	no	preset-load	Load	prose survives the readout filter
+html-text	index.html	109	#preset-delete		LABEL	no	preset-delete	Delete	prose survives the readout filter
+html-text	index.html	144	div.group-label		LABEL	no	group-label.time	Time	prose survives the readout filter
+html-text	index.html	151	#seg-free		LABEL	no	seg-free	Free	prose survives the readout filter
+html-text	index.html	152	#seg-sync		LABEL	no	seg-sync	Sync	prose survives the readout filter
+html-text	index.html	161	div.knob-label		LABEL	no	knob-delayTime (reuses an existing entry)	Delay	prose survives the readout filter
+html-text	index.html	171	div.knob-label		LABEL	no	combo-noteDivision (reuses an existing entry)	Division	prose survives the readout filter
+html-text	index.html	181	div.group-label		LABEL	no	group-label.grain	Grain	prose survives the readout filter
+html-text	index.html	185	div.knob-label		LABEL	no	knob-label.size	Size	prose survives the readout filter
+html-text	index.html	190	div.knob-label		LABEL	no	knob-density (reuses an existing entry)	Density	prose survives the readout filter
+html-text	index.html	198	div.group-label		LABEL	no	knob-feedback (reuses an existing entry)	Feedback	prose survives the readout filter
+html-text	index.html	202	div.knob-label		LABEL	no	knob-label.amount	Amount	prose survives the readout filter
+html-text	index.html	207	div.knob-label		LABEL	no	knob-lowCut (reuses an existing entry)	Low Cut	prose survives the readout filter
+html-text	index.html	212	div.knob-label		LABEL	no	knob-highCut (reuses an existing entry)	High Cut	prose survives the readout filter
+html-text	index.html	220	div.group-label		LABEL	no	group-label.output	Output	prose survives the readout filter
+html-text	index.html	224	div.knob-label		LABEL	no	knob-width (reuses an existing entry)	Width	prose survives the readout filter
+html-text	index.html	229	div.knob-label		LABEL	no	knob-mix (reuses an existing entry)	Mix	prose survives the readout filter
+html-text	index.html	244	div.group-label		LABEL	no	group-label.random	Random	prose survives the readout filter
+html-text	index.html	248	div.knob-label		LABEL	no	knob-jitter (reuses an existing entry)	Jitter	prose survives the readout filter
+html-text	index.html	253	div.knob-label		LABEL	no	knob-delayScatter (reuses an existing entry)	Scatter	prose survives the readout filter
+html-text	index.html	258	div.knob-label		LABEL	no	knob-label.size-rnd	Size Rnd	prose survives the readout filter
+html-text	index.html	263	div.knob-label		LABEL	no	knob-label.gain-rnd	Gain Rnd	prose survives the readout filter
+html-text	index.html	282	div.group-label		LABEL	no	group-label.window	Window	prose survives the readout filter
+html-text	index.html	288	div.knob-label		LABEL	no	combo-grainShape (reuses an existing entry)	Shape	prose survives the readout filter
+html-text	index.html	292	div.knob-label		LABEL	no	knob-grainTilt (reuses an existing entry)	Tilt	prose survives the readout filter
+html-text	index.html	304	div.knob-label		LABEL	no	knob-tukeyTaper (reuses an existing entry)	Taper	prose survives the readout filter
+html-text	index.html	353	div.group-label		LABEL	no	group-label.count	Count	prose survives the readout filter
+html-text	index.html	357	div.knob-label		LABEL	no	knob-label.count	Count	prose survives the readout filter
+html-text	index.html	368	span.meter-label		LABEL	no	grainmeter.active	Active	prose survives the readout filter
+html-text	index.html	372	span.meter-label		LABEL	no	grainmeter.overlap	Overlap	prose survives the readout filter
+html-text	index.html	404	div.group-label		LABEL	no	group-label.motion	Motion	prose survives the readout filter
+html-text	index.html	408	#seg-freeze-off		LABEL	no	seg-freeze-off	Off	prose survives the readout filter
+html-text	index.html	409	#seg-freeze-on		LABEL	no	freezeSegments (reuses an existing entry)	Freeze	prose survives the readout filter
+html-text	index.html	414	div.knob-label		LABEL	no	knob-direction (reuses an existing entry)	Direction	prose survives the readout filter
+html-text	index.html	420	div.knob-label		LABEL	no	knob-regenMakeup (reuses an existing entry)	Regen	prose survives the readout filter
+html-text	index.html	447	div.group-label		LABEL	no	sourceSegments (reuses an existing entry)	Source	prose survives the readout filter
+html-text	index.html	451	#seg-source-mono		LABEL	no	seg-source-mono	Mono	prose survives the readout filter
+html-text	index.html	452	#seg-source-stereo		LABEL	no	seg-source-stereo	Stereo	prose survives the readout filter
+html-text	index.html	466	div.group-label		LABEL	no	knob-duck (reuses an existing entry)	Duck	prose survives the readout filter
+html-text	index.html	470	div.knob-label		LABEL	no	knob-duck (reuses an existing entry)	Duck	prose survives the readout filter
+html-text	index.html	488	div.group-label		LABEL	no	group-label.drift	Drift	prose survives the readout filter
+html-text	index.html	492	div.knob-label		LABEL	no	cell-driftrate.rate	Rate	prose survives the readout filter
+html-text	index.html	497	div.knob-label		LABEL	no	knob-label.depth	Depth	prose survives the readout filter
+html-text	index.html	520	div.group-label		LABEL	no	group-label.colour	Colour	prose survives the readout filter
+html-text	index.html	524	div.knob-label		LABEL	no	knob-diffusion (reuses an existing entry)	Diffusion	prose survives the readout filter
+html-text	index.html	529	div.knob-label		LABEL	no	knob-drive (reuses an existing entry)	Drive	prose survives the readout filter
+html-text	index.html	541	span.footer-text		LABEL	no	footer-text.drag-vertically-wheel-or	Drag vertically · wheel or arrows to trim · double-click to reset	prose survives the readout filter
+html-attr	index.html	61	#gear-btn	aria-label	LABEL	no	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	64	#settings-popover	aria-label	LABEL	no	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	77	#lang-select	aria-label	LABEL	no	lang-select	Hover help language	prose survives the readout filter
+html-attr	index.html	103	#preset-prev	aria-label	LABEL	no	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	104	#preset-next	aria-label	LABEL	no	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	150	#syncSegments	aria-label	LABEL	no	syncSegments	Sync Mode	prose survives the readout filter
+html-attr	index.html	170	#combo-noteDivision	aria-label	LABEL	no	combo-noteDivision	Note Division	prose survives the readout filter
+html-attr	index.html	287	#combo-grainShape	aria-label	LABEL	no	combo-grainShape	Grain Shape	prose survives the readout filter
+html-attr	index.html	328	#envelopeCanvas	aria-label	LABEL	no	envelopeCanvas	Grain amplitude envelope	prose survives the readout filter
+html-attr	index.html	407	#freezeSegments	aria-label	LABEL	no	freezeSegments	Freeze	prose survives the readout filter
+html-attr	index.html	450	#sourceSegments	aria-label	LABEL	no	sourceSegments	Source Mode	prose survives the readout filter
+js-composed	js/app.js	817	meterActiveEl.textContent		READOUT	no	ui.active	${active}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	824	meterOverlapEl.textContent		READOUT	no	ui.overlap-tofixed-1	${overlap.toFixed(1)}×	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)

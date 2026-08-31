@@ -1,0 +1,2677 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Bells, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800, height=600">
+    <title>Ouaricon Bells</title>
+    <link rel="stylesheet" href="/css/tuning-panel.css">
+    <style>
+        /* ====================================================================
+           CRITICAL CSS CONSTRAINTS
+           ==================================================================== */
+
+        /* Use 100%, NOT 100vh - JUCE WebView requires percentage-based sizing */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ====================================================================
+           NATIVE APPLICATION FEEL
+           ==================================================================== */
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
+            background: #2a2a2a;
+            font-family: 'Garamond', 'Times New Roman', serif;
+
+            /* Native feel CSS */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            cursor: default;
+        }
+
+        .plugin-container {
+            width: 800px;
+            height: 600px;
+            position: relative;
+            background: #F5E6D3;
+            border: 3px solid #5C4033;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* ====================================================================
+           BOTANICAL OVERLAY
+           ==================================================================== */
+
+        .botanical-overlay {
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 71.25%;
+            opacity: 0.25;
+            pointer-events: none;
+            z-index: 1;
+            transition: right 0.4s ease-out, opacity 0.4s ease-out;
+        }
+
+        .botanical-overlay.tuning-position {
+            right: -80px;
+            opacity: 0.18;
+        }
+
+        /* ====================================================================
+           HEADER
+           ==================================================================== */
+
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #EBD9C7, #F5E6D3);
+            border-bottom: 2px solid #8B7355;
+            z-index: 10;
+            overflow: visible;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #3C2F2F;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            white-space: nowrap;
+        }
+
+        /* ====================================================================
+           TAB BAR
+           ==================================================================== */
+
+        .tab-bar {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            display: flex;
+            background: #D4C4B0;
+            border-bottom: 2px solid #8B7355;
+            z-index: 2;
+        }
+
+        .tab {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #D4C4B0;
+            color: #5C4033;
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-right: 1px solid #8B7355;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .tab:last-child {
+            border-right: none;
+        }
+
+        .tab:hover {
+            background: #C9B69F;
+        }
+
+        .tab.active {
+            background: #F5E6D3;
+            color: #3C2F2F;
+            border-bottom: 2px solid #F5E6D3;
+            margin-bottom: -2px;
+        }
+
+        /* ====================================================================
+           TAB CONTENT
+           ==================================================================== */
+
+        .tab-content {
+            position: absolute;
+            top: 90px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 145px);  /* v2.2.0: Adjusted for 55px footer */
+            display: none;
+            padding: 14px 30px;
+            z-index: 0;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ====================================================================
+           EFFECTS TAB (v4.0.0)
+           ==================================================================== */
+
+        #effects-tab {
+            gap: 6px;
+        }
+
+        .fx-section {
+            background: rgba(255, 248, 220, 0.25);
+            border: 1px solid rgba(139, 115, 85, 0.35);
+            border-radius: 5px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fx-header {
+            display: contents;
+        }
+
+        .fx-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #2C3E10;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: auto;
+        }
+
+        .fx-bypass-btn {
+            padding: 2px 8px;
+            background: rgba(107, 142, 35, 0.5);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #1a2a10;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            order: 99;
+            margin-left: auto;
+        }
+
+        .fx-bypass-btn.bypassed {
+            background: rgba(139, 115, 85, 0.2);
+            color: rgba(60, 47, 47, 0.4);
+        }
+
+        .fx-knobs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fx-section.bypassed .fx-knobs {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        #effects-tab .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+        }
+
+        #effects-tab .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #effects-tab .knob-visual {
+            width: 44px;
+            height: 44px;
+            position: relative;
+        }
+
+        #effects-tab .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        #effects-tab .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
+        }
+
+        #effects-tab .knob-vine {
+            fill: none;
+            stroke: #6B8E23;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        #effects-tab .knob-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #effects-tab .knob-value {
+            font-size: 9px;
+            color: #5C4033;
+            font-weight: bold;
+        }
+
+        .fx-dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .fx-dropdown {
+            padding: 2px 4px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #3C2F2F;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* ====================================================================
+           FOOTER (v2.2.0: Expanded with keyboard)
+           ==================================================================== */
+
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 55px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            background: linear-gradient(to bottom, #F5E6D3, #EBD9C7);
+            border-top: 2px solid #8B7355;
+            z-index: 2;
+        }
+
+        .footer p {
+            font-size: 8px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #8B7355;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        /* Footer Gain Slider */
+        .footer-gain {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .footer-gain-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer-gain .slider {
+            width: 70px;
+        }
+
+        .footer-gain .param-value {
+            min-width: 35px;
+        }
+
+        /* Footer Keyboard */
+        .footer-keyboard {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            max-width: 380px;
+            margin: 0 15px;
+        }
+
+        .footer-keyboard-viz {
+            width: 100%;
+            height: 38px;
+            background: #FAF0E6;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            display: flex;
+            overflow: visible;
+            position: relative;
+        }
+
+        .footer-keyboard .white-key {
+            flex: 1;
+            background: rgba(139, 168, 112, 0.35);
+            border-right: 1px solid rgba(139, 115, 85, 0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 2px;
+            transition: background 0.15s;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .footer-keyboard .white-key:last-of-type {
+            border-right: none;
+        }
+
+        .footer-keyboard .white-key span {
+            font-size: 6px;
+            color: #5C4033;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .footer-keyboard .white-key:hover:not(.pressed) {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .footer-keyboard .white-key.pressed {
+            background: #8BC34A !important;
+        }
+
+        .footer-keyboard .black-key {
+            position: absolute;
+            width: 12px;
+            height: 24px;
+            background: #4A6B2A;
+            border-radius: 0 0 2px 2px;
+            top: 0;
+            z-index: 10;
+            transition: background 0.15s;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .footer-keyboard .black-key:hover:not(.pressed) {
+            background: #5A8B3A;
+        }
+
+        .footer-keyboard .black-key.pressed {
+            background: #8BC34A !important;
+        }
+
+        .footer-keyboard-help {
+            font-size: 7px;
+            color: #8B7355;
+        }
+
+        /* ====================================================================
+           PARAMETER SECTIONS
+           ==================================================================== */
+
+        .section {
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #5C4033;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #D4C4B0;
+            padding-bottom: 3px;
+        }
+
+        .param-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .param-row-4 {
+            gap: 12px;
+        }
+
+        .param-row-4 .param-control {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* ====================================================================
+           SLIDER CONTROLS
+           ==================================================================== */
+
+        .param-control {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .param-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+            margin-bottom: 5px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .slider-thumb {
+            position: absolute;
+            top: -4px;
+            left: 0;
+            width: 14px;
+            height: 16px;
+            background: #C9A27B;
+            border: 2px solid #8B7355;
+            border-radius: 3px;
+            cursor: grab;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .slider-thumb:active {
+            cursor: grabbing;
+        }
+
+        .param-value {
+            font-size: 9px;
+            color: #5C4033;
+            margin-top: 4px;
+        }
+
+        /* ====================================================================
+           CHOICE BUTTONS
+           ==================================================================== */
+
+        .choice-group {
+            display: flex;
+            gap: 6px;
+            margin-top: 5px;
+        }
+
+        .choice-button {
+            flex: 1;
+            padding: 6px 10px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #3C5C1A;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .choice-button:hover {
+            background: rgba(139, 168, 112, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .choice-button.active {
+            background: rgba(107, 142, 35, 0.6);
+            border-color: #2C3E10;
+        }
+
+        /* ====================================================================
+           OUTPUT METER
+           ==================================================================== */
+
+        .output-row {
+            align-items: flex-start;
+        }
+
+        .output-control {
+            flex: 0 0 28%;
+        }
+
+        .meter-control {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* v2.4.1: Compact meter for 3-column output layout */
+        .meter-control-compact {
+            flex: 0 0 35%;
+            min-width: 0;
+        }
+
+        .output-meter {
+            width: 100%;
+            height: 8px;
+            display: flex;
+            gap: 4px;
+            margin-top: 0;
+        }
+
+        .meter-bar {
+            flex: 1;
+            height: 100%;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .meter-bar::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #6B8E23, #8FBC3F, #F4A460);
+            transition: width 0.05s ease-out;
+        }
+
+        .meter-bar.active::after {
+            width: var(--level, 0%);
+        }
+
+        .meter-labels {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 4px;
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ====================================================================
+           EXPANDABLE SECTIONS (Bloom Fine Controls, Envelope)
+           ==================================================================== */
+
+        .expandable-section {
+            display: none;
+            border: 1px dashed #8BA870;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: rgba(139, 168, 112, 0.08);
+        }
+
+        .expandable-section.visible {
+            display: block;
+        }
+
+        .expandable-section .section-title {
+            color: #3C5C1A;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .expandable-section .section-title::before {
+            content: '▼';
+            font-size: 8px;
+            transition: transform 0.2s;
+        }
+
+        .expandable-section.collapsed .section-title::before {
+            transform: rotate(-90deg);
+        }
+
+        .expandable-section .section-hint {
+            font-size: 9px;
+            color: #6B8E23;
+            font-style: italic;
+            margin-top: -2px;
+            margin-bottom: 8px;
+        }
+
+        /* Bloom Fine Controls specific styling */
+        .bloom-fine-section {
+            margin-top: -4px;
+        }
+
+        .hi-fi-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 6px 10px;
+            background: rgba(139, 168, 112, 0.15);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .hi-fi-toggle:hover {
+            background: rgba(139, 168, 112, 0.25);
+        }
+
+        .hi-fi-toggle .toggle-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3C5C1A;
+            border-radius: 3px;
+            background: #E8D5B7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #3C5C1A;
+        }
+
+        .hi-fi-toggle.active .toggle-checkbox {
+            background: rgba(107, 142, 35, 0.6);
+        }
+
+        .hi-fi-toggle .toggle-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+        }
+
+        .hi-fi-toggle .toggle-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3C2F2F;
+            color: #E8D5B7;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+            padding: 6px 10px;
+            border-radius: 4px;
+            width: 220px;
+            text-transform: none;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hi-fi-toggle .toggle-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #3C2F2F;
+        }
+
+        .hi-fi-toggle:hover .toggle-tooltip {
+            display: block;
+        }
+
+        .lp-filter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 6px 10px;
+            background: rgba(139, 168, 112, 0.15);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .lp-filter-toggle:hover {
+            background: rgba(139, 168, 112, 0.25);
+        }
+
+        .lp-filter-toggle .toggle-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3C5C1A;
+            border-radius: 3px;
+            background: #E8D5B7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #3C5C1A;
+        }
+
+        .lp-filter-toggle.active .toggle-checkbox {
+            background: rgba(107, 142, 35, 0.6);
+        }
+
+        .lp-filter-toggle .toggle-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+        }
+
+        .bloom-fine-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            background: rgba(139, 168, 112, 0.15);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .bloom-fine-toggle:hover {
+            background: rgba(139, 168, 112, 0.25);
+        }
+
+        .bloom-fine-toggle .toggle-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3C5C1A;
+            border-radius: 3px;
+            background: #E8D5B7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #3C5C1A;
+        }
+
+        .bloom-fine-toggle.active .toggle-checkbox {
+            background: rgba(107, 142, 35, 0.6);
+        }
+
+        .bloom-fine-toggle .toggle-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+        }
+
+        .bloom-fine-content {
+            display: none;
+        }
+
+        .bloom-fine-content.visible {
+            display: block;
+        }
+
+        /* Disabled/greyed out state for main bloom sliders */
+        .param-control.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .param-control.disabled .slider {
+            background: #ccc;
+        }
+
+        .param-control.disabled .slider-thumb {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        /* ====================================================================
+           MULTI-STAGE ENVELOPE SECTION (always visible in v1.2.0)
+           ==================================================================== */
+
+        .envelope-section {
+            display: none;
+            border: 1px dashed #8BA870;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: rgba(139, 168, 112, 0.08);
+        }
+
+        .envelope-section.visible {
+            display: block;
+        }
+
+        .envelope-section .section-title {
+            color: #3C5C1A;
+        }
+
+        .envelope-section .section-hint {
+            font-size: 9px;
+            color: #6B8E23;
+            font-style: italic;
+            margin-top: -2px;
+            margin-bottom: 8px;
+        }
+
+        /* ====================================================================
+           PLACEHOLDER
+           ==================================================================== */
+
+        .placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #8B7355;
+            opacity: 0.6;
+        }
+
+        /* ====================================================================
+           PRESET BROWSER
+           ==================================================================== */
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0 20px;
+        }
+
+        .preset-browser {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .preset-arrow {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #D4C4B0;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 10px;
+            color: #5C4033;
+            cursor: pointer;
+            transition: background 0.15s;
+            pointer-events: auto;
+        }
+
+        .preset-arrow:hover {
+            background: #C9B69F;
+        }
+
+        .preset-arrow:active {
+            background: #B8A590;
+        }
+
+        .preset-name-wrapper {
+            position: relative;
+            min-width: 140px;
+        }
+
+        .preset-name {
+            padding: 5px 12px;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: #3C2F2F;
+            cursor: pointer;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: auto;
+        }
+
+        .preset-name:hover {
+            background: #DBC9AA;
+        }
+
+        .preset-name:active {
+            background: #CFC0A0;
+        }
+
+        .preset-dropdown {
+            position: absolute;
+            top: 100%;
+            left: -50px;
+            width: 240px;
+            margin-top: 4px;
+            max-height: 320px;
+            overflow-y: auto;
+            background: #F5E6D3;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .preset-dropdown.visible {
+            display: block;
+        }
+
+        .preset-dropdown-header {
+            padding: 6px 10px;
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #8B7355;
+            background: #EBD9C7;
+            border-bottom: 1px solid #D4C4B0;
+            position: sticky;
+            top: 0;
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 14px;
+            font-size: 11px;
+            color: #3C2F2F;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .preset-dropdown-item:hover {
+            background: #E8D5B7;
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.3);
+        }
+
+        .preset-action-btn {
+            padding: 5px 10px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #3C5C1A;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: background 0.15s;
+            pointer-events: auto;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .preset-action-btn:active {
+            background: rgba(139, 168, 112, 0.7);
+        }
+
+        /* ====================================================================
+           v3.0.0: TUNING PANEL THEME OVERRIDES
+           O-Bells botanical aesthetic: warm amber, dark goldenrod accents
+           ==================================================================== */
+
+        #tuning-container .tuning-panel {
+            --tuning-bg: rgba(245, 230, 211, 0.95);
+            --tuning-border: rgba(139, 115, 85, 0.5);
+            --tuning-text: #3C2F2F;
+            --tuning-text-muted: #8B7355;
+            --tuning-accent: #B8860B;
+            --tuning-input-bg: rgba(255, 248, 230, 0.9);
+            --tuning-hover: rgba(184, 134, 11, 0.2);
+            --tuning-active: rgba(184, 134, 11, 0.3);
+            font-family: 'Garamond', 'Times New Roman', serif;
+            height: 100%;
+        }
+
+        #tuning-container {
+            height: 100%;
+        }
+
+        /* ====================================================================
+           CPU WARNING BANNER (v3.2.0)
+           ==================================================================== */
+
+        .cpu-warning {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            margin-bottom: 10px;
+            background: rgba(205, 133, 63, 0.15);
+            border: 1px solid rgba(205, 133, 63, 0.5);
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            color: #8B4513;
+            line-height: 1.4;
+        }
+
+        .cpu-warning.visible {
+            display: flex;
+        }
+
+        .cpu-warning-icon {
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+
+        .cpu-warning-text {
+            flex: 1;
+        }
+
+        .cpu-warning-estimate {
+            font-weight: 600;
+        }
+
+        /* ====================================================================
+           VERSION LABEL (v3.2.1)
+           ==================================================================== */
+
+        .version-label {
+            position: absolute;
+            bottom: 5px;
+            left: 8px;
+            font-size: 7px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            color: #8B7355;
+            z-index: 3;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="plugin-container">
+        <!-- Botanical Overlay -->
+        <img src="img/snail.png" alt="Snail" class="botanical-overlay" id="botanicalOverlay">
+
+        <!-- Header -->
+        <div class="header">
+            <div class="header-bar">
+                <h1data-i18n="ui.ouaricon-bells" >Ouaricon Bells</h1>
+                <div class="preset-browser">
+                    <div class="preset-arrow" id="preset-prev">◀</div>
+                    <div class="preset-name-wrapper">
+                        <div class="preset-name" id="preset-name-display">Default</div>
+                        <div class="preset-dropdown" id="preset-dropdown"></div>
+                    </div>
+                    <div class="preset-arrow" id="preset-next">▶</div>
+                    <div data-i18n="preset-save" class="preset-action-btn" id="preset-save">Save</div>
+                    <div data-i18n="preset-load" class="preset-action-btn" id="preset-load">Load</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div data-i18n="tab.instrument" class="tab active" data-tab="instrument">Instrument</div>
+            <div data-i18n="tab.tuning" class="tab" data-tab="tuning">Tuning</div>
+            <div data-i18n="tab.effects" class="tab" data-tab="effects">Effects</div>
+        </div>
+
+        <!-- Tab Content: Instrument -->
+        <div class="tab-content active" id="instrument-tab">
+            <!-- CPU Warning Banner (v3.2.0) -->
+            <div class="cpu-warning" id="cpu-warning">
+                <span class="cpu-warning-icon">&#9888;</span>
+                <span class="cpu-warning-text">
+                    Estimated bell decay: <span class="cpu-warning-estimate" id="cpu-warning-estimate">--</span>.
+                    Long decays with polyphony may cause high CPU usage, distortion, or stuttering.
+                </span>
+            </div>
+
+            <!-- Synthesis Section -->
+            <div class="section">
+                <div data-i18n="instrument-tab.synthesis" class="section-title">Synthesis</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.damping" class="param-label">Damping</div>
+                        <div class="slider" data-param="damping">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="damping">70%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.overtone-brightness" class="param-label">Overtone Brightness</div>
+                        <div class="slider" data-param="overtoneBrightness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="overtoneBrightness">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.acoustic-brightness" class="param-label">Acoustic Brightness</div>
+                        <div class="slider" data-param="acousticBrightness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="acousticBrightness">70%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.material" class="param-label">Material</div>
+                        <div class="slider" data-param="material">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="material">25%</div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.inharmonicity" class="param-label">Inharmonicity</div>
+                        <div class="slider" data-param="inharmonicity">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="inharmonicity">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.air-absorption" class="param-label">Air Absorption</div>
+                        <div class="slider" data-param="airAbsorption">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="airAbsorption">0%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.air-time" class="param-label">Air Time</div>
+                        <div class="slider" data-param="airAbsorptionTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="airAbsorptionTime">2.0 s</div>
+                    </div>
+                </div>
+                <div class="param-row" id="bloom-main-row">
+                    <div class="param-control" id="bloomSpeed-control">
+                        <div data-i18n="bloomspeed-control.bloom-speed" class="param-label">Bloom Speed</div>
+                        <div class="slider" data-param="bloomSpeed">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="bloomSpeed">50%</div>
+                    </div>
+                    <div class="param-control" id="bloomAmount-control">
+                        <div data-i18n="bloomamount-control.bloom-amount" class="param-label">Bloom Amount</div>
+                        <div class="slider" data-param="bloomAmount">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="bloomAmount">0%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="bloom-main-row.shimmer" class="param-label">Shimmer</div>
+                        <div class="slider" data-param="shimmer">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="shimmer">20%</div>
+                    </div>
+                </div>
+
+                <!-- Bloom Fine Controls (v1.5.0) - expandable per-band override -->
+                <div class="expandable-section bloom-fine-section" id="bloom-fine-section">
+                    <div class="bloom-fine-toggle" id="bloom-fine-toggle">
+                        <div class="toggle-checkbox" id="bloom-fine-checkbox"></div>
+                        <div data-i18n="bloom-fine-toggle.bloom-fine-controls-override" class="toggle-label">Bloom Fine Controls (Override Mode)</div>
+                    </div>
+                    <div class="bloom-fine-content" id="bloom-fine-content">
+                        <div data-i18n="bloom-fine-content.per-band-control-main" class="section-hint">Per-band control - main sliders disabled when active</div>
+                        <div class="param-row param-row-4">
+                            <div class="param-control">
+                                <div data-i18n="bloom-fine-content.speed-low" class="param-label">Speed Low</div>
+                                <div class="slider" data-param="bloomSpeedLow">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomSpeedLow">50%</div>
+                            </div>
+                            <div class="param-control">
+                                <div data-i18n="bloom-fine-content.speed-mid" class="param-label">Speed Mid</div>
+                                <div class="slider" data-param="bloomSpeedMid">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomSpeedMid">50%</div>
+                            </div>
+                            <div class="param-control">
+                                <div data-i18n="bloom-fine-content.speed-high" class="param-label">Speed High</div>
+                                <div class="slider" data-param="bloomSpeedHigh">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomSpeedHigh">50%</div>
+                            </div>
+                            <div class="param-control">
+                                <!-- Spacer for alignment -->
+                            </div>
+                        </div>
+                        <div class="param-row param-row-4">
+                            <div class="param-control">
+                                <div data-i18n="bloom-fine-content.amount-low" class="param-label">Amount Low</div>
+                                <div class="slider" data-param="bloomAmountLow">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomAmountLow">0%</div>
+                            </div>
+                            <div class="param-control">
+                                <div data-i18n="bloom-fine-content.amount-mid" class="param-label">Amount Mid</div>
+                                <div class="slider" data-param="bloomAmountMid">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomAmountMid">0%</div>
+                            </div>
+                            <div class="param-control">
+                                <div data-i18n="bloom-fine-content.amount-high" class="param-label">Amount High</div>
+                                <div class="slider" data-param="bloomAmountHigh">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomAmountHigh">0%</div>
+                            </div>
+                            <div class="param-control">
+                                <!-- Spacer for alignment -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ensemble Section -->
+            <div class="section">
+                <div data-i18n="instrument-tab.ensemble" class="section-title">Ensemble</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.unison" class="param-label">Unison</div>
+                        <div class="slider" data-param="unisonCount">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="unisonCount">1</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.detune" class="param-label">Detune</div>
+                        <div class="slider" data-param="unisonDetune">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="unisonDetune">10ct</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.sub" class="param-label">Sub</div>
+                        <div class="slider" data-param="octaveBlendSub">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="octaveBlendSub">0%</div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.oct" class="param-label">Oct</div>
+                        <div class="slider" data-param="octaveBlendOct">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="octaveBlendOct">0%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.spread" class="param-label">Spread</div>
+                        <div class="slider" data-param="stereoSpread">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="stereoSpread">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onsets Section (renamed from Character in v1.5.4) -->
+            <div class="section">
+                <div data-i18n="instrument-tab.onsets" class="section-title">Onsets</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.strike" class="param-label">Strike</div>
+                        <div class="slider" data-param="strikePosition">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="strikePosition">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.mallet" class="param-label">Mallet</div>
+                        <div class="slider" data-param="malletHardness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="malletHardness">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.attack-amount" class="param-label">Attack Amount</div>
+                        <div class="slider" data-param="attackLevel">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="attackLevel">50%</div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.noise" class="param-label">Noise</div>
+                        <div class="choice-group" data-param="strikeNoiseChar">
+                            <div data-i18n="instrument-tab.click" class="choice-button active" data-index="0">Click</div>
+                            <div data-i18n="instrument-tab.thud" class="choice-button" data-index="1">Thud</div>
+                            <div data-i18n="instrument-tab.ping" class="choice-button" data-index="2">Ping</div>
+                        </div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.velocity" class="param-label">Velocity</div>
+                        <div class="choice-group" data-param="velocityCurve">
+                            <div data-i18n="instrument-tab.linear" class="choice-button active" data-index="0">Linear</div>
+                            <div data-i18n="instrument-tab.exp" class="choice-button" data-index="1">Exp</div>
+                            <div data-i18n="instrument-tab.log" class="choice-button" data-index="2">Log</div>
+                        </div>
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Section -->
+            <div class="section">
+                <div data-i18n="instrument-tab.advanced" class="section-title">Advanced</div>
+                <div class="param-row param-row-4">
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.partial-tune" class="param-label">Partial Tune</div>
+                        <div class="slider" data-param="partialTuning">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="partialTuning">0ct</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.pitch-env" class="param-label">Pitch Env</div>
+                        <div class="slider" data-param="pitchEnvelope">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="pitchEnvelope">0%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.p-env-time" class="param-label">P.Env Time</div>
+                        <div class="slider" data-param="pitchEnvTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="pitchEnvTime">50ms</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.nonlinear" class="param-label">Nonlinear</div>
+                        <div class="slider" data-param="nonlinearEffects">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="nonlinearEffects">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Stage Envelope Section (visible when decayShape == Multi) -->
+            <div class="section envelope-section" id="envelope-section">
+                <div data-i18n="envelope-section.multi-stage-envelope" class="section-title">Multi-Stage Envelope</div>
+                <div data-i18n="envelope-section.controls-how-different-frequencies" class="section-hint">Controls how different frequencies decay over time</div>
+                <div class="param-row param-row-4">
+                    <div class="param-control">
+                        <div data-i18n="envelope-section.strike-time" class="param-label">Strike Time</div>
+                        <div class="slider" data-param="strikeTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="strikeTime">30ms</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="envelope-section.brilliance" class="param-label">Brilliance</div>
+                        <div class="slider" data-param="brilliance">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="brilliance">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="envelope-section.body-time" class="param-label">Body Time</div>
+                        <div class="slider" data-param="bodyTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="bodyTime">1.5s</div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="envelope-section.hum-sustain" class="param-label">Hum Sustain</div>
+                        <div class="slider" data-param="humSustain">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="humSustain">50%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lowpass Filter Section (v2.6.0) -->
+            <div class="section">
+                <div data-i18n="instrument-tab.filter" class="section-title">Filter</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="lp-filter-toggle" id="lp-filter-toggle">
+                            <div class="toggle-checkbox" id="lp-filter-checkbox"></div>
+                            <div data-i18n="lp-filter-toggle.lp-filter" class="toggle-label">LP Filter</div>
+                        </div>
+                    </div>
+                    <div class="param-control">
+                        <div data-i18n="instrument-tab.cutoff" class="param-label">Cutoff</div>
+                        <div class="slider" data-param="lpFilterCutoff">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="lpFilterCutoff">20.0 kHz</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Section (v3.1.2) -->
+            <div class="section">
+                <div data-i18n="instrument-tab.performance" class="section-title">Performance</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="hi-fi-toggle" id="hi-fi-toggle">
+                            <div class="toggle-checkbox" id="hi-fi-checkbox"></div>
+                            <div data-i18n="hi-fi-toggle.high-fidelity" class="toggle-label">High Fidelity</div>
+                            <div data-i18n="hi-fi-toggle.disables-voice-culling-for" class="toggle-tooltip">Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section (v4.0.0: Reverb moved to Effects tab) -->
+            <div class="section">
+                <div data-i18n="instrument-tab.output" class="section-title">Output</div>
+                <div class="param-row output-row">
+                    <div class="param-control output-control">
+                        <div data-i18n="instrument-tab.humanize" class="param-label">Humanize</div>
+                        <div class="slider" data-param="humanize">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="humanize">30%</div>
+                    </div>
+                    <div class="meter-control meter-control-compact">
+                        <div data-i18n="instrument-tab.level" class="param-label">Level</div>
+                        <div class="output-meter">
+                            <div class="meter-bar meter-left" id="meterLeft"></div>
+                            <div class="meter-bar meter-right" id="meterRight"></div>
+                        </div>
+                        <div class="meter-labels">
+                            <span>L</span>
+                            <span>R</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Tuning (v3.0.0) -->
+        <div class="tab-content" id="tuning-tab">
+            <div id="tuning-container"></div>
+        </div>
+
+        <!-- Tab Content: Effects (v4.0.0) -->
+        <div id="effects-tab" class="tab-content">
+            <div class="fx-section" id="chorusSection">
+                <div class="fx-header">
+                    <span data-i18n="chorussection.chorus" class="fx-title">Chorus</span>
+                    <button data-i18n="chorusBypassBtn" class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="chorus-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="delaySection">
+                <div class="fx-header">
+                    <span data-i18n="delaysection.delay" class="fx-title">Delay</span>
+                    <button data-i18n="delayBypassBtn" class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="delay-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="reverbSection">
+                <div class="fx-header">
+                    <span data-i18n="reverbsection.reverb" class="fx-title">Reverb</span>
+                    <button data-i18n="reverbBypassBtn" class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="reverb-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="eqSection">
+                <div class="fx-header">
+                    <span data-i18n="eqsection.eq" class="fx-title">EQ</span>
+                    <button data-i18n="eqBypassBtn" class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="eq-knobs"></div>
+            </div>
+        </div>
+
+        <!-- Version Label -->
+        <span class="version-label">v4.0.0</span>
+
+        <!-- Footer (v2.2.0: Added Gain slider and keyboard) -->
+        <div class="footer">
+            <!-- Gain Slider -->
+            <div class="footer-gain">
+                <span data-i18n="footer-gain-label.gain" class="footer-gain-label">Gain</span>
+                <div class="slider" data-param="outputGain" id="footer-gain-slider">
+                    <div class="slider-thumb"></div>
+                </div>
+                <span class="param-value" data-value="outputGain" id="footer-gain-value">0dB</span>
+            </div>
+
+            <!-- Keyboard -->
+            <div class="footer-keyboard">
+                <div class="footer-keyboard-viz" id="keyboard-viz"></div>
+                <div data-i18n="footer-keyboard-help.click-or-use-z" class="footer-keyboard-help">Click or use Z-M, Q-P keys</div>
+            </div>
+
+            <!-- Branding -->
+            <pdata-i18n="ui.ouaricon-audio" >Ouaricon Audio</p>
+        </div>
+    </div>
+
+    <!-- JUCE WebView Bridge -->
+    <script type="module">
+        import * as Juce from './js/juce/index.js';
+
+        // Parameter state storage
+        const parameterStates = new Map();
+
+        // ====================================================================
+        // TAB SWITCHING
+        // ====================================================================
+
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const botanicalOverlay = document.getElementById('botanicalOverlay');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update active content
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(`${targetTab}-tab`).classList.add('active');
+
+                // Update botanical overlay position
+                if (targetTab === 'tuning') {
+                    botanicalOverlay.classList.add('tuning-position');
+                } else {
+                    botanicalOverlay.classList.remove('tuning-position');
+                }
+            });
+        });
+
+        // ====================================================================
+        // SLIDER PARAMETER BINDINGS
+        // ====================================================================
+
+        const sliderParams = [
+            { id: 'strikePosition', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'malletHardness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'damping', min: 0, max: 1, default: 0.7, format: v => `${Math.round(v * 100)}%` },
+            { id: 'overtoneBrightness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'acousticBrightness', min: 0, max: 1, default: 0.7, format: v => `${Math.round(v * 100)}%` },
+            { id: 'airAbsorption', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'airAbsorptionTime', min: 0.1, max: 10, default: 2, format: v => {
+                // Display as ms for < 1s, seconds for >= 1s
+                if (v < 1) return `${Math.round(v * 1000)} ms`;
+                return `${v.toFixed(1)} s`;
+            }},
+            { id: 'material', min: 0, max: 1, default: 0.25, format: v => {
+                // material is a 5-way choice param; its scaled value is the index 0..4 (WR-03/IN-01)
+                return ['Bronze', 'Brass', 'Steel', 'Aluminum', 'Cast Iron'][Math.round(v)] || 'Bronze';
+            }},
+            { id: 'inharmonicity', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomSpeed', min: 0, max: 1, default: 0.5, format: v => `${Math.round(25 + v * 375)} ms` },
+            { id: 'bloomAmount', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            // v1.5.0: Bloom fine controls (per-band) - v1.5.1: Show ms instead of %
+            { id: 'bloomSpeedLow', min: 0, max: 1, default: 0.5, format: v => `${Math.round(15 + v * 235)} ms` },
+            { id: 'bloomSpeedMid', min: 0, max: 1, default: 0.5, format: v => `${Math.round(25 + v * 375)} ms` },
+            { id: 'bloomSpeedHigh', min: 0, max: 1, default: 0.5, format: v => `${Math.round(50 + v * 750)} ms` },
+            { id: 'bloomAmountLow', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomAmountMid', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomAmountHigh', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'shimmer', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v * 100)}%` },
+            // IN-01: formatters now receive the SCALED (engineering-unit) value.
+            { id: 'unisonCount', min: 0, max: 1, default: 0, format: v => `${Math.round(v)}` },
+            { id: 'unisonDetune', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v)}ct` },
+            { id: 'octaveBlendSub', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'octaveBlendOct', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'stereoSpread', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'partialTuning', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v)}ct` },
+            { id: 'pitchEnvelope', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'pitchEnvTime', min: 0, max: 1, default: 0.23, format: v => `${Math.round(v)}ms` },  // WR-06: scaled seconds→ms via range
+            { id: 'nonlinearEffects', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'attackLevel', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            // v2.4.0: Humanize - per-note organic variation
+            { id: 'humanize', min: 0, max: 1, default: 0.3, format: v => `${Math.round(v * 100)}%` },
+            // Multi-stage envelope params (visible when decayShape == 2)
+            { id: 'strikeTime', min: 0, max: 1, default: 0.26, format: v => `${Math.round(v)}ms` },
+            { id: 'brilliance', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v)}%` },  // IN-01: C++ range 0-100, scaled
+            { id: 'bodyTime', min: 0, max: 1, default: 0.29, format: v => {
+                // v is real milliseconds (scaled) — IN-01
+                return v >= 1000 ? `${(v/1000).toFixed(1)}s` : `${Math.round(v)}ms`;
+            }},
+            { id: 'humSustain', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v)}%` },  // IN-01: C++ range 0-100, scaled
+            // Lowpass Filter (v2.6.0)
+            { id: 'lpFilterCutoff', min: 0, max: 1, default: 1.0, format: v => {
+                // v is real Hz (scaled) — the C++ NormalisableRange already applied the skew (IN-01)
+                if (v >= 1000) return `${(v/1000).toFixed(1)} kHz`;
+                return `${Math.round(v)} Hz`;
+            }},
+            // Output (v4.0.0: reverbMix moved to effects tab)
+            { id: 'outputGain', min: 0, max: 1, default: 0.67, format: v => `${v.toFixed(1)}dB` }  // WR-04: scaled dB
+        ];
+
+        // IN-02: fetch normalized defaults from the backend so a slider can be
+        // reset to its default on double-click (SliderState carries no default).
+        const parameterDefaults = {};
+        Juce.getNativeFunction('getParameterDefaults')().then(defs => {
+            if (defs && typeof defs === 'object')
+                Object.assign(parameterDefaults, defs);
+        }).catch(() => {});
+
+        sliderParams.forEach(param => {
+            const sliderEl = document.querySelector(`.slider[data-param="${param.id}"]`);
+            const thumbEl = sliderEl.querySelector('.slider-thumb');
+            const valueEl = document.querySelector(`.param-value[data-value="${param.id}"]`);
+
+            // Get JUCE parameter state
+            const state = Juce.getSliderState(param.id);
+            parameterStates.set(param.id, state);
+
+            // Initialize UI (thumb from normalized position; readout from scaled value — IN-01)
+            updateSliderVisual(thumbEl, state.getNormalisedValue());
+            valueEl.textContent = param.format(state.getScaledValue());
+
+            // UI -> JUCE
+            let isDragging = false;
+
+            sliderEl.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                updateSliderValue(e, sliderEl, thumbEl, state, param.format, valueEl);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    updateSliderValue(e, sliderEl, thumbEl, state, param.format, valueEl);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // JUCE -> UI (automation, preset load)
+            state.valueChangedEvent.addListener(() => {
+                updateSliderVisual(thumbEl, state.getNormalisedValue());
+                valueEl.textContent = param.format(state.getScaledValue());  // IN-01
+            });
+
+            // IN-02: double-click resets the slider to its parameter default.
+            sliderEl.addEventListener('dblclick', () => {
+                const def = parameterDefaults[param.id];
+                if (typeof def === 'number') {
+                    state.setNormalisedValue(def);
+                    updateSliderVisual(thumbEl, state.getNormalisedValue());
+                    valueEl.textContent = param.format(state.getScaledValue());
+                }
+            });
+        });
+
+        function updateSliderValue(e, sliderEl, thumbEl, state, formatter, valueEl) {
+            const rect = sliderEl.getBoundingClientRect();
+            const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const normalizedValue = x / rect.width;
+
+            state.setNormalisedValue(normalizedValue);
+            updateSliderVisual(thumbEl, normalizedValue);
+            // IN-01: format the SCALED (engineering-unit) value, not the raw
+            // normalized value, so readouts respect the C++ NormalisableRange + skew.
+            valueEl.textContent = formatter(state.getScaledValue());
+        }
+
+        function updateSliderVisual(thumbEl, value) {
+            const position = value * 100;
+            thumbEl.style.left = `calc(${position}% - 7px)`;
+        }
+
+        // ====================================================================
+        // CHOICE PARAMETER BINDINGS
+        // ====================================================================
+
+        const choiceParams = [
+            { id: 'strikeNoiseChar', choices: ['Click', 'Thud', 'Ping'], default: 0 },
+            { id: 'velocityCurve', choices: ['Linear', 'Exponential', 'Logarithmic'], default: 0 }
+            // decayShape removed in v1.2.0 - always multi-stage
+        ];
+
+        choiceParams.forEach(param => {
+            const groupEl = document.querySelector(`.choice-group[data-param="${param.id}"]`);
+            const buttons = groupEl.querySelectorAll('.choice-button');
+
+            // Get JUCE parameter state
+            const state = Juce.getComboBoxState(param.id);
+            parameterStates.set(param.id, state);
+
+            // Initialize UI (getChoiceIndex returns 0-based index)
+            const initialIndex = state.getChoiceIndex();
+            updateChoiceVisual(buttons, initialIndex);
+
+            // UI -> JUCE (setChoiceIndex takes 0-based index)
+            buttons.forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    state.setChoiceIndex(index);
+                    updateChoiceVisual(buttons, index);
+                });
+            });
+
+            // JUCE -> UI (automation, preset load)
+            state.valueChangedEvent.addListener(() => {
+                const index = state.getChoiceIndex();
+                updateChoiceVisual(buttons, index);
+            });
+        });
+
+        function updateChoiceVisual(buttons, activeIndex) {
+            buttons.forEach((button, index) => {
+                if (index === activeIndex) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // ====================================================================
+        // BLOOM FINE CONTROLS TOGGLE (v1.5.0)
+        // ====================================================================
+
+        const bloomFineSection = document.getElementById('bloom-fine-section');
+        const bloomFineToggle = document.getElementById('bloom-fine-toggle');
+        const bloomFineCheckbox = document.getElementById('bloom-fine-checkbox');
+        const bloomFineContent = document.getElementById('bloom-fine-content');
+        const bloomSpeedControl = document.getElementById('bloomSpeed-control');
+        const bloomAmountControl = document.getElementById('bloomAmount-control');
+
+        // Always show the expandable section
+        bloomFineSection.classList.add('visible');
+
+        // Get JUCE parameter state for the toggle
+        const bloomFineEnabledState = Juce.getSliderState('bloomFineEnabled');
+        parameterStates.set('bloomFineEnabled', bloomFineEnabledState);
+
+        // Function to update UI based on fine controls enabled state
+        function updateBloomFineControlsUI(enabled) {
+            if (enabled) {
+                bloomFineToggle.classList.add('active');
+                bloomFineCheckbox.textContent = '✓';
+                bloomFineContent.classList.add('visible');
+                bloomSpeedControl.classList.add('disabled');
+                bloomAmountControl.classList.add('disabled');
+            } else {
+                bloomFineToggle.classList.remove('active');
+                bloomFineCheckbox.textContent = '';
+                bloomFineContent.classList.remove('visible');
+                bloomSpeedControl.classList.remove('disabled');
+                bloomAmountControl.classList.remove('disabled');
+            }
+        }
+
+        // Initialize UI from parameter state
+        const initialFineEnabled = bloomFineEnabledState.getNormalisedValue() > 0.5;
+        updateBloomFineControlsUI(initialFineEnabled);
+
+        // UI -> JUCE: Toggle click handler
+        bloomFineToggle.addEventListener('click', () => {
+            const currentValue = bloomFineEnabledState.getNormalisedValue() > 0.5;
+            const newValue = !currentValue;
+            bloomFineEnabledState.setNormalisedValue(newValue ? 1.0 : 0.0);
+            updateBloomFineControlsUI(newValue);
+        });
+
+        // JUCE -> UI: Listen for parameter changes (automation, preset load)
+        bloomFineEnabledState.valueChangedEvent.addListener(() => {
+            const enabled = bloomFineEnabledState.getNormalisedValue() > 0.5;
+            updateBloomFineControlsUI(enabled);
+        });
+
+        // ====================================================================
+        // LOWPASS FILTER TOGGLE (v2.6.0)
+        // ====================================================================
+
+        const lpFilterToggle = document.getElementById('lp-filter-toggle');
+        const lpFilterCheckbox = document.getElementById('lp-filter-checkbox');
+
+        const lpFilterEnabledState = Juce.getSliderState('lpFilterEnabled');
+        parameterStates.set('lpFilterEnabled', lpFilterEnabledState);
+
+        function updateLPFilterToggleUI(enabled) {
+            if (enabled) {
+                lpFilterToggle.classList.add('active');
+                lpFilterCheckbox.textContent = '\u2713';
+            } else {
+                lpFilterToggle.classList.remove('active');
+                lpFilterCheckbox.textContent = '';
+            }
+        }
+
+        const initialLPEnabled = lpFilterEnabledState.getNormalisedValue() > 0.5;
+        updateLPFilterToggleUI(initialLPEnabled);
+
+        lpFilterToggle.addEventListener('click', () => {
+            const currentValue = lpFilterEnabledState.getNormalisedValue() > 0.5;
+            const newValue = !currentValue;
+            lpFilterEnabledState.setNormalisedValue(newValue ? 1.0 : 0.0);
+            updateLPFilterToggleUI(newValue);
+        });
+
+        lpFilterEnabledState.valueChangedEvent.addListener(() => {
+            const enabled = lpFilterEnabledState.getNormalisedValue() > 0.5;
+            updateLPFilterToggleUI(enabled);
+        });
+
+        // ====================================================================
+        // HIGH FIDELITY TOGGLE (v3.1.2)
+        // ====================================================================
+
+        const hiFiToggle = document.getElementById('hi-fi-toggle');
+        const hiFiCheckbox = document.getElementById('hi-fi-checkbox');
+
+        const hiFiState = Juce.getSliderState('highFidelity');
+        parameterStates.set('highFidelity', hiFiState);
+
+        function updateHiFiToggleUI(enabled) {
+            if (enabled) {
+                hiFiToggle.classList.add('active');
+                hiFiCheckbox.textContent = '\u2713';
+            } else {
+                hiFiToggle.classList.remove('active');
+                hiFiCheckbox.textContent = '';
+            }
+        }
+
+        const initialHiFi = hiFiState.getNormalisedValue() > 0.5;
+        updateHiFiToggleUI(initialHiFi);
+
+        hiFiToggle.addEventListener('click', () => {
+            const currentValue = hiFiState.getNormalisedValue() > 0.5;
+            const newValue = !currentValue;
+            hiFiState.setNormalisedValue(newValue ? 1.0 : 0.0);
+            updateHiFiToggleUI(newValue);
+        });
+
+        hiFiState.valueChangedEvent.addListener(() => {
+            const enabled = hiFiState.getNormalisedValue() > 0.5;
+            updateHiFiToggleUI(enabled);
+        });
+
+        // ====================================================================
+        // CPU WARNING: LONG DECAY ESTIMATION (v3.2.0)
+        // ====================================================================
+
+        const cpuWarning = document.getElementById('cpu-warning');
+        const cpuWarningEstimate = document.getElementById('cpu-warning-estimate');
+
+        const MATERIAL_DECAY_MULTS = [1.0, 0.7, 2.0, 0.5, 1.5]; // Bronze, Brass, Steel, Aluminum, Cast Iron
+
+        function estimateDecayTime() {
+            const dampingNorm = parameterStates.get('damping')?.getNormalisedValue() ?? 0.7;
+            const bodyTimeNorm = parameterStates.get('bodyTime')?.getNormalisedValue() ?? 0.29;
+            const humSustainNorm = parameterStates.get('humSustain')?.getNormalisedValue() ?? 0.5;
+            const materialNorm = parameterStates.get('material')?.getNormalisedValue() ?? 0;
+
+            const bodyTimeSec = (100 + bodyTimeNorm * 4900) / 1000;
+            const materialIndex = Math.round(materialNorm * 4);
+            const materialMult = MATERIAL_DECAY_MULTS[materialIndex] || 1.0;
+            const humExtension = 1 + humSustainNorm * 2;
+            const dampingMult = 1 + dampingNorm * 1.5;
+
+            return bodyTimeSec * materialMult * humExtension * dampingMult;
+        }
+
+        function updateCpuWarning() {
+            const seconds = estimateDecayTime();
+            if (seconds > 10) {
+                cpuWarningEstimate.textContent = `~${Math.round(seconds)}s`;
+                cpuWarning.classList.add('visible');
+            } else {
+                cpuWarning.classList.remove('visible');
+            }
+        }
+
+        // Listen to relevant parameters for decay estimation
+        ['damping', 'bodyTime', 'humSustain'].forEach(id => {
+            const state = parameterStates.get(id);
+            if (state) state.valueChangedEvent.addListener(updateCpuWarning);
+        });
+
+        // Material is a slider-relay-bound choice param (WR-03) - listen for CPU estimate
+        const materialState = parameterStates.get('material');
+        if (materialState) materialState.valueChangedEvent.addListener(updateCpuWarning);
+
+        // Initial check
+        updateCpuWarning();
+
+        // ====================================================================
+        // ENVELOPE SECTION VISIBILITY (always visible in v1.2.0 - multi-stage is always on)
+        // ====================================================================
+
+        const envelopeSection = document.getElementById('envelope-section');
+        // Always show envelope section since multi-stage decay is now mandatory
+        envelopeSection.classList.add('visible');
+
+        // ====================================================================
+        // OUTPUT METER (real levels from C++ backend)
+        // ====================================================================
+
+        const meterLeft = document.getElementById('meterLeft');
+        const meterRight = document.getElementById('meterRight');
+
+        // Add active class for visual styling
+        meterLeft.classList.add('active');
+        meterRight.classList.add('active');
+
+        // Global function called from C++ via evaluateJavascript
+        window.updateMeterLevels = function(leftPercent, rightPercent) {
+            meterLeft.style.setProperty('--level', `${leftPercent}%`);
+            meterRight.style.setProperty('--level', `${rightPercent}%`);
+        };
+
+        // ====================================================================
+        // v2.2.0: FOOTER GAIN SLIDER BINDING
+        // ====================================================================
+
+        const footerGainSlider = document.getElementById('footer-gain-slider');
+        const footerGainThumb = footerGainSlider.querySelector('.slider-thumb');
+        const footerGainValue = document.getElementById('footer-gain-value');
+        const outputGainState = parameterStates.get('outputGain');
+
+        function updateFooterGainVisual(value) {
+            const position = value * 100;  // value is normalized (thumb position)
+            footerGainThumb.style.left = `calc(${position}% - 7px)`;
+            // WR-04: read the real dB from the scaled value, not a hand-coded slope.
+            footerGainValue.textContent = `${outputGainState.getScaledValue().toFixed(1)}dB`;
+        }
+
+        if (outputGainState) {
+            updateFooterGainVisual(outputGainState.getNormalisedValue());
+
+            let footerGainDragging = false;
+            footerGainSlider.addEventListener('mousedown', (e) => {
+                footerGainDragging = true;
+                updateFooterGainFromMouse(e);
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (footerGainDragging) updateFooterGainFromMouse(e);
+            });
+            document.addEventListener('mouseup', () => footerGainDragging = false);
+
+            function updateFooterGainFromMouse(e) {
+                const rect = footerGainSlider.getBoundingClientRect();
+                const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+                const value = x / rect.width;
+                outputGainState.setNormalisedValue(value);
+                updateFooterGainVisual(value);
+            }
+
+            outputGainState.valueChangedEvent.addListener(() => {
+                updateFooterGainVisual(outputGainState.getNormalisedValue());
+            });
+        }
+
+        // ====================================================================
+        // v2.2.0: FOOTER KEYBOARD
+        // ====================================================================
+
+        const OCTAVES = 2;
+        const START_NOTE = 48;  // C3
+        const WHITE_KEY_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+        const BLACK_KEY_POSITIONS = [0, 1, 3, 4, 5];
+        const BLACK_KEY_SEMITONES = [1, 3, 6, 8, 10];
+        const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+        const QWERTY_MAP = {
+            'z': 48, 's': 49, 'x': 50, 'd': 51, 'c': 52,
+            'v': 53, 'g': 54, 'b': 55, 'h': 56, 'n': 57, 'j': 58, 'm': 59,
+            'q': 60, '2': 61, 'w': 62, '3': 63, 'e': 64,
+            'r': 65, '5': 66, 't': 67, '6': 68, 'y': 69, '7': 70, 'u': 71
+        };
+
+        const keyboardViz = document.getElementById('keyboard-viz');
+        const keyElements = new Map();
+        const playingKeys = new Set();
+        const qwertyPressedKeys = new Set();
+        const velocity = 0.8;
+
+        const sendMidiNote = Juce.getNativeFunction('sendMidiNote');
+
+        // Build white keys
+        const whiteKeysPerOctave = 7;
+        const totalWhiteKeys = OCTAVES * whiteKeysPerOctave;
+
+        for (let octave = 0; octave < OCTAVES; octave++) {
+            for (let i = 0; i < whiteKeysPerOctave; i++) {
+                const semitone = WHITE_KEY_SEMITONES[i];
+                const midiNote = START_NOTE + octave * 12 + semitone;
+
+                const key = document.createElement('div');
+                key.className = 'white-key';
+                key.dataset.note = midiNote;
+
+                const label = document.createElement('span');
+                if (i === 0) {
+                    const octaveNum = Math.floor(midiNote / 12) - 1;
+                    label.textContent = `C${octaveNum}`;
+                } else {
+                    label.textContent = NOTE_NAMES[i];
+                }
+                key.appendChild(label);
+                keyboardViz.appendChild(key);
+                keyElements.set(midiNote, key);
+            }
+        }
+
+        // Build black keys
+        for (let octave = 0; octave < OCTAVES; octave++) {
+            for (let i = 0; i < BLACK_KEY_POSITIONS.length; i++) {
+                const whiteKeyIndex = octave * whiteKeysPerOctave + BLACK_KEY_POSITIONS[i];
+                const midiNote = START_NOTE + octave * 12 + BLACK_KEY_SEMITONES[i];
+
+                const key = document.createElement('div');
+                key.className = 'black-key';
+                key.dataset.note = midiNote;
+                key.style.left = `calc(100% / ${totalWhiteKeys} * ${whiteKeyIndex + 1} - 6px)`;
+
+                keyboardViz.appendChild(key);
+                keyElements.set(midiNote, key);
+            }
+        }
+
+        function keyboardNoteOn(midiNote) {
+            if (playingKeys.has(midiNote)) return;
+            playingKeys.add(midiNote);
+            const el = keyElements.get(midiNote);
+            if (el) el.classList.add('pressed');
+            sendMidiNote(midiNote, velocity, true);
+        }
+
+        function keyboardNoteOff(midiNote) {
+            if (!playingKeys.has(midiNote)) return;
+            playingKeys.delete(midiNote);
+            const el = keyElements.get(midiNote);
+            if (el) el.classList.remove('pressed');
+            sendMidiNote(midiNote, 0, false);
+        }
+
+        keyElements.forEach((element, midiNote) => {
+            element.addEventListener('mousedown', (e) => { e.preventDefault(); keyboardNoteOn(midiNote); });
+            element.addEventListener('mouseup', () => keyboardNoteOff(midiNote));
+            element.addEventListener('mouseleave', () => { if (playingKeys.has(midiNote)) keyboardNoteOff(midiNote); });
+            element.addEventListener('touchstart', (e) => { e.preventDefault(); keyboardNoteOn(midiNote); });
+            element.addEventListener('touchend', (e) => { e.preventDefault(); keyboardNoteOff(midiNote); });
+        });
+
+        document.addEventListener('mouseup', () => playingKeys.forEach(n => keyboardNoteOff(n)));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat || e.target.tagName === 'INPUT') return;
+            const note = QWERTY_MAP[e.key.toLowerCase()];
+            if (note !== undefined && !qwertyPressedKeys.has(e.key)) {
+                qwertyPressedKeys.add(e.key);
+                keyboardNoteOn(note);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const note = QWERTY_MAP[e.key.toLowerCase()];
+            if (note !== undefined) {
+                qwertyPressedKeys.delete(e.key);
+                keyboardNoteOff(note);
+            }
+        });
+
+        console.log('O-Bells v3.0.0 UI initialized - 36 sliders + 3 choice params + keyboard + tuning');
+
+        // ====================================================================
+        // PRESET BROWSER FUNCTIONALITY
+        // Uses Juce.getNativeFunction() pattern (not window.__JUCE__.backend)
+        // ====================================================================
+
+        const presetNameDisplay = document.getElementById('preset-name-display');
+        const presetDropdown = document.getElementById('preset-dropdown');
+        const presetPrev = document.getElementById('preset-prev');
+        const presetNext = document.getElementById('preset-next');
+        const presetSave = document.getElementById('preset-save');
+        const presetLoad = document.getElementById('preset-load');
+
+        let dropdownOpen = false;
+
+        // Update preset display
+        function updatePresetDisplay(name) {
+            presetNameDisplay.textContent = name || 'Default';
+        }
+
+        // Show categorized dropdown
+        async function showPresetDropdown() {
+            try {
+                const categories = await Juce.getNativeFunction('getPresetListWithCategories')();
+                const currentPreset = await Juce.getNativeFunction('getCurrentPreset')();
+
+                presetDropdown.innerHTML = '';
+
+                // Sort categories: Orchestral, Sacred, World, Ambient, Cinematic, User
+                const categoryOrder = ['Orchestral', 'Sacred', 'World', 'Ambient', 'Cinematic', 'User'];
+                const sortedCategories = Object.keys(categories).sort((a, b) => {
+                    const idxA = categoryOrder.indexOf(a);
+                    const idxB = categoryOrder.indexOf(b);
+                    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                    if (idxA === -1) return 1;
+                    if (idxB === -1) return -1;
+                    return idxA - idxB;
+                });
+
+                for (const category of sortedCategories) {
+                    const presets = categories[category];
+                    if (!presets || presets.length === 0) continue;
+
+                    // Category header
+                    const header = document.createElement('div');
+                    header.className = 'preset-dropdown-header';
+                    header.textContent = category;
+                    presetDropdown.appendChild(header);
+
+                    // Preset items
+                    for (const preset of presets) {
+                        const item = document.createElement('div');
+                        item.className = 'preset-dropdown-item';
+                        if (preset === currentPreset) {
+                            item.classList.add('active');
+                        }
+                        item.textContent = preset;
+                        item.addEventListener('click', async () => {
+                            try {
+                                await Juce.getNativeFunction('loadPresetFromCategory')(category, preset);
+                                updatePresetDisplay(preset);
+                                hidePresetDropdown();
+                            } catch (err) {
+                                console.error('[Presets] Load failed:', err);
+                            }
+                        });
+                        presetDropdown.appendChild(item);
+                    }
+                }
+
+                presetDropdown.classList.add('visible');
+                dropdownOpen = true;
+            } catch (err) {
+                console.error('[Presets] Failed to load preset list:', err);
+            }
+        }
+
+        function hidePresetDropdown() {
+            presetDropdown.classList.remove('visible');
+            dropdownOpen = false;
+        }
+
+        // Toggle dropdown on name click
+        presetNameDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdownOpen) {
+                hidePresetDropdown();
+            } else {
+                showPresetDropdown();
+            }
+        });
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+                hidePresetDropdown();
+            }
+        });
+
+        // Previous preset
+        presetPrev.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('selectPreviousPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Prev failed:', err);
+            }
+        });
+
+        // Next preset
+        presetNext.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('selectNextPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Next failed:', err);
+            }
+        });
+
+        // Save preset (with dialog)
+        presetSave.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('savePresetWithDialog')();
+                if (name) {
+                    updatePresetDisplay(name);
+                }
+            } catch (err) {
+                console.error('[Presets] Save failed:', err);
+            }
+        });
+
+        // Load preset from file
+        presetLoad.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('loadPresetFromFile')();
+                if (name) {
+                    updatePresetDisplay(name);
+                }
+            } catch (err) {
+                console.error('[Presets] Load failed:', err);
+            }
+        });
+
+        // Initialize preset display
+        (async () => {
+            try {
+                const currentPreset = await Juce.getNativeFunction('getCurrentPreset')();
+                updatePresetDisplay(currentPreset);
+                console.log('[Presets] Initialized with preset:', currentPreset);
+            } catch (err) {
+                console.error('[Presets] Init failed:', err);
+            }
+        })();
+
+        console.log('Ouaricon Bells preset browser initialized');
+
+        // ====================================================================
+        // v4.0.0: EFFECTS TAB (SVG vine-arc knobs)
+        // ====================================================================
+
+        // Global knob drag state for effects knobs
+        const fxKnobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!fxKnobDrag.active) return;
+            const deltaY = fxKnobDrag.lastY - e.clientY;
+            const sensitivity = 0.005;
+            fxKnobDrag.virtualNorm = Math.max(0, Math.min(1, fxKnobDrag.virtualNorm + (deltaY * sensitivity)));
+            fxKnobDrag.state.setNormalisedValue(fxKnobDrag.virtualNorm);
+            fxKnobDrag.lastY = e.clientY;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (fxKnobDrag.active) {
+                fxKnobDrag.state.sliderDragEnded();
+                fxKnobDrag.active = false;
+                fxKnobDrag.state = null;
+            }
+        });
+
+        function makeFxKnob(id, label) {
+            const vb = 44;
+            const c = 22;
+            const r = 18;
+            const da = (2 * Math.PI * r * 0.75).toFixed(2);
+
+            const container = document.createElement('div');
+            container.className = 'knob-container';
+            container.innerHTML =
+                `<div class="knob" id="${id}Knob">` +
+                    `<div class="knob-visual">` +
+                        `<svg viewBox="0 0 ${vb} ${vb}">` +
+                            `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
+                            `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
+                        `</svg>` +
+                    `</div>` +
+                `</div>` +
+                `<div class="knob-label">${label}</div>` +
+                `<div class="knob-value" id="${id}Value"></div>`;
+            return container;
+        }
+
+        // WR-07: `useScaled` drives the readout/edit from getScaledValue() (which
+        // honors the C++ range + skew) instead of a linear displayMin..displayMax
+        // decode. Needed for eqMidFreq, the only FX param with a skewed range; the
+        // others' display ranges are intentional linear unit maps (0-1→%, s→ms).
+        function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter, useScaled = false) {
+            if (!sliderState) {
+                console.error(`Failed to get slider state for ${id}`);
+                return;
+            }
+
+            const knobEl = document.getElementById(id + 'Knob');
+            const vine = document.getElementById(id + 'Vine');
+            const valueDisplay = document.getElementById(id + 'Value');
+
+            if (!knobEl || !vine || !valueDisplay) return;
+
+            const r = parseFloat(vine.getAttribute('r'));
+            const arcLength = 2 * Math.PI * r * 0.75;
+            let isEditing = false;
+
+            function updateVisual() {
+                const normValue = sliderState.getNormalisedValue();
+                const realValue = useScaled ? sliderState.getScaledValue()
+                                            : displayMin + (normValue * (displayMax - displayMin));
+
+                const offset = arcLength - (normValue * arcLength);
+                vine.style.strokeDashoffset = offset;
+
+                if (!isEditing) {
+                    valueDisplay.textContent = formatter(realValue) + suffix;
+                }
+            }
+
+            sliderState.valueChangedEvent.addListener(() => updateVisual());
+
+            const knobVisual = knobEl.querySelector('.knob-visual');
+            (knobVisual || knobEl).addEventListener('mousedown', (e) => {
+                fxKnobDrag.active = true;
+                fxKnobDrag.state = sliderState;
+                fxKnobDrag.lastY = e.clientY;
+                fxKnobDrag.virtualNorm = sliderState.getNormalisedValue();
+                sliderState.sliderDragStarted();
+                e.preventDefault();
+            });
+
+            (knobVisual || knobEl).addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = sliderState.getNormalisedValue();
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+                sliderState.setNormalisedValue(newNorm);
+            }, { passive: false });
+
+            updateVisual();
+
+            valueDisplay.style.cursor = 'text';
+            valueDisplay.title = 'Double-click to edit';
+            valueDisplay.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (isEditing) return;
+                isEditing = true;
+
+                const normValue = sliderState.getNormalisedValue();
+                const realValue = useScaled ? sliderState.getScaledValue()
+                                            : displayMin + (normValue * (displayMax - displayMin));
+                const formatted = formatter(realValue);
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = formatted;
+                input.style.cssText = `
+                    width: 45px; text-align: center; font-size: 9px;
+                    color: #5C4033; background: rgba(255,248,220,0.9);
+                    border: 1px solid #8B7355; border-radius: 3px;
+                    padding: 1px 2px; outline: none; user-select: text;
+                    -webkit-user-select: text;
+                `;
+
+                valueDisplay.textContent = '';
+                valueDisplay.appendChild(input);
+                input.focus();
+                input.select();
+
+                function commitValue() {
+                    if (!isEditing) return;
+                    const rawVal = parseFloat(input.value);
+                    if (!isNaN(rawVal)) {
+                        const clamped = Math.max(displayMin, Math.min(displayMax, rawVal));
+                        let norm;
+                        if (useScaled) {
+                            // WR-07: invert through the C++ range + skew, not a linear map.
+                            const p = sliderState.properties;
+                            norm = Math.pow((clamped - p.start) / (p.end - p.start), p.skew);
+                        } else {
+                            norm = (clamped - displayMin) / (displayMax - displayMin);
+                        }
+                        sliderState.sliderDragStarted();
+                        sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
+                        sliderState.sliderDragEnded();
+                    }
+                    isEditing = false;
+                    updateVisual();
+                }
+
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
+                    else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
+                });
+
+                input.addEventListener('blur', () => {
+                    if (isEditing) commitValue();
+                });
+            });
+        }
+
+        function populateFxKnobs(containerId, knobs) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            knobs.forEach(k => container.appendChild(makeFxKnob(k.id, k.label)));
+        }
+
+        function setupFxBypassToggle(fxName, toggleState) {
+            const btn = document.getElementById(fxName + 'BypassBtn');
+            const section = document.getElementById(fxName + 'Section');
+            if (!btn || !section || !toggleState) return;
+
+            function updateVisual() {
+                const bypassed = toggleState.getValue();
+                btn.textContent = bypassed ? 'Off' : 'On';
+                btn.classList.toggle('bypassed', bypassed);
+                section.classList.toggle('bypassed', bypassed);
+            }
+
+            toggleState.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            btn.addEventListener('click', () => {
+                toggleState.setValue(!toggleState.getValue());
+            });
+
+            updateVisual();
+        }
+
+        // Initialize all effects controls
+        try {
+            // Populate knobs
+            populateFxKnobs('chorus-knobs', [
+                { id: 'chorusRate', label: 'Rate' },
+                { id: 'chorusDepth', label: 'Depth' },
+                { id: 'chorusMix', label: 'Mix' },
+            ]);
+
+            // Delay - knobs + mode dropdown
+            const delayRow = document.getElementById('delay-knobs');
+            if (delayRow) {
+                delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
+                delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+
+                const modeWrap = document.createElement('div');
+                modeWrap.className = 'fx-dropdown-container';
+                const modeLbl = document.createElement('div');
+                modeLbl.className = 'knob-label';
+                modeLbl.textContent = 'Mode';
+                const modeSel = document.createElement('select');
+                modeSel.className = 'fx-dropdown';
+                modeSel.id = 'delayModeSelect';
+                ['Normal', 'PingPong'].forEach((name, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = name;
+                    modeSel.appendChild(opt);
+                });
+                modeWrap.appendChild(modeLbl);
+                modeWrap.appendChild(modeSel);
+                delayRow.appendChild(modeWrap);
+
+                delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+            }
+
+            populateFxKnobs('eq-knobs', [
+                { id: 'eqLowGain', label: 'Low' },
+                { id: 'eqMidGain', label: 'Mid' },
+                { id: 'eqMidFreq', label: 'Mid Freq' },
+                { id: 'eqHighGain', label: 'High' },
+            ]);
+
+            populateFxKnobs('reverb-knobs', [
+                { id: 'reverbSize', label: 'Size' },
+                { id: 'reverbDamp', label: 'Damp' },
+                { id: 'reverbPredelay', label: 'Pre-dly' },
+                { id: 'reverbMod', label: 'Mod' },
+                { id: 'reverbShimmer', label: 'Shimmer' },
+                { id: 'reverbMix', label: 'Mix' },
+            ]);
+
+            // Get JUCE states
+            const chorusRateState     = Juce.getSliderState('chorusRate');
+            const chorusDepthState    = Juce.getSliderState('chorusDepth');
+            const chorusMixState      = Juce.getSliderState('chorusMix');
+            const delayTimeState      = Juce.getSliderState('delayTime');
+            const delayFeedbackState  = Juce.getSliderState('delayFeedback');
+            const delayModeState      = Juce.getComboBoxState('delayMode');
+            const delayMixState       = Juce.getSliderState('delayMix');
+            const eqLowGainState      = Juce.getSliderState('eqLowGain');
+            const eqMidGainState      = Juce.getSliderState('eqMidGain');
+            const eqMidFreqState      = Juce.getSliderState('eqMidFreq');
+            const eqHighGainState     = Juce.getSliderState('eqHighGain');
+            const reverbSizeState     = Juce.getSliderState('reverbSize');
+            const reverbDampState     = Juce.getSliderState('reverbDamp');
+            const reverbPredelayState = Juce.getSliderState('reverbPredelay');
+            const reverbMixState      = Juce.getSliderState('reverbMix');
+            const reverbModState      = Juce.getSliderState('reverbMod');
+            const reverbShimmerState  = Juce.getSliderState('reverbShimmer');
+            const chorusBypassState   = Juce.getToggleState('chorusBypass');
+            const delayBypassState    = Juce.getToggleState('delayBypass');
+            const eqBypassState       = Juce.getToggleState('eqBypass');
+            const reverbBypassState   = Juce.getToggleState('reverbBypass');
+
+            // Setup knobs with display ranges
+            setupFxKnob('chorusRate',      chorusRateState,     0.1, 10, ' Hz', v => v.toFixed(2));
+            setupFxKnob('chorusDepth',     chorusDepthState,    0, 100, '%', v => Math.round(v));
+            setupFxKnob('chorusMix',       chorusMixState,      0, 100, '%', v => Math.round(v));
+            setupFxKnob('delayTime',       delayTimeState,      1, 2000, ' ms', v => Math.round(v));
+            setupFxKnob('delayFeedback',   delayFeedbackState,  0, 95, '%', v => Math.round(v));
+            setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v));
+            setupFxKnob('eqLowGain',       eqLowGainState,      -12, 12, ' dB', v => v.toFixed(1));
+            setupFxKnob('eqMidGain',       eqMidGainState,      -12, 12, ' dB', v => v.toFixed(1));
+            setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v), true);  // WR-07: skewed range
+            setupFxKnob('eqHighGain',      eqHighGainState,     -12, 12, ' dB', v => v.toFixed(1));
+            setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
+            setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));
+            setupFxKnob('reverbPredelay',  reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
+            setupFxKnob('reverbMod',       reverbModState,      0, 100, '%', v => Math.round(v));
+            setupFxKnob('reverbShimmer',   reverbShimmerState,  0, 100, '%', v => Math.round(v));
+            setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v));
+
+            // Delay mode dropdown
+            const modeSelect = document.getElementById('delayModeSelect');
+            if (modeSelect && delayModeState) {
+                modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+                modeSelect.addEventListener('change', (e) => {
+                    delayModeState.setChoiceIndex(e.target.selectedIndex);
+                });
+                delayModeState.valueChangedEvent.addListener(() => {
+                    modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+                });
+            }
+
+            // Bypass toggles
+            setupFxBypassToggle('chorus', chorusBypassState);
+            setupFxBypassToggle('delay', delayBypassState);
+            setupFxBypassToggle('eq', eqBypassState);
+            setupFxBypassToggle('reverb', reverbBypassState);
+
+            console.log('Effects tab initialized (v4.0.0)');
+        } catch (error) {
+            console.error('Failed to initialize effects:', error);
+        }
+
+        // ====================================================================
+        // v3.0.0: TUNING PANEL INITIALIZATION
+        // ====================================================================
+
+        (async () => {
+            try {
+                const { TuningPanel } = await import('./js/tuning-panel.js');
+                const container = document.getElementById('tuning-container');
+                const tuningPanel = new TuningPanel(container, Juce);
+                await tuningPanel.init();
+
+                // Expose note highlighting for C++ evaluateJavascript calls
+                window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
+                window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
+
+                // v3.1.0: Expose held notes + frequencies for TrueKeys interval reporting
+                window.updateHeldNotes = (notes, freqs) => tuningPanel.updateHeldNotes(notes, freqs);
+
+                console.log('[Tuning] Panel initialized successfully');
+            } catch (err) {
+                console.error('[Tuning] Failed to initialize panel:', err);
+            }
+        })();
+    </script>
+</body>
+</html>

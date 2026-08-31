@@ -1,0 +1,76 @@
+# plugin	O-Wind
+# uiRoot	Resources/ui
+# generated	2026-08-30T02:36:29.218Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	837	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	842	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	843	span.brand-label		LABEL	no	brand-label.ouaricon	Ouaricon	prose survives the readout filter
+html-text	index.html	850	button.tab-btn.active		LABEL	no	tab-btn.sound	Sound	prose survives the readout filter
+html-text	index.html	851	button.tab-btn		LABEL	no	tab-btn.tuning	Tuning	prose survives the readout filter
+html-text	index.html	852	button.tab-btn		LABEL	no	tab-btn.effects	Effects	prose survives the readout filter
+html-text	index.html	865	div.section-label		LABEL	no	tab-sound.instrument	Instrument	prose survives the readout filter
+html-text	index.html	870	span.toggle-label		LABEL	no	tone-hole-toggle.tone-holes	Tone Holes	prose survives the readout filter
+html-text	index.html	873	label		LABEL	no	tab-sound.preset	Preset	prose survives the readout filter
+html-text	index.html	875	option		LABEL	no	instrument-select.concert-flute	Concert Flute	prose survives the readout filter
+html-text	index.html	876	option		LABEL	no	instrument-select.shakuhachi	Shakuhachi	prose survives the readout filter
+html-text	index.html	877	option		LABEL	no	instrument-select.bansuri	Bansuri	prose survives the readout filter
+html-text	index.html	878	option		LABEL	no	instrument-select.native-am-flute	Native Am. Flute	prose survives the readout filter
+html-text	index.html	879	option		LABEL	no	instrument-select.recorder	Recorder	prose survives the readout filter
+html-text	index.html	880	option		LABEL	no	instrument-select.pan-flute	Pan Flute	prose survives the readout filter
+html-text	index.html	881	option		LABEL	no	instrument-select.piccolo	Piccolo	prose survives the readout filter
+html-text	index.html	882	option		LABEL	no	instrument-select.ocarina	Ocarina	prose survives the readout filter
+html-text	index.html	891	div.section-label		LABEL	no	tab-sound.excitation	Excitation	prose survives the readout filter
+html-text	index.html	895	div.knob-label		LABEL	no	tab-sound.breath	Breath	prose survives the readout filter
+html-text	index.html	900	div.knob-label		LABEL	no	tab-sound.embouchure	Embouchure	prose survives the readout filter
+html-text	index.html	905	div.knob-label		LABEL	no	tab-sound.noise	Noise	prose survives the readout filter
+html-text	index.html	913	div.section-label		LABEL	no	tab-sound.resonator	Resonator	prose survives the readout filter
+html-text	index.html	917	div.knob-label		LABEL	no	tab-sound.material	Material	prose survives the readout filter
+html-text	index.html	922	div.knob-label		LABEL	no	tab-sound.tone-color	Tone Color	prose survives the readout filter
+html-text	index.html	927	div.knob-label		LABEL	no	tab-sound.air-column	Air Column	prose survives the readout filter
+html-text	index.html	932	div.knob-label		LABEL	no	tab-sound.jet-refl	Jet Refl.	prose survives the readout filter
+html-text	index.html	937	div.knob-label		LABEL	no	tab-sound.end-refl	End Refl.	prose survives the readout filter
+html-text	index.html	945	div.section-label		UNSURE	no	adsr-section.adsr-envelope	ADSR Envelope	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	956	div.knob-label		LABEL	no	adsr-knobs.attack	Attack	prose survives the readout filter
+html-text	index.html	957	div.knob-value		READOUT	no	adsr-knobs.10-ms	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	961	div.knob-label		LABEL	no	adsr-knobs.decay	Decay	prose survives the readout filter
+html-text	index.html	962	div.knob-value		READOUT	no	adsr-knobs.100-ms	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	966	div.knob-label		LABEL	no	adsr-knobs.sustain	Sustain	prose survives the readout filter
+html-text	index.html	971	div.knob-label		LABEL	no	adsr-knobs.release	Release	prose survives the readout filter
+html-text	index.html	972	div.knob-value		READOUT	no	adsr-knobs.200-ms	200 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	980	div.section-label		LABEL	no	tab-sound.expression	Expression	prose survives the readout filter
+html-text	index.html	984	div.knob-label		LABEL	no	tab-sound.vib-rate	Vib Rate	prose survives the readout filter
+html-text	index.html	985	div.knob-value		READOUT	no	tab-sound.5-0-hz	5.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	989	div.knob-label		LABEL	no	tab-sound.vib-pitch	Vib Pitch	prose survives the readout filter
+html-text	index.html	994	div.knob-label		LABEL	no	tab-sound.vib-tremolo	Vib Tremolo	prose survives the readout filter
+html-text	index.html	999	div.knob-label		LABEL	no	tab-sound.drift-depth	Drift Depth	prose survives the readout filter
+html-text	index.html	1004	div.knob-label		LABEL	no	tab-sound.drift-speed	Drift Speed	prose survives the readout filter
+html-text	index.html	1005	div.knob-value		READOUT	no	tab-sound.0-4-hz	0.4 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1009	div.knob-label		LABEL	no	tab-sound.flutter	Flutter	prose survives the readout filter
+html-text	index.html	1014	div.knob-label		LABEL	no	tab-sound.flut-rate	Flut Rate	prose survives the readout filter
+html-text	index.html	1015	div.knob-value		READOUT	no	tab-sound.22-0-hz	22.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1019	div.knob-label		LABEL	no	tab-sound.growl	Growl	prose survives the readout filter
+html-text	index.html	1029	div.section-label		LABEL	no	tab-sound.output	Output	prose survives the readout filter
+html-text	index.html	1033	div.knob-label		LABEL	no	tab-sound.width	Width	prose survives the readout filter
+html-text	index.html	1038	div.knob-label		LABEL	no	tab-sound.formant	Formant	prose survives the readout filter
+html-text	index.html	1043	div.knob-label		LABEL	no	tab-sound.output-2	Output	prose survives the readout filter
+html-text	index.html	1044	div.knob-value		READOUT	no	tab-sound.0-0-db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1051	div.section-label		LABEL	no	tab-sound.impossible-physics	Impossible Physics	prose survives the readout filter
+html-text	index.html	1055	div.knob-label		LABEL	no	tab-sound.inf-sustain	Inf. Sustain	prose survives the readout filter
+html-text	index.html	1060	div.knob-label		LABEL	no	tab-sound.rev-jet	Rev. Jet	prose survives the readout filter
+html-text	index.html	1065	div.knob-label		LABEL	no	tab-sound.sub-harm	Sub Harm.	prose survives the readout filter
+html-text	index.html	1090	span.fx-title		LABEL	no	chorussection.chorus	Chorus	prose survives the readout filter
+html-text	index.html	1091	#chorusBypassBtn		LABEL	no	chorusBypassBtn	On	prose survives the readout filter
+html-text	index.html	1098	span.fx-title		LABEL	no	delaysection.delay	Delay	prose survives the readout filter
+html-text	index.html	1099	#delayBypassBtn		LABEL	no	delayBypassBtn	On	prose survives the readout filter
+html-text	index.html	1106	span.fx-title		LABEL	no	reverbsection.reverb	Reverb	prose survives the readout filter
+html-text	index.html	1107	#reverbBypassBtn		LABEL	no	reverbBypassBtn	On	prose survives the readout filter
+html-text	index.html	1114	span.fx-title		LABEL	no	eqsection.eq	EQ	prose survives the readout filter
+html-text	index.html	1115	#eqBypassBtn		LABEL	no	eqBypassBtn	On	prose survives the readout filter
+html-attr	index.html	836	#preset-prev	title	LABEL	no	preset-prev	Previous Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	837	#preset-name	title	UNSURE	no	preset-name-2	Click to browse presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	841	#preset-next	title	LABEL	no	preset-next	Next Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 1127	1623	container').innerHTML		LABEL	no	ui.tuning-panel-failed-to	Tuning panel failed to load.	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1127	1788	btn.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1127	1788	btn.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1127	1816	modeLbl.textContent		LABEL	no	ui.mode	Mode	prose survives the readout filter

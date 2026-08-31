@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Comp, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ouaricon Compressor</title>
+
+  <style>
+    /* CRITICAL: WebView constraints */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Native application feel */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Ouaricon Naturalist styling */
+      background-image: url('paper-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      color: #3C2F2F;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Container fills entire window */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* Header row - Title + Preset Bar */
+    .header {
+      position: absolute;
+      top: 0;
+      left: 10px;
+      right: 80px; /* Leave space for output meter label */
+      height: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #3C2F2F;
+      white-space: nowrap;
+    }
+
+    /* Preset Bar */
+    .preset-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(139, 168, 112, 0.25);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      padding: 2px 4px;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .preset-nav-btn {
+      width: 18px;
+      height: 16px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 11px;
+      font-weight: bold;
+      color: #3C2F2F;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+
+    .preset-nav-btn:hover {
+      background: rgba(139, 115, 85, 0.5);
+    }
+
+    .preset-name-container {
+      position: relative;
+    }
+
+    .preset-name {
+      min-width: 70px;
+      max-width: 100px;
+      text-align: center;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 10px;
+      color: #3C2F2F;
+      padding: 1px 4px;
+      background: rgba(255, 248, 220, 0.5);
+      border-radius: 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preset-name:hover {
+      background: rgba(255, 248, 220, 0.8);
+    }
+
+    /* Preset Dropdown Menu */
+    .preset-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 120px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #F5E6D3;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+      z-index: 100;
+      margin-top: 2px;
+    }
+
+    .preset-dropdown.open {
+      display: block;
+    }
+
+    .preset-dropdown-item {
+      padding: 4px 8px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 10px;
+      color: #3C2F2F;
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+    }
+
+    .preset-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .preset-dropdown-item:hover {
+      background: rgba(139, 168, 112, 0.3);
+    }
+
+    .preset-dropdown-item.active {
+      background: rgba(139, 168, 112, 0.5);
+      font-weight: bold;
+    }
+
+    .preset-dropdown-header {
+      padding: 3px 8px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #5C4033;
+      font-weight: bold;
+      background: rgba(139, 115, 85, 0.15);
+      border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+    }
+
+    .preset-action-btn {
+      width: 32px;
+      height: 16px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #3C2F2F;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+
+    .preset-action-btn:hover {
+      background: rgba(139, 115, 85, 0.5);
+    }
+
+    /* Control group container - FLEXBOX FOR ALIGNMENT */
+    .control-group {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    /* Parameter labels */
+    .param-label {
+      font-size: 11px;
+      color: #3C2F2F;
+      text-align: center;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    /* Value displays */
+    .value-display {
+      font-size: 9px;
+      color: #5C4033;
+      text-align: center;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+
+    /* SVG Vine-Arc Knobs */
+    .knob-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .knob-visual {
+      width: 52px;
+      height: 52px;
+      position: relative;
+    }
+
+    .knob-visual svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-135deg);
+    }
+
+    .knob-track {
+      fill: none;
+      stroke: rgba(139, 115, 85, 0.3);
+      stroke-width: 2;
+    }
+
+    .knob-vine {
+      fill: none;
+      stroke: #5a7a6a;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    /* Auto-Gain toggle button */
+    .toggle-button {
+      width: 70px;
+      height: 40px;
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      background: linear-gradient(to bottom, #E8D5BF, #D4C4B0);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: #3C2F2F;
+      transition: all 0.15s ease;
+      box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-button.active {
+      background: linear-gradient(to bottom, #8BA870, #6B8E4E);
+      border-color: #6B8E4E;
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* LED meter */
+    .led-meter {
+      position: absolute;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 2px;
+      background: rgba(139, 115, 85, 0.1);
+      border: 1px solid #8B7355;
+      padding: 4px;
+      border-radius: 2px;
+    }
+
+    .led-segment {
+      width: 100%;
+      height: 14px;
+      background: #8B7355;
+      border-radius: 1px;
+      transition: background 0.1s ease;
+    }
+
+    .led-segment.active-low {
+      background: #8BA870;
+      box-shadow: 0 0 4px #8BA870;
+    }
+
+    .led-segment.active-mid {
+      background: #6B8E4E;
+      box-shadow: 0 0 4px #6B8E4E;
+    }
+
+    .led-segment.active-high {
+      background: #C9A27B;
+      box-shadow: 0 0 4px #C9A27B;
+    }
+
+    /* Visualization panels */
+    .viz-panel {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.6);
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .viz-label {
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      color: #3C2F2F;
+      background: rgba(245, 230, 211, 0.8);
+      padding: 2px 8px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Transfer curve canvas */
+    #transferCurveCanvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Shell background in transfer curve */
+    .shell-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('shell.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.5;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+
+    /* Envelope display canvas */
+    #envelopeCanvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header Row - Title + Preset Bar -->
+    <div class="header">
+      <div data-i18n="title.ouaricon-compressor" class="title">Ouaricon Compressor</div>
+      <div class="preset-bar">
+        <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
+        <div class="preset-name-container">
+          <span class="preset-name" id="preset-name" title="Click to browse presets">Default</span>
+          <div class="preset-dropdown" id="preset-dropdown"></div>
+        </div>
+        <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
+        <button data-i18n="preset-load" class="preset-action-btn" id="preset-load" title="Load preset">Load</button>
+        <button data-i18n="preset-save" class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
+      </div>
+    </div>
+
+    <!-- Top Row Controls -->
+    <!-- Threshold -->
+    <div class="control-group" style="left: 10px; top: 28px;">
+      <div class="knob-container" id="threshold-knob" data-param="threshold">
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="threshold-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
+        </div>
+      </div>
+      <div data-i18n="param-label.threshold" class="param-label">Threshold</div>
+      <div class="value-display" id="threshold-value">-20.0 dB</div>
+    </div>
+
+    <!-- Ratio -->
+    <div class="control-group" style="left: 85px; top: 28px;">
+      <div class="knob-container" id="ratio-knob" data-param="ratio">
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="ratio-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
+        </div>
+      </div>
+      <div data-i18n="param-label.ratio" class="param-label">Ratio</div>
+      <div class="value-display" id="ratio-value">4.0:1</div>
+    </div>
+
+    <!-- Attack -->
+    <div class="control-group" style="left: 160px; top: 28px;">
+      <div class="knob-container" id="attack-knob" data-param="attack_time">
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="attack-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
+        </div>
+      </div>
+      <div data-i18n="param-label.attack" class="param-label">Attack</div>
+      <div class="value-display" id="attack-value">10.0 ms</div>
+    </div>
+
+    <!-- Release -->
+    <div class="control-group" style="left: 235px; top: 28px;">
+      <div class="knob-container" id="release-knob" data-param="release_time">
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="release-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
+        </div>
+      </div>
+      <div data-i18n="param-label.release" class="param-label">Release</div>
+      <div class="value-display" id="release-value">100 ms</div>
+    </div>
+
+    <!-- Knee -->
+    <div class="control-group" style="left: 315px; top: 28px;">
+      <div class="knob-container" id="knee-knob" data-param="knee">
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="knee-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
+        </div>
+      </div>
+      <div data-i18n="param-label.knee" class="param-label">Knee</div>
+      <div class="value-display" id="knee-value">6.0 dB</div>
+    </div>
+
+    <!-- Output -->
+    <div class="control-group" style="left: 395px; top: 28px;">
+      <div class="knob-container" id="output-knob" data-param="output_gain">
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="output-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
+        </div>
+      </div>
+      <div data-i18n="param-label.output" class="param-label">Output</div>
+      <div class="value-display" id="output-value">0.0 dB</div>
+    </div>
+
+    <!-- Auto-Gain Toggle -->
+    <div class="control-group" style="left: 475px; top: 28px;">
+      <div data-i18n="param-label.auto-gain" class="param-label">Auto-Gain</div>
+      <div data-i18n="auto-gain-toggle" class="toggle-button" id="auto-gain-toggle" data-param="auto_gain">OFF</div>
+    </div>
+
+    <!-- Bottom Row - Meters and Visualizations -->
+    <!-- Input Meter (Left) -->
+    <div class="led-meter" id="input-meter" style="left: 18px; top: 105px; width: 18px; height: 240px;">
+      <!-- 14 LED segments -->
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+    </div>
+
+    <!-- Transfer Curve Panel -->
+    <div class="viz-panel" style="left: 46px; top: 105px; width: 210px; height: 240px;">
+      <!-- Shell background -->
+      <div class="shell-background"></div>
+      <canvas id="transferCurveCanvas" width="210" height="240"></canvas>
+      <div data-i18n="viz-label.transfer-curve" class="viz-label">Transfer Curve</div>
+    </div>
+
+    <!-- Envelope Display Panel -->
+    <div class="viz-panel" style="left: 266px; top: 105px; width: 308px; height: 240px;">
+      <canvas id="envelopeCanvas" width="308" height="240"></canvas>
+    </div>
+
+    <!-- Output Meter (Right) -->
+    <div class="led-meter" id="output-meter" style="left: 584px; top: 105px; width: 18px; height: 240px;">
+      <!-- 14 LED segments -->
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+    </div>
+  </div>
+
+  <!-- JUCE WebView Integration -->
+  <script type="module">
+    import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
+    import { PresetManager } from './modules/preset-manager.js';
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Parameter state and bindings
+    const params = {
+      threshold: { min: -60.0, max: 0.0, unit: ' dB', format: (v) => v.toFixed(1) },
+      ratio: { min: 1.0, max: 20.0, unit: ':1', format: (v) => v.toFixed(1) },
+      attack_time: { min: 0.1, max: 100.0, unit: ' ms', format: (v) => v.toFixed(1) },
+      release_time: { min: 10.0, max: 1000.0, unit: ' ms', format: (v) => v.toFixed(0) },
+      knee: { min: 0.0, max: 20.0, unit: ' dB', format: (v) => v.toFixed(1) },
+      output_gain: { min: -12.0, max: 24.0, unit: ' dB', format: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) }
+    };
+
+    // Format value for display
+    function formatValue(paramId, normalized) {
+      const param = params[paramId];
+      const value = param.min + normalized * (param.max - param.min);
+      return param.format(value) + param.unit;
+    }
+
+    // SVG vine-arc knob configs (r=22, circumference=138.23, 270deg arc=103.67)
+    const ARC_LENGTH = 103.67;
+    const knobConfigs = {
+      threshold: { vineId: 'threshold-vine', valueId: 'threshold-value' },
+      ratio: { vineId: 'ratio-vine', valueId: 'ratio-value' },
+      attack_time: { vineId: 'attack-vine', valueId: 'attack-value' },
+      release_time: { vineId: 'release-vine', valueId: 'release-value' },
+      knee: { vineId: 'knee-vine', valueId: 'knee-value' },
+      output_gain: { vineId: 'output-vine', valueId: 'output-value' }
+    };
+
+    // Animation state for smooth knob movement
+    const animationState = {
+      targets: {},
+      frameId: null,
+      isRunning: false,
+      smoothingFactor: 0.15
+    };
+
+    const animationLoop = () => {
+      let needsUpdate = false;
+
+      Object.entries(animationState.targets).forEach(([id, state]) => {
+        const delta = state.target - state.current;
+
+        if (Math.abs(delta) > 0.0001) {
+          state.current += delta * animationState.smoothingFactor;
+          needsUpdate = true;
+
+          const offset = ARC_LENGTH - (state.current * ARC_LENGTH);
+          state.vine.style.strokeDashoffset = offset;
+        }
+      });
+
+      if (needsUpdate) {
+        animationState.frameId = requestAnimationFrame(animationLoop);
+      } else {
+        animationState.isRunning = false;
+        animationState.frameId = null;
+      }
+    };
+
+    const startAnimationLoop = () => {
+      if (!animationState.isRunning) {
+        animationState.isRunning = true;
+        animationState.frameId = requestAnimationFrame(animationLoop);
+      }
+    };
+
+    // Default normalized values for double-click reset (matches processor defaults)
+    const paramDefaults = {
+      threshold: ((-20.0) - (-60.0)) / (0.0 - (-60.0)),  // -20 dB default
+      ratio: (2.0 - 1.0) / (20.0 - 1.0),                  // 2:1 default
+      attack_time: (10.0 - 0.1) / (100.0 - 0.1),          // 10 ms default
+      release_time: (100.0 - 10.0) / (1000.0 - 10.0),     // 100 ms default
+      knee: 6.0 / 20.0,                                    // 6 dB default
+      output_gain: (0.0 - (-12.0)) / (24.0 - (-12.0))     // 0 dB default
+    };
+
+    // Update SVG vine-arc knob and value display
+    function updateKnob(paramId, normalized) {
+      const config = knobConfigs[paramId];
+      if (!config) return;
+
+      // Animate the vine arc
+      if (animationState.targets[paramId]) {
+        animationState.targets[paramId].target = normalized;
+        startAnimationLoop();
+      }
+
+      // Update value display
+      const valueDisplay = document.getElementById(config.valueId);
+      if (valueDisplay) {
+        valueDisplay.textContent = formatValue(paramId, normalized);
+      }
+
+      // Update transfer curve when compression params change
+      if (['threshold', 'ratio', 'knee'].includes(paramId)) {
+        updateTransferCurve();
+      }
+    }
+
+    // Shared drag state — single mousemove/mouseup pair for all knobs
+    let activeKnob = null;  // { sliderState, lastY }
+
+    document.addEventListener('mousemove', (e) => {
+      if (!activeKnob) return;
+      const deltaY = activeKnob.lastY - e.clientY;
+      const current = activeKnob.sliderState.getNormalisedValue();
+      activeKnob.sliderState.setNormalisedValue(
+        Math.max(0, Math.min(1, current + deltaY / 200))
+      );
+      activeKnob.lastY = e.clientY;
+    });
+
+    document.addEventListener('mouseup', () => { activeKnob = null; });
+
+    // Setup knob interactions
+    function setupKnob(knobId, paramId) {
+      const knob = document.getElementById(knobId);
+      const sliderState = getSliderState(paramId);
+
+      if (!sliderState) {
+        console.error(`Failed to get slider state for ${paramId}`);
+        return;
+      }
+
+      // Initialize animation state for this knob
+      const config = knobConfigs[paramId];
+      if (config) {
+        const vine = document.getElementById(config.vineId);
+        const initialNorm = sliderState.getNormalisedValue();
+
+        animationState.targets[paramId] = {
+          current: initialNorm,
+          target: initialNorm,
+          vine: vine,
+          config: config
+        };
+
+        // Set initial arc position
+        const initialOffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
+        vine.style.strokeDashoffset = initialOffset;
+      }
+
+      // Listen to parameter changes from C++
+      sliderState.valueChangedEvent.addListener(() => {
+        updateKnob(paramId, sliderState.getNormalisedValue());
+      });
+
+      // Mouse drag — delegates to shared handler
+      const knobVisual = knob.querySelector('.knob-visual');
+      (knobVisual || knob).addEventListener('mousedown', (e) => {
+        activeKnob = { sliderState, lastY: e.clientY };
+        e.preventDefault();
+      });
+
+      // Double-click to reset to default
+      knob.addEventListener('dblclick', () => {
+        sliderState.setNormalisedValue(paramDefaults[paramId] || 0.5);
+      });
+
+      // Mouse wheel support
+      knob.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const currentNorm = sliderState.getNormalisedValue();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+        sliderState.setNormalisedValue(newNorm);
+      }, { passive: false });
+
+      // Initialize visual state
+      updateKnob(paramId, sliderState.getNormalisedValue());
+    }
+
+    // Setup toggle button
+    function setupToggle() {
+      const toggle = document.getElementById('auto-gain-toggle');
+      const toggleState = getToggleState('auto_gain');
+
+      if (!toggleState) {
+        console.error('Failed to get toggle state for auto_gain');
+        return;
+      }
+
+      // Listen to parameter changes from C++
+      toggleState.valueChangedEvent.addListener(() => {
+        const value = toggleState.getValue();
+        toggle.classList.toggle('active', value);
+        toggle.textContent = value ? 'ON' : 'OFF';
+      });
+
+      // Click handler
+      toggle.addEventListener('click', () => {
+        const currentValue = toggleState.getValue();
+        toggleState.setValue(!currentValue);
+      });
+
+      // Initialize visual state
+      const initialValue = toggleState.getValue();
+      toggle.classList.toggle('active', initialValue);
+      toggle.textContent = initialValue ? 'ON' : 'OFF';
+    }
+
+    // Transfer curve visualization
+    function updateTransferCurve() {
+      const canvas = document.getElementById('transferCurveCanvas');
+      const ctx = canvas.getContext('2d');
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(139, 115, 85, 0.2)';
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= 4; i++) {
+        const x = (canvas.width / 4) * i;
+        const y = (canvas.height / 4) * i;
+
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Get current parameter values
+      const thresholdState = getSliderState('threshold');
+      const ratioState = getSliderState('ratio');
+      const kneeState = getSliderState('knee');
+
+      if (!thresholdState || !ratioState || !kneeState) return;
+
+      const thresholdNorm = thresholdState.getNormalisedValue();
+      const ratioNorm = ratioState.getNormalisedValue();
+      const kneeNorm = kneeState.getNormalisedValue();
+
+      const threshold = -60.0 + thresholdNorm * 60.0;
+      const ratio = 1.0 + ratioNorm * 19.0;
+      const knee = kneeNorm * 20.0;
+
+      // Transfer curve with compression
+      ctx.strokeStyle = '#6B8E4E';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+
+      for (let x = 0; x < canvas.width; x++) {
+        const inputDb = (x / canvas.width) * 60 - 60; // -60 to 0 dB
+        let outputDb;
+
+        if (inputDb < threshold - knee / 2) {
+          // Below knee - no compression
+          outputDb = inputDb;
+        } else if (inputDb > threshold + knee / 2) {
+          // Above knee - full compression
+          outputDb = threshold + (inputDb - threshold) / ratio;
+        } else {
+          // Within knee - standard quadratic soft-knee formula
+          const kneeInput = inputDb - threshold + knee / 2;
+          outputDb = inputDb - (1 - 1 / ratio) * (kneeInput * kneeInput) / (2 * knee);
+        }
+
+        const y = canvas.height - ((outputDb + 60) / 60) * canvas.height;
+
+        if (x === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      ctx.stroke();
+    }
+
+    // Metering state with circular buffer
+    const HISTORY_SIZE = 300;  // ~10 seconds at 30fps
+    let meterState = {
+      inputLevel: -60,
+      outputLevel: -60,
+      gainReduction: 0,
+      envelope: -60,
+      envelopeHistory: new Float32Array(HISTORY_SIZE).fill(-60),
+      grHistory: new Float32Array(HISTORY_SIZE).fill(0),
+      historyIndex: 0,
+      historyCount: 0
+    };
+
+    // Global function called from C++ via evaluateJavascript
+    window.updateMeters = function(inputLevel, outputLevel, gainReduction, envelope) {
+      meterState.inputLevel = inputLevel;
+      meterState.outputLevel = outputLevel;
+      meterState.gainReduction = gainReduction;
+      meterState.envelope = envelope;
+
+      meterState.envelopeHistory[meterState.historyIndex] = envelope;
+      meterState.grHistory[meterState.historyIndex] = gainReduction;
+      meterState.historyIndex = (meterState.historyIndex + 1) % HISTORY_SIZE;
+      if (meterState.historyCount < HISTORY_SIZE) meterState.historyCount++;
+    };
+
+    // Update LED meter with real level data
+    function updateMeterDisplay(meterId, levelDB) {
+      const meter = document.getElementById(meterId);
+      const segments = meter.querySelectorAll('.led-segment');
+
+      const normalized = Math.max(0, Math.min(1, (levelDB + 60) / 60));
+
+      segments.forEach((segment, index) => {
+        const segmentThreshold = index / segments.length;
+        segment.classList.remove('active-low', 'active-mid', 'active-high');
+
+        if (normalized > segmentThreshold) {
+          if (index < segments.length * 0.5) {
+            segment.classList.add('active-low');
+          } else if (index < segments.length * 0.85) {
+            segment.classList.add('active-mid');
+          } else {
+            segment.classList.add('active-high');
+          }
+        }
+      });
+    }
+
+    // Single unified rAF loop for all meter/envelope rendering
+    function startRenderLoop() {
+      const envCanvas = document.getElementById('envelopeCanvas');
+      const envCtx = envCanvas.getContext('2d');
+
+      function frame() {
+        // LED meters
+        updateMeterDisplay('input-meter', meterState.inputLevel);
+        updateMeterDisplay('output-meter', meterState.outputLevel);
+
+        // Envelope/GR canvas
+        envCtx.clearRect(0, 0, envCanvas.width, envCanvas.height);
+
+        const count = meterState.historyCount;
+        const idx = meterState.historyIndex;
+
+        // Envelope history (top half - green line)
+        if (count > 1) {
+          envCtx.strokeStyle = '#6B8E4E';
+          envCtx.lineWidth = 2;
+          envCtx.beginPath();
+          for (let i = 0; i < count; i++) {
+            const ri = (idx - count + i + HISTORY_SIZE) % HISTORY_SIZE;
+            const x = (i / HISTORY_SIZE) * envCanvas.width;
+            const normalizedLevel = (meterState.envelopeHistory[ri] + 60) / 60;
+            const y = (envCanvas.height / 2) - (normalizedLevel * (envCanvas.height / 2 - 20));
+            if (i === 0) envCtx.moveTo(x, y);
+            else envCtx.lineTo(x, y);
+          }
+          envCtx.stroke();
+        }
+
+        // Gain reduction histogram (bottom half - amber bars)
+        if (count > 0) {
+          envCtx.fillStyle = 'rgba(201, 162, 123, 0.6)';
+          const barWidth = envCanvas.width / HISTORY_SIZE;
+          for (let i = 0; i < count; i++) {
+            const ri = (idx - count + i + HISTORY_SIZE) % HISTORY_SIZE;
+            const barHeight = (meterState.grHistory[ri] / 30) * (envCanvas.height / 2 - 40);
+            envCtx.fillRect(i * barWidth, envCanvas.height / 2 + 20, barWidth, barHeight);
+          }
+        }
+
+        // GR value text
+        envCtx.fillStyle = '#3C2F2F';
+        envCtx.font = '11px Garamond, serif';
+        envCtx.fillText(
+          meterState.gainReduction > 0
+            ? `GR: -${meterState.gainReduction.toFixed(1)} dB`
+            : 'GR: 0.0 dB',
+          10, envCanvas.height - 25
+        );
+
+        // Dividing line
+        envCtx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
+        envCtx.lineWidth = 1;
+        envCtx.beginPath();
+        envCtx.moveTo(0, envCanvas.height / 2 + 10);
+        envCtx.lineTo(envCanvas.width, envCanvas.height / 2 + 10);
+        envCtx.stroke();
+
+        // Labels
+        envCtx.fillStyle = '#5C4033';
+        envCtx.font = '9px Garamond, serif';
+        envCtx.fillText('Envelope', 10, 15);
+        envCtx.fillText('Gain Reduction', 10, envCanvas.height / 2 + 35);
+
+        requestAnimationFrame(frame);
+      }
+      frame();
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      // Setup parameter controls
+      setupKnob('threshold-knob', 'threshold');
+      setupKnob('ratio-knob', 'ratio');
+      setupKnob('attack-knob', 'attack_time');
+      setupKnob('release-knob', 'release_time');
+      setupKnob('knee-knob', 'knee');
+      setupKnob('output-knob', 'output_gain');
+      setupToggle();
+
+      // Initialize Preset Manager
+      const presetNameEl = document.getElementById('preset-name');
+      const presetDropdown = document.getElementById('preset-dropdown');
+
+      const presetManager = new PresetManager({
+        displayElement: presetNameEl,
+        prevButton: document.getElementById('preset-prev'),
+        nextButton: document.getElementById('preset-next'),
+        saveButton: document.getElementById('preset-save'),
+        loadButton: document.getElementById('preset-load'),
+        getNativeFunction: getNativeFunction,
+        onPresetChanged: (name) => {
+          console.log('[PresetManager] Loaded:', name);
+          updateDropdownActive(name);
+        },
+        onPresetListUpdated: (list) => {
+          buildDropdownMenu(list);
+        }
+      });
+      presetManager.initialize();
+
+      // Build dropdown menu from preset list
+      function buildDropdownMenu(presetList) {
+        presetDropdown.innerHTML = '';
+
+        if (presetList.length === 0) {
+          const emptyItem = document.createElement('div');
+          emptyItem.className = 'preset-dropdown-item';
+          emptyItem.textContent = 'No presets';
+          emptyItem.style.fontStyle = 'italic';
+          emptyItem.style.color = '#888';
+          presetDropdown.appendChild(emptyItem);
+          return;
+        }
+
+        // Add header
+        const header = document.createElement('div');
+        header.className = 'preset-dropdown-header';
+        header.textContent = 'Presets';
+        presetDropdown.appendChild(header);
+
+        // Add preset items
+        presetList.forEach(name => {
+          const item = document.createElement('div');
+          item.className = 'preset-dropdown-item';
+          item.textContent = name;
+          item.dataset.preset = name;
+
+          if (name === presetManager.getCurrentPreset()) {
+            item.classList.add('active');
+          }
+
+          item.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await presetManager.loadPreset(name);
+            closeDropdown();
+          });
+
+          presetDropdown.appendChild(item);
+        });
+      }
+
+      // Update active state in dropdown
+      function updateDropdownActive(currentName) {
+        const items = presetDropdown.querySelectorAll('.preset-dropdown-item');
+        items.forEach(item => {
+          item.classList.toggle('active', item.dataset.preset === currentName);
+        });
+      }
+
+      // Toggle dropdown
+      function toggleDropdown() {
+        presetDropdown.classList.toggle('open');
+      }
+
+      function closeDropdown() {
+        presetDropdown.classList.remove('open');
+      }
+
+      // Click on preset name to toggle dropdown
+      presetNameEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown();
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!presetDropdown.contains(e.target) && e.target !== presetNameEl) {
+          closeDropdown();
+        }
+      });
+
+      // Start visualizations
+      updateTransferCurve();
+      startRenderLoop();
+
+      console.log('O-Comp v1.4.0 UI loaded - vine-arc knobs');
+    });
+  </script>
+</body>
+</html>

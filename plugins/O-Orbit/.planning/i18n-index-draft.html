@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Orbit, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Orbit</title>
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- JUCE Bridge: native interop setup (must load first as regular script) -->
+    <script src="js/juce/check_native_interop.js"></script>
+
+    <!-- App JS (ES module - imports from JUCE bridge index.js) -->
+    <script type="module" src="js/app.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header id="header">
+        <h1data-i18n="header.o-orbit" >O-Orbit</h1>
+
+        <!-- Preset band (v1.1.0) — element IDs are exactly the ones
+             preset-manager.js binds. #preset-name stays childless
+             (_updateDisplay writes textContent); the caret is a SIBLING inside
+             the trigger, never a child of the readout
+             (pattern_js_state_updater_overwrites_html_labels). Ships disabled;
+             un-disabled only after PresetManager.initialize() resolves. -->
+        <div id="preset-band">
+            <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list." disabled>&#9664;</button>
+            <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list." disabled>&#9654;</button>
+            <div id="preset-select-wrap">
+                <button type="button" id="preset-select"
+                        aria-haspopup="listbox" aria-expanded="false" aria-label="Browse presets"
+                        data-tip-title="Preset"
+                        data-tip="The preset currently loaded — click to browse by category. The 12 factory presets are read-only; saving under the same name writes a user copy instead." disabled>
+                    <span id="preset-name" aria-live="polite">Default</span>
+                    <span id="preset-caret" aria-hidden="true">&#9662;</span>
+                </button>
+                <div id="preset-menu" role="listbox" aria-label="Presets"></div>
+            </div>
+            <button type="button" class="preset-btn-hdr" id="preset-save" data-label="Save" data-tip-title="Save" data-tip="Save the current settings as a user preset." disabled>Save</button>
+            <button type="button" class="preset-btn-hdr" id="preset-load" data-label="Load" data-tip-title="Load" data-tip="Load a preset from a file." disabled>Load</button>
+            <button type="button" class="preset-btn-hdr" id="preset-delete"
+                    data-label="Del" data-confirm="Sure?" data-armed="0" data-tip-title="Delete" data-tip="Delete the current user preset. Click once to arm it, again to confirm." disabled>Del</button>
+        </div>
+
+        <div id="header-right">
+            <!-- Hover-help toggle (v1.1.0). Ships unlit. data-tip-always
+                 bypasses the enabled gate so the one control able to turn help
+                 back on is never the one control unable to explain itself. -->
+            <button type="button" id="help-toggle"
+                    aria-pressed="false" aria-label="Toggle hover help"
+                    data-tip-always
+                    data-tip-title="Hover help"
+                    data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
+            <div id="view-toggle" data-tip-title="View" data-tip="Switch between the motion visualizer and the speaker layout editor.">Motion View</div>
+        </div>
+    </header>
+
+    <!-- Visualizer / Speaker Editor Area -->
+    <section id="visualizer-container">
+        <canvas id="visualizer-canvas"></canvas>
+
+        <!-- Speaker Editor Toolbar (hidden by default) -->
+        <div id="editor-toolbar">
+            <div id="preset-buttons">
+                <button data-i18n="preset-buttons.stereo" class="preset-btn" data-preset="0">Stereo</button>
+                <button data-i18n="preset-buttons.quad" class="preset-btn" data-preset="1">Quad</button>
+                <button class="preset-btn" data-preset="2">5.1</button>
+                <button class="preset-btn" data-preset="3">7.1</button>
+                <button class="preset-btn" data-preset="4">5.1.4</button>
+                <button class="preset-btn" data-preset="5">7.1.4</button>
+                <button data-i18n="preset-buttons.hex" class="preset-btn" data-preset="6">Hex</button>
+                <button data-i18n="preset-buttons.oct" class="preset-btn" data-preset="7">Oct</button>
+            </div>
+            <!-- Named layout library (D2, v1.1.0) + file I/O -->
+            <div id="layout-library">
+                <select id="layout-select" data-tip-title="Saved layouts" data-tip="Load a named custom speaker layout from your library.">
+                    <option data-i18n="layout-select.layouts" value="">Layouts&#8230;</option>
+                </select>
+                <input type="text" id="layout-name" maxlength="40" placeholder="name&#8230;"
+                       data-tip-title="Layout name" data-tip="Name for saving the current speaker arrangement to your library." />
+                <button id="layout-save-btn" data-tip-title="Save layout" data-tip="Save the current speaker arrangement under the name to the left.">Save</button>
+                <button id="layout-delete-btn" data-label="Del" data-confirm="Sure?" data-armed="0"
+                        data-tip-title="Delete layout" data-tip="Delete the selected saved layout. Click once to arm, again to confirm.">Del</button>
+            </div>
+            <div id="file-buttons">
+                <button id="export-btn" data-tip-title="Export" data-tip="Export the current speaker layout to a JSON file for sharing.">Export</button>
+                <button id="import-btn" data-tip-title="Import" data-tip="Import a speaker layout from a JSON file.">Import</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Parameter Controls -->
+    <section id="controls-container">
+        <!-- Motion Group -->
+        <div class="param-group" id="motion-group">
+            <h2 data-i18n="motion-group.motion" class="group-label">Motion</h2>
+            <div class="param-grid">
+                <!-- Path (dropdown) -->
+                <div class="param-container" data-tip-title="Path" data-tip="Motion trajectory: Orbit circles, Pendulum swings, Linear sweeps and snaps back, Drift wanders organically, Ping-Pong sweeps back and forth without the snap.">
+                    <label data-i18n="motion-group.path" for="path">Path</label>
+                    <select id="path" class="param-dropdown">
+                        <option data-i18n="path.orbit" value="0">Orbit</option>
+                        <option data-i18n="path.pendulum" value="1">Pendulum</option>
+                        <option data-i18n="path.linear" value="2">Linear</option>
+                        <option data-i18n="path.drift" value="3">Drift</option>
+                        <option data-i18n="path.ping-pong" value="4">Ping-Pong</option>
+                    </select>
+                </div>
+
+                <!-- Speed (knob) -->
+                <div class="param-container" data-tip-title="Speed" data-tip="Motion rate in cycles per second. Ignored while Tempo Sync is set to a division.">
+                    <label data-i18n="motion-group.speed" for="speed">Speed</label>
+                    <div class="knob-container">
+                        <div class="knob" id="speed" data-min="0.01" data-max="20" data-default="1.0" data-unit="Hz"></div>
+                    </div>
+                    <div class="value-display" id="speed-value">1.0 Hz</div>
+                </div>
+
+                <!-- Width (knob) -->
+                <div class="param-container" data-tip-title="Width" data-tip="Angular span of the motion in degrees — 360 is a full circle around the listener.">
+                    <label data-i18n="motion-group.width" for="width">Width</label>
+                    <div class="knob-container">
+                        <div class="knob" id="width" data-min="0" data-max="360" data-default="180" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="width-value">180°</div>
+                </div>
+
+                <!-- Depth (knob) -->
+                <div class="param-container" data-tip-title="Depth" data-tip="Near/far motion. At 0% the source stays at the Distance radius; higher values move it toward and away from you each cycle.">
+                    <label data-i18n="motion-group.depth" for="depth">Depth</label>
+                    <div class="knob-container">
+                        <div class="knob" id="depth" data-min="0" data-max="100" data-default="0" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="depth-value">0%</div>
+                </div>
+
+                <!-- Tilt (knob) -->
+                <div class="param-container" data-tip-title="Tilt" data-tip="Static elevation of the path in degrees, used while Elevation motion is off.">
+                    <label data-i18n="motion-group.tilt" for="tilt">Tilt</label>
+                    <div class="knob-container">
+                        <div class="knob" id="tilt" data-min="-90" data-max="90" data-default="0" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="tilt-value">0°</div>
+                </div>
+
+                <!-- Phase (knob) -->
+                <div class="param-container" data-tip-title="Phase" data-tip="Offset into the motion cycle in degrees — shifts where the source starts.">
+                    <label data-i18n="motion-group.phase" for="phase">Phase</label>
+                    <div class="knob-container">
+                        <div class="knob" id="phase" data-min="0" data-max="360" data-default="0" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="phase-value">0°</div>
+                </div>
+
+                <!-- Elevation Enable (toggle) -->
+                <div class="param-container" data-tip-title="Elevation" data-tip="Adds vertical motion — the source rises and falls with the cycle instead of staying at the Tilt angle.">
+                    <label data-i18n="motion-group.elevation" for="elevation_enable">Elevation</label>
+                    <div class="toggle-container">
+                        <input type="checkbox" id="elevation_enable" class="param-toggle">
+                        <label data-i18n="motion-group.off" for="elevation_enable" class="toggle-label">Off</label>
+                    </div>
+                </div>
+
+                <!-- Elevation Range (knob) -->
+                <div class="param-container" data-tip-title="Elev Range" data-tip="How far the elevation swings when Elevation motion is on, in degrees.">
+                    <label data-i18n="motion-group.elev-range" for="elevation_range">Elev Range</label>
+                    <div class="knob-container">
+                        <div class="knob" id="elevation_range" data-min="0" data-max="90" data-default="45" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="elevation_range-value">45°</div>
+                </div>
+
+                <!-- Tempo Sync (dropdown) -->
+                <div class="param-container" data-tip-title="Tempo Sync" data-tip="Locks the motion rate to the host tempo at the chosen division: 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed). While the transport plays, motion phase locks to the beat position, so bounces are deterministic.">
+                    <label data-i18n="motion-group.tempo-sync" for="tempo_sync">Tempo Sync</label>
+                    <select id="tempo_sync" class="param-dropdown">
+                        <option data-i18n="tempo-sync.off" value="0">Off</option>
+                        <option value="1">1/16T</option>
+                        <option value="2">1/16</option>
+                        <option value="3">1/16D</option>
+                        <option value="4">1/8T</option>
+                        <option value="5">1/8</option>
+                        <option value="6">1/8D</option>
+                        <option value="7">1/4T</option>
+                        <option value="8">1/4</option>
+                        <option value="9">1/4D</option>
+                        <option value="10">1/2</option>
+                        <option value="11">1/2D</option>
+                        <option data-i18n="tempo-sync.1-bar" value="12">1 Bar</option>
+                        <option data-i18n="tempo-sync.2-bars" value="13">2 Bars</option>
+                        <option data-i18n="tempo-sync.4-bars" value="14">4 Bars</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spatial Group -->
+        <div class="param-group" id="spatial-group">
+            <h2 data-i18n="spatial-group.spatial" class="group-label">Spatial</h2>
+            <div class="param-grid">
+                <!-- Speaker Layout (dropdown) -->
+                <div class="param-container" data-tip-title="Speaker Layout" data-tip="Target speaker arrangement. When the track has fewer channels, an energy-preserving downmix kicks in automatically (badge below shows when active).">
+                    <label data-i18n="spatial-group.speaker-layout" for="speaker_layout">Speaker Layout</label>
+                    <select id="speaker_layout" class="param-dropdown">
+                        <option data-i18n="speaker-layout.stereo" value="0">Stereo</option>
+                        <option data-i18n="speaker-layout.quad" value="1">Quad</option>
+                        <option value="2">5.1</option>
+                        <option value="3">7.1</option>
+                        <option value="4">5.1.4</option>
+                        <option value="5">7.1.4</option>
+                        <option data-i18n="speaker-layout.hexaphonic" value="6">Hexaphonic</option>
+                        <option data-i18n="speaker-layout.octaphonic" value="7">Octaphonic</option>
+                    </select>
+                    <div id="downmix-badge" data-tip-title="Downmix" data-tip="Shown when the layout has more channels than the track output — an energy-preserving fold-down is active."></div>
+                </div>
+
+                <!-- Distance (knob) -->
+                <div class="param-container" data-tip-title="Distance" data-tip="Base distance of the source in meters — farther is quieter and darker.">
+                    <label data-i18n="spatial-group.distance" for="distance">Distance</label>
+                    <div class="knob-container">
+                        <div class="knob" id="distance" data-min="0.1" data-max="30" data-default="1.0" data-unit="m"></div>
+                    </div>
+                    <div class="value-display" id="distance-value">1.0 m</div>
+                </div>
+
+                <!-- Air Absorption (knob) -->
+                <div class="param-container" data-tip-title="Air Absorption" data-tip="High-frequency loss with distance — more absorption makes distant sources darker.">
+                    <label data-i18n="spatial-group.air-absorption" for="air_absorption">Air Absorption</label>
+                    <div class="knob-container">
+                        <div class="knob" id="air_absorption" data-min="0" data-max="100" data-default="50" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="air_absorption-value">50%</div>
+                </div>
+
+                <!-- Attenuation Curve (dropdown) -->
+                <div class="param-container" data-tip-title="Atten Curve" data-tip="How level falls with distance: Linear, Inverse (1/d), or Inverse Square (1/d&#178;).">
+                    <label data-i18n="spatial-group.atten-curve" for="attenuation_curve">Atten Curve</label>
+                    <select id="attenuation_curve" class="param-dropdown">
+                        <option data-i18n="attenuation-curve.linear" value="0">Linear</option>
+                        <option data-i18n="attenuation-curve.inverse" value="1">Inverse</option>
+                        <option data-i18n="attenuation-curve.inverse-square" value="2">Inverse Square</option>
+                    </select>
+                </div>
+
+                <!-- Center Diverge (knob) -->
+                <div class="param-container" data-tip-title="Center Diverge" data-tip="Spreads energy into more speakers as it rises — 0% is the sharpest point-source imaging.">
+                    <label data-i18n="spatial-group.center-diverge" for="center_diverge">Center Diverge</label>
+                    <div class="knob-container">
+                        <div class="knob" id="center_diverge" data-min="0" data-max="100" data-default="0" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="center_diverge-value">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Source/Mix Group -->
+        <div class="param-group" id="source-group">
+            <h2 data-i18n="source-group.source-mix" class="group-label">Source / Mix</h2>
+            <div class="param-grid">
+                <!-- Source Mode (dropdown) -->
+                <div class="param-container" data-tip-title="Source Mode" data-tip="Mono sums the input into one moving source; L+R Split moves the left and right channels as two separate sources.">
+                    <label data-i18n="source-group.source-mode" for="source_mode">Source Mode</label>
+                    <select id="source_mode" class="param-dropdown">
+                        <option data-i18n="source-mode.mono" value="0">Mono</option>
+                        <option data-i18n="source-mode.l-r-split" value="1">L+R Split</option>
+                    </select>
+                </div>
+
+                <!-- L/R Offset (knob) -->
+                <div class="param-container" data-tip-title="L/R Offset" data-tip="Angle between the left and right sources in L+R Split mode — 180&#176; keeps them opposite.">
+                    <label data-i18n="source-group.l-r-offset" for="lr_offset">L/R Offset</label>
+                    <div class="knob-container">
+                        <div class="knob" id="lr_offset" data-min="0" data-max="360" data-default="180" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="lr_offset-value">180°</div>
+                </div>
+
+                <!-- Mix (knob) -->
+                <div class="param-container" data-tip-title="Mix" data-tip="Dry/wet balance. Wet is the spatialized signal on all outputs; dry stays on its native input channels.">
+                    <label data-i18n="source-group.mix" for="mix">Mix</label>
+                    <div class="knob-container">
+                        <div class="knob" id="mix" data-min="0" data-max="100" data-default="100" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="mix-value">100%</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <spandata-i18n="footer.ouaricon-audio" >Ouaricon Audio</span>
+    </footer>
+
+    <!-- Botanical Shell Overlay -->
+    <img src="img/shell.png" id="botanical-overlay" alt="">
+
+    <!-- The one shared tooltip surface (v1.1.0) — a sibling of everything,
+         position:fixed, so no container's overflow can clip it. -->
+    <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+</body>
+</html>

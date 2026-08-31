@@ -1,0 +1,2088 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Contrabass, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>O-Contrabass</title>
+<!-- Stage 3 Task 9 (D3) — shared tuning-panel styles (canonical module CSS,
+     served from binary data). Loaded BEFORE the inline style block so the
+     parchment-palette overrides below win at equal specificity. -->
+<link rel="stylesheet" href="css/tuning-panel.css">
+<style>
+/* ============================================================================
+   O-Contrabass — PRODUCTION WebView UI (from finalized mockup v1)
+   Ouaricon Naturalist Theme, "Slightly Aged Parchment"
+   Stage 3 Phase 3.1: copy this file to Source/ui/public/index.html
+   WebView rules honored: NO viewport units; html,body{height:100%};
+   user-select:none; context menu + dragstart disabled.
+   ============================================================================ */
+
+:root {
+    /* Darkened/warmed ~10% from O-Bowed reference set */
+    --bg-paper: #EDD9BE;
+    --bg-paper-dark: #DFC6A6;
+    --bg-paper-darker: #C6B294;
+    --brown-text: #332625;
+    --brown-text-light: #5E4D40;
+    --brown-text-lighter: #7D6C5E;
+    --green-light: #7E9A62;
+    --green-mid: #5F8143;
+    --green-dark: #3F5D2C;
+    --green-accent: #96B57A;
+    --brown-border: #7C6547;
+    --brown-frame: #4A3226;
+    --brown-frame-light: #684C39;
+    --white-overlay: rgba(255, 255, 255, 0.15);
+    --shadow-soft: rgba(51, 38, 37, 0.15);
+    --shadow-hard: rgba(51, 38, 37, 0.3);
+    --knob-size: 55px;
+    --knob-track: #C6B294;
+    --knob-fill: #5F8143;
+    --drone-label: #B08F5E;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+html, body {
+    height: 100%;   /* REQUIRED foundation — never viewport units */
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    cursor: default;
+    overflow: hidden;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+}
+
+/* ============================ Plugin root ================================= */
+.plugin-root {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    color: var(--brown-text);
+    background:
+        radial-gradient(ellipse 120% 90% at 50% 8%, rgba(255,244,222,0.55), rgba(255,244,222,0) 60%),
+        radial-gradient(ellipse 140% 120% at 50% 108%, rgba(74,50,38,0.18), rgba(74,50,38,0) 55%),
+        var(--bg-paper);
+    overflow: hidden;
+}
+
+/* Whale engraving overlay (placeholder — final artwork is an asset TODO) */
+.engraving-overlay {
+    position: absolute;
+    left: 300px;
+    top: 340px;
+    width: 430px;
+    height: 200px;
+    opacity: 0.13;
+    pointer-events: none;
+    z-index: 0;
+    filter: sepia(0.4) brightness(0.9);
+}
+
+/* ============================ Header / preset bar ========================= */
+.preset-bar {
+    display: flex;
+    align-items: center;
+    height: 42px;
+    min-height: 42px;
+    padding: 0 12px;
+    background: linear-gradient(var(--brown-frame), #3E2A20);
+    color: var(--bg-paper);
+    gap: 8px;
+    z-index: 10;
+    border-bottom: 1px solid rgba(0,0,0,0.35);
+    box-shadow: 0 1px 0 rgba(255,240,215,0.08) inset;
+}
+
+.plugin-name {
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-right: 6px;
+    /* v1.7.0 — the span is a flex item of .preset-bar, so it shrinks to
+       min-content and wraps at the hyphen ("O-" / "CONTRABASS"). The header's
+       spacer absorbs the reclaimed width, nothing else moves. */
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.plugin-name .o-dash { color: var(--green-accent); }
+
+.preset-nav-btn, .preset-save-btn {
+    background: none;
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    color: var(--bg-paper);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+.preset-nav-btn {
+    width: 26px; height: 26px;
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+}
+.preset-save-btn { padding: 4px 12px; font-size: 12px; letter-spacing: 0.5px; }
+.preset-nav-btn:hover, .preset-save-btn:hover { background: rgba(237, 217, 190, 0.15); }
+.preset-nav-btn:active, .preset-save-btn:active { background: rgba(237, 217, 190, 0.25); }
+
+.preset-name-display {
+    width: 300px;
+    text-align: center;
+    font-size: 13px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(237, 217, 190, 0.18);
+    background: rgba(0,0,0,0.15);
+    transition: background 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-name-display:hover { background: rgba(237, 217, 190, 0.1); }
+
+/* Preset dropdown (v1.6.0) — flat list in C++ order (matches ◀/▶ walk;
+   grouping would desync them). Fixed-position, width pinned to the display. */
+.preset-menu {
+    position: fixed;
+    width: 300px;
+    max-height: 340px;
+    overflow-y: auto;
+    z-index: 200;
+    background: linear-gradient(#4A3226, #3E2A20);
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    padding: 4px 0;
+}
+.preset-menu[hidden] { display: none; }
+.preset-menu-item {
+    padding: 5px 12px;
+    font-size: 13px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    color: var(--bg-paper);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-menu-item:hover { background: rgba(237, 217, 190, 0.15); }
+.preset-menu-item.current {
+    color: var(--green-accent);
+    font-weight: bold;
+}
+.preset-menu-item.current::before { content: "\25B8\00A0"; }
+
+.header-spacer { flex: 1; }
+
+.header-whale { opacity: 0.75; margin-right: 4px; }
+
+.brand-label {
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    opacity: 0.55;
+}
+
+/* ============ hover help: the "?" toggle (v1.7.0) ============
+   A flex child of .preset-bar between the spacer and the whale — the spacer
+   absorbs its width so nothing re-centres. Idiom matches the header's own
+   vocabulary: .tab-btn borders/hover, and the lit state reuses .tab-btn.active
+   (rgba(150,181,122,0.25) + --green-accent). */
+.help-toggle {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    margin-right: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--bg-paper);
+    background: none;
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: background 0.15s, opacity 0.15s;
+}
+.help-toggle:hover { background: rgba(237, 217, 190, 0.15); opacity: 1; }
+.help-toggle.active {
+    background: rgba(150, 181, 122, 0.25);
+    border-color: var(--green-accent);
+    color: var(--green-accent);
+    opacity: 1;
+}
+
+/* ============ hover help: the tooltip surface (v1.7.0) ============
+   Ported from O-Bitrot v1.12.0 (itself from O-Tapestop v1.4.0) — the VERIFIED
+   measure-then-pin variant. position:fixed anchors the tip to the VIEWPORT so
+   it escapes .plugin-root's overflow:hidden; z-index 1000 clears the preset
+   menu (200).
+
+   max-width is load-bearing: the script pins the MEASURED width in px
+   (pattern_fixed_tooltip_shrink_to_fit_edge). */
+.tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    max-width: 230px;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, var(--bg-paper) 0%, var(--bg-paper-dark) 100%);
+    border: 1px solid var(--brown-frame);
+    border-radius: 3px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    font-family: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 110ms ease-out;
+}
+.tooltip.visible { opacity: 1; }
+
+.tooltip-title {
+    font-size: 10px;
+    font-weight: 600;
+    font-variant: small-caps;
+    letter-spacing: 0.8px;
+    color: var(--green-dark);
+    margin-bottom: 3px;
+}
+.tooltip-body {
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--brown-text);
+}
+
+/* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
+   can be clamped against the viewport edge while the arrow still points at
+   the control it describes. */
+.tooltip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow-x, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+}
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-frame); }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-frame); }
+
+/* ============================ Main grid =================================== */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    z-index: 1;
+    min-height: 0;
+}
+.row-1, .row-2 { display: flex; gap: 10px; height: 252px; min-height: 252px; }
+.row-1 > .sec-bow        { width: 260px; }
+.row-1 > .sec-schelleng  { width: 336px; }
+.row-1 > .sec-body       { width: 364px; }
+.row-2 > .sec-strings    { width: 300px; }
+.row-2 > .sec-expression { width: 330px; }
+.row-2 > .sec-drone      { width: 140px; }
+.row-2 > .sec-output     { width: 180px; }
+.row-3 { height: 64px; min-height: 64px; }
+
+/* ============================ Section panels ============================== */
+.panel {
+    background: linear-gradient(rgba(255, 250, 240, 0.34), rgba(255, 250, 240, 0.22));
+    border: 1px solid var(--bg-paper-darker);
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 1px 2px var(--shadow-soft), 0 0 0 1px rgba(255,250,240,0.25) inset;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.panel-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    color: var(--brown-text-lighter);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--bg-paper-darker);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.panel-label .numeral { color: var(--green-dark); font-weight: bold; }
+.panel-label .sublabel {
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0.4px;
+    font-size: 9px;
+    color: var(--brown-text-lighter);
+    opacity: 0.85;
+}
+
+/* Drone — visually distinct deeper umber panel */
+.sec-drone {
+    background: linear-gradient(rgba(58, 38, 26, 0.16), rgba(58, 38, 26, 0.09));
+    border-color: var(--brown-frame-light);
+    transition: box-shadow 0.4s;
+}
+.sec-drone .panel-label { color: var(--drone-label); border-bottom-color: rgba(104, 76, 57, 0.5); }
+.sec-drone.awake {
+    box-shadow: 0 0 0 1px rgba(150, 181, 122, 0.55), 0 0 14px rgba(95, 129, 67, 0.35);
+}
+.drone-caption {
+    font-size: 9px;
+    font-style: italic;
+    color: var(--brown-text-light);
+    text-align: center;
+    opacity: 0.8;
+    margin-top: auto;
+    padding-bottom: 2px;
+}
+
+/* ============================ Knobs ======================================= */
+.param-row {
+    display: flex;
+    gap: 11px;
+    justify-content: center;
+}
+
+.knob-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 62px;
+    gap: 2px;
+}
+
+.knob-wrapper {
+    width: var(--knob-size);
+    height: var(--knob-size);
+    position: relative;
+    cursor: grab;
+}
+.knob-wrapper:active { cursor: grabbing; }
+
+.knob-svg { width: 100%; height: 100%; display: block; }
+.knob-track { fill: none; stroke: var(--knob-track); stroke-width: 4; stroke-linecap: round; }
+.knob-fill  { fill: none; stroke: var(--knob-fill);  stroke-width: 4; stroke-linecap: round; }
+.knob-center {
+    fill: var(--bg-paper);
+    stroke: var(--bg-paper-darker);
+    stroke-width: 1;
+}
+.knob-indicator { fill: none; stroke: var(--brown-text); stroke-width: 2; stroke-linecap: round; }
+
+.knob-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--brown-text-light);
+    text-align: center;
+    line-height: 1.2;
+    max-width: 62px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.knob-value {
+    font-size: 9px;
+    color: var(--brown-text);
+    text-align: center;
+    font-style: italic;
+    min-height: 12px;
+    white-space: nowrap;
+}
+
+/* Featured Expression Macro knob */
+.macro-knob { width: 78px; }
+.macro-knob .knob-wrapper { width: 70px; height: 70px; }
+.macro-knob .knob-fill { stroke: var(--green-dark); }
+.macro-knob .knob-label { font-size: 9px; letter-spacing: 0.8px; max-width: 78px; }
+
+/* Mini footer knob */
+.mini-knob { flex-direction: row; width: auto; gap: 6px; align-items: center; }
+.mini-knob .knob-wrapper { width: 34px; height: 34px; }
+.mini-knob .knob-label { font-size: 9px; }
+.mini-knob .knob-value { font-size: 10px; min-width: 56px; text-align: left; }
+
+/* ============================ Viz panels ================================== */
+.viz-canvas { display: block; }
+.viz-caption {
+    font-size: 8.5px;
+    font-style: italic;
+    color: var(--brown-text-lighter);
+    text-align: center;
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+}
+
+/* ============================ Strings section ============================= */
+.strings-top { display: flex; align-items: flex-start; gap: 8px; justify-content: center; }
+
+.stepper-block { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 8px; }
+.stepper-label {
+    font-size: 8px; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--brown-text-light);
+}
+.segmented { display: flex; border: 1px solid var(--brown-border); border-radius: 4px; overflow: hidden; }
+.segmented button {
+    width: 27px; height: 24px;
+    background: rgba(255,250,240,0.35);
+    border: none;
+    border-right: 1px solid var(--brown-border);
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--brown-text-light);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.segmented button:last-child { border-right: none; }
+.segmented button:hover { background: rgba(150, 181, 122, 0.25); }
+.segmented button.active {
+    background: var(--green-mid);
+    color: #F3E8D5;
+    font-weight: bold;
+}
+.stepper-value { font-size: 9px; font-style: italic; color: var(--brown-text); }
+
+/* Tailpiece fine-tuners (per-string detune) */
+.finetuner-block { margin-top: 8px; }
+.finetuner-title {
+    font-size: 8px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--brown-text-lighter); text-align: center; margin-bottom: 4px;
+}
+.finetuner-row { display: flex; justify-content: center; gap: 26px; }
+.finetuner {
+    display: flex; flex-direction: column; align-items: center;
+    width: 36px; gap: 2px;
+}
+.finetuner .string-name {
+    font-size: 10px; font-weight: bold; color: var(--brown-text);
+    font-style: italic;
+}
+.fader-track {
+    width: 8px; height: 74px;
+    background: linear-gradient(180deg, #BCA987, #9E8A69);
+    border-radius: 4px;
+    border: 1px solid var(--brown-border);
+    position: relative;
+    cursor: grab;
+    box-shadow: inset 0 1px 3px rgba(51,38,37,0.4);
+}
+.fader-track:active { cursor: grabbing; }
+.fader-detent {
+    position: absolute;
+    left: -5px; right: -5px;
+    top: 50%; height: 1px;
+    background: var(--brown-frame-light);
+    opacity: 0.8;
+}
+.fader-thumb {
+    position: absolute;
+    left: 50%;
+    width: 24px; height: 11px;
+    transform: translate(-50%, -50%);
+    border-radius: 3px;
+    background:
+        repeating-linear-gradient(90deg,
+            rgba(51,38,37,0.25) 0 1px, rgba(255,246,226,0.25) 1px 3px),
+        linear-gradient(180deg, #D8B978, #B4924E);
+    border: 1px solid #7A5F33;
+    box-shadow: 0 1px 2px var(--shadow-hard);
+    pointer-events: none;
+}
+.fader-value {
+    font-size: 9px; font-style: italic; color: var(--brown-text);
+    min-height: 11px;
+}
+
+/* ============================ Output / VU ================================= */
+.vu-block { margin-top: auto; display: flex; flex-direction: column; align-items: center; }
+.vu-face {
+    border-radius: 4px;
+    border: 1px solid var(--brown-border);
+    background: linear-gradient(#F6EAD2, #EBD9B8);
+    box-shadow: inset 0 1px 3px rgba(51,38,37,0.25);
+}
+
+/* ============================ Microtonal strip ============================ */
+.sec-microtonal {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 0 14px;
+    background: linear-gradient(rgba(223, 198, 166, 0.7), rgba(223, 198, 166, 0.45));
+}
+.sec-microtonal .strip-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px;
+    color: var(--brown-text-lighter);
+    border-right: 1px solid var(--bg-paper-darker);
+    padding-right: 14px;
+    white-space: nowrap;
+}
+.sec-microtonal .strip-label .numeral { color: var(--green-dark); font-weight: bold; }
+
+.dropdown-select {
+    background: rgba(255, 250, 240, 0.5);
+    border: 1px solid var(--brown-border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--brown-text);
+    cursor: pointer;
+    outline: none;
+    width: 150px;
+    height: 28px;
+}
+.dropdown-select:focus { border-color: var(--green-mid); }
+.strip-field { display: flex; align-items: center; gap: 6px; }
+.strip-field-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--brown-text-light); white-space: nowrap;
+}
+
+.scl-btn {
+    height: 28px;
+    white-space: nowrap;
+    padding: 0 12px;
+    background: rgba(255,250,240,0.4);
+    border: 1px solid var(--brown-border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--brown-text);
+    cursor: pointer;
+    letter-spacing: 0.4px;
+    transition: background 0.15s, opacity 0.15s;
+}
+.scl-btn:hover { background: rgba(150, 181, 122, 0.3); }
+.scl-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* Toggle switch */
+.toggle-field { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.toggle-track {
+    width: 40px; height: 20px;
+    border-radius: 10px;
+    background: var(--bg-paper-darker);
+    border: 1px solid var(--brown-border);
+    position: relative;
+    transition: background 0.18s;
+}
+.toggle-track .toggle-thumb {
+    position: absolute;
+    top: 1px; left: 1px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(#FBF2DF, #E4D2B2);
+    border: 1px solid var(--brown-border);
+    transition: left 0.18s;
+    box-shadow: 0 1px 2px var(--shadow-soft);
+}
+.toggle-field.on .toggle-track { background: var(--green-mid); }
+.toggle-field.on .toggle-thumb { left: 20px; }
+
+.range-caption {
+    margin-left: auto;
+    font-size: 10px;
+    font-style: italic;
+    color: var(--brown-text-light);
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    opacity: 0.85;
+}
+
+/* ==================== Stage 3 Task 9 (D3) — Main/Tuning tabs ============== */
+/* Tab strip lives in the existing 42 px header (O-MicrotonalSampler
+   index.html:38-40 pattern). Main tab keeps the finalized grid untouched. */
+.tab-strip {
+    display: flex;
+    gap: 4px;
+    margin-left: 10px;
+}
+.tab-btn {
+    background: none;
+    border: 1px solid rgba(237, 217, 190, 0.3);
+    color: var(--bg-paper);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    opacity: 0.7;
+    transition: background 0.15s, opacity 0.15s;
+}
+.tab-btn:hover { background: rgba(237, 217, 190, 0.15); opacity: 1; }
+.tab-btn.active {
+    background: rgba(150, 181, 122, 0.25);
+    border-color: var(--green-accent);
+    opacity: 1;
+}
+
+/* Tab panels — the Main panel is the untouched `.main` grid; hiding uses
+   display:none so the inactive panel costs nothing (no rAF churn targets). */
+.tab-panel:not(.active) { display: none !important; }
+
+.tuning-tab-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px;
+    z-index: 1;
+}
+/* Give the container-query root real height (its parents size by content). */
+#tuning-container { min-height: 566px; height: 566px; }
+
+/* Parchment-palette overrides for the shared tuning panel (D3: stay
+   in-family — module CSS variables are the supported theming surface). */
+.tuning-panel {
+    --tuning-bg: rgba(255, 250, 240, 0.35);
+    --tuning-border: var(--bg-paper-darker);
+    --tuning-text: var(--brown-text);
+    --tuning-text-muted: var(--brown-text-lighter);
+    --tuning-accent: var(--green-mid);
+    --tuning-input-bg: rgba(255, 255, 255, 0.55);
+    --tuning-hover: rgba(126, 154, 98, 0.25);
+    --tuning-active: rgba(95, 129, 67, 0.35);
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+}
+</style>
+</head>
+<body>
+
+<div class="plugin-root">
+
+    <!-- Whale engraving placeholder (final artwork = production asset TODO) -->
+    <svg class="engraving-overlay" viewBox="0 0 460 200" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="#4A3226" stroke-width="1.6" stroke-linecap="round">
+            <!-- body -->
+            <path fill="rgba(74,50,38,0.06)" d="M 62,105
+                C 120,56 220,46 298,51
+                C 352,55 402,66 428,90
+                C 436,99 436,113 426,122
+                C 384,140 330,144 280,139
+                C 200,132 128,128 62,111 Z"/>
+            <!-- fluke -->
+            <path fill="rgba(74,50,38,0.06)" d="M 64,108
+                L 32,70 C 22,58 10,52 3,49
+                C 15,66 21,84 19,100
+                C 14,118 8,134 3,148
+                C 14,142 27,131 37,123 L 64,112 Z"/>
+            <!-- flipper -->
+            <path fill="rgba(74,50,38,0.06)" d="M 330,124 C 341,140 337,153 322,157 C 319,144 322,132 330,124 Z"/>
+            <!-- jaw line -->
+            <path stroke-width="1.1" d="M 427,116 C 395,129 358,133 328,130"/>
+            <!-- eye -->
+            <circle cx="396" cy="104" r="2.6" fill="#4A3226" stroke="none"/>
+        </g>
+        <!-- engraving hatch lines -->
+        <g fill="none" stroke="#4A3226" stroke-width="0.7" opacity="0.8">
+            <path d="M 84,113 C 165,122 262,126 344,121"/>
+            <path d="M 92,105 C 172,113 272,117 356,111"/>
+            <path d="M 102,96 C 182,103 280,107 368,100"/>
+            <path d="M 116,86 C 196,92 288,96 380,89"/>
+            <path d="M 136,76 C 212,80 300,84 392,79"/>
+            <path d="M 162,66 C 232,68 310,73 402,71"/>
+            <path d="M 196,58 C 256,58 322,63 410,66"/>
+            <path d="M 240,52 C 288,51 342,56 416,63"/>
+        </g>
+        <!-- water lines -->
+        <g fill="none" stroke="#4A3226" stroke-width="0.9" opacity="0.7">
+            <path d="M 30,172 C 110,165 210,178 296,169"/>
+            <path d="M 316,178 C 372,171 424,181 456,174"/>
+            <path d="M 70,184 C 140,179 208,188 268,182"/>
+        </g>
+        <text data-i18n="ui.physeter-macrocephalus-plate-vii" x="230" y="199" text-anchor="middle" font-family="Georgia, serif" font-style="italic"
+              font-size="10" fill="#4A3226">Physeter macrocephalus — Plate VII</text>
+    </svg>
+
+    <!-- ==================== Header / preset bar ==================== -->
+    <div class="preset-bar">
+        <span class="plugin-name">O<span class="o-dash">-</span>Contrabass</span>
+        <button class="preset-nav-btn" id="preset-prev" aria-label="Previous preset" data-tip-title="Previous preset" data-tip="Step back through the preset list.">&#9664;</button>
+        <div class="preset-name-display" id="preset-name" data-tip-title="Preset" data-tip="The preset currently loaded &mdash; click to browse the full list. Factory presets are read-only; saving under the same name writes a user copy.">Default &mdash; Arco Foundation</div>
+        <button class="preset-nav-btn" id="preset-next" aria-label="Next preset" data-tip-title="Next preset" data-tip="Step forward through the preset list.">&#9654;</button>
+        <button class="preset-save-btn" id="preset-save" data-tip-title="Save" data-tip="Save the current settings as a user preset.">Save</button>
+        <div class="preset-menu" id="preset-menu" hidden></div>
+        <!-- Stage 3 Task 9 (D3) — Main/Tuning tab strip -->
+        <nav class="tab-strip">
+            <button class="tab-btn active" data-tab="main" data-tip-title="Main" data-tip="The playing surface &mdash; bow, body, strings, expression, drone and output.">Main</button>
+            <button class="tab-btn" data-tab="tuning" data-tip-title="Tuning" data-tip="The full tuning panel &mdash; intervals table, scale library, generators, .scl/.kbm files.">Tuning</button>
+        </nav>
+        <div class="header-spacer"></div>
+        <!-- v1.7.0 — hover-help toggle. data-tip-always bypasses the enabled
+             gate so the one control that can turn help back on is never the
+             one control unable to explain itself. The "?" glyph is
+             HTML-authored and must never be written from JS
+             (pattern_js_state_updater_overwrites_html_labels). -->
+        <button type="button"
+                class="help-toggle"
+                id="help-toggle"
+                aria-pressed="false"
+                aria-label="Toggle hover help"
+                data-tip-always
+                data-tip-title="Hover help"
+                data-tip="Show a short description when the pointer rests on a control. The setting is remembered with the session.">?</button>
+        <svg class="header-whale" width="44" height="16" viewBox="0 0 44 16" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 6,9 C 12,4 24,3.4 33,4.4 C 37,5 40.5,6 42,8.2 C 40.5,10.4 36,11.6 30,11.6 C 21,11.6 12,11 6,9.6 Z
+                     M 6.4,9.2 L 2.6,5.4 C 1.6,7 1.8,8.6 1.6,9.4 C 1.4,10.6 1,12 0.6,13 C 2,12.2 4,11 5,10.2 Z"
+                  fill="none" stroke="#EDD9BE" stroke-width="1"/>
+        </svg>
+        <span data-i18n="brand-label.ouaricon-naturalist-series" class="brand-label">Ouaricon &middot; Naturalist Series</span>
+    </div>
+
+    <!-- ==================== Main grid (tab panel "main") ==================== -->
+    <div class="main tab-panel active" id="tab-main">
+
+        <!-- ROW 1 -->
+        <div class="row-1">
+
+            <!-- I · BOW -->
+            <div class="panel sec-bow">
+                <div class="panel-label"><span><span class="numeral">I</span> &middot; Bow</span><span data-i18n="tab-main.arco" class="sublabel">arco</span></div>
+                <div class="param-row" style="margin-top: 22px;">
+                    <div class="knob-control" data-param="BOW_SPEED" data-tip-title="Bow speed" data-tip="How fast the bow travels, 0.02&ndash;1.5 m/s. Slow bows choke and darken; fast bows loosen and sing.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.speed" class="knob-label">Speed</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="BOW_PRESSURE" data-tip-title="Bow pressure" data-tip="Bow force on the string, 0.05&ndash;8 N. Too light skates into surface sound, too heavy drives into raucous scratch &mdash; the Schelleng diagram shows where you are.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.pressure" class="knob-label">Pressure</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="BOW_POSITION" data-tip-title="Bow position" data-tip="Where the bow crosses the string, as fraction &beta; of its length. Near the bridge (low &beta;) is brighter but harder to speak; toward the fingerboard is warmer.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.position" class="knob-label">Position</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+                <div class="param-row" style="margin-top: 26px;">
+                    <div class="knob-control" data-param="ROSIN" data-tip-title="Rosin" data-tip="Bow grip &mdash; the strength of the stick-slip friction. More rosin bites harder and speaks faster.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.rosin" class="knob-label">Rosin</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="BOW_NOISE" data-tip-title="Bow noise" data-tip="Level of the bow-hair noise bed &mdash; the breathy scratch riding under the tone.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.noise" class="knob-label">Noise</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <!-- v1.3 — how fast the string decays once the bow lifts.
+                         Occupies the row's existing third slot (the row is sized
+                         for three, as the Speed/Pressure/Position row above it),
+                         so no panel geometry changes. -->
+                    <div class="knob-control" data-param="RELEASE" data-tip-title="Release" data-tip="How long the string keeps ringing once the bow lifts, 0.05&ndash;20 s.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.release" class="knob-label">Release</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCHELLENG DIAGRAM (adjacent to Bow knobs — LOCKED) -->
+            <div class="panel sec-schelleng">
+                <div class="panel-label"><spandata-i18n="tab-main.schelleng-diagram" >Schelleng Diagram</span><span data-i18n="tab-main.bow-operating-point" class="sublabel">bow operating point</span></div>
+                <canvas class="viz-canvas" id="canvas-schelleng" data-tip-title="Schelleng diagram" data-tip="Where the current bow speed &times; pressure sits. The green band is the Helmholtz regime &mdash; the singing zone between surface sound and raucous; its wedge shifts with bow position &beta;."></canvas>
+                <div data-i18n="tab-main.speed-pressure-log-log" class="viz-caption">speed &times; pressure, log&ndash;log &middot; wedge shifts with &beta;</div>
+            </div>
+
+            <!-- II · BODY -->
+            <div class="panel sec-body">
+                <div class="panel-label"><span><span data-i18n="tab-main.ii" class="numeral">II</span> &middot; Body</span><span data-i18n="tab-main.resonator-8-modes" class="sublabel">resonator &middot; 8 modes</span></div>
+                <div class="param-row" style="margin-top: 2px;">
+                    <div class="knob-control" data-param="BODY_SIZE" data-tip-title="Body size" data-tip="Size of the modeled body resonator. Larger bodies shift the eight modes down &mdash; more chest, less bark.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.size" class="knob-label">Size</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="BODY_DAMPING" data-tip-title="Body damping" data-tip="How quickly the body modes ring out. High damping dries and tightens the resonance.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.damping" class="knob-label">Damping</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="BODY_MIX" data-tip-title="Body mix" data-tip="Balance of body resonance against the raw string signal.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.mix" class="knob-label">Mix</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="BRIGHTNESS" data-tip-title="Brightness" data-tip="Master tone low-pass, 80 Hz&ndash;12 kHz. Below it the instrument darkens toward felt.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.brightness" class="knob-label">Brightness</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+                <canvas class="viz-canvas" id="canvas-spectrum" style="margin-top: 6px;" data-tip-title="Body response" data-tip="The resonator's frequency response &mdash; the eight modal peaks the string drives. Moves with Size, Damping and Brightness."></canvas>
+            </div>
+        </div>
+
+        <!-- ROW 2 -->
+        <div class="row-2">
+
+            <!-- III · STRINGS -->
+            <div class="panel sec-strings">
+                <div class="panel-label"><span><span data-i18n="tab-main.iii" class="numeral">III</span> &middot; Strings</span><span class="sublabel">E1&ndash;G3</span></div>
+                <div class="strings-top">
+                    <div class="knob-control" data-param="STRING_TENSION" data-tip-title="Tension" data-tip="String tension. Tighter strings respond faster and sound more focused; slack strings growl and flex.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.tension" class="knob-label">Tension</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="STRING_STIFFNESS" data-tip-title="Stiffness" data-tip="String inharmonicity. Stiffer strings sharpen the upper partials &mdash; wound steel versus gut.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.stiffness" class="knob-label">Stiffness</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="stepper-block" data-tip-title="Active strings" data-tip="How many of the four strings (E&ndash;A&ndash;D&ndash;G, low to high) are on the instrument. Notes land on the string that can reach them.">
+                        <div data-i18n="tab-main.active-strings" class="stepper-label">Active Strings</div>
+                        <div class="segmented" data-param="ACTIVE_STRINGS">
+                            <button data-val="1">1</button>
+                            <button data-val="2">2</button>
+                            <button data-val="3">3</button>
+                            <button data-val="4">4</button>
+                        </div>
+                        <div class="stepper-value" id="active-strings-value"></div>
+                    </div>
+                </div>
+                <div class="finetuner-block">
+                    <div class="finetuner-title" data-tip-title="Fine tuners" data-tip="Per-string detune in cents, &plusmn;1200&cent;. Double-click a fader to return it to 0.">Fine Tuners &middot; cents</div>
+                    <div class="finetuner-row">
+                        <div class="finetuner" data-param="DETUNE_E" data-string="E" data-tip-title="E fine tuner" data-tip="Detune of the low E string in cents, &plusmn;1200&cent;.">
+                            <div class="string-name">E</div>
+                            <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
+                            <div class="fader-value"></div>
+                        </div>
+                        <div class="finetuner" data-param="DETUNE_A" data-string="A" data-tip-title="A fine tuner" data-tip="Detune of the A string in cents, &plusmn;1200&cent;.">
+                            <div class="string-name">A</div>
+                            <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
+                            <div class="fader-value"></div>
+                        </div>
+                        <div class="finetuner" data-param="DETUNE_D" data-string="D" data-tip-title="D fine tuner" data-tip="Detune of the D string in cents, &plusmn;1200&cent;.">
+                            <div class="string-name">D</div>
+                            <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
+                            <div class="fader-value"></div>
+                        </div>
+                        <div class="finetuner" data-param="DETUNE_G" data-string="G" data-tip-title="G fine tuner" data-tip="Detune of the high G string in cents, &plusmn;1200&cent;.">
+                            <div class="string-name">G</div>
+                            <div class="fader-track"><div class="fader-detent"></div><div class="fader-thumb"></div></div>
+                            <div class="fader-value"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IV · EXPRESSION -->
+            <div class="panel sec-expression">
+                <div class="panel-label"><span><span data-i18n="tab-main.iv" class="numeral">IV</span> &middot; Expression</span><span data-i18n="tab-main.vibrato-bow-drift" class="sublabel">vibrato &middot; bow drift</span></div>
+                <div style="display: flex; gap: 14px; margin-top: 6px;">
+                    <div class="knob-control macro-knob" data-param="EXPRESSION_MACRO" style="margin-top: 14px;" data-tip-title="Expression" data-tip="One-knob intensity macro &mdash; leans bow speed, pressure and vibrato together from restful to fervent.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.expression-2" class="knob-label">Expression</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="VIBRATO_RATE" data-tip-title="Vibrato rate" data-tip="Vibrato speed, 0.1&ndash;12 Hz.">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-main.vib-rate" class="knob-label">Vib Rate</div>
+                                <div class="knob-value"></div>
+                            </div>
+                            <div class="knob-control" data-param="VIBRATO_DEPTH" data-tip-title="Vibrato depth" data-tip="Vibrato width in cents, 0&ndash;50&cent;. At 0 the left hand holds still.">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-main.vib-depth" class="knob-label">Vib Depth</div>
+                                <div class="knob-value"></div>
+                            </div>
+                            <div class="knob-control" data-param="VIBRATO_ONSET" data-tip-title="Vibrato onset" data-tip="Delay before vibrato blooms after a note starts, 0&ndash;3000 ms &mdash; the straight-tone attack of a real player.">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-main.vib-onset" class="knob-label">Vib Onset</div>
+                                <div class="knob-value"></div>
+                            </div>
+                        </div>
+                        <div class="param-row" style="margin-top: 10px;">
+                            <div class="knob-control" data-param="SLOW_LFO_RATE" data-tip-title="LFO rate" data-tip="Rate of the slow bow drift, 0.05&ndash;2 Hz &mdash; a once-per-phrase wander of the bowing.">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-main.lfo-rate" class="knob-label">LFO Rate</div>
+                                <div class="knob-value"></div>
+                            </div>
+                            <div class="knob-control" data-param="SLOW_LFO_DEPTH" data-tip-title="LFO depth" data-tip="Depth of the slow bow drift. At 0 the bow holds perfectly steady.">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-main.lfo-depth" class="knob-label">LFO Depth</div>
+                                <div class="knob-value"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V · DRONE (distinct panel) -->
+            <div class="panel sec-drone" id="drone-panel">
+                <div class="panel-label"><span><span class="numeral">V</span> &middot; Drone</span></div>
+                <div class="param-row" style="margin-top: 4px;">
+                    <div class="knob-control" data-param="INFINITE_SUSTAIN" data-tip-title="Infinite sustain" data-tip="Bow-forever amount. Raise it and held notes stop decaying &mdash; the drone wakes.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="drone-panel.inf-sustain" class="knob-label">Inf. Sustain</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+                <div class="param-row" style="margin-top: 10px;">
+                    <div class="knob-control" data-param="SUB_HARMONICS" data-tip-title="Sub-harmonics" data-tip="Level of the sub-harmonic layer beneath the played note &mdash; tectonic weight under the drone.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="drone-panel.sub-harm" class="knob-label">Sub-Harm.</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+                <div class="drone-caption">silent at rest &mdash;<br>raise to wake</div>
+            </div>
+
+            <!-- VI · OUTPUT -->
+            <div class="panel sec-output">
+                <div class="panel-label"><span><span data-i18n="tab-main.vi" class="numeral">VI</span> &middot; Output</span></div>
+                <div class="param-row" style="margin-top: 2px;">
+                    <div class="knob-control" data-param="OUTPUT_GAIN" data-tip-title="Level" data-tip="Output level, &minus;60 to +12 dB.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.level" class="knob-label">Level</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="WIDTH" data-tip-title="Width" data-tip="Stereo width. 1.00&times; is the natural body image; 0 collapses to mono, 2&times; exaggerates.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.width" class="knob-label">Width</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+                <div class="param-row" style="margin-top: 6px;">
+                    <div class="knob-control" data-param="MASTER_SAT_AMOUNT" data-tip-title="Saturate" data-tip="Master saturator blend &mdash; gentle harmonic warmth on the summed output.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.saturate" class="knob-label">Saturate</div>
+                        <div class="knob-value"></div>
+                    </div>
+                    <div class="knob-control" data-param="LIMITER_CEILING_DB" data-tip-title="Ceiling" data-tip="Limiter ceiling, &minus;6 to 0 dBFS. The output never crosses this.">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-main.ceiling" class="knob-label">Ceiling</div>
+                        <div class="knob-value"></div>
+                    </div>
+                </div>
+                <div class="vu-block">
+                    <canvas class="viz-canvas vu-face" id="canvas-vu" data-tip-title="VU meter" data-tip="Output level after the limiter, VU-ballistic. 0 VU = −18 dBFS RMS."></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 3 — VII · MICROTONAL -->
+        <div class="row-3 panel sec-microtonal">
+            <span class="strip-label"><span data-i18n="tab-main.vii" class="numeral">VII</span> &middot; Microtonal</span>
+
+            <div class="knob-control mini-knob" data-param="REFERENCE_PITCH" data-tip-title="Reference pitch" data-tip="Concert pitch for A4, 220&ndash;880 Hz. Everything tunes around it.">
+                <div class="knob-wrapper"></div>
+                <div class="knob-label">A4</div>
+                <div class="knob-value"></div>
+            </div>
+
+            <div class="strip-field" data-tip-title="Tuning system" data-tip="Where the tuning comes from &mdash; a loaded Scala scale, an MTS-ESP master, or plain 12-TET.">
+                <span data-i18n="tab-main.tuning-system" class="strip-field-label">Tuning System</span>
+                <select class="dropdown-select" id="tuning-system-select">
+                    <!-- D1: label "Scala" (no TUN parser in TuningEngine 2.1.0;
+                         .tun support = v1.1 backlog). Index mapping frozen. -->
+                    <option data-i18n="tuning-system-select.scala" value="0">Scala</option>
+                    <option data-i18n="tuning-system-select.mts-esp" value="1">MTS-ESP</option>
+                    <option data-i18n="tuning-system-select.12-tet" value="2" selected>12-TET</option>
+                </select>
+            </div>
+
+            <button class="scl-btn" id="scl-load-btn" data-tip-title="Load .scl" data-tip="Load a Scala tuning file (.scl) and switch the tuning system to it.">Load .scl&hellip;</button>
+
+            <div class="toggle-field" id="note-expression-toggle" data-tip-title="Note expression" data-tip="Per-note VST3 pitch (Note Expression) for hosts like Cubase and Dorico &mdash; microtonal scores play in tune.">
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                <span data-i18n="note-expression-toggle.note-expression" class="strip-field-label">Note Expression</span>
+            </div>
+
+            <span data-i18n="tab-main.e1-g3-monophonic" class="range-caption">E1&ndash;G3 &middot; monophonic</span>
+        </div>
+    </div>
+
+    <!-- ==================== Tuning tab (Stage 3 Task 9, D3) ==================== -->
+    <!-- Full shared tuning panel (intervals table, embedded library, scale
+         generator, visualizations, .scl/.kbm I/O, octave stretch, HTML export).
+         Lazily initialized on first tab activation. -->
+    <div class="tab-panel tuning-tab-body" id="tab-tuning">
+        <div id="tuning-container"></div>
+    </div>
+
+</div><!-- /.plugin-root -->
+
+<!-- The one shared tooltip surface. A SIBLING of .plugin-root, never a child:
+     position:fixed still resolves against the viewport, but keeping it outside
+     means .plugin-root's overflow:hidden can never clip it. -->
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script type="module">
+"use strict";
+
+/* ============================================================================
+   O-Contrabass — production frontend (JUCE 8 WebView)
+   CRITICAL: parameter access goes through the `Juce` ES-module namespace
+   (getSliderState / getToggleState / getComboBoxState / getNativeFunction) —
+   NEVER window.__JUCE__ for these (it has no getNativeFunction).
+   window.__JUCE__.backend is used ONLY to receive C++ → JS events (vuLevel).
+   ============================================================================ */
+import * as Juce from "./js/juce/index.js";
+
+/* ============================================================================
+   Native application feel (REQUIRED)
+   ============================================================================ */
+document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
+document.addEventListener("dragstart", (e) => { e.preventDefault(); });
+
+/* ============================================================================
+   Native functions — every name here MUST have a matching C++
+   withNativeFunction registration (see v1-integration-checklist.md grep gate).
+   ============================================================================ */
+const getParameterDefaults  = Juce.getNativeFunction("getParameterDefaults");
+const openTuningFilePicker  = Juce.getNativeFunction("openTuningFilePicker");
+
+/* Skew-correct NORMALIZED defaults pushed from C++ (WR-11 pattern) —
+   dblclick-reset must use these, never JS-side constants. */
+let paramDefaults = {};
+getParameterDefaults()
+    .then((d) => { paramDefaults = d || {}; })
+    .catch((e) => console.warn("getParameterDefaults failed:", e));
+
+/* ============================================================================
+   Display formatting ONLY — values ALWAYS come from SliderState.getScaledValue()
+   (the C++ NormalisableRange is authoritative; no JS min/max mapping).
+   ============================================================================ */
+function fmtSigned(v, dec, unit) {
+    const s = v > 0 ? "+" : (v < 0 ? "−" : "");
+    return s + Math.abs(v).toFixed(dec) + unit;
+}
+const FMT = {
+    BOW_SPEED:          v => v.toFixed(2) + " m/s",
+    BOW_PRESSURE:       v => v.toFixed(2) + " N",
+    BOW_POSITION:       v => "β " + v.toFixed(3),
+    ROSIN:              v => Math.round(v * 100) + "%",
+    BOW_NOISE:          v => Math.round(v * 100) + "%",
+    // Sub-second releases are the ones players nudge in small steps, so keep two
+    // decimals down there and drop to one above 1 s where the extra digit is noise.
+    RELEASE:            v => v < 1 ? v.toFixed(2) + " s" : v.toFixed(1) + " s",
+    BODY_SIZE:          v => Math.round(v * 100) + "%",
+    BODY_DAMPING:       v => Math.round(v * 100) + "%",
+    BODY_MIX:           v => Math.round(v * 100) + "%",
+    BRIGHTNESS:         v => v >= 1000 ? (v / 1000).toFixed(2) + " kHz" : Math.round(v) + " Hz",
+    STRING_TENSION:     v => Math.round(v * 100) + "%",
+    STRING_STIFFNESS:   v => Math.round(v * 100) + "%",
+    ACTIVE_STRINGS:     v => Math.round(v) + " of 4",
+    DETUNE_E:           v => fmtSigned(Math.round(v), 0, " ¢"),
+    DETUNE_A:           v => fmtSigned(Math.round(v), 0, " ¢"),
+    DETUNE_D:           v => fmtSigned(Math.round(v), 0, " ¢"),
+    DETUNE_G:           v => fmtSigned(Math.round(v), 0, " ¢"),
+    EXPRESSION_MACRO:   v => Math.round(v * 100) + "%",
+    VIBRATO_RATE:       v => v.toFixed(2) + " Hz",
+    VIBRATO_DEPTH:      v => Math.round(v) + " ¢",
+    VIBRATO_ONSET:      v => Math.round(v) + " ms",
+    SLOW_LFO_RATE:      v => v.toFixed(2) + " Hz",
+    SLOW_LFO_DEPTH:     v => Math.round(v * 100) + "%",
+    INFINITE_SUSTAIN:   v => Math.round(v * 100) + "%",
+    SUB_HARMONICS:      v => Math.round(v * 100) + "%",
+    OUTPUT_GAIN:        v => fmtSigned(v, 1, " dB"),
+    WIDTH:              v => v.toFixed(2) + "×",
+    MASTER_SAT_AMOUNT:  v => Math.round(v * 100) + "%",
+    LIMITER_CEILING_DB: v => v.toFixed(1) + " dB",
+    REFERENCE_PITCH:    v => v.toFixed(1) + " Hz"
+};
+
+function resetToDefault(paramId, state) {
+    const def = paramDefaults[paramId];
+    if (typeof def !== "number") {
+        console.warn("No default yet for", paramId, "- skipping reset");
+        return;
+    }
+    state.sliderDragStarted();
+    state.setNormalisedValue(def);
+    state.sliderDragEnded();
+}
+
+/* ============================================================================
+   Knob SVG (house style — arc track/fill + indicator, O-Bowed pattern)
+   ============================================================================ */
+const ARC_START = 135;
+const ARC_END = 405;
+const ARC_RANGE = ARC_END - ARC_START;
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+    const rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+function describeArc(cx, cy, r, startAngle, endAngle) {
+    const start = polarToCartesian(cx, cy, r, endAngle);
+    const end = polarToCartesian(cx, cy, r, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+}
+
+function createKnobSVG(container, size) {
+    const cx = size / 2, cy = size / 2;
+    const r = size * 0.4, innerR = size * 0.255;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+    svg.classList.add("knob-svg");
+
+    const track = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    track.setAttribute("d", describeArc(cx, cy, r, ARC_START, ARC_END));
+    track.classList.add("knob-track");
+    svg.appendChild(track);
+
+    const fill = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    fill.setAttribute("d", describeArc(cx, cy, r, ARC_START, ARC_START));
+    fill.classList.add("knob-fill");
+    fill.dataset.role = "fill";
+    svg.appendChild(fill);
+
+    const center = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    center.setAttribute("cx", cx);
+    center.setAttribute("cy", cy);
+    center.setAttribute("r", innerR);
+    center.classList.add("knob-center");
+    svg.appendChild(center);
+
+    const indicator = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    indicator.classList.add("knob-indicator");
+    indicator.dataset.role = "indicator";
+    svg.appendChild(indicator);
+
+    container.appendChild(svg);
+    return svg;
+}
+
+function updateKnobVisual(control, normValue, size) {
+    const svg = control.querySelector(".knob-svg");
+    if (!svg) return;
+    const cx = size / 2, cy = size / 2;
+    const r = size * 0.4, innerR = size * 0.255;
+    const angle = ARC_START + normValue * ARC_RANGE;
+
+    const fill = svg.querySelector('[data-role="fill"]');
+    fill.setAttribute("d", normValue < 0.005
+        ? describeArc(cx, cy, r, ARC_START, ARC_START)
+        : describeArc(cx, cy, r, ARC_START, angle));
+
+    const indicator = svg.querySelector('[data-role="indicator"]');
+    const a = polarToCartesian(cx, cy, innerR - 2, angle);
+    const b = polarToCartesian(cx, cy, r - 2, angle);
+    indicator.setAttribute("x1", a.x);
+    indicator.setAttribute("y1", a.y);
+    indicator.setAttribute("x2", b.x);
+    indicator.setAttribute("y2", b.y);
+}
+
+/* ============================================================================
+   Knob binding (relative vertical drag; shift = fine; dblclick = C++ default;
+   wheel = nudge). All normalized-domain — skew lives in C++.
+   ============================================================================ */
+const vizDirty = { spectrum: true };
+
+function bindKnob(paramId) {
+    const control = document.querySelector(`.knob-control[data-param="${paramId}"]`);
+    if (!control) { console.warn("No control for:", paramId); return; }
+    const wrapper = control.querySelector(".knob-wrapper");
+    const isMacro = control.classList.contains("macro-knob");
+    const isMini = control.classList.contains("mini-knob");
+    const knobSize = isMacro ? 70 : (isMini ? 34 : 55);
+    createKnobSVG(wrapper, knobSize);
+
+    const fmt = FMT[paramId] || (v => String(v));
+    const state = Juce.getSliderState(paramId);
+
+    function refresh() {
+        updateKnobVisual(control, state.getNormalisedValue(), knobSize);
+        // CRITICAL: readout from getScaledValue() — C++ range + skew authoritative
+        control.querySelector(".knob-value").textContent = fmt(state.getScaledValue());
+        vizDirty.spectrum = true;
+        if (paramId === "INFINITE_SUSTAIN" || paramId === "SUB_HARMONICS") updateDroneAwake();
+    }
+    refresh();
+    state.valueChangedEvent.addListener(refresh);
+    state.propertiesChangedEvent.addListener(refresh);   // range pushed from C++
+
+    let dragging = false, dragStartY = 0, dragStartNorm = 0;
+    wrapper.addEventListener("mousedown", (e) => {
+        dragging = true;
+        dragStartY = e.clientY;
+        dragStartNorm = state.getNormalisedValue();
+        state.sliderDragStarted();
+        e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const dy = dragStartY - e.clientY;
+        const sensitivity = e.shiftKey ? 600 : 200;
+        const n = dragStartNorm + dy / sensitivity;
+        state.setNormalisedValue(Math.max(0, Math.min(1, n)));
+    });
+    document.addEventListener("mouseup", () => {
+        if (dragging) { dragging = false; state.sliderDragEnded(); }
+    });
+    wrapper.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const delta = (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.0033 : 0.02);
+        state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() + delta)));
+    }, { passive: false });
+    wrapper.addEventListener("dblclick", (e) => {
+        resetToDefault(paramId, state);
+        e.preventDefault();
+    });
+}
+
+/* ============================================================================
+   Per-string detune fine-tuners (vertical sliders, soft center detent at 0)
+   Range is symmetric linear (-1200..+1200 ¢) → 0 ¢ = normalized 0.5;
+   detent window ±25 ¢ = ±(25/2400) in normalized space. No JS range map.
+   ============================================================================ */
+const DETENT_NORM = 25 / 2400;
+
+function bindFineTuner(paramId) {
+    const block = document.querySelector(`.finetuner[data-param="${paramId}"]`);
+    const track = block.querySelector(".fader-track");
+    const thumb = block.querySelector(".fader-thumb");
+    const valueEl = block.querySelector(".fader-value");
+    const fmt = FMT[paramId];
+    const state = Juce.getSliderState(paramId);
+
+    function refresh() {
+        const n = state.getNormalisedValue();
+        thumb.style.top = ((1 - n) * 100) + "%";
+        valueEl.textContent = fmt(state.getScaledValue());
+    }
+    refresh();
+    state.valueChangedEvent.addListener(refresh);
+    state.propertiesChangedEvent.addListener(refresh);
+
+    function setFromEvent(e) {
+        const rect = track.getBoundingClientRect();
+        let n = 1 - (e.clientY - rect.top) / rect.height;
+        n = Math.max(0, Math.min(1, n));
+        if (Math.abs(n - 0.5) < DETENT_NORM) n = 0.5;   // soft center detent (0 ¢)
+        state.setNormalisedValue(n);
+    }
+
+    let dragging = false;
+    track.addEventListener("mousedown", (e) => {
+        dragging = true;
+        state.sliderDragStarted();
+        setFromEvent(e);
+        e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => { if (dragging) setFromEvent(e); });
+    document.addEventListener("mouseup", () => {
+        if (dragging) { dragging = false; state.sliderDragEnded(); }
+    });
+    track.addEventListener("dblclick", (e) => {
+        resetToDefault(paramId, state);
+        e.preventDefault();
+    });
+    track.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        // 10 ¢ per notch (1 ¢ with shift) in normalized units of the 2400 ¢ span
+        const stepNorm = (e.shiftKey ? 1 : 10) / 2400;
+        const n = state.getNormalisedValue() + (e.deltaY < 0 ? stepNorm : -stepNorm);
+        state.setNormalisedValue(Math.max(0, Math.min(1, n)));
+    }, { passive: false });
+}
+
+/* ============================================================================
+   Active Strings segmented stepper (Int 1-4 → normalized quarters 0, 1/3, 2/3, 1)
+   ============================================================================ */
+function bindActiveStrings() {
+    const seg = document.querySelector('.segmented[data-param="ACTIVE_STRINGS"]');
+    const buttons = [...seg.querySelectorAll("button")];
+    const valueEl = document.getElementById("active-strings-value");
+    const fmt = FMT.ACTIVE_STRINGS;
+    const state = Juce.getSliderState("ACTIVE_STRINGS");
+
+    function refresh() {
+        const v = Math.round(state.getScaledValue());
+        buttons.forEach(b => b.classList.toggle("active", parseInt(b.dataset.val, 10) === v));
+        valueEl.textContent = fmt(v);
+    }
+    refresh();
+    state.valueChangedEvent.addListener(refresh);
+    state.propertiesChangedEvent.addListener(refresh);
+
+    buttons.forEach(b => b.addEventListener("click", () => {
+        const target = parseInt(b.dataset.val, 10);      // 1..4
+        state.sliderDragStarted();
+        state.setNormalisedValue((target - 1) / 3);      // linear Int range 1..4
+        state.sliderDragEnded();
+    }));
+}
+
+/* ============================================================================
+   Tuning system combo + Note Expression toggle + .scl/.tun file picker
+   ============================================================================ */
+function bindMicrotonal() {
+    const select = document.getElementById("tuning-system-select");
+    const sclBtn = document.getElementById("scl-load-btn");
+    const comboState = Juce.getComboBoxState("TUNING_SYSTEM");
+
+    function refreshCombo() {
+        const idx = comboState.getChoiceIndex();
+        select.selectedIndex = idx;
+        sclBtn.disabled = (idx !== 0);   // enabled only for Scala/TUN
+    }
+    refreshCombo();
+    comboState.valueChangedEvent.addListener(refreshCombo);
+    comboState.propertiesChangedEvent.addListener(refreshCombo);
+    select.addEventListener("change", () => comboState.setChoiceIndex(select.selectedIndex));
+
+    sclBtn.addEventListener("click", () => {
+        // Async FileChooser lives in C++ (SafePointer pattern — see PluginEditor).
+        openTuningFilePicker()
+            .then((ok) => { if (!ok) console.log("Tuning file load cancelled/failed"); })
+            .catch((e) => console.warn("openTuningFilePicker failed:", e));
+    });
+
+    const toggleEl = document.getElementById("note-expression-toggle");
+    const toggleState = Juce.getToggleState("NOTE_EXPRESSION");
+    function refreshToggle() { toggleEl.classList.toggle("on", toggleState.getValue()); }
+    refreshToggle();
+    toggleState.valueChangedEvent.addListener(refreshToggle);
+    toggleEl.addEventListener("click", () => toggleState.setValue(!toggleState.getValue()));
+}
+
+/* ============================================================================
+   Drone "wake" treatment
+   ============================================================================ */
+function updateDroneAwake() {
+    const sus = Juce.getSliderState("INFINITE_SUSTAIN").getScaledValue();
+    const sub = Juce.getSliderState("SUB_HARMONICS").getScaledValue();
+    document.getElementById("drone-panel").classList.toggle("awake", (sus > 0.005 || sub > 0.005));
+}
+
+/* ============================================================================
+   Canvas helpers (DPR-aware backing store — canvas is a CSS replaced element)
+   ============================================================================ */
+function setupCanvas(id, w, h) {
+    const c = document.getElementById(id);
+    const dpr = window.devicePixelRatio || 1;
+    c.width = w * dpr;
+    c.height = h * dpr;
+    c.style.width = w + "px";
+    c.style.height = h + "px";
+    const ctx = c.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+}
+
+/* ============================================================================
+   VIZ 1 — Schelleng wedge (centerpiece)
+   Wedge bounds are parameter-driven from live SliderStates. The operating dot
+   tracks the C++ "bowState" feed (Task 13, D5) — the DSP-true effective bow
+   speed/pressure/β (post-LFO/macro/MPE) of the most-recently-started active
+   voice — and falls back to raw SliderState values at silence.
+   ============================================================================ */
+const SCH_W = 312, SCH_H = 186;
+const schCtx = setupCanvas("canvas-schelleng", SCH_W, SCH_H);
+const sch = {
+    padL: 36, padR: 8, padT: 8, padB: 22,
+    vMin: 0.02, vMax: 1.5, pMin: 0.05, pMax: 8,   // axis bounds (display only)
+    dotX: null, dotY: null, jx: 0, jy: 0
+};
+function schXof(v) { return sch.padL + Math.log(v / sch.vMin) / Math.log(sch.vMax / sch.vMin) * (SCH_W - sch.padL - sch.padR); }
+function schYof(p) { return sch.padT + (1 - Math.log(p / sch.pMin) / Math.log(sch.pMax / sch.pMin)) * (SCH_H - sch.padT - sch.padB); }
+function wedgePmax(v, beta) { return 20 * v * (0.10 / beta); }
+function wedgePmin(v, beta) { return 2 * v * Math.pow(0.10 / beta, 2); }
+
+const bowSpeedState    = Juce.getSliderState("BOW_SPEED");
+const bowPressureState = Juce.getSliderState("BOW_PRESSURE");
+const bowPositionState = Juce.getSliderState("BOW_POSITION");
+const bowNoiseState    = Juce.getSliderState("BOW_NOISE");
+
+/* bowState feed (Task 13) — DSP-true operating point pushed from C++ @30 Hz.
+   Event RECEIVE uses window.__JUCE__.backend.addEventListener (the ONE place
+   __JUCE__ is allowed — see namespace note at top). */
+const bowFeed = { v: 0, p: 0, b: 0.10, active: false };
+if (window.__JUCE__ && window.__JUCE__.backend) {
+    window.__JUCE__.backend.addEventListener("bowState", (payload) => {
+        try {
+            const d = (typeof payload === "string") ? JSON.parse(payload) : payload;
+            if (d && typeof d.v === "number") {
+                bowFeed.v = d.v;
+                bowFeed.p = d.p;
+                bowFeed.b = d.b;
+                bowFeed.active = !!d.active;
+            }
+        } catch (e) { /* malformed feed frame — ignore */ }
+    });
+}
+
+function drawSchelleng() {
+    const ctx = schCtx;
+    // Dot: DSP truth when a voice is active (moves with EXPRESSION_MACRO/LFO
+    // while knobs are still); knob values at silence. Clamp to axis bounds so
+    // macro-lifted extremes never park the dot outside the plot.
+    const beta = bowFeed.active ? Math.max(0.02, Math.min(0.25, bowFeed.b))
+                                : bowPositionState.getScaledValue();
+    const speed = Math.max(sch.vMin, Math.min(sch.vMax,
+        bowFeed.active ? bowFeed.v : bowSpeedState.getScaledValue()));
+    const pressure = Math.max(sch.pMin, Math.min(sch.pMax,
+        bowFeed.active ? bowFeed.p : bowPressureState.getScaledValue()));
+    const noise = bowNoiseState.getScaledValue();
+
+    ctx.clearRect(0, 0, SCH_W, SCH_H);
+
+    // plot bg
+    ctx.fillStyle = "rgba(255, 250, 240, 0.35)";
+    ctx.fillRect(sch.padL, sch.padT, SCH_W - sch.padL - sch.padR, SCH_H - sch.padT - sch.padB);
+
+    // grid
+    ctx.strokeStyle = "rgba(124, 101, 71, 0.22)";
+    ctx.lineWidth = 0.5;
+    ctx.font = "8px Georgia, serif";
+    ctx.fillStyle = "#7D6C5E";
+    [0.05, 0.1, 0.2, 0.5, 1.0].forEach(v => {
+        const x = schXof(v);
+        ctx.beginPath(); ctx.moveTo(x, sch.padT); ctx.lineTo(x, SCH_H - sch.padB); ctx.stroke();
+        ctx.textAlign = "center";
+        ctx.fillText(v.toString(), x, SCH_H - sch.padB + 10);
+    });
+    [0.1, 0.5, 1, 2, 4, 8].forEach(p => {
+        const y = schYof(p);
+        ctx.beginPath(); ctx.moveTo(sch.padL, y); ctx.lineTo(SCH_W - sch.padR, y); ctx.stroke();
+        ctx.textAlign = "right";
+        ctx.fillText(p.toString(), sch.padL - 4, y + 3);
+    });
+    // axis titles
+    ctx.textAlign = "center";
+    ctx.fillText("bow speed  m/s", sch.padL + (SCH_W - sch.padL - sch.padR) / 2, SCH_H - 2);
+    ctx.save();
+    ctx.translate(9, sch.padT + (SCH_H - sch.padT - sch.padB) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("pressure  N", 0, 0);
+    ctx.restore();
+
+    // wedge region (clipped to plot)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sch.padL, sch.padT, SCH_W - sch.padL - sch.padR, SCH_H - sch.padT - sch.padB);
+    ctx.clip();
+
+    const N = 60;
+    const vs = [];
+    for (let i = 0; i <= N; i++) vs.push(sch.vMin * Math.pow(sch.vMax / sch.vMin, i / N));
+
+    ctx.beginPath();
+    vs.forEach((v, i) => {
+        const y = schYof(Math.max(sch.pMin * 0.5, Math.min(sch.pMax * 2, wedgePmax(v, beta))));
+        i === 0 ? ctx.moveTo(schXof(v), y) : ctx.lineTo(schXof(v), y);
+    });
+    for (let i = N; i >= 0; i--) {
+        const v = vs[i];
+        const y = schYof(Math.max(sch.pMin * 0.5, Math.min(sch.pMax * 2, wedgePmin(v, beta))));
+        ctx.lineTo(schXof(v), y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(95, 129, 67, 0.13)";
+    ctx.fill();
+
+    // pMax / pMin curves
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "rgba(63, 93, 44, 0.75)";
+    ctx.beginPath();
+    vs.forEach((v, i) => {
+        const y = schYof(Math.max(sch.pMin * 0.5, Math.min(sch.pMax * 2, wedgePmax(v, beta))));
+        i === 0 ? ctx.moveTo(schXof(v), y) : ctx.lineTo(schXof(v), y);
+    });
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(124, 101, 71, 0.75)";
+    ctx.beginPath();
+    vs.forEach((v, i) => {
+        const y = schYof(Math.max(sch.pMin * 0.5, Math.min(sch.pMax * 2, wedgePmin(v, beta))));
+        i === 0 ? ctx.moveTo(schXof(v), y) : ctx.lineTo(schXof(v), y);
+    });
+    ctx.stroke();
+
+    // region labels
+    ctx.font = "italic 9px Georgia, serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(122, 62, 44, 0.75)";
+    ctx.fillText("raucous", sch.padL + 8, sch.padT + 13);
+    ctx.fillStyle = "rgba(63, 93, 44, 0.85)";
+    const vMid = 0.28;
+    const pMid = Math.sqrt(wedgePmax(vMid, beta) * wedgePmin(vMid, beta));
+    if (pMid > sch.pMin && pMid < sch.pMax)
+        ctx.fillText("Helmholtz regime", schXof(vMid), schYof(pMid) + 3);
+    ctx.fillStyle = "rgba(125, 108, 94, 0.85)";
+    ctx.fillText("surface / slipping", SCH_W - sch.padR - 92, SCH_H - sch.padB - 8);
+
+    // operating point (eased + noise jitter)
+    const tx = schXof(speed), ty = schYof(pressure);
+    if (sch.dotX === null) { sch.dotX = tx; sch.dotY = ty; }
+    sch.dotX += (tx - sch.dotX) * 0.14;
+    sch.dotY += (ty - sch.dotY) * 0.14;
+    sch.jx += ((Math.random() - 0.5) * 1.6 - sch.jx) * 0.3;
+    sch.jy += ((Math.random() - 0.5) * 1.6 - sch.jy) * 0.3;
+    const jAmp = noise * 2.2;
+    const dx = sch.dotX + sch.jx * jAmp, dy = sch.dotY + sch.jy * jAmp;
+
+    const inWedge = pressure <= wedgePmax(speed, beta) && pressure >= wedgePmin(speed, beta);
+    const dotColor = inWedge ? "#3F5D2C" : "#8A4128";
+    ctx.beginPath();
+    ctx.arc(dx, dy, 8, 0, Math.PI * 2);
+    ctx.fillStyle = inWedge ? "rgba(95, 129, 67, 0.25)" : "rgba(138, 65, 40, 0.22)";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(dx, dy, 3.4, 0, Math.PI * 2);
+    ctx.fillStyle = dotColor;
+    ctx.fill();
+    ctx.restore();
+}
+
+/* ============================================================================
+   VIZ 2 — Body resonance spectrum (8 modes, log axis 40-1600 Hz)
+   Parameter-driven, dirty-flag redraw. Task 14 (R1/D7): mode tables + formulas
+   are the BodyResonator DSP truth (Source/DSP/BodyResonator.{h,cpp}):
+     kDefaultFreq   {60, 98, 115, 175, 235, 340, 700, 1200} Hz
+     kDefaultQ      {14, 11, 9, 8, 7, 6, 5, 2.5}
+     kDefaultGainDb {-2, 0, -1, -3, -4, -5, -7, -6} dB
+     sizeScalar = 0.85 + 0.30·size   →  fc  = f₀ / sizeScalar (clamp 20..0.45·sr)
+     qScalar    = max(0.15, 1 − 0.85·damping)  →  qEff = max(0.10, q₀·qScalar)
+     gDb        = g₀ + 1.5·(size − 0.75)
+   No C++ data feed needed (pure param-deterministic recompute) — the reserved
+   "bodyModes" event is intentionally NOT implemented.
+   ============================================================================ */
+const SPC_W = 336, SPC_H = 108;
+const spcCtx = setupCanvas("canvas-spectrum", SPC_W, SPC_H);
+// BodyResonator.h:65-70 truth tables (DO NOT restyle — must match DSP)
+const MODE_FREQ   = [60, 98, 115, 175, 235, 340, 700, 1200];
+const MODE_Q      = [14, 11, 9, 8, 7, 6, 5, 2.5];
+const MODE_GAINDB = [-2, 0, -1, -3, -4, -5, -7, -6];
+const SPC = { fMin: 40, fMax: 1600, padB: 14, padT: 6, srDisplay: 48000 };
+function spcXof(f) { return Math.log(f / SPC.fMin) / Math.log(SPC.fMax / SPC.fMin) * SPC_W; }
+
+const bodySizeState    = Juce.getSliderState("BODY_SIZE");
+const bodyDampingState = Juce.getSliderState("BODY_DAMPING");
+const bodyMixState     = Juce.getSliderState("BODY_MIX");
+const brightnessState  = Juce.getSliderState("BRIGHTNESS");
+
+function drawSpectrum() {
+    const ctx = spcCtx;
+    const size = bodySizeState.getScaledValue();
+    const damping = bodyDampingState.getScaledValue();
+    const mix = bodyMixState.getScaledValue();
+    const brightNorm = brightnessState.getNormalisedValue();
+
+    ctx.clearRect(0, 0, SPC_W, SPC_H);
+
+    // BodyResonator::recomputeCoefficients() truth (display copy; sr assumed
+    // 48 kHz — the 0.45·sr clamp only matters far above the display range).
+    const sizeScalar = 0.85 + 0.30 * size;
+    const qScalar    = Math.max(0.15, 1 - 0.85 * damping);
+    const modes = MODE_FREQ.map(f0 =>
+        Math.min(SPC.srDisplay * 0.45, Math.max(20, f0 / sizeScalar)));
+    const qEffs = MODE_Q.map(q0 => Math.max(0.10, q0 * qScalar));
+    const gLins = MODE_GAINDB.map(g0 =>
+        Math.pow(10, (g0 + 1.5 * (size - 0.75)) / 20));
+    // Display-only brightness tilt (BRIGHTNESS is voice-side, not a body-mode
+    // input — kept as a gentle visual cue, applied on top of the DSP truth).
+    const tilt = (brightNorm - 0.5) * 0.8;
+    const amps = modes.map((f, m) => gLins[m] * Math.pow(f / 150, tilt));
+    const ampMax = Math.max(...amps);
+
+    // grid + freq labels
+    ctx.strokeStyle = "rgba(124, 101, 71, 0.18)";
+    ctx.lineWidth = 0.5;
+    ctx.font = "7.5px Georgia, serif";
+    ctx.fillStyle = "#7D6C5E";
+    ctx.textAlign = "center";
+    [50, 100, 200, 400, 800].forEach(f => {
+        const x = spcXof(f);
+        ctx.beginPath(); ctx.moveTo(x, SPC.padT); ctx.lineTo(x, SPC_H - SPC.padB); ctx.stroke();
+        ctx.fillText(f >= 1000 ? (f / 1000) + "k" : f.toString(), x, SPC_H - 4);
+    });
+
+    // resonance curve — per-mode bandpass magnitude with per-mode qEff
+    const plotH = SPC_H - SPC.padT - SPC.padB;
+    const direct = (1 - mix) * 0.18;
+    const pts = [];
+    const NPX = SPC_W;
+    for (let px = 0; px <= NPX; px += 2) {
+        const f = SPC.fMin * Math.pow(SPC.fMax / SPC.fMin, px / NPX);
+        let sum = 0;
+        for (let m = 0; m < modes.length; m++) {
+            const x = (f / modes[m] - modes[m] / f) * qEffs[m];
+            sum += (amps[m] / ampMax) / (1 + x * x);
+        }
+        const level = Math.min(1, direct + mix * sum * (0.55 + 0.45 * (1 - damping)));
+        pts.push([px, SPC.padT + (1 - level) * plotH]);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(0, SPC_H - SPC.padB);
+    pts.forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.lineTo(SPC_W, SPC_H - SPC.padB);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, SPC.padT, 0, SPC_H - SPC.padB);
+    grad.addColorStop(0, "rgba(95, 129, 67, 0.45)");
+    grad.addColorStop(1, "rgba(95, 129, 67, 0.08)");
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
+    ctx.strokeStyle = "#3F5D2C";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // mode markers
+    ctx.fillStyle = "rgba(63, 93, 44, 0.8)";
+    modes.forEach((f, m) => {
+        if (f < SPC.fMin || f > SPC.fMax) return;
+        const x = spcXof(f);
+        const peak = Math.min(1, direct + mix * (amps[m] / ampMax) * (0.55 + 0.45 * (1 - damping)));
+        const y = SPC.padT + (1 - peak) * plotH;
+        ctx.beginPath();
+        ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+/* ============================================================================
+   VIZ 3 — Vintage VU output meter (needle, -20..+3 dB)
+   PRODUCTION: level is pushed from C++ via emitEventIfBrowserIsVisible
+   ("vuLevel", {"db": <rmsDb>}) at ≤30 Hz (16 Hz sufficient). Event RECEIVE
+   uses window.__JUCE__.backend.addEventListener (correct low-level use;
+   this is the ONE place __JUCE__ is allowed — see namespace note at top).
+   ============================================================================ */
+const VU_W = 150, VU_H = 46;
+const vuCtx = setupCanvas("canvas-vu", VU_W, VU_H);
+const vu = { needleDb: -20, targetDb: -20, cx: VU_W / 2, cy: 86, r: 66, aMin: -48, aMax: 48 };
+
+// v1.7.1 — 0 VU is referenced to −18 dBFS RMS (EBU alignment level), not
+// 0 dBFS. The feed is true post-limiter dBFS; unreferenced, the whole face
+// (−20..+3) sat above anything the instrument outputs (max-sustain render:
+// −29 dBFS RMS) and the needle never left its pin.
+const VU_REF_DBFS = -18;
+
+if (window.__JUCE__ && window.__JUCE__.backend) {
+    window.__JUCE__.backend.addEventListener("vuLevel", (payload) => {
+        try {
+            const d = (typeof payload === "string") ? JSON.parse(payload) : payload;
+            // Clamp at the face floor: silence is −80 dBFS, and easing the
+            // needle toward −62 VU off-face would make the next note's rise
+            // start seconds late.
+            if (d && typeof d.db === "number") vu.targetDb = Math.max(-20, d.db - VU_REF_DBFS);
+        } catch (e) { /* malformed feed frame — ignore */ }
+    });
+}
+
+function vuAngle(db) {
+    const n = Math.max(0, Math.min(1, (db + 20) / 23));   // -20..+3
+    return (vu.aMin + n * (vu.aMax - vu.aMin)) * Math.PI / 180;
+}
+function drawVU() {
+    const ctx = vuCtx;
+    vu.needleDb += (vu.targetDb - vu.needleDb) * 0.10;   // needle ballistics
+
+    ctx.clearRect(0, 0, VU_W, VU_H);
+
+    // scale arc
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = "#5E4D40";
+    ctx.beginPath();
+    ctx.arc(vu.cx, vu.cy, vu.r, -Math.PI / 2 + vuAngle(-20), -Math.PI / 2 + vuAngle(0));
+    ctx.stroke();
+    ctx.strokeStyle = "#9C3B22";
+    ctx.beginPath();
+    ctx.arc(vu.cx, vu.cy, vu.r, -Math.PI / 2 + vuAngle(0), -Math.PI / 2 + vuAngle(3));
+    ctx.stroke();
+
+    // ticks + labels
+    ctx.font = "6.5px Georgia, serif";
+    ctx.fillStyle = "#5E4D40";
+    ctx.textAlign = "center";
+    [-20, -10, -7, -5, -3, -1, 0, 3].forEach(db => {
+        const a = -Math.PI / 2 + vuAngle(db);
+        const x1 = vu.cx + Math.cos(a) * (vu.r - 4), y1 = vu.cy + Math.sin(a) * (vu.r - 4);
+        const x2 = vu.cx + Math.cos(a) * (vu.r + 3), y2 = vu.cy + Math.sin(a) * (vu.r + 3);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = db >= 0 ? "#9C3B22" : "#5E4D40";
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        const lx = vu.cx + Math.cos(a) * (vu.r + 9), ly = vu.cy + Math.sin(a) * (vu.r + 9);
+        ctx.fillStyle = db >= 0 ? "#9C3B22" : "#5E4D40";
+        ctx.fillText(db > 0 ? "+" + db : db.toString(), lx, ly + 2);
+    });
+
+    // "VU" mark
+    ctx.font = "italic bold 9px Georgia, serif";
+    ctx.fillStyle = "rgba(94, 77, 64, 0.7)";
+    ctx.fillText("VU", vu.cx, VU_H - 5);
+
+    // needle
+    const na = -Math.PI / 2 + vuAngle(vu.needleDb);
+    ctx.strokeStyle = "#332625";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(vu.cx + Math.cos(na) * (vu.r - 30), vu.cy + Math.sin(na) * (vu.r - 30));
+    ctx.lineTo(vu.cx + Math.cos(na) * (vu.r + 1), vu.cy + Math.sin(na) * (vu.r + 1));
+    ctx.stroke();
+}
+
+/* ============================================================================
+   Master animation loop — rAF, viz-specific throttles (≤60fps budget)
+   ============================================================================ */
+let lastVu = 0;
+const tabMainEl = () => document.getElementById("tab-main");
+function tick(t) {
+    // Task 15 CPU hygiene: all three canvases live on the Main tab — skip
+    // every draw while the Tuning tab is active (display:none canvases).
+    if (tabMainEl().classList.contains("active")) {
+        drawSchelleng();                // small canvas, eased dot — every frame
+        if (vizDirty.spectrum) { drawSpectrum(); vizDirty.spectrum = false; }
+        if (t - lastVu > 33) { drawVU(); lastVu = t; }   // VU at ~30fps
+    }
+    requestAnimationFrame(tick);
+}
+
+/* ============================================================================
+   Init (module scripts are deferred — DOM is ready)
+   ============================================================================ */
+// knobs (30 slider params incl. mini REFERENCE_PITCH and v1.3 RELEASE; detunes bound below)
+["BOW_SPEED", "BOW_PRESSURE", "BOW_POSITION", "ROSIN", "BOW_NOISE", "RELEASE",
+ "BODY_SIZE", "BODY_DAMPING", "BODY_MIX", "BRIGHTNESS",
+ "STRING_TENSION", "STRING_STIFFNESS",
+ "EXPRESSION_MACRO", "VIBRATO_RATE", "VIBRATO_DEPTH", "VIBRATO_ONSET",
+ "SLOW_LFO_RATE", "SLOW_LFO_DEPTH",
+ "INFINITE_SUSTAIN", "SUB_HARMONICS",
+ "OUTPUT_GAIN", "WIDTH", "MASTER_SAT_AMOUNT", "LIMITER_CEILING_DB",
+ "REFERENCE_PITCH"].forEach(bindKnob);
+
+// fine-tuners
+["DETUNE_E", "DETUNE_A", "DETUNE_D", "DETUNE_G"].forEach(bindFineTuner);
+
+bindActiveStrings();
+bindMicrotonal();
+updateDroneAwake();
+
+/* ============================================================================
+   Preset bar (Task 8, D6) — canonical preset-manager v1.0.4 module.
+   CRITICAL: constructor receives the Juce.getNativeFunction factory from the
+   ES-module namespace — NEVER window.__JUCE__ (it has no getNativeFunction).
+   ============================================================================ */
+(async () => {
+    try {
+        const { PresetManager } = await import("./js/preset-manager.js");
+        const presetManager = new PresetManager({
+            displayElement: document.getElementById("preset-name"),
+            prevButton:     document.getElementById("preset-prev"),
+            nextButton:     document.getElementById("preset-next"),
+            saveButton:     document.getElementById("preset-save"),
+            getNativeFunction: Juce.getNativeFunction,
+            onPresetChanged: (name) => console.log("[preset] loaded:", name)
+        });
+        await presetManager.initialize();
+
+        /* Preset dropdown (v1.6.0) — click the name display to browse.
+           Built fresh from presetManager.presetList on every open (refresh()
+           first, so presets saved since init appear). ONE FLAT LIST in the
+           C++ order — the ◀/▶ buttons walk that same list, so any visual
+           regrouping/sorting here would desync them. Only presetManager
+           methods are used: no new getNativeFunction calls, bridge surface
+           stays at 32 (ui_frontend_check). */
+        const nameDisplay = document.getElementById("preset-name");
+        const menu = document.getElementById("preset-menu");
+
+        function closeMenu() { menu.hidden = true; }
+
+        async function openMenu() {
+            await presetManager.refresh();
+            menu.textContent = "";
+            for (const name of presetManager.presetList) {
+                const item = document.createElement("div");
+                item.className = "preset-menu-item"
+                    + (name === presetManager.currentPreset ? " current" : "");
+                item.textContent = name;
+                item.addEventListener("click", async () => {
+                    closeMenu();
+                    await presetManager.loadPreset(name);
+                });
+                menu.appendChild(item);
+            }
+            const r = nameDisplay.getBoundingClientRect();
+            menu.style.left = r.left + "px";
+            menu.style.top  = (r.bottom + 4) + "px";
+            menu.hidden = false;
+        }
+
+        nameDisplay.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (menu.hidden) openMenu(); else closeMenu();
+        });
+        document.addEventListener("click", (e) => {
+            if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeMenu();
+        });
+    } catch (e) {
+        console.error("[preset-bar] init failed:", e);
+    }
+})();
+
+/* ============================================================================
+   Main / Tuning tabs (Task 9, D3) — lazy-loaded shared tuning panel.
+   CRITICAL: `new TuningPanel(container, Juce)` — the Juce ES-module namespace,
+   never window.__JUCE__ (O-Wind index.html:1594-1599 corrected reference).
+   ============================================================================ */
+let tuningPanelInstance = null;
+
+async function activateTuningPanel() {
+    if (tuningPanelInstance) {
+        // Re-entry: re-pull engine state (intervals / tonic / stretch /
+        // masterTune may have changed via footer strip or preset load).
+        try { await tuningPanelInstance.refreshState(); } catch (e) { /* non-fatal */ }
+        return;
+    }
+    try {
+        const { TuningPanel } = await import("./js/tuning-panel.js");
+        const container = document.getElementById("tuning-container");
+        tuningPanelInstance = new TuningPanel(container, Juce);
+        await tuningPanelInstance.init();
+        console.log("[tuning] panel initialized");
+    } catch (err) {
+        console.error("Failed to init tuning panel:", err);
+        document.getElementById("tuning-container").innerHTML =
+            '<div style="padding:20px;color:#7D6C5E;font-style:italic;">Tuning panel failed to load.</div>';
+    }
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const target = "tab-" + btn.dataset.tab;
+        document.querySelectorAll(".tab-btn").forEach(b =>
+            b.classList.toggle("active", b === btn));
+        document.querySelectorAll(".tab-panel").forEach(p =>
+            p.classList.toggle("active", p.id === target));
+        if (btn.dataset.tab === "tuning")
+            activateTuningPanel();
+    });
+});
+
+// ================= hover help (v1.7.0) ======================================
+// Ported from O-Bitrot v1.12.0 (itself from O-Tapestop v1.4.0), which carries
+// the VERIFIED measure-then-pin placement rather than the earlier
+// shrink-to-fit variant (pattern_fixed_tooltip_shrink_to_fit_edge).
+//
+// Every show is gated on `tipsEnabled`, the "?" toggle's state, which
+// round-trips through the processor so it survives a session reload. The
+// toggle's OWN tip carries data-tip-always and bypasses the gate — otherwise
+// the one control that could turn help back on would be the one control
+// unable to explain itself.
+//
+// This block runs LAST and declares its own bindings, so nothing above can
+// reach into it (pattern_module_toplevel_init_tdz).
+{
+    // TOOLTIP_MARGIN is both the gap between a tip and its control AND the
+    // gap it keeps from the viewport edge.
+    const TOOLTIP_MARGIN = 8;
+    const TOOLTIP_DELAY_MS = 350;   // hover dwell before a tip appears
+
+    const tipEl = document.getElementById("tooltip");
+    const toggleEl = document.getElementById("help-toggle");
+
+    let tipTimer = null;
+    let tipTarget = null;
+    let tipSuppressed = false;      // true between pointerdown and pointerup
+    let tipsEnabled = false;        // the "?" state; PULLED from C++ at init
+    let setTipsFn = null;           // native fn, resolved once
+
+    const tipAllowed = (t) => tipsEnabled || t.hasAttribute("data-tip-always");
+
+    const hideTip = () => {
+        clearTimeout(tipTimer);
+        tipTarget = null;
+        if (!tipEl) return;
+        tipEl.classList.remove("visible");
+        tipEl.setAttribute("aria-hidden", "true");
+    };
+
+    const showTip = (target) => {
+        // The pointer may have moved on, or gone down, during the dwell.
+        if (!tipEl || tipSuppressed || target !== tipTarget) return;
+        if (!tipAllowed(target)) return;
+
+        const title = target.getAttribute("data-tip-title");
+        const body = target.getAttribute("data-tip");
+        if (!body) return;
+
+        // textContent, not innerHTML — the copy stays inert.
+        tipEl.textContent = "";
+        if (title) {
+            const t = document.createElement("div");
+            t.className = "tooltip-title";
+            t.textContent = title;
+            tipEl.appendChild(t);
+        }
+        const b = document.createElement("div");
+        b.className = "tooltip-body";
+        b.textContent = body;
+        tipEl.appendChild(b);
+
+        const anchor = target.getBoundingClientRect();
+
+        // MEASURE-THEN-PIN. A fixed-position box with `left` set and
+        // width:auto shrink-to-fits whatever space remains to its right, so
+        // measuring at the PREVIOUS offset under-reports the width, and a
+        // near-edge `left` re-wraps the tip into a narrow ribbon that never
+        // recovers. Release the width, measure from the left edge, pin the
+        // result in px, and only then place.
+        tipEl.style.width = "";
+        tipEl.style.left = "0px";
+        tipEl.style.top = "0px";
+
+        // getBoundingClientRect, NOT offsetWidth: offsetWidth rounds, and a
+        // pinned width narrower than the box's own shrink-to-fit pushes the
+        // last word onto a second line after the height was already read.
+        const width = tipEl.getBoundingClientRect().width;
+        tipEl.style.width = `${width}px`;
+
+        // Height is only stable once the width is definite.
+        const height = tipEl.getBoundingClientRect().height;
+
+        // Prefer above; flip below only when there is no room at the top.
+        let top = anchor.top - height - TOOLTIP_MARGIN;
+        let placement = "above";
+        if (top < TOOLTIP_MARGIN) {
+            top = anchor.bottom + TOOLTIP_MARGIN;
+            placement = "below";
+        }
+
+        const centreX = anchor.left + anchor.width / 2;
+        const maxLeft = window.innerWidth - width - TOOLTIP_MARGIN;
+        const left = Math.max(TOOLTIP_MARGIN, Math.min(maxLeft, centreX - width / 2));
+
+        tipEl.style.left = `${left}px`;
+        tipEl.style.top = `${top}px`;
+        tipEl.dataset.placement = placement;
+
+        // The tip is clamped to the viewport, but the arrow still points at
+        // the control — held clear of the rounded corners.
+        const arrowX = Math.max(10, Math.min(width - 10, centreX - left));
+        tipEl.style.setProperty("--arrow-x", `${arrowX}px`);
+
+        tipEl.classList.add("visible");
+        tipEl.setAttribute("aria-hidden", "false");
+    };
+
+    // Class + aria only — the button's "?" glyph is HTML-authored and must
+    // never be written from here
+    // (pattern_js_state_updater_overwrites_html_labels).
+    const applyTipsEnabled = (enabled) => {
+        tipsEnabled = !!enabled;
+        if (toggleEl) {
+            toggleEl.classList.toggle("active", tipsEnabled);
+            toggleEl.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+        }
+        if (!tipsEnabled) hideTip();
+    };
+
+    if (!tipEl) {
+        console.warn("Tooltip surface missing — hover help disabled");
+    } else {
+        document.addEventListener("mouseover", (e) => {
+            const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+            if (!target || target === tipTarget) return;
+            tipTarget = target;
+            clearTimeout(tipTimer);
+            if (tipSuppressed || !tipAllowed(target)) return;
+            tipTimer = setTimeout(() => showTip(target), TOOLTIP_DELAY_MS);
+        });
+
+        document.addEventListener("mouseout", (e) => {
+            const target = e.target.closest ? e.target.closest("[data-tip]") : null;
+            if (!target) return;
+            // Moving between children of the same control is not a real exit.
+            // Every knob cell wraps a label, a knob and a value readout, so
+            // without this the surface flickers as the pointer crosses them.
+            if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+            hideTip();
+        });
+
+        // Any press begins a click or a drag: get the tip out of the way and
+        // keep it away until release, so it cannot hang over a knob mid-drag.
+        // CAPTURE phase, because the knobs call preventDefault in their own
+        // pointerdown handlers.
+        document.addEventListener("pointerdown", () => {
+            tipSuppressed = true;
+            hideTip();
+        }, true);
+        document.addEventListener("pointerup", () => { tipSuppressed = false; }, true);
+
+        if (toggleEl) {
+            toggleEl.addEventListener("click", () => {
+                applyTipsEnabled(!tipsEnabled);
+                // Fire-and-forget: the page is already in the new state, and a
+                // failed persist must not leave the toggle disagreeing with
+                // what it shows.
+                if (setTipsFn) setTipsFn(tipsEnabled).catch(() => {});
+            });
+        }
+
+        // PULL the persisted preference. The C++ side deliberately never
+        // pushes it: a push from the editor constructor or the 30 Hz tick
+        // fires before this module has evaluated, so it would silently never
+        // arrive and the toggle would read OFF on every reopen
+        // (pattern_webview_one_shot_state_push_stale_on_preset_load / the
+        // O-FreqPulse WR-01 bug).
+        try {
+            setTipsFn = Juce.getNativeFunction("setTooltipsEnabled");
+            Juce.getNativeFunction("getTooltipsEnabled")()
+                .then((enabled) => applyTipsEnabled(!!enabled))
+                .catch((e) => console.error("[help] getTooltipsEnabled failed:", e));
+        } catch (e) {
+            console.error("[help] native bridge unavailable:", e);
+        }
+    }
+}
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

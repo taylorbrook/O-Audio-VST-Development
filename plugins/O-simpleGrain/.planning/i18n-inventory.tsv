@@ -1,0 +1,73 @@
+# plugin	O-simpleGrain
+# uiRoot	Source/ui/public
+# generated	2026-08-28T06:00:06.460Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	36	h1.title		UNSURE	no	title.o-simple	O – simple	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	36	span.title-accent		LABEL	no	title-accent.grain	Grain	prose survives the readout filter
+html-text	index.html	37	p.subtitle		LABEL	no	subtitle.granular-synthesizer-a-field	Granular Synthesizer · A Field Guide	prose survives the readout filter
+html-text	index.html	44	button.tour-btn		LABEL	yes	presettour.single-grain	Single Grain	prose survives the readout filter
+html-text	index.html	45	button.tour-btn		LABEL	yes	presettour.pitched-buzz	Pitched Buzz	prose survives the readout filter
+html-text	index.html	46	button.tour-btn		LABEL	yes	presettour.fragments	Fragments	prose survives the readout filter
+html-text	index.html	47	button.tour-btn		LABEL	yes	presettour.smooth-cloud	Smooth Cloud	prose survives the readout filter
+html-text	index.html	48	button.tour-btn		LABEL	yes	presettour.frozen-pad	Frozen Pad	prose survives the readout filter
+html-text	index.html	49	button.tour-btn		LABEL	yes	presettour.async-cloud	Async Cloud	prose survives the readout filter
+html-text	index.html	50	button.tour-btn		LABEL	yes	presettour.granular-fire	Granular Fire	prose survives the readout filter
+html-text	index.html	51	button.tour-btn		LABEL	yes	presettour.rect-click	Rect Click	prose survives the readout filter
+html-text	index.html	55	#tourCaption		LABEL	no	tourCaption	Hover any control for an explanation · pick a concept preset to hear it isolated.	prose survives the readout filter
+html-text	index.html	66	div.viz-label		UNSURE	no	viz-label.grain-cloud	Grain Cloud ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	66	span.viz-hint		LABEL	no	viz-hint.each-grain-scatters-as	each grain scatters as a dot (read-position × pitch)	prose survives the readout filter
+html-text	index.html	70	div.viz-label		UNSURE	no	viz-label.source-waveform	Source Waveform ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	70	span.viz-hint		LABEL	no	viz-hint.playhead-freeze-pin-spray	playhead, freeze pin & spray range	prose survives the readout filter
+html-text	index.html	75	span.inset-label		LABEL	no	inset-label.window	Window	prose survives the readout filter
+html-text	index.html	81	div.viz-label		UNSURE	no	viz-label.output-scope	Output Scope ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	81	span.viz-hint		LABEL	no	viz-hint.the-post-gain-waveform	the post-gain waveform	prose survives the readout filter
+html-text	index.html	85	div.viz-label		UNSURE	no	viz-label.spectrum	Spectrum ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	85	span.viz-hint		LABEL	no	viz-hint.discrete-sidebands-at-scatter	discrete sidebands at scatter 0 → noise as scatter rises	prose survives the readout filter
+html-text	index.html	92	span.readout-key		LABEL	no	readout-key.grains	Grains	prose survives the readout filter
+html-text	index.html	93	span.readout-key		LABEL	no	readout-key.overlap	Overlap	prose survives the readout filter
+html-text	index.html	94	span.readout-key		LABEL	no	readout-key.cpu	CPU	prose survives the readout filter
+html-text	index.html	102	h2.group-title		LABEL	no	group-title.source	Source	prose survives the readout filter
+html-text	index.html	108	#btnLoad		LABEL	yes	btnLoad	Load…	prose survives the readout filter
+html-text	index.html	110	#source-drop-zone		LABEL	yes	source-drop-zone	Drag a .wav / .aif here to granulate your own sound	prose survives the readout filter
+html-text	index.html	119	h2.group-title		LABEL	no	group-title.grain	Grain	prose survives the readout filter
+html-text	index.html	123	div.knob-label		LABEL	no	knob-label.size	Size	prose survives the readout filter
+html-text	index.html	124	#val-grainSize		READOUT	no	val-grainSize	30 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	128	div.knob-label		LABEL	no	knob-label.density	Density	prose survives the readout filter
+html-text	index.html	133	div.knob-label		LABEL	no	knob-label.position	Position	prose survives the readout filter
+html-text	index.html	138	div.knob-label		LABEL	no	knob-label.scan	Scan	prose survives the readout filter
+html-text	index.html	143	#toggle-freeze		UNSURE	yes	toggle-freeze	Freeze	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	151	h2.group-title		LABEL	no	group-title.window	Window	prose survives the readout filter
+html-text	index.html	155	div.knob-label		LABEL	no	knob-label.shape	Shape	prose survives the readout filter
+html-text	index.html	162	h2.group-title		LABEL	no	group-title.spray-scatter	Spray & Scatter	prose survives the readout filter
+html-text	index.html	166	div.knob-label		LABEL	no	knob-label.pitch-spray	Pitch Spray	prose survives the readout filter
+html-text	index.html	167	#val-pitchSpray		READOUT	no	val-pitchSpray	0 st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	171	div.knob-label		LABEL	no	knob-label.pos-spray	Pos Spray	prose survives the readout filter
+html-text	index.html	176	div.knob-label		LABEL	no	knob-label.scatter	Scatter	prose survives the readout filter
+html-text	index.html	181	div.knob-label		LABEL	no	knob-label.grain-pitch	Grain Pitch	prose survives the readout filter
+html-text	index.html	182	#val-grainPitch		READOUT	no	val-grainPitch	0 st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	186	div.knob-label		LABEL	no	knob-label.pan-spray	Pan Spray	prose survives the readout filter
+html-text	index.html	191	div.knob-label		LABEL	no	knob-label.vel-density	Vel→Density	prose survives the readout filter
+html-text	index.html	199	h2.group-title		LABEL	no	group-title.amplitude-envelope	Amplitude Envelope	prose survives the readout filter
+html-text	index.html	201	#toggle-adsrEnabled		UNSURE	yes	toggle-adsrEnabled	ADSR	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	208	div.knob-label		LABEL	no	env-knobs.attack	Attack	prose survives the readout filter
+html-text	index.html	209	#val-ampAttack		READOUT	no	val-ampAttack	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	213	div.knob-label		LABEL	no	env-knobs.decay	Decay	prose survives the readout filter
+html-text	index.html	214	#val-ampDecay		READOUT	no	val-ampDecay	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	218	div.knob-label		LABEL	no	env-knobs.sustain	Sustain	prose survives the readout filter
+html-text	index.html	223	div.knob-label		LABEL	no	env-knobs.release	Release	prose survives the readout filter
+html-text	index.html	224	#val-ampRelease		READOUT	no	val-ampRelease	400 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	231	h2.group-title		LABEL	no	group-title.output	Output	prose survives the readout filter
+html-text	index.html	235	div.knob-label		LABEL	no	knob-label.level	Level	prose survives the readout filter
+html-text	index.html	236	#val-outputLevel		READOUT	no	val-outputLevel	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	245	div.keyboard-label		UNSURE	no	keyboard-label.play	Play ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	245	span.kbd-hint		LABEL	no	kbd-hint.click-the-keys-or	click the keys or use your computer keyboard (A S D F G H J K · W E T Y U)	prose survives the readout filter
+html-attr	index.html	43	#presetTour	aria-label	LABEL	no	presetTour	Concept presets	prose survives the readout filter
+html-attr	index.html	52	#tipToggle	aria-label	LABEL	no	tipToggle	Toggle tooltips	prose survives the readout filter
+html-attr	index.html	106	#combo-sourceSample	aria-label	LABEL	no	combo-sourceSample	Source sample	prose survives the readout filter
+html-attr	index.html	154	#combo-windowShape	aria-label	LABEL	no	combo-windowShape	Window shape	prose survives the readout filter
+html-attr	index.html	246	#keyboard	aria-label	LABEL	no	keyboard	On-screen keyboard	prose survives the readout filter
+js-composed	js/app.js	827	grainsEl.textContent		READOUT	no	ui.count-global-grain-cap	${count}/${GLOBAL_GRAIN_CAP}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	834	overlapEl.textContent		READOUT	no	ui.overlap-tofixed-1	×${overlap.toFixed(1)}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	896	tip.innerHTML		LABEL	no	ui.span-class-tip-title	<span class="tip-title">${entry[0]}</span>${entry[1]}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/app.js	924	setAttribute	aria-label	READOUT	no	ui.entry-0-plain-entry	${entry[0]} — ${plain(entry[1])}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)

@@ -1,0 +1,241 @@
+# plugin	O-Lyrica
+# uiRoot	Resources/ui
+# generated	2026-08-28T20:46:10.623Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	1778	span.title		LABEL	no	title.ouaricon-lyrica	Ouaricon Lyrica	prose survives the readout filter
+html-text	index.html	1783	#preset-name-display		UNSURE	no	preset-name-display	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	1787	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	1788	#preset-load		LABEL	no	preset-load	Load	prose survives the readout filter
+html-text	index.html	1790	span.voice-display		UNSURE	no	voice-display.voices	Voices:	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1795	#tab-sound		LABEL	no	tab-sound	SOUND	prose survives the readout filter
+html-text	index.html	1796	#tab-techniques		LABEL	no	tab-techniques	TECHNIQUES	prose survives the readout filter
+html-text	index.html	1797	#tab-tuning		LABEL	no	tab-tuning	TUNING	prose survives the readout filter
+html-text	index.html	1798	#tab-effects		LABEL	no	tab-effects	EFFECTS	prose survives the readout filter
+html-text	index.html	1807	div.section-header		LABEL	no	sound-tab.main	Main	prose survives the readout filter
+html-text	index.html	1810	span.slider-label		LABEL	no	sound-tab.brightness	Brightness	prose survives the readout filter
+html-text	index.html	1817	span.slider-label		LABEL	no	sound-tab.timbre	Timbre	prose survives the readout filter
+html-text	index.html	1824	span.slider-label		LABEL	no	sound-tab.decay-time	Decay Time	prose survives the readout filter
+html-text	index.html	1831	span.slider-label		LABEL	no	sound-tab.attack-noise	Attack Noise	prose survives the readout filter
+html-text	index.html	1838	span.slider-label		LABEL	no	sound-tab.humanize	Humanize	prose survives the readout filter
+html-text	index.html	1849	div.section-header		LABEL	no	sound-tab.string	String	prose survives the readout filter
+html-text	index.html	1852	span.dropdown-label		LABEL	no	sound-tab.material	Material	prose survives the readout filter
+html-text	index.html	1854	option		LABEL	no	stringmaterial.gut	Gut	prose survives the readout filter
+html-text	index.html	1855	option		LABEL	no	stringmaterial.nylon	Nylon	prose survives the readout filter
+html-text	index.html	1856	option		LABEL	no	stringmaterial.wire	Wire	prose survives the readout filter
+html-text	index.html	1857	option		LABEL	no	stringmaterial.carbon	Carbon	prose survives the readout filter
+html-text	index.html	1858	option		LABEL	no	stringmaterial.metal-alloy	Metal Alloy	prose survives the readout filter
+html-text	index.html	1859	option		LABEL	no	stringmaterial.glass	Glass	prose survives the readout filter
+html-text	index.html	1860	option		LABEL	no	stringmaterial.crystal	Crystal	prose survives the readout filter
+html-text	index.html	1861	option		LABEL	no	stringmaterial.energy	Energy	prose survives the readout filter
+html-text	index.html	1865	span.slider-label		LABEL	no	sound-tab.tension	Tension	prose survives the readout filter
+html-text	index.html	1872	span.slider-label		LABEL	no	sound-tab.gauge	Gauge	prose survives the readout filter
+html-text	index.html	1879	span.slider-label		LABEL	no	sound-tab.length	Length	prose survives the readout filter
+html-text	index.html	1886	span.slider-label		LABEL	no	sound-tab.stiffness	Stiffness	prose survives the readout filter
+html-text	index.html	1897	div.section-header		LABEL	no	sound-tab.body	Body	prose survives the readout filter
+html-text	index.html	1900	span.slider-label		LABEL	no	sound-tab.size	Size	prose survives the readout filter
+html-text	index.html	1907	span.slider-label		LABEL	no	sound-tab.resonance	Resonance	prose survives the readout filter
+html-text	index.html	1914	span.dropdown-label		LABEL	no	sound-tab.wood-type	Wood Type	prose survives the readout filter
+html-text	index.html	1916	option		LABEL	no	woodtype.spruce	Spruce	prose survives the readout filter
+html-text	index.html	1917	option		LABEL	no	woodtype.maple	Maple	prose survives the readout filter
+html-text	index.html	1918	option		LABEL	no	woodtype.exotic	Exotic	prose survives the readout filter
+html-text	index.html	1919	option		LABEL	no	woodtype.synthetic	Synthetic	prose survives the readout filter
+html-text	index.html	1923	span.slider-label		LABEL	no	sound-tab.mode-spread	Mode Spread	prose survives the readout filter
+html-text	index.html	1930	span.slider-label		LABEL	no	sound-tab.bridge-bright	Bridge Bright	prose survives the readout filter
+html-text	index.html	1941	div.section-header		LABEL	no	sound-tab.excitation	Excitation	prose survives the readout filter
+html-text	index.html	1944	span.slider-label		LABEL	no	sound-tab.pluck-position	Pluck Position	prose survives the readout filter
+html-text	index.html	1951	span.slider-label		LABEL	no	sound-tab.finger-hardness	Finger Hardness	prose survives the readout filter
+html-text	index.html	1958	span.dropdown-label		LABEL	no	sound-tab.technique	Technique	prose survives the readout filter
+html-text	index.html	1960	option		LABEL	no	technique.normal	Normal	prose survives the readout filter
+html-text	index.html	1961	option		LABEL	no	technique.harmonic	Harmonic	prose survives the readout filter
+html-text	index.html	1962	option		LABEL	no	technique.muted	Muted	prose survives the readout filter
+html-text	index.html	1963	option		LABEL	no	technique.pres-de-la-table	Pres de la table	prose survives the readout filter
+html-text	index.html	1971	div.section-header		LABEL	no	sound-tab.sympathetic	Sympathetic	prose survives the readout filter
+html-text	index.html	1974	span.slider-label		LABEL	no	sound-tab.amount	Amount	prose survives the readout filter
+html-text	index.html	1981	span.slider-label		LABEL	no	sound-tab.sharpness-q	Sharpness (Q)	prose survives the readout filter
+html-text	index.html	1997	div.section-header		LABEL	no	techniques-tab.keyswitch-settings	Keyswitch Settings	prose survives the readout filter
+html-text	index.html	2000	span.dropdown-label		LABEL	no	techniques-tab.free-ks	Free KS	prose survives the readout filter
+html-text	index.html	2004	span.dropdown-label		LABEL	no	techniques-tab.scale-ks	Scale KS	prose survives the readout filter
+html-text	index.html	2012	div.section-header		UNSURE	no	techniques-tab.free-glissando	Free Glissando	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	2014	#freeToggleBtn		LABEL	no	freeToggleBtn	OFF	prose survives the readout filter
+html-text	index.html	2018	span.dropdown-label		LABEL	no	techniques-tab.sync	Sync	prose survives the readout filter
+html-text	index.html	2020	option		LABEL	no	freetemposync.off	Off	prose survives the readout filter
+html-text	index.html	2032	option		LABEL	no	freetemposync.1-bar	1 Bar	prose survives the readout filter
+html-text	index.html	2033	option		LABEL	no	freetemposync.2-bars	2 Bars	prose survives the readout filter
+html-text	index.html	2034	option		LABEL	no	freetemposync.4-bars	4 Bars	prose survives the readout filter
+html-text	index.html	2038	span.slider-label		LABEL	no	freetimegroup.time	Time	prose survives the readout filter
+html-text	index.html	2041	#glissandoTimeValue		READOUT	no	glissandoTimeValue	50 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	2045	span.dropdown-label		LABEL	no	techniques-tab.shape	Shape	prose survives the readout filter
+html-text	index.html	2047	option		LABEL	no	freeshape.linear	Linear	prose survives the readout filter
+html-text	index.html	2048	option		LABEL	no	freeshape.accelerate	Accelerate	prose survives the readout filter
+html-text	index.html	2049	option		LABEL	no	freeshape.decelerate	Decelerate	prose survives the readout filter
+html-text	index.html	2050	option		LABEL	no	freeshape.s-curve	S-Curve	prose survives the readout filter
+html-text	index.html	2054	span.dropdown-label		LABEL	no	techniques-tab.interval	Interval	prose survives the readout filter
+html-text	index.html	2056	option		LABEL	no	freeinterval.minor-2nd	Minor 2nd	prose survives the readout filter
+html-text	index.html	2057	option		LABEL	no	freeinterval.major-2nd	Major 2nd	prose survives the readout filter
+html-text	index.html	2058	option		LABEL	no	freeinterval.minor-3rd	Minor 3rd	prose survives the readout filter
+html-text	index.html	2059	option		LABEL	no	freeinterval.major-3rd	Major 3rd	prose survives the readout filter
+html-text	index.html	2060	option		LABEL	no	freeinterval.perfect-4th	Perfect 4th	prose survives the readout filter
+html-text	index.html	2061	option		LABEL	no	freeinterval.tritone	Tritone	prose survives the readout filter
+html-text	index.html	2062	option		LABEL	no	freeinterval.perfect-5th	Perfect 5th	prose survives the readout filter
+html-text	index.html	2063	option		LABEL	no	freeinterval.minor-6th	Minor 6th	prose survives the readout filter
+html-text	index.html	2064	option		LABEL	no	freeinterval.major-6th	Major 6th	prose survives the readout filter
+html-text	index.html	2065	option		LABEL	no	freeinterval.minor-7th	Minor 7th	prose survives the readout filter
+html-text	index.html	2066	option		LABEL	no	freeinterval.major-7th	Major 7th	prose survives the readout filter
+html-text	index.html	2067	option		LABEL	no	freeinterval.octave	Octave	prose survives the readout filter
+html-text	index.html	2068	option		LABEL	no	freeinterval.octave-5th	Octave + 5th	prose survives the readout filter
+html-text	index.html	2069	option		LABEL	no	freeinterval.2-octaves	2 Octaves	prose survives the readout filter
+html-text	index.html	2070	option		LABEL	no	freeinterval.2-5-octaves	2.5 Octaves	prose survives the readout filter
+html-text	index.html	2071	option		LABEL	no	freeinterval.3-octaves	3 Octaves	prose survives the readout filter
+html-text	index.html	2072	option		LABEL	no	freeinterval.custom	Custom	prose survives the readout filter
+html-text	index.html	2076	span.dropdown-label		LABEL	no	techniques-tab.direction	Direction	prose survives the readout filter
+html-text	index.html	2078	option		LABEL	no	freedirection.up-to-note	Up to Note	prose survives the readout filter
+html-text	index.html	2079	option		LABEL	no	freedirection.down-to-note	Down to Note	prose survives the readout filter
+html-text	index.html	2083	span.slider-label		LABEL	no	freecustomsemitonesgroup.semitones	Semitones	prose survives the readout filter
+html-text	index.html	2086	#freeCustomSemitonesValue		READOUT	no	freeCustomSemitonesValue	12 st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	2094	div.section-header		UNSURE	no	techniques-tab.scale-locked-glissando	Scale-Locked Glissando	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	2096	#scaleToggleBtn		LABEL	no	scaleToggleBtn	OFF	prose survives the readout filter
+html-text	index.html	2100	span.dropdown-label		LABEL	no	techniques-tab.scale	Scale	prose survives the readout filter
+html-text	index.html	2102	option		LABEL	no	glissandoscale.major	Major	prose survives the readout filter
+html-text	index.html	2103	option		LABEL	no	glissandoscale.minor	Minor	prose survives the readout filter
+html-text	index.html	2104	option		LABEL	no	glissandoscale.pentatonic	Pentatonic	prose survives the readout filter
+html-text	index.html	2105	option		LABEL	no	glissandoscale.custom	Custom	prose survives the readout filter
+html-text	index.html	2109	span.dropdown-label		LABEL	no	techniques-tab.key	Key	prose survives the readout filter
+html-text	index.html	2126	span.dropdown-label		LABEL	no	customdegreetoggles.degrees	Degrees	prose survives the readout filter
+html-text	index.html	2130	span.dropdown-label		LABEL	no	techniques-tab.sync-2	Sync	prose survives the readout filter
+html-text	index.html	2132	option		LABEL	no	scaletemposync.off	Off	prose survives the readout filter
+html-text	index.html	2144	option		LABEL	no	scaletemposync.1-bar	1 Bar	prose survives the readout filter
+html-text	index.html	2145	option		LABEL	no	scaletemposync.2-bars	2 Bars	prose survives the readout filter
+html-text	index.html	2146	option		LABEL	no	scaletemposync.4-bars	4 Bars	prose survives the readout filter
+html-text	index.html	2150	span.slider-label		LABEL	no	scalespeedgroup.speed	Speed	prose survives the readout filter
+html-text	index.html	2157	span.dropdown-label		LABEL	no	techniques-tab.shape-2	Shape	prose survives the readout filter
+html-text	index.html	2159	option		LABEL	no	glissandoshape.linear	Linear	prose survives the readout filter
+html-text	index.html	2160	option		LABEL	no	glissandoshape.accelerate	Accelerate	prose survives the readout filter
+html-text	index.html	2161	option		LABEL	no	glissandoshape.decelerate	Decelerate	prose survives the readout filter
+html-text	index.html	2162	option		LABEL	no	glissandoshape.s-curve	S-Curve	prose survives the readout filter
+html-text	index.html	2166	span.dropdown-label		LABEL	no	techniques-tab.interval-2	Interval	prose survives the readout filter
+html-text	index.html	2168	option		LABEL	no	glissandointerval.minor-2nd	Minor 2nd	prose survives the readout filter
+html-text	index.html	2169	option		LABEL	no	glissandointerval.major-2nd	Major 2nd	prose survives the readout filter
+html-text	index.html	2170	option		LABEL	no	glissandointerval.minor-3rd	Minor 3rd	prose survives the readout filter
+html-text	index.html	2171	option		LABEL	no	glissandointerval.major-3rd	Major 3rd	prose survives the readout filter
+html-text	index.html	2172	option		LABEL	no	glissandointerval.perfect-4th	Perfect 4th	prose survives the readout filter
+html-text	index.html	2173	option		LABEL	no	glissandointerval.tritone	Tritone	prose survives the readout filter
+html-text	index.html	2174	option		LABEL	no	glissandointerval.perfect-5th	Perfect 5th	prose survives the readout filter
+html-text	index.html	2175	option		LABEL	no	glissandointerval.minor-6th	Minor 6th	prose survives the readout filter
+html-text	index.html	2176	option		LABEL	no	glissandointerval.major-6th	Major 6th	prose survives the readout filter
+html-text	index.html	2177	option		LABEL	no	glissandointerval.minor-7th	Minor 7th	prose survives the readout filter
+html-text	index.html	2178	option		LABEL	no	glissandointerval.major-7th	Major 7th	prose survives the readout filter
+html-text	index.html	2179	option		LABEL	no	glissandointerval.octave	Octave	prose survives the readout filter
+html-text	index.html	2180	option		LABEL	no	glissandointerval.octave-5th	Octave + 5th	prose survives the readout filter
+html-text	index.html	2181	option		LABEL	no	glissandointerval.2-octaves	2 Octaves	prose survives the readout filter
+html-text	index.html	2182	option		LABEL	no	glissandointerval.2-5-octaves	2.5 Octaves	prose survives the readout filter
+html-text	index.html	2183	option		LABEL	no	glissandointerval.3-octaves	3 Octaves	prose survives the readout filter
+html-text	index.html	2184	option		LABEL	no	glissandointerval.custom	Custom	prose survives the readout filter
+html-text	index.html	2188	span.dropdown-label		LABEL	no	techniques-tab.direction-2	Direction	prose survives the readout filter
+html-text	index.html	2190	option		LABEL	no	glissandodirection.up-to-note	Up to Note	prose survives the readout filter
+html-text	index.html	2191	option		LABEL	no	glissandodirection.down-to-note	Down to Note	prose survives the readout filter
+html-text	index.html	2195	span.slider-label		LABEL	no	glissandocustomsemitonesgroup.semitones	Semitones	prose survives the readout filter
+html-text	index.html	2198	#glissandoCustomSemitonesValue		READOUT	no	glissandoCustomSemitonesValue	12 st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	2202	span.slider-label		LABEL	no	techniques-tab.softness	Softness	prose survives the readout filter
+html-text	index.html	2209	span.slider-label		LABEL	no	techniques-tab.humanize	Humanize	prose survives the readout filter
+html-text	index.html	2216	span.slider-label		LABEL	no	techniques-tab.dynamics-start	Dynamics: Start	prose survives the readout filter
+html-text	index.html	2223	span.slider-label		LABEL	no	techniques-tab.dynamics-end	Dynamics: End	prose survives the readout filter
+html-text	index.html	2240	div.interval-list-header		LABEL	no	interval-list.intervals-12-notes	Intervals (12 notes)	prose survives the readout filter
+html-text	index.html	2247	button.viz-btn.active		LABEL	no	tuning-tab.circle	Circle	prose survives the readout filter
+html-text	index.html	2248	button.viz-btn		LABEL	no	tuning-tab.polar	Polar	prose survives the readout filter
+html-text	index.html	2249	button.viz-btn		LABEL	no	tuning-tab.matrix	Matrix	prose survives the readout filter
+html-text	index.html	2250	button.viz-btn		LABEL	no	tuning-tab.true-keys	True Keys	prose survives the readout filter
+html-text	index.html	2251	button.viz-btn		LABEL	no	tuning-tab.rotation	Rotation	prose survives the readout filter
+html-text	index.html	2271	div.pitch-circle-label		LABEL	no	circle-view.scale-intervals	Scale Intervals	prose survives the readout filter
+html-text	index.html	2287	div.tk-hint		LABEL	no	truekeys-view.hold-2-notes-to	Hold 2+ notes to see intervals	prose survives the readout filter
+html-text	index.html	2302	span.library-header-text		LABEL	no	library-section.tuning-library	Tuning Library	prose survives the readout filter
+html-text	index.html	2308	option		LABEL	no	library-filter.all-categories	All Categories	prose survives the readout filter
+html-text	index.html	2309	option		LABEL	no	library-filter.historical	Historical	prose survives the readout filter
+html-text	index.html	2310	option		LABEL	no	library-filter.just-intonation	Just Intonation	prose survives the readout filter
+html-text	index.html	2311	option		LABEL	no	library-filter.equal-divisions	Equal Divisions	prose survives the readout filter
+html-text	index.html	2312	option		LABEL	no	library-filter.non-octave	Non-Octave	prose survives the readout filter
+html-text	index.html	2313	option		LABEL	no	library-filter.world	World	prose survives the readout filter
+html-text	index.html	2329	div.ref-knob-label		LABEL	no	tuning-tab.a4-ref	A4 REF	prose survives the readout filter
+html-text	index.html	2330	#ref-pitch-value		READOUT	no	ref-pitch-value	440.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	2334	#scale-name-display		LABEL	no	scale-name-display	12-TET Standard	prose survives the readout filter
+html-text	index.html	2339	span.octave-stretch-label		LABEL	no	tuning-tab.stretch	Stretch	prose survives the readout filter
+html-text	index.html	2351	#btn-load-scl		LABEL	no	btn-load-scl	Load .SCL	prose survives the readout filter
+html-text	index.html	2352	#btn-load-kbm		LABEL	no	btn-load-kbm	Load .KBM	prose survives the readout filter
+html-text	index.html	2353	#btn-save-scl		LABEL	no	btn-save-scl	Save .SCL	prose survives the readout filter
+html-text	index.html	2354	#btn-save-kbm		LABEL	no	btn-save-kbm	Save .KBM	prose survives the readout filter
+html-text	index.html	2355	#btn-export-html		LABEL	no	btn-export-html	Export HTML	prose survives the readout filter
+html-text	index.html	2362	span.generator-header-text		LABEL	no	generator-section.generate-scale	Generate Scale	prose survives the readout filter
+html-text	index.html	2368	option		LABEL	no	generator-type.edo-equal-division	EDO (Equal Division)	prose survives the readout filter
+html-text	index.html	2369	option		LABEL	no	generator-type.harmonic-series	Harmonic Series	prose survives the readout filter
+html-text	index.html	2370	option		LABEL	no	generator-type.rank-2-temperament	Rank-2 Temperament	prose survives the readout filter
+html-text	index.html	2376	label		LABEL	no	generator-inputs.divisions	Divisions	prose survives the readout filter
+html-text	index.html	2380	label		LABEL	no	generator-inputs.period	Period (¢)	prose survives the readout filter
+html-text	index.html	2384	button.generator-btn		LABEL	no	generator-content.generate	Generate	prose survives the readout filter
+html-text	index.html	2399	span.fx-title		LABEL	no	chorussection.chorus	Chorus	prose survives the readout filter
+html-text	index.html	2400	#chorusBypassBtn		LABEL	no	chorusBypassBtn	On	prose survives the readout filter
+html-text	index.html	2407	span.fx-title		LABEL	no	delaysection.delay	Delay	prose survives the readout filter
+html-text	index.html	2408	#delayBypassBtn		LABEL	no	delayBypassBtn	On	prose survives the readout filter
+html-text	index.html	2415	span.fx-title		LABEL	no	reverbsection.reverb	Reverb	prose survives the readout filter
+html-text	index.html	2416	#reverbBypassBtn		LABEL	no	reverbBypassBtn	On	prose survives the readout filter
+html-text	index.html	2423	span.fx-title		LABEL	no	eqsection.eq	EQ	prose survives the readout filter
+html-text	index.html	2424	#eqBypassBtn		LABEL	no	eqBypassBtn	On	prose survives the readout filter
+html-text	index.html	2433	span.master-label		LABEL	no	master-label.master	Master	prose survives the readout filter
+html-text	index.html	2435	#masterVolumeValue		READOUT	no	masterVolumeValue	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	2469	div.footer-keyboard-help		LABEL	no	footer-keyboard-help.click-to-play	Click to play	prose survives the readout filter
+html-text	index.html	2471	span.brand		LABEL	no	brand.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-attr	index.html	1771	#tooltip-toggle	title	LABEL	no	tooltip-toggle	Toggle tooltips	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1781	#preset-prev	title	LABEL	no	preset-prev	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1786	#preset-next	title	LABEL	no	preset-next	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1787	#preset-save	title	LABEL	no	preset-save-2	Save preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1788	#preset-load	title	LABEL	no	preset-load-2	Load preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-composed	js/app.js	41	ElementById('masterVolumeValue').textContent		UNIT	no	ui.db-tofixed-1-db	${db.toFixed(1)} dB	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	45	etElementById('brightnessValue').textContent		READOUT	no	ui.math-round-value-100	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	49	nt.getElementById('timbreValue').textContent		READOUT	no	ui.math-round-value-100-2	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	61	getElementById('decayTimeValue').textContent		UNIT	no	ui.actual-tofixed-1-s	${actual.toFixed(1)} s	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	65	.getElementById('bodySizeValue').textContent		READOUT	no	ui.math-round-value-100-3	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	69	lementById('bodyResonanceValue').textContent		READOUT	no	ui.math-round-value-100-4	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	73	ntById('sympatheticAmountValue').textContent		READOUT	no	ui.math-round-value-100-5	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	77	lementById('pluckPositionValue').textContent		READOUT	no	ui.math-round-value-100-6	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	81	ementById('fingerHardnessValue').textContent		READOUT	no	ui.math-round-value-100-7	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	85	lementById('stringTensionValue').textContent		READOUT	no	ui.math-round-value-100-8	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	89	tElementById('stringGaugeValue').textContent		READOUT	no	ui.math-round-value-100-9	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	93	ElementById('stringLengthValue').textContent		READOUT	no	ui.math-round-value-100-10	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	97	mentById('stringStiffnessValue').textContent		READOUT	no	ui.math-round-value-100-11	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	102	tElementById('attackNoiseValue').textContent		READOUT	no	ui.math-round-value-100-12	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	111	ElementById('sympatheticQValue').textContent		UNIT	no	ui.q-actual-tofixed-1	Q ${actual.toFixed(1)}	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	118	ementById('bodyModeSpreadValue').textContent		READOUT	no	ui.sign-math-round-spread	${sign}${Math.round(spread * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	122	entById('bridgeBrightnessValue').textContent		READOUT	no	ui.math-round-value-100-13	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	127	etElementById('masterTuneValue').textContent		UNIT	no	ui.hz-tofixed-1-hz	${hz.toFixed(1)} Hz	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	132	ementById('pitchBendRangeValue').textContent		READOUT	no	ui.semitones-st	±${semitones} st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	141	ementById('glissandoSpeedValue').textContent		READOUT	no	ui.actual-tofixed-1-n	${actual.toFixed(1)} n/s	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	147	'glissandoCustomSemitonesValue').textContent		UNIT	no	ui.st-st	${st} st	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	152	ById('glissandoExcitationValue').textContent		READOUT	no	ui.math-round-value-100-14	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	157	ntById('glissandoVelStartValue').textContent		READOUT	no	ui.math-round-value-100-15	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	160	mentById('glissandoVelEndValue').textContent		READOUT	no	ui.math-round-value-100-16	${Math.round(value * 100)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	170	lementById('glissandoTimeValue').textContent		UNIT	no	ui.ms-ms	${ms} ms	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	193	ById('freeCustomSemitonesValue').textContent		UNIT	no	ui.st-st-2	${st} st	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	302	voiceCountElement.textContent		READOUT	no	ui.count-16	${count}/16	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	323	cpuUsageElement.textContent		READOUT	no	ui.cpuestimate-tofixed-0	~${cpuEstimate.toFixed(0)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-prose	js/app.js	357	button.textContent		LABEL	no	ui.on	ON	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	357	button.textContent		LABEL	no	ui.off	OFF	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/app.js	400	option.textContent		READOUT	no	ui.notename-octave	${noteName}${octave}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	475	container.innerHTML		LABEL	no	ui.div-class-knob-id	<div class="knob" id="${id}Knob">	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/app.js	618	btn.textContent		LABEL	no	ui.off-2	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	618	btn.textContent		LABEL	no	ui.on-2	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	659	modeLbl.textContent		LABEL	no	ui.mode	Mode	prose survives the readout filter
+js-prose	index.html inline <script> @line 2478	2628	inputsDiv.innerHTML		LABEL	no	ui.div-class-gen-row	\n                        <div class="gen-row">\n                            <label>Divisions</label>\n                            <input type="number" id="gen-divisions" value="19" min="5" max="53">\n                        </div>\n                        <div class="gen-row">\n                            <label>Period (¢)</label>\n                            <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">\n                        </div>\n                    	prose survives the readout filter
+js-prose	index.html inline <script> @line 2478	2640	inputsDiv.innerHTML		LABEL	no	ui.div-class-gen-row-2	\n                        <div class="gen-row">\n                            <label>Start Harmonic</label>\n                            <input type="number" id="gen-start" value="8" min="1" max="32">\n                        </div>\n                        <div class="gen-row">\n                            <label>End Harmonic</label>\n                            <input type="number" id="gen-end" value="16" min="2" max="64">\n                        </div>\n                    	prose survives the readout filter
+js-prose	index.html inline <script> @line 2478	2652	inputsDiv.innerHTML		LABEL	no	ui.div-class-gen-row-3	\n                        <div class="gen-row">\n                            <label>Generator (¢)</label>\n                            <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">\n                        </div>\n                        <div class="gen-row">\n                            <label>Period (¢)</label>\n                            <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">\n                        </div>\n                        <div class="gen-row">\n                            <label>Notes</label>\n                            <input type="number" id="gen-count" value="12" min="3" max="31">\n                        </div>\n                    	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 2833	3026	button.textContent		LABEL	no	ui.on-3	ON	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 2833	3026	button.textContent		LABEL	no	ui.off-3	OFF	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 2833	3133	freeCSValue.textContent		UNIT	no	ui.st	 st	unit symbol, language-neutral (D-03)
+js-prose	index.html inline <script type="module"> @line 2833	3138	freeCSValue.textContent		UNIT	no	ui.st-2	 st	unit symbol, language-neutral (D-03)
+js-prose	index.html inline <script type="module"> @line 2833	3144	freeCSValue.textContent		UNIT	no	ui.st-3	 st	unit symbol, language-neutral (D-03)
+js-prose	index.html inline <script type="module"> @line 2833	3298	presetNameDisplay.textContent		LABEL	no	ui.default	Default	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 2833	3322	emptyItem.textContent		LABEL	no	ui.no-presets-available	No presets available	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 2833	3333	header.textContent		LABEL	no	ui.factory	Factory	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 2833	3839	container.innerHTML		LABEL	no	ui.div-class-tk-hint	<div class="tk-hint">Hold 2+ notes to see intervals</div>	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 2833	4090	scaleNameEl.textContent		LABEL	no	ui.custom	Custom	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 2833	4148	scaleNameDisplay.textContent		LABEL	no	ui.12-tet-standard	12-TET Standard	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 2833	4150	scaleNameDisplay.textContent		LABEL	no	ui.12-tet-standard-2	12-TET Standard	prose survives the readout filter
+js-composed	index.html inline <script type="module"> @line 2833	4170	refPitchValue.textContent		UNIT	no	ui.hz-tofixed-1-hz-2	${hz.toFixed(1)} Hz	unit symbol, language-neutral (D-03)

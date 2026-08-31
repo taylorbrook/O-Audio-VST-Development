@@ -1,0 +1,3831 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Prism, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   OUARICON NATURALIST DESIGN SYSTEM — O-PRISM
+   ═══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: #F5E6D3;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    font-size: 11px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: #3C2F2F;
+    color: #F5E6D3;
+    flex-shrink: 0;
+    height: 34px;
+}
+.header-bar h1 {
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: #C9A27B;
+}
+.header-bar .subtitle {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #8B7355;
+    font-style: italic;
+    flex-shrink: 0;
+}
+
+/* ─── PRESET BROWSER (persistent in header) ─── */
+.preset-browser {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    max-width: 440px;
+    margin: 0 20px;
+    justify-content: center;
+}
+.preset-nav {
+    background: transparent;
+    border: 1px solid #8B7355;
+    color: #C9A27B;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+    border-radius: 2px;
+    font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s, color 0.15s;
+}
+.preset-nav:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.preset-display {
+    flex: 1;
+    max-width: 320px;
+    text-align: center;
+    padding: 4px 10px;
+    background: #2A2020;
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 10px;
+    line-height: 1.2;
+    color: #F5E6D3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s;
+}
+.preset-display:hover { background: #332828; }
+.preset-category {
+    color: #8B7355;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-size: 9px;
+    margin-right: 6px;
+}
+.preset-category:empty { margin-right: 0; }
+.preset-name {
+    color: #F5E6D3;
+    font-style: italic;
+}
+.preset-save {
+    background: transparent;
+    border: 1px solid #8B7355;
+    color: #C9A27B;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    border-radius: 2px;
+    transition: background 0.15s, color 0.15s;
+}
+.preset-save:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+
+/* ─── PRESET MENU (overlay opening from header) ─── */
+.preset-menu {
+    display: none;
+    position: absolute;
+    top: 34px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3C2F2F;
+    border: 1px solid #8B7355;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    max-height: 520px;
+    overflow-y: auto;
+    width: 540px;
+    font-family: 'Garamond', 'Georgia', serif;
+}
+.preset-menu.visible { display: block; }
+.preset-menu-category {
+    background: #2A2020;
+    color: #C9A27B;
+    padding: 7px 14px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    font-size: 10px;
+    border-top: 1px solid #1A1010;
+    border-bottom: 1px solid #1A1010;
+    font-weight: bold;
+}
+.preset-menu > .preset-menu-category:first-child { border-top: none; }
+.preset-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    padding: 3px;
+    background: #1A1010;
+}
+.preset-menu-item {
+    padding: 6px 10px;
+    background: #3C2F2F;
+    color: #F5E6D3;
+    font-size: 11px;
+    cursor: pointer;
+    font-style: italic;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.preset-menu-item:hover {
+    background: #5C4033;
+    color: #FFF;
+}
+.preset-menu-item.active {
+    background: #8B7355;
+    color: #FFF;
+    font-weight: bold;
+}
+
+/* ─── TAB BAR ─── */
+.tab-bar {
+    display: flex;
+    background: #D4C4B0;
+    border-bottom: 2px solid #8B7355;
+    flex-shrink: 0;
+}
+.tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 12px;
+    font-family: 'Garamond', 'Georgia', serif;
+    color: #5C4033;
+    border-right: 1px solid #8B7355;
+    transition: background 0.2s, color 0.2s;
+}
+.tab:last-child { border-right: none; }
+.tab:hover { background: #E8D5B7; }
+.tab.active {
+    background: #F5E6D3;
+    color: #3C2F2F;
+    border-bottom: 2px solid #F5E6D3;
+    margin-bottom: -2px;
+    font-weight: bold;
+}
+
+/* ─── TAB CONTENT ─── */
+.tab-content-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+.tab-content {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 14px 6px;
+}
+.tab-content.active { display: block; }
+
+/* ─── MOD MATRIX ─── */
+.mod-matrix-info {
+    font-style: italic;
+    color: #8B7355;
+    margin-bottom: 8px;
+    font-size: 11px;
+}
+.mod-matrix-table {
+    border: 1px solid #8B7355;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.mod-matrix-header {
+    display: flex;
+    align-items: center;
+    background: #3C2F2F;
+    color: #C9A27B;
+    padding: 6px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.mod-col-on   { width: 36px; text-align: center; }
+.mod-col-slot { width: 28px; text-align: center; }
+.mod-col-src  { flex: 1; }
+.mod-col-dst  { flex: 1; }
+.mod-col-amt  { width: 120px; text-align: center; }
+.mod-col-val  { width: 50px; text-align: right; }
+.mod-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-bottom: 1px solid #D4C4B0;
+    background: #F5E6D3;
+    transition: background 0.15s;
+}
+.mod-row:nth-child(even) { background: #EDD8C0; }
+.mod-row:hover { background: #E8D5B7; }
+.mod-row.disabled { opacity: 0.45; }
+.mod-row .mod-col-on input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: #C9A27B;
+    cursor: pointer;
+}
+.mod-row .mod-col-slot {
+    font-weight: bold;
+    color: #8B7355;
+    font-size: 10px;
+}
+.mod-row select {
+    width: 100%;
+    padding: 3px 4px;
+    border: 1px solid #B8A08C;
+    border-radius: 3px;
+    background: #FAF0E3;
+    color: #3C2F2F;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+.mod-row select:focus { outline: 1px solid #C9A27B; }
+.mod-row .mod-amt-slider {
+    width: 100%;
+    height: 6px;
+    accent-color: #C9A27B;
+    cursor: pointer;
+}
+.mod-row .mod-col-val {
+    font-size: 10px;
+    color: #5C4033;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ─── FOOTER BAR (MASTER STRIP) ─── */
+.footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 6px 20px;
+    background: #3C2F2F;
+    border-top: 2px solid #8B7355;
+    flex-shrink: 0;
+    height: 68px;
+}
+.footer-param {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.footer-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #8B7355;
+}
+.footer-value {
+    font-size: 10px;
+    color: #C9A27B;
+}
+
+/* ─── SECTION HEADERS ─── */
+.section-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #8B7355;
+    border-bottom: 1px solid rgba(139,115,85,0.4);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    margin-top: 10px;
+}
+.section-header:first-child { margin-top: 0; }
+
+/* ─── SVG VINE-ARC KNOBS ─── */
+.knob-container {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 2px 2px;
+}
+.knob {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+.knob-visual {
+    width: 52px;
+    height: 52px;
+    position: relative;
+}
+.knob-visual.large {
+    width: 64px;
+    height: 64px;
+}
+.knob-visual.small {
+    width: 44px;
+    height: 44px;
+}
+.knob-visual svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-135deg);
+}
+.knob-track {
+    fill: none;
+    stroke: rgba(139, 115, 85, 0.3);
+    stroke-width: 2;
+}
+.knob-vine {
+    fill: none;
+    stroke: #5a7a6a;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+.knob-label {
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    color: #8b7355;
+    text-transform: uppercase;
+    margin-top: 4px;
+    text-align: center;
+}
+.knob-value {
+    font-size: 10px;
+    color: #a08870;
+    margin-top: 1px;
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Double-click value entry. The input is overlaid ON the readout span, which
+   keeps its own text (rendered transparent) so the box never changes size —
+   no layout shift when entry opens or closes.
+
+   Deliberately unstyled for colour: this same field opens over the dark knob
+   panels AND over the light mod-matrix rows (#F5E6D3 / #5C4033). The background
+   stays transparent so it picks up whatever it sits on, and attachValueEntry()
+   copies the readout's own computed colour onto the input — currentColor then
+   carries it to the underline. Hardcoding either palette would break the other. */
+.knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: normal;
+    text-align: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+}
+.knob-value-input::-webkit-outer-spin-button,
+.knob-value-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* ─── DROPDOWN ─── */
+.dropdown-group {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2px 4px;
+}
+.dropdown-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #5C4033;
+    margin-bottom: 3px;
+}
+.param-select {
+    background: #EBD9C7;
+    border: 1px solid #8B7355;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    min-width: 60px;
+}
+.param-select:focus { outline: 1px solid #C9A27B; }
+
+/* ─── WAVETABLE DRAG-DROP ─── */
+.osc-canvas-wrap {
+    position: relative;
+}
+.wt-drop-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(139, 105, 20, 0.3);
+    border: 2px dashed #8B6914;
+    border-radius: 4px;
+    z-index: 10;
+    pointer-events: none;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 12px;
+    color: #5C4033;
+    font-weight: bold;
+}
+.osc-canvas-wrap.drag-over .wt-drop-overlay {
+    display: flex;
+}
+
+/* ─── WAVETABLE MANAGER MODAL ─── */
+.wt-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+.wt-modal-backdrop.visible {
+    display: flex;
+}
+.wt-modal {
+    background: #F5E6D3;
+    border: 2px solid #8B7355;
+    border-radius: 6px;
+    padding: 16px;
+    min-width: 280px;
+    max-width: 400px;
+    max-height: 400px;
+    font-family: 'Garamond', 'Georgia', serif;
+    color: #3C2F2F;
+}
+.wt-modal h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #8B7355;
+    padding-bottom: 6px;
+}
+.wt-modal-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+.wt-modal-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+}
+.wt-modal-list li span {
+    font-size: 11px;
+}
+.wt-modal-list .wt-delete-btn {
+    background: transparent;
+    border: 1px solid #A0522D;
+    color: #A0522D;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.wt-modal-list .wt-delete-btn:hover {
+    background: #A0522D;
+    color: #F5E6D3;
+}
+.wt-modal-close {
+    background: #8B7355;
+    color: #F5E6D3;
+    border: none;
+    padding: 4px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+}
+.wt-modal-empty {
+    font-size: 11px;
+    color: #8B7355;
+    font-style: italic;
+    padding: 8px 0;
+}
+
+/* ─── TOGGLE BUTTON ─── */
+.toggle-btn {
+    background: #EBD9C7;
+    border: 1px solid #8B7355;
+    color: #5C4033;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.toggle-btn.active {
+    background: #6B8E4E;
+    color: #F5E6D3;
+    border-color: #4A6B35;
+}
+
+/* ─── PARAM ROW ─── */
+.param-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* ─── SECTION CONTAINER ─── */
+.section {
+    margin-bottom: 6px;
+}
+
+/* ─── OSC SECTION LAYOUT ─── */
+.osc-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.osc-canvas-wrap {
+    flex-shrink: 0;
+}
+.osc-canvas {
+    width: 160px;
+    height: 90px;
+    border: 2px solid #8B7355;
+    border-radius: 3px;
+    background: #EBD9C7;
+    display: block;
+}
+.osc-params {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* ─── SUB ROW (inline sections) ─── */
+.inline-sections {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.inline-section {
+    flex: 1;
+    min-width: 140px;
+}
+
+/* ─── EFFECT SECTIONS ─── */
+.effect-section { margin-bottom: 12px; }
+.effect-section .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.effect-section.bypassed .param-row {
+    opacity: 0.35;
+    pointer-events: none;
+}
+.bypass-toggle {
+    font-size: 8px;
+    padding: 1px 6px;
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    background: #6B8E4E;
+    color: #F5E6D3;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Garamond', 'Georgia', serif;
+    line-height: 1.2;
+}
+.bypass-toggle.off {
+    background: #B0A090;
+    color: #5C4033;
+}
+
+/* ─── TUNING TAB ─── */
+#tuning-tab {
+    /* position: absolute + inset: 0 inherited from .tab-content */
+}
+
+/* Left side: Interval list */
+.tuning-viz-container {
+    position: absolute;
+    left: 14px;
+    top: 10px;
+    bottom: 10px;
+    width: fit-content;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.interval-list {
+    width: 130px;
+    max-height: 100%;
+    background: rgba(235, 217, 199, 0.6);
+    border: 1px solid #8B7355;
+    border-radius: 4px;
+    overflow-y: auto;
+    padding: 6px 8px;
+    order: -1;
+}
+.interval-list-header {
+    font-size: 9px;
+    color: #5C4033;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    text-align: center;
+}
+.tonic-selector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    margin-bottom: 3px;
+    background: rgba(139, 168, 112, 0.2);
+    border: 1px solid #8B7355;
+    border-radius: 3px;
+}
+.tonic-label { font-size: 8px; color: #5C4033; text-transform: uppercase; }
+.tonic-value { font-size: 10px; font-weight: bold; color: #3C2F2F; min-width: 22px; text-align: center; }
+.tonic-arrow {
+    width: 14px; height: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: #5C4033;
+    background: rgba(212, 196, 176, 0.6);
+    border: 1px solid rgba(139, 115, 85, 0.5);
+    border-radius: 2px; cursor: pointer;
+    transition: background 0.15s;
+}
+.tonic-arrow:hover { background: rgba(139, 168, 112, 0.3); }
+.interval-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 4px; border-radius: 2px; margin-bottom: 2px;
+}
+.interval-row:hover { background: rgba(139, 168, 112, 0.15); }
+.note-name { color: #5C4033; font-weight: 500; font-size: 9px; min-width: 20px; }
+.interval-input {
+    width: 55px; background: rgba(245, 230, 211, 0.8);
+    border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 2px;
+    font-family: monospace; font-size: 9px; color: #3C2F2F;
+    text-align: right; padding: 1px 4px; outline: none;
+}
+.interval-input:focus { background: #FFF; border-color: #6B8E4E; }
+.interval-input:disabled { background: rgba(200, 200, 200, 0.3); color: #888; }
+.deviation { font-family: monospace; font-size: 8px; opacity: 0.8; min-width: 34px; text-align: right; }
+.deviation.pure { color: #4CAF50; }
+.deviation.sharp { color: #FF9800; }
+.deviation.flat { color: #2196F3; }
+
+/* Viz mode toggle */
+.viz-mode-toggle {
+    position: absolute;
+    left: 150px; right: 230px;
+    top: 8px;
+    display: flex; justify-content: center; gap: 6px; z-index: 20;
+}
+.viz-btn {
+    padding: 5px 12px;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #5C4033; background: rgba(212, 196, 176, 0.7);
+    border: 1px solid #8B7355; border-radius: 3px;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.viz-btn:hover { background: rgba(139, 168, 112, 0.3); }
+.viz-btn.active { background: rgba(139, 168, 112, 0.5); color: #3C2F2F; border-color: #3C5C1A; font-weight: 500; }
+
+/* Visualization container */
+.viz-container {
+    position: absolute;
+    left: 150px; right: 230px;
+    top: 36px; bottom: 10px;
+    display: flex; align-items: center; justify-content: center;
+}
+.viz-view { display: none; width: 100%; height: 100%; }
+.viz-view.active { display: flex; align-items: center; justify-content: center; }
+
+/* Pitch Circle */
+.pitch-circle { position: relative; width: 400px; height: 400px; max-width: 100%; max-height: 100%; }
+.pitch-circle svg { width: 100%; height: 100%; }
+.pitch-circle-label {
+    position: absolute; bottom: -20px; width: 100%; text-align: center;
+    font-size: 10px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Polar canvas */
+#polar-canvas { width: 400px; height: 400px; max-width: 100%; max-height: 100%; }
+
+/* Matrix view */
+.matrix-view { width: 100%; height: 100%; overflow: auto; padding: 8px; }
+.matrix-table { border-collapse: collapse; font-size: 10px; width: 100%; }
+.matrix-table th, .matrix-table td { padding: 4px 6px; border: 1px solid rgba(139, 115, 85, 0.3); text-align: center; min-width: 30px; }
+.matrix-table th { background: rgba(139, 115, 85, 0.25); font-weight: 600; color: #3C2F2F; }
+.matrix-cell { font-family: monospace; font-size: 9px; }
+
+/* True Keys view */
+.truekeys-view.active { flex-direction: column; padding: 12px; }
+.tk-hint { font-size: 13px; color: #5C4033; opacity: 0.7; text-align: center; }
+.tk-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; max-height: 300px; overflow-y: auto; }
+.tk-interval { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px; }
+.tk-interval span:first-child { font-size: 12px; color: #3C2F2F; font-weight: 500; }
+.tk-cents { font-family: monospace; font-size: 13px; color: #3C5C1A; font-weight: 600; }
+
+/* Held notes bar (persistent across all viz tabs) */
+.held-notes-bar { display: none; position: absolute; bottom: 0; left: 0; right: 0; background: rgba(60, 47, 47, 0.92); border-top: 1px solid rgba(139, 115, 85, 0.5); padding: 6px 10px; z-index: 10; }
+.held-notes-bar.active { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.hn-label { font-size: 10px; color: rgba(235, 217, 199, 0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
+.hn-item { font-size: 11px; color: #EBD9C7; font-weight: 500; }
+.hn-item .hn-cents { font-family: monospace; color: #9DC76B; font-weight: 600; margin-left: 3px; }
+.hn-item .hn-name { color: rgba(235, 217, 199, 0.6); font-size: 10px; margin-left: 2px; }
+
+/* Rotation view */
+.rotation-view { width: 100%; height: 100%; overflow: auto; padding: 6px; }
+.rotation-table { border-collapse: collapse; font-size: 9px; width: 100%; }
+.rotation-table th, .rotation-table td { padding: 3px 5px; border: 1px solid rgba(139, 115, 85, 0.25); text-align: center; min-width: 26px; }
+.rotation-table th { background: rgba(139, 115, 85, 0.2); font-weight: 500; color: #3C2F2F; }
+.mode-name { background: rgba(139, 115, 85, 0.3) !important; font-weight: bold; font-size: 10px; }
+.int-cell { font-family: monospace; font-size: 9px; }
+.int-cell.small { background: rgba(33, 150, 243, 0.35); }
+.int-cell.medium { background: rgba(76, 175, 80, 0.35); }
+.int-cell.large { background: rgba(255, 152, 0, 0.35); }
+
+/* Right side: Controls panel */
+.tuning-controls-panel {
+    position: absolute;
+    right: 14px; top: 10px;
+    width: 210px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+}
+
+/* A4 Reference Knob */
+.tuning-ref-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+/* Scale name */
+.scale-name-display {
+    padding: 6px 10px; background: rgba(245, 230, 211, 0.8);
+    border: 1px solid #8B7355; border-radius: 3px;
+    font-size: 10px; color: #3C2F2F; text-align: center; min-height: 24px; width: 100%;
+}
+
+/* Octave stretch */
+.octave-stretch-section { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.octave-stretch-row { display: flex; align-items: center; gap: 8px; }
+.octave-stretch-label { font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; min-width: 40px; }
+.octave-stretch-slider {
+    flex: 1; height: 6px; -webkit-appearance: none; appearance: none;
+    background: rgba(139, 115, 85, 0.3); border-radius: 3px; outline: none;
+}
+.octave-stretch-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+    background: radial-gradient(circle at 35% 35%, rgba(255, 248, 220, 0.9) 0%, rgba(212, 196, 176, 0.8) 70%, rgba(139, 115, 85, 0.6) 100%);
+    border: 1px solid #8B7355; border-radius: 50%; cursor: pointer;
+}
+.octave-stretch-value { font-size: 9px; font-family: monospace; color: #3C2F2F; min-width: 32px; text-align: right; }
+
+/* File buttons */
+.tuning-file-section { display: flex; flex-direction: column; gap: 4px; }
+.tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tuning-file-btn {
+    padding: 6px 8px; font-family: 'Garamond', 'Georgia', serif;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px;
+    color: #5C4033; background: rgba(212, 196, 176, 0.7);
+    border: 1px solid #8B7355; border-radius: 2px;
+    cursor: pointer; transition: background 0.15s;
+}
+.tuning-file-btn:hover { background: rgba(139, 168, 112, 0.3); }
+.tuning-file-btn:active { transform: scale(0.97); }
+.tuning-export-btn { grid-column: span 2; background: rgba(139, 115, 85, 0.15); border-color: #6b5a42; color: #5c4033; }
+.tuning-export-btn:hover { background: rgba(139, 115, 85, 0.3); }
+
+/* Library section */
+.library-section { border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
+.library-header {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; padding: 4px 0; user-select: none;
+}
+.library-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+.library-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.library-toggle.expanded { transform: rotate(180deg); }
+.library-content { display: none; padding-top: 8px; }
+.library-content.expanded { display: block; }
+.library-filter { margin-bottom: 8px; }
+.library-filter-select {
+    width: 100%; padding: 5px 6px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
+    border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
+}
+.library-filter-select:focus { border-color: #6B8E4E; }
+.library-list {
+    max-height: 150px; overflow-y: auto;
+    border: 1px solid rgba(139, 115, 85, 0.3); border-radius: 3px;
+    background: rgba(245, 230, 211, 0.5);
+}
+.library-item { padding: 6px 8px; cursor: pointer; border-bottom: 1px solid rgba(139, 115, 85, 0.15); transition: background 0.15s; }
+.library-item:last-child { border-bottom: none; }
+.library-item:hover { background: rgba(139, 168, 112, 0.2); }
+.library-item.selected { background: rgba(139, 168, 112, 0.35); }
+.library-item-name { font-size: 10px; color: #3C2F2F; font-weight: 500; }
+.library-item-info { font-size: 8px; color: #8B7355; margin-top: 2px; }
+.library-item-desc { font-size: 8px; color: #5C4033; font-style: italic; margin-top: 2px; display: none; }
+.library-item:hover .library-item-desc { display: block; }
+.library-list::-webkit-scrollbar { width: 6px; }
+.library-list::-webkit-scrollbar-track { background: rgba(139, 115, 85, 0.1); border-radius: 3px; }
+.library-list::-webkit-scrollbar-thumb { background: rgba(139, 115, 85, 0.4); border-radius: 3px; }
+.library-list::-webkit-scrollbar-thumb:hover { background: rgba(139, 115, 85, 0.6); }
+
+/* Generator section */
+.generator-section { margin-top: 8px; border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
+.generator-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0; user-select: none; }
+.generator-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+.generator-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.generator-toggle.expanded { transform: rotate(180deg); }
+.generator-content { display: none; padding-top: 8px; }
+.generator-content.expanded { display: block; }
+.generator-type-row { margin-bottom: 8px; }
+.generator-type-select {
+    width: 100%; padding: 5px 6px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
+    border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
+}
+.generator-inputs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.gen-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gen-row label { font-size: 9px; color: #5C4033; flex-shrink: 0; }
+.gen-row input[type="number"] {
+    width: 70px; padding: 4px 6px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    color: #3C2F2F; background: rgba(255, 248, 220, 0.9);
+    border: 1px solid #8B7355; border-radius: 3px; text-align: right;
+}
+.gen-row input[type="number"]:focus { outline: none; border-color: #6B8E4E; }
+.generator-btn {
+    width: 100%; padding: 8px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px; color: #3C2F2F;
+    background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
+    border: 1px solid #6B8E4E; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+.generator-btn:hover { background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9)); }
+.generator-btn:active { transform: scale(0.97); }
+
+/* ─── SCROLLBAR ─── */
+.tab-content::-webkit-scrollbar { width: 6px; }
+.tab-content::-webkit-scrollbar-track { background: transparent; }
+.tab-content::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.4); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="header-bar">
+    <h1data-i18n="ui.o-prism" >O-PRISM</h1>
+
+    <div class="preset-browser">
+        <button class="preset-nav" id="btn-preset-prev" title="Previous Preset">‹</button>
+        <div class="preset-display" id="preset-display" title="Click to browse presets">
+            <span class="preset-category" id="preset-current-category"></span>
+            <span class="preset-name" id="preset-current-name">— Init —</span>
+        </div>
+        <button class="preset-nav" id="btn-preset-next" title="Next Preset">›</button>
+        <button class="preset-save" id="btn-preset-save" title="Save Preset">★</button>
+    </div>
+
+    <span data-i18n="subtitle.microtonal-wavetable-synthesizer" class="subtitle">Microtonal Wavetable Synthesizer</span>
+</div>
+
+<!-- Preset menu (opens from header, floats over tabs) -->
+<div class="preset-menu" id="preset-menu"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB BAR
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-bar">
+    <div data-i18n="tab.synth" class="tab active" data-tab="synth" onclick="switchTab('synth')">Synth</div>
+    <div data-i18n="tab.mod" class="tab" data-tab="mod" onclick="switchTab('mod')">Mod</div>
+    <div data-i18n="tab.tuning" class="tab" data-tab="tuning" onclick="switchTab('tuning')">Tuning</div>
+    <div data-i18n="tab.effects" class="tab" data-tab="effects" onclick="switchTab('effects')">Effects</div>
+    <div data-i18n="tab.wavetable" class="tab" data-tab="wavetable" onclick="switchTab('wavetable')">Wavetable</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB CONTENT AREA
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-area">
+
+<!-- ─── SYNTH TAB ─── -->
+<div id="synth-tab" class="tab-content active">
+
+    <!-- Oscillator A -->
+    <div data-i18n="synth-tab.oscillator-a" class="section-header">Oscillator A</div>
+    <div class="osc-section">
+        <div class="osc-canvas-wrap" id="canvasWrapA">
+            <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
+            <div data-i18n="canvaswrapa.drop-wav" class="wt-drop-overlay">Drop WAV</div>
+        </div>
+        <div class="osc-params">
+            <div class="dropdown-group">
+                <span data-i18n="synth-tab.shape" class="dropdown-label">Shape</span>
+                <select id="select-oscATable" class="param-select">
+                    <optgroup label="Analog">
+                        <optiondata-i18n="select-oscatable.saw" >Saw</option><optiondata-i18n="select-oscatable.square" >Square</option><optiondata-i18n="select-oscatable.triangle" >Triangle</option><optiondata-i18n="select-oscatable.sine" >Sine</option>
+                        <optiondata-i18n="select-oscatable.pwm-sweep" >PWM Sweep</option><optiondata-i18n="select-oscatable.supersaw" >Supersaw</option><optiondata-i18n="select-oscatable.sync-sweep" >Sync Sweep</option>
+                    </optgroup>
+                    <optgroup label="Digital">
+                        <optiondata-i18n="select-oscatable.fm-e-piano" >FM E.Piano</option><optiondata-i18n="select-oscatable.fm-bell" >FM Bell</option><optiondata-i18n="select-oscatable.fm-metallic" >FM Metallic</option>
+                        <optiondata-i18n="select-oscatable.wavefold" >Wavefold</option><optiondata-i18n="select-oscatable.bitcrush" >Bitcrush</option>
+                    </optgroup>
+                    <optgroup label="Formant">
+                        <optiondata-i18n="select-oscatable.vowel-morph" >Vowel Morph</option><optiondata-i18n="select-oscatable.choir-pad" >Choir Pad</option>
+                        <optiondata-i18n="select-oscatable.vocal-lead" >Vocal Lead</option><optiondata-i18n="select-oscatable.formant-filter" >Formant Filter</option>
+                    </optgroup>
+                    <optgroup label="Spectral">
+                        <optiondata-i18n="select-oscatable.harmonic-series" >Harmonic Series</option><optiondata-i18n="select-oscatable.spectral-tilt" >Spectral Tilt</option>
+                        <optiondata-i18n="select-oscatable.odd-harmonics" >Odd Harmonics</option><optiondata-i18n="select-oscatable.harmonic-stretch" >Harmonic Stretch</option>
+                        <optiondata-i18n="select-oscatable.comb-sweep" >Comb Sweep</option><optiondata-i18n="select-oscatable.prism-spectrum" >Prism Spectrum</option>
+                    </optgroup>
+                    <optgroup label="Organic">
+                        <optiondata-i18n="select-oscatable.breath" >Breath</option><optiondata-i18n="select-oscatable.plucked-string" >Plucked String</option>
+                        <optiondata-i18n="select-oscatable.church-bell" >Church Bell</option><optiondata-i18n="select-oscatable.organ-sweep" >Organ Sweep</option>
+                        <optiondata-i18n="select-oscatable.wind" >Wind</option><optiondata-i18n="select-oscatable.filtered-noise" >Filtered Noise</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="oscAPos" data-label="Position" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscALevel" data-label="Level" data-initial="80%"></div>
+            <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C"></div>
+            <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st"></div>
+            <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct"></div>
+            <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1"></div>
+            <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%"></div>
+            <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%"></div>
+            <div class="dropdown-group">
+                <span data-i18n="synth-tab.warp" class="dropdown-label">Warp</span>
+                <select id="select-oscAWarpType" class="param-select">
+                    <optiondata-i18n="select-oscawarptype.off" >Off</option><optiondata-i18n="select-oscawarptype.sync" >Sync</option><optiondata-i18n="select-oscawarptype.bend" >Bend</option><optiondata-i18n="select-oscawarptype.fm" >FM</option><optiondata-i18n="select-oscawarptype.window" >Window</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%"></div>
+        </div>
+    </div>
+
+    <!-- Oscillator B -->
+    <div data-i18n="synth-tab.oscillator-b" class="section-header">Oscillator B</div>
+    <div class="osc-section">
+        <div class="osc-canvas-wrap" id="canvasWrapB">
+            <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
+            <div data-i18n="canvaswrapb.drop-wav" class="wt-drop-overlay">Drop WAV</div>
+        </div>
+        <div class="osc-params">
+            <div class="dropdown-group">
+                <span data-i18n="synth-tab.shape-2" class="dropdown-label">Shape</span>
+                <select id="select-oscBTable" class="param-select">
+                    <optgroup label="Analog">
+                        <optiondata-i18n="select-oscbtable.saw" >Saw</option><optiondata-i18n="select-oscbtable.square" >Square</option><optiondata-i18n="select-oscbtable.triangle" >Triangle</option><optiondata-i18n="select-oscbtable.sine" >Sine</option>
+                        <optiondata-i18n="select-oscbtable.pwm-sweep" >PWM Sweep</option><optiondata-i18n="select-oscbtable.supersaw" >Supersaw</option><optiondata-i18n="select-oscbtable.sync-sweep" >Sync Sweep</option>
+                    </optgroup>
+                    <optgroup label="Digital">
+                        <optiondata-i18n="select-oscbtable.fm-e-piano" >FM E.Piano</option><optiondata-i18n="select-oscbtable.fm-bell" >FM Bell</option><optiondata-i18n="select-oscbtable.fm-metallic" >FM Metallic</option>
+                        <optiondata-i18n="select-oscbtable.wavefold" >Wavefold</option><optiondata-i18n="select-oscbtable.bitcrush" >Bitcrush</option>
+                    </optgroup>
+                    <optgroup label="Formant">
+                        <optiondata-i18n="select-oscbtable.vowel-morph" >Vowel Morph</option><optiondata-i18n="select-oscbtable.choir-pad" >Choir Pad</option>
+                        <optiondata-i18n="select-oscbtable.vocal-lead" >Vocal Lead</option><optiondata-i18n="select-oscbtable.formant-filter" >Formant Filter</option>
+                    </optgroup>
+                    <optgroup label="Spectral">
+                        <optiondata-i18n="select-oscbtable.harmonic-series" >Harmonic Series</option><optiondata-i18n="select-oscbtable.spectral-tilt" >Spectral Tilt</option>
+                        <optiondata-i18n="select-oscbtable.odd-harmonics" >Odd Harmonics</option><optiondata-i18n="select-oscbtable.harmonic-stretch" >Harmonic Stretch</option>
+                        <optiondata-i18n="select-oscbtable.comb-sweep" >Comb Sweep</option><optiondata-i18n="select-oscbtable.prism-spectrum" >Prism Spectrum</option>
+                    </optgroup>
+                    <optgroup label="Organic">
+                        <optiondata-i18n="select-oscbtable.breath" >Breath</option><optiondata-i18n="select-oscbtable.plucked-string" >Plucked String</option>
+                        <optiondata-i18n="select-oscbtable.church-bell" >Church Bell</option><optiondata-i18n="select-oscbtable.organ-sweep" >Organ Sweep</option>
+                        <optiondata-i18n="select-oscbtable.wind" >Wind</option><optiondata-i18n="select-oscbtable.filtered-noise" >Filtered Noise</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="oscBPos" data-label="Position" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscBLevel" data-label="Level" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C"></div>
+            <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st"></div>
+            <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct"></div>
+            <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%"></div>
+            <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1"></div>
+            <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%"></div>
+            <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%"></div>
+            <div class="dropdown-group">
+                <span data-i18n="synth-tab.warp-2" class="dropdown-label">Warp</span>
+                <select id="select-oscBWarpType" class="param-select">
+                    <optiondata-i18n="select-oscbwarptype.off" >Off</option><optiondata-i18n="select-oscbwarptype.sync" >Sync</option><optiondata-i18n="select-oscbwarptype.bend" >Bend</option><optiondata-i18n="select-oscbwarptype.fm" >FM</option><optiondata-i18n="select-oscbwarptype.window" >Window</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%"></div>
+        </div>
+    </div>
+
+    <!-- Sub + Noise -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div data-i18n="synth-tab.sub-oscillator" class="section-header">Sub Oscillator</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.shape-3" class="dropdown-label">Shape</span>
+                    <select id="select-subShape" class="param-select">
+                        <optiondata-i18n="select-subshape.sine" >Sine</option><optiondata-i18n="select-subshape.triangle" >Triangle</option><optiondata-i18n="select-subshape.saw" >Saw</option><optiondata-i18n="select-subshape.square" >Square</option>
+                    </select>
+                </div>
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.octave" class="dropdown-label">Octave</span>
+                    <select id="select-subOctave" class="param-select">
+                        <optiondata-i18n="select-suboctave.1-oct" >-1 Oct</option><optiondata-i18n="select-suboctave.2-oct" >-2 Oct</option><optiondata-i18n="select-suboctave.3-oct" >-3 Oct</option><optiondata-i18n="select-suboctave.4-oct" >-4 Oct</option>
+                    </select>
+                </div>
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.routing" class="dropdown-label">Routing</span>
+                    <select id="select-subRouting" class="param-select">
+                        <optiondata-i18n="select-subrouting.post-filter" >Post-Filter</option><optiondata-i18n="select-subrouting.pre-filter" >Pre-Filter</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%"></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div data-i18n="synth-tab.noise" class="section-header">Noise</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.type" class="dropdown-label">Type</span>
+                    <select id="select-noiseType" class="param-select">
+                        <optiondata-i18n="select-noisetype.white" >White</option><optiondata-i18n="select-noisetype.pink" >Pink</option><optiondata-i18n="select-noisetype.brown" >Brown</option><optiondata-i18n="select-noisetype.digital" >Digital</option><optiondata-i18n="select-noisetype.vinyl" >Vinyl</option><optiondata-i18n="select-noisetype.wind" >Wind</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%"></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div data-i18n="synth-tab.performance" class="section-header">Performance</div>
+            <div class="param-row">
+                <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st"></div>
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.glide-mode" class="dropdown-label">Glide Mode</span>
+                    <select id="select-glideMode" class="param-select">
+                        <optiondata-i18n="select-glidemode.off" >Off</option><optiondata-i18n="select-glidemode.legato" >Legato</option><optiondata-i18n="select-glidemode.always" >Always</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div data-i18n="synth-tab.filter-a" class="section-header">Filter A</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.type-2" class="dropdown-label">Type</span>
+                    <select id="select-filtAType" class="param-select">
+                        <optiondata-i18n="select-filtatype.lp12" >LP12</option><optiondata-i18n="select-filtatype.lp24" >LP24</option><optiondata-i18n="select-filtatype.hp12" >HP12</option><optiondata-i18n="select-filtatype.hp24" >HP24</option><optiondata-i18n="select-filtatype.bp12" >BP12</option><optiondata-i18n="select-filtatype.bp24" >BP24</option><optiondata-i18n="select-filtatype.notch" >Notch</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz"></div>
+                <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%"></div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; padding-top:20px;">
+            <div class="dropdown-group">
+                <span data-i18n="synth-tab.filter-routing" class="dropdown-label">Filter Routing</span>
+                <select id="select-filtRouting" class="param-select">
+                    <optiondata-i18n="select-filtrouting.serial" >Serial</option><optiondata-i18n="select-filtrouting.parallel" >Parallel</option>
+                </select>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div data-i18n="synth-tab.filter-b" class="section-header">Filter B</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span data-i18n="synth-tab.type-3" class="dropdown-label">Type</span>
+                    <select id="select-filtBType" class="param-select">
+                        <optiondata-i18n="select-filtbtype.lp12" >LP12</option><optiondata-i18n="select-filtbtype.lp24" >LP24</option><optiondata-i18n="select-filtbtype.hp12" >HP12</option><optiondata-i18n="select-filtbtype.hp24" >HP24</option><optiondata-i18n="select-filtbtype.bp12" >BP12</option><optiondata-i18n="select-filtbtype.bp24" >BP24</option><optiondata-i18n="select-filtbtype.notch" >Notch</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz"></div>
+                <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Envelopes -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div data-i18n="synth-tab.amp-envelope" class="section-header">Amp Envelope</div>
+            <div class="param-row">
+                <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms"></div>
+                <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms"></div>
+                <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%"></div>
+                <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms"></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div data-i18n="synth-tab.filter-envelope" class="section-header">Filter Envelope</div>
+            <div class="param-row">
+                <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms"></div>
+                <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms"></div>
+                <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%"></div>
+                <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms"></div>
+                <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%"></div>
+                <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LFOs (rate/sync + shape — routing via Mod Matrix tab) -->
+    <div class="inline-sections">
+        <div class="inline-section" id="lfo1-section">
+            <div class="section-header">LFO 1 <button data-i18n="toggle-lfo1Sync" id="toggle-lfo1Sync" class="toggle-btn">Free</button> <button data-i18n="toggle-lfo1FreeRun" id="toggle-lfo1FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="param-row">
+                <div class="knob-container" id="lfo1-rate-wrap" data-knob="lfo1Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="dropdown-group" id="lfo1-div-wrap" style="display:none">
+                    <span data-i18n="lfo1-div-wrap.division" class="dropdown-label">Division</span>
+                    <select id="select-lfo1Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
+                <div class="dropdown-group">
+                    <span data-i18n="lfo1-section.shape" class="dropdown-label">Shape</span>
+                    <select id="select-lfo1Shape" class="param-select">
+                        <optiondata-i18n="select-lfo1shape.sine" >Sine</option><optiondata-i18n="select-lfo1shape.triangle" >Triangle</option><optiondata-i18n="select-lfo1shape.saw" >Saw</option><optiondata-i18n="select-lfo1shape.square" >Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="inline-section" id="lfo2-section">
+            <div class="section-header">LFO 2 <button data-i18n="toggle-lfo2Sync" id="toggle-lfo2Sync" class="toggle-btn">Free</button> <button data-i18n="toggle-lfo2FreeRun" id="toggle-lfo2FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="param-row">
+                <div class="knob-container" id="lfo2-rate-wrap" data-knob="lfo2Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="dropdown-group" id="lfo2-div-wrap" style="display:none">
+                    <span data-i18n="lfo2-div-wrap.division" class="dropdown-label">Division</span>
+                    <select id="select-lfo2Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
+                <div class="dropdown-group">
+                    <span data-i18n="lfo2-section.shape" class="dropdown-label">Shape</span>
+                    <select id="select-lfo2Shape" class="param-select">
+                        <optiondata-i18n="select-lfo2shape.sine" >Sine</option><optiondata-i18n="select-lfo2shape.triangle" >Triangle</option><optiondata-i18n="select-lfo2shape.saw" >Saw</option><optiondata-i18n="select-lfo2shape.square" >Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="inline-section" id="lfo3-section">
+            <div class="section-header">LFO 3 <button data-i18n="toggle-lfo3Sync" id="toggle-lfo3Sync" class="toggle-btn">Free</button> <button data-i18n="toggle-lfo3FreeRun" id="toggle-lfo3FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="param-row">
+                <div class="knob-container" id="lfo3-rate-wrap" data-knob="lfo3Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="dropdown-group" id="lfo3-div-wrap" style="display:none">
+                    <span data-i18n="lfo3-div-wrap.division" class="dropdown-label">Division</span>
+                    <select id="select-lfo3Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
+                <div class="dropdown-group">
+                    <span data-i18n="lfo3-section.shape" class="dropdown-label">Shape</span>
+                    <select id="select-lfo3Shape" class="param-select">
+                        <optiondata-i18n="select-lfo3shape.sine" >Sine</option><optiondata-i18n="select-lfo3shape.triangle" >Triangle</option><optiondata-i18n="select-lfo3shape.saw" >Saw</option><optiondata-i18n="select-lfo3shape.square" >Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="inline-section" id="lfo4-section">
+            <div class="section-header">LFO 4 <button data-i18n="toggle-lfo4Sync" id="toggle-lfo4Sync" class="toggle-btn">Free</button> <button data-i18n="toggle-lfo4FreeRun" id="toggle-lfo4FreeRun" class="toggle-btn">Retrig</button></div>
+            <div class="param-row">
+                <div class="knob-container" id="lfo4-rate-wrap" data-knob="lfo4Rate" data-label="Rate" data-initial="1.0 Hz"></div>
+                <div class="dropdown-group" id="lfo4-div-wrap" style="display:none">
+                    <span data-i18n="lfo4-div-wrap.division" class="dropdown-label">Division</span>
+                    <select id="select-lfo4Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
+                <div class="dropdown-group">
+                    <span data-i18n="lfo4-section.shape" class="dropdown-label">Shape</span>
+                    <select id="select-lfo4Shape" class="param-select">
+                        <optiondata-i18n="select-lfo4shape.sine" >Sine</option><optiondata-i18n="select-lfo4shape.triangle" >Triangle</option><optiondata-i18n="select-lfo4shape.saw" >Saw</option><optiondata-i18n="select-lfo4shape.square" >Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+</div><!-- /synth-tab -->
+
+<!-- ─── MOD MATRIX TAB ─── -->
+<div id="mod-tab" class="tab-content">
+    <div data-i18n="mod-tab.modulation-matrix" class="section-header">Modulation Matrix</div>
+    <div data-i18n="mod-tab.route-any-source-to" class="mod-matrix-info">Route any source to any destination. 16 slots available.</div>
+    <div class="mod-matrix-table">
+        <div class="mod-matrix-header">
+            <span data-i18n="mod-tab.on" class="mod-col-on">On</span>
+            <span class="mod-col-slot">#</span>
+            <span data-i18n="mod-tab.source" class="mod-col-src">Source</span>
+            <span data-i18n="mod-tab.destination" class="mod-col-dst">Destination</span>
+            <span data-i18n="mod-tab.amount" class="mod-col-amt">Amount</span>
+            <span class="mod-col-val"></span>
+        </div>
+        <div id="mod-matrix-rows"></div>
+    </div>
+</div><!-- /mod-tab -->
+
+<!-- ─── TUNING TAB ─── -->
+<div id="tuning-tab" class="tab-content">
+
+    <!-- LEFT: Interval List -->
+    <div class="tuning-viz-container">
+        <div class="interval-list" id="interval-list">
+            <div data-i18n="interval-list.intervals-12-notes" class="interval-list-header">Intervals (12 notes)</div>
+        </div>
+    </div>
+
+    <!-- Viz Mode Toggle -->
+    <div class="viz-mode-toggle">
+        <button data-i18n="tuning-tab.circle" class="viz-btn active" data-mode="circle">Circle</button>
+        <button data-i18n="tuning-tab.polar" class="viz-btn" data-mode="polar">Polar</button>
+        <button data-i18n="tuning-tab.matrix" class="viz-btn" data-mode="matrix">Matrix</button>
+        <button data-i18n="tuning-tab.true-keys" class="viz-btn" data-mode="truekeys">True Keys</button>
+        <button data-i18n="tuning-tab.rotation" class="viz-btn" data-mode="rotation">Rotation</button>
+    </div>
+
+    <!-- CENTER: Visualization Container -->
+    <div class="viz-container" id="viz-container">
+        <div class="viz-view active" id="circle-view">
+            <div class="pitch-circle">
+                <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                    <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                    <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                    <g id="interval-lines"></g>
+                    <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                </svg>
+                <div data-i18n="circle-view.scale-intervals" class="pitch-circle-label">Scale Intervals</div>
+            </div>
+        </div>
+        <div class="viz-view" id="polar-view">
+            <canvas id="polar-canvas" width="400" height="400"></canvas>
+        </div>
+        <div class="viz-view matrix-view" id="matrix-view"></div>
+        <div class="viz-view truekeys-view" id="truekeys-view">
+            <div data-i18n="truekeys-view.hold-2-notes-to" class="tk-hint">Hold 2+ notes to see intervals</div>
+        </div>
+        <div class="viz-view rotation-view" id="rotation-view"></div>
+        <div id="held-notes-bar" class="held-notes-bar"></div>
+    </div>
+
+    <!-- RIGHT: Tuning Controls -->
+    <div class="tuning-controls-panel">
+        <!-- Tuning Library -->
+        <div class="library-section" id="library-section">
+            <div class="library-header" id="library-header">
+                <span data-i18n="library-header.tuning-library" class="library-header-text">Tuning Library</span>
+                <span class="library-toggle" id="library-toggle">&#x25BC;</span>
+            </div>
+            <div class="library-content" id="library-content">
+                <div class="library-filter">
+                    <select id="library-filter" class="library-filter-select">
+                        <option data-i18n="library-filter.all-categories" value="all">All Categories</option>
+                        <option data-i18n="library-filter.historical" value="Historical">Historical</option>
+                        <option data-i18n="library-filter.just-intonation" value="Just Intonation">Just Intonation</option>
+                        <option data-i18n="library-filter.equal-divisions" value="Equal Divisions">Equal Divisions</option>
+                        <option data-i18n="library-filter.non-octave" value="Non-Octave">Non-Octave</option>
+                        <option data-i18n="library-filter.world" value="World">World</option>
+                    </select>
+                </div>
+                <div class="library-list" id="library-list"></div>
+            </div>
+        </div>
+
+        <!-- A4 Reference Pitch -->
+        <div class="tuning-ref-section">
+            <div class="knob" id="ref-pitch-knob">
+                <div class="knob-visual large">
+                    <svg viewBox="0 0 64 64">
+                        <circle class="knob-track" cx="32" cy="32" r="27"/>
+                        <circle class="knob-vine" id="vine-refPitch" cx="32" cy="32" r="27" stroke-dasharray="127.24" stroke-dashoffset="127.24"/>
+                    </svg>
+                </div>
+                <span data-i18n="ref-pitch-knob.a4-ref" class="knob-label">A4 Ref</span>
+                <span class="knob-value" id="ref-pitch-value">440.0 Hz</span>
+            </div>
+        </div>
+
+        <!-- Scale Name -->
+        <div data-i18n="scale-name-display" class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+
+        <!-- Octave Stretch -->
+        <div class="octave-stretch-section">
+            <div class="octave-stretch-row">
+                <span data-i18n="tuning-tab.stretch" class="octave-stretch-label">Stretch</span>
+                <input type="range" id="octave-stretch" class="octave-stretch-slider"
+                       min="0.95" max="1.25" step="0.01" value="1.0">
+                <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+            </div>
+        </div>
+
+        <!-- File Operations -->
+        <div class="tuning-file-section">
+            <div class="tuning-file-buttons">
+                <button data-i18n="btn-load-scl" class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
+                <button data-i18n="btn-load-kbm" class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
+                <button data-i18n="btn-save-scl" class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
+                <button data-i18n="btn-save-kbm" class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
+                <button data-i18n="btn-export-html" class="tuning-file-btn tuning-export-btn" id="btn-export-html">Export HTML</button>
+            </div>
+        </div>
+
+        <!-- Scale Generator -->
+        <div class="generator-section" id="generator-section">
+            <div class="generator-header" id="generator-header">
+                <span data-i18n="generator-header.generate-scale" class="generator-header-text">Generate Scale</span>
+                <span class="generator-toggle" id="generator-toggle">&#x25BC;</span>
+            </div>
+            <div class="generator-content" id="generator-content">
+                <div class="generator-type-row">
+                    <select id="generator-type" class="generator-type-select">
+                        <option data-i18n="generator-type.edo-equal-division" value="edo">EDO (Equal Division)</option>
+                        <option data-i18n="generator-type.harmonic-series" value="harmonic">Harmonic Series</option>
+                        <option data-i18n="generator-type.rank-2-temperament" value="rank2">Rank-2 Temperament</option>
+                    </select>
+                </div>
+                <div class="generator-inputs" id="generator-inputs">
+                    <div class="gen-row">
+                        <labeldata-i18n="generator-inputs.divisions" >Divisions</label>
+                        <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                    </div>
+                    <div class="gen-row">
+                        <labeldata-i18n="generator-inputs.period-cents" >Period (cents)</label>
+                        <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                    </div>
+                </div>
+                <button data-i18n="btn-generate" class="generator-btn" id="btn-generate">Generate</button>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /tuning-tab -->
+
+<!-- ─── EFFECTS TAB ─── -->
+<div id="effects-tab" class="tab-content">
+
+    <!-- Delay -->
+    <div class="effect-section" id="section-delay">
+        <div class="section-header"><spandata-i18n="section-delay.delay" >Delay</span><button data-i18n="toggle-delayBypass" id="toggle-delayBypass" class="bypass-toggle">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="delayTime" data-label="Time" data-initial="375ms"></div>
+            <div class="knob-container" data-knob="delayFeedback" data-label="Feedback" data-initial="30%"></div>
+            <div class="dropdown-group">
+                <span data-i18n="section-delay.mode" class="dropdown-label">Mode</span>
+                <select id="select-delayMode" class="param-select">
+                    <optiondata-i18n="select-delaymode.normal" >Normal</option><optiondata-i18n="select-delaymode.pingpong" >PingPong</option>
+                </select>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;margin:2px 6px;">
+                <span data-i18n="section-delay.sync" class="dropdown-label">Sync</span>
+                <button data-i18n="toggle-delaySync" id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;">Off</button>
+            </div>
+            <div class="dropdown-group">
+                <span data-i18n="section-delay.division" class="dropdown-label">Division</span>
+                <select id="select-delayDivision" class="param-select">
+                    <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                    <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                    <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="delayMix" data-label="Mix" data-initial="0%"></div>
+        </div>
+    </div>
+
+    <!-- Chorus -->
+    <div class="effect-section" id="section-chorus">
+        <div class="section-header"><spandata-i18n="section-chorus.chorus" >Chorus</span><button data-i18n="toggle-chorusBypass" id="toggle-chorusBypass" class="bypass-toggle">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz"></div>
+            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%"></div>
+            <div class="knob-container" data-knob="chorusMix" data-label="Mix" data-initial="0%"></div>
+        </div>
+    </div>
+
+    <!-- Distortion -->
+    <div class="effect-section" id="section-dist">
+        <div class="section-header"><spandata-i18n="section-dist.distortion" >Distortion</span><button data-i18n="toggle-distBypass" id="toggle-distBypass" class="bypass-toggle">ON</button></div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span data-i18n="section-dist.type" class="dropdown-label">Type</span>
+                <select id="select-distType" class="param-select">
+                    <optiondata-i18n="select-disttype.softclip" >SoftClip</option><optiondata-i18n="select-disttype.hardclip" >HardClip</option><optiondata-i18n="select-disttype.tube" >Tube</option><optiondata-i18n="select-disttype.fold" >Fold</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%"></div>
+            <div class="knob-container" data-knob="distMix" data-label="Mix" data-initial="0%"></div>
+        </div>
+    </div>
+
+    <!-- Reverb -->
+    <div class="effect-section" id="section-reverb">
+        <div class="section-header"><spandata-i18n="section-reverb.reverb" >Reverb</span><button data-i18n="toggle-reverbBypass" id="toggle-reverbBypass" class="bypass-toggle">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="reverbSize" data-label="Size" data-initial="50%"></div>
+            <div class="knob-container" data-knob="reverbDamp" data-label="Damp" data-initial="50%"></div>
+            <div class="knob-container" data-knob="reverbPredelay" data-label="Pre-Dly" data-initial="20ms"></div>
+            <div class="knob-container" data-knob="reverbMix" data-label="Mix" data-initial="0%"></div>
+            <div class="knob-container" data-knob="reverbModDepth" data-label="Mod" data-initial="30%"></div>
+            <div class="knob-container" data-knob="reverbModRate" data-label="Rate" data-initial="1.0Hz"></div>
+        </div>
+    </div>
+
+    <!-- EQ -->
+    <div class="effect-section" id="section-eq">
+        <div class="section-header"><spandata-i18n="section-eq.3-band-eq" >3-Band EQ</span><button data-i18n="toggle-eqBypass" id="toggle-eqBypass" class="bypass-toggle">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="eqLowGain" data-label="Low" data-initial="0 dB"></div>
+            <div class="knob-container" data-knob="eqMidGain" data-label="Mid" data-initial="0 dB"></div>
+            <div class="knob-container" data-knob="eqMidFreq" data-label="Mid Freq" data-initial="1.0kHz"></div>
+            <div class="knob-container" data-knob="eqHighGain" data-label="High" data-initial="0 dB"></div>
+        </div>
+    </div>
+
+</div><!-- /effects-tab -->
+
+<!-- ─── WAVETABLE EDITOR TAB ─── -->
+<div id="wavetable-tab" class="tab-content">
+
+    <!-- Osc A/B Toggle -->
+    <div class="wt-osc-toggle">
+        <button data-i18n="wavetable-tab.osc-a" class="wt-osc-btn active" data-osc="0">Osc A</button>
+        <button data-i18n="wavetable-tab.osc-b" class="wt-osc-btn" data-osc="1">Osc B</button>
+    </div>
+
+    <!-- Frame Strip -->
+    <div class="wt-frame-strip-container">
+        <canvas id="wt-frame-strip" class="wt-frame-strip-canvas"></canvas>
+    </div>
+
+    <!-- Harmonic Editor -->
+    <div class="wt-harmonic-area">
+        <div class="wt-harmonic-toolbar">
+            <span data-i18n="wavetable-tab.harmonics" class="wt-label">Harmonics</span>
+            <button class="wt-bin-btn" data-bins="32">32</button>
+            <button class="wt-bin-btn" data-bins="64">64</button>
+            <button class="wt-bin-btn active" data-bins="128">128</button>
+            <button class="wt-bin-btn" data-bins="256">256</button>
+        </div>
+        <div class="wt-harmonic-panel">
+            <div class="wt-harmonic-canvas-wrap">
+                <canvas id="wt-harmonic-canvas" class="wt-harmonic-canvas"></canvas>
+            </div>
+            <div class="wt-waveform-preview-wrap">
+                <span data-i18n="wavetable-tab.waveform" class="wt-waveform-preview-label">Waveform</span>
+                <canvas id="wt-waveform-preview" class="wt-waveform-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operations Bar -->
+    <div class="wt-ops-bar">
+        <button data-i18n="wt-op-normalize" class="wt-op-btn" id="wt-op-normalize">Normalize</button>
+        <button data-i18n="wt-op-normalizeGlobal" class="wt-op-btn" id="wt-op-normalizeGlobal">Normalize Global</button>
+        <div class="wt-op-separator"></div>
+        <button data-i18n="wt-op-fade" class="wt-op-btn" id="wt-op-fade">Fade Edges</button>
+        <button data-i18n="wt-op-reverse" class="wt-op-btn" id="wt-op-reverse">Reverse</button>
+        <button data-i18n="wt-op-reverseOrder" class="wt-op-btn" id="wt-op-reverseOrder">Reverse Order</button>
+        <button data-i18n="wt-op-smooth" class="wt-op-btn" id="wt-op-smooth">Smooth</button>
+        <div class="wt-op-separator"></div>
+        <button data-i18n="wt-op-save" class="wt-op-btn" id="wt-op-save" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        <div class="wt-op-separator"></div>
+        <button class="wt-undo-btn" id="wt-undo-btn" disabled title="Undo (Ctrl+Z)">&#x21A9;</button>
+        <button class="wt-undo-btn" id="wt-redo-btn" disabled title="Redo (Ctrl+Shift+Z)">&#x21AA;</button>
+    </div>
+
+</div><!-- /wavetable-tab -->
+
+<!-- Save Modal -->
+<div id="wt-save-modal-overlay" class="wt-save-modal-overlay">
+    <div class="wt-save-modal">
+        <h3data-i18n="wt-save-modal-overlay.save-wavetable" >Save Wavetable</h3>
+        <input type="text" id="wt-save-name-input" placeholder="Wavetable name...">
+        <div class="wt-save-modal-buttons">
+            <button data-i18n="wt-save-cancel" class="wt-op-btn" id="wt-save-cancel">Cancel</button>
+            <button data-i18n="wt-save-confirm" class="wt-op-btn" id="wt-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Preset Save Modal (CR-10: window.prompt is a silent no-op under WKWebView) -->
+<div id="preset-save-modal-overlay" class="wt-save-modal-overlay">
+    <div class="wt-save-modal">
+        <h3data-i18n="preset-save-modal-overlay.save-preset" >Save Preset</h3>
+        <input type="text" id="preset-save-name-input" placeholder="Preset name...">
+        <div class="wt-save-modal-buttons">
+            <button data-i18n="preset-save-cancel" class="wt-op-btn" id="preset-save-cancel">Cancel</button>
+            <button data-i18n="preset-save-confirm" class="wt-op-btn" id="preset-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        </div>
+    </div>
+</div>
+
+</div><!-- /tab-content-area -->
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     FOOTER (MASTER STRIP)
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="footer-bar">
+    <div class="footer-param">
+        <div class="knob" id="knob-masterVol"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-masterVol" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
+        <span data-i18n="footer-label.master" class="footer-label">Master</span>
+        <span class="footer-value" id="val-masterVol">80%</span>
+    </div>
+    <div class="footer-param">
+        <div class="knob" id="knob-oscMix"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-oscMix" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
+        <span data-i18n="footer-label.osc-mix" class="footer-label">Osc Mix</span>
+        <span class="footer-value" id="val-oscMix">50%</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import * as Juce from './js/juce/index.js';
+
+// Expose getNativeFunction for non-module scripts (wavetable-editor.js)
+window.JuceGetNativeFunction = Juce.getNativeFunction;
+
+// ─── KNOB SCAFFOLD EXPANSION ───
+// Walks every <div class="knob-container" data-knob="..."> placeholder and
+// expands it into the standard SVG knob markup (viewBox 52x52, r=22). Emits
+// vine-/val- IDs that match data-knob, so existing bindKnob() calls keep
+// working unchanged. The large refPitch knob and the 2 small footer knobs
+// use their own bespoke markup and are NOT touched.
+(function expandKnobMarkup() {
+    document.querySelectorAll('div.knob-container[data-knob]').forEach(el => {
+        const paramId = el.dataset.knob;
+        const label = el.dataset.label || '';
+        const initial = el.dataset.initial || '';
+        el.innerHTML =
+            '<div class="knob" id="knob-' + paramId + '">' +
+                '<div class="knob-visual">' +
+                    '<svg viewBox="0 0 52 52">' +
+                        '<circle class="knob-track" cx="26" cy="26" r="22"/>' +
+                        '<circle class="knob-vine" id="vine-' + paramId + '" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<span class="knob-label">' + label + '</span>' +
+                '<span class="knob-value" id="val-' + paramId + '">' + initial + '</span>' +
+            '</div>';
+    });
+})();
+
+// ─── TAB SWITCHING ───
+window.switchTab = function(tabName) {
+    // Notify wavetable editor of tab changes
+    const wasWavetable = document.getElementById('wavetable-tab')?.classList.contains('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabName + '-tab').classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    if (tabName === 'wavetable' && window.WavetableEditor) {
+        window.WavetableEditor.onTabActivated();
+    } else if (wasWavetable && tabName !== 'wavetable' && window.WavetableEditor) {
+        window.WavetableEditor.onTabDeactivated();
+    }
+};
+
+// ─── PRESET BROWSER (persistent across tabs) ───
+(function initPresetBrowser() {
+    const getList = Juce.getNativeFunction('getPresetListWithCategories');
+    const getCurrent = Juce.getNativeFunction('getCurrentPreset');
+    const loadFromCat = Juce.getNativeFunction('loadPresetFromCategory');
+    const loadByName = Juce.getNativeFunction('loadPresetByName');
+    const nextFn = Juce.getNativeFunction('selectNextPreset');
+    const prevFn = Juce.getNativeFunction('selectPreviousPreset');
+    const savePresetFn = Juce.getNativeFunction('savePreset');
+    const isFactoryFn = Juce.getNativeFunction('isFactoryPreset');
+
+    const CATEGORY_ORDER = [
+        'Pads', 'Drone', 'Lead', 'Bass', 'Pluck',
+        'Harmonic', 'Keys', 'Sequence', 'FX', 'Percussion', 'User'
+    ];
+
+    let categorized = {};
+    let currentName = '';
+    let currentCategory = '';
+
+    const displayEl = document.getElementById('preset-display');
+    const catEl = document.getElementById('preset-current-category');
+    const nameEl = document.getElementById('preset-current-name');
+    const menuEl = document.getElementById('preset-menu');
+    const prevBtn = document.getElementById('btn-preset-prev');
+    const nextBtn = document.getElementById('btn-preset-next');
+    const saveBtn = document.getElementById('btn-preset-save');
+
+    async function refreshList() {
+        try {
+            const json = await getList();
+            categorized = JSON.parse(json || '{}');
+        } catch (e) {
+            console.error('[Presets] refreshList failed:', e);
+            categorized = {};
+        }
+    }
+
+    function findCategoryFor(name) {
+        for (const [cat, names] of Object.entries(categorized)) {
+            if (names.includes(name)) return cat;
+        }
+        return '';
+    }
+
+    async function refreshCurrent() {
+        try {
+            currentName = await getCurrent() || '';
+            currentCategory = findCategoryFor(currentName);
+            catEl.textContent = currentCategory;
+            nameEl.textContent = currentName || '— Init —';
+            // Highlight active item in menu if open
+            menuEl.querySelectorAll('.preset-menu-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.name === currentName);
+            });
+            // Notify Juce.js state relays to refresh (so every knob/slider updates)
+            requestAnimationFrame(() => {
+                if (window.__refreshAllControls) window.__refreshAllControls();
+            });
+        } catch (e) {
+            console.error('[Presets] refreshCurrent failed:', e);
+        }
+    }
+
+    function sortedCategories() {
+        return Object.keys(categorized).sort((a, b) => {
+            const ia = CATEGORY_ORDER.indexOf(a);
+            const ib = CATEGORY_ORDER.indexOf(b);
+            const na = ia < 0 ? 999 : ia;
+            const nb = ib < 0 ? 999 : ib;
+            return na - nb;
+        });
+    }
+
+    function buildMenu() {
+        menuEl.innerHTML = '';
+        for (const cat of sortedCategories()) {
+            const header = document.createElement('div');
+            header.className = 'preset-menu-category';
+            header.textContent = cat;
+            menuEl.appendChild(header);
+
+            const grid = document.createElement('div');
+            grid.className = 'preset-menu-grid';
+            for (const name of categorized[cat]) {
+                const item = document.createElement('div');
+                item.className = 'preset-menu-item';
+                if (name === currentName) item.classList.add('active');
+                item.textContent = name;
+                item.dataset.name = name;
+                item.dataset.category = cat;
+                item.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        if (cat === 'User') {
+                            await loadByName(name);
+                        } else {
+                            await loadFromCat(cat, name);
+                        }
+                        currentName = name;
+                        currentCategory = cat;
+                        catEl.textContent = cat;
+                        nameEl.textContent = name;
+                        hideMenu();
+                        requestAnimationFrame(() => {
+                            if (window.__refreshAllControls) window.__refreshAllControls();
+                        });
+                    } catch (err) {
+                        console.error('[Presets] load failed:', err);
+                    }
+                });
+                grid.appendChild(item);
+            }
+            menuEl.appendChild(grid);
+        }
+    }
+
+    function showMenu() {
+        buildMenu();
+        menuEl.classList.add('visible');
+    }
+    function hideMenu() {
+        menuEl.classList.remove('visible');
+    }
+    function toggleMenu() {
+        if (menuEl.classList.contains('visible')) hideMenu();
+        else showMenu();
+    }
+
+    displayEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu();
+    });
+    document.addEventListener('click', (e) => {
+        if (!menuEl.contains(e.target) && e.target !== displayEl) {
+            hideMenu();
+        }
+    });
+
+    nextBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+            await nextFn();
+            await refreshCurrent();
+        } catch (err) { console.error('[Presets] next failed:', err); }
+    });
+
+    prevBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+            await prevFn();
+            await refreshCurrent();
+        } catch (err) { console.error('[Presets] prev failed:', err); }
+    });
+
+    // CR-10: in-DOM save modal — window.prompt() always returns null under
+    // JUCE's WKWebView (no runJavaScriptTextInputPanel delegate), so the
+    // prompt-based save silently no-oped on macOS.
+    const saveOverlay = document.getElementById('preset-save-modal-overlay');
+    const saveInput = document.getElementById('preset-save-name-input');
+    const saveConfirm = document.getElementById('preset-save-confirm');
+    const saveCancel = document.getElementById('preset-save-cancel');
+
+    function closeSavePresetModal() {
+        if (saveOverlay) saveOverlay.classList.remove('active');
+    }
+
+    async function confirmSavePreset() {
+        const name = saveInput ? saveInput.value.trim() : '';
+        if (!name) return;
+        closeSavePresetModal();
+        try {
+            await savePresetFn(name);
+            await refreshList();
+            await refreshCurrent();
+        } catch (err) { console.error('[Presets] save failed:', err); }
+    }
+
+    if (saveConfirm) saveConfirm.addEventListener('click', (e) => { e.stopPropagation(); confirmSavePreset(); });
+    if (saveCancel) saveCancel.addEventListener('click', (e) => { e.stopPropagation(); closeSavePresetModal(); });
+    if (saveInput) saveInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmSavePreset();
+        else if (e.key === 'Escape') closeSavePresetModal();
+    });
+    if (saveOverlay) saveOverlay.addEventListener('click', (e) => {
+        if (e.target === saveOverlay) closeSavePresetModal();
+    });
+
+    saveBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        let defaultName = 'My Preset';
+        try {
+            if (currentName && !(await isFactoryFn(currentName))) defaultName = currentName;
+        } catch (err) {}
+        if (saveOverlay && saveInput) {
+            saveInput.value = defaultName;
+            saveOverlay.classList.add('active');
+            saveInput.focus();
+            saveInput.select();
+        }
+    });
+
+    // Initial load (factory presets are written on first plugin construction)
+    (async () => {
+        await refreshList();
+        await refreshCurrent();
+    })();
+})();
+
+// ─── SVG VINE KNOB INFRASTRUCTURE ───
+
+// Knob size configurations
+const KNOB_SIZES = {
+    standard: { arcLength: 103.67 },
+    small: { arcLength: 84.82 },
+    large: { arcLength: 127.24 }
+};
+
+// Animation state for smooth knob movement
+const animationState = {
+    targets: {},
+    frameId: null,
+    isRunning: false,
+    smoothingFactor: 0.15
+};
+
+const animationLoop = () => {
+    let needsUpdate = false;
+    Object.entries(animationState.targets).forEach(([id, s]) => {
+        const delta = s.target - s.current;
+        if (Math.abs(delta) > 0.0001) {
+            s.current += delta * animationState.smoothingFactor;
+            needsUpdate = true;
+            const offset = s.arcLength - (s.current * s.arcLength);
+            s.vine.style.strokeDashoffset = offset;
+        }
+    });
+    if (needsUpdate) {
+        animationState.frameId = requestAnimationFrame(animationLoop);
+    } else {
+        animationState.isRunning = false;
+        animationState.frameId = null;
+    }
+};
+
+const startAnimationLoop = () => {
+    if (!animationState.isRunning) {
+        animationState.isRunning = true;
+        animationState.frameId = requestAnimationFrame(animationLoop);
+    }
+};
+
+// ─── DOUBLE-CLICK VALUE ENTRY ───
+
+// Scaled (C++ parameter units) -> normalised [0,1]. Mirrors JUCE's own
+// SliderState.getNormalisedValue(), but reads the range from state.properties
+// — the live values the WebSliderRelay pushes up from C++ — instead of the
+// constants the format helpers mirror by hand further down, so the entry path
+// cannot drift from C++ even if one of those mirrors does.
+//
+// Clamping before the pow() is not cosmetic: a scaled value below `start`
+// gives a negative base, and Math.pow(negative, skew) with a fractional skew
+// is NaN. That NaN would ride straight through setNormalisedValue() into the
+// parameter and stick there.
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+
+// Opens an inline editor on a value-readout span. formatFn renders a value;
+// formatFn.parse(text, currentText) converts typed text back to a SCALED value,
+// or returns null to reject it. Enter/blur commits, Esc cancels, and
+// unparseable input is discarded without ever writing the parameter.
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the readout's ink BEFORE hiding it: this field opens over both the
+    // dark knob panels and the light mod-matrix rows, so it takes its colour
+    // from whatever it replaces rather than from a fixed palette. Must be
+    // captured first — the span's own colour is about to become transparent,
+    // so `inherit` on the input would resolve to invisible.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'knob-value-input';
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.style.color = inkColor;
+
+    // The span keeps its own text (rendered transparent) so its box stays
+    // exactly the size it was — the input is overlaid on top of it. Clearing
+    // the text instead would collapse the span to zero height and shift the
+    // whole knob column.
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        // Re-render from live state: the parameter may have moved (host
+        // automation, preset load) while readout updates were suppressed.
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+
+    const commit = () => {
+        if (closed) return;
+        // Untouched text is never written back. Readouts are rounded for
+        // display — LFO Rate shows whole Hz above 10, so 19.43 reads "19 Hz",
+        // and a 0.4996 level reads "50%". Without this guard, merely opening
+        // the field and pressing Enter would quantise the parameter to whatever
+        // the readout had rounded to.
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            // setNormalisedValue() snaps to `interval` and clamps internally,
+            // so only the scaled->norm conversion needs guarding here.
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        // Keep digits away from any global key handling while the field is open.
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    // The readout sits inside the knob's drag target — without these, clicking
+    // into the field would start a knob drag underneath it.
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// defaultNorm is the Alt/Option-click reset target and is NORMALISED [0,1] —
+// it goes straight to setNormalisedValue(). It is NOT the parameter's scaled
+// default. For a skewed NormalisableRange the two differ a lot:
+// ampAttack's 0.01 s default is norm 0.0859, not 0.001. Eleven call sites had
+// the scaled value here and reset to the wrong place for ~20 versions (fixed
+// in v1.20.0); only skewed params were affected, which is why it went unseen.
+// To add or change one: norm = ((scaledDefault - start) / (end - start))^skew.
+function bindKnob(paramId, formatFn, defaultNorm, size) {
+    const knobEl = document.getElementById('knob-' + paramId);
+    const vine = document.getElementById('vine-' + paramId);
+    const valueEl = document.getElementById('val-' + paramId);
+    if (!knobEl || !vine) return;
+
+    const sizeConfig = size === 'small' ? KNOB_SIZES.small : size === 'large' ? KNOB_SIZES.large : KNOB_SIZES.standard;
+    const state = Juce.getSliderState(paramId);
+
+    // Initialize animation target
+    const initNorm = state.getNormalisedValue();
+    animationState.targets[paramId] = {
+        current: initNorm,
+        target: initNorm,
+        vine: vine,
+        arcLength: sizeConfig.arcLength
+    };
+
+    // Set initial position
+    vine.style.strokeDashoffset = sizeConfig.arcLength - (initNorm * sizeConfig.arcLength);
+    if (valueEl && formatFn) valueEl.textContent = formatFn(initNorm);
+
+    // Listen for value changes
+    state.valueChangedEvent.addListener(() => {
+        const norm = state.getNormalisedValue();
+        animationState.targets[paramId].target = norm;
+        startAnimationLoop();
+        // Suppressed while an entry field is open — textContent would wipe out
+        // the <input> that lives inside this span.
+        if (valueEl && formatFn && valueEl.dataset.editing !== '1')
+            valueEl.textContent = formatFn(norm);
+    });
+
+    // Drag interaction
+    let isDragging = false;
+    const knobVisual = knobEl.querySelector('.knob-visual');
+    const dragTarget = knobVisual || knobEl;
+
+    // Alt/Option-click resets to default. Bound on the CAPTURE phase so it runs
+    // ahead of the drag handler below and can cancel it outright — on the bubble
+    // phase the knob would reset and then immediately start dragging.
+    knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+        state.sliderDragStarted();
+        state.setNormalisedValue(defaultNorm);
+        state.sliderDragEnded();
+    }, true);
+
+    dragTarget.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        state.sliderDragStarted();
+        e.preventDefault();
+    });
+    document.addEventListener('mouseup', () => {
+        if (isDragging) { isDragging = false; state.sliderDragEnded(); }
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        let sensitivity = 0.005;
+        const p = state.properties;
+        if (p && p.interval > 0) {
+            const steps = Math.round((p.end - p.start) / p.interval);
+            if (steps > 0 && steps <= 16) sensitivity = 1.0 / (steps * 8);
+        }
+        const norm = Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * sensitivity));
+        state.setNormalisedValue(norm);
+    });
+
+    // Double-click opens inline value entry (Alt/Option-click resets instead).
+    knobEl.addEventListener('dblclick', (e) => {
+        if (e.altKey) return;
+        attachValueEntry(valueEl, state, formatFn);
+    });
+
+    // Mouse wheel support
+    knobEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const currentNorm = state.getNormalisedValue();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        state.setNormalisedValue(Math.max(0, Math.min(1, currentNorm + delta)));
+    }, { passive: false });
+}
+
+function bindDropdown(selectEl, paramId, numChoices) {
+    const state = Juce.getSliderState(paramId);
+    selectEl.addEventListener('change', () => {
+        state.sliderDragStarted();
+        state.setNormalisedValue(selectEl.selectedIndex / Math.max(1, numChoices - 1));
+        state.sliderDragEnded();
+    });
+    state.valueChangedEvent.addListener(() => {
+        selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (numChoices - 1));
+    });
+    selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (numChoices - 1));
+}
+
+// ─── FORMAT HELPERS ───
+const pct = (n) => (n * 100).toFixed(0) + '%';
+const pctSigned = (n) => {
+    const v = (n * 200 - 100).toFixed(0);
+    return (v > 0 ? '+' : '') + v + '%';
+};
+const panFmt = (n) => {
+    const v = Math.round(n * 200 - 100);
+    if (v === 0) return 'C';
+    return v < 0 ? Math.abs(v) + 'L' : v + 'R';
+};
+
+// Skewed range: NormalisableRange with skew factor
+// JUCE uses: value = start + (end - start) * norm^(1/skew)
+// For display we need to reverse-map norm -> actual value
+function skewMap(norm, start, end, skew) {
+    return start + (end - start) * Math.pow(norm, 1.0 / skew);
+}
+function timeFmt(start, end, skew, unit) {
+    return (n) => {
+        const v = skewMap(n, start, end, skew);
+        if (v >= 1.0 && unit === 's') return v.toFixed(1) + 's';
+        if (unit === 's') return (v * 1000).toFixed(0) + 'ms';
+        return v.toFixed(0) + unit;
+    };
+}
+const envTimeFmtA = (n) => {
+    const v = skewMap(n, 0.001, 10.0, 0.35);
+    return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const envTimeFmtR = (n) => {
+    const v = skewMap(n, 0.001, 20.0, 0.3);
+    return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const cutoffFmt = (n) => {
+    const v = skewMap(n, 20, 20000, 0.25);
+    return v >= 1000 ? (v / 1000).toFixed(1) + 'kHz' : v.toFixed(0) + 'Hz';
+};
+const midFreqFmt = (n) => {
+    const v = skewMap(n, 200, 8000, 0.35);
+    return v >= 1000 ? (v / 1000).toFixed(1) + 'kHz' : v.toFixed(0) + 'Hz';
+};
+const delayTimeFmt = (n) => {
+    const v = skewMap(n, 0.001, 2.0, 0.35);
+    return v >= 1 ? v.toFixed(2) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const chorusRateFmt = (n) => {
+    const v = skewMap(n, 0.1, 10.0, 0.4);
+    return v.toFixed(1) + ' Hz';
+};
+const predelayFmt = (n) => {
+    const v = skewMap(n, 0, 200, 0.5);
+    return v.toFixed(0) + 'ms';
+};
+const dbFmt = (n) => {
+    const v = -12 + n * 24;
+    return (v > 0 ? '+' : '') + v.toFixed(1) + ' dB';
+};
+const coarseFmt = (n) => {
+    const v = Math.round(n * 48 - 24);
+    return (v > 0 ? '+' : '') + v + ' st';
+};
+const fineFmt = (n) => {
+    const v = (n * 200 - 100).toFixed(0);
+    return (v > 0 ? '+' : '') + v + ' ct';
+};
+const unisonFmt = (n) => Math.round(n * 7 + 1).toString();
+const subOctFmt = (n) => {
+    const v = Math.round(n * 2 - 2);
+    return v.toString();
+};
+const masterTuneFmt = (n) => {
+    const v = 420 + n * 40;
+    return v.toFixed(1) + ' Hz';
+};
+const octStretchFmt = (n) => {
+    const v = 0.95 + n * 0.3;
+    return v.toFixed(3);
+};
+const pbRangeFmt = (n) => {
+    const v = Math.round(n * 47 + 1);
+    return v + ' st';
+};
+const glideTimeFmt = (n) => {
+    const v = skewMap(n, 0.001, 5.0, 0.35);
+    return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const feedbackFmt = (n) => {
+    const v = n * 95;
+    return v.toFixed(0) + '%';
+};
+const lfoRateFmt = (n) => {
+    const v = skewMap(n, 0.01, 20.0, 0.35);
+    return v >= 10 ? v.toFixed(0) + ' Hz' : v.toFixed(1) + ' Hz';
+};
+const reverbModRateFmt = (n) => {
+    const v = skewMap(n, 0.1, 5.0, 0.5);
+    return v.toFixed(1) + ' Hz';
+};
+
+// ─── VALUE-ENTRY PARSERS ───
+// Inverse of the format helpers above: display text -> the parameter's SCALED
+// value (C++ units), or null to reject. Attached as a `.parse` property on each
+// formatter so all 70 bindKnob() call sites keep working untouched.
+//
+// Display units are NOT always the scaled units: pct knobs are 0..1 in C++ but
+// read 0-100%, delayFeedback tops out at 0.95 while reading 95%, and pan is
+// -1..1 shown as 30L / C / 30R. Each family converts back to the C++ unit here;
+// scaledToNorm() then normalises through state.properties.
+
+// First signed decimal in the string, or null if there isn't one.
+const numOf = (t) => {
+    const m = String(t).match(/-?\d*\.?\d+/);
+    if (!m) return null;
+    const v = parseFloat(m[0]);
+    return isFinite(v) ? v : null;
+};
+
+// Display value already IS the scaled value (dB, semitones, cents, plain Hz).
+const parseDirect = (t) => numOf(t);
+
+// Display is the scaled value x100 (percent readouts on 0..1 / -1..1 params).
+const parsePercent = (t) => {
+    const v = numOf(t);
+    return v === null ? null : v / 100;
+};
+
+// Hz readouts that switch to kHz above 1000. A bare number is always Hz — the
+// whole range is expressible in Hz, and on a knob reading "1.2kHz" someone
+// typing "440" means 440 Hz, not 440 kHz. Write "1.2k" to mean kHz.
+const parseFreq = (t) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    return /k/i.test(String(t)) ? v * 1000 : v;
+};
+
+// Time readouts that flip between ms and s mid-range, on params scaled in
+// SECONDS. Here a bare number DOES inherit the unit currently on screen (unlike
+// frequency above) so re-typing what you see round-trips: "2" reads as 2 ms on
+// a knob showing "30ms" and as 2 s on one showing "1.4s". Bare seconds would
+// make every sub-second value unenterable. An explicit ms/s always wins.
+const parseSeconds = (t, currentText) => {
+    const v = numOf(t);
+    if (v === null) return null;
+    const s = String(t);
+    if (/ms/i.test(s)) return v / 1000;    // checked before /s/ — "ms" contains "s"
+    if (/s/i.test(s)) return v;
+    return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+};
+
+pct.parse              = parsePercent;   // 0..1
+pctSigned.parse        = parsePercent;   // -1..1
+feedbackFmt.parse      = parsePercent;   // 0..0.95, reads 0-95% — still /100
+panFmt.parse = (t) => {
+    const s = String(t);
+    const v = numOf(s);
+    if (v === null) return /c/i.test(s) ? 0 : null;   // bare "C" = centre
+    if (/l/i.test(s)) return -Math.abs(v) / 100;
+    if (/r/i.test(s)) return Math.abs(v) / 100;
+    return v / 100;                                    // signed number also works
+};
+
+cutoffFmt.parse        = parseFreq;      // 20..20000 Hz
+midFreqFmt.parse       = parseFreq;      // 200..8000 Hz
+
+envTimeFmtA.parse      = parseSeconds;   // 0.001..10 s
+envTimeFmtR.parse      = parseSeconds;   // 0.001..20 s
+delayTimeFmt.parse     = parseSeconds;   // 0.001..2 s
+glideTimeFmt.parse     = parseSeconds;   // 0.001..5 s
+
+// Predelay is scaled in MILLISECONDS (0..200) and always reads "ms", so it is a
+// direct readout — routing it through parseSeconds would divide it by 1000.
+predelayFmt.parse      = parseDirect;
+
+dbFmt.parse            = parseDirect;    // -12..12 dB
+coarseFmt.parse        = parseDirect;    // -24..24 st (int)
+fineFmt.parse          = parseDirect;    // -100..100 ct
+unisonFmt.parse        = parseDirect;    // 1..8 (int)
+pbRangeFmt.parse       = parseDirect;    // 1..48 st (int)
+masterTuneFmt.parse    = parseDirect;    // 420..460 Hz
+octStretchFmt.parse    = parseDirect;    // 0.95..1.25
+chorusRateFmt.parse    = parseDirect;    // 0.1..10 Hz
+lfoRateFmt.parse       = parseDirect;    // 0.01..20 Hz
+reverbModRateFmt.parse = parseDirect;    // 0.1..5 Hz
+
+// ─── BIND SLIDER PARAMS ───
+
+// Osc A (9 knobs + 1 dropdown — wavetable selector handles dropdown binding)
+bindKnob('oscAPos',    pct,       0.0);
+bindKnob('oscALevel',  pct,       0.8);
+bindKnob('oscAPan',    panFmt,    0.5);
+bindKnob('oscACoarse', coarseFmt, 0.5);
+bindKnob('oscAFine',   fineFmt,   0.5);
+bindKnob('oscAPhase',  pct,       0.0);
+bindKnob('oscAUnison', unisonFmt, 0.0);
+bindKnob('oscADetune', pct,       0.2);
+bindKnob('oscAWidth',  pct,       0.5);
+bindKnob('oscAWarpAmt', pct,     0.0);
+bindDropdown(document.getElementById('select-oscAWarpType'), 'oscAWarpType', 5);
+
+// Osc B (9 knobs + 1 dropdown — wavetable selector handles dropdown binding)
+bindKnob('oscBPos',    pct,       0.0);
+bindKnob('oscBLevel',  pct,       0.0);
+bindKnob('oscBPan',    panFmt,    0.5);
+bindKnob('oscBCoarse', coarseFmt, 0.5);
+bindKnob('oscBFine',   fineFmt,   0.5);
+bindKnob('oscBPhase',  pct,       0.0);
+bindKnob('oscBUnison', unisonFmt, 0.0);
+bindKnob('oscBDetune', pct,       0.2);
+bindKnob('oscBWidth',  pct,       0.5);
+bindKnob('oscBWarpAmt', pct,     0.0);
+bindDropdown(document.getElementById('select-oscBWarpType'), 'oscBWarpType', 5);
+
+// Sub + Noise
+bindDropdown(document.getElementById('select-subShape'), 'subShape', 4);
+bindDropdown(document.getElementById('select-subOctave'), 'subOctave', 4);
+bindDropdown(document.getElementById('select-subRouting'), 'subRouting', 2);
+bindKnob('subLevel',   pct,       0.0);
+bindDropdown(document.getElementById('select-noiseType'), 'noiseType', 6);
+bindKnob('noiseLevel', pct,       0.0);
+
+// Amp Envelope
+bindKnob('ampAttack',  envTimeFmtA, 0.0859);
+bindKnob('ampDecay',   envTimeFmtA, 0.2928);
+bindKnob('ampSustain', pct,         0.7);
+bindKnob('ampRelease', envTimeFmtR, 0.3305);
+
+// Filter Envelope
+bindKnob('filtAttack',   envTimeFmtA, 0.0859);
+bindKnob('filtDecay',    envTimeFmtA, 0.3502);
+bindKnob('filtSustain',  pct,         0.5);
+bindKnob('filtRelease',  envTimeFmtR, 0.3305);
+bindKnob('filtAEnvDepth', pctSigned,  0.5);
+bindKnob('filtBEnvDepth', pctSigned,  0.5);
+
+// Filter A
+bindDropdown(document.getElementById('select-filtAType'), 'filtAType', 7);
+bindKnob('filtACutoff',   cutoffFmt, 1.0);
+bindKnob('filtARes',      pct,       0.0);
+bindKnob('filtADrive',    pct,       0.0);
+bindKnob('filtAKeyTrack', pct,       0.0);
+
+// Filter B
+bindDropdown(document.getElementById('select-filtBType'), 'filtBType', 7);
+bindKnob('filtBCutoff',   cutoffFmt, 1.0);
+bindKnob('filtBRes',      pct,       0.0);
+bindKnob('filtBDrive',    pct,       0.0);
+bindKnob('filtBKeyTrack', pct,       0.0);
+
+// Filter Routing
+bindDropdown(document.getElementById('select-filtRouting'), 'filtRouting', 2);
+
+// Tuning (tuningPreset + tonic handled by tuning panel; remaining knobs here)
+bindKnob('masterTune',    masterTuneFmt, 0.5);
+bindKnob('octaveStretch', octStretchFmt, 0.1667);
+bindKnob('pitchBendRange', pbRangeFmt,  0.0213);
+bindDropdown(document.getElementById('select-glideMode'), 'glideMode', 3);
+bindKnob('glideTime',     glideTimeFmt, 0.2534);
+
+// Reverb
+bindKnob('reverbSize',     pct,              0.5);
+bindKnob('reverbDamp',     pct,              0.5);
+bindKnob('reverbPredelay', predelayFmt,      0.3162);
+bindKnob('reverbMix',      pct,              0.0);
+bindKnob('reverbModDepth', pct,              0.3);
+bindKnob('reverbModRate',  reverbModRateFmt, 0.43);
+
+// Delay
+bindKnob('delayTime',     delayTimeFmt, 0.5562);
+bindKnob('delayFeedback', feedbackFmt,  0.316);
+bindDropdown(document.getElementById('select-delayMode'), 'delayMode', 2);
+bindDropdown(document.getElementById('select-delayDivision'), 'delayDivision', 18);
+bindKnob('delayMix',      pct,          0.0);
+
+// Chorus
+bindKnob('chorusRate',  chorusRateFmt, 0.3832);
+bindKnob('chorusDepth', pct,           0.5);
+bindKnob('chorusMix',   pct,           0.0);
+
+// Distortion
+bindDropdown(document.getElementById('select-distType'), 'distType', 4);
+bindKnob('distDrive', pct, 0.0);
+bindKnob('distMix',   pct, 0.0);
+
+// EQ
+bindKnob('eqLowGain',  dbFmt,      0.5);
+bindKnob('eqMidGain',  dbFmt,      0.5);
+bindKnob('eqMidFreq',  midFreqFmt, 0.4507);
+bindKnob('eqHighGain', dbFmt,      0.5);
+
+// ─── LFO Sync Toggle Binding ───
+function bindLfoSync(lfoNum) {
+    const syncBtn = document.getElementById('toggle-lfo' + lfoNum + 'Sync');
+    const rateWrap = document.getElementById('lfo' + lfoNum + '-rate-wrap');
+    const divWrap = document.getElementById('lfo' + lfoNum + '-div-wrap');
+    const syncState = Juce.getToggleState('lfo' + lfoNum + 'Sync');
+
+    function updateSyncUI(isSync) {
+        if (isSync) {
+            syncBtn.textContent = 'Sync';
+            syncBtn.classList.add('active');
+            rateWrap.style.display = 'none';
+            divWrap.style.display = '';
+        } else {
+            syncBtn.textContent = 'Free';
+            syncBtn.classList.remove('active');
+            rateWrap.style.display = '';
+            divWrap.style.display = 'none';
+        }
+    }
+
+    syncBtn.addEventListener('click', () => {
+        const newVal = !syncState.getValue();
+        syncState.setValue(newVal);
+    });
+
+    syncState.valueChangedEvent.addListener(() => updateSyncUI(syncState.getValue()));
+    updateSyncUI(syncState.getValue());
+}
+
+// ─── LFO FreeRun Toggle Binding ───
+// When active: LFO phase continues across note boundaries (shared global phase).
+// When inactive (default): LFO phase resets on each note-on (classic per-voice retrigger).
+function bindLfoFreeRun(lfoNum) {
+    const btn = document.getElementById('toggle-lfo' + lfoNum + 'FreeRun');
+    const state = Juce.getToggleState('lfo' + lfoNum + 'FreeRun');
+
+    function updateUI(isFree) {
+        if (isFree) {
+            btn.textContent = 'Free Run';
+            btn.classList.add('active');
+        } else {
+            btn.textContent = 'Retrig';
+            btn.classList.remove('active');
+        }
+    }
+
+    btn.addEventListener('click', () => state.setValue(!state.getValue()));
+    state.valueChangedEvent.addListener(() => updateUI(state.getValue()));
+    updateUI(state.getValue());
+}
+
+// LFO 1
+bindKnob('lfo1Rate', lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo1Shape'), 'lfo1Shape', 5);
+bindDropdown(document.getElementById('select-lfo1Division'), 'lfo1Division', 18);
+bindLfoSync(1);
+bindLfoFreeRun(1);
+
+// LFO 2
+bindKnob('lfo2Rate', lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo2Shape'), 'lfo2Shape', 5);
+bindDropdown(document.getElementById('select-lfo2Division'), 'lfo2Division', 18);
+bindLfoSync(2);
+bindLfoFreeRun(2);
+
+// LFO 3
+bindKnob('lfo3Rate', lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo3Shape'), 'lfo3Shape', 5);
+bindDropdown(document.getElementById('select-lfo3Division'), 'lfo3Division', 18);
+bindLfoSync(3);
+bindLfoFreeRun(3);
+
+// LFO 4
+bindKnob('lfo4Rate', lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo4Shape'), 'lfo4Shape', 5);
+bindDropdown(document.getElementById('select-lfo4Division'), 'lfo4Division', 18);
+bindLfoSync(4);
+bindLfoFreeRun(4);
+
+// Global (footer)
+bindKnob('masterVol', pct,     0.8, 'small');
+bindKnob('oscMix',    pct,     0.5, 'small');
+
+// ─── MOD MATRIX UI ───
+(async function() {
+    const NUM_SLOTS = 16;
+    // Fallbacks only — the authoritative lists come from the registered
+    // getModSourceNames/getModDestNames native fns, so a future C++ enum
+    // add/reorder can't silently misroute the dropdown->param mapping (WR-20)
+    let sourceNames = ['None','LFO1','LFO2','LFO3','LFO4','AmpEnv','FilterEnv','Velocity','NoteNum','ModWheel','Aftertouch'];
+    let destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
+        'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','LFO3 Rate','LFO4 Rate',
+        'OscA Detune','OscB Detune',
+        'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol','Pitch',
+        'OscA Warp','OscB Warp'];
+
+    try {
+        const src = JSON.parse(await Juce.getNativeFunction('getModSourceNames')());
+        const dst = JSON.parse(await Juce.getNativeFunction('getModDestNames')());
+        if (Array.isArray(src) && src.length) sourceNames = src;
+        if (Array.isArray(dst) && dst.length) destNames = dst;
+    } catch (e) {
+        console.warn('[ModMatrix] native name fetch failed, using fallback lists:', e);
+    }
+
+    const container = document.getElementById('mod-matrix-rows');
+    if (!container) return;
+
+    for (let i = 0; i < NUM_SLOTS; i++) {
+        const prefix = 'modSlot' + i;
+
+        // Get JUCE relay states
+        const srcState = Juce.getSliderState(prefix + 'Src');
+        const dstState = Juce.getSliderState(prefix + 'Dst');
+        const amtState = Juce.getSliderState(prefix + 'Amt');
+        const onState  = Juce.getToggleState(prefix + 'On');
+
+        // Build row HTML
+        const row = document.createElement('div');
+        row.className = 'mod-row';
+        row.id = 'mod-row-' + i;
+
+        // On/Off checkbox
+        const onCol = document.createElement('span');
+        onCol.className = 'mod-col-on';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = onState.getValue();
+        onCol.appendChild(cb);
+
+        // Slot number
+        const slotCol = document.createElement('span');
+        slotCol.className = 'mod-col-slot';
+        slotCol.textContent = (i + 1).toString();
+
+        // Source dropdown
+        const srcCol = document.createElement('span');
+        srcCol.className = 'mod-col-src';
+        const srcSel = document.createElement('select');
+        sourceNames.forEach((name, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx; opt.textContent = name;
+            srcSel.appendChild(opt);
+        });
+        srcSel.selectedIndex = Math.round(srcState.getNormalisedValue() * (sourceNames.length - 1));
+        srcCol.appendChild(srcSel);
+
+        // Dest dropdown
+        const dstCol = document.createElement('span');
+        dstCol.className = 'mod-col-dst';
+        const dstSel = document.createElement('select');
+        destNames.forEach((name, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx; opt.textContent = name;
+            dstSel.appendChild(opt);
+        });
+        dstSel.selectedIndex = Math.round(dstState.getNormalisedValue() * (destNames.length - 1));
+        dstCol.appendChild(dstSel);
+
+        // Amount slider
+        const amtCol = document.createElement('span');
+        amtCol.className = 'mod-col-amt';
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'mod-amt-slider';
+        slider.min = 0; slider.max = 1000; slider.step = 1;
+        slider.value = Math.round(amtState.getNormalisedValue() * 1000);
+        amtCol.appendChild(slider);
+
+        // Amount value display
+        const valCol = document.createElement('span');
+        valCol.className = 'mod-col-val';
+        // pctSigned renders the same ±N% this row used to assemble inline, and
+        // carries the .parse needed for value entry. Sharing one formatter keeps
+        // the post-entry re-render identical to the live readout.
+        valCol.textContent = pctSigned(amtState.getNormalisedValue());
+
+        row.appendChild(onCol);
+        row.appendChild(slotCol);
+        row.appendChild(srcCol);
+        row.appendChild(dstCol);
+        row.appendChild(amtCol);
+        row.appendChild(valCol);
+        container.appendChild(row);
+
+        // Update disabled state
+        function updateRowState() {
+            if (cb.checked) row.classList.remove('disabled');
+            else row.classList.add('disabled');
+        }
+        updateRowState();
+
+        // ─── Bind checkbox to JUCE toggle ───
+        cb.addEventListener('change', () => { onState.setValue(cb.checked); updateRowState(); });
+        onState.valueChangedEvent.addListener(() => { cb.checked = onState.getValue(); updateRowState(); });
+
+        // ─── Bind source dropdown ───
+        srcSel.addEventListener('change', () => {
+            srcState.sliderDragStarted();
+            srcState.setNormalisedValue(srcSel.selectedIndex / Math.max(1, sourceNames.length - 1));
+            srcState.sliderDragEnded();
+        });
+        srcState.valueChangedEvent.addListener(() => {
+            srcSel.selectedIndex = Math.round(srcState.getNormalisedValue() * (sourceNames.length - 1));
+        });
+
+        // ─── Bind dest dropdown ───
+        dstSel.addEventListener('change', () => {
+            dstState.sliderDragStarted();
+            dstState.setNormalisedValue(dstSel.selectedIndex / Math.max(1, destNames.length - 1));
+            dstState.sliderDragEnded();
+        });
+        dstState.valueChangedEvent.addListener(() => {
+            dstSel.selectedIndex = Math.round(dstState.getNormalisedValue() * (destNames.length - 1));
+        });
+
+        // ─── Bind amount slider ───
+        slider.addEventListener('input', () => {
+            amtState.setNormalisedValue(parseInt(slider.value) / 1000);
+        });
+        slider.addEventListener('mousedown', () => { amtState.sliderDragStarted(); });
+        slider.addEventListener('mouseup', () => { amtState.sliderDragEnded(); });
+        amtState.valueChangedEvent.addListener(() => {
+            const n = amtState.getNormalisedValue();
+            slider.value = Math.round(n * 1000);
+            // Suppressed while an entry field is open — see attachValueEntry().
+            if (valCol.dataset.editing !== '1') valCol.textContent = pctSigned(n);
+        });
+
+        // Double-click (slider or readout) opens value entry on the readout.
+        slider.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            attachValueEntry(valCol, amtState, pctSigned);
+        });
+        valCol.addEventListener('dblclick', () => attachValueEntry(valCol, amtState, pctSigned));
+
+        // Alt/Option-click resets to 0 (centre). Bound on the parent in the
+        // capture phase: at-target listeners fire in registration order
+        // regardless of the capture flag, so a handler on the slider itself
+        // would run after the drag-start above and be too late to cancel it.
+        amtCol.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            e.stopPropagation();
+            amtState.sliderDragStarted();
+            amtState.setNormalisedValue(0.5);
+            amtState.sliderDragEnded();
+        }, true);
+    }
+})();
+
+// ─── TUNING PRESET + TONIC (slider relays for tuning panel params) ───
+(function() {
+    const tuningPresetState = Juce.getSliderState('tuningPreset');
+    const tonicState = Juce.getSliderState('tonic');
+
+    // WR-19: refresh the native-fn-backed tuning UI (intervals table, scale
+    // name, pitch circle) when the params change from a preset load or host
+    // automation. Debounced — a preset load fires several relay events at once.
+    let refreshTimer = null;
+    function scheduleTuningRefresh() {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+            if (window.refreshTuningState) window.refreshTuningState();
+        }, 100);
+    }
+
+    if (tuningPresetState) tuningPresetState.valueChangedEvent.addListener(scheduleTuningRefresh);
+    if (tonicState) tonicState.valueChangedEvent.addListener(scheduleTuningRefresh);
+})();
+
+// ─── DELAY SYNC TOGGLE ───
+(function() {
+    const syncBtn = document.getElementById('toggle-delaySync');
+    if (!syncBtn) return;
+    const toggle = Juce.getToggleState('delaySync');
+
+    function updateSyncDisplay() {
+        const isOn = toggle.getValue();
+        syncBtn.textContent = isOn ? 'On' : 'Off';
+        syncBtn.classList.toggle('active', isOn);
+    }
+
+    syncBtn.addEventListener('click', () => {
+        toggle.setValue(!toggle.getValue());
+    });
+    toggle.valueChangedEvent.addListener(updateSyncDisplay);
+    updateSyncDisplay();
+})();
+
+// ─── BYPASS TOGGLES ───
+function bindBypassToggle(paramId, buttonId, sectionId) {
+    const btn = document.getElementById(buttonId);
+    const section = document.getElementById(sectionId);
+    if (!btn) return;
+    const toggle = Juce.getToggleState(paramId);
+
+    function update() {
+        const isBypassed = toggle.getValue();
+        btn.textContent = isBypassed ? 'OFF' : 'ON';
+        btn.classList.toggle('off', isBypassed);
+        if (section) section.classList.toggle('bypassed', isBypassed);
+    }
+
+    btn.addEventListener('click', () => {
+        toggle.setValue(!toggle.getValue());
+    });
+    toggle.valueChangedEvent.addListener(update);
+    update();
+}
+
+bindBypassToggle('reverbBypass', 'toggle-reverbBypass', 'section-reverb');
+bindBypassToggle('delayBypass', 'toggle-delayBypass', 'section-delay');
+bindBypassToggle('chorusBypass', 'toggle-chorusBypass', 'section-chorus');
+bindBypassToggle('distBypass', 'toggle-distBypass', 'section-dist');
+bindBypassToggle('eqBypass', 'toggle-eqBypass', 'section-eq');
+
+// ─── WAVETABLE DISPLAY (uses getActiveOscFrame for factory + user tables) ───
+class WavetableDisplay {
+    constructor(canvasId, oscIndex) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.oscIndex = oscIndex;
+        this.samples = [];
+        this.getFrame = Juce.getNativeFunction('getActiveOscFrame');
+        this.resizeCanvas();
+    }
+
+    resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = this.canvas.clientWidth;
+        const h = this.canvas.clientHeight;
+        this.canvas.width = w * dpr;
+        this.canvas.height = h * dpr;
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.w = w;
+        this.h = h;
+    }
+
+    async fetchAndDraw(position) {
+        if (typeof this.getFrame !== 'function') {
+            this.getFrame = Juce.getNativeFunction('getActiveOscFrame');
+        }
+        if (typeof this.getFrame !== 'function') return;
+        try {
+            this.resizeCanvas();
+            const result = await this.getFrame(this.oscIndex, position);
+            if (result) {
+                this.samples = typeof result === 'string' ? JSON.parse(result) : result;
+                this.draw();
+            }
+        } catch(e) { console.error('Wavetable fetch error:', e); }
+    }
+
+    draw() {
+        const { ctx, w, h, samples } = this;
+        if (!samples.length) return;
+        const mid = h / 2;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#EBD9C7';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, 'rgba(139, 105, 20, 0.25)');
+        grad.addColorStop(0.5, 'rgba(139, 105, 20, 0.06)');
+        grad.addColorStop(1, 'rgba(139, 105, 20, 0.0)');
+        ctx.beginPath();
+        for (let i = 0; i < samples.length; i++) {
+            const x = (i / (samples.length - 1)) * w;
+            const y = mid - samples[i] * mid * 0.85;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, mid); ctx.lineTo(0, mid); ctx.closePath();
+        ctx.fillStyle = grad; ctx.fill();
+        ctx.beginPath();
+        for (let i = 0; i < samples.length; i++) {
+            const x = (i / (samples.length - 1)) * w;
+            const y = mid - samples[i] * mid * 0.85;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = '#5C4033'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = '#8B7355'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, w, h);
+    }
+}
+
+const wtDisplayA = new WavetableDisplay('canvasOscA', 0);
+const wtDisplayB = new WavetableDisplay('canvasOscB', 1);
+
+// ─── WAVETABLE SELECTOR (factory + user dropdown + drag-drop + management) ───
+class WavetableSelector {
+    constructor(selectId, oscIndex, canvasWrapId, display) {
+        this.selectEl = document.getElementById(selectId);
+        this.oscIndex = oscIndex;
+        this.canvasWrap = document.getElementById(canvasWrapId);
+        this.display = display;
+        this.factoryCount = 28;
+        this.userTableNames = [];
+        this.isUserActive = false;
+        this.currentUserName = '';
+        this.tableState = Juce.getSliderState(oscIndex === 0 ? 'oscATable' : 'oscBTable');
+        this.posState = Juce.getSliderState(oscIndex === 0 ? 'oscAPos' : 'oscBPos');
+        this.getUserList = Juce.getNativeFunction('getUserWavetableList');
+        this.importWt = Juce.getNativeFunction('importUserWavetable');
+        this.importWtData = Juce.getNativeFunction('importUserWavetableData');
+        this.selectUserWt = Juce.getNativeFunction('selectUserWavetable');
+        this.clearUserWt = Juce.getNativeFunction('clearUserWavetableOverride');
+        this.getActiveInfo = Juce.getNativeFunction('getActiveOscInfo');
+        this.init();
+    }
+
+    async init() {
+        await this.refreshUserList();
+        this.rebuildDropdown();
+        this.bindEvents();
+        this.setupDragDrop();
+        this.wireDisplay();
+        // Sync initial state from C++
+        const info = await this.getActiveInfo(this.oscIndex);
+        if (info) {
+            const parsed = typeof info === 'string' ? JSON.parse(info) : info;
+            if (parsed.isUser) {
+                this.isUserActive = true;
+                this.currentUserName = parsed.name;
+                this.syncDropdownToUser(parsed.name);
+            } else {
+                this.selectEl.selectedIndex = parsed.factoryIndex || 0;
+            }
+        }
+        this.refreshDisplay();
+    }
+
+    async refreshUserList() {
+        try {
+            const result = await this.getUserList();
+            this.userTableNames = result ? (typeof result === 'string' ? JSON.parse(result) : result) : [];
+        } catch(e) { this.userTableNames = []; }
+    }
+
+    rebuildDropdown() {
+        // Remove existing user/import/manage options
+        const old = this.selectEl.querySelectorAll('optgroup[label="User"], option[data-action]');
+        old.forEach(el => el.remove());
+
+        if (this.userTableNames.length > 0) {
+            const userGroup = document.createElement('optgroup');
+            userGroup.label = 'User';
+            for (const name of this.userTableNames) {
+                const opt = document.createElement('option');
+                opt.textContent = name;
+                opt.dataset.userTable = name;
+                userGroup.appendChild(opt);
+            }
+            this.selectEl.appendChild(userGroup);
+        }
+
+        const importOpt = document.createElement('option');
+        importOpt.dataset.action = 'import';
+        importOpt.textContent = 'Import WAV...';
+        this.selectEl.appendChild(importOpt);
+
+        if (this.userTableNames.length > 0) {
+            const manageOpt = document.createElement('option');
+            manageOpt.dataset.action = 'manage';
+            manageOpt.textContent = 'Manage...';
+            this.selectEl.appendChild(manageOpt);
+        }
+
+        if (this.isUserActive) this.syncDropdownToUser(this.currentUserName);
+    }
+
+    syncDropdownToUser(name) {
+        for (let i = 0; i < this.selectEl.options.length; i++) {
+            if (this.selectEl.options[i].dataset.userTable === name) {
+                this.selectEl.selectedIndex = i;
+                return;
+            }
+        }
+    }
+
+    bindEvents() {
+        let prevIdx = this.selectEl.selectedIndex;
+        this.selectEl.addEventListener('change', async () => {
+            const opt = this.selectEl.options[this.selectEl.selectedIndex];
+
+            if (opt.dataset.action === 'import') {
+                this.selectEl.selectedIndex = prevIdx;
+                const result = await this.importWt(this.oscIndex);
+                if (result) {
+                    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (parsed.success) {
+                        this.isUserActive = true;
+                        this.currentUserName = parsed.name;
+                        await this.refreshUserList();
+                        this.rebuildDropdown();
+                        this.syncDropdownToUser(parsed.name);
+                        prevIdx = this.selectEl.selectedIndex;
+                        this.refreshDisplay();
+                        if (window._wtSelectors) window._wtSelectors.forEach(s => { if (s !== this) { s.refreshUserList().then(() => s.rebuildDropdown()); } });
+                    }
+                }
+                return;
+            }
+
+            if (opt.dataset.action === 'manage') {
+                this.selectEl.selectedIndex = prevIdx;
+                showWavetableManager();
+                return;
+            }
+
+            if (opt.dataset.userTable) {
+                const name = opt.dataset.userTable;
+                await this.selectUserWt(this.oscIndex, name);
+                this.isUserActive = true;
+                this.currentUserName = name;
+                prevIdx = this.selectEl.selectedIndex;
+                this.refreshDisplay();
+                return;
+            }
+
+            // Factory table selected
+            if (this.isUserActive) {
+                await this.clearUserWt(this.oscIndex);
+                this.isUserActive = false;
+                this.currentUserName = '';
+            }
+            const idx = this.selectEl.selectedIndex;
+            this.tableState.sliderDragStarted();
+            this.tableState.setNormalisedValue(idx / Math.max(1, this.factoryCount - 1));
+            this.tableState.sliderDragEnded();
+            prevIdx = idx;
+            this.refreshDisplay();
+        });
+
+        // Sync from C++ APVTS changes (e.g., preset recall)
+        this.tableState.valueChangedEvent.addListener(() => {
+            if (!this.isUserActive) {
+                const factoryIdx = Math.round(this.tableState.getNormalisedValue() * (this.factoryCount - 1));
+                if (this.selectEl.selectedIndex !== factoryIdx)
+                    this.selectEl.selectedIndex = factoryIdx;
+                this.refreshDisplay();
+            }
+        });
+    }
+
+    setupDragDrop() {
+        const wrap = this.canvasWrap;
+        wrap.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); wrap.classList.add('drag-over'); });
+        wrap.addEventListener('dragleave', (e) => { e.preventDefault(); wrap.classList.remove('drag-over'); });
+        wrap.addEventListener('drop', async (e) => {
+            e.preventDefault(); e.stopPropagation(); wrap.classList.remove('drag-over');
+            const files = e.dataTransfer?.files;
+            if (!files || files.length === 0) return;
+            const file = files[0];
+            if (!file.name.match(/\.(wav|aiff|flac)$/i)) return;
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const base64 = btoa(binary);
+                const result = await this.importWtData(this.oscIndex, base64, file.name);
+                if (result) {
+                    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (parsed.success) {
+                        this.isUserActive = true;
+                        this.currentUserName = parsed.name;
+                        await this.refreshUserList();
+                        this.rebuildDropdown();
+                        this.syncDropdownToUser(parsed.name);
+                        this.refreshDisplay();
+                        if (window._wtSelectors) window._wtSelectors.forEach(s => { if (s !== this) { s.refreshUserList().then(() => s.rebuildDropdown()); } });
+                    }
+                }
+            } catch(err) { console.error('Drag-drop import error:', err); }
+        });
+    }
+
+    wireDisplay() {
+        this.posState.valueChangedEvent.addListener(() => this.refreshDisplay());
+    }
+
+    refreshDisplay() {
+        const pos = this.posState.getNormalisedValue();
+        this.display.fetchAndDraw(pos);
+    }
+}
+
+// ─── WAVETABLE MANAGEMENT MODAL ───
+async function showWavetableManager() {
+    const backdrop = document.getElementById('wt-modal-backdrop');
+    const list = document.getElementById('wt-modal-list');
+    const getUserList = Juce.getNativeFunction('getUserWavetableList');
+    const deleteUserWt = Juce.getNativeFunction('deleteUserWavetable');
+
+    async function refresh() {
+        list.innerHTML = '';
+        let names = [];
+        try {
+            const result = await getUserList();
+            names = result ? (typeof result === 'string' ? JSON.parse(result) : result) : [];
+        } catch(e) {}
+        if (names.length === 0) {
+            list.innerHTML = '<li class="wt-modal-empty">No user wavetables imported yet.</li>';
+            return;
+        }
+        for (const name of names) {
+            const li = document.createElement('li');
+            const span = document.createElement('span');
+            span.textContent = name;
+            const btn = document.createElement('button');
+            btn.className = 'wt-delete-btn';
+            btn.textContent = 'Delete';
+            btn.addEventListener('click', async () => {
+                await deleteUserWt(name);
+                await refresh();
+                if (window._wtSelectors) window._wtSelectors.forEach(s => s.refreshUserList().then(() => s.rebuildDropdown()));
+            });
+            li.appendChild(span);
+            li.appendChild(btn);
+            list.appendChild(li);
+        }
+    }
+
+    await refresh();
+    backdrop.classList.add('visible');
+}
+document.getElementById('wt-modal-close').addEventListener('click', () => {
+    document.getElementById('wt-modal-backdrop').classList.remove('visible');
+});
+document.getElementById('wt-modal-backdrop').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('visible');
+});
+
+// Initialize wavetable selectors
+const wtSelectorA = new WavetableSelector('select-oscATable', 0, 'canvasWrapA', wtDisplayA);
+const wtSelectorB = new WavetableSelector('select-oscBTable', 1, 'canvasWrapB', wtDisplayB);
+window._wtSelectors = [wtSelectorA, wtSelectorB];
+
+// ═══════════════════════════════════════════════════════════════════
+// TUNING SYSTEM (Inline O-Lyrica-style implementation)
+// ═══════════════════════════════════════════════════════════════════
+(async function() {
+    console.log('[Tuning] Initializing tuning system...');
+
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+    let currentTonic = 0;
+
+    const intervalList = document.getElementById('interval-list');
+    const scaleNameDisplay = document.getElementById('scale-name-display');
+    const refPitchKnob = document.getElementById('ref-pitch-knob');
+    const refPitchValue = document.getElementById('ref-pitch-value');
+
+    function getDegreeLabel(index, total) {
+        if (total === 12) return noteNames[(index + currentTonic) % 12];
+        return String(index);
+    }
+
+    // ── Pitch Circle ──
+    function updatePitchCircle() {
+        const linesGroup = document.getElementById('interval-lines');
+        const labelsGroup = document.getElementById('degree-labels');
+        if (!linesGroup || !labelsGroup) return;
+        linesGroup.innerHTML = '';
+        labelsGroup.innerHTML = '';
+
+        const cx = 94, cy = 94, innerR = 13, outerR = 73, labelR = 80;
+        const total = currentIntervals.length;
+        const fontSize = total > 12 ? 6 : 9;
+
+        currentIntervals.forEach((cents, i) => {
+            const rad = (cents / 1200) * 2 * Math.PI - Math.PI / 2;
+            const x1 = cx + innerR * Math.cos(rad);
+            const y1 = cy + innerR * Math.sin(rad);
+            const x2 = cx + outerR * Math.cos(rad);
+            const y2 = cy + outerR * Math.sin(rad);
+            const isActive = activeNotes.has(i);
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+            line.setAttribute('stroke', isActive ? '#CC2222' : '#6B8E4E');
+            line.setAttribute('stroke-width', isActive ? '4' : (total > 19 ? '1' : '2'));
+            line.setAttribute('stroke-linecap', 'round');
+            linesGroup.appendChild(line);
+
+            if (total <= 24 || i % 2 === 0) {
+                const lx = cx + labelR * Math.cos(rad);
+                const ly = cy + labelR * Math.sin(rad);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', lx); text.setAttribute('y', ly + 2);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', fontSize);
+                text.setAttribute('fill', '#3C2F2F');
+                text.textContent = getDegreeLabel(i, total);
+                labelsGroup.appendChild(text);
+            }
+        });
+    }
+
+    // ── Note Flash Visualization ──
+    const activeNotes = new Map();
+
+    function midiNoteToScaleIndex(midiNote) {
+        const scaleSize = currentIntervals.length;
+        if (scaleSize === 12) return (midiNote % 12 - currentTonic + 12) % 12;
+        const anchorNote = 60 + currentTonic;
+        let deg = (midiNote - anchorNote) % scaleSize;
+        if (deg < 0) deg += scaleSize;
+        return deg;
+    }
+
+    function velocityToColor(velocity) {
+        const r = Math.round(120 + velocity * 100);
+        const g = Math.round(40 - velocity * 40);
+        const b = Math.round(40 - velocity * 40);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    window.setNoteActive = function(midiNote, velocity) {
+        const idx = midiNoteToScaleIndex(midiNote);
+        if (activeNotes.has(idx)) {
+            const e = activeNotes.get(idx);
+            e.count++; e.maxVelocity = Math.max(e.maxVelocity, velocity);
+        } else {
+            activeNotes.set(idx, { count: 1, maxVelocity: velocity });
+        }
+        updateIntervalLineVisual(idx);
+    };
+
+    window.setNoteInactive = function(midiNote) {
+        const idx = midiNoteToScaleIndex(midiNote);
+        if (activeNotes.has(idx)) {
+            const e = activeNotes.get(idx);
+            e.count--;
+            if (e.count <= 0) activeNotes.delete(idx);
+        }
+        updateIntervalLineVisual(idx);
+    };
+
+    function updateIntervalLineVisual(scaleIndex) {
+        const lines = document.querySelectorAll('#interval-lines line');
+        if (scaleIndex >= 0 && scaleIndex < lines.length) {
+            const line = lines[scaleIndex];
+            if (activeNotes.has(scaleIndex)) {
+                const e = activeNotes.get(scaleIndex);
+                line.setAttribute('stroke', velocityToColor(e.maxVelocity));
+                line.setAttribute('stroke-width', '4');
+            } else {
+                line.setAttribute('stroke', '#6B8E4E');
+                line.setAttribute('stroke-width', currentIntervals.length > 19 ? '1' : '2');
+            }
+        }
+    }
+
+    // ── Visualization Mode Switching ──
+    let vizMode = 'circle';
+    let heldNotes = [], heldFreqs = [];
+
+    function setVizMode(mode) {
+        vizMode = mode;
+        document.querySelectorAll('.viz-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+        document.querySelectorAll('.viz-view').forEach(v => v.classList.remove('active'));
+        const target = document.getElementById(mode + '-view');
+        if (target) target.classList.add('active');
+        updateVisualization();
+    }
+
+    function updateVisualization() {
+        switch (vizMode) {
+            case 'circle': updatePitchCircle(); break;
+            case 'polar': drawPolarWheel(); break;
+            case 'matrix': drawIntervalMatrix(); break;
+            case 'truekeys': updateTrueKeysDisplay(); break;
+            case 'rotation': drawModalRotationMatrix(); break;
+        }
+    }
+
+    document.querySelectorAll('.viz-btn').forEach(btn => {
+        btn.addEventListener('click', () => setVizMode(btn.dataset.mode));
+    });
+
+    // ── Polar Wheel ──
+    function drawPolarWheel() {
+        const canvas = document.getElementById('polar-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const maxR = Math.min(cx, cy) - 15;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(235, 217, 199, 0.4)';
+        ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.fill();
+
+        ctx.strokeStyle = 'rgba(139, 115, 85, 0.25)'; ctx.lineWidth = 0.5;
+        for (let c = 200; c <= 1200; c += 200) {
+            ctx.beginPath(); ctx.arc(cx, cy, (c / 1200) * maxR, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.strokeStyle = '#8B7355'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#3C2F2F'; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+
+        const total = currentIntervals.length;
+        for (let i = 0; i < total; i++) {
+            const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
+            const r = (currentIntervals[i] / 1200) * maxR;
+            const x = cx + Math.cos(angle) * r, y = cy + Math.sin(angle) * r;
+            const isActive = activeNotes.has(i);
+
+            ctx.fillStyle = isActive ? '#CC2222' : '#6B8E4E';
+            ctx.beginPath(); ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = isActive ? '#881111' : '#3C2F2F';
+            ctx.lineWidth = isActive ? 2 : 1; ctx.stroke();
+
+            const labelR = r + 14;
+            ctx.fillStyle = '#3C2F2F';
+            ctx.font = total > 12 ? '8px Garamond' : '10px Garamond';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(getDegreeLabel(i, total), cx + Math.cos(angle) * labelR, cy + Math.sin(angle) * labelR);
+        }
+    }
+
+    // ── Interval Matrix ──
+    function drawIntervalMatrix() {
+        const container = document.getElementById('matrix-view');
+        if (!container) return;
+        const total = currentIntervals.length;
+        let html = '<table class="matrix-table"><tr><th></th>';
+        for (let i = 0; i < total; i++) html += `<th>${getDegreeLabel(i, total)}</th>`;
+        html += '</tr>';
+        for (let from = 0; from < total; from++) {
+            html += `<tr><th>${getDegreeLabel(from, total)}</th>`;
+            for (let to = 0; to < total; to++) {
+                let interval = currentIntervals[to] - currentIntervals[from];
+                if (interval < 0) interval += 1200;
+                let cls = 'matrix-cell';
+                if (interval === 0) cls += ' pure';
+                else if (Math.abs(interval - 700) < 20) cls += ' medium';
+                else if (Math.abs(interval - 500) < 20) cls += ' medium';
+                else if (Math.abs(interval - 400) < 20) cls += ' small';
+                html += `<td class="${cls}" title="${interval.toFixed(1)}\u00A2">${Math.round(interval)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    // ── True Keys ──
+    window.updateHeldNotes = function(notes, freqs) {
+        heldNotes = notes || []; heldFreqs = freqs || [];
+
+        // Sync activeNotes Map so circle/polar show active degrees
+        activeNotes.clear();
+        for (const midiNote of heldNotes) {
+            const idx = midiNoteToScaleIndex(midiNote);
+            if (activeNotes.has(idx)) {
+                activeNotes.get(idx).count++;
+            } else {
+                activeNotes.set(idx, { count: 1, maxVelocity: 1.0 });
+            }
+        }
+
+        if (vizMode === 'circle' || vizMode === 'polar') updateVisualization();
+        if (vizMode === 'truekeys') updateTrueKeysDisplay();
+        updateHeldNotesBar();
+    };
+
+    function midiToNoteName(midi) {
+        return noteNames[midi % 12] + Math.floor(midi / 12 - 1);
+    }
+
+    function approxIntervalName(cents) {
+        if (Math.abs(cents - 100) < 15) return 'm2';
+        if (Math.abs(cents - 200) < 15) return 'M2';
+        if (Math.abs(cents - 300) < 15) return 'm3';
+        if (Math.abs(cents - 400) < 15) return 'M3';
+        if (Math.abs(cents - 500) < 15) return 'P4';
+        if (Math.abs(cents - 600) < 15) return 'TT';
+        if (Math.abs(cents - 700) < 15) return 'P5';
+        if (Math.abs(cents - 800) < 15) return 'm6';
+        if (Math.abs(cents - 900) < 15) return 'M6';
+        if (Math.abs(cents - 1000) < 15) return 'm7';
+        if (Math.abs(cents - 1100) < 15) return 'M7';
+        if (Math.abs(cents - 1200) < 15) return 'P8';
+        return '';
+    }
+
+    function updateTrueKeysDisplay() {
+        const container = document.getElementById('truekeys-view');
+        if (!container) return;
+        if (heldNotes.length < 2) {
+            container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+            return;
+        }
+        let html = '<div class="tk-grid">';
+        const sorted = heldNotes.map((n, i) => ({ note: n, freq: heldFreqs[i] })).sort((a, b) => a.note - b.note);
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const cents = 1200 * Math.log2(sorted[i + 1].freq / sorted[i].freq);
+            let name = approxIntervalName(cents);
+            if (name) name = '(' + name + ')';
+            html += `<div class="tk-interval"><span>${midiToNoteName(sorted[i].note)} \u2192 ${midiToNoteName(sorted[i+1].note)} ${name}</span><span class="tk-cents">${cents.toFixed(1)}\u00A2</span></div>`;
+        }
+        if (sorted.length > 2) {
+            const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
+            html += `<div class="tk-interval" style="border-color:#6B8E4E;margin-top:6px;"><span><strong>Total span</strong></span><span class="tk-cents">${totalCents.toFixed(1)}\u00A2</span></div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function updateHeldNotesBar() {
+        const bar = document.getElementById('held-notes-bar');
+        if (!bar) return;
+        if (heldNotes.length < 2) {
+            bar.classList.remove('active');
+            bar.innerHTML = '';
+            return;
+        }
+        const sorted = heldNotes.map((n, i) => ({ note: n, freq: heldFreqs[i] })).sort((a, b) => a.note - b.note);
+        let html = '<span class="hn-label">Intervals:</span>';
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const cents = 1200 * Math.log2(sorted[i + 1].freq / sorted[i].freq);
+            const name = approxIntervalName(cents);
+            html += `<span class="hn-item">${midiToNoteName(sorted[i].note)}\u2192${midiToNoteName(sorted[i+1].note)} <span class="hn-cents">${cents.toFixed(1)}\u00A2</span>`;
+            if (name) html += `<span class="hn-name">${name}</span>`;
+            html += '</span>';
+        }
+        if (sorted.length > 2) {
+            const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
+            html += `<span class="hn-item" style="margin-left:6px;border-left:1px solid rgba(235,217,199,0.3);padding-left:8px;">Span <span class="hn-cents">${totalCents.toFixed(1)}\u00A2</span></span>`;
+        }
+        bar.innerHTML = html;
+        bar.classList.add('active');
+    }
+
+    // ── Modal Rotation Matrix ──
+    function drawModalRotationMatrix() {
+        const container = document.getElementById('rotation-view');
+        if (!container) return;
+        const total = currentIntervals.length;
+        let html = '<table class="rotation-table"><tr><th>Mode</th>';
+        for (let i = 1; i <= total; i++) html += `<th>${i}</th>`;
+        html += '</tr>';
+        for (let start = 0; start < total; start++) {
+            html += `<tr><td class="mode-name">${getDegreeLabel(start, total)}</td>`;
+            for (let step = 0; step < total; step++) {
+                const deg = (start + step) % total;
+                let cents = currentIntervals[deg];
+                if (deg < start) cents += 1200;
+                let interval;
+                if (step === 0) { interval = 0; }
+                else {
+                    const prevDeg = (start + step - 1) % total;
+                    let prev = currentIntervals[prevDeg];
+                    if (prevDeg < start) prev += 1200;
+                    interval = cents - prev;
+                }
+                let cls = 'int-cell';
+                if (step > 0) {
+                    if (interval < 100) cls += ' small';
+                    else if (interval < 250) cls += ' medium';
+                    else cls += ' large';
+                }
+                html += `<td class="${cls}" title="${interval.toFixed(1)}\u00A2">${step === 0 ? '-' : Math.round(interval)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    // ── Interval List UI ──
+    async function updateIntervalListUI() {
+        try {
+            const fetchedTonic = await Juce.getNativeFunction('getTonicNote')();
+            if (typeof fetchedTonic === 'number' && fetchedTonic >= 0 && fetchedTonic <= 11) currentTonic = fetchedTonic;
+        } catch (e) { console.error('[Tuning] Get tonic failed:', e); }
+
+        const total = currentIntervals.length;
+        let html = `<div class="interval-list-header">Intervals (${total} notes)</div>`;
+        html += `<div class="tonic-selector"><span class="tonic-arrow" id="tonic-down">\u25C0</span><span class="tonic-label">Tonic:</span><span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span><span class="tonic-arrow" id="tonic-up">\u25B6</span></div>`;
+
+        for (let i = 0; i < total; i++) {
+            const cents = currentIntervals[i] || 0;
+            const isUnison = (i === 0);
+            const label = getDegreeLabel(i, total);
+            const equalCents = (i * 1200 / total);
+            const deviation = cents - equalCents;
+            const devSign = deviation >= 0 ? '+' : '';
+            const devClass = Math.abs(deviation) < 1 ? 'pure' : (deviation > 0 ? 'sharp' : 'flat');
+            const showDev = Math.abs(deviation) >= 0.5;
+
+            html += `<div class="interval-row"><span class="note-name">${label}</span><input type="text" class="interval-input" data-index="${i}" value="${isUnison ? '0' : cents.toFixed(1)}" ${isUnison ? 'disabled' : ''}>${showDev ? `<span class="deviation ${devClass}">${devSign}${deviation.toFixed(1)}</span>` : '<span class="deviation"></span>'}</div>`;
+        }
+
+        intervalList.innerHTML = html;
+
+        intervalList.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
+            const idx = parseInt(input.dataset.index, 10);
+            input.addEventListener('change', () => handleIntervalChange(idx, input.value));
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+        });
+
+        document.getElementById('tonic-down')?.addEventListener('click', onTonicDown);
+        document.getElementById('tonic-up')?.addEventListener('click', onTonicUp);
+    }
+
+    async function handleIntervalChange(index, valueStr) {
+        const value = parseFloat(valueStr);
+        if (!isNaN(value) && value >= 0 && value <= 2400) {
+            currentIntervals[index] = value;
+            const nameEl = document.getElementById('scale-name-display');
+            if (nameEl) nameEl.textContent = 'Custom';
+            updateVisualization();
+            try { await Juce.getNativeFunction('setSingleInterval')(index, value); } catch (e) { console.error('[Tuning] Set interval failed:', e); }
+        }
+    }
+
+    // IN-17: apply the tonic change only if the bridge call succeeds —
+    // updating currentTonic/display on a failed call silently desyncs UI vs DSP
+    async function setTonic(newTonic) {
+        const prevTonic = currentTonic;
+        try {
+            await Juce.getNativeFunction('setTonicNote')(newTonic);
+            currentTonic = newTonic;
+        } catch (e) {
+            console.error('[Tuning] Set tonic failed:', e);
+            currentTonic = prevTonic;
+        }
+        const d = document.getElementById('tonic-display');
+        if (d) d.textContent = noteNames[currentTonic];
+        updateVisualization();
+        await updateIntervalListUI();
+    }
+
+    async function onTonicDown() {
+        await setTonic((currentTonic - 1 + 12) % 12);
+    }
+
+    async function onTonicUp() {
+        await setTonic((currentTonic + 1) % 12);
+    }
+
+    // ── Load intervals from backend ──
+    async function loadIntervalsFromBackend() {
+        try {
+            const intervals = await Juce.getNativeFunction('getTuningIntervals')();
+            if (typeof intervals === 'string') {
+                const parsed = JSON.parse(intervals);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Exclude period (last value) for UI display
+                    if (parsed.length === 13 && Math.abs(parsed[12] - 1200) < 1)
+                        currentIntervals = parsed.slice(0, 12);
+                    else if (parsed.length > 1)
+                        currentIntervals = parsed.slice(0, parsed.length - 1);
+                    else
+                        currentIntervals = parsed;
+                }
+            } else if (Array.isArray(intervals) && intervals.length > 0) {
+                if (intervals.length === 13 && Math.abs(intervals[12] - 1200) < 1)
+                    currentIntervals = intervals.slice(0, 12);
+                else if (intervals.length > 1)
+                    currentIntervals = intervals.slice(0, intervals.length - 1);
+                else
+                    currentIntervals = intervals;
+            }
+            await updateIntervalListUI();
+            updateVisualization();
+        } catch (e) { console.warn('[Tuning] Failed to load intervals:', e); }
+    }
+
+    async function updateScaleNameDisplay() {
+        try {
+            const name = await Juce.getNativeFunction('getTuningName')();
+            if (scaleNameDisplay) scaleNameDisplay.textContent = name || '12-TET Standard';
+        } catch (e) {
+            if (scaleNameDisplay) scaleNameDisplay.textContent = '12-TET Standard';
+        }
+    }
+
+    // ── A4 Reference Pitch Knob ──
+    let knobDragging = false, knobStartY = 0, knobStartValue = 0.5;
+    const masterTuneState = Juce.getSliderState('masterTune');
+
+    const refPitchVine = document.getElementById('vine-refPitch');
+    function updateKnobVisual(norm) {
+        if (refPitchVine) {
+            const offset = 127.24 - (norm * 127.24);
+            refPitchVine.style.strokeDashoffset = offset;
+        }
+        // masterTuneFmt maps through the parameter's real C++ range (420..460 Hz).
+        // The inline `415 + norm * 50` this replaces was a 415..465 mirror that
+        // had drifted from the parameter: right at centre, 5 Hz out at both ends.
+        // Suppressed while an entry field is open — see attachValueEntry().
+        if (refPitchValue && refPitchValue.dataset.editing !== '1')
+            refPitchValue.textContent = masterTuneFmt(norm);
+    }
+
+    if (masterTuneState) {
+        masterTuneState.valueChangedEvent.addListener(() => updateKnobVisual(masterTuneState.getNormalisedValue()));
+        updateKnobVisual(masterTuneState.getNormalisedValue());
+    }
+
+    if (refPitchKnob) {
+        // Alt/Option-click resets to 440 Hz. MUST stay registered ahead of the
+        // drag handler below and use stopImmediatePropagation(): both listeners
+        // sit on the same element, and at-target listeners fire in registration
+        // order regardless of the capture flag, so plain stopPropagation() would
+        // not stop the drag from starting on the very same event.
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (masterTuneState) {
+                masterTuneState.sliderDragStarted();
+                masterTuneState.setNormalisedValue(0.5);
+                masterTuneState.sliderDragEnded();
+            }
+            updateKnobVisual(0.5);
+        });
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            knobDragging = true; knobStartY = e.clientY;
+            knobStartValue = masterTuneState ? masterTuneState.getNormalisedValue() : 0.5;
+            if (masterTuneState) masterTuneState.sliderDragStarted();
+            e.preventDefault();
+        });
+        // Double-click opens inline value entry on the readout.
+        refPitchKnob.addEventListener('dblclick', (e) => {
+            if (e.altKey) return;
+            attachValueEntry(refPitchValue, masterTuneState, masterTuneFmt);
+        });
+    }
+    // Named handlers so they are removable by identity. Stored on the
+    // tuningCleanup registry (see below) so any future teardown path can
+    // detach them and prevent accumulation across re-inits.
+    const refPitchMouseMoveHandler = (e) => {
+        if (!knobDragging) return;
+        let v = knobStartValue + (knobStartY - e.clientY) * 0.005;
+        v = Math.max(0, Math.min(1, v));
+        if (masterTuneState) masterTuneState.setNormalisedValue(v);
+        updateKnobVisual(v);
+    };
+    const refPitchMouseUpHandler = () => {
+        if (knobDragging) { knobDragging = false; if (masterTuneState) masterTuneState.sliderDragEnded(); }
+    };
+    document.addEventListener('mousemove', refPitchMouseMoveHandler);
+    document.addEventListener('mouseup', refPitchMouseUpHandler);
+
+    // Cleanup registry — any code that needs to tear down the tuning UI
+    // (e.g. future destroy path) can call window.__prismTuningCleanup() to
+    // detach document-level listeners. Prevents listener accumulation if
+    // the tuning IIFE is ever re-run (e.g. hot-reload, UI rebuild).
+    const prevCleanup = window.__prismTuningCleanup;
+    window.__prismTuningCleanup = () => {
+        document.removeEventListener('mousemove', refPitchMouseMoveHandler);
+        document.removeEventListener('mouseup', refPitchMouseUpHandler);
+        if (typeof prevCleanup === 'function') prevCleanup();
+    };
+
+    // ── Octave Stretch (via APVTS relay) ──
+    const stretchSlider = document.getElementById('octave-stretch');
+    const stretchValue = document.getElementById('octave-stretch-value');
+    const octaveStretchState = Juce.getSliderState('octaveStretch');
+
+    function updateStretchDisplay(norm) {
+        const v = 0.95 + norm * 0.30;
+        if (stretchSlider) stretchSlider.value = v;
+        if (stretchValue) stretchValue.textContent = v.toFixed(2);
+    }
+
+    if (octaveStretchState) {
+        octaveStretchState.valueChangedEvent.addListener(() => updateStretchDisplay(octaveStretchState.getNormalisedValue()));
+        updateStretchDisplay(octaveStretchState.getNormalisedValue());
+    }
+
+    if (stretchSlider) {
+        stretchSlider.addEventListener('mousedown', () => { if (octaveStretchState) octaveStretchState.sliderDragStarted(); });
+        stretchSlider.addEventListener('input', () => {
+            const v = parseFloat(stretchSlider.value);
+            if (stretchValue) stretchValue.textContent = v.toFixed(2);
+            if (octaveStretchState) octaveStretchState.setNormalisedValue((v - 0.95) / 0.30);
+        });
+        stretchSlider.addEventListener('mouseup', () => { if (octaveStretchState) octaveStretchState.sliderDragEnded(); });
+    }
+
+    // ── File Operations ──
+    document.getElementById('btn-load-scl')?.addEventListener('click', async () => {
+        try {
+            const name = await Juce.getNativeFunction('loadScalaFile')();
+            if (name) { await loadIntervalsFromBackend(); await updateScaleNameDisplay(); }
+        } catch (e) { console.error('[Tuning] Load SCL failed:', e); }
+    });
+    document.getElementById('btn-load-kbm')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('loadKBMFile')(); } catch (e) { console.error('[Tuning] Load KBM failed:', e); }
+    });
+    document.getElementById('btn-save-scl')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('saveScalaFile')(); } catch (e) { console.error('[Tuning] Save SCL failed:', e); }
+    });
+    document.getElementById('btn-save-kbm')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('saveKBMFile')(); } catch (e) { console.error('[Tuning] Save KBM failed:', e); }
+    });
+    document.getElementById('btn-export-html')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('exportTuningHTML')(); } catch (e) { console.error('[Tuning] Export HTML failed:', e); }
+    });
+
+    // ── Tuning Library ──
+    let embeddedTunings = [];
+    let libraryFilter = 'all';
+
+    document.getElementById('library-header')?.addEventListener('click', () => {
+        const content = document.getElementById('library-content');
+        const toggle = document.getElementById('library-toggle');
+        if (content && toggle) {
+            content.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+            if (content.classList.contains('expanded') && embeddedTunings.length === 0) loadEmbeddedTunings();
+        }
+    });
+
+    document.getElementById('library-filter')?.addEventListener('change', (e) => {
+        libraryFilter = e.target.value;
+        renderLibraryList();
+    });
+
+    async function loadEmbeddedTunings() {
+        try {
+            const jsonStr = await Juce.getNativeFunction('getEmbeddedTuningList')();
+            embeddedTunings = JSON.parse(jsonStr);
+            console.log('[Library] Loaded', embeddedTunings.length, 'embedded tunings');
+            renderLibraryList();
+        } catch (e) { console.error('[Library] Failed to load tunings:', e); }
+    }
+
+    function renderLibraryList() {
+        const listEl = document.getElementById('library-list');
+        if (!listEl) return;
+        const filtered = libraryFilter === 'all' ? embeddedTunings : embeddedTunings.filter(t => t.category === libraryFilter);
+        let html = '';
+        filtered.forEach(tuning => {
+            const periodNote = tuning.period && tuning.period !== 1200 ? ' (' + tuning.period.toFixed(0) + '\u00A2 period)' : '';
+            html += `<div class="library-item" data-id="${tuning.id}"><div class="library-item-name">${tuning.name}</div><div class="library-item-info">${tuning.category || ''} \u2022 ${tuning.noteCount} notes${periodNote}</div></div>`;
+        });
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('.library-item').forEach(item => {
+            item.addEventListener('click', () => loadEmbeddedTuning(item.dataset.id));
+        });
+    }
+
+    async function loadEmbeddedTuning(tuningId) {
+        try {
+            const success = await Juce.getNativeFunction('loadEmbeddedTuning')(tuningId);
+            if (success) {
+                await loadIntervalsFromBackend();
+                await updateScaleNameDisplay();
+                document.querySelectorAll('.library-item').forEach(item => {
+                    item.classList.toggle('selected', item.dataset.id === tuningId);
+                });
+            }
+        } catch (e) { console.error('[Library] Failed to load tuning:', e); }
+    }
+
+    // ── Scale Generator ──
+    let generatorType = 'edo';
+
+    document.getElementById('generator-header')?.addEventListener('click', () => {
+        const content = document.getElementById('generator-content');
+        const toggle = document.getElementById('generator-toggle');
+        if (content && toggle) {
+            content.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+        }
+    });
+
+    document.getElementById('generator-type')?.addEventListener('change', (e) => {
+        generatorType = e.target.value;
+        const inputsDiv = document.getElementById('generator-inputs');
+        if (!inputsDiv) return;
+        switch (generatorType) {
+            case 'edo':
+                inputsDiv.innerHTML = '<div class="gen-row"><label>Divisions</label><input type="number" id="gen-divisions" value="19" min="5" max="53"></div><div class="gen-row"><label>Period (cents)</label><input type="number" id="gen-period" value="1200" min="100" max="2400" step="1"></div>';
+                break;
+            case 'harmonic':
+                inputsDiv.innerHTML = '<div class="gen-row"><label>Start Harmonic</label><input type="number" id="gen-start" value="8" min="1" max="32"></div><div class="gen-row"><label>End Harmonic</label><input type="number" id="gen-end" value="16" min="2" max="64"></div>';
+                break;
+            case 'rank2':
+                inputsDiv.innerHTML = '<div class="gen-row"><label>Generator (cents)</label><input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1"></div><div class="gen-row"><label>Period (cents)</label><input type="number" id="gen-r2-period" value="1200" min="100" max="2400"></div><div class="gen-row"><label>Notes</label><input type="number" id="gen-count" value="12" min="3" max="31"></div>';
+                break;
+        }
+    });
+
+    document.getElementById('btn-generate')?.addEventListener('click', async () => {
+        try {
+            let intervalsJson, scaleName;
+            switch (generatorType) {
+                case 'edo': {
+                    const div = parseInt(document.getElementById('gen-divisions')?.value || '19');
+                    const per = parseFloat(document.getElementById('gen-period')?.value || '1200');
+                    intervalsJson = await Juce.getNativeFunction('generateEDO')(div, per);
+                    scaleName = `${div}-EDO` + (Math.abs(per - 1200) > 0.1 ? ` (${per.toFixed(0)}\u00A2)` : '');
+                    break;
+                }
+                case 'harmonic': {
+                    const start = parseInt(document.getElementById('gen-start')?.value || '8');
+                    const end = parseInt(document.getElementById('gen-end')?.value || '16');
+                    intervalsJson = await Juce.getNativeFunction('generateHarmonicSeries')(start, end);
+                    scaleName = `Harmonics ${start}-${end}`;
+                    break;
+                }
+                case 'rank2': {
+                    const gen = parseFloat(document.getElementById('gen-generator')?.value || '696.6');
+                    const per = parseFloat(document.getElementById('gen-r2-period')?.value || '1200');
+                    const cnt = parseInt(document.getElementById('gen-count')?.value || '12');
+                    intervalsJson = await Juce.getNativeFunction('generateRank2')(gen, per, cnt);
+                    scaleName = `Rank-2 (${gen.toFixed(1)}\u00A2, ${cnt} notes)`;
+                    break;
+                }
+            }
+            const success = await Juce.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
+            if (success) {
+                await loadIntervalsFromBackend();
+                if (scaleNameDisplay) scaleNameDisplay.textContent = scaleName;
+            }
+        } catch (e) { console.error('[Tuning] Generate failed:', e); }
+    });
+
+    // ── Initialize ──
+    async function initializeTuning() {
+        await loadIntervalsFromBackend();
+        await updateScaleNameDisplay();
+        try {
+            const stretch = await Juce.getNativeFunction('getOctaveStretch')();
+            if (stretchSlider) stretchSlider.value = stretch;
+            if (stretchValue) stretchValue.textContent = parseFloat(stretch).toFixed(2);
+        } catch (e) {}
+    }
+
+    window.refreshTuningState = async function() {
+        await loadIntervalsFromBackend();
+        await updateScaleNameDisplay();
+    };
+
+    // WR-19: the preset bar calls this after every load; it was previously
+    // undefined so the guarded call sites silently did nothing and the Tuning
+    // tab kept showing the previous scale.
+    window.__refreshAllControls = function() {
+        window.refreshTuningState().catch((e) => console.warn('[Tuning] refresh failed:', e));
+    };
+
+    // Retry init until ready
+    let retries = 0;
+    async function tryInit() {
+        try {
+            await initializeTuning();
+            console.log('[Tuning] System ready');
+        } catch (e) {
+            retries++;
+            if (retries < 8) setTimeout(tryInit, 500);
+            else console.warn('[Tuning] Init failed after retries');
+        }
+    }
+    setTimeout(tryInit, 300);
+})();
+</script>
+
+<!-- Wavetable Manager Modal -->
+<div class="wt-modal-backdrop" id="wt-modal-backdrop">
+    <div class="wt-modal">
+        <h3data-i18n="wt-modal-backdrop.user-wavetables" >User Wavetables</h3>
+        <ul class="wt-modal-list" id="wt-modal-list"></ul>
+        <button data-i18n="wt-modal-close" class="wt-modal-close" id="wt-modal-close">Close</button>
+    </div>
+</div>
+
+<link rel="stylesheet" href="./css/wavetable-editor.css">
+<script src="./js/wavetable-editor.js"></script>
+
+</body>
+</html>

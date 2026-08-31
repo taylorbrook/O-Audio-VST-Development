@@ -1,0 +1,69 @@
+# plugin	O-Contrabass
+# uiRoot	Source/ui/public
+# generated	2026-08-28T01:54:41.035Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	736	text		LABEL	no	ui.physeter-macrocephalus-plate-vii	Physeter macrocephalus — Plate VII	prose survives the readout filter
+html-text	index.html	741	span.plugin-name		UNSURE	no	plugin-name.contrabass	Contrabass	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	743	#preset-name		UNSURE	yes	preset-name	Default — Arco Foundation	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	745	#preset-save		LABEL	yes	preset-save	Save	prose survives the readout filter
+html-text	index.html	749	button.tab-btn.active		LABEL	yes	tab-btn.main	Main	prose survives the readout filter
+html-text	index.html	750	button.tab-btn		LABEL	yes	tab-btn.tuning	Tuning	prose survives the readout filter
+html-text	index.html	771	span.brand-label		LABEL	no	brand-label.ouaricon-naturalist-series	Ouaricon · Naturalist Series	prose survives the readout filter
+html-text	index.html	782	span		UNSURE	no	tab-main.bow	· Bow	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	782	span.sublabel		LABEL	no	tab-main.arco	arco	prose survives the readout filter
+html-text	index.html	786	div.knob-label		LABEL	no	tab-main.speed	Speed	prose survives the readout filter
+html-text	index.html	791	div.knob-label		LABEL	no	tab-main.pressure	Pressure	prose survives the readout filter
+html-text	index.html	796	div.knob-label		LABEL	no	tab-main.position	Position	prose survives the readout filter
+html-text	index.html	803	div.knob-label		LABEL	no	tab-main.rosin	Rosin	prose survives the readout filter
+html-text	index.html	808	div.knob-label		LABEL	no	tab-main.noise	Noise	prose survives the readout filter
+html-text	index.html	817	div.knob-label		LABEL	no	tab-main.release	Release	prose survives the readout filter
+html-text	index.html	825	span		LABEL	no	tab-main.schelleng-diagram	Schelleng Diagram	prose survives the readout filter
+html-text	index.html	825	span.sublabel		LABEL	no	tab-main.bow-operating-point	bow operating point	prose survives the readout filter
+html-text	index.html	827	div.viz-caption		LABEL	no	tab-main.speed-pressure-log-log	speed × pressure, log–log · wedge shifts with &beta;	prose survives the readout filter
+html-text	index.html	832	span.numeral		LABEL	no	tab-main.ii	II	prose survives the readout filter
+html-text	index.html	832	span		UNSURE	no	tab-main.body	· Body	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	832	span.sublabel		LABEL	no	tab-main.resonator-8-modes	resonator · 8 modes	prose survives the readout filter
+html-text	index.html	836	div.knob-label		LABEL	no	tab-main.size	Size	prose survives the readout filter
+html-text	index.html	841	div.knob-label		LABEL	no	tab-main.damping	Damping	prose survives the readout filter
+html-text	index.html	846	div.knob-label		LABEL	no	tab-main.mix	Mix	prose survives the readout filter
+html-text	index.html	851	div.knob-label		LABEL	no	tab-main.brightness	Brightness	prose survives the readout filter
+html-text	index.html	864	span.numeral		LABEL	no	tab-main.iii	III	prose survives the readout filter
+html-text	index.html	864	span		UNSURE	no	tab-main.strings	· Strings	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	868	div.knob-label		LABEL	no	tab-main.tension	Tension	prose survives the readout filter
+html-text	index.html	873	div.knob-label		LABEL	no	tab-main.stiffness	Stiffness	prose survives the readout filter
+html-text	index.html	877	div.stepper-label		LABEL	no	tab-main.active-strings	Active Strings	prose survives the readout filter
+html-text	index.html	888	div.finetuner-title		LABEL	yes	tab-main.fine-tuners-cents	Fine Tuners · cents	prose survives the readout filter
+html-text	index.html	916	span.numeral		LABEL	no	tab-main.iv	IV	prose survives the readout filter
+html-text	index.html	916	span		UNSURE	no	tab-main.expression	· Expression	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	916	span.sublabel		LABEL	no	tab-main.vibrato-bow-drift	vibrato · bow drift	prose survives the readout filter
+html-text	index.html	920	div.knob-label		LABEL	no	tab-main.expression-2	Expression	prose survives the readout filter
+html-text	index.html	927	div.knob-label		LABEL	no	tab-main.vib-rate	Vib Rate	prose survives the readout filter
+html-text	index.html	932	div.knob-label		LABEL	no	tab-main.vib-depth	Vib Depth	prose survives the readout filter
+html-text	index.html	937	div.knob-label		LABEL	no	tab-main.vib-onset	Vib Onset	prose survives the readout filter
+html-text	index.html	944	div.knob-label		LABEL	no	tab-main.lfo-rate	LFO Rate	prose survives the readout filter
+html-text	index.html	949	div.knob-label		LABEL	no	tab-main.lfo-depth	LFO Depth	prose survives the readout filter
+html-text	index.html	959	span		UNSURE	no	drone-panel.drone	· Drone	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	963	div.knob-label		LABEL	no	drone-panel.inf-sustain	Inf. Sustain	prose survives the readout filter
+html-text	index.html	970	div.knob-label		LABEL	no	drone-panel.sub-harm	Sub-Harm.	prose survives the readout filter
+html-text	index.html	974	div.drone-caption		UNSURE	no	drone-panel.silent-at-rest	silent at rest —	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	974	div.drone-caption		UNSURE	no	drone-panel.raise-to-wake	raise to wake	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	979	span.numeral		LABEL	no	tab-main.vi	VI	prose survives the readout filter
+html-text	index.html	979	span		UNSURE	no	tab-main.output	· Output	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	983	div.knob-label		LABEL	no	tab-main.level	Level	prose survives the readout filter
+html-text	index.html	988	div.knob-label		LABEL	no	tab-main.width	Width	prose survives the readout filter
+html-text	index.html	995	div.knob-label		LABEL	no	tab-main.saturate	Saturate	prose survives the readout filter
+html-text	index.html	1000	div.knob-label		LABEL	no	tab-main.ceiling	Ceiling	prose survives the readout filter
+html-text	index.html	1012	span.numeral		LABEL	no	tab-main.vii	VII	prose survives the readout filter
+html-text	index.html	1012	span.strip-label		UNSURE	no	tab-main.microtonal	· Microtonal	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1021	span.strip-field-label		LABEL	no	tab-main.tuning-system	Tuning System	prose survives the readout filter
+html-text	index.html	1025	option		LABEL	no	tuning-system-select.scala	Scala	prose survives the readout filter
+html-text	index.html	1026	option		LABEL	no	tuning-system-select.mts-esp	MTS-ESP	prose survives the readout filter
+html-text	index.html	1027	option		LABEL	no	tuning-system-select.12-tet	12-TET	prose survives the readout filter
+html-text	index.html	1031	#scl-load-btn		LABEL	yes	scl-load-btn	Load .scl…	prose survives the readout filter
+html-text	index.html	1035	span.strip-field-label		LABEL	no	note-expression-toggle.note-expression	Note Expression	prose survives the readout filter
+html-text	index.html	1038	span.range-caption		LABEL	no	tab-main.e1-g3-monophonic	E1–G3 · monophonic	prose survives the readout filter
+html-attr	index.html	742	#preset-prev	aria-label	LABEL	no	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	744	#preset-next	aria-label	LABEL	no	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	762	#help-toggle	aria-label	LABEL	no	help-toggle	Toggle hover help	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1057	1892	container").innerHTML		LABEL	no	ui.div-style-padding-20px	<div style="padding:20px;color:#7D6C5E;font-style:italic;">Tuning panel failed to load.</div>	prose survives the readout filter

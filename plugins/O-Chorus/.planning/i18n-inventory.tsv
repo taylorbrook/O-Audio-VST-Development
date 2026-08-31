@@ -1,0 +1,23 @@
+# plugin	O-Chorus
+# uiRoot	Source/ui/public
+# generated	2026-08-29T04:52:58.004Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	326	div.title		LABEL	no	title.ouaricon-chorus	Ouaricon Chorus	prose survives the readout filter
+html-text	index.html	329	#preset-display		UNSURE	no	preset-display	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	331	#preset-load		LABEL	no	preset-load	Load	prose survives the readout filter
+html-text	index.html	332	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	349	span.knob-label		LABEL	no	knob-label.rate	Rate	prose survives the readout filter
+html-text	index.html	350	span.knob-value		READOUT	no	knob-value.1-00-hz	1.00 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	362	span.knob-label		LABEL	no	knob-label.depth	Depth	prose survives the readout filter
+html-text	index.html	375	span.knob-label		LABEL	no	knob-label.voices	Voices	prose survives the readout filter
+html-text	index.html	388	span.knob-label		LABEL	no	knob-label.spread	Spread	prose survives the readout filter
+html-text	index.html	396	div.lfo-ring-label		LABEL	no	lfo-ring-label.lfo	LFO	prose survives the readout filter
+html-text	index.html	416	span.knob-label		LABEL	no	knob-label.width	Width	prose survives the readout filter
+html-text	index.html	429	span.knob-label		LABEL	no	knob-label.tone	Tone	prose survives the readout filter
+html-text	index.html	442	span.knob-label		LABEL	no	knob-label.mix	Mix	prose survives the readout filter
+html-text	index.html	455	span.knob-label		LABEL	no	knob-label.drive	Drive	prose survives the readout filter
+html-attr	index.html	328	#preset-prev	title	LABEL	no	preset-prev	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	330	#preset-next	title	LABEL	no	preset-next	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	331	#preset-load	title	LABEL	no	preset-load-2	Load preset from file	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	332	#preset-save	title	LABEL	no	preset-save-2	Save preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)

@@ -1,0 +1,41 @@
+# plugin	O-Bassoon
+# uiRoot	Resources/ui
+# generated	2026-08-29T03:04:13.814Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	452	span.header-title		LABEL	no	header-title.o-bassoon	O-Bassoon	prose survives the readout filter
+html-text	index.html	453	span.header-subtitle		LABEL	no	header-subtitle.ouaricon-modal-synthesis-bassoon	Ouaricon · Modal Synthesis Bassoon	prose survives the readout filter
+html-text	index.html	460	button.tab-btn.active		LABEL	no	tab-btn.sound	Sound	prose survives the readout filter
+html-text	index.html	461	button.tab-btn		LABEL	no	tab-btn.tuning	Tuning	prose survives the readout filter
+html-text	index.html	462	button.tab-btn		LABEL	no	tab-btn.about	About	prose survives the readout filter
+html-text	index.html	478	div.section-label		UNSURE	no	tab-sound.vibrato	Vibrato	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	487	div.knob-label		LABEL	no	tab-sound.rate	Rate	prose survives the readout filter
+html-text	index.html	488	div.knob-value		READOUT	no	tab-sound.5-00-hz	5.00 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	492	div.knob-label		LABEL	no	tab-sound.depth	Depth	prose survives the readout filter
+html-text	index.html	497	div.knob-label		LABEL	no	tab-sound.onset	Onset	prose survives the readout filter
+html-text	index.html	498	div.knob-value		READOUT	no	tab-sound.400-ms	400 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	505	div.section-label		LABEL	no	tab-sound.expression	Expression	prose survives the readout filter
+html-text	index.html	509	div.knob-label		LABEL	no	tab-sound.breath	Breath	prose survives the readout filter
+html-text	index.html	514	div.knob-label		LABEL	no	tab-sound.tone	Tone	prose survives the readout filter
+html-text	index.html	519	div.knob-label		LABEL	no	tab-sound.attack-char	Attack Char	prose survives the readout filter
+html-text	index.html	522	span		LABEL	no	tab-sound.soft	Soft	prose survives the readout filter
+html-text	index.html	523	span		LABEL	no	tab-sound.tongued	Tongued	prose survives the readout filter
+html-text	index.html	539	div.section-label		LABEL	no	tab-sound.envelope	Envelope	prose survives the readout filter
+html-text	index.html	543	div.knob-label		LABEL	no	tab-sound.attack	Attack	prose survives the readout filter
+html-text	index.html	544	div.knob-value		READOUT	no	tab-sound.300-ms	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	548	div.knob-label		LABEL	no	tab-sound.release	Release	prose survives the readout filter
+html-text	index.html	549	div.knob-value		READOUT	no	tab-sound.800-ms	800 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	556	div.section-label		LABEL	no	tab-sound.voicing-output	Voicing & Output	prose survives the readout filter
+html-text	index.html	560	div.knob-label		LABEL	no	tab-sound.voices	Voices	prose survives the readout filter
+html-text	index.html	565	div.knob-label		LABEL	no	tab-sound.output	Output	prose survives the readout filter
+html-text	index.html	566	div.knob-value		READOUT	no	tab-sound.0-0-db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	584	div.about-title		LABEL	no	tab-about.o-bassoon	O-Bassoon	prose survives the readout filter
+html-text	index.html	585	div.about-version		LABEL	no	tab-about.version-1-0-0	Version 1.0.0	prose survives the readout filter
+html-text	index.html	586	p.about-tagline		LABEL	no	tab-about.modal-synthesis-bassoon-for	Modal-synthesis bassoon for sustained microtonal long tones.	prose survives the readout filter
+html-text	index.html	589	p.about-blurb		LABEL	no	tab-about.polyphonic-1-16-voices	Polyphonic 1–16 voices, VST3 Note Expression + MPE for Dorico microtonal playback, breath/CC2 expression, vibrato, and the Ouaricon tuning-system family. Built on JUCE 8.	prose survives the readout filter
+html-text	index.html	594	div.about-meta		UNSURE	no	tab-about.made-by	Made by	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	596	a.about-link		LABEL	no	tab-about.ouaricon	Ouaricon	prose survives the readout filter
+html-attr	index.html	481	#vibrato-dot	title	LABEL	no	vibrato-dot	Vibrato envelope	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	527	div.breath-meter	title	LABEL	no	tab-sound.effective-breath-ui-breath	Effective breath (UI breath x CC2)	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	569	#voice-dots	title	LABEL	no	voice-dots	Live active voice count	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 606	849	container').innerHTML		LABEL	no	ui.tuning-panel-failed-to	Tuning panel failed to load.	prose survives the readout filter

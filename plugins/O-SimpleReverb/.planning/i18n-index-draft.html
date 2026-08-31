@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-SimpleReverb, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ouaricon Simple Reverb</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        :root {
+            --knob-track: rgba(139, 115, 85, 0.3);
+            --knob-vine: #5a7a6a;
+            --text-secondary: #8b7355;
+            --text-muted: #a08870;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #2a2a2a;
+            font-family: 'Garamond', 'Times New Roman', serif;
+        }
+
+        .plugin-container {
+            width: 500px;
+            height: 350px;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 3px solid #5C4033;
+            overflow: hidden;
+        }
+
+        .background {
+            position: absolute;
+            width: 500px;
+            height: 350px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            object-fit: none;
+            object-position: center;
+        }
+
+        .botanical-overlay {
+            position: absolute;
+            right: -60px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 150%;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .title {
+            font-size: 16px;
+            color: #3C2F2F;
+            letter-spacing: 2px;
+            font-weight: normal;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            line-height: 1.2;
+        }
+
+        /* Preset Bar */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .preset-nav-btn {
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            padding: 3px 8px;
+            font-family: 'Garamond', serif;
+            font-size: 14px;
+            color: #3C2F2F;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .preset-nav-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .preset-display {
+            background: rgba(255, 248, 220, 0.6);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            padding: 3px 10px;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            color: #3C2F2F;
+            min-width: 130px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .preset-display:hover {
+            background: rgba(255, 248, 220, 0.9);
+        }
+
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 2px;
+            background: rgba(255, 248, 220, 0.98);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+        }
+
+        .preset-dropdown.show {
+            display: block;
+        }
+
+        .header:has(.preset-dropdown.show) {
+            z-index: 9999;
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.15s;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.3);
+            font-weight: bold;
+        }
+
+        .preset-category {
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #5C4033;
+            background: rgba(139, 115, 85, 0.15);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .preset-action-btn {
+            background: rgba(92, 64, 51, 0.15);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            padding: 3px 6px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            color: #5C4033;
+            cursor: pointer;
+            transition: background 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        /* v1.6.0 GEOMETRY PINS — BOTH LOAD-BEARING, negative controls in the
+           report. .header is `justify-content: space-between` over
+           h1.title (163.58) and .preset-bar (290.42) inside a 454.00 px
+           content box: 163.58 + 290.42 = 454.00 EXACTLY, so the row has ZERO
+           slack and the title is already wrapped to two line boxes at that
+           width. Every px a French caption takes off SAVE or LOAD slides the
+           whole preset cluster right and grows the title's box; every px it
+           adds squeezes the title toward a THIRD line.
+
+           Each button is pinned to its OWN English border box rounded up —
+           40.83 -> 41 and 43.78 -> 44 — NOT the 62 px this batch used on
+           O-Chorus, O-DigiDelay and O-AnalogEQ and not O-Bass's 49/46: on a
+           row with no slack the pin must be the smallest number that makes the
+           rectangle language-invariant. Together they add 0.39 px, measured,
+           and the title's two line boxes do not reflow.
+
+           Both French captions SHRINK (ENR 21.50 vs SAVE 26.83, LIRE 24.22 vs
+           LOAD 29.78), so unpinned these two contract by 10.89 px between them
+           and re-centre the bar. Removed alone, each reports the preset cluster
+           and the title as moved. */
+        #preset-save,
+        #preset-load {
+            text-align: center;
+        }
+
+        #preset-save { width: 41px; }
+        #preset-load { width: 44px; }
+
+
+        /* Type Selector - no label */
+        .type-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        #TYPE {
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-family: 'Garamond', serif;
+            font-size: 14px;
+            color: #3C2F2F;
+            cursor: pointer;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+            min-width: 120px;
+            text-align: center;
+            text-align-last: center;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235C4033' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 28px;
+        }
+
+        #TYPE option {
+            text-align: center;
+        }
+
+        #TYPE:hover {
+            background-color: rgba(139, 168, 112, 0.4);
+        }
+
+        #TYPE:focus {
+            outline: 2px solid #8BA870;
+            outline-offset: 2px;
+        }
+
+        /* Knobs Grid */
+        .knobs-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 5px 20px;
+            flex: 1;
+            align-items: start;
+        }
+
+        .knob-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* SVG Vine-Arc Knobs (O-Detune style) */
+        .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .knob.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .knob-visual {
+            width: 52px;
+            height: 52px;
+            position: relative;
+        }
+
+        .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: var(--knob-track);
+            stroke-width: 2;
+        }
+
+        .knob-vine {
+            fill: none;
+            stroke: var(--knob-vine);
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        .knob-label {
+            font-size: 9px;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* v1.6.0 GEOMETRY PIN — PER ELEMENT, never on the class.
+           A .knob is `column; align-items: center` over a 52 px .knob-visual
+           and a 50 px min-width .knob-value, so its width is
+           max(labelWidth, 52). CLIFF A IS 52.00 px: under it the caption is
+           invisible to the layout, past it the caption DRIVES the box, and
+           .knob-control centres that box inside its grid column — so every
+           child of the knob moves by half the width change, in either
+           direction.
+
+           CHARACTER (61.72) is the ONLY caption on this page past the cliff in
+           English, so it is the only one pinned:
+
+             CHARACTER 61.72 -> pin 62    CARACTÈRE 60.72   1.28 px spare
+
+           The pin costs English 0.28 px and makes the box language-invariant.
+           CARACTÈRE is 1.00 px NARROWER than CHARACTER, so removed alone this
+           rule drops the box to 60.72 in French and assertion 7 reports the
+           knob (dw=-1.00) with its visual, SVG, vine and readout each at
+           dx=0.50.
+
+           THE OTHER FIVE ARE DELIBERATELY UNPINNED, and that is a measured
+           decision rather than an oversight: LOW CUT/COUPE-B., WET/EFFET,
+           DRY/DIRECT, DECAY/DÉCLIN and SIZE/TAILLE are ALL under 52.00 in BOTH
+           languages, so those boxes are 52.00 px either way and a width there
+           would have a negative control that passes with nothing behind it.
+           Leaving them off is also what keeps cliff A observable. */
+
+        #CHARACTER-knob > .knob-label {
+            width: 62px;
+            text-align: center;
+        }
+
+        .knob-value {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 1px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .hz-label {
+            position: absolute;
+            font-size: 8px;
+            color: #5C4033;
+            opacity: 0.7;
+        }
+
+        .hz-left {
+            left: -14px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .hz-right {
+            right: -18px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .lpfreq-wrapper {
+            position: relative;
+        }
+
+        .toggle-btn {
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(92, 64, 51, 0.1);
+            border: 1px solid #8B7355;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(92, 64, 51, 0.2);
+        }
+
+        .toggle-btn.active {
+            background: rgba(139, 168, 112, 0.4);
+            border-color: #3C5C1A;
+            color: #3C5C1A;
+        }
+
+        /* Bottom row: 3-column grid aligned with top row */
+        .bottom-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 0 30px;
+            margin-top: 5px;
+            align-items: start;
+        }
+
+        /* VU Meter - Circular style (1.25x) */
+        .vu-meter {
+            width: 100px;
+            height: 100px;
+            background: rgba(139, 168, 112, 0.2);
+            border: 2px solid #3C5C1A;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            justify-self: center;
+            margin-top: 4px;
+        }
+
+        .vu-meter-scale {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+        }
+
+        .vu-meter-needle {
+            position: absolute;
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to top, #3C5C1A, #3C5C1A);
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(-90deg);
+            border-radius: 1px;
+            transition: transform 0.15s ease-out, background 0.15s ease-out;
+        }
+
+        .vu-meter-pivot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #3C2F2F;
+            border-radius: 50%;
+            bottom: calc(50% - 6px);
+            left: calc(50% - 6px);
+            z-index: 10;
+        }
+
+        .vu-db-label {
+            position: absolute;
+            font-size: 8px;
+            color: #5C4033;
+            font-family: 'Garamond', serif;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding-top: 5px;
+        }
+
+        .version {
+            font-size: 10px;
+            color: #5C4033;
+            opacity: 0.7;
+        }
+
+        /* ── v1.6.0: the settings cluster ────────────────────────────────────
+           PLACEMENT IS THE BOTTOM-LEFT CORNER, chosen so that NOT ONE existing
+           element moves to make room for it: the cluster is position: absolute
+           and out of flow, and it sits in the 20 px page margin OUTSIDE
+           .content's padding box. Measured rather than eyeballed against the
+           v1.5.7 rect sweep — the gear occupies x 6..26, y 322..342, and the
+           nearest laid-out box is the DECAY knob column, which ends at
+           y 301.38 and starts at x 53.00. The only things crossing that strip
+           are the paper background and the botanical overlay, which starts at
+           x 237.41 and is pointer-events: none.
+
+           The plugin's own visual system, not a pasted-in widget: Garamond,
+           #5C4033 borders, the olive rgba(139,168,112) of .preset-nav-btn and
+           the cream rgba(255,248,220) of .preset-display. */
+        .settings-cluster {
+            position: absolute;
+            left: 6px;
+            bottom: 6px;
+            z-index: 60;
+        }
+
+        .gear-btn {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #5C4033;
+            border-radius: 50%;
+            color: #3C2F2F;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .gear-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .gear-btn[aria-expanded="true"] {
+            background: rgba(139, 168, 112, 0.6);
+        }
+
+        .gear-btn:focus-visible {
+            outline: 2px solid #8BA870;
+            outline-offset: 2px;
+        }
+
+        /* Opens UPWARDS. The gear sits 6 px from the BOTTOM of a 350 px frame,
+           so a panel below it would leave the frame entirely; upward it
+           occupies roughly y 280..314, inside the frame and clear of the
+           footer.
+
+           WIDTH IS PINNED, and this pin is LOAD-BEARING for the same reason it
+           is on O-DigiDelay, O-AnalogEQ and O-Bass: .settings-popover is not a
+           [data-i18n] element, so assertion 7 measures its box in both
+           languages, and French SHRINKS the caption inside it (LANGUAGE ->
+           LANGUE). An auto-width panel would therefore CONTRACT in French and
+           be reported as moved. A hard width makes the rectangle
+           language-invariant by construction. 170 px is the batch's number and
+           it fits with room to spare: 6..176 inside a 500 px frame. */
+        .settings-popover {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            z-index: 61;
+            width: 170px;
+            padding: 7px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(255, 248, 220, 0.98);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .settings-popover[hidden] {
+            display: none;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the control beside it.
+
+           A GUARD, NOT A PIN, and labelled as such: removed alone on the
+           shipped strings the gate is still green (LANGUE has ~120 px of row to
+           sit in), so its negative control PASSES and it is not claimed as a
+           fix. It was still PLANTED, because the popover is this page's one
+           absolutely-positioned, width-pinned, height-FREE box — the mechanism
+           commit 4fa586e8 added assertion 8b for. The plant result is in the
+           report. */
+        .settings-label {
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 1px 3px;
+            background: rgba(255, 248, 220, 0.6);
+            border: 1px solid #5C4033;
+            border-radius: 2px;
+            color: #3C2F2F;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-select:focus-visible {
+            outline: 2px solid #8BA870;
+            outline-offset: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="plugin-container">
+        <img src="img/paper.jpg" data-i18n-alt="alt.background" alt="Background" class="background">
+        <img src="img/flora.png" data-i18n-alt="alt.botanical" alt="Botanical" class="botanical-overlay">
+
+        <div class="content">
+            <div class="header">
+                <!-- NOT a [data-i18n] element: a product name is never
+                     translated. Declared in I18N_EXEMPT with that reason, so a
+                     genuinely missed label cannot hide here as a deliberate
+                     one. -->
+                <h1 data-i18n="title.ouaricon-simple-reverb" class="title">Ouaricon Simple Reverb</h1>
+                <div class="preset-bar">
+                    <!-- v1.6.0: the four native title= attributes that stood
+                         here are DELETED, not localized (contract §4). Their
+                         existing English moved verbatim into data-i18n-aria;
+                         no new prose was invented, and this plugin's own
+                         wording ("Save preset" / "Load preset") was kept
+                         rather than harmonised with its siblings'.
+                         #preset-display gets NO accessible name, because
+                         v1.5.7 gave it no title= and there is nothing to move.
+                         #preset-name's own text is the runtime PRESET NAME,
+                         exempt under D-02. -->
+                    <button class="preset-nav-btn" id="preset-prev"
+                            data-i18n-aria="aria.prevPreset" aria-label="Previous preset">&lt;</button>
+                    <div class="preset-display" id="preset-display">
+                        <span id="preset-name">Default</span>
+                        <div class="preset-dropdown" id="preset-dropdown"></div>
+                    </div>
+                    <button class="preset-nav-btn" id="preset-next"
+                            data-i18n-aria="aria.nextPreset" aria-label="Next preset">&gt;</button>
+                    <button class="preset-action-btn" id="preset-save"
+                            data-i18n="label.save" data-label="Save"
+                            data-i18n-aria="aria.savePreset" aria-label="Save preset">Save</button>
+                    <button class="preset-action-btn" id="preset-load"
+                            data-i18n="label.load" data-label="Load"
+                            data-i18n-aria="aria.loadPreset" aria-label="Load preset">Load</button>
+                </div>
+            </div>
+
+            <!-- Type Dropdown - no label -->
+            <div class="type-row">
+                <select id="TYPE">
+                    <option data-i18n="type.booth" value="0">Booth</option>
+                    <option data-i18n="type.room" value="1" selected>Room</option>
+                    <option data-i18n="type.hall" value="2">Hall</option>
+                    <option data-i18n="type.spring" value="3">Spring</option>
+                    <option data-i18n="type.plate" value="4">Plate</option>
+                    <option data-i18n="type.ambient" value="5">Ambient</option>
+                </select>
+            </div>
+
+            <!-- Knobs Grid - Top Row (4 knobs: Character, LP Filter, Wet, Dry) -->
+            <div class="knobs-container">
+                <div class="knob-control">
+                    <div class="knob" id="CHARACTER-knob">
+                        <div class="knob-visual">
+                            <svg viewBox="0 0 52 52">
+                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-vine" id="CHARACTER-vine" cx="26" cy="26" r="22"
+                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                            </svg>
+                        </div>
+                        <span class="knob-label" data-i18n="label.character" data-label="Character">Character</span>
+                        <span data-i18n="CHARACTER-value" class="knob-value" id="CHARACTER-value">neutral</span>
+                    </div>
+                </div>
+
+                <div class="knob-control">
+                    <div class="knob" id="LPFREQ-knob" style="opacity: 0.5;">
+                        <div class="knob-visual lpfreq-wrapper">
+                            <span class="hz-label hz-left">20</span>
+                            <span class="hz-label hz-right">400</span>
+                            <svg viewBox="0 0 52 52">
+                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-vine" id="LPFREQ-vine" cx="26" cy="26" r="22"
+                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                            </svg>
+                        </div>
+                        <span class="knob-label" data-i18n="label.lowCut" data-label="Low Cut">Low Cut</span>
+                        <!-- D-01 arm 3 says a .knob-value is a readout and is EXEMPT. OVERRULED
+                             here with four reasons, written down in js/i18n.js: this node
+                             never holds a number, it is a clickable toggle rather than a
+                             display, LPON is an AudioParameterFloat so arm 1 cannot fire,
+                             and the extractor already emits ON/OFF as this page's two
+                             js-prose LABEL rows. The key is REWRITTEN by setLabel() on
+                             every toggle, so the language sweep owns it in both states. -->
+                        <span class="knob-value toggle-btn" id="LPFREQ-value"
+                              data-i18n="ui.off" data-label="OFF">OFF</span>
+                    </div>
+                </div>
+
+                <div class="knob-control">
+                    <div class="knob" id="WET-knob">
+                        <div class="knob-visual">
+                            <svg viewBox="0 0 52 52">
+                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-vine" id="WET-vine" cx="26" cy="26" r="22"
+                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                            </svg>
+                        </div>
+                        <span class="knob-label" data-i18n="label.wet" data-label="Wet">Wet</span>
+                        <span class="knob-value" id="WET-value">25%</span>
+                    </div>
+                </div>
+
+                <div class="knob-control">
+                    <div class="knob" id="DRY-knob">
+                        <div class="knob-visual">
+                            <svg viewBox="0 0 52 52">
+                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-vine" id="DRY-vine" cx="26" cy="26" r="22"
+                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                            </svg>
+                        </div>
+                        <span class="knob-label" data-i18n="label.dry" data-label="Dry">Dry</span>
+                        <span class="knob-value" id="DRY-value">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Decay (under Character), VU Meter (center), Size (under Dry) -->
+            <div class="bottom-row">
+                <div class="knob-control">
+                    <div class="knob" id="DECAY-knob">
+                        <div class="knob-visual">
+                            <svg viewBox="0 0 52 52">
+                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-vine" id="DECAY-vine" cx="26" cy="26" r="22"
+                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                            </svg>
+                        </div>
+                        <span class="knob-label" data-i18n="label.decay" data-label="Decay">Decay</span>
+                        <span class="knob-value" id="DECAY-value">1.0x</span>
+                    </div>
+                </div>
+
+                <!-- VU Meter (center column) -->
+                <div class="vu-meter">
+                    <svg class="vu-meter-scale" viewBox="0 0 100 100">
+                        <!-- Arc from -60dB (left) to 0dB (right), center=(50,50) r=44 -->
+                        <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                        <!-- Tick marks positioned at correct angles for linear dB scale -->
+                        <!-- -60dB at 180° -->
+                        <line x1="6" y1="50" x2="14" y2="50" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -30dB at 90° -->
+                        <line x1="50" y1="6" x2="50" y2="14" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -12dB at 36° -->
+                        <line x1="85.6" y1="24.2" x2="79.6" y2="28.8" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -6dB at 18° -->
+                        <line x1="91.8" y1="36.4" x2="84.7" y2="38.7" stroke="#5C4033" stroke-width="1"/>
+                        <!-- 0dB at 0° -->
+                        <line x1="94" y1="50" x2="86" y2="50" stroke="#8B0000" stroke-width="1.5"/>
+                    </svg>
+                    <!-- dB labels positioned inward along the arc for legibility -->
+                    <span class="vu-db-label" style="left: 14px; top: 44px;">-60</span>
+                    <span class="vu-db-label" style="left: 40px; top: 14px;">-30</span>
+                    <span class="vu-db-label" style="left: 64px; top: 22px;">-12</span>
+                    <span class="vu-db-label" style="right: 14px; top: 34px;">-6</span>
+                    <span class="vu-db-label" style="right: 14px; top: 44px; color: #8B0000;">0</span>
+                    <div class="vu-meter-needle" id="vu_needle"></div>
+                    <div class="vu-meter-pivot"></div>
+                </div>
+
+                <div class="knob-control">
+                    <div class="knob" id="SIZE-knob">
+                        <div class="knob-visual">
+                            <svg viewBox="0 0 52 52">
+                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-vine" id="SIZE-vine" cx="26" cy="26" r="22"
+                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                            </svg>
+                        </div>
+                        <span class="knob-label" data-i18n="label.size" data-label="Size">Size</span>
+                        <span class="knob-value" id="SIZE-value">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <!-- NOT a [data-i18n] element: a company name plus a version
+                     number, neither of which is translatable. Declared in
+                     I18N_EXEMPT, where the note also records that the literal
+                     is STALE (v1.5.5 against a CMake VERSION of 1.6.0) and why
+                     this commit deliberately does not repair it. -->
+                <span data-i18n="version.ouaricon-audio-v1-5" class="version">Ouaricon Audio v1.5.5</span>
+            </div>
+        </div>
+
+        <!-- v1.6.0: the settings cluster. ONE row, because this plugin has no
+             hover-help to toggle — authoring that copy is Stage M's job and
+             this commit does not invent it. Positioned absolutely in the empty
+             bottom-left page margin so that no existing element moves to make
+             room. -->
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+                    <!-- ENDONYMS. Never localized: a French speaker looking for
+                         their language looks for "Fran&ccedil;ais". -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ====================================================================
+        // JUCE FRONTEND LIBRARY IMPORT
+        // ====================================================================
+        import { getSliderState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
+        // The JUCE 8 frontend NAMESPACE, imported alongside the three named
+        // bindings this page already used. Juce.getNativeFunction is the only
+        // correct way to reach a withNativeFunction registration —
+        // window.__JUCE__ is the raw postMessage transport and does not carry
+        // the promise contract
+        // (critical_juce_webview_namespace_vs_postmessage). Two import
+        // statements from one specifier is legal ES and leaves every existing
+        // call site below untouched.
+        import * as Juce from './js/juce/index.js';
+
+        // v1.6.0: the label table. The canonical import line, re-rooted from
+        // './i18n.js' to './js/i18n.js' because this plugin's controller is an
+        // inline <script type="module"> at the UI root rather than a js/app.js.
+        // check-i18n assertion 6 accepts exactly that one substitution and
+        // nothing else. I18N and TIP_BINDINGS are both EMPTY here (this page
+        // has no hover-help) and are imported anyway so the canon block below
+        // stays byte-identical to the other forty-two copies.
+        import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+        // Verify JUCE backend is connected
+        if (!window.__JUCE__) {
+            console.error("JUCE backend not available");
+            throw new Error("JUCE backend not connected");
+        }
+        console.log("JUCE backend connected");
+
+        // ════════════════════════════════════════════════════════════════════
+        // v1.6.0 — THE i18n RUNTIME (canon v2, verbatim)
+        // ════════════════════════════════════════════════════════════════════
+        //
+        // Byte-identical after comment stripping and whitespace normalisation
+        // to scripts/i18n-canon.js's I18N_CANON_V2. check-i18n assertion 6
+        // pulls this region out and compares it; a copy that drifts fails a
+        // gate instead of drifting quietly.
+        //
+        // IT SITS AT THE TOP, DIRECTLY BELOW THE IMPORTS, AND THAT PLACEMENT
+        // IS FORCED. `uiLanguage` is a top-level `let`, and the low-cut IIFE
+        // several hundred lines below calls updateDisplay() -> setLabel() ->
+        // applyLabel() -> trLabel(key, uiLanguage) DURING module evaluation.
+        // With the block at the bottom — where O-Bass and O-Bitrot put theirs,
+        // because neither of them writes a label before init — that read hits
+        // the temporal dead zone and throws a ReferenceError that takes the
+        // ENTIRE UI with it: every knob, the preset bar and the VU meter, not
+        // one panel (pattern_module_toplevel_init_tdz). Nothing in this block
+        // reaches forward into anything declared below it, so hoisting it here
+        // is safe in the other direction.
+        //
+        // Only DEFINITIONS live here. initI18n() is still CALLED at the very
+        // bottom of the module, after every parameter binding, so an i18n
+        // failure leaves an English plugin that still works rather than a dead
+        // page.
+
+        let uiLanguage = 'en';
+        let getUiLanguageNative = null;
+        let setUiLanguageNative = null;
+
+        // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+        // its label carries one key, not two copies of the same string.
+        function trLabel(key, lang, vars) {
+            const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+            if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+            const s = entry[lang] || entry.en;
+            const resolve = (v) => {
+                const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+                return nested ? String((nested[lang] || nested.en).t) : String(v);
+            };
+            return vars
+                ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+                : String(s.t);
+        }
+
+        function applyLabel(el) {
+            const key = el.dataset.i18n;
+            if (!key) return;
+            let vars = null;
+            try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+            catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+            const s = trLabel(key, uiLanguage, vars);
+            el.dataset.label = s;
+            el.textContent   = s;
+        }
+
+        function applyI18nAttributes(el) {
+            const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+            for (const [prop, attr] of pairs) {
+                const key = el.dataset[prop];
+                if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+            }
+        }
+
+        function setLabel(el, key, vars) {
+            if (!el) return;
+            el.dataset.i18n = key;
+            if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+            applyLabel(el);
+        }
+
+        function applyI18n(lang) {
+            uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+            for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+                const el = document.querySelector(selector);
+                if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+                const target = wrapper ? (el.closest(wrapper) || el) : el;
+                const s = tr(key, uiLanguage, vars);
+                target.setAttribute('data-tip-title', s.t);
+                target.setAttribute('data-tip', s.b);
+            }
+            for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+            for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+                applyI18nAttributes(el);
+            const sel = document.getElementById('lang-select');
+            if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+        }
+
+        // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+        // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+        window.__setLanguage = applyI18n;
+        // Exposed for the same reason, and so a sibling module can write a localized
+        // label without app.js having to export anything — O-Bitrot's controller is an
+        // inline <script type="module">, where an export declaration has nowhere to go.
+        window.__setLabel = setLabel;
+
+        function initI18n() {
+            try {
+                getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+                setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+            } catch (e) {
+                console.warn('Language preference not available, session-only:', e);
+            }
+
+            // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+            try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+            if (getUiLanguageNative) {
+                getUiLanguageNative()
+                    .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+                    .catch((e) => console.warn('Could not read language preference:', e));
+            }
+
+            const sel = document.getElementById('lang-select');
+            if (sel) sel.addEventListener('change', (e) => {
+                applyI18n(e.target.value);
+                if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+            });
+        }
+
+        // ====================================================================
+        // PRESET MANAGER
+        // ====================================================================
+        const presetNameEl = document.getElementById('preset-name');
+        const presetDropdown = document.getElementById('preset-dropdown');
+        const presetDisplay = document.getElementById('preset-display');
+        const presetPrev = document.getElementById('preset-prev');
+        const presetNext = document.getElementById('preset-next');
+        const presetSaveBtn = document.getElementById('preset-save');
+        const presetLoadBtn = document.getElementById('preset-load');
+
+        // Native functions
+        const loadPreset = getNativeFunction("loadPreset");
+        const getPresetList = getNativeFunction("getPresetList");
+        const getCurrentPreset = getNativeFunction("getCurrentPreset");
+        const selectNextPreset = getNativeFunction("selectNextPreset");
+        const selectPreviousPreset = getNativeFunction("selectPreviousPreset");
+        const savePresetWithDialog = getNativeFunction("savePresetWithDialog");
+        const loadPresetFromFile = getNativeFunction("loadPresetFromFile");
+
+        let currentPresetName = 'Default';
+        let presetList = [];
+        let dropdownOpen = false;
+
+        async function refreshPresets() {
+            try {
+                currentPresetName = await getCurrentPreset() || 'Default';
+                presetList = await getPresetList() || [];
+                presetNameEl.textContent = currentPresetName;
+                renderDropdown();
+            } catch (e) {
+                console.error('[Presets] Refresh failed:', e);
+            }
+        }
+
+        function renderDropdown() {
+            presetDropdown.innerHTML = '';
+
+            // Group presets by category (based on name prefix)
+            const categories = {};
+            for (const name of presetList) {
+                const parts = name.split(' - ');
+                const category = parts.length > 1 ? parts[0] : 'User';
+                if (!categories[category]) categories[category] = [];
+                categories[category].push(name);
+            }
+
+            for (const [category, presets] of Object.entries(categories)) {
+                // Category header
+                const header = document.createElement('div');
+                header.className = 'preset-category';
+                header.textContent = category;
+                presetDropdown.appendChild(header);
+
+                // Presets in category
+                for (const name of presets) {
+                    const item = document.createElement('div');
+                    item.className = 'preset-dropdown-item';
+                    if (name === currentPresetName) item.classList.add('active');
+                    // Show just the preset name without category prefix
+                    const displayName = name.includes(' - ') ? name.split(' - ')[1] : name;
+                    item.textContent = displayName;
+                    item.addEventListener('click', async () => {
+                        try {
+                            await loadPreset(name);
+                            currentPresetName = name;
+                            presetNameEl.textContent = name;
+                            closeDropdown();
+                            renderDropdown();
+                        } catch (e) {
+                            console.error('[Presets] Load preset failed:', e);
+                        }
+                    });
+                    presetDropdown.appendChild(item);
+                }
+            }
+        }
+
+        function openDropdown() {
+            presetDropdown.classList.add('show');
+            dropdownOpen = true;
+        }
+
+        function closeDropdown() {
+            presetDropdown.classList.remove('show');
+            dropdownOpen = false;
+        }
+
+        presetDisplay.addEventListener('click', (e) => {
+            if (e.target.closest('.preset-dropdown-item')) return;
+            if (dropdownOpen) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!presetDisplay.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+
+        presetPrev.addEventListener('click', async () => {
+            try {
+                const prevName = await selectPreviousPreset();
+                if (prevName) {
+                    await loadPreset(prevName);
+                    currentPresetName = prevName;
+                    presetNameEl.textContent = prevName;
+                    renderDropdown();
+                }
+            } catch (e) {
+                console.error('[Presets] Previous navigation failed:', e);
+            }
+        });
+
+        presetNext.addEventListener('click', async () => {
+            try {
+                const nextName = await selectNextPreset();
+                if (nextName) {
+                    await loadPreset(nextName);
+                    currentPresetName = nextName;
+                    presetNameEl.textContent = nextName;
+                    renderDropdown();
+                }
+            } catch (e) {
+                console.error('[Presets] Next navigation failed:', e);
+            }
+        });
+
+        // Save button - opens system save dialog
+        presetSaveBtn.addEventListener('click', async () => {
+            try {
+                const result = await savePresetWithDialog();
+                if (result && result.success && result.name) {
+                    currentPresetName = result.name;
+                    presetNameEl.textContent = result.name;
+                    await refreshPresets();
+                    console.log('[Presets] Saved:', result.name);
+                }
+            } catch (e) {
+                console.error('[Presets] Save failed:', e);
+            }
+        });
+
+        // Load button - opens system file picker
+        presetLoadBtn.addEventListener('click', async () => {
+            try {
+                const result = await loadPresetFromFile();
+                if (result && result.success && result.name) {
+                    currentPresetName = result.name;
+                    presetNameEl.textContent = result.name;
+                    renderDropdown();
+                    console.log('[Presets] Loaded:', result.name);
+                }
+            } catch (e) {
+                console.error('[Presets] Load failed:', e);
+            }
+        });
+
+        // Initialize presets
+        refreshPresets();
+
+        // ====================================================================
+        // SVG VINE-ARC KNOB SYSTEM (O-Detune style)
+        // ====================================================================
+
+        const DRAG_SENSITIVITY = 0.005;
+
+        // Arc length for 270 degrees: r=22, circumference = 2*PI*22 = 138.23, arc = 0.75 * 138.23 = 103.67
+        const ARC_LENGTH = 103.67;
+
+        // Knob configurations
+        const knobConfigs = {
+            CHARACTER: { vineId: 'CHARACTER-vine', valueId: 'CHARACTER-value', arcLength: ARC_LENGTH },
+            WET:       { vineId: 'WET-vine',       valueId: 'WET-value',       arcLength: ARC_LENGTH },
+            DRY:       { vineId: 'DRY-vine',       valueId: 'DRY-value',       arcLength: ARC_LENGTH },
+            DECAY:     { vineId: 'DECAY-vine',     valueId: 'DECAY-value',     arcLength: ARC_LENGTH },
+            SIZE:      { vineId: 'SIZE-vine',      valueId: 'SIZE-value',      arcLength: ARC_LENGTH },
+            LPFREQ:    { vineId: 'LPFREQ-vine',    valueId: 'LPFREQ-value',    arcLength: ARC_LENGTH }
+        };
+
+        // Value formatters
+        const formatters = {
+            CHARACTER: norm => {
+                // WR-02: mirror the DSP exactly — the character filter engages
+                // outside ±0.5 on the -100..+100 range, so "neutral" must only
+                // show inside that dead zone (the old ±50 label zones read
+                // "neutral" while an 11kHz low-pass / +3dB shelf was audible).
+                const value = norm * 200 - 100;
+                if (value < -0.5) return `warm ${Math.abs(value).toFixed(0)}%`;
+                if (value > 0.5) return `bright ${value.toFixed(0)}%`;
+                return "neutral";
+            },
+            WET:   norm => `${(norm * 100).toFixed(0)}%`,
+            DRY:   norm => `${(norm * 100).toFixed(0)}%`,
+            // DECAY curve must match the C++ NormalisableRange: skew 0.6309 → exponent 1/0.6309 = 1.585 (CR-02)
+            DECAY: norm => `${(0.5 + 1.5 * Math.pow(norm, 1.585)).toFixed(1)}x`,
+            SIZE:  norm => `${(norm * 100).toFixed(0)}%`
+        };
+
+        // Animation state for smooth knob movement
+        const animationState = {
+            targets: {},
+            frameId: null,
+            isRunning: false,
+            smoothingFactor: 0.15
+        };
+
+        const animationLoop = () => {
+            let needsUpdate = false;
+
+            Object.entries(animationState.targets).forEach(([id, state]) => {
+                const delta = state.target - state.current;
+
+                if (Math.abs(delta) > 0.0001) {
+                    state.current += delta * animationState.smoothingFactor;
+                    needsUpdate = true;
+
+                    const offset = state.config.arcLength - (state.current * state.config.arcLength);
+                    state.vine.style.strokeDashoffset = offset;
+                }
+            });
+
+            if (needsUpdate) {
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            } else {
+                animationState.isRunning = false;
+                animationState.frameId = null;
+            }
+        };
+
+        const startAnimationLoop = () => {
+            if (!animationState.isRunning) {
+                animationState.isRunning = true;
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            }
+        };
+
+        // Global drag state
+        const dragState = {
+            isDragging: false,
+            target: null,
+            startY: 0,
+            startValue: 0
+        };
+
+        // Slider states cache
+        const sliderStates = {};
+
+        // Setup standard knobs (all except LPFREQ which has special toggle behavior)
+        ['CHARACTER', 'WET', 'DRY', 'DECAY', 'SIZE'].forEach(id => {
+            const config = knobConfigs[id];
+            const state = getSliderState(id);
+            sliderStates[id] = state;
+
+            const knobEl = document.getElementById(id + '-knob');
+            const vine = document.getElementById(config.vineId);
+            const valueDisplay = document.getElementById(config.valueId);
+
+            if (!knobEl || !vine || !valueDisplay) return;
+
+            const initialNorm = state.getNormalisedValue();
+            animationState.targets[id] = {
+                current: initialNorm,
+                target: initialNorm,
+                vine: vine,
+                valueDisplay: valueDisplay,
+                config: config
+            };
+
+            const initialOffset = config.arcLength - (initialNorm * config.arcLength);
+            vine.style.strokeDashoffset = initialOffset;
+
+            if (formatters[id]) {
+                valueDisplay.textContent = formatters[id](initialNorm);
+            }
+
+            state.valueChangedEvent.addListener(() => {
+                const normalised = state.getNormalisedValue();
+                animationState.targets[id].target = normalised;
+
+                if (formatters[id]) {
+                    valueDisplay.textContent = formatters[id](normalised);
+                }
+
+                startAnimationLoop();
+            });
+
+            // Mouse drag on knob visual
+            const knobVisual = knobEl.querySelector('.knob-visual');
+            knobVisual.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                dragState.isDragging = true;
+                dragState.target = id;
+                dragState.startY = e.clientY;
+                dragState.startValue = state.getNormalisedValue();
+                state.sliderDragStarted();
+            });
+
+            // Mouse wheel support
+            knobEl.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = state.getNormalisedValue();
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+                state.setNormalisedValue(newNorm);
+            }, { passive: false });
+        });
+
+        // Global mouse handlers for knob dragging
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState.isDragging || !dragState.target) return;
+
+            const state = sliderStates[dragState.target];
+            if (!state) return;
+
+            const deltaY = dragState.startY - e.clientY;
+            let newNormalised = dragState.startValue + (deltaY * DRAG_SENSITIVITY);
+            newNormalised = Math.max(0, Math.min(1, newNormalised));
+
+            state.setNormalisedValue(newNormalised);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragState.isDragging) return;
+
+            const state = sliderStates[dragState.target];
+            if (state) {
+                state.sliderDragEnded();
+            }
+
+            dragState.isDragging = false;
+            dragState.target = null;
+        });
+
+        // ====================================================================
+        // LOW CUT FILTER (LPFREQ with LPON toggle) - SVG vine-arc version
+        // ====================================================================
+        (function() {
+            const lpfreqState = getSliderState("LPFREQ");
+            const lponState = getSliderState("LPON");
+            sliderStates['LPFREQ'] = lpfreqState;
+
+            const lpfreqKnob = document.getElementById("LPFREQ-knob");
+            const lpfreqVine = document.getElementById("LPFREQ-vine");
+            const lpfreqValue = document.getElementById("LPFREQ-value");
+            const config = knobConfigs.LPFREQ;
+
+            const initialNorm = lpfreqState.getNormalisedValue();
+            animationState.targets['LPFREQ'] = {
+                current: initialNorm,
+                target: initialNorm,
+                vine: lpfreqVine,
+                valueDisplay: lpfreqValue,
+                config: config
+            };
+
+            const initialOffset = config.arcLength - (initialNorm * config.arcLength);
+            lpfreqVine.style.strokeDashoffset = initialOffset;
+
+            const updateDisplay = () => {
+                const isOn = lponState.getNormalisedValue() >= 0.5;
+                const freqNorm = lpfreqState.getNormalisedValue();
+
+                lpfreqKnob.style.opacity = isOn ? "1.0" : "0.5";
+                // v1.6.0: setLabel, not textContent. The element declares its
+                // own key from this moment on, so the language-change sweep
+                // owns it and there is no second code path to go stale in the
+                // other language (contract §3). Written as an if/else rather
+                // than `setLabel(el, isOn ? 'ui.on' : 'ui.off')` because
+                // check-i18n assertion 13 rejects a conditional inside a
+                // setLabel argument (contract §6).
+                if (isOn) setLabel(lpfreqValue, 'ui.on');
+                else      setLabel(lpfreqValue, 'ui.off');
+                lpfreqValue.classList.toggle("active", isOn);
+
+                animationState.targets['LPFREQ'].target = freqNorm;
+                startAnimationLoop();
+            };
+
+            // Toggle on/off by clicking label
+            lpfreqValue.addEventListener("click", (e) => {
+                const isOn = lponState.getNormalisedValue() >= 0.5;
+                lponState.setNormalisedValue(isOn ? 0.0 : 1.0);
+                updateDisplay();
+                e.preventDefault();
+            });
+
+            // Mouse drag on knob visual
+            const knobVisual = lpfreqKnob.querySelector('.knob-visual');
+            knobVisual.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                dragState.isDragging = true;
+                dragState.target = 'LPFREQ';
+                dragState.startY = e.clientY;
+                dragState.startValue = lpfreqState.getNormalisedValue();
+                lpfreqState.sliderDragStarted();
+            });
+
+            // Mouse wheel support
+            lpfreqKnob.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = lpfreqState.getNormalisedValue();
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+                lpfreqState.setNormalisedValue(newNorm);
+            }, { passive: false });
+
+            lpfreqState.valueChangedEvent.addListener(updateDisplay);
+            lponState.valueChangedEvent.addListener(updateDisplay);
+            updateDisplay();
+        })();
+
+        // ====================================================================
+        // VU METER - Range: -90 to +90, Color: Green to Red
+        // ====================================================================
+        const vuNeedle = document.getElementById('vu_needle');
+        let currentVUAngle = -90;
+        let targetVUAngle = -90;
+
+        const VU_ATTACK_SPEED = 0.5;
+        const VU_DECAY_SPEED = 0.08;
+        const VU_MIN_ANGLE = -90;
+        const VU_MAX_ANGLE = 90;
+
+        function mapDBToAngle(dbLevel) {
+            const minDB = -60;
+            const maxDB = 0;
+            const clampedDB = Math.max(minDB, Math.min(maxDB, dbLevel));
+            const normalized = (clampedDB - minDB) / (maxDB - minDB);
+            return VU_MIN_ANGLE + (normalized * (VU_MAX_ANGLE - VU_MIN_ANGLE));
+        }
+
+        function getNeedleColor(normalized) {
+            if (normalized < 0.5) {
+                const t = normalized * 2;
+                const r = Math.round(60 + t * (139 - 60));
+                const g = Math.round(92 + t * (139 - 92));
+                const b = Math.round(26 - t * 26);
+                return `rgb(${r}, ${g}, ${b})`;
+            } else {
+                const t = (normalized - 0.5) * 2;
+                const r = Math.round(139);
+                const g = Math.round(139 - t * 139);
+                const b = Math.round(0);
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+        }
+
+        let vuAnimationRunning = false;
+
+        function startVUAnimation() {
+            if (!vuAnimationRunning) {
+                vuAnimationRunning = true;
+                requestAnimationFrame(animateVUMeter);
+            }
+        }
+
+        if (window.__JUCE__ && window.__JUCE__.backend) {
+            window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
+                targetVUAngle = mapDBToAngle(dbLevel);
+                startVUAnimation();
+            });
+        }
+
+        function animateVUMeter() {
+            const vuSpeed = currentVUAngle < targetVUAngle ? VU_ATTACK_SPEED : VU_DECAY_SPEED;
+            currentVUAngle += (targetVUAngle - currentVUAngle) * vuSpeed;
+
+            if (targetVUAngle <= VU_MIN_ANGLE && Math.abs(currentVUAngle - VU_MIN_ANGLE) < 2.0) {
+                currentVUAngle = VU_MIN_ANGLE;
+            }
+
+            const normalized = (currentVUAngle - VU_MIN_ANGLE) / (VU_MAX_ANGLE - VU_MIN_ANGLE);
+            const needleColor = getNeedleColor(normalized);
+
+            vuNeedle.style.transform = `translateX(-50%) rotate(${currentVUAngle}deg)`;
+            vuNeedle.style.background = needleColor;
+
+            if (Math.abs(currentVUAngle - targetVUAngle) > 0.5) {
+                requestAnimationFrame(animateVUMeter);
+            } else {
+                vuAnimationRunning = false;
+            }
+        }
+
+        startVUAnimation();
+
+        // ====================================================================
+        // TYPE PARAMETER (ComboBox)
+        // ====================================================================
+
+        const typeState = getComboBoxState("TYPE");
+        const typeElement = document.getElementById("TYPE");
+
+        typeElement.selectedIndex = typeState.getChoiceIndex();
+
+        typeElement.addEventListener('change', (e) => {
+            const index = parseInt(e.target.value);
+            typeState.setChoiceIndex(index);
+        });
+
+        typeState.valueChangedEvent.addListener(() => {
+            typeElement.selectedIndex = typeState.getChoiceIndex();
+        });
+
+        console.log("Bound ComboBox: TYPE");
+
+        // ====================================================================
+        // THE SETTINGS POPOVER (v1.6.0)
+        // ====================================================================
+        //
+        // ONE row. This plugin has no hover-help to switch on or off — v1.5.7
+        // carried no data-tip anywhere — and authoring that copy is Stage M's
+        // job, so the popover holds the language selector alone. The panel
+        // opens UPWARDS: the gear is 6 px from the BOTTOM of a 350 px frame.
+
+        let settingsPopoverEl = null;
+        let gearBtnEl = null;
+
+        function setSettingsPopoverOpen(open) {
+            if (!settingsPopoverEl || !gearBtnEl) return;
+            settingsPopoverEl.hidden = !open;
+            gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function initializeSettingsPopover() {
+            gearBtnEl = document.getElementById('gear-btn');
+            settingsPopoverEl = document.getElementById('settings-popover');
+
+            if (!gearBtnEl || !settingsPopoverEl) {
+                console.warn('settings popover missing — language selector unavailable');
+                return;
+            }
+
+            gearBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setSettingsPopoverOpen(settingsPopoverEl.hidden);
+            });
+
+            // Dismiss on a press anywhere else, and on Escape. mousedown rather
+            // than click, so the panel is gone before a drag on a knob
+            // underneath it begins — this page starts a knob drag on mousedown.
+            document.addEventListener('mousedown', (e) => {
+                if (settingsPopoverEl.hidden) return;
+                if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+                setSettingsPopoverOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+                    setSettingsPopoverOpen(false);
+                    gearBtnEl.focus();
+                }
+            });
+        }
+
+        // Guarded, and LAST. Every parameter binding above has already been
+        // registered, so an i18n failure leaves an English plugin that still
+        // works rather than a dead page.
+        initializeSettingsPopover();
+        try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+
+        // ====================================================================
+        // INITIALIZATION COMPLETE
+        // ====================================================================
+        console.log("Ouaricon Simple Reverb v1.5.5 UI initialized");
+    </script>
+</body>
+</html>

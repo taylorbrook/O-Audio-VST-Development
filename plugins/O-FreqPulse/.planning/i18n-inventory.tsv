@@ -1,0 +1,52 @@
+# plugin	O-FreqPulse
+# uiRoot	Resources/ui
+# generated	2026-08-28T19:41:24.403Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	34	h1		LABEL	no	plugin-container.ouaricon-frequency-pulse	Ouaricon Frequency Pulse	prose survives the readout filter
+html-text	index.html	37	#presetName		UNSURE	no	presetName	Init	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	39	#loadPreset		LABEL	no	loadPreset	Load	prose survives the readout filter
+html-text	index.html	40	#savePreset		LABEL	no	savePreset	Save	prose survives the readout filter
+html-text	index.html	44	p.tagline		LABEL	no	plugin-container.frequency-band-step-sequencer	Frequency Band Step Sequencer	prose survives the readout filter
+html-text	index.html	54	#euc-band-title		LABEL	no	euc-band-title	Band Controls	prose survives the readout filter
+html-text	index.html	57	label		LABEL	no	euclidean-panel.steps	Steps	prose survives the readout filter
+html-text	index.html	62	label		LABEL	no	euclidean-panel.pulses	Pulses	prose survives the readout filter
+html-text	index.html	67	label		LABEL	no	euclidean-panel.offset	Offset	prose survives the readout filter
+html-text	index.html	72	label		LABEL	no	euclidean-panel.phase	Phase	prose survives the readout filter
+html-text	index.html	77	label		LABEL	no	euclidean-panel.steps-2	Steps	prose survives the readout filter
+html-text	index.html	79	#euc-band-steps-value		LABEL	no	euc-band-steps-value	Global	prose survives the readout filter
+html-text	index.html	95	label		LABEL	no	plugin-container.mix	Mix	prose survives the readout filter
+html-text	index.html	100	label		LABEL	no	plugin-container.steps	Steps	prose survives the readout filter
+html-text	index.html	105	label		LABEL	no	plugin-container.rate	Rate	prose survives the readout filter
+html-text	index.html	120	label		LABEL	no	plugin-container.swing	Swing	prose survives the readout filter
+html-text	index.html	125	label		LABEL	no	plugin-container.attack	Attack	prose survives the readout filter
+html-text	index.html	127	#attack-value		READOUT	no	attack-value	5ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	130	label		LABEL	no	plugin-container.release	Release	prose survives the readout filter
+html-text	index.html	132	#release-value		READOUT	no	release-value	5ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-attr	index.html	36	#prevPreset	title	LABEL	no	prevPreset	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	37	#presetName	title	UNSURE	no	presetName-2	Click to see all presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	38	#nextPreset	title	LABEL	no	nextPreset	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	39	#loadPreset	title	LABEL	no	loadPreset-2	Load preset from file	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	40	#savePreset	title	LABEL	no	savePreset-2	Save current settings	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	86	#tooltip-toggle	title	LABEL	no	tooltip-toggle	Toggle tooltips	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-composed	js/app.js	85	labelEl.textContent		READOUT	no	ui.formatfreq-ranges-i-low	${formatFreq(ranges[i].low)} - ${formatFreq(ranges[i].high)}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	141	mixValue.textContent		READOUT	no	ui.math-round-mixslider-value	${Math.round(mixSlider.value)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	146	mixValue.textContent		READOUT	no	ui.math-round-e-target	${Math.round(e.target.value)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	151	mixValue.textContent		READOUT	no	ui.math-round-mixslider-value-2	${Math.round(mixSlider.value)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	198	swingValue.textContent		READOUT	no	ui.math-round-swingslider-value	${Math.round(swingSlider.value)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	203	swingValue.textContent		READOUT	no	ui.math-round-e-target-2	${Math.round(e.target.value)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	208	swingValue.textContent		READOUT	no	ui.math-round-swingslider-value-2	${Math.round(swingSlider.value)}%	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	217	attackValue.textContent		UNIT	no	ui.math-round-attackstate-getscaledvalue	${Math.round(attackState.getScaledValue())}ms	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	222	attackValue.textContent		UNIT	no	ui.math-round-attackstate-getscaledvalue-2	${Math.round(attackState.getScaledValue())}ms	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	227	attackValue.textContent		UNIT	no	ui.math-round-attackstate-getscaledvalue-3	${Math.round(attackState.getScaledValue())}ms	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	236	releaseValue.textContent		UNIT	no	ui.math-round-releasestate-getscaledvalue	${Math.round(releaseState.getScaledValue())}ms	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	241	releaseValue.textContent		UNIT	no	ui.math-round-releasestate-getscaledvalue-2	${Math.round(releaseState.getScaledValue())}ms	unit symbol, language-neutral (D-03)
+js-composed	js/app.js	246	releaseValue.textContent		UNIT	no	ui.math-round-releasestate-getscaledvalue-3	${Math.round(releaseState.getScaledValue())}ms	unit symbol, language-neutral (D-03)
+js-prose	js/app.js	450	mixLabel.textContent		LABEL	no	ui.mix	Mix	prose survives the readout filter
+js-prose	js/app.js	480	modeIndicator.textContent		LABEL	no	ui.manual	Manual	prose survives the readout filter
+js-composed	js/app.js	780	title.textContent		LABEL	no	ui.band-name-band-controls	${band.name} Band Controls	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/app.js	852	bandStepsValue.textContent		LABEL	no	ui.global	Global	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	861	bandStepsValue.textContent		LABEL	no	ui.global-2	Global	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	869	indicator.textContent		LABEL	no	ui.euclidean	Euclidean	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	869	indicator.textContent		LABEL	no	ui.manual-2	Manual	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	1235	presetDropdown.innerHTML		LABEL	no	ui.div-class-preset-dropdown	<div class="preset-dropdown-item" style="opacity:0.5">No presets</div>	prose survives the readout filter

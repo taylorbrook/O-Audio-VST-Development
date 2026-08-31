@@ -1,0 +1,123 @@
+# plugin	O-Formant
+# uiRoot	Source/ui/public
+# generated	2026-08-30T02:39:15.737Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	873	h1		LABEL	no	ui.o-formant	O-Formant	prose survives the readout filter
+html-text	index.html	874	span		LABEL	no	ui.vocal-synthesizer	vocal synthesizer	prose survives the readout filter
+html-text	index.html	879	option		UNSURE	no	preset-category.all	All	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	882	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	884	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	888	div.tab.active		LABEL	no	tab.synth	Synth	prose survives the readout filter
+html-text	index.html	889	div.tab		LABEL	no	tab.lyrics	Lyrics	prose survives the readout filter
+html-text	index.html	890	div.tab		LABEL	no	tab.tuning	Tuning	prose survives the readout filter
+html-text	index.html	891	div.tab		LABEL	no	tab.effects	Effects	prose survives the readout filter
+html-text	index.html	897	h2		LABEL	no	synth-tab.vowel-morph	Vowel Morph	prose survives the readout filter
+html-text	index.html	905	h3		LABEL	no	synth-tab.glottal-source	Glottal Source	prose survives the readout filter
+html-text	index.html	909	div.knob-label		LABEL	no	synth-tab.voice-q	Voice Q	prose survives the readout filter
+html-text	index.html	914	div.knob-label		LABEL	no	synth-tab.breath	Breath	prose survives the readout filter
+html-text	index.html	919	div.knob-label		LABEL	no	synth-tab.vib-rate	Vib Rate	prose survives the readout filter
+html-text	index.html	920	div.knob-value		READOUT	no	synth-tab.5-5-hz	5.5 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	924	div.knob-label		LABEL	no	synth-tab.vib-depth	Vib Depth	prose survives the readout filter
+html-text	index.html	925	div.knob-value		READOUT	no	synth-tab.15-ct	15 ct	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	929	div.knob-label		LABEL	no	synth-tab.vib-delay	Vib Delay	prose survives the readout filter
+html-text	index.html	930	div.knob-value		READOUT	no	synth-tab.300-ms	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	934	div.knob-label		LABEL	no	synth-tab.jitter	Jitter	prose survives the readout filter
+html-text	index.html	939	div.knob-label		LABEL	no	synth-tab.shimmer	Shimmer	prose survives the readout filter
+html-text	index.html	944	div.knob-label		LABEL	no	synth-tab.rd-mod	Rd Mod	prose survives the readout filter
+html-text	index.html	949	div.knob-label		LABEL	no	synth-tab.tilt	Tilt	prose survives the readout filter
+html-text	index.html	950	div.knob-value		READOUT	no	synth-tab.0-0-db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	956	h3		LABEL	no	synth-tab.consonant	Consonant	prose survives the readout filter
+html-text	index.html	961	div.knob-label		LABEL	no	synth-tab.level	Level	prose survives the readout filter
+html-text	index.html	966	div.knob-label		LABEL	no	synth-tab.voicing	Voicing	prose survives the readout filter
+html-text	index.html	971	div.toggle-label		LABEL	no	synth-tab.auto	Auto	prose survives the readout filter
+html-text	index.html	977	span.cxy-label.cxy-left		LABEL	no	synth-tab.lab	Lab	prose survives the readout filter
+html-text	index.html	978	span.cxy-label.cxy-mid-left		LABEL	no	synth-tab.alv	Alv	prose survives the readout filter
+html-text	index.html	979	span.cxy-label.cxy-mid-right		LABEL	no	synth-tab.pal	Pal	prose survives the readout filter
+html-text	index.html	980	span.cxy-label.cxy-right		LABEL	no	synth-tab.vel	Vel	prose survives the readout filter
+html-text	index.html	981	span.cxy-label.cxy-top		LABEL	no	synth-tab.fric	Fric	prose survives the readout filter
+html-text	index.html	982	span.cxy-label.cxy-bottom		LABEL	no	synth-tab.plos	Plos	prose survives the readout filter
+html-text	index.html	988	div.knob-label		LABEL	no	consonant-env-controls.atk	Atk	prose survives the readout filter
+html-text	index.html	989	div.knob-value		READOUT	no	consonant-env-controls.20-ms	20 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	993	div.knob-label		LABEL	no	consonant-env-controls.hold	Hold	prose survives the readout filter
+html-text	index.html	994	div.knob-value		READOUT	no	consonant-env-controls.30-ms	30 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	998	div.knob-label		LABEL	no	consonant-env-controls.decay	Decay	prose survives the readout filter
+html-text	index.html	999	div.knob-value		READOUT	no	consonant-env-controls.40-ms	40 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1003	div.knob-label		LABEL	no	consonant-env-controls.trans	Trans	prose survives the readout filter
+html-text	index.html	1011	h3		LABEL	no	synth-tab.character	Character	prose survives the readout filter
+html-text	index.html	1013	span.segmented-label		LABEL	no	synth-tab.topology	Topology	prose survives the readout filter
+html-text	index.html	1015	button.segmented-btn.active		LABEL	no	topology-control.cascade	Cascade	prose survives the readout filter
+html-text	index.html	1016	button.segmented-btn		LABEL	no	topology-control.parallel	Parallel	prose survives the readout filter
+html-text	index.html	1017	button.segmented-btn		LABEL	no	topology-control.hybrid	Hybrid	prose survives the readout filter
+html-text	index.html	1023	div.knob-label		LABEL	no	synth-tab.shift	Shift	prose survives the readout filter
+html-text	index.html	1024	div.knob-value		READOUT	no	synth-tab.0-st	0 st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1028	div.knob-label		LABEL	no	synth-tab.spread	Spread	prose survives the readout filter
+html-text	index.html	1033	div.knob-label		LABEL	no	synth-tab.glide	Glide	prose survives the readout filter
+html-text	index.html	1034	div.knob-value		READOUT	no	synth-tab.0-ms	0 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1038	div.knob-label		LABEL	no	synth-tab.transition	Transition	prose survives the readout filter
+html-text	index.html	1043	div.knob-label		LABEL	no	synth-tab.focus	Focus	prose survives the readout filter
+html-text	index.html	1048	div.knob-label		LABEL	no	synth-tab.singer-s-f	Singer's F	prose survives the readout filter
+html-text	index.html	1053	div.knob-label		LABEL	no	synth-tab.nasality	Nasality	prose survives the readout filter
+html-text	index.html	1058	div.knob-label		LABEL	no	synth-tab.nasal-place	Nasal Place	prose survives the readout filter
+html-text	index.html	1069	h3		LABEL	no	synth-tab.envelope	Envelope	prose survives the readout filter
+html-text	index.html	1073	div.knob-label		LABEL	no	synth-tab.attack	Attack	prose survives the readout filter
+html-text	index.html	1074	div.knob-value		READOUT	no	synth-tab.10-ms	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1078	div.knob-label		LABEL	no	synth-tab.decay	Decay	prose survives the readout filter
+html-text	index.html	1079	div.knob-value		READOUT	no	synth-tab.300-ms-2	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1083	div.knob-label		LABEL	no	synth-tab.sustain	Sustain	prose survives the readout filter
+html-text	index.html	1088	div.knob-label		LABEL	no	synth-tab.release	Release	prose survives the readout filter
+html-text	index.html	1089	div.knob-value		READOUT	no	synth-tab.500-ms	500 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1095	h3		LABEL	no	synth-tab.output	Output	prose survives the readout filter
+html-text	index.html	1099	div.knob-label		LABEL	no	synth-tab.gain	Gain	prose survives the readout filter
+html-text	index.html	1100	div.knob-value		READOUT	no	synth-tab.0-0-db-2	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1104	div.knob-label		LABEL	no	synth-tab.width	Width	prose survives the readout filter
+html-text	index.html	1117	span.fx-title		LABEL	no	chorussection.chorus	Chorus	prose survives the readout filter
+html-text	index.html	1118	#chorusBypassBtn		LABEL	no	chorusBypassBtn	On	prose survives the readout filter
+html-text	index.html	1123	div.knob-label		LABEL	no	chorus-knobs.rate	Rate	prose survives the readout filter
+html-text	index.html	1124	div.knob-value		READOUT	no	chorus-knobs.1-00-hz	1.00 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1128	div.knob-label		LABEL	no	chorus-knobs.depth	Depth	prose survives the readout filter
+html-text	index.html	1133	div.knob-label		LABEL	no	chorus-knobs.mix	Mix	prose survives the readout filter
+html-text	index.html	1142	span.fx-title		LABEL	no	delaysection.delay	Delay	prose survives the readout filter
+html-text	index.html	1143	#delayBypassBtn		LABEL	no	delayBypassBtn	On	prose survives the readout filter
+html-text	index.html	1148	div.knob-label		LABEL	no	delay-knobs.time	Time	prose survives the readout filter
+html-text	index.html	1149	div.knob-value		READOUT	no	delay-knobs.375-ms	375 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1153	div.knob-label		LABEL	no	delay-knobs.feedback	Feedback	prose survives the readout filter
+html-text	index.html	1158	div.knob-label		LABEL	no	delay-knobs.mix	Mix	prose survives the readout filter
+html-text	index.html	1163	option		LABEL	no	delaymodeselect.normal	Normal	prose survives the readout filter
+html-text	index.html	1164	option		LABEL	no	delaymodeselect.pingpong	PingPong	prose survives the readout filter
+html-text	index.html	1166	div.knob-label		LABEL	no	delay-knobs.mode	Mode	prose survives the readout filter
+html-text	index.html	1174	span.fx-title		LABEL	no	reverbsection.reverb	Reverb	prose survives the readout filter
+html-text	index.html	1175	#reverbBypassBtn		LABEL	no	reverbBypassBtn	On	prose survives the readout filter
+html-text	index.html	1180	div.knob-label		LABEL	no	reverb-knobs.size	Size	prose survives the readout filter
+html-text	index.html	1185	div.knob-label		LABEL	no	reverb-knobs.damp	Damp	prose survives the readout filter
+html-text	index.html	1190	div.knob-label		LABEL	no	reverb-knobs.pre-dly	Pre-dly	prose survives the readout filter
+html-text	index.html	1191	div.knob-value		READOUT	no	reverb-knobs.20-ms	20 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1195	div.knob-label		LABEL	no	reverb-knobs.mod	Mod	prose survives the readout filter
+html-text	index.html	1200	div.knob-label		LABEL	no	reverb-knobs.shimmer	Shimmer	prose survives the readout filter
+html-text	index.html	1205	div.knob-label		LABEL	no	reverb-knobs.mix	Mix	prose survives the readout filter
+html-text	index.html	1214	span.fx-title		LABEL	no	eqsection.eq	EQ	prose survives the readout filter
+html-text	index.html	1215	#eqBypassBtn		LABEL	no	eqBypassBtn	On	prose survives the readout filter
+html-text	index.html	1220	div.knob-label		LABEL	no	eq-knobs.low	Low	prose survives the readout filter
+html-text	index.html	1221	div.knob-value		READOUT	no	eq-knobs.0-0-db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1225	div.knob-label		LABEL	no	eq-knobs.mid	Mid	prose survives the readout filter
+html-text	index.html	1226	div.knob-value		READOUT	no	eq-knobs.0-0-db-2	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1230	div.knob-label		LABEL	no	eq-knobs.mid-freq	Mid Freq	prose survives the readout filter
+html-text	index.html	1231	div.knob-value		READOUT	no	eq-knobs.1000-hz	1000 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1235	div.knob-label		LABEL	no	eq-knobs.high	High	prose survives the readout filter
+html-text	index.html	1236	div.knob-value		READOUT	no	eq-knobs.0-0-db-3	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1246	h3		LABEL	no	lyrics-tab.arpabet-input	ARPABET Input	prose survives the readout filter
+html-text	index.html	1250	div.toggle-label		LABEL	no	lyrics-tab.enable	Enable	prose survives the readout filter
+html-text	index.html	1252	#lyrics-loop-btn		LABEL	no	lyrics-loop-btn	Loop	prose survives the readout filter
+html-text	index.html	1253	#lyrics-reset-btn		LABEL	no	lyrics-reset-btn	Reset	prose survives the readout filter
+html-text	index.html	1258	div.lyrics-help		LABEL	no	lyrics-tab.vowels-aa-ae-ah	Vowels: AA AE AH AO AW AY EH ER EY IH IY OW OY UH UW | Consonants: B CH D DH F G HH JH K L M N NG P R S SH T TH V W Y Z ZH	prose survives the readout filter
+html-text	index.html	1264	div.lyrics-syllable-label		UNSURE	no	lyrics-tab.syllables	Syllables	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-attr	index.html	881	#preset-prev	title	LABEL	no	preset-prev	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	883	#preset-next	title	LABEL	no	preset-next	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1252	#lyrics-loop-btn	title	LABEL	no	lyrics-loop-btn-2	Toggle loop	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1253	#lyrics-reset-btn	title	LABEL	no	lyrics-reset-btn-2	Reset to first syllable	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1257	#lyrics-input	placeholder	LABEL	no	lyrics-input	Type ARPABET phonemes separated by spaces (e.g. HH AH L OW W ER L D)	prose survives the readout filter
+js-prose	js/main.js	895	btn.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/main.js	895	btn.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/main.js	977	selectEl.innerHTML		LABEL	no	ui.all	All	prose survives the readout filter
+js-composed	js/main.js	1309	counterEl.textContent		READOUT	no	ui.idx-parsed-length	${idx} / ${parsed.length}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-prose	index.html inline <script type="module"> @line 1275	1304	container').innerHTML		LABEL	no	ui.tuning-panel-failed-to	Tuning panel failed to load.	prose survives the readout filter

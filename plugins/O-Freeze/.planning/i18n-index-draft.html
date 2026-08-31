@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Freeze, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=550, initial-scale=1.0, height=530">
+    <title>O-Freeze - Ouaricon Granular Freeze</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 550px;
+            height: 530px;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #1a1410;
+        }
+
+        #app {
+            width: 550px;
+            height: 530px;
+            position: relative;
+            background-image: url('assets/paper1.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Anatomical overlay */
+        #anatomy-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/muscles.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.28;
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        /* Header bar */
+        #header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(42, 35, 28, 0.85);
+            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            z-index: 10;
+        }
+
+        #header h1 {
+            font-size: 18px;
+            font-weight: 400;
+            letter-spacing: 1.5px;
+            color: #b0a590;
+            text-transform: uppercase;
+        }
+
+        /* Central freeze button */
+        #freeze-container {
+            position: absolute;
+            top: calc(50% - 25px);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+
+        #freeze-button {
+            width: 140px;
+            height: 140px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        #freeze-button svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        #freeze-shape {
+            fill: #3a5a4a;
+            stroke: #2a4a3a;
+            stroke-width: 2;
+            transition: fill 0.3s ease, stroke 0.3s ease;
+        }
+
+        #freeze-button:hover #freeze-shape {
+            fill: #4a6a5a;
+        }
+
+        #freeze-button.active #freeze-shape {
+            fill: #5a8a6a;
+            stroke: #4a7a5a;
+        }
+
+        #freeze-button.active #freeze-shape {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        #freeze-button.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #freeze-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: #b0a590;
+            text-transform: uppercase;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+        }
+
+        /* Grain activity visualization */
+        #grain-particles {
+            position: absolute;
+            top: calc(50% - 25px);
+            left: 50%;
+            width: 160px;
+            height: 160px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #grain-particles.active {
+            opacity: 1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #7a9a8a;
+            border-radius: 50%;
+            opacity: 0;
+            animation: particle-float 3s ease-in-out infinite;
+        }
+
+        @keyframes particle-float {
+            0%, 100% { opacity: 0; transform: translate(0, 0); }
+            50% { opacity: 0.6; }
+        }
+
+        /* Reverse toggle */
+        #reverse-container {
+            position: absolute;
+            top: calc(50% - 125px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+        }
+
+        #reverse-toggle {
+            padding: 6px 18px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #6a5540;
+            cursor: pointer;
+            text-transform: uppercase;
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 3px;
+            background: rgba(42, 35, 28, 0.5);
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        #reverse-toggle:hover {
+            background: rgba(139, 115, 85, 0.2);
+        }
+
+        #reverse-toggle.active {
+            background: rgba(90, 122, 106, 0.6);
+            color: #b0a590;
+        }
+
+        /* Mode toggle */
+        #mode-toggle-container {
+            position: absolute;
+            top: 65px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+        }
+
+        #mode-toggle {
+            display: flex;
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 3px;
+            overflow: hidden;
+            background: rgba(42, 35, 28, 0.5);
+        }
+
+        .mode-option {
+            padding: 8px 20px;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            color: #6a5540;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .mode-option:hover {
+            background: rgba(139, 115, 85, 0.2);
+        }
+
+        .mode-option.active {
+            background: rgba(90, 122, 106, 0.6);
+            color: #b0a590;
+        }
+
+        .mode-option:not(:last-child) {
+            border-right: 1px solid rgba(139, 115, 85, 0.3);
+        }
+
+        /* Knobs container */
+        #knobs-container {
+            position: absolute;
+            top: 320px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 530px;
+            display: flex;
+            justify-content: space-around;
+            z-index: 5;
+        }
+
+        /* LFO group below Drift knob */
+        #lfo-group {
+            position: absolute;
+            top: 430px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            z-index: 5;
+            padding: 8px 16px;
+            background: rgba(120, 105, 85, 0.45);
+            border: 1px solid rgba(160, 140, 110, 0.4);
+            border-radius: 4px;
+        }
+
+        #lfo-group-label {
+            position: absolute;
+            top: -9px;
+            left: 12px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: #111;
+            text-transform: uppercase;
+            background: #3a3228;
+            padding: 0 4px;
+        }
+
+        .knob-small {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .knob-small .knob-visual {
+            width: 42px;
+            height: 42px;
+        }
+
+        .knob-small .knob-vine {
+            stroke: #7ab08a;
+            stroke-width: 3.5;
+        }
+
+        .knob-small .knob-label {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #111;
+        }
+
+        .knob-small .knob-value {
+            margin-top: 1px;
+            font-size: 12px;
+            color: #111;
+        }
+
+        /* LFO shape toggle (reuses mode-toggle style) */
+        #lfo-shape-toggle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #lfo-shape-selector {
+            display: flex;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            background: rgba(42, 35, 28, 0.5);
+        }
+
+        .lfo-shape-option {
+            padding: 4px 8px;
+            font-size: 11px;
+            letter-spacing: 0.3px;
+            color: #111;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .lfo-shape-option:hover {
+            background: rgba(139, 115, 85, 0.2);
+        }
+
+        .lfo-shape-option.active {
+            background: rgba(90, 122, 106, 0.6);
+            color: #b0a590;
+        }
+
+        .lfo-shape-option:not(:last-child) {
+            border-right: 1px solid rgba(139, 115, 85, 0.2);
+        }
+
+        #lfo-shape-label {
+            margin-bottom: 4px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #111;
+            text-transform: uppercase;
+        }
+
+        .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .knob.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .knob-visual {
+            width: 60px;
+            height: 60px;
+            position: relative;
+        }
+
+        .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
+        }
+
+        .knob-vine {
+            fill: none;
+            stroke: #5a7a6a;
+            stroke-width: 3;
+            stroke-linecap: round;
+            /* Smooth animation handled by JS interpolation loop */
+        }
+
+        .knob-label {
+            margin-top: 8px;
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: #6a5540;
+            text-transform: uppercase;
+        }
+
+        .knob-value {
+            margin-top: 2px;
+            font-size: 11px;
+            color: #7a6850;
+            cursor: pointer;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .knob-value:hover {
+            color: #b0a590;
+        }
+
+        .knob-input {
+            width: 60px;
+            margin-top: 2px;
+            font-size: 11px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #b0a590;
+            background: rgba(42, 35, 28, 0.9);
+            border: 1px solid rgba(139, 115, 85, 0.5);
+            border-radius: 3px;
+            padding: 2px 4px;
+            text-align: center;
+            outline: none;
+        }
+
+        .knob-input:focus {
+            border-color: #5a7a6a;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="anatomy-overlay"></div>
+
+        <!-- Header -->
+        <div id="header">
+            <h1data-i18n="header.ouaricon-granular-freeze" >Ouaricon Granular Freeze</h1>
+        </div>
+
+        <!-- Grain particles -->
+        <div id="grain-particles">
+            <div class="particle" style="left: 30%; top: 20%; animation-delay: 0s;"></div>
+            <div class="particle" style="left: 70%; top: 30%; animation-delay: 0.5s;"></div>
+            <div class="particle" style="left: 50%; top: 70%; animation-delay: 1s;"></div>
+            <div class="particle" style="left: 20%; top: 60%; animation-delay: 1.5s;"></div>
+            <div class="particle" style="left: 80%; top: 50%; animation-delay: 2s;"></div>
+            <div class="particle" style="left: 40%; top: 80%; animation-delay: 2.5s;"></div>
+        </div>
+
+        <!-- Central freeze button -->
+        <div id="freeze-container">
+            <div id="freeze-button">
+                <svg viewBox="0 0 140 140">
+                    <!-- Organic irregular shape -->
+                    <path id="freeze-shape" d="
+                        M 70,10
+                        C 90,10 100,15 110,25
+                        C 120,35 130,50 130,70
+                        C 130,90 125,105 115,115
+                        C 105,125 90,130 70,130
+                        C 50,130 35,125 25,115
+                        C 15,105 10,90 10,70
+                        C 10,50 15,35 25,25
+                        C 35,15 50,10 70,10
+                        Z
+                    "/>
+                </svg>
+                <div data-i18n="freeze-label" id="freeze-label">Freeze</div>
+            </div>
+        </div>
+
+        <!-- Reverse toggle -->
+        <div id="reverse-container">
+            <div data-i18n="reverse-toggle" id="reverse-toggle">Reverse</div>
+        </div>
+
+        <!-- Mode toggle -->
+        <div id="mode-toggle-container">
+            <div id="mode-toggle">
+                <div data-i18n="mode-toggle.manual" class="mode-option active" data-mode="0">Manual</div>
+                <div data-i18n="mode-toggle.threshold" class="mode-option" data-mode="1">Threshold</div>
+            </div>
+        </div>
+
+        <!-- Knobs -->
+        <div id="knobs-container">
+            <!-- Threshold knob -->
+            <div class="knob disabled" id="threshold-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="39.25"/>
+                    </svg>
+                </div>
+                <div data-i18n="threshold-knob.threshold" class="knob-label">Threshold</div>
+                <div class="knob-value">-40.0 dB</div>
+            </div>
+
+            <!-- Drift knob -->
+            <div class="knob" id="drift-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="157"/>
+                    </svg>
+                </div>
+                <div data-i18n="drift-knob.drift" class="knob-label">Drift</div>
+                <div class="knob-value">0%</div>
+            </div>
+
+            <!-- Grain Size knob -->
+            <div class="knob" id="grain-size-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="82.78"/>
+                    </svg>
+                </div>
+                <div data-i18n="grain-size-knob.size" class="knob-label">Size</div>
+                <div class="knob-value">400 ms</div>
+            </div>
+
+            <!-- Grain Count knob -->
+            <div class="knob" id="grain-count-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="117.75"/>
+                    </svg>
+                </div>
+                <div data-i18n="grain-count-knob.grains" class="knob-label">Grains</div>
+                <div class="knob-value">8</div>
+            </div>
+
+            <!-- Detune knob -->
+            <div class="knob" id="detune-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="94.2"/>
+                    </svg>
+                </div>
+                <div data-i18n="detune-knob.detune" class="knob-label">Detune</div>
+                <div class="knob-value">5.0 ct</div>
+            </div>
+
+            <!-- Mix knob -->
+            <div class="knob" id="mix-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="0"/>
+                    </svg>
+                </div>
+                <div data-i18n="mix-knob.mix" class="knob-label">Mix</div>
+                <div class="knob-value">100%</div>
+            </div>
+        </div>
+
+        <!-- LFO modulation group -->
+        <div id="lfo-group">
+            <div data-i18n="lfo-group-label" id="lfo-group-label">Drift LFO</div>
+
+            <!-- LFO Rate knob (small) -->
+            <div class="knob-small knob" id="lfo-rate-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="117.75"/>
+                    </svg>
+                </div>
+                <div data-i18n="lfo-rate-knob.rate" class="knob-label">Rate</div>
+                <div class="knob-value">0.50 Hz</div>
+            </div>
+
+            <!-- LFO Depth knob (small) -->
+            <div class="knob-small knob" id="lfo-depth-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="78.5"/>
+                    </svg>
+                </div>
+                <div data-i18n="lfo-depth-knob.depth" class="knob-label">Depth</div>
+                <div class="knob-value">50%</div>
+            </div>
+
+            <!-- LFO Shape selector -->
+            <div id="lfo-shape-toggle">
+                <div data-i18n="lfo-shape-label" id="lfo-shape-label">Shape</div>
+                <div id="lfo-shape-selector">
+                    <div data-i18n="lfo-shape-selector.sin" class="lfo-shape-option active" data-shape="0">Sin</div>
+                    <div data-i18n="lfo-shape-selector.tri" class="lfo-shape-option" data-shape="1">Tri</div>
+                    <div data-i18n="lfo-shape-selector.rnd" class="lfo-shape-option" data-shape="2">Rnd</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as Juce from './js/juce/index.js';
+
+        // Parameter states
+        let freezeState, reverseState, thresholdState, modeState, driftState, grainSizeState, grainCountState, detuneState, mixState;
+        let lfoRateState, lfoDepthState, lfoShapeState;
+
+        // Global drag state (fixes the scope issue with knob dragging)
+        const dragState = {
+            isDragging: false,
+            target: null,
+            startY: 0,
+            startValue: 0
+        };
+
+        // Knob configurations for lookup
+        const knobConfigs = {};
+
+        // Animation state for smooth knob movement
+        const animationState = {
+            targets: {},      // { knobId: { current: 0, target: 0, vine: element, arcLength: number } }
+            frameId: null,
+            isRunning: false,
+            smoothingFactor: 0.15  // Exponential smoothing (0-1, lower = smoother but slower)
+        };
+
+        // Animation loop for smooth knob interpolation
+        const animationLoop = (timestamp) => {
+            let needsUpdate = false;
+
+            Object.entries(animationState.targets).forEach(([id, state]) => {
+                const delta = state.target - state.current;
+
+                // Only update if there's meaningful difference
+                if (Math.abs(delta) > 0.0001) {
+                    // Exponential easing toward target
+                    state.current += delta * animationState.smoothingFactor;
+                    needsUpdate = true;
+
+                    // Update vine arc visual
+                    const offset = state.arcLength - (state.current * state.arcLength);
+                    state.vine.style.strokeDashoffset = offset;
+                }
+            });
+
+            // Continue loop if any knob needs updating
+            if (needsUpdate) {
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            } else {
+                animationState.isRunning = false;
+                animationState.frameId = null;
+            }
+        };
+
+        // Start animation loop if not already running
+        const startAnimationLoop = () => {
+            if (!animationState.isRunning) {
+                animationState.isRunning = true;
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            }
+        };
+
+        // Wait for JUCE backend
+        function initializeJUCE() {
+            if (typeof window.__JUCE__ === 'undefined') {
+                console.warn('JUCE backend not available');
+                return;
+            }
+
+            // Get parameter states
+            freezeState = Juce.getToggleState('FREEZE');
+            reverseState = Juce.getToggleState('REVERSE');
+            thresholdState = Juce.getSliderState('THRESHOLD');
+            modeState = Juce.getComboBoxState('MODE');
+            driftState = Juce.getSliderState('DRIFT');
+            grainSizeState = Juce.getSliderState('GRAIN_SIZE');
+            grainCountState = Juce.getSliderState('GRAIN_COUNT');
+            detuneState = Juce.getSliderState('DETUNE');
+            mixState = Juce.getSliderState('MIX');
+            lfoRateState = Juce.getSliderState('LFO_RATE');
+            lfoDepthState = Juce.getSliderState('LFO_DEPTH');
+            lfoShapeState = Juce.getComboBoxState('LFO_SHAPE');
+
+            // Initialize UI from parameter values
+            updateFreezeUI();
+            updateReverseUI();
+            updateModeUI();
+            updateLfoShapeUI();
+            updateKnobUI('threshold-knob');
+            updateKnobUI('drift-knob');
+            updateKnobUI('grain-size-knob');
+            updateKnobUI('grain-count-knob');
+            updateKnobUI('detune-knob');
+            updateKnobUI('mix-knob');
+            updateKnobUI('lfo-rate-knob');
+            updateKnobUI('lfo-depth-knob');
+
+            // Set up parameter listeners
+            freezeState.valueChangedEvent.addListener(() => {
+                updateFreezeUI();
+            });
+
+            reverseState.valueChangedEvent.addListener(() => {
+                updateReverseUI();
+            });
+
+            thresholdState.valueChangedEvent.addListener(() => updateKnobUI('threshold-knob'));
+            modeState.valueChangedEvent.addListener(() => updateModeUI());
+            driftState.valueChangedEvent.addListener(() => updateKnobUI('drift-knob'));
+            grainSizeState.valueChangedEvent.addListener(() => updateKnobUI('grain-size-knob'));
+            grainCountState.valueChangedEvent.addListener(() => updateKnobUI('grain-count-knob'));
+            detuneState.valueChangedEvent.addListener(() => updateKnobUI('detune-knob'));
+            mixState.valueChangedEvent.addListener(() => updateKnobUI('mix-knob'));
+            lfoRateState.valueChangedEvent.addListener(() => updateKnobUI('lfo-rate-knob'));
+            lfoDepthState.valueChangedEvent.addListener(() => updateKnobUI('lfo-depth-knob'));
+            lfoShapeState.valueChangedEvent.addListener(() => updateLfoShapeUI());
+
+            // Set up UI event handlers
+            setupFreezeButton();
+            setupReverseToggle();
+            setupModeToggle();
+            setupKnobs();
+            setupLfoShapeToggle();
+            setupGlobalDragHandlers();
+        }
+
+        // Freeze button
+        function setupFreezeButton() {
+            const freezeBtn = document.getElementById('freeze-button');
+            freezeBtn.addEventListener('click', () => {
+                if (modeState.getChoiceIndex() === 1) return; // Disabled in Threshold mode
+
+                const newValue = !freezeState.getValue();
+                freezeState.setValue(newValue);
+            });
+        }
+
+        function updateFreezeUI() {
+            const freezeBtn = document.getElementById('freeze-button');
+            const particles = document.getElementById('grain-particles');
+            const isActive = freezeState.getValue();
+            const isManualMode = modeState.getChoiceIndex() === 0;
+
+            freezeBtn.classList.toggle('active', isActive);
+            particles.classList.toggle('active', isActive);
+            freezeBtn.classList.toggle('disabled', !isManualMode);
+        }
+
+        // Reverse toggle
+        function setupReverseToggle() {
+            const reverseBtn = document.getElementById('reverse-toggle');
+            reverseBtn.addEventListener('click', () => {
+                const newValue = !reverseState.getValue();
+                reverseState.setValue(newValue);
+            });
+        }
+
+        function updateReverseUI() {
+            const reverseBtn = document.getElementById('reverse-toggle');
+            reverseBtn.classList.toggle('active', reverseState.getValue());
+        }
+
+        // Mode toggle
+        function setupModeToggle() {
+            const modeOptions = document.querySelectorAll('.mode-option');
+            modeOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    const modeIndex = parseInt(option.dataset.mode);
+                    modeState.setChoiceIndex(modeIndex);
+                });
+            });
+        }
+
+        function updateModeUI() {
+            const modeOptions = document.querySelectorAll('.mode-option');
+            const modeIndex = modeState.getChoiceIndex();
+            const isThresholdMode = modeIndex === 1;
+
+            modeOptions.forEach((option, index) => {
+                option.classList.toggle('active', index === modeIndex);
+            });
+
+            const freezeBtn = document.getElementById('freeze-button');
+            const thresholdKnob = document.getElementById('threshold-knob');
+            freezeBtn.classList.toggle('disabled', isThresholdMode);
+            thresholdKnob.classList.toggle('disabled', !isThresholdMode);
+        }
+
+        // Global drag handlers (set up once)
+        function setupGlobalDragHandlers() {
+            document.addEventListener('mousemove', (e) => {
+                if (!dragState.isDragging || !dragState.target) return;
+
+                const config = knobConfigs[dragState.target];
+                if (!config) return;
+
+                const deltaY = dragState.startY - e.clientY;
+                const sensitivity = 0.005;
+                let newNormalised = dragState.startValue + (deltaY * sensitivity);
+                newNormalised = Math.max(0, Math.min(1, newNormalised));
+
+                config.state.setNormalisedValue(newNormalised);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (!dragState.isDragging) return;
+
+                const config = knobConfigs[dragState.target];
+                if (config) {
+                    config.state.sliderDragEnded();
+                }
+
+                dragState.isDragging = false;
+                dragState.target = null;
+            });
+        }
+
+        // Knobs
+        function setupKnobs() {
+            setupKnob('threshold-knob', thresholdState, -60, 0, val => `${val.toFixed(1)} dB`, 'dB');
+            setupKnob('drift-knob', driftState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+            setupKnob('grain-size-knob', grainSizeState, 50, 1000, val => `${val.toFixed(0)} ms`, 'ms');
+            setupKnob('grain-count-knob', grainCountState, 2, 32, val => `${Math.round(val)}`, '');
+            setupKnob('detune-knob', detuneState, 0, 50, val => `${val.toFixed(1)} ct`, 'ct');
+            setupKnob('mix-knob', mixState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+            setupKnob('lfo-rate-knob', lfoRateState, 0.01, 10, val => `${val.toFixed(2)} Hz`, 'Hz');
+            setupKnob('lfo-depth-knob', lfoDepthState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+        }
+
+        function setupKnob(knobId, state, min, max, formatValue, unit) {
+            const knob = document.getElementById(knobId);
+            const vine = knob.querySelector('.knob-vine');
+            const valueDisplay = knob.querySelector('.knob-value');
+
+            // Calculate arc length for this knob (r=25, 270 degrees = 0.75 circumference)
+            const circumference = 2 * Math.PI * 25;
+            const arcLength = circumference * 0.75;
+
+            // Store config for global handler
+            knobConfigs[knobId] = { state, min, max, formatValue, unit, vine, valueDisplay, arcLength };
+
+            // Initialize animation state for this knob
+            const initialNorm = state.getNormalisedValue();
+            animationState.targets[knobId] = {
+                current: initialNorm,
+                target: initialNorm,
+                vine: vine,
+                arcLength: arcLength
+            };
+
+            // Set initial visual state (no animation needed for initial render)
+            const initialOffset = arcLength - (initialNorm * arcLength);
+            vine.style.strokeDashoffset = initialOffset;
+            valueDisplay.textContent = formatValue(state.getScaledValue());
+
+            // Mousedown on knob visual to start drag
+            const knobVisual = knob.querySelector('.knob-visual');
+            knobVisual.addEventListener('mousedown', (e) => {
+                if (knob.classList.contains('disabled')) return;
+
+                e.preventDefault();
+                dragState.isDragging = true;
+                dragState.target = knobId;
+                dragState.startY = e.clientY;
+                dragState.startValue = state.getNormalisedValue();
+                state.sliderDragStarted();
+            });
+
+            // Double-click on value to edit
+            valueDisplay.addEventListener('dblclick', (e) => {
+                if (knob.classList.contains('disabled')) return;
+                e.stopPropagation();
+                showValueInput(knobId);
+            });
+
+            function updateKnobVisual() {
+                // Don't update if we're editing
+                if (valueDisplay.style.display === 'none') return;
+
+                const normalised = state.getNormalisedValue();
+                const scaledValue = state.getScaledValue();
+
+                // Update animation target (will be smoothly interpolated)
+                animationState.targets[knobId].target = normalised;
+
+                // Update value display immediately (text updates feel better without lag)
+                valueDisplay.textContent = formatValue(scaledValue);
+
+                // Start animation loop if not running
+                startAnimationLoop();
+            }
+
+            // Store update function
+            knob.updateVisual = updateKnobVisual;
+        }
+
+        function showValueInput(knobId) {
+            const config = knobConfigs[knobId];
+            const knob = document.getElementById(knobId);
+            const valueDisplay = config.valueDisplay;
+
+            // Create input element
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'knob-input';
+
+            // Get current value without unit
+            const currentValue = config.state.getScaledValue();
+            input.value = config.unit === 'dB' ? currentValue.toFixed(1) : currentValue.toFixed(0);
+
+            // Hide value display, show input
+            valueDisplay.style.display = 'none';
+            valueDisplay.parentNode.insertBefore(input, valueDisplay.nextSibling);
+            input.focus();
+            input.select();
+
+            function commitValue() {
+                let newValue = parseFloat(input.value);
+                if (!isNaN(newValue)) {
+                    // Clamp to range
+                    newValue = Math.max(config.min, Math.min(config.max, newValue));
+                    // Convert to normalised and set
+                    const normalised = (newValue - config.min) / (config.max - config.min);
+                    config.state.setNormalisedValue(normalised);
+                }
+                cleanup();
+            }
+
+            function cleanup() {
+                input.remove();
+                valueDisplay.style.display = '';
+                knob.updateVisual();
+            }
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitValue();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanup();
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                commitValue();
+            });
+        }
+
+        function updateKnobUI(knobId) {
+            const knob = document.getElementById(knobId);
+            if (knob.updateVisual) knob.updateVisual();
+        }
+
+        function setupLfoShapeToggle() {
+            const shapeOptions = document.querySelectorAll('.lfo-shape-option');
+            shapeOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    const shapeIndex = parseInt(option.dataset.shape);
+                    lfoShapeState.setChoiceIndex(shapeIndex);
+                });
+            });
+        }
+
+        function updateLfoShapeUI() {
+            const shapeOptions = document.querySelectorAll('.lfo-shape-option');
+            const shapeIndex = lfoShapeState.getChoiceIndex();
+            shapeOptions.forEach((option, index) => {
+                option.classList.toggle('active', index === shapeIndex);
+            });
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeJUCE);
+        } else {
+            initializeJUCE();
+        }
+    </script>
+</body>
+</html>

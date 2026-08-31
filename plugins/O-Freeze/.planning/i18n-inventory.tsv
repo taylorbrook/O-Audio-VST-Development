@@ -1,0 +1,27 @@
+# plugin	O-Freeze
+# uiRoot	Source/ui/public
+# generated	2026-08-29T03:03:11.145Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	457	h1		LABEL	no	header.ouaricon-granular-freeze	Ouaricon Granular Freeze	prose survives the readout filter
+html-text	index.html	488	#freeze-label		LABEL	no	freeze-label	Freeze	prose survives the readout filter
+html-text	index.html	494	#reverse-toggle		LABEL	no	reverse-toggle	Reverse	prose survives the readout filter
+html-text	index.html	500	div.mode-option.active		LABEL	no	mode-toggle.manual	Manual	prose survives the readout filter
+html-text	index.html	501	div.mode-option		LABEL	no	mode-toggle.threshold	Threshold	prose survives the readout filter
+html-text	index.html	516	div.knob-label		LABEL	no	threshold-knob.threshold	Threshold	prose survives the readout filter
+html-text	index.html	517	div.knob-value		READOUT	no	threshold-knob.40-0-db	-40.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	529	div.knob-label		LABEL	no	drift-knob.drift	Drift	prose survives the readout filter
+html-text	index.html	542	div.knob-label		LABEL	no	grain-size-knob.size	Size	prose survives the readout filter
+html-text	index.html	543	div.knob-value		READOUT	no	grain-size-knob.400-ms	400 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	555	div.knob-label		LABEL	no	grain-count-knob.grains	Grains	prose survives the readout filter
+html-text	index.html	568	div.knob-label		LABEL	no	detune-knob.detune	Detune	prose survives the readout filter
+html-text	index.html	569	div.knob-value		READOUT	no	detune-knob.5-0-ct	5.0 ct	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	581	div.knob-label		LABEL	no	mix-knob.mix	Mix	prose survives the readout filter
+html-text	index.html	588	#lfo-group-label		LABEL	no	lfo-group-label	Drift LFO	prose survives the readout filter
+html-text	index.html	599	div.knob-label		LABEL	no	lfo-rate-knob.rate	Rate	prose survives the readout filter
+html-text	index.html	600	div.knob-value		READOUT	no	lfo-rate-knob.0-50-hz	0.50 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	612	div.knob-label		LABEL	no	lfo-depth-knob.depth	Depth	prose survives the readout filter
+html-text	index.html	618	#lfo-shape-label		LABEL	no	lfo-shape-label	Shape	prose survives the readout filter
+html-text	index.html	620	div.lfo-shape-option.active		LABEL	no	lfo-shape-selector.sin	Sin	prose survives the readout filter
+html-text	index.html	621	div.lfo-shape-option		LABEL	no	lfo-shape-selector.tri	Tri	prose survives the readout filter
+html-text	index.html	622	div.lfo-shape-option		LABEL	no	lfo-shape-selector.rnd	Rnd	prose survives the readout filter

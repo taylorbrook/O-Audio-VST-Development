@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Bowed, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Bowed</title>
+    <link rel="stylesheet" href="/css/tuning-panel.css">
+    <style>
+        /* ====================================================================
+           O-Bowed Naturalist Theme
+           Ouaricon Audio - Physical Modeling Bowed String Synthesizer
+           ==================================================================== */
+
+        :root {
+            --bg-paper: #F5E6D3;
+            --bg-paper-dark: #E8D5BE;
+            --bg-paper-darker: #D4C4AD;
+            --brown-text: #3C2F2F;
+            --brown-text-light: #6B5B4F;
+            --brown-text-lighter: #8B7B6F;
+            --green-light: #8BA870;
+            --green-mid: #6B8E4E;
+            --green-dark: #4A6B35;
+            --green-accent: #A3C288;
+            --brown-border: #8B7355;
+            --brown-frame: #5C4033;
+            --brown-frame-light: #7A5C47;
+            --white-overlay: rgba(255, 255, 255, 0.15);
+            --shadow-soft: rgba(60, 47, 47, 0.15);
+            --shadow-hard: rgba(60, 47, 47, 0.3);
+            --knob-size: 55px;
+            --knob-track: #D4C4AD;
+            --knob-fill: #6B8E4E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 900px;
+            height: 600px;
+            overflow: hidden;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            background: var(--bg-paper);
+            color: var(--brown-text);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ====================================================================
+           Botanical Overlay
+           ==================================================================== */
+        .botanical-overlay {
+            position: absolute;
+            right: -20px;
+            top: 50px;
+            height: 70%;
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+            filter: sepia(0.4) brightness(0.9);
+        }
+
+        /* ====================================================================
+           Preset Browser Bar (Header)
+           ==================================================================== */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            height: 40px;
+            min-height: 40px;
+            padding: 0 12px;
+            background: var(--brown-frame);
+            color: var(--bg-paper);
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .plugin-name {
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+
+        .preset-nav-btn {
+            background: none;
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            color: var(--bg-paper);
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            font-family: inherit;
+        }
+        .preset-nav-btn:hover { background: rgba(245, 230, 211, 0.15); }
+        .preset-nav-btn:active { background: rgba(245, 230, 211, 0.25); }
+
+        .preset-name-display {
+            flex: 1;
+            text-align: center;
+            font-size: 14px;
+            font-style: italic;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.15s;
+            position: relative;
+        }
+        .preset-name-display:hover { background: rgba(245, 230, 211, 0.1); }
+
+        .preset-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--brown-frame);
+            border: 1px solid var(--brown-frame-light);
+            border-radius: 0 0 6px 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 4px 12px var(--shadow-hard);
+        }
+        .preset-dropdown.open { display: block; }
+
+        .preset-dropdown-item {
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--bg-paper);
+            transition: background 0.1s;
+        }
+        .preset-dropdown-item:hover { background: rgba(245, 230, 211, 0.15); }
+        .preset-dropdown-item.active { background: var(--green-dark); }
+
+        .preset-save-btn {
+            background: none;
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            color: var(--bg-paper);
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+            transition: background 0.15s;
+        }
+        .preset-save-btn:hover { background: rgba(245, 230, 211, 0.15); }
+
+        .tuning-btn {
+            background: none;
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            color: var(--bg-paper);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+            transition: background 0.15s;
+        }
+        .tuning-btn:hover { background: rgba(245, 230, 211, 0.15); }
+        .tuning-btn.active { background: var(--green-dark); border-color: var(--green-mid); }
+
+        .brand-label {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+
+        /* ====================================================================
+           Main Content Area (3-column layout)
+           ==================================================================== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .left-panel, .right-panel {
+            width: 200px;
+            min-width: 200px;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--brown-border);
+            border-right: 1px solid var(--brown-border);
+        }
+
+        /* ====================================================================
+           Section Boxes
+           ==================================================================== */
+        .section-box {
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid var(--bg-paper-darker);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        .section-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 6px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid var(--bg-paper-darker);
+        }
+
+        .param-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* ====================================================================
+           Knob Control
+           ==================================================================== */
+        .knob-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 62px;
+            gap: 2px;
+        }
+
+        .knob-wrapper {
+            width: var(--knob-size);
+            height: var(--knob-size);
+            position: relative;
+            cursor: grab;
+        }
+        .knob-wrapper:active { cursor: grabbing; }
+
+        .knob-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: var(--knob-track);
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .knob-fill {
+            fill: none;
+            stroke: var(--knob-fill);
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .knob-center {
+            fill: var(--bg-paper);
+            stroke: var(--bg-paper-darker);
+            stroke-width: 1;
+        }
+
+        .knob-indicator {
+            fill: none;
+            stroke: var(--brown-text);
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .knob-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--brown-text-light);
+            text-align: center;
+            line-height: 1.2;
+            max-width: 62px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .knob-value {
+            font-size: 9px;
+            color: var(--brown-text);
+            text-align: center;
+            font-style: italic;
+            min-height: 12px;
+        }
+
+        /* ====================================================================
+           Dropdown Control
+           ==================================================================== */
+        .dropdown-control {
+            margin-top: 4px;
+        }
+
+        .dropdown-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 3px;
+        }
+
+        .dropdown-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--brown-border);
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-family: inherit;
+            font-size: 11px;
+            color: var(--brown-text);
+            cursor: pointer;
+            outline: none;
+        }
+        .dropdown-select:focus { border-color: var(--green-mid); }
+
+        /* ====================================================================
+           Visualization Tabs
+           ==================================================================== */
+        .viz-tab-bar {
+            display: flex;
+            height: 28px;
+            min-height: 28px;
+            background: var(--bg-paper-dark);
+            border-bottom: 1px solid var(--brown-border);
+        }
+
+        .viz-tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--brown-text-light);
+            font-family: inherit;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+        .viz-tab-btn:hover { color: var(--brown-text); background: var(--white-overlay); }
+        .viz-tab-btn.active {
+            color: var(--green-dark);
+            border-bottom-color: var(--green-mid);
+            font-weight: bold;
+        }
+
+        .viz-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .viz-panel {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+        }
+        .viz-panel.active { display: block; }
+
+        .viz-canvas {
+            display: block;
+        }
+
+        /* ====================================================================
+           Impossible Physics (below viz)
+           ==================================================================== */
+        .impossible-row {
+            display: flex;
+            gap: 4px;
+            padding: 6px 10px;
+            border-top: 1px solid var(--brown-border);
+            justify-content: center;
+            align-items: flex-start;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .impossible-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--brown-text-lighter);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            padding-right: 4px;
+            align-self: center;
+        }
+
+        /* ====================================================================
+           Footer
+           ==================================================================== */
+        .footer-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            min-height: 40px;
+            padding: 0 16px;
+            gap: 16px;
+            background: var(--bg-paper-dark);
+            border-top: 1px solid var(--brown-border);
+            z-index: 10;
+        }
+
+        .footer-bar .knob-control {
+            flex-direction: row;
+            width: auto;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .footer-bar .knob-wrapper {
+            width: 30px;
+            height: 30px;
+        }
+
+        .footer-bar .knob-label {
+            font-size: 9px;
+            min-width: 50px;
+        }
+
+        .footer-bar .knob-value {
+            font-size: 9px;
+            min-width: 50px;
+        }
+
+        /* ====================================================================
+           Tuning Overlay Panel
+           ==================================================================== */
+        .tuning-overlay {
+            display: none;
+            position: absolute;
+            top: 40px;
+            left: 0;
+            right: 0;
+            bottom: 40px;
+            background: var(--bg-paper);
+            z-index: 50;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .tuning-overlay.open { display: block; }
+
+        /* ====================================================================
+           Conditional visibility
+           ==================================================================== */
+        .hidden { display: none !important; }
+
+        /* ====================================================================
+           Humanize Section
+           ==================================================================== */
+        .humanize-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            justify-items: center;
+        }
+        .humanize-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .humanize-col-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 2px;
+        }
+        .humanize-knob {
+            width: 38px;
+        }
+        .humanize-knob .knob-wrapper {
+            width: 30px;
+            height: 30px;
+        }
+        .humanize-knob .knob-label {
+            font-size: 8px;
+        }
+        .humanize-knob .knob-value {
+            font-size: 8px;
+        }
+
+        /* ====================================================================
+           Scrollbar
+           ==================================================================== */
+        .left-panel::-webkit-scrollbar,
+        .right-panel::-webkit-scrollbar { width: 4px; }
+        .left-panel::-webkit-scrollbar-track,
+        .right-panel::-webkit-scrollbar-track { background: transparent; }
+        .left-panel::-webkit-scrollbar-thumb,
+        .right-panel::-webkit-scrollbar-thumb {
+            background: var(--bg-paper-darker);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botanical overlay -->
+    <img class="botanical-overlay" src="/img/botanical.png" alt="" />
+
+    <!-- ================================================================
+         Preset Bar (Header)
+         ================================================================ -->
+    <div class="preset-bar">
+        <span data-i18n="plugin-name.o-bowed" class="plugin-name">O-Bowed</span>
+        <button class="preset-nav-btn" id="preset-prev" title="Previous Preset">&#9664;</button>
+        <div class="preset-name-display" id="preset-name" title="Click to browse presets">
+            Default
+            <div class="preset-dropdown" id="preset-dropdown"></div>
+        </div>
+        <button class="preset-nav-btn" id="preset-next" title="Next Preset">&#9654;</button>
+        <button data-i18n="preset-save" class="preset-save-btn" id="preset-save">Save</button>
+        <button data-i18n="tuning-toggle" class="tuning-btn" id="tuning-toggle">Tuning</button>
+        <span data-i18n="brand-label.ouaricon" class="brand-label">Ouaricon</span>
+    </div>
+
+    <!-- ================================================================
+         Main 3-Column Layout
+         ================================================================ -->
+    <div class="main-content">
+
+        <!-- LEFT PANEL: Bow Controls -->
+        <div class="left-panel">
+            <div class="section-box">
+                <div data-i18n="section-label.bow" class="section-label">Bow</div>
+                <div class="param-row">
+                    <div class="knob-control" data-param="bowSpeed">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.speed" class="knob-label">Speed</div>
+                        <div class="knob-value">0.20</div>
+                    </div>
+                    <div class="knob-control" data-param="bowPressure">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.pressure" class="knob-label">Pressure</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                    <div class="knob-control" data-param="bowPosition">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.position" class="knob-label">Position</div>
+                        <div class="knob-value">0.12</div>
+                    </div>
+                </div>
+                <div class="param-row" style="margin-top: 4px;">
+                    <div class="knob-control" data-param="rosin">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.rosin" class="knob-label">Rosin</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                    <div class="knob-control" data-param="bowNoise">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.noise" class="knob-label">Noise</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                    <div class="knob-control" data-param="bowHairStiffness">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.hair-stiff" class="knob-label">Hair Stiff.</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-box">
+                <div data-i18n="section-label.humanize" class="section-label">Humanize</div>
+                <div class="humanize-grid">
+                    <div class="humanize-col">
+                        <div data-i18n="humanize-col-label.speed" class="humanize-col-label">Speed</div>
+                        <div class="knob-control humanize-knob" data-param="humanizeSpeedRange">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.amt" class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizeSpeedRate">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.rate" class="knob-label">Rate</div>
+                            <div class="knob-value">0.25</div>
+                        </div>
+                    </div>
+                    <div class="humanize-col">
+                        <div data-i18n="humanize-col-label.pressure" class="humanize-col-label">Pressure</div>
+                        <div class="knob-control humanize-knob" data-param="humanizePressureRange">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.amt-2" class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizePressureRate">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.rate-2" class="knob-label">Rate</div>
+                            <div class="knob-value">0.30</div>
+                        </div>
+                    </div>
+                    <div class="humanize-col">
+                        <div data-i18n="humanize-col-label.position" class="humanize-col-label">Position</div>
+                        <div class="knob-control humanize-knob" data-param="humanizePositionRange">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.amt-3" class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizePositionRate">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.rate-3" class="knob-label">Rate</div>
+                            <div class="knob-value">0.20</div>
+                        </div>
+                    </div>
+                    <div class="humanize-col">
+                        <div data-i18n="humanize-col-label.rosin" class="humanize-col-label">Rosin</div>
+                        <div class="knob-control humanize-knob" data-param="humanizeRosinRange">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.amt-4" class="knob-label">Amt</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control humanize-knob" data-param="humanizeRosinRate">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="knob-label.rate-4" class="knob-label">Rate</div>
+                            <div class="knob-value">0.35</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: Visualizations + Impossible Physics -->
+        <div class="center-panel">
+            <div class="viz-tab-bar">
+                <button data-i18n="viz-tab-btn.bow-string" class="viz-tab-btn active" data-viz="bowString">Bow-String</button>
+                <button data-i18n="viz-tab-btn.body-spectrum" class="viz-tab-btn" data-viz="bodySpectrum">Body Spectrum</button>
+                <button data-i18n="viz-tab-btn.schelleng" class="viz-tab-btn" data-viz="schelleng">Schelleng</button>
+            </div>
+            <div class="viz-content">
+                <div class="viz-panel active" id="viz-bowString">
+                    <canvas class="viz-canvas" id="canvas-bowString"></canvas>
+                </div>
+                <div class="viz-panel" id="viz-bodySpectrum">
+                    <canvas class="viz-canvas" id="canvas-bodySpectrum"></canvas>
+                </div>
+                <div class="viz-panel" id="viz-schelleng">
+                    <canvas class="viz-canvas" id="canvas-schelleng"></canvas>
+                </div>
+            </div>
+            <div class="impossible-row">
+                <span data-i18n="impossible-label.impossible" class="impossible-label">Impossible</span>
+                <div class="knob-control" data-param="infiniteSustain">
+                    <div class="knob-wrapper"></div>
+                    <div data-i18n="knob-label.inf-sustain" class="knob-label">Inf. Sustain</div>
+                    <div class="knob-value">0.00</div>
+                </div>
+                <div class="knob-control" data-param="reversedFriction">
+                    <div class="knob-wrapper"></div>
+                    <div data-i18n="knob-label.rev-friction" class="knob-label">Rev. Friction</div>
+                    <div class="knob-value">0.00</div>
+                </div>
+                <div class="knob-control" data-param="subHarmonics">
+                    <div class="knob-wrapper"></div>
+                    <div data-i18n="knob-label.sub-harm" class="knob-label">Sub Harm.</div>
+                    <div class="knob-value">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Body + Strings -->
+        <div class="right-panel">
+            <div class="section-box">
+                <div data-i18n="section-label.body" class="section-label">Body</div>
+                <div class="param-row">
+                    <div class="knob-control" data-param="bodyMaterial">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.material" class="knob-label">Material</div>
+                        <div class="knob-value">0.40</div>
+                    </div>
+                    <div class="knob-control" data-param="bodySize">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.size" class="knob-label">Size</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                    <div class="knob-control" data-param="brightness">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.brightness" class="knob-label">Brightness</div>
+                        <div class="knob-value">8000 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="bodyAmount">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.body-amt" class="knob-label">Body Amt</div>
+                        <div class="knob-value">0.60</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-box">
+                <div data-i18n="section-label.string" class="section-label">String</div>
+                <div class="param-row">
+                    <div class="knob-control" data-param="stringGauge">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.gauge" class="knob-label">Gauge</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-box">
+                <div data-i18n="section-label.sympathetic" class="section-label">Sympathetic</div>
+                <div class="param-row">
+                    <div class="knob-control" data-param="sympatheticCount">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="knob-label.count" class="knob-label">Count</div>
+                        <div class="knob-value">0</div>
+                    </div>
+                    <div class="knob-control" data-param="sympatheticAmount" id="sympAmount-ctrl">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="sympamount-ctrl.amount" class="knob-label">Amount</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                    <div class="knob-control" data-param="sympatheticDecay" id="sympDecay-ctrl">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="sympdecay-ctrl.decay" class="knob-label">Decay</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         Tuning Overlay (toggled from header)
+         ================================================================ -->
+    <div class="tuning-overlay" id="tuning-overlay">
+        <div id="tuning-container"></div>
+    </div>
+
+    <!-- ================================================================
+         Footer Bar
+         ================================================================ -->
+    <div class="footer-bar">
+        <div class="knob-control" data-param="referencePitch">
+            <div class="knob-wrapper"></div>
+            <div data-i18n="knob-label.ref-pitch" class="knob-label">Ref Pitch</div>
+            <div class="knob-value">440.0 Hz</div>
+        </div>
+        <div class="knob-control" data-param="width">
+            <div class="knob-wrapper"></div>
+            <div data-i18n="knob-label.width" class="knob-label">Width</div>
+            <div class="knob-value">1.00</div>
+        </div>
+        <div class="knob-control" data-param="outputLevel">
+            <div class="knob-wrapper"></div>
+            <div data-i18n="knob-label.output" class="knob-label">Output</div>
+            <div class="knob-value">0.0 dB</div>
+        </div>
+    </div>
+
+    <!-- JUCE WebView Bridge -->
+    <script src="/js/juce/index.js"></script>
+    <script src="/js/juce/check_native_interop.js"></script>
+
+    <script type="module">
+        import * as Juce from '/js/juce/index.js';
+
+        // ====================================================================
+        // Parameter Definitions (raw ranges for display formatting)
+        // ====================================================================
+        const PARAMS = {
+            bowSpeed:          { min: 0.02, max: 2.0, default: 0.2, unit: ' m/s', decimals: 2 },
+            bowPressure:       { min: 0.01, max: 5.0, default: 0.5, unit: ' N', decimals: 2 },
+            bowPosition:       { min: 0.02, max: 0.30, default: 0.12, unit: '', decimals: 2 },
+            rosin:             { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            bowNoise:          { min: 0, max: 1, default: 0.0, unit: '', decimals: 2 },
+            bodyMaterial:      { min: 0, max: 1, default: 0.4, unit: '', decimals: 2 },
+            bodySize:          { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            brightness:        { min: 20, max: 20000, default: 8000, unit: ' Hz', decimals: 0 },
+            sympatheticAmount: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            sympatheticCount:  { min: 0, max: 12, default: 0, unit: '', decimals: 0 },
+            // CR-04: real APVTS params whose knobs render but were never bound. Adding
+            // them here lets the bind loop (Object.keys(PARAMS)) wire the relay/state.
+            sympatheticDecay:  { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            bodyAmount:        { min: 0, max: 1, default: 0.6, unit: '', decimals: 2 },
+            stringGauge:       { min: 0.1, max: 2.0, default: 0.5, unit: '', decimals: 2 },
+            bowHairStiffness:  { min: 0, max: 1, default: 0.0, unit: '', decimals: 2 },
+            width:             { min: 0, max: 2, default: 1, unit: '', decimals: 2 },
+            outputLevel:       { min: -60, max: 12, default: 0, unit: ' dB', decimals: 1 },
+            infiniteSustain:   { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            reversedFriction:  { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            subHarmonics:      { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            referencePitch:    { min: 220, max: 880, default: 440, unit: ' Hz', decimals: 1 },
+            // Humanize (range = 0..1 amount, rate = 0..1 drift speed)
+            humanizeSpeedRange:    { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizeSpeedRate:     { min: 0, max: 1, default: 0.25,  unit: '', decimals: 2 },
+            humanizePressureRange: { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizePressureRate:  { min: 0, max: 1, default: 0.30,  unit: '', decimals: 2 },
+            humanizePositionRange: { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizePositionRate:  { min: 0, max: 1, default: 0.20,  unit: '', decimals: 2 },
+            humanizeRosinRange:    { min: 0, max: 1, default: 0,     unit: '', decimals: 2 },
+            humanizeRosinRate:     { min: 0, max: 1, default: 0.35,  unit: '', decimals: 2 },
+        };
+
+        // ====================================================================
+        // SVG Arc Knob Rendering (from O-Wind pattern)
+        // ====================================================================
+        const ARC_START = 135;
+        const ARC_END = 405;
+        const ARC_RANGE = ARC_END - ARC_START;
+
+        function polarToCartesian(cx, cy, r, angleDeg) {
+            const rad = (angleDeg - 90) * Math.PI / 180;
+            return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+        }
+
+        function describeArc(cx, cy, r, startAngle, endAngle) {
+            const start = polarToCartesian(cx, cy, r, endAngle);
+            const end = polarToCartesian(cx, cy, r, startAngle);
+            const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+            return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+        }
+
+        function createKnobSVG(container, size = 55) {
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = size * 0.4;
+            const innerR = size * 0.255;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+            svg.classList.add('knob-svg');
+
+            const track = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            track.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_END));
+            track.classList.add('knob-track');
+            svg.appendChild(track);
+
+            const fill = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_START));
+            fill.classList.add('knob-fill');
+            fill.dataset.role = 'fill';
+            svg.appendChild(fill);
+
+            const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            center.setAttribute('cx', cx);
+            center.setAttribute('cy', cy);
+            center.setAttribute('r', innerR);
+            center.classList.add('knob-center');
+            svg.appendChild(center);
+
+            const indicator = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            indicator.classList.add('knob-indicator');
+            indicator.dataset.role = 'indicator';
+            svg.appendChild(indicator);
+
+            container.appendChild(svg);
+            return svg;
+        }
+
+        function updateKnobVisual(control, normValue, size = 55) {
+            const svg = control.querySelector('.knob-svg');
+            if (!svg) return;
+
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = size * 0.4;
+            const innerR = size * 0.255;
+            const angle = ARC_START + normValue * ARC_RANGE;
+
+            const fill = svg.querySelector('[data-role="fill"]');
+            if (normValue < 0.005) {
+                fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_START));
+            } else {
+                fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, angle));
+            }
+
+            const indicator = svg.querySelector('[data-role="indicator"]');
+            const indicatorStart = polarToCartesian(cx, cy, innerR - 2, angle);
+            const indicatorEnd = polarToCartesian(cx, cy, r - 2, angle);
+            indicator.setAttribute('x1', indicatorStart.x);
+            indicator.setAttribute('y1', indicatorStart.y);
+            indicator.setAttribute('x2', indicatorEnd.x);
+            indicator.setAttribute('y2', indicatorEnd.y);
+        }
+
+        function formatValue(paramName, rawValue) {
+            const def = PARAMS[paramName];
+            if (!def) return rawValue.toFixed(2);
+            return rawValue.toFixed(def.decimals) + def.unit;
+        }
+
+        function normToRaw(paramName, norm) {
+            const def = PARAMS[paramName];
+            if (!def) return norm;
+            return def.min + norm * (def.max - def.min);
+        }
+
+        // ====================================================================
+        // Slider Parameter Binding (JUCE WebSliderRelay)
+        // ====================================================================
+        const sliderStates = {};
+        // WR-07: normalized defaults per parameter (populated from the getParameterDefaults
+        // native fn at init) so double-click reset is skew-correct.
+        const parameterDefaults = {};
+
+        function bindSliderParam(paramName) {
+            const control = document.querySelector(`.knob-control[data-param="${paramName}"]`);
+            if (!control) {
+                console.warn('No control for:', paramName);
+                return;
+            }
+
+            const wrapper = control.querySelector('.knob-wrapper');
+            const isFooter = control.closest('.footer-bar') !== null;
+            const isHumanize = control.classList.contains('humanize-knob');
+            const knobSize = (isFooter || isHumanize) ? 30 : 55;
+            createKnobSVG(wrapper, knobSize);
+
+            try {
+                const state = Juce.getSliderState(paramName);
+                sliderStates[paramName] = state;
+
+                const initNorm = state.getNormalisedValue();
+                updateKnobVisual(control, initNorm, knobSize);
+                // WR-07: readout from getScaledValue() — the real engineering value honoring
+                // the C++ NormalisableRange (incl. skew), pushed via propertiesChanged. The
+                // old linear normToRaw() read skewed params (bowSpeed/bowPressure/brightness/
+                // stringGauge) ~2-8x wrong.
+                control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    const norm = state.getNormalisedValue();
+                    updateKnobVisual(control, norm, knobSize);
+                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+
+                    // Conditional visibility updates
+                    if (paramName === 'sympatheticCount') updateSympVisibility(norm);
+                });
+
+                // UI -> JUCE (relative drag)
+                let dragging = false;
+                let dragStartY = 0;
+                let dragStartNorm = 0;
+
+                wrapper.addEventListener('mousedown', (e) => {
+                    dragging = true;
+                    dragStartY = e.clientY;
+                    dragStartNorm = state.getNormalisedValue();
+                    state.sliderDragStarted();
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!dragging) return;
+                    const dy = dragStartY - e.clientY;
+                    const sensitivity = e.shiftKey ? 600 : 200;
+                    let newNorm = dragStartNorm + dy / sensitivity;
+                    newNorm = Math.max(0, Math.min(1, newNorm));
+                    state.setNormalisedValue(newNorm);
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (dragging) {
+                        dragging = false;
+                        state.sliderDragEnded();
+                    }
+                });
+
+                // Double-click reset — WR-07: use the true normalized default from
+                // getParameterDefaults (skew-correct). The old linear
+                // (default-min)/(max-min) landed off-default for skewed params.
+                wrapper.addEventListener('dblclick', (e) => {
+                    const defaultNorm = parameterDefaults[paramName];
+                    if (typeof defaultNorm === 'number') {
+                        state.sliderDragStarted();
+                        state.setNormalisedValue(defaultNorm);
+                        state.sliderDragEnded();
+                    }
+                    e.preventDefault();
+                });
+
+            } catch (err) {
+                console.error('Failed to bind:', paramName, err);
+            }
+        }
+
+        // ====================================================================
+        // ComboBox Binding (tuningSystem)
+        // ====================================================================
+        function bindComboBox(paramId, selectId) {
+            const selectEl = document.getElementById(selectId);
+            if (!selectEl) return;
+
+            try {
+                const state = Juce.getComboBoxState(paramId);
+
+                // Init from properties (may be deferred)
+                function initFromState() {
+                    const idx = state.getChoiceIndex();
+                    if (idx >= 0) selectEl.selectedIndex = idx;
+                }
+                initFromState();
+
+                state.propertiesChangedEvent.addListener(() => { initFromState(); });
+                state.valueChangedEvent.addListener(() => {
+                    const idx = state.getChoiceIndex();
+                    if (idx >= 0) selectEl.selectedIndex = idx;
+                });
+
+                selectEl.addEventListener('change', () => {
+                    state.setChoiceIndex(selectEl.selectedIndex);
+                });
+            } catch (err) {
+                console.error('Failed to bind combo:', paramId, err);
+            }
+        }
+
+        // ====================================================================
+        // Conditional Visibility
+        // ====================================================================
+        function updateSympVisibility(normSympCount) {
+            const def = PARAMS.sympatheticCount;
+            const count = Math.round(def.min + normSympCount * (def.max - def.min));
+            const amtCtrl = document.getElementById('sympAmount-ctrl');
+            if (amtCtrl) {
+                if (count > 0) amtCtrl.classList.remove('hidden');
+                else amtCtrl.classList.add('hidden');
+            }
+        }
+
+        // ====================================================================
+        // Visualization: Bow-String Animation (Tab 1 - default)
+        // ====================================================================
+        let vizState = { bowSpeed: 0.2, bowPressure: 0.5, bowPosition: 0.12, material: 0.4, bodySize: 0.5, brightness: 0.5, isPlaying: false };
+        let activeVizTab = 'bowString';
+        let bowStringAnimId = null;
+        let vizPollTimer = null;
+        let bowPhase = 0;
+
+        function setupBowStringCanvas() {
+            const canvas = document.getElementById('canvas-bowString');
+            const panel = document.getElementById('viz-bowString');
+            if (!canvas || !panel) return;
+
+            const dpr = window.devicePixelRatio || 1;
+            const w = panel.clientWidth;
+            const h = panel.clientHeight;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function drawBowString() {
+            const canvas = document.getElementById('canvas-bowString');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+
+            ctx.save();
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Background
+            ctx.fillStyle = '#F5E6D3';
+            ctx.fillRect(0, 0, w, h);
+
+            const margin = 40;
+            const stringY = h * 0.55;
+            const stringStartX = margin;
+            const stringEndX = w - margin;
+            const stringLen = stringEndX - stringStartX;
+
+            // Bow contact point
+            const beta = vizState.bowPosition; // 0.02 - 0.30
+            const bowX = stringStartX + beta * stringLen;
+
+            // String vibration amplitude
+            const amp = vizState.isPlaying ? (vizState.bowPressure * 0.3 + 0.05) * (h * 0.2) : 0;
+
+            // Bridge and nut
+            ctx.fillStyle = '#5C4033';
+            ctx.fillRect(stringStartX - 4, stringY - 8, 4, 16);
+            ctx.fillRect(stringEndX, stringY - 8, 4, 16);
+
+            // Labels
+            ctx.fillStyle = '#8B7B6F';
+            ctx.font = '9px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText('Bridge', stringStartX, stringY + 24);
+            ctx.fillText('Nut', stringEndX, stringY + 24);
+
+            // Draw vibrating string as bezier
+            ctx.strokeStyle = '#3C2F2F';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(stringStartX, stringY);
+
+            if (vizState.isPlaying && amp > 0.5) {
+                bowPhase += vizState.bowSpeed * 0.15;
+                const numPoints = 80;
+                for (let i = 0; i <= numPoints; i++) {
+                    const t = i / numPoints;
+                    const x = stringStartX + t * stringLen;
+                    // Helmholtz-like displacement: kink at bow point
+                    let displacement = 0;
+                    if (x <= bowX) {
+                        displacement = amp * (x - stringStartX) / (bowX - stringStartX);
+                    } else {
+                        displacement = amp * (stringEndX - x) / (stringEndX - bowX);
+                    }
+                    // Add harmonics
+                    displacement *= Math.sin(bowPhase + t * Math.PI * 2) * 0.3 + 0.7;
+                    // Add higher mode content
+                    displacement += amp * 0.15 * Math.sin(bowPhase * 2.7 + t * Math.PI * 4);
+                    ctx.lineTo(x, stringY - displacement);
+                }
+            } else {
+                ctx.lineTo(stringEndX, stringY);
+            }
+            ctx.stroke();
+
+            // Bow indicator
+            const bowWidth = 6;
+            const bowHeight = 30 + vizState.bowPressure * 20;
+            ctx.fillStyle = 'rgba(107, 142, 78, 0.7)';
+            ctx.fillRect(bowX - bowWidth/2, stringY - bowHeight - 5, bowWidth, bowHeight);
+
+            // Bow pressure indicator (penetration line)
+            const penetration = vizState.bowPressure * 8;
+            ctx.strokeStyle = '#6B8E4E';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(bowX - 15, stringY + penetration);
+            ctx.lineTo(bowX + 15, stringY + penetration);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Speed arrow
+            const arrowLen = vizState.bowSpeed * 40 + 10;
+            ctx.strokeStyle = '#6B8E4E';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(bowX, stringY - bowHeight - 15);
+            ctx.lineTo(bowX + arrowLen, stringY - bowHeight - 15);
+            ctx.moveTo(bowX + arrowLen - 6, stringY - bowHeight - 19);
+            ctx.lineTo(bowX + arrowLen, stringY - bowHeight - 15);
+            ctx.lineTo(bowX + arrowLen - 6, stringY - bowHeight - 11);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#6B5B4F';
+            ctx.font = '10px Georgia';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Speed: ${vizState.bowSpeed.toFixed(2)} m/s`, margin, 20);
+            ctx.fillText(`Pressure: ${vizState.bowPressure.toFixed(2)} N`, margin, 34);
+            ctx.fillText(`Position: ${(vizState.bowPosition * 100).toFixed(0)}%`, margin + 160, 20);
+            ctx.fillText(vizState.isPlaying ? 'Playing' : 'Silent', margin + 160, 34);
+
+            ctx.restore();
+
+            if (activeVizTab === 'bowString') {
+                bowStringAnimId = requestAnimationFrame(drawBowString);
+            }
+        }
+
+        // ====================================================================
+        // Visualization: Body Resonance Spectrum (Tab 2)
+        // ====================================================================
+        let spectrumNeedsRedraw = true;
+
+        function setupBodySpectrumCanvas() {
+            const canvas = document.getElementById('canvas-bodySpectrum');
+            const panel = document.getElementById('viz-bodySpectrum');
+            if (!canvas || !panel) return;
+
+            const dpr = window.devicePixelRatio || 1;
+            const w = panel.clientWidth;
+            const h = panel.clientHeight;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+        }
+
+        function drawBodySpectrum() {
+            if (!spectrumNeedsRedraw && activeVizTab !== 'bodySpectrum') return;
+
+            const canvas = document.getElementById('canvas-bodySpectrum');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+
+            ctx.save();
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // Background
+            ctx.fillStyle = '#F5E6D3';
+            ctx.fillRect(0, 0, w, h);
+
+            const margin = { top: 25, right: 25, bottom: 30, left: 45 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+
+            // Material-based color
+            const mat = vizState.material;
+            let color;
+            if (mat < 0.25) color = '#B8860B';      // membrane (amber)
+            else if (mat < 0.5) color = '#6B8E4E';   // wood (green)
+            else if (mat < 0.75) color = '#4682B4';   // metal (blue)
+            else color = '#D4D4D4';                    // glass (silver)
+
+            // Generate 8 resonance peaks based on material and size
+            const baseFreqs = [80, 200, 400, 800, 1600, 3200, 6400, 12000];
+            const sizeScale = 0.5 + vizState.bodySize * 1.5;
+            const materialQ = 5 + mat * 20;
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(139, 115, 85, 0.2)';
+            ctx.lineWidth = 0.5;
+            const freqLabels = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+            const logMin = Math.log10(20);
+            const logMax = Math.log10(20000);
+
+            freqLabels.forEach(freq => {
+                const x = margin.left + ((Math.log10(freq) - logMin) / (logMax - logMin)) * plotW;
+                ctx.beginPath();
+                ctx.moveTo(x, margin.top);
+                ctx.lineTo(x, margin.top + plotH);
+                ctx.stroke();
+
+                ctx.fillStyle = '#8B7B6F';
+                ctx.font = '8px Georgia';
+                ctx.textAlign = 'center';
+                const label = freq >= 1000 ? (freq/1000) + 'k' : freq.toString();
+                ctx.fillText(label, x, h - margin.bottom + 14);
+            });
+
+            // dB grid
+            const dbRange = [-24, -12, 0, 12];
+            const dbMin = -24;
+            const dbMax = 12;
+            dbRange.forEach(db => {
+                const y = margin.top + plotH - ((db - dbMin) / (dbMax - dbMin)) * plotH;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, y);
+                ctx.lineTo(margin.left + plotW, y);
+                ctx.stroke();
+
+                ctx.fillStyle = '#8B7B6F';
+                ctx.font = '8px Georgia';
+                ctx.textAlign = 'right';
+                ctx.fillText(db + ' dB', margin.left - 4, y + 3);
+            });
+
+            // Draw spectrum curve
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const numSamples = 200;
+            for (let i = 0; i <= numSamples; i++) {
+                const t = i / numSamples;
+                const logFreq = logMin + t * (logMax - logMin);
+                const freq = Math.pow(10, logFreq);
+                const x = margin.left + t * plotW;
+
+                // Sum Lorentzian peaks
+                let sumDb = -24;
+                for (let p = 0; p < 8; p++) {
+                    const peakFreq = baseFreqs[p] * sizeScale;
+                    const peakGain = 6 - p * 2.5 + mat * 4;
+                    const q = materialQ * (1 - p * 0.08);
+                    const bandwidth = peakFreq / q;
+                    const dist = (freq - peakFreq) / bandwidth;
+                    const response = peakGain / (1 + dist * dist);
+                    sumDb = Math.max(sumDb, sumDb + response);
+                    // Better: use log-space addition
+                    if (response > 0.1) {
+                        sumDb = 10 * Math.log10(Math.pow(10, sumDb/10) + Math.pow(10, response/10));
+                    }
+                }
+                sumDb = Math.max(dbMin, Math.min(dbMax, sumDb));
+                const y = margin.top + plotH - ((sumDb - dbMin) / (dbMax - dbMin)) * plotH;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Fill under curve
+            ctx.lineTo(margin.left + plotW, margin.top + plotH);
+            ctx.lineTo(margin.left, margin.top + plotH);
+            ctx.closePath();
+            ctx.fillStyle = color.replace(')', ', 0.15)').replace('rgb', 'rgba').replace('#', '');
+            // Simpler: just use alpha
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+
+            // Axis labels
+            ctx.fillStyle = '#6B5B4F';
+            ctx.font = '10px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText('Frequency', margin.left + plotW / 2, h - 4);
+
+            // Material label
+            const matNames = ['Membrane', 'Wood', 'Metal', 'Glass'];
+            const matIdx = Math.min(3, Math.floor(mat * 4));
+            ctx.fillStyle = color;
+            ctx.font = '11px Georgia';
+            ctx.textAlign = 'right';
+            ctx.fillText(matNames[matIdx], w - margin.right, 16);
+
+            ctx.restore();
+            spectrumNeedsRedraw = false;
+        }
+
+        // ====================================================================
+        // Visualization: Schelleng Diagram (Tab 3)
+        // ====================================================================
+        let schellengNeedsRedraw = true;
+
+        function setupSchellengCanvas() {
+            const canvas = document.getElementById('canvas-schelleng');
+            const panel = document.getElementById('viz-schelleng');
+            if (!canvas || !panel) return;
+
+            const dpr = window.devicePixelRatio || 1;
+            const w = panel.clientWidth;
+            const h = panel.clientHeight;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+        }
+
+        function drawSchelleng() {
+            const canvas = document.getElementById('canvas-schelleng');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+
+            ctx.save();
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            ctx.fillStyle = '#F5E6D3';
+            ctx.fillRect(0, 0, w, h);
+
+            const margin = { top: 25, right: 25, bottom: 35, left: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+
+            // Schelleng axes: X = bow position (beta), Y = bow pressure (log)
+            const betaMin = 0.02, betaMax = 0.30;
+            const pMin = 0.01, pMax = 5.0;
+            const logPMin = Math.log10(pMin);
+            const logPMax = Math.log10(pMax);
+
+            // Helper: map beta to x
+            const betaToX = (b) => margin.left + ((b - betaMin) / (betaMax - betaMin)) * plotW;
+            const logPToY = (logP) => margin.top + plotH - ((logP - logPMin) / (logPMax - logPMin)) * plotH;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(139, 115, 85, 0.2)';
+            ctx.lineWidth = 0.5;
+
+            // Beta grid
+            for (let b = 0.05; b <= 0.30; b += 0.05) {
+                const x = betaToX(b);
+                ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, margin.top + plotH); ctx.stroke();
+                ctx.fillStyle = '#8B7B6F'; ctx.font = '8px Georgia'; ctx.textAlign = 'center';
+                ctx.fillText(b.toFixed(2), x, h - margin.bottom + 14);
+            }
+
+            // Pressure grid
+            const pressureGridValues = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5];
+            pressureGridValues.forEach(p => {
+                const y = logPToY(Math.log10(p));
+                ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(margin.left + plotW, y); ctx.stroke();
+                ctx.fillStyle = '#8B7B6F'; ctx.font = '8px Georgia'; ctx.textAlign = 'right';
+                ctx.fillText(p.toString(), margin.left - 4, y + 3);
+            });
+
+            // Helmholtz region boundaries
+            // P_min proportional to v_B / (beta^2 * Z) -- minimum bowing pressure
+            // P_max proportional to v_B / (beta * Z) -- maximum bowing pressure
+            const vB = vizState.bowSpeed;
+            const Z = 0.5; // normalized impedance
+
+            // Draw Helmholtz region
+            const numSteps = 100;
+            const helmholtzPath = [];
+            const pMinPath = [];
+            const pMaxPath = [];
+
+            for (let i = 0; i <= numSteps; i++) {
+                const t = i / numSteps;
+                const beta = betaMin + t * (betaMax - betaMin);
+
+                // Schelleng boundaries (simplified analytical model)
+                const pMinBow = 0.01 * vB / (beta * beta * Z + 0.001);
+                const pMaxBow = 0.5 * vB / (beta * Z + 0.001);
+
+                const clampedMin = Math.max(pMin, Math.min(pMax, pMinBow));
+                const clampedMax = Math.max(pMin, Math.min(pMax, pMaxBow));
+
+                pMinPath.push({ x: betaToX(beta), y: logPToY(Math.log10(clampedMin)) });
+                pMaxPath.push({ x: betaToX(beta), y: logPToY(Math.log10(clampedMax)) });
+            }
+
+            // Fill Helmholtz region
+            ctx.fillStyle = 'rgba(107, 142, 78, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(pMaxPath[0].x, pMaxPath[0].y);
+            pMaxPath.forEach(p => ctx.lineTo(p.x, p.y));
+            for (let i = pMinPath.length - 1; i >= 0; i--) ctx.lineTo(pMinPath[i].x, pMinPath[i].y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw boundary lines
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#4A6B35';
+            ctx.beginPath();
+            pMaxPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+
+            ctx.strokeStyle = '#8BA870';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            pMinPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Current playing point
+            const curX = betaToX(vizState.bowPosition);
+            const curY = logPToY(Math.log10(Math.max(pMin, vizState.bowPressure)));
+
+            // Crosshair
+            ctx.strokeStyle = '#3C2F2F';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(curX, margin.top);
+            ctx.lineTo(curX, margin.top + plotH);
+            ctx.moveTo(margin.left, curY);
+            ctx.lineTo(margin.left + plotW, curY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Current point
+            ctx.fillStyle = '#3C2F2F';
+            ctx.beginPath();
+            ctx.arc(curX, curY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#F5E6D3';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#6B5B4F';
+            ctx.font = '10px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText('Bow Position (\u03B2)', margin.left + plotW / 2, h - 4);
+
+            ctx.save();
+            ctx.translate(14, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Bow Pressure (N)', 0, 0);
+            ctx.restore();
+
+            // Legend
+            ctx.font = '9px Georgia';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#4A6B35';
+            ctx.fillText('P_max (raucous)', w - margin.right - 95, margin.top + 12);
+            ctx.fillStyle = '#8BA870';
+            ctx.fillText('P_min (slip)', w - margin.right - 95, margin.top + 24);
+            ctx.fillStyle = 'rgba(107, 142, 78, 0.5)';
+            ctx.fillRect(w - margin.right - 105, margin.top + 30, 10, 10);
+            ctx.fillStyle = '#6B5B4F';
+            ctx.fillText('Helmholtz', w - margin.right - 95, margin.top + 39);
+
+            ctx.restore();
+            schellengNeedsRedraw = false;
+        }
+
+        // ====================================================================
+        // Visualization Tab Switching
+        // ====================================================================
+        function switchVizTab(tabId) {
+            activeVizTab = tabId;
+
+            // Update tab buttons
+            document.querySelectorAll('.viz-tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.viz === tabId);
+            });
+
+            // Update panels
+            document.querySelectorAll('.viz-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === 'viz-' + tabId);
+            });
+
+            // Stop bow-string animation if not active
+            if (bowStringAnimId && tabId !== 'bowString') {
+                cancelAnimationFrame(bowStringAnimId);
+                bowStringAnimId = null;
+            }
+
+            // Start/draw active tab
+            if (tabId === 'bowString') {
+                setupBowStringCanvas();
+                drawBowString();
+            } else if (tabId === 'bodySpectrum') {
+                setupBodySpectrumCanvas();
+                spectrumNeedsRedraw = true;
+                drawBodySpectrum();
+            } else if (tabId === 'schelleng') {
+                setupSchellengCanvas();
+                schellengNeedsRedraw = true;
+                drawSchelleng();
+            }
+        }
+
+        document.querySelectorAll('.viz-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchVizTab(btn.dataset.viz));
+        });
+
+        // ====================================================================
+        // Visualization Polling (15 Hz for bow-string animation)
+        // ====================================================================
+        async function pollVisualizationState() {
+            try {
+                const getVizState = Juce.getNativeFunction('getVisualizationState');
+                const json = await getVizState();
+                if (json && typeof json === 'string') {
+                    const parsed = JSON.parse(json);
+                    const oldMaterial = vizState.material;
+                    const oldSize = vizState.bodySize;
+                    const oldPosition = vizState.bowPosition;
+                    const oldPressure = vizState.bowPressure;
+                    const oldSpeed = vizState.bowSpeed;
+
+                    Object.assign(vizState, parsed);
+
+                    // Trigger redraws for param-dependent visualizations
+                    if (vizState.material !== oldMaterial || vizState.bodySize !== oldSize) {
+                        spectrumNeedsRedraw = true;
+                        if (activeVizTab === 'bodySpectrum') drawBodySpectrum();
+                    }
+                    if (vizState.bowPosition !== oldPosition || vizState.bowPressure !== oldPressure || vizState.bowSpeed !== oldSpeed) {
+                        schellengNeedsRedraw = true;
+                        if (activeVizTab === 'schelleng') drawSchelleng();
+                    }
+                }
+            } catch (e) {
+                // Silent fail -- visualization is non-critical
+            }
+        }
+
+        // ====================================================================
+        // Preset Browser
+        // ====================================================================
+        let currentPresetName = 'Default';
+        let dropdownOpen = false;
+
+        const presetNameEl = document.getElementById('preset-name');
+        const presetDropdownEl = document.getElementById('preset-dropdown');
+
+        async function refreshPresetDisplay() {
+            try {
+                const getCurrentPreset = Juce.getNativeFunction('getCurrentPreset');
+                const name = await getCurrentPreset();
+                if (name && typeof name === 'string' && name.length > 0) {
+                    currentPresetName = name;
+                }
+            } catch (e) { /* ignore */ }
+
+            const textNodes = Array.from(presetNameEl.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+            textNodes.forEach(n => n.remove());
+            presetNameEl.insertBefore(document.createTextNode(currentPresetName + ' '), presetNameEl.firstChild);
+        }
+
+        async function populatePresetDropdown() {
+            presetDropdownEl.innerHTML = '';
+            try {
+                const getPresetList = Juce.getNativeFunction('getPresetList');
+                const presets = await getPresetList();
+                if (Array.isArray(presets)) {
+                    presets.forEach(name => {
+                        const item = document.createElement('div');
+                        item.className = 'preset-dropdown-item';
+                        if (name === currentPresetName) item.classList.add('active');
+                        item.textContent = name;
+                        item.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const loadPreset = Juce.getNativeFunction('loadPreset');
+                            await loadPreset(name);
+                            closeDropdown();
+                            await refreshPresetDisplay();
+                        });
+                        presetDropdownEl.appendChild(item);
+                    });
+                }
+            } catch (e) { console.error('Preset list error:', e); }
+        }
+
+        function closeDropdown() {
+            presetDropdownEl.classList.remove('open');
+            dropdownOpen = false;
+        }
+
+        async function openDropdown() {
+            await populatePresetDropdown();
+            presetDropdownEl.classList.add('open');
+            dropdownOpen = true;
+        }
+
+        presetNameEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('preset-dropdown-item')) return;
+            dropdownOpen ? closeDropdown() : openDropdown();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (dropdownOpen && !presetNameEl.contains(e.target)) closeDropdown();
+        });
+
+        document.getElementById('preset-prev').addEventListener('click', async () => {
+            try {
+                const selectPrev = Juce.getNativeFunction('selectPreviousPreset');
+                await selectPrev();
+                await refreshPresetDisplay();
+            } catch (e) { console.error(e); }
+        });
+
+        document.getElementById('preset-next').addEventListener('click', async () => {
+            try {
+                const selectNext = Juce.getNativeFunction('selectNextPreset');
+                await selectNext();
+                await refreshPresetDisplay();
+            } catch (e) { console.error(e); }
+        });
+
+        document.getElementById('preset-save').addEventListener('click', async () => {
+            try {
+                const saveWithDialog = Juce.getNativeFunction('savePresetWithDialog');
+                const name = await saveWithDialog();
+                if (name && name.length > 0) {
+                    currentPresetName = name;
+                    await refreshPresetDisplay();
+                }
+            } catch (e) { console.error(e); }
+        });
+
+        // ====================================================================
+        // Tuning Panel Toggle
+        // ====================================================================
+        let tuningOpen = false;
+        let tuningInitialized = false;
+        const tuningToggleBtn = document.getElementById('tuning-toggle');
+        const tuningOverlay = document.getElementById('tuning-overlay');
+
+        tuningToggleBtn.addEventListener('click', () => {
+            tuningOpen = !tuningOpen;
+            tuningOverlay.classList.toggle('open', tuningOpen);
+            tuningToggleBtn.classList.toggle('active', tuningOpen);
+
+            if (tuningOpen && !tuningInitialized) {
+                initTuningPanel();
+                tuningInitialized = true;
+            }
+        });
+
+        async function initTuningPanel() {
+            try {
+                const module = await import('/js/tuning-panel.js');
+                if (module && module.initTuningPanel) {
+                    module.initTuningPanel(document.getElementById('tuning-container'), Juce);
+                } else if (module && module.default) {
+                    module.default(document.getElementById('tuning-container'), Juce);
+                }
+            } catch (err) {
+                console.error('Tuning panel load error:', err);
+                document.getElementById('tuning-container').innerHTML =
+                    '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+            }
+        }
+
+        // ====================================================================
+        // Initialize Everything
+        // ====================================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // WR-07: fetch skew-correct normalized defaults for double-click reset before
+            // binding, so the dblclick handlers see them.
+            try {
+                const defs = await Juce.getNativeFunction('getParameterDefaults')();
+                if (defs && typeof defs === 'object') Object.assign(parameterDefaults, defs);
+            } catch (e) { /* reset degrades to no-op if unavailable */ }
+
+            // Bind all slider parameters
+            Object.keys(PARAMS).forEach(paramName => {
+                bindSliderParam(paramName);
+            });
+
+            // Bind combo boxes
+            // Initialize conditional visibility
+            if (sliderStates.sympatheticCount) {
+                updateSympVisibility(sliderStates.sympatheticCount.getNormalisedValue());
+            }
+
+            // Initialize preset display
+            await refreshPresetDisplay();
+
+            // Setup default visualization
+            setupBowStringCanvas();
+            drawBowString();
+
+            // Start visualization polling at ~15 Hz
+            vizPollTimer = setInterval(pollVisualizationState, 66);
+        });
+
+    </script>
+
+</body>
+</html>

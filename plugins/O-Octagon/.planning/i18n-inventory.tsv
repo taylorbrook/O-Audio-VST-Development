@@ -1,0 +1,201 @@
+# plugin	O-Octagon
+# uiRoot	Source/ui/public
+# generated	2026-08-27T22:00:31.444Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	70	h1.title		UNSURE	no	title.o-octa	O – Octa	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	70	span.title-accent		LABEL	no	title-accent.gon	gon	prose survives the readout filter
+html-text	index.html	71	p.subtitle		LABEL	no	subtitle.eight-channel-dbap	Eight · Channel DBAP	prose survives the readout filter
+html-text	index.html	75	#tab-room		LABEL	no	tab-room (reuses an existing entry)	Room	prose survives the readout filter
+html-text	index.html	77	#tab-venue		LABEL	no	tab-venue (reuses an existing entry)	Venue	prose survives the readout filter
+html-text	index.html	111	span.cell-label		LABEL	no	lang-select (reuses an existing entry)	Language	prose survives the readout filter
+html-text	index.html	117	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	118	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	132	span.cell-label		LABEL	no	tips-toggle (reuses an existing entry)	Hover help	prose survives the readout filter
+html-text	index.html	140	#btn-tips-on		LABEL	no	btn-tips-on	On	prose survives the readout filter
+html-text	index.html	142	#btn-tips-off		LABEL	no	btn-tips-off	Off	prose survives the readout filter
+html-text	index.html	153	span.safe-tag		LABEL	no	safe-banner.safe	SAFE	prose survives the readout filter
+html-text	index.html	154	span.safe-copy		LABEL	no	safe-banner.stereo-fold-not-the	Stereo fold — not the 8 · channel rig	prose survives the readout filter
+html-text	index.html	170	span.map-tag		LABEL	no	map-banner.map	MAP	prose survives the readout filter
+html-text	index.html	196	span.monitor-tag		LABEL	no	monitor-banner.monitor	MONITOR	prose survives the readout filter
+html-text	index.html	197	#monitor-copy		LABEL	no	monitor-copy	Headphone fold — rig outputs muted	prose survives the readout filter
+html-text	index.html	297	span.caption-key		LABEL	no	out-pop.speaker	Speaker	prose survives the readout filter
+html-text	index.html	299	span.caption-key		LABEL	no	out-pop.output	→ output	prose survives the readout filter
+html-text	index.html	310	p.out-pop-note		LABEL	no	out-pop.coreaudio-order-confirm-with	CoreAudio order · confirm with ping	prose survives the readout filter
+html-text	index.html	326	span.caption-key		LABEL	no	screen-room.plan	Plan	prose survives the readout filter
+html-text	index.html	328	span.caption-key.caption-field		LABEL	no	screen-room.field	Field	prose survives the readout filter
+html-text	index.html	367	#gtab-position		LABEL	no	gtab-position (reuses an existing entry)	Position	prose survives the readout filter
+html-text	index.html	369	#gtab-motion		LABEL	no	gtab-motion (reuses an existing entry)	Motion	prose survives the readout filter
+html-text	index.html	374	span.cell-label		LABEL	no	srcX (reuses an existing entry)	Source X	prose survives the readout filter
+html-text	index.html	379	span.cell-label		LABEL	no	srcY (reuses an existing entry)	Source Y	prose survives the readout filter
+html-text	index.html	384	span.cell-label		LABEL	no	srcZ (reuses an existing entry)	Source Z	prose survives the readout filter
+html-text	index.html	389	span.cell-label		LABEL	no	width (reuses an existing entry)	Width	prose survives the readout filter
+html-text	index.html	407	span.cell-label		LABEL	no	decorr (reuses an existing entry)	Decorrelate	prose survives the readout filter
+html-text	index.html	414	span.cell-label		LABEL	no	motionOn (reuses an existing entry)	Run	prose survives the readout filter
+html-text	index.html	419	span.cell-label		LABEL	no	motionPath (reuses an existing entry)	Path	prose survives the readout filter
+html-text	index.html	424	span.cell-label		LABEL	no	motionSync (reuses an existing entry)	Sync	prose survives the readout filter
+html-text	index.html	429	span.cell-label		LABEL	no	motionRate (reuses an existing entry)	Rate	prose survives the readout filter
+html-text	index.html	434	span.cell-label		LABEL	no	motionSize (reuses an existing entry)	Size	prose survives the readout filter
+html-text	index.html	439	span.cell-label		LABEL	no	motionRatio (reuses an existing entry)	Ratio	prose survives the readout filter
+html-text	index.html	444	span.cell-label		LABEL	no	motionAngle (reuses an existing entry)	Angle	prose survives the readout filter
+html-text	index.html	449	span.cell-label		LABEL	no	motionHeight (reuses an existing entry)	Height	prose survives the readout filter
+html-text	index.html	454	span.cell-label		LABEL	no	motionPhase (reuses an existing entry)	Phase	prose survives the readout filter
+html-text	index.html	459	span.cell-label		LABEL	no	motionSeed (reuses an existing entry)	Seed	prose survives the readout filter
+html-text	index.html	467	h2.group-title		LABEL	no	group-solve.solve	Solve	prose survives the readout filter
+html-text	index.html	470	span.cell-label		LABEL	no	rolloff (reuses an existing entry)	Rolloff	prose survives the readout filter
+html-text	index.html	475	span.cell-label		LABEL	no	blur (reuses an existing entry)	Blur	prose survives the readout filter
+html-text	index.html	483	h2.group-title		LABEL	no	group-space.space	Space	prose survives the readout filter
+html-text	index.html	486	span.cell-label		LABEL	no	group-space.hull-atten	Hull Atten	prose survives the readout filter
+html-text	index.html	491	span.cell-label		LABEL	no	airAmount (reuses an existing entry)	Air	prose survives the readout filter
+html-text	index.html	499	h2.group-title		LABEL	no	outputGain (reuses an existing entry)	Output	prose survives the readout filter
+html-text	index.html	502	span.cell-label		LABEL	no	outputGain (reuses an existing entry)	Output	prose survives the readout filter
+html-text	index.html	537	h2.group-title		LABEL	no	group-scenes.scenes	Scenes	prose survives the readout filter
+html-text	index.html	544	#btn-scene-store		LABEL	no	btn-scene-store	STORE	prose survives the readout filter
+html-text	index.html	547	#scene-ALL		LABEL	no	scene-ALL	ALL	prose survives the readout filter
+html-text	index.html	548	#scene-FRONT		LABEL	no	scene-FRONT	FRONT	prose survives the readout filter
+html-text	index.html	549	#scene-REAR		LABEL	no	scene-REAR	REAR	prose survives the readout filter
+html-text	index.html	550	#scene-LEFT		LABEL	no	scene-LEFT	LEFT	prose survives the readout filter
+html-text	index.html	551	#scene-RIGHT		LABEL	no	scene-RIGHT	RIGHT	prose survives the readout filter
+html-text	index.html	552	#scene-SIDES		LABEL	no	scene-SIDES	SIDES	prose survives the readout filter
+html-text	index.html	594	h2.group-title		LABEL	no	elevation (reuses an existing entry)	Elevation	prose survives the readout filter
+html-text	index.html	596	span.cell-label		LABEL	no	group-elevation.ear	Ear	prose survives the readout filter
+html-text	index.html	598	span.cell-label		LABEL	no	puck (reuses an existing entry)	Source	prose survives the readout filter
+html-text	index.html	617	#elev-end-front		LABEL	no	elev-end-front	FRONT	prose survives the readout filter
+html-text	index.html	618	#elev-end-rear		LABEL	no	elev-end-rear	REAR	prose survives the readout filter
+html-text	index.html	652	span.cell-label		LABEL	no	tab-venue (reuses an existing entry)	Venue	prose survives the readout filter
+html-text	index.html	660	th.vcol-head.vcol-label		LABEL	no	screen-venue.label	Label	prose survives the readout filter
+html-text	index.html	664	th.vcol-head.vcol-num		LABEL	no	screen-venue.trim-db	Trim dB	prose survives the readout filter
+html-text	index.html	671	th.vcol-head.vcol-num		UNSURE	no	screen-venue.delay	Delay	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	671	#vcol-delay-unit		UNIT	no	vcol-delay-unit	ms	unit symbol, language-neutral (D-03)
+html-text	index.html	672	th.vcol-head.vcol-class		LABEL	no	screen-venue.class	Class	prose survives the readout filter
+html-text	index.html	762	span.cell-label		LABEL	no	rake (reuses an existing entry)	Rake	prose survives the readout filter
+html-text	index.html	763	span.cell-label.vrake-key		LABEL	no	scene-front (reuses an existing entry)	Front	prose survives the readout filter
+html-text	index.html	765	span.cell-label.vrake-key		LABEL	no	scene-rear (reuses an existing entry)	Rear	prose survives the readout filter
+html-text	index.html	778	span.cell-label		LABEL	no	screen-venue.delay-2	Delay	prose survives the readout filter
+html-text	index.html	784	#btn-delay-ms		UNIT	no	btn-delay-ms	ms	unit symbol, language-neutral (D-03)
+html-text	index.html	787	#btn-delay-derive		LABEL	no	btn-delay-derive	Derive	prose survives the readout filter
+html-text	index.html	797	span.cell-label		LABEL	no	venue-rail.set	Set	prose survives the readout filter
+html-text	index.html	824	h3.group-title		LABEL	no	venue-rail.venue-file	Venue file	prose survives the readout filter
+html-text	index.html	826	#btn-venue-save		LABEL	no	btn-venue-save	Save	prose survives the readout filter
+html-text	index.html	827	#btn-venue-load		LABEL	no	btn-venue-load	Load	prose survives the readout filter
+html-text	index.html	837	h3.group-title		LABEL	no	preset-list (reuses an existing entry)	Preset	prose survives the readout filter
+html-text	index.html	840	#btn-preset-save		LABEL	no	btn-preset-save	Save	prose survives the readout filter
+html-text	index.html	841	#btn-preset-load		LABEL	no	btn-preset-load	Load	prose survives the readout filter
+html-text	index.html	854	h3.group-title		LABEL	no	venue-rail.output-order	Output order	prose survives the readout filter
+html-text	index.html	856	#btn-oo-direct		LABEL	no	oo-direct (reuses an existing entry)	Direct 1–8	prose survives the readout filter
+html-text	index.html	857	#btn-oo-roles		LABEL	no	oo-roles (reuses an existing entry)	Roles	prose survives the readout filter
+html-text	index.html	867	h3.group-title		LABEL	no	venue-rail.ping	Ping	prose survives the readout filter
+html-text	index.html	879	#btn-ping-auto		LABEL	no	btn-ping-auto	Auto	prose survives the readout filter
+html-text	index.html	880	#btn-ping-stop		LABEL	no	ping-stop (reuses an existing entry)	Stop	prose survives the readout filter
+html-text	index.html	900	h3.group-title		LABEL	no	venue-rail.monitor	Monitor	prose survives the readout filter
+html-text	index.html	903	#monitor-toggle		LABEL	no	monitor-toggle	Headphones	prose survives the readout filter
+html-text	index.html	924	#readout-label-source		LABEL	no	puck (reuses an existing entry)	Source	prose survives the readout filter
+html-text	index.html	926	#readout-label-envelope		LABEL	no	readout-envelope (reuses an existing entry)	Envelope	prose survives the readout filter
+html-attr	index.html	73	nav.screens	aria-label	LABEL	no	screens.screen-aria-label	Screen	prose survives the readout filter
+html-attr	index.html	99	#gear-btn	aria-label	LABEL	no	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	103	#settings-popover	aria-label	LABEL	no	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	116	#lang-select	aria-label	LABEL	no	lang-select	Hover help language	prose survives the readout filter
+html-attr	index.html	138	#tips-toggle	aria-label	LABEL	no	tips-toggle	Hover help	prose survives the readout filter
+html-attr	index.html	268	#puck	aria-label	LABEL	no	puck	Source position	prose survives the readout filter
+html-attr	index.html	281	#ctl-w1	aria-label	LABEL	no	ctl-w1	Weight 1	prose survives the readout filter
+html-attr	index.html	282	#ctl-w2	aria-label	LABEL	no	ctl-w2	Weight 2	prose survives the readout filter
+html-attr	index.html	283	#ctl-w3	aria-label	LABEL	no	ctl-w3	Weight 3	prose survives the readout filter
+html-attr	index.html	284	#ctl-w4	aria-label	LABEL	no	ctl-w4	Weight 4	prose survives the readout filter
+html-attr	index.html	285	#ctl-w5	aria-label	LABEL	no	ctl-w5	Weight 5	prose survives the readout filter
+html-attr	index.html	286	#ctl-w6	aria-label	LABEL	no	ctl-w6	Weight 6	prose survives the readout filter
+html-attr	index.html	287	#ctl-w7	aria-label	LABEL	no	ctl-w7	Weight 7	prose survives the readout filter
+html-attr	index.html	288	#ctl-w8	aria-label	LABEL	no	ctl-w8	Weight 8	prose survives the readout filter
+html-attr	index.html	365	div.group-head.group-tabs	aria-label	LABEL	no	group-position.position-or-motion-aria	Position or Motion	prose survives the readout filter
+html-attr	index.html	375	#ctl-srcX	aria-label	LABEL	no	ctl-srcX	Source X	prose survives the readout filter
+html-attr	index.html	380	#ctl-srcY	aria-label	LABEL	no	ctl-srcY	Source Y	prose survives the readout filter
+html-attr	index.html	385	#ctl-srcZ	aria-label	LABEL	no	ctl-srcZ	Source Z	prose survives the readout filter
+html-attr	index.html	390	#ctl-width	aria-label	LABEL	no	ctl-width	Width	prose survives the readout filter
+html-attr	index.html	408	#ctl-decorr	aria-label	LABEL	no	ctl-decorr	Decorrelate	prose survives the readout filter
+html-attr	index.html	415	#ctl-motionOn	aria-label	LABEL	no	ctl-motionOn	Motion On	prose survives the readout filter
+html-attr	index.html	420	#ctl-motionPath	aria-label	LABEL	no	ctl-motionPath	Motion Path	prose survives the readout filter
+html-attr	index.html	425	#ctl-motionSync	aria-label	LABEL	no	ctl-motionSync	Motion Sync	prose survives the readout filter
+html-attr	index.html	430	#ctl-motionRate	aria-label	LABEL	no	ctl-motionRate	Motion Rate	prose survives the readout filter
+html-attr	index.html	435	#ctl-motionSize	aria-label	LABEL	no	ctl-motionSize	Motion Size	prose survives the readout filter
+html-attr	index.html	440	#ctl-motionRatio	aria-label	LABEL	no	ctl-motionRatio	Motion Ratio	prose survives the readout filter
+html-attr	index.html	445	#ctl-motionAngle	aria-label	LABEL	no	ctl-motionAngle	Motion Angle	prose survives the readout filter
+html-attr	index.html	450	#ctl-motionHeight	aria-label	LABEL	no	ctl-motionHeight	Motion Height	prose survives the readout filter
+html-attr	index.html	455	#ctl-motionPhase	aria-label	LABEL	no	ctl-motionPhase	Motion Phase	prose survives the readout filter
+html-attr	index.html	460	#ctl-motionSeed	aria-label	LABEL	no	ctl-motionSeed	Motion Seed	prose survives the readout filter
+html-attr	index.html	471	#ctl-rolloff	aria-label	LABEL	no	ctl-rolloff	Rolloff	prose survives the readout filter
+html-attr	index.html	476	#ctl-blur	aria-label	LABEL	no	ctl-blur	Blur	prose survives the readout filter
+html-attr	index.html	487	#ctl-hullAtten	aria-label	LABEL	no	ctl-hullAtten	Hull Atten	prose survives the readout filter
+html-attr	index.html	492	#ctl-airAmount	aria-label	LABEL	no	ctl-airAmount	Air	prose survives the readout filter
+html-attr	index.html	503	#ctl-outputGain	aria-label	LABEL	no	ctl-outputGain	Output	prose survives the readout filter
+html-attr	index.html	544	#btn-scene-store	aria-label	LABEL	no	btn-scene-store-2	Arm store	prose survives the readout filter
+html-attr	index.html	546	#scene-row	aria-label	LABEL	no	scene-row	Weight scenes	prose survives the readout filter
+html-attr	index.html	678	#vf-label-1	aria-label	LABEL	no	vf-label-1	Speaker 1 channel label	prose survives the readout filter
+html-attr	index.html	679	#vf-1-x	aria-label	LABEL	no	vf-1-x	Speaker 1 X metres	prose survives the readout filter
+html-attr	index.html	680	#vf-1-y	aria-label	LABEL	no	vf-1-y	Speaker 1 Y metres	prose survives the readout filter
+html-attr	index.html	681	#vf-1-z	aria-label	LABEL	no	vf-1-z	Speaker 1 Z metres	prose survives the readout filter
+html-attr	index.html	682	#vf-1-trim	aria-label	LABEL	no	vf-1-trim	Speaker 1 trim dB	prose survives the readout filter
+html-attr	index.html	683	#vf-1-delay	aria-label	LABEL	no	vf-1-delay	Speaker 1 alignment delay	prose survives the readout filter
+html-attr	index.html	688	#vf-label-2	aria-label	LABEL	no	vf-label-2	Speaker 2 channel label	prose survives the readout filter
+html-attr	index.html	689	#vf-2-x	aria-label	LABEL	no	vf-2-x	Speaker 2 X metres	prose survives the readout filter
+html-attr	index.html	690	#vf-2-y	aria-label	LABEL	no	vf-2-y	Speaker 2 Y metres	prose survives the readout filter
+html-attr	index.html	691	#vf-2-z	aria-label	LABEL	no	vf-2-z	Speaker 2 Z metres	prose survives the readout filter
+html-attr	index.html	692	#vf-2-trim	aria-label	LABEL	no	vf-2-trim	Speaker 2 trim dB	prose survives the readout filter
+html-attr	index.html	693	#vf-2-delay	aria-label	LABEL	no	vf-2-delay	Speaker 2 alignment delay	prose survives the readout filter
+html-attr	index.html	698	#vf-label-3	aria-label	LABEL	no	vf-label-3	Speaker 3 channel label	prose survives the readout filter
+html-attr	index.html	699	#vf-3-x	aria-label	LABEL	no	vf-3-x	Speaker 3 X metres	prose survives the readout filter
+html-attr	index.html	700	#vf-3-y	aria-label	LABEL	no	vf-3-y	Speaker 3 Y metres	prose survives the readout filter
+html-attr	index.html	701	#vf-3-z	aria-label	LABEL	no	vf-3-z	Speaker 3 Z metres	prose survives the readout filter
+html-attr	index.html	702	#vf-3-trim	aria-label	LABEL	no	vf-3-trim	Speaker 3 trim dB	prose survives the readout filter
+html-attr	index.html	703	#vf-3-delay	aria-label	LABEL	no	vf-3-delay	Speaker 3 alignment delay	prose survives the readout filter
+html-attr	index.html	708	#vf-label-4	aria-label	LABEL	no	vf-label-4	Speaker 4 channel label	prose survives the readout filter
+html-attr	index.html	709	#vf-4-x	aria-label	LABEL	no	vf-4-x	Speaker 4 X metres	prose survives the readout filter
+html-attr	index.html	710	#vf-4-y	aria-label	LABEL	no	vf-4-y	Speaker 4 Y metres	prose survives the readout filter
+html-attr	index.html	711	#vf-4-z	aria-label	LABEL	no	vf-4-z	Speaker 4 Z metres	prose survives the readout filter
+html-attr	index.html	712	#vf-4-trim	aria-label	LABEL	no	vf-4-trim	Speaker 4 trim dB	prose survives the readout filter
+html-attr	index.html	713	#vf-4-delay	aria-label	LABEL	no	vf-4-delay	Speaker 4 alignment delay	prose survives the readout filter
+html-attr	index.html	718	#vf-label-5	aria-label	LABEL	no	vf-label-5	Speaker 5 channel label	prose survives the readout filter
+html-attr	index.html	719	#vf-5-x	aria-label	LABEL	no	vf-5-x	Speaker 5 X metres	prose survives the readout filter
+html-attr	index.html	720	#vf-5-y	aria-label	LABEL	no	vf-5-y	Speaker 5 Y metres	prose survives the readout filter
+html-attr	index.html	721	#vf-5-z	aria-label	LABEL	no	vf-5-z	Speaker 5 Z metres	prose survives the readout filter
+html-attr	index.html	722	#vf-5-trim	aria-label	LABEL	no	vf-5-trim	Speaker 5 trim dB	prose survives the readout filter
+html-attr	index.html	723	#vf-5-delay	aria-label	LABEL	no	vf-5-delay	Speaker 5 alignment delay	prose survives the readout filter
+html-attr	index.html	728	#vf-label-6	aria-label	LABEL	no	vf-label-6	Speaker 6 channel label	prose survives the readout filter
+html-attr	index.html	729	#vf-6-x	aria-label	LABEL	no	vf-6-x	Speaker 6 X metres	prose survives the readout filter
+html-attr	index.html	730	#vf-6-y	aria-label	LABEL	no	vf-6-y	Speaker 6 Y metres	prose survives the readout filter
+html-attr	index.html	731	#vf-6-z	aria-label	LABEL	no	vf-6-z	Speaker 6 Z metres	prose survives the readout filter
+html-attr	index.html	732	#vf-6-trim	aria-label	LABEL	no	vf-6-trim	Speaker 6 trim dB	prose survives the readout filter
+html-attr	index.html	733	#vf-6-delay	aria-label	LABEL	no	vf-6-delay	Speaker 6 alignment delay	prose survives the readout filter
+html-attr	index.html	738	#vf-label-7	aria-label	LABEL	no	vf-label-7	Speaker 7 channel label	prose survives the readout filter
+html-attr	index.html	739	#vf-7-x	aria-label	LABEL	no	vf-7-x	Speaker 7 X metres	prose survives the readout filter
+html-attr	index.html	740	#vf-7-y	aria-label	LABEL	no	vf-7-y	Speaker 7 Y metres	prose survives the readout filter
+html-attr	index.html	741	#vf-7-z	aria-label	LABEL	no	vf-7-z	Speaker 7 Z metres	prose survives the readout filter
+html-attr	index.html	742	#vf-7-trim	aria-label	LABEL	no	vf-7-trim	Speaker 7 trim dB	prose survives the readout filter
+html-attr	index.html	743	#vf-7-delay	aria-label	LABEL	no	vf-7-delay	Speaker 7 alignment delay	prose survives the readout filter
+html-attr	index.html	748	#vf-label-8	aria-label	LABEL	no	vf-label-8	Speaker 8 channel label	prose survives the readout filter
+html-attr	index.html	749	#vf-8-x	aria-label	LABEL	no	vf-8-x	Speaker 8 X metres	prose survives the readout filter
+html-attr	index.html	750	#vf-8-y	aria-label	LABEL	no	vf-8-y	Speaker 8 Y metres	prose survives the readout filter
+html-attr	index.html	751	#vf-8-z	aria-label	LABEL	no	vf-8-z	Speaker 8 Z metres	prose survives the readout filter
+html-attr	index.html	752	#vf-8-trim	aria-label	LABEL	no	vf-8-trim	Speaker 8 trim dB	prose survives the readout filter
+html-attr	index.html	753	#vf-8-delay	aria-label	LABEL	no	vf-8-delay	Speaker 8 alignment delay	prose survives the readout filter
+html-attr	index.html	764	#vf-rake-front	aria-label	LABEL	no	vf-rake-front	Rake front metres	prose survives the readout filter
+html-attr	index.html	766	#vf-rake-rear	aria-label	LABEL	no	vf-rake-rear	Rake rear metres	prose survives the readout filter
+html-attr	index.html	783	div.vunit-group	aria-label	LABEL	no	screen-venue.delay-unit-aria-label	Delay unit	prose survives the readout filter
+html-attr	index.html	838	#preset-list	aria-label	LABEL	no	preset-list	Preset	prose survives the readout filter
+js-prose	js/app.js	372	value.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	372	value.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/app.js	566	el.textContent		READOUT	no	ui.m-x-tofixed-2	${m.x.toFixed(2)} × ${m.y.toFixed(2)} m	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	574	el.textContent		READOUT	no	ui.e-maxx-e-minx	${(e.maxX - e.minX).toFixed(2)} × ${(e.maxY - e.minY).toFixed(2)} m	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	630	el.textContent		LABEL	no	ui.copy-speaker-speaker-1	${copy} — speaker ${speaker + 1}	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	667	monitorCopy.textContent		LABEL	no	ui.suppressed-for-offline-render	Suppressed for offline render — bounce is clean	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	668	monitorCopy.textContent		LABEL	no	ui.headphone-fold-rig-outputs	Headphone fold — rig outputs muted	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	686	monitorNode.textContent		LABEL	no	ui.unavailable-on-this-output	unavailable on this output	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	688	monitorNode.textContent		LABEL	no	ui.armed-suppressed-offline	armed — suppressed offline	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	688	monitorNode.textContent		LABEL	no	ui.folding-to-outputs-1	folding to outputs 1–2	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	689	monitorNode.textContent		LABEL	no	ui.off-2	off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/elevation.js	325	earOut.textContent		READOUT	no	ui.earm-tofixed-2-m	${earM.toFixed(2)} m	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/elevation.js	326	srcOut.textContent		READOUT	no	ui.srcm-tofixed-2-m	${srcM.toFixed(2)} m	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/roomplan.js	409	value.textContent		READOUT	no	ui.out-1-out-outbadges	→${out >= 1 && out <= outBadges.length ? out : "?"}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/venue.js	593	value.textContent		READOUT	no	ui.string-state-mode-lit	${String(state.mode ?? "")} ${lit}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-prose	js/venue.js	683	monitorNode.textContent		LABEL	no	ui.unavailable-on-this-output-2	unavailable on this output	prose survives the readout filter
+js-prose	js/venue.js	704	value.textContent		LABEL	no	ui.direct	direct	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/venue.js	704	value.textContent		LABEL	no	ui.direct-1-8	direct 1–8	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/venue.js	704	value.textContent		LABEL	no	ui.roles	roles	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument

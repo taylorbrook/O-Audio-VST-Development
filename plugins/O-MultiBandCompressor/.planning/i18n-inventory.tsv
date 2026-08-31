@@ -1,0 +1,140 @@
+# plugin	O-MultiBandCompressor
+# uiRoot	Source/ui/public
+# generated	2026-08-27T19:07:22.995Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	32	h1.plugin-title		LABEL	no	plugin-title.o-multibandcompressor	O-MultiBandCompressor	prose survives the readout filter
+html-text	index.html	40	#presetName		UNSURE	no	presetName	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	43	#savePreset		LABEL	no	savePreset	Save	prose survives the readout filter
+html-text	index.html	44	#loadPreset		LABEL	no	loadPreset	Load	prose survives the readout filter
+html-text	index.html	49	span.brand-name		LABEL	no	brand-name.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-text	index.html	75	span.settings-label		LABEL	no	lang-select (reuses an existing entry)	Language	prose survives the readout filter
+html-text	index.html	80	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	81	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	90	span.settings-label		LABEL	no	settings-popover.hover-help	Hover help	prose survives the readout filter
+html-text	index.html	93	#tips-toggle		LABEL	no	tips-toggle	On	prose survives the readout filter
+html-text	index.html	104	span.meter-label		LABEL	no	meter-label.in	IN	prose survives the readout filter
+html-text	index.html	115	span.crossover-label		READOUT	no	crossover1.200-hz	200 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	119	span.crossover-label		READOUT	no	crossover2.2-khz	2 kHz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	123	span.crossover-label		READOUT	no	crossover3.8-khz	8 kHz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	130	span.meter-label		LABEL	no	meter-label.out	OUT	prose survives the readout filter
+html-text	index.html	139	h3.band-title		LABEL	no	band-low.low	LOW	prose survives the readout filter
+html-text	index.html	140	#range-low		READOUT	no	range-low	20 Hz - 200 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	145	span.gr-label		LABEL	no	band-low.gr	GR	prose survives the readout filter
+html-text	index.html	150	label.knob-label		LABEL	no	band-low.thresh	Thresh	prose survives the readout filter
+html-text	index.html	151	#low-threshold-value		READOUT	no	low-threshold-value	-20 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	155	label.knob-label		LABEL	no	band-low.ratio	Ratio	prose survives the readout filter
+html-text	index.html	160	label.knob-label		LABEL	no	band-low.attack	Attack	prose survives the readout filter
+html-text	index.html	161	#low-attack-value		READOUT	no	low-attack-value	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	165	label.knob-label		LABEL	no	band-low.release	Release	prose survives the readout filter
+html-text	index.html	166	#low-release-value		READOUT	no	low-release-value	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	170	label.knob-label		LABEL	no	band-low.knee	Knee	prose survives the readout filter
+html-text	index.html	171	#low-knee-value		READOUT	no	low-knee-value	6 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	175	label.knob-label		LABEL	no	band-low.makeup	Makeup	prose survives the readout filter
+html-text	index.html	176	#low-makeup-value		READOUT	no	low-makeup-value	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	180	div.detector-title		LABEL	no	band-low.detector-sidechain	Detector / Sidechain	prose survives the readout filter
+html-text	index.html	184	label.knob-label		LABEL	no	band-low.pk-rms	Pk/RMS	prose survives the readout filter
+html-text	index.html	189	label.knob-label		LABEL	no	band-low.sc-hpf	SC HPF	prose survives the readout filter
+html-text	index.html	190	#low-sc-hpf-value		LABEL	no	low-sc-hpf-value	Off	prose survives the readout filter
+html-text	index.html	194	label.knob-label		LABEL	no	band-low.sc-lpf	SC LPF	prose survives the readout filter
+html-text	index.html	195	#low-sc-lpf-value		LABEL	no	low-sc-lpf-value	Off	prose survives the readout filter
+html-text	index.html	200	#low-solo		LABEL	no	low-solo	SOLO	prose survives the readout filter
+html-text	index.html	201	#low-bypass		LABEL	no	low-bypass	BYPASS	prose survives the readout filter
+html-text	index.html	202	#low-sc-listen		LABEL	no	low-sc-listen	SC LISTEN	prose survives the readout filter
+html-text	index.html	210	h3.band-title		LABEL	no	band-lomid.low-mid	LOW-MID	prose survives the readout filter
+html-text	index.html	211	#range-lomid		READOUT	no	range-lomid	200 Hz - 2 kHz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	216	span.gr-label		LABEL	no	band-lomid.gr	GR	prose survives the readout filter
+html-text	index.html	221	label.knob-label		LABEL	no	band-lomid.thresh	Thresh	prose survives the readout filter
+html-text	index.html	222	#lomid-threshold-value		READOUT	no	lomid-threshold-value	-20 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	226	label.knob-label		LABEL	no	band-lomid.ratio	Ratio	prose survives the readout filter
+html-text	index.html	231	label.knob-label		LABEL	no	band-lomid.attack	Attack	prose survives the readout filter
+html-text	index.html	232	#lomid-attack-value		READOUT	no	lomid-attack-value	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	236	label.knob-label		LABEL	no	band-lomid.release	Release	prose survives the readout filter
+html-text	index.html	237	#lomid-release-value		READOUT	no	lomid-release-value	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	241	label.knob-label		LABEL	no	band-lomid.knee	Knee	prose survives the readout filter
+html-text	index.html	242	#lomid-knee-value		READOUT	no	lomid-knee-value	6 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	246	label.knob-label		LABEL	no	band-lomid.makeup	Makeup	prose survives the readout filter
+html-text	index.html	247	#lomid-makeup-value		READOUT	no	lomid-makeup-value	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	251	div.detector-title		LABEL	no	band-lomid.detector-sidechain	Detector / Sidechain	prose survives the readout filter
+html-text	index.html	255	label.knob-label		LABEL	no	band-lomid.pk-rms	Pk/RMS	prose survives the readout filter
+html-text	index.html	260	label.knob-label		LABEL	no	band-lomid.sc-hpf	SC HPF	prose survives the readout filter
+html-text	index.html	261	#lomid-sc-hpf-value		LABEL	no	lomid-sc-hpf-value	Off	prose survives the readout filter
+html-text	index.html	265	label.knob-label		LABEL	no	band-lomid.sc-lpf	SC LPF	prose survives the readout filter
+html-text	index.html	266	#lomid-sc-lpf-value		LABEL	no	lomid-sc-lpf-value	Off	prose survives the readout filter
+html-text	index.html	271	#lomid-solo		LABEL	no	lomid-solo	SOLO	prose survives the readout filter
+html-text	index.html	272	#lomid-bypass		LABEL	no	lomid-bypass	BYPASS	prose survives the readout filter
+html-text	index.html	273	#lomid-sc-listen		LABEL	no	lomid-sc-listen	SC LISTEN	prose survives the readout filter
+html-text	index.html	281	h3.band-title		LABEL	no	band-himid.high-mid	HIGH-MID	prose survives the readout filter
+html-text	index.html	282	#range-himid		READOUT	no	range-himid	2 kHz - 8 kHz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	287	span.gr-label		LABEL	no	band-himid.gr	GR	prose survives the readout filter
+html-text	index.html	292	label.knob-label		LABEL	no	band-himid.thresh	Thresh	prose survives the readout filter
+html-text	index.html	293	#himid-threshold-value		READOUT	no	himid-threshold-value	-20 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	297	label.knob-label		LABEL	no	band-himid.ratio	Ratio	prose survives the readout filter
+html-text	index.html	302	label.knob-label		LABEL	no	band-himid.attack	Attack	prose survives the readout filter
+html-text	index.html	303	#himid-attack-value		READOUT	no	himid-attack-value	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	307	label.knob-label		LABEL	no	band-himid.release	Release	prose survives the readout filter
+html-text	index.html	308	#himid-release-value		READOUT	no	himid-release-value	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	312	label.knob-label		LABEL	no	band-himid.knee	Knee	prose survives the readout filter
+html-text	index.html	313	#himid-knee-value		READOUT	no	himid-knee-value	6 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	317	label.knob-label		LABEL	no	band-himid.makeup	Makeup	prose survives the readout filter
+html-text	index.html	318	#himid-makeup-value		READOUT	no	himid-makeup-value	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	322	div.detector-title		LABEL	no	band-himid.detector-sidechain	Detector / Sidechain	prose survives the readout filter
+html-text	index.html	326	label.knob-label		LABEL	no	band-himid.pk-rms	Pk/RMS	prose survives the readout filter
+html-text	index.html	331	label.knob-label		LABEL	no	band-himid.sc-hpf	SC HPF	prose survives the readout filter
+html-text	index.html	332	#himid-sc-hpf-value		LABEL	no	himid-sc-hpf-value	Off	prose survives the readout filter
+html-text	index.html	336	label.knob-label		LABEL	no	band-himid.sc-lpf	SC LPF	prose survives the readout filter
+html-text	index.html	337	#himid-sc-lpf-value		LABEL	no	himid-sc-lpf-value	Off	prose survives the readout filter
+html-text	index.html	342	#himid-solo		LABEL	no	himid-solo	SOLO	prose survives the readout filter
+html-text	index.html	343	#himid-bypass		LABEL	no	himid-bypass	BYPASS	prose survives the readout filter
+html-text	index.html	344	#himid-sc-listen		LABEL	no	himid-sc-listen	SC LISTEN	prose survives the readout filter
+html-text	index.html	352	h3.band-title		LABEL	no	band-high.high	HIGH	prose survives the readout filter
+html-text	index.html	353	#range-high		READOUT	no	range-high	8 kHz - 20 kHz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	358	span.gr-label		LABEL	no	band-high.gr	GR	prose survives the readout filter
+html-text	index.html	363	label.knob-label		LABEL	no	band-high.thresh	Thresh	prose survives the readout filter
+html-text	index.html	364	#high-threshold-value		READOUT	no	high-threshold-value	-20 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	368	label.knob-label		LABEL	no	band-high.ratio	Ratio	prose survives the readout filter
+html-text	index.html	373	label.knob-label		LABEL	no	band-high.attack	Attack	prose survives the readout filter
+html-text	index.html	374	#high-attack-value		READOUT	no	high-attack-value	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	378	label.knob-label		LABEL	no	band-high.release	Release	prose survives the readout filter
+html-text	index.html	379	#high-release-value		READOUT	no	high-release-value	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	383	label.knob-label		LABEL	no	band-high.knee	Knee	prose survives the readout filter
+html-text	index.html	384	#high-knee-value		READOUT	no	high-knee-value	6 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	388	label.knob-label		LABEL	no	band-high.makeup	Makeup	prose survives the readout filter
+html-text	index.html	389	#high-makeup-value		READOUT	no	high-makeup-value	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	393	div.detector-title		LABEL	no	band-high.detector-sidechain	Detector / Sidechain	prose survives the readout filter
+html-text	index.html	397	label.knob-label		LABEL	no	band-high.pk-rms	Pk/RMS	prose survives the readout filter
+html-text	index.html	402	label.knob-label		LABEL	no	band-high.sc-hpf	SC HPF	prose survives the readout filter
+html-text	index.html	403	#high-sc-hpf-value		LABEL	no	high-sc-hpf-value	Off	prose survives the readout filter
+html-text	index.html	407	label.knob-label		LABEL	no	band-high.sc-lpf	SC LPF	prose survives the readout filter
+html-text	index.html	408	#high-sc-lpf-value		LABEL	no	high-sc-lpf-value	Off	prose survives the readout filter
+html-text	index.html	413	#high-solo		LABEL	no	high-solo	SOLO	prose survives the readout filter
+html-text	index.html	414	#high-bypass		LABEL	no	high-bypass	BYPASS	prose survives the readout filter
+html-text	index.html	415	#high-sc-listen		LABEL	no	high-sc-listen	SC LISTEN	prose survives the readout filter
+html-text	index.html	424	label.control-label		LABEL	no	control-label.input	Input	prose survives the readout filter
+html-text	index.html	426	#input-gain-value		READOUT	no	input-gain-value	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	430	label.control-label		LABEL	no	mix (reuses an existing entry)	Mix	prose survives the readout filter
+html-text	index.html	436	label.control-label		LABEL	no	control-label.auto-mu	Auto-MU	prose survives the readout filter
+html-text	index.html	437	#auto-makeup		LABEL	no	auto-makeup	Off	prose survives the readout filter
+html-text	index.html	441	label.control-label		LABEL	no	control-label.m-s-mode	M/S Mode	prose survives the readout filter
+html-text	index.html	443	option		LABEL	no	ms-mode.off	Off	prose survives the readout filter
+html-text	index.html	444	option		LABEL	no	ms-mode.mid	Mid	prose survives the readout filter
+html-text	index.html	445	option		LABEL	no	ms-mode.side	Side	prose survives the readout filter
+html-text	index.html	446	option		LABEL	no	ms-mode.both	Both	prose survives the readout filter
+html-text	index.html	451	label.control-label		LABEL	no	control-label.output	Output	prose survives the readout filter
+html-text	index.html	453	#output-gain-value		READOUT	no	output-gain-value	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-attr	index.html	38	#prevPreset	aria-label	LABEL	no	prevPreset	Previous preset	prose survives the readout filter
+html-attr	index.html	42	#nextPreset	aria-label	LABEL	no	nextPreset	Next preset	prose survives the readout filter
+html-attr	index.html	45	#presetDropdown	aria-label	LABEL	no	presetDropdown	Presets	prose survives the readout filter
+html-attr	index.html	67	#gear-btn	aria-label	LABEL	no	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	70	#settings-popover	aria-label	LABEL	no	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	92	#tips-toggle	aria-label	LABEL	no	tips-toggle-2	Toggle hover help	prose survives the readout filter
+js-prose	js/app.js	642	element.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	642	element.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/app.js	948	element.textContent		READOUT	no	ui.formatfrequency-lowhz-formatfrequency-highhz	${formatFrequency(lowHz)} - ${formatFrequency(highHz)}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-prose	js/app.js	1375	helpToggleEl.textContent		LABEL	no	ui.on-2	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	1375	helpToggleEl.textContent		LABEL	no	ui.off-2	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	1677	empty.textContent		LABEL	no	ui.no-presets	No presets	prose survives the readout filter
+js-composed	js/app.js	1757	strip.textContent		LABEL	no	ui.delete-presetname	Delete "${presetName}"?	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/app.js	1770	yes.textContent		LABEL	no	ui.delete	Delete	prose survives the readout filter
+js-prose	js/app.js	1776	no.textContent		LABEL	no	ui.cancel	Cancel	prose survives the readout filter
+js-composed	js/app.js	1719	setAttribute	aria-label	LABEL	no	ui.delete-preset-name	Delete preset ${name}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one

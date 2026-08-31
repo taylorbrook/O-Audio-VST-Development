@@ -1,0 +1,79 @@
+# plugin	O-Orbit
+# uiRoot	Resources/ui
+# generated	2026-08-28T03:25:09.581Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	37	h1		LABEL	no	header.o-orbit	O-Orbit	prose survives the readout filter
+html-text	index.html	53	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	58	#preset-save		LABEL	yes	preset-save	Save	prose survives the readout filter
+html-text	index.html	59	#preset-load		LABEL	yes	preset-load	Load	prose survives the readout filter
+html-text	index.html	61	#preset-delete		LABEL	yes	preset-delete	Del	prose survives the readout filter
+html-text	index.html	73	#view-toggle		LABEL	yes	view-toggle	Motion View	prose survives the readout filter
+html-text	index.html	84	button.preset-btn		LABEL	no	preset-buttons.stereo	Stereo	prose survives the readout filter
+html-text	index.html	85	button.preset-btn		LABEL	no	preset-buttons.quad	Quad	prose survives the readout filter
+html-text	index.html	90	button.preset-btn		LABEL	no	preset-buttons.hex	Hex	prose survives the readout filter
+html-text	index.html	91	button.preset-btn		LABEL	no	preset-buttons.oct	Oct	prose survives the readout filter
+html-text	index.html	96	option		LABEL	no	layout-select.layouts	Layouts…	prose survives the readout filter
+html-text	index.html	100	#layout-save-btn		LABEL	yes	layout-save-btn	Save	prose survives the readout filter
+html-text	index.html	102	#layout-delete-btn		LABEL	yes	layout-delete-btn	Del	prose survives the readout filter
+html-text	index.html	105	#export-btn		LABEL	yes	export-btn	Export	prose survives the readout filter
+html-text	index.html	106	#import-btn		LABEL	yes	import-btn	Import	prose survives the readout filter
+html-text	index.html	115	h2.group-label		LABEL	no	motion-group.motion	Motion	prose survives the readout filter
+html-text	index.html	119	label		LABEL	no	motion-group.path	Path	prose survives the readout filter
+html-text	index.html	121	option		LABEL	no	path.orbit	Orbit	prose survives the readout filter
+html-text	index.html	122	option		LABEL	no	path.pendulum	Pendulum	prose survives the readout filter
+html-text	index.html	123	option		LABEL	no	path.linear	Linear	prose survives the readout filter
+html-text	index.html	124	option		LABEL	no	path.drift	Drift	prose survives the readout filter
+html-text	index.html	125	option		LABEL	no	path.ping-pong	Ping-Pong	prose survives the readout filter
+html-text	index.html	131	label		LABEL	no	motion-group.speed	Speed	prose survives the readout filter
+html-text	index.html	135	#speed-value		READOUT	no	speed-value	1.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	140	label		LABEL	no	motion-group.width	Width	prose survives the readout filter
+html-text	index.html	149	label		LABEL	no	motion-group.depth	Depth	prose survives the readout filter
+html-text	index.html	158	label		LABEL	no	motion-group.tilt	Tilt	prose survives the readout filter
+html-text	index.html	167	label		LABEL	no	motion-group.phase	Phase	prose survives the readout filter
+html-text	index.html	176	label		LABEL	no	motion-group.elevation	Elevation	prose survives the readout filter
+html-text	index.html	179	label.toggle-label		LABEL	no	motion-group.off	Off	prose survives the readout filter
+html-text	index.html	185	label		LABEL	no	motion-group.elev-range	Elev Range	prose survives the readout filter
+html-text	index.html	194	label		LABEL	no	motion-group.tempo-sync	Tempo Sync	prose survives the readout filter
+html-text	index.html	196	option		LABEL	no	tempo-sync.off	Off	prose survives the readout filter
+html-text	index.html	208	option		LABEL	no	tempo-sync.1-bar	1 Bar	prose survives the readout filter
+html-text	index.html	209	option		LABEL	no	tempo-sync.2-bars	2 Bars	prose survives the readout filter
+html-text	index.html	210	option		LABEL	no	tempo-sync.4-bars	4 Bars	prose survives the readout filter
+html-text	index.html	218	h2.group-label		LABEL	no	spatial-group.spatial	Spatial	prose survives the readout filter
+html-text	index.html	222	label		LABEL	no	spatial-group.speaker-layout	Speaker Layout	prose survives the readout filter
+html-text	index.html	224	option		LABEL	no	speaker-layout.stereo	Stereo	prose survives the readout filter
+html-text	index.html	225	option		LABEL	no	speaker-layout.quad	Quad	prose survives the readout filter
+html-text	index.html	230	option		LABEL	no	speaker-layout.hexaphonic	Hexaphonic	prose survives the readout filter
+html-text	index.html	231	option		LABEL	no	speaker-layout.octaphonic	Octaphonic	prose survives the readout filter
+html-text	index.html	238	label		LABEL	no	spatial-group.distance	Distance	prose survives the readout filter
+html-text	index.html	247	label		LABEL	no	spatial-group.air-absorption	Air Absorption	prose survives the readout filter
+html-text	index.html	256	label		LABEL	no	spatial-group.atten-curve	Atten Curve	prose survives the readout filter
+html-text	index.html	258	option		LABEL	no	attenuation-curve.linear	Linear	prose survives the readout filter
+html-text	index.html	259	option		LABEL	no	attenuation-curve.inverse	Inverse	prose survives the readout filter
+html-text	index.html	260	option		LABEL	no	attenuation-curve.inverse-square	Inverse Square	prose survives the readout filter
+html-text	index.html	266	label		LABEL	no	spatial-group.center-diverge	Center Diverge	prose survives the readout filter
+html-text	index.html	277	h2.group-label		LABEL	no	source-group.source-mix	Source / Mix	prose survives the readout filter
+html-text	index.html	281	label		LABEL	no	source-group.source-mode	Source Mode	prose survives the readout filter
+html-text	index.html	283	option		LABEL	no	source-mode.mono	Mono	prose survives the readout filter
+html-text	index.html	284	option		LABEL	no	source-mode.l-r-split	L+R Split	prose survives the readout filter
+html-text	index.html	290	label		LABEL	no	source-group.l-r-offset	L/R Offset	prose survives the readout filter
+html-text	index.html	299	label		LABEL	no	source-group.mix	Mix	prose survives the readout filter
+html-text	index.html	311	span		LABEL	no	footer.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-attr	index.html	46	#preset-prev	aria-label	LABEL	no	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	47	#preset-next	aria-label	LABEL	no	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	50	#preset-select	aria-label	LABEL	no	preset-select	Browse presets	prose survives the readout filter
+html-attr	index.html	56	#preset-menu	aria-label	LABEL	no	preset-menu	Presets	prose survives the readout filter
+html-attr	index.html	69	#help-toggle	aria-label	LABEL	no	help-toggle	Toggle hover help	prose survives the readout filter
+html-attr	index.html	98	#layout-name	placeholder	LABEL	no	layout-name	name…	prose survives the readout filter
+js-prose	js/app.js	193	label.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	193	label.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	201	label.textContent		LABEL	no	ui.on-2	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	201	label.textContent		LABEL	no	ui.off-2	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	521	toggleBtn.textContent		LABEL	no	ui.speaker-editor	Speaker Editor	prose survives the readout filter
+js-prose	js/app.js	528	toggleBtn.textContent		LABEL	no	ui.motion-view	Motion View	prose survives the readout filter
+js-prose	js/app.js	913	layoutDeleteBtn.textContent		LABEL	no	ui.del	Del	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	922	layoutDeleteBtn.textContent		LABEL	no	ui.sure	Sure?	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	940	badge.textContent		LABEL	no	ui.ch-u2192	ch u2192 	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	940	badge.textContent		LABEL	no	ui.ch	ch	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	972	btn.textContent		LABEL	no	ui.del-2	Del	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	981	btn.textContent		LABEL	no	ui.sure-2	Sure?	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument

@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Wind, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Wind</title>
+    <link rel="stylesheet" href="/css/tuning-panel.css">
+    <style>
+        /* ====================================================================
+           O-Wind Naturalist Theme
+           Ouaricon Audio - Physical Modeling Flute Synthesizer
+           ==================================================================== */
+
+        :root {
+            --bg-paper: #F5E6D3;
+            --bg-paper-dark: #E8D5BE;
+            --bg-paper-darker: #D4C4AD;
+            --brown-text: #3C2F2F;
+            --brown-text-light: #6B5B4F;
+            --brown-text-lighter: #8B7B6F;
+            --green-light: #8BA870;
+            --green-mid: #6B8E4E;
+            --green-dark: #4A6B35;
+            --green-accent: #A3C288;
+            --brown-border: #8B7355;
+            --brown-frame: #5C4033;
+            --brown-frame-light: #7A5C47;
+            --white-overlay: rgba(255, 255, 255, 0.15);
+            --shadow-soft: rgba(60, 47, 47, 0.15);
+            --shadow-hard: rgba(60, 47, 47, 0.3);
+            --knob-size: 55px;
+            --knob-track: #D4C4AD;
+            --knob-fill: #6B8E4E;
+            --toggle-off: #C4B39A;
+            --toggle-on: #6B8E4E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 900px;
+            height: 600px;
+            overflow: hidden;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            background: var(--bg-paper);
+            color: var(--brown-text);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ====================================================================
+           Botanical Overlay
+           ==================================================================== */
+        .botanical-overlay {
+            position: absolute;
+            right: -20px;
+            top: 50px;
+            height: 70%;
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+            filter: sepia(0.4) brightness(0.9);
+        }
+
+        /* ====================================================================
+           Preset Browser Bar
+           ==================================================================== */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            height: 40px;
+            min-height: 40px;
+            padding: 0 12px;
+            background: var(--brown-frame);
+            color: var(--bg-paper);
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .preset-nav-btn {
+            background: none;
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            color: var(--bg-paper);
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            font-family: inherit;
+        }
+        .preset-nav-btn:hover { background: rgba(245, 230, 211, 0.15); }
+        .preset-nav-btn:active { background: rgba(245, 230, 211, 0.25); }
+
+        .preset-name-display {
+            flex: 1;
+            text-align: center;
+            font-size: 14px;
+            font-style: italic;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.15s;
+            position: relative;
+        }
+        .preset-name-display:hover { background: rgba(245, 230, 211, 0.1); }
+
+        .preset-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--brown-frame);
+            border: 1px solid var(--brown-frame-light);
+            border-radius: 0 0 6px 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 4px 12px var(--shadow-hard);
+        }
+        .preset-dropdown.open { display: block; }
+
+        .preset-dropdown-item {
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--bg-paper);
+            transition: background 0.1s;
+        }
+        .preset-dropdown-item:hover { background: rgba(245, 230, 211, 0.15); }
+        .preset-dropdown-item.active { background: var(--green-dark); }
+
+        .preset-save-btn {
+            background: none;
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            color: var(--bg-paper);
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+            transition: background 0.15s;
+        }
+        .preset-save-btn:hover { background: rgba(245, 230, 211, 0.15); }
+
+        .brand-label {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.5;
+            margin-left: 8px;
+        }
+
+        /* ====================================================================
+           Tab Bar
+           ==================================================================== */
+        .tab-bar {
+            display: flex;
+            height: 35px;
+            min-height: 35px;
+            background: var(--bg-paper-dark);
+            border-bottom: 2px solid var(--brown-border);
+            z-index: 10;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--brown-text-light);
+            font-family: inherit;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab-btn:hover { color: var(--brown-text); background: var(--white-overlay); }
+        .tab-btn.active {
+            color: var(--green-dark);
+            border-bottom-color: var(--green-mid);
+            font-weight: bold;
+        }
+
+        /* ====================================================================
+           Tab Content
+           ==================================================================== */
+        .tab-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab-panel {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 14px 18px;
+            overflow-y: auto;
+        }
+        .tab-panel.active { display: block; }
+
+        /* ====================================================================
+           Sound Tab Layout
+           ==================================================================== */
+        .param-section {
+            margin-bottom: 14px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--bg-paper-darker);
+        }
+
+        .param-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sections-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .sections-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .section-box {
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid var(--bg-paper-darker);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        /* ====================================================================
+           Knob / Slider Control
+           ==================================================================== */
+        .knob-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 72px;
+            gap: 4px;
+        }
+
+        .knob-wrapper {
+            width: var(--knob-size);
+            height: var(--knob-size);
+            position: relative;
+            cursor: grab;
+        }
+        .knob-wrapper:active { cursor: grabbing; }
+
+        .knob-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: var(--knob-track);
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .knob-fill {
+            fill: none;
+            stroke: var(--knob-fill);
+            stroke-width: 4;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.05s;
+        }
+
+        .knob-center {
+            fill: var(--bg-paper);
+            stroke: var(--bg-paper-darker);
+            stroke-width: 1;
+        }
+
+        .knob-indicator {
+            fill: none;
+            stroke: var(--brown-text);
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .knob-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-light);
+            text-align: center;
+            line-height: 1.2;
+            max-width: 72px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .knob-value {
+            font-size: 10px;
+            color: var(--brown-text);
+            text-align: center;
+            font-style: italic;
+            min-height: 14px;
+        }
+
+        /* ====================================================================
+           Toggle Control
+           ==================================================================== */
+        .toggle-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 0;
+        }
+
+        .toggle-track {
+            width: 36px;
+            height: 20px;
+            border-radius: 10px;
+            background: var(--toggle-off);
+            position: relative;
+            transition: background 0.2s;
+        }
+        .toggle-track.on { background: var(--toggle-on); }
+
+        .toggle-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--bg-paper);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+            box-shadow: 0 1px 3px var(--shadow-soft);
+        }
+        .toggle-track.on .toggle-thumb { left: 18px; }
+
+        .toggle-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-light);
+        }
+
+        /* ====================================================================
+           Instrument Preset Selector
+           ==================================================================== */
+        .instrument-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .instrument-selector label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-light);
+        }
+
+        .instrument-select {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--brown-border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--brown-text);
+            cursor: pointer;
+            outline: none;
+            min-width: 140px;
+        }
+        .instrument-select:focus { border-color: var(--green-mid); }
+
+        /* ====================================================================
+           Bottom Row
+           ==================================================================== */
+        .bottom-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .bottom-row .section-box {
+            flex: 1;
+        }
+
+        .impossible-physics-row .param-row {
+            gap: 6px;
+        }
+
+        /* ADSR Section */
+        .adsr-section .section-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .adsr-toggle {
+            display: inline-flex;
+            cursor: pointer;
+        }
+
+        .adsr-disabled {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .controls-inline {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* ====================================================================
+           Tuning Tab - Absolute positioning layout (matches O-Prism/O-Lyrica)
+           ==================================================================== */
+        #tuning-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #tuning-container .tuning-panel-root {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #tuning-container .tuning-panel {
+            --tuning-bg: rgba(245, 230, 211, 0.95);
+            --tuning-border: rgba(139, 115, 85, 0.5);
+            --tuning-text: #3C2F2F;
+            --tuning-text-muted: #8B7355;
+            --tuning-accent: #6B8E4E;
+            --tuning-input-bg: rgba(255, 248, 230, 0.9);
+            --tuning-hover: rgba(107, 142, 78, 0.2);
+            --tuning-active: rgba(107, 142, 78, 0.3);
+            font-family: 'Garamond', 'Times New Roman', serif;
+            height: 100%;
+            display: block;
+            position: relative;
+            padding: 0;
+        }
+
+        /* Left column: Interval list */
+        #tuning-container .tuning-viz-container {
+            position: absolute;
+            left: 14px;
+            top: 10px;
+            bottom: 10px;
+            width: fit-content;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        #tuning-container .interval-list {
+            width: 130px;
+            max-height: 100%;
+            background: rgba(235, 217, 199, 0.6);
+            border: 1px solid var(--tuning-border);
+            border-radius: 4px;
+            overflow-y: auto;
+            padding: 6px 8px;
+            order: -1;
+        }
+
+        /* Center: Viz mode tabs along the top */
+        #tuning-container .viz-mode-toggle {
+            position: absolute;
+            left: 155px;
+            right: 225px;
+            top: 8px;
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            z-index: 20;
+        }
+
+        #tuning-container .viz-btn {
+            padding: 5px 12px;
+            font-family: 'Garamond', 'Georgia', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        #tuning-container .viz-btn:hover {
+            background: rgba(107, 142, 78, 0.3);
+        }
+
+        #tuning-container .viz-btn.active {
+            background: rgba(107, 142, 78, 0.5);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            font-weight: 500;
+        }
+
+        /* Center: Visualization container below tabs */
+        #tuning-container .viz-container {
+            position: absolute;
+            left: 155px;
+            right: 225px;
+            top: 36px;
+            bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #tuning-container .pitch-circle {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        #tuning-container .pitch-circle svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        #tuning-container .pitch-circle-label {
+            position: absolute;
+            bottom: -16px;
+            width: 100%;
+            text-align: center;
+            font-size: 9px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #tuning-container #polar-canvas {
+            width: 100%;
+            height: auto;
+            max-width: 320px;
+            max-height: 100%;
+        }
+
+        #tuning-container .matrix-view {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 8px;
+        }
+
+        #tuning-container .truekeys-view.active {
+            flex-direction: column;
+            padding: 12px;
+        }
+
+        #tuning-container .rotation-view {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 6px;
+        }
+
+        /* Right column: Controls panel (library, ref pitch, etc.) */
+        #tuning-container .tuning-controls-panel {
+            position: absolute;
+            right: 14px;
+            top: 10px;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-height: calc(100% - 20px);
+            overflow-y: auto;
+        }
+
+        /* ====================================================================
+           Effects Tab (v1.14.0)
+           ==================================================================== */
+        #tab-effects {
+            gap: 6px;
+        }
+
+        .fx-section {
+            background: rgba(255, 248, 220, 0.25);
+            border: 1px solid rgba(139, 115, 85, 0.35);
+            border-radius: 5px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fx-header {
+            display: contents;
+        }
+
+        .fx-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--green-dark);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: auto;
+        }
+
+        .fx-bypass-btn {
+            padding: 2px 8px;
+            background: rgba(107, 142, 35, 0.5);
+            border: 1px solid var(--brown-frame);
+            border-radius: 3px;
+            font-size: 9px;
+            color: #1a2a10;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            order: 99;
+            margin-left: auto;
+        }
+
+        .fx-bypass-btn.bypassed {
+            background: rgba(139, 115, 85, 0.2);
+            color: rgba(60, 47, 47, 0.4);
+        }
+
+        .fx-knobs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fx-section.bypassed .fx-knobs {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* SVG Vine-Arc Knobs for Effects Tab */
+        #tab-effects .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+        }
+
+        #tab-effects .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #tab-effects .knob-visual {
+            width: 44px;
+            height: 44px;
+            position: relative;
+        }
+
+        #tab-effects .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        #tab-effects .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
+        }
+
+        #tab-effects .knob-vine {
+            fill: none;
+            stroke: var(--knob-fill);
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        #tab-effects .knob-label {
+            font-size: 9px;
+            color: var(--brown-text);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #tab-effects .knob-value {
+            font-size: 9px;
+            color: var(--brown-frame);
+            font-weight: bold;
+        }
+
+        .fx-dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .fx-dropdown {
+            padding: 2px 4px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid var(--brown-border);
+            border-radius: 3px;
+            font-size: 9px;
+            color: var(--brown-text);
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* ====================================================================
+           Scrollbar
+           ==================================================================== */
+        .tab-panel::-webkit-scrollbar { width: 6px; }
+        .tab-panel::-webkit-scrollbar-track { background: transparent; }
+        .tab-panel::-webkit-scrollbar-thumb {
+            background: var(--bg-paper-darker);
+            border-radius: 3px;
+        }
+        .tab-panel::-webkit-scrollbar-thumb:hover {
+            background: var(--brown-border);
+        }
+
+        /* ====================================================================
+           Sound Panel - Compact layout (no scroll)
+           ==================================================================== */
+        .sound-panel {
+            padding: 8px 18px !important;
+        }
+        .sound-panel .sections-grid {
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .sound-panel .sections-grid-2 {
+            gap: 10px;
+            margin-bottom: 0;
+        }
+        .sound-panel .section-box {
+            padding: 6px 10px;
+        }
+        .sound-panel .section-label {
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+        }
+        .sound-panel .param-row {
+            gap: 6px;
+        }
+        .instrument-strip {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 6px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid var(--bg-paper-darker);
+            border-radius: 6px;
+        }
+        .instrument-strip .section-label {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .expression-section {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botanical fern overlay -->
+    <img class="botanical-overlay" src="/img/fern.png" alt="" />
+
+    <!-- ================================================================
+         Preset Browser Bar
+         ================================================================ -->
+    <div class="preset-bar">
+        <button class="preset-nav-btn" id="preset-prev" title="Previous Preset">&#9664;</button>
+        <div class="preset-name-display" id="preset-name" title="Click to browse presets">
+            Default
+            <div class="preset-dropdown" id="preset-dropdown"></div>
+        </div>
+        <button class="preset-nav-btn" id="preset-next" title="Next Preset">&#9654;</button>
+        <button data-i18n="preset-save" class="preset-save-btn" id="preset-save">Save</button>
+        <span data-i18n="brand-label.ouaricon" class="brand-label">Ouaricon</span>
+    </div>
+
+    <!-- ================================================================
+         Tab Bar
+         ================================================================ -->
+    <div class="tab-bar">
+        <button data-i18n="tab-btn.sound" class="tab-btn active" data-tab="sound">Sound</button>
+        <button data-i18n="tab-btn.tuning" class="tab-btn" data-tab="tuning">Tuning</button>
+        <button data-i18n="tab-btn.effects" class="tab-btn" data-tab="effects">Effects</button>
+    </div>
+
+    <!-- ================================================================
+         Tab Content
+         ================================================================ -->
+    <div class="tab-content">
+
+        <!-- SOUND TAB -->
+        <div class="tab-panel active sound-panel" id="tab-sound">
+
+            <!-- Row 0: Instrument strip -->
+            <div class="instrument-strip">
+                <div data-i18n="tab-sound.instrument" class="section-label">Instrument</div>
+                <div class="toggle-control" id="tone-hole-toggle">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                    <span data-i18n="tone-hole-toggle.tone-holes" class="toggle-label">Tone Holes</span>
+                </div>
+                <div class="instrument-selector">
+                    <labeldata-i18n="tab-sound.preset" >Preset</label>
+                    <select class="instrument-select" id="instrument-select">
+                        <option data-i18n="instrument-select.concert-flute" value="0">Concert Flute</option>
+                        <option data-i18n="instrument-select.shakuhachi" value="1">Shakuhachi</option>
+                        <option data-i18n="instrument-select.bansuri" value="2">Bansuri</option>
+                        <option data-i18n="instrument-select.native-am-flute" value="3">Native Am. Flute</option>
+                        <option data-i18n="instrument-select.recorder" value="4">Recorder</option>
+                        <option data-i18n="instrument-select.pan-flute" value="5">Pan Flute</option>
+                        <option data-i18n="instrument-select.piccolo" value="6">Piccolo</option>
+                        <option data-i18n="instrument-select.ocarina" value="7">Ocarina</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Row 1: Excitation | Resonator | ADSR -->
+            <div class="sections-grid">
+                <!-- Excitation -->
+                <div class="section-box">
+                    <div data-i18n="tab-sound.excitation" class="section-label">Excitation</div>
+                    <div class="param-row">
+                        <div class="knob-control" data-param="breathPressure">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.breath" class="knob-label">Breath</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="embouchure">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.embouchure" class="knob-label">Embouchure</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="breathNoise">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.noise" class="knob-label">Noise</div>
+                            <div class="knob-value">0.15</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resonator -->
+                <div class="section-box">
+                    <div data-i18n="tab-sound.resonator" class="section-label">Resonator</div>
+                    <div class="param-row">
+                        <div class="knob-control" data-param="material">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.material" class="knob-label">Material</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="toneColor">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.tone-color" class="knob-label">Tone Color</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="airColumn">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.air-column" class="knob-label">Air Column</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="jetReflection">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.jet-refl" class="knob-label">Jet Refl.</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="endReflection">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.end-refl" class="knob-label">End Refl.</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADSR Envelope -->
+                <div class="section-box adsr-section" id="adsr-section">
+                    <div class="section-label">
+                        ADSR Envelope
+                        <div class="toggle-control adsr-toggle" id="adsr-toggle">
+                            <div class="toggle-track">
+                                <div class="toggle-thumb"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="param-row adsr-knobs" id="adsr-knobs">
+                        <div class="knob-control" data-param="adsrAttack">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="adsr-knobs.attack" class="knob-label">Attack</div>
+                            <div class="knob-value">10 ms</div>
+                        </div>
+                        <div class="knob-control" data-param="adsrDecay">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="adsr-knobs.decay" class="knob-label">Decay</div>
+                            <div class="knob-value">100 ms</div>
+                        </div>
+                        <div class="knob-control" data-param="adsrSustain">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="adsr-knobs.sustain" class="knob-label">Sustain</div>
+                            <div class="knob-value">0.80</div>
+                        </div>
+                        <div class="knob-control" data-param="adsrRelease">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="adsr-knobs.release" class="knob-label">Release</div>
+                            <div class="knob-value">200 ms</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Expression (full width) -->
+            <div class="section-box expression-section">
+                <div data-i18n="tab-sound.expression" class="section-label">Expression</div>
+                <div class="param-row">
+                    <div class="knob-control" data-param="vibratoRate">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.vib-rate" class="knob-label">Vib Rate</div>
+                        <div class="knob-value">5.0 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoDepth">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.vib-pitch" class="knob-label">Vib Pitch</div>
+                        <div class="knob-value">0.30</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoTremolo">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.vib-tremolo" class="knob-label">Vib Tremolo</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoDriftDepth">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.drift-depth" class="knob-label">Drift Depth</div>
+                        <div class="knob-value">0.50</div>
+                    </div>
+                    <div class="knob-control" data-param="vibratoDriftSpeed">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.drift-speed" class="knob-label">Drift Speed</div>
+                        <div class="knob-value">0.4 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="flutterTongue">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.flutter" class="knob-label">Flutter</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                    <div class="knob-control" data-param="flutterRate">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.flut-rate" class="knob-label">Flut Rate</div>
+                        <div class="knob-value">22.0 Hz</div>
+                    </div>
+                    <div class="knob-control" data-param="growl">
+                        <div class="knob-wrapper"></div>
+                        <div data-i18n="tab-sound.growl" class="knob-label">Growl</div>
+                        <div class="knob-value">0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Output | Impossible Physics -->
+            <div class="sections-grid-2">
+                <!-- Output -->
+                <div class="section-box">
+                    <div data-i18n="tab-sound.output" class="section-label">Output</div>
+                    <div class="param-row">
+                        <div class="knob-control" data-param="width">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.width" class="knob-label">Width</div>
+                            <div class="knob-value">1.00</div>
+                        </div>
+                        <div class="knob-control" data-param="formant">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.formant" class="knob-label">Formant</div>
+                            <div class="knob-value">0.50</div>
+                        </div>
+                        <div class="knob-control" data-param="outputLevel">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.output-2" class="knob-label">Output</div>
+                            <div class="knob-value">0.0 dB</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Impossible Physics -->
+                <div class="section-box impossible-physics-row">
+                    <div data-i18n="tab-sound.impossible-physics" class="section-label">Impossible Physics</div>
+                    <div class="param-row">
+                        <div class="knob-control" data-param="infiniteSustain">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.inf-sustain" class="knob-label">Inf. Sustain</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control" data-param="reversedJet">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.rev-jet" class="knob-label">Rev. Jet</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                        <div class="knob-control" data-param="subHarmonics">
+                            <div class="knob-wrapper"></div>
+                            <div data-i18n="tab-sound.sub-harm" class="knob-label">Sub Harm.</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholders -->
+            <div id="breath-viz-placeholder" class="future-feature" style="display:none;"></div>
+            <div id="register-indicator-placeholder" class="future-feature" style="display:none;"></div>
+            <div id="visual-polish-sound" class="future-feature" style="display:none;"></div>
+
+        </div>
+
+        <!-- TUNING TAB -->
+        <div class="tab-panel" id="tab-tuning">
+            <div id="tuning-container"></div>
+            <!-- Placeholder: Visual Polish (UI-08) -->
+            <div id="visual-polish-tuning" class="future-feature" style="display:none;"></div>
+        </div>
+
+        <!-- EFFECTS TAB (v1.14.0) -->
+        <div class="tab-panel" id="tab-effects">
+            <div class="fx-section" id="chorusSection">
+                <div class="fx-header">
+                    <span data-i18n="chorussection.chorus" class="fx-title">Chorus</span>
+                    <button data-i18n="chorusBypassBtn" class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="chorus-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="delaySection">
+                <div class="fx-header">
+                    <span data-i18n="delaysection.delay" class="fx-title">Delay</span>
+                    <button data-i18n="delayBypassBtn" class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="delay-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="reverbSection">
+                <div class="fx-header">
+                    <span data-i18n="reverbsection.reverb" class="fx-title">Reverb</span>
+                    <button data-i18n="reverbBypassBtn" class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="reverb-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="eqSection">
+                <div class="fx-header">
+                    <span data-i18n="eqsection.eq" class="fx-title">EQ</span>
+                    <button data-i18n="eqBypassBtn" class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="eq-knobs"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JUCE WebView Bridge (index.js is an ES module — imported below, a
+         classic script tag would throw SyntaxError on its `export`) -->
+    <script src="/js/juce/check_native_interop.js"></script>
+
+    <script type="module">
+        import * as Juce from '/js/juce/index.js';
+
+        // ====================================================================
+        // Parameter Definitions
+        // ====================================================================
+        const PARAMS = {
+            breathPressure:  { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            embouchure:      { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            breathNoise:     { min: 0, max: 1, default: 0.15, unit: '', decimals: 2 },
+            material:        { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            toneColor:       { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            airColumn:       { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            jetReflection:   { min: -1, max: 1, default: 0.5, unit: '', decimals: 2 },
+            endReflection:   { min: -1, max: 1, default: 0.5, unit: '', decimals: 2 },
+            vibratoRate:     { min: 2, max: 8, default: 5, unit: ' Hz', decimals: 1 },
+            vibratoDepth:    { min: 0, max: 1, default: 0.3, unit: '', decimals: 2 },
+            vibratoTremolo:  { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            vibratoDriftDepth: { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            vibratoDriftSpeed: { min: 0.1, max: 2, default: 0.4, unit: ' Hz', decimals: 2 },
+            flutterTongue:   { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            flutterRate:     { min: 15, max: 30, default: 22, unit: ' Hz', decimals: 1 },
+            growl:           { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            width:           { min: 0, max: 2, default: 1, unit: '', decimals: 2 },
+            formant:         { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
+            outputLevel:     { min: -60, max: 12, default: 0, unit: ' dB', decimals: 1 },
+            infiniteSustain: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            reversedJet:     { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            subHarmonics:    { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
+            adsrAttack:      { min: 0.001, max: 5, default: 0.01, unit: ' s', decimals: 3, skew: 0.3 },
+            adsrDecay:       { min: 0.001, max: 5, default: 0.1, unit: ' s', decimals: 3, skew: 0.3 },
+            adsrSustain:     { min: 0, max: 1, default: 0.8, unit: '', decimals: 2 },
+            adsrRelease:     { min: 0.001, max: 10, default: 0.2, unit: ' s', decimals: 3, skew: 0.3 },
+        };
+
+        // ====================================================================
+        // SVG Arc Knob Rendering
+        // ====================================================================
+        const ARC_START = 135;
+        const ARC_END = 405;
+        const ARC_RANGE = ARC_END - ARC_START;
+
+        function polarToCartesian(cx, cy, r, angleDeg) {
+            const rad = (angleDeg - 90) * Math.PI / 180;
+            return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+        }
+
+        function describeArc(cx, cy, r, startAngle, endAngle) {
+            const start = polarToCartesian(cx, cy, r, endAngle);
+            const end = polarToCartesian(cx, cy, r, startAngle);
+            const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+            return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+        }
+
+        function createKnobSVG(container) {
+            const size = 55;
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = 22;
+            const innerR = 14;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+            svg.classList.add('knob-svg');
+
+            // Track arc
+            const track = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            track.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_END));
+            track.classList.add('knob-track');
+            svg.appendChild(track);
+
+            // Fill arc
+            const fill = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_START));
+            fill.classList.add('knob-fill');
+            fill.dataset.role = 'fill';
+            svg.appendChild(fill);
+
+            // Center circle
+            const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            center.setAttribute('cx', cx);
+            center.setAttribute('cy', cy);
+            center.setAttribute('r', innerR);
+            center.classList.add('knob-center');
+            svg.appendChild(center);
+
+            // Indicator line
+            const indicator = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            indicator.classList.add('knob-indicator');
+            indicator.dataset.role = 'indicator';
+            svg.appendChild(indicator);
+
+            container.appendChild(svg);
+            return svg;
+        }
+
+        function updateKnobVisual(control, normValue) {
+            const svg = control.querySelector('.knob-svg');
+            if (!svg) return;
+
+            const size = 55;
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = 22;
+            const innerR = 14;
+
+            const angle = ARC_START + normValue * ARC_RANGE;
+
+            // Update fill arc
+            const fill = svg.querySelector('[data-role="fill"]');
+            if (normValue < 0.005) {
+                fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_START));
+            } else {
+                fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, angle));
+            }
+
+            // Update indicator
+            const indicator = svg.querySelector('[data-role="indicator"]');
+            const indicatorStart = polarToCartesian(cx, cy, innerR - 2, angle);
+            const indicatorEnd = polarToCartesian(cx, cy, r - 2, angle);
+            indicator.setAttribute('x1', indicatorStart.x);
+            indicator.setAttribute('y1', indicatorStart.y);
+            indicator.setAttribute('x2', indicatorEnd.x);
+            indicator.setAttribute('y2', indicatorEnd.y);
+        }
+
+        function formatValue(paramName, rawValue) {
+            const def = PARAMS[paramName];
+            if (!def) return rawValue.toFixed(2);
+            // ADSR time params: show ms for values under 1s
+            if (def.unit === ' s' && rawValue < 1.0)
+                return (rawValue * 1000).toFixed(0) + ' ms';
+            return rawValue.toFixed(def.decimals) + def.unit;
+        }
+
+        // Readouts use SliderState.getScaledValue() — the C++ NormalisableRange
+        // pushed via propertiesChanged is the single source of truth. PARAMS is
+        // kept only for decimals/units and double-click reset defaults.
+
+        // ====================================================================
+        // Slider Parameter Binding (JUCE WebSliderRelay)
+        // ====================================================================
+        const sliderStates = {};
+
+        // Single shared document-level drag handler for all main-tab knobs
+        // (same pattern as fxKnobDrag) — a per-knob pair would register 52
+        // document listeners, all running on every mouse move.
+        const knobDrag = { active: false, state: null, startY: 0, startNorm: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!knobDrag.active) return;
+            const dy = knobDrag.startY - e.clientY;
+            const sensitivity = e.shiftKey ? 600 : 200;
+            const newNorm = knobDrag.startNorm + dy / sensitivity;
+            knobDrag.state.setNormalisedValue(Math.max(0, Math.min(1, newNorm)));
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (knobDrag.active) {
+                knobDrag.active = false;
+                knobDrag.state.sliderDragEnded();
+                knobDrag.state = null;
+            }
+        });
+
+        function bindSliderParam(paramName) {
+            const control = document.querySelector(`.knob-control[data-param="${paramName}"]`);
+            if (!control) {
+                console.warn('No control found for param:', paramName);
+                return;
+            }
+
+            // Create SVG knob
+            const wrapper = control.querySelector('.knob-wrapper');
+            createKnobSVG(wrapper);
+
+            // Get JUCE slider state
+            try {
+                const state = Juce.getSliderState(paramName);
+                sliderStates[paramName] = state;
+
+                // Initialize visual
+                updateKnobVisual(control, state.getNormalisedValue());
+                control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    updateKnobVisual(control, state.getNormalisedValue());
+                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+                });
+                state.propertiesChangedEvent.addListener(() => {
+                    updateKnobVisual(control, state.getNormalisedValue());
+                    control.querySelector('.knob-value').textContent = formatValue(paramName, state.getScaledValue());
+                });
+
+                // UI -> JUCE (mouse drag via the shared document-level handler)
+                wrapper.addEventListener('mousedown', (e) => {
+                    knobDrag.active = true;
+                    knobDrag.state = state;
+                    knobDrag.startY = e.clientY;
+                    knobDrag.startNorm = state.getNormalisedValue();
+                    state.sliderDragStarted();
+                    e.preventDefault();
+                });
+
+                // Double-click to reset. Range and skew come from the backend
+                // properties: a linear (default-min)/(max-min) ignores skew and
+                // reset the ADSR times to ~1 ms instead of their real defaults.
+                wrapper.addEventListener('dblclick', (e) => {
+                    const def = PARAMS[paramName];
+                    if (def) {
+                        const p = state.properties || {};
+                        const min = (typeof p.start === 'number') ? p.start : def.min;
+                        const max = (typeof p.end === 'number') ? p.end : def.max;
+                        const skew = (typeof p.skew === 'number' && p.skew > 0) ? p.skew : (def.skew || 1);
+                        let defaultNorm = (def.default - min) / (max - min);
+                        if (skew !== 1 && defaultNorm > 0)
+                            defaultNorm = Math.pow(defaultNorm, skew);
+                        state.sliderDragStarted();
+                        state.setNormalisedValue(Math.max(0, Math.min(1, defaultNorm)));
+                        state.sliderDragEnded();
+                    }
+                    e.preventDefault();
+                });
+
+            } catch (err) {
+                console.error('Failed to bind slider:', paramName, err);
+            }
+        }
+
+        // ====================================================================
+        // Toggle Binding (JUCE WebToggleButtonRelay)
+        // ====================================================================
+        function bindToneHoleToggle() {
+            const toggleEl = document.getElementById('tone-hole-toggle');
+            const trackEl = toggleEl.querySelector('.toggle-track');
+
+            try {
+                const state = Juce.getToggleState('toneHoleToggle');
+
+                // Initialize
+                if (state.getValue()) {
+                    trackEl.classList.add('on');
+                }
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    if (state.getValue()) {
+                        trackEl.classList.add('on');
+                    } else {
+                        trackEl.classList.remove('on');
+                    }
+                });
+
+                // UI -> JUCE
+                toggleEl.addEventListener('click', () => {
+                    state.setValue(!state.getValue());
+                });
+
+            } catch (err) {
+                console.error('Failed to bind tone hole toggle:', err);
+            }
+        }
+
+        // ====================================================================
+        // ADSR Toggle Binding (JUCE WebToggleButtonRelay)
+        // ====================================================================
+        function bindAdsrToggle() {
+            const toggleEl = document.getElementById('adsr-toggle');
+            const trackEl = toggleEl.querySelector('.toggle-track');
+            const knobsEl = document.getElementById('adsr-knobs');
+
+            function updateDisabledState(enabled) {
+                if (enabled) {
+                    trackEl.classList.add('on');
+                    knobsEl.classList.remove('adsr-disabled');
+                } else {
+                    trackEl.classList.remove('on');
+                    knobsEl.classList.add('adsr-disabled');
+                }
+            }
+
+            try {
+                const state = Juce.getToggleState('adsrEnabled');
+
+                // Initialize
+                updateDisabledState(state.getValue());
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    updateDisabledState(state.getValue());
+                });
+
+                // UI -> JUCE
+                toggleEl.addEventListener('click', () => {
+                    state.setValue(!state.getValue());
+                });
+
+            } catch (err) {
+                console.error('Failed to bind ADSR toggle:', err);
+            }
+        }
+
+        // ====================================================================
+        // Instrument Preset Selector (via native functions)
+        // ====================================================================
+        async function bindInstrumentPreset() {
+            const selectEl = document.getElementById('instrument-select');
+
+            try {
+                // Use slider relay for instrumentPreset param
+                const state = Juce.getSliderState('instrumentPreset');
+
+                // Index count comes from the backend-pushed numSteps so adding
+                // a preset in C++ can't silently break the mapping (a
+                // hardcoded 7 duplicated InstrumentPresets::numTotalPresets)
+                const maxIndex = () => {
+                    const p = state.properties || {};
+                    return (typeof p.numSteps === 'number' && p.numSteps > 1) ? p.numSteps - 1 : 7;
+                };
+
+                // Initialize from current value
+                const initNorm = state.getNormalisedValue();
+                const initIdx = Math.round(initNorm * maxIndex());
+                selectEl.value = String(initIdx);
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    const norm = state.getNormalisedValue();
+                    const idx = Math.round(norm * maxIndex());
+                    selectEl.value = String(idx);
+                });
+
+                // UI -> JUCE
+                selectEl.addEventListener('change', () => {
+                    const idx = parseInt(selectEl.value, 10);
+                    const norm = idx / maxIndex();
+                    state.sliderDragStarted();
+                    state.setNormalisedValue(norm);
+                    state.sliderDragEnded();
+                });
+
+            } catch (err) {
+                console.error('Failed to bind instrument preset:', err);
+            }
+        }
+
+        // ====================================================================
+        // Preset Browser
+        // ====================================================================
+        let currentPresetName = 'Default';
+        let dropdownOpen = false;
+
+        const presetNameEl = document.getElementById('preset-name');
+        const presetDropdownEl = document.getElementById('preset-dropdown');
+        const presetPrevBtn = document.getElementById('preset-prev');
+        const presetNextBtn = document.getElementById('preset-next');
+        const presetSaveBtn = document.getElementById('preset-save');
+
+        async function refreshPresetDisplay() {
+            try {
+                const getCurrentPreset = Juce.getNativeFunction('getCurrentPreset');
+                const name = await getCurrentPreset();
+                if (name && typeof name === 'string' && name.length > 0) {
+                    currentPresetName = name;
+                }
+            } catch (e) { /* ignore */ }
+
+            // Update display text (keep dropdown child)
+            const textNodes = Array.from(presetNameEl.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+            textNodes.forEach(n => n.remove());
+            presetNameEl.insertBefore(document.createTextNode(currentPresetName + ' '), presetNameEl.firstChild);
+        }
+
+        async function populatePresetDropdown() {
+            presetDropdownEl.innerHTML = '';
+            try {
+                const getPresetList = Juce.getNativeFunction('getPresetList');
+                const presets = await getPresetList();
+                if (Array.isArray(presets)) {
+                    presets.forEach(name => {
+                        const item = document.createElement('div');
+                        item.className = 'preset-dropdown-item';
+                        if (name === currentPresetName) item.classList.add('active');
+                        item.textContent = name;
+                        item.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const loadPreset = Juce.getNativeFunction('loadPreset');
+                            await loadPreset(name);
+                            closeDropdown();
+                            await refreshPresetDisplay();
+                        });
+                        presetDropdownEl.appendChild(item);
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to get preset list:', e);
+            }
+        }
+
+        function toggleDropdown() {
+            if (dropdownOpen) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        }
+
+        async function openDropdown() {
+            await populatePresetDropdown();
+            presetDropdownEl.classList.add('open');
+            dropdownOpen = true;
+        }
+
+        function closeDropdown() {
+            presetDropdownEl.classList.remove('open');
+            dropdownOpen = false;
+        }
+
+        presetNameEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('preset-dropdown-item')) return;
+            toggleDropdown();
+        });
+
+        // Close dropdown on click outside
+        document.addEventListener('click', (e) => {
+            if (dropdownOpen && !presetNameEl.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+
+        presetPrevBtn.addEventListener('click', async () => {
+            try {
+                const selectPrev = Juce.getNativeFunction('selectPreviousPreset');
+                await selectPrev();
+                await refreshPresetDisplay();
+            } catch (e) { console.error(e); }
+        });
+
+        presetNextBtn.addEventListener('click', async () => {
+            try {
+                const selectNext = Juce.getNativeFunction('selectNextPreset');
+                await selectNext();
+                await refreshPresetDisplay();
+            } catch (e) { console.error(e); }
+        });
+
+        presetSaveBtn.addEventListener('click', async () => {
+            try {
+                const saveWithDialog = Juce.getNativeFunction('savePresetWithDialog');
+                const name = await saveWithDialog();
+                if (name && name.length > 0) {
+                    currentPresetName = name;
+                    await refreshPresetDisplay();
+                }
+            } catch (e) { console.error(e); }
+        });
+
+        // ====================================================================
+        // Tab Navigation
+        // ====================================================================
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        let tuningInitialized = false;
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.dataset.tab;
+
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabPanels.forEach(p => p.classList.remove('active'));
+
+                btn.classList.add('active');
+                document.getElementById('tab-' + tabId).classList.add('active');
+
+                // Lazy init tuning panel
+                if (tabId === 'tuning' && !tuningInitialized) {
+                    initTuningPanel();
+                    tuningInitialized = true;
+                }
+            });
+        });
+
+        // ====================================================================
+        // Tuning Panel Integration (lazy loaded)
+        // ====================================================================
+        async function initTuningPanel() {
+            try {
+                const { TuningPanel } = await import('/js/tuning-panel.js');
+                const container = document.getElementById('tuning-container');
+                const tuningPanel = new TuningPanel(container, Juce);
+                await tuningPanel.init();
+                console.log('[Tuning] Panel initialized successfully');
+            } catch (err) {
+                console.error('Failed to init tuning panel:', err);
+                document.getElementById('tuning-container').innerHTML =
+                    '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+            }
+        }
+
+        // ====================================================================
+        // Effects Tab (v1.14.0)
+        // ====================================================================
+        const fxKnobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!fxKnobDrag.active) return;
+            const deltaY = fxKnobDrag.lastY - e.clientY;
+            const sensitivity = 0.005;
+            fxKnobDrag.virtualNorm = Math.max(0, Math.min(1, fxKnobDrag.virtualNorm + (deltaY * sensitivity)));
+            fxKnobDrag.state.setNormalisedValue(fxKnobDrag.virtualNorm);
+            fxKnobDrag.lastY = e.clientY;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (fxKnobDrag.active) {
+                fxKnobDrag.state.sliderDragEnded();
+                fxKnobDrag.active = false;
+                fxKnobDrag.state = null;
+            }
+        });
+
+        function makeFxKnob(id, label) {
+            const vb = 44, c = 22, r = 18;
+            const da = (2 * Math.PI * r * 0.75).toFixed(2);
+            const container = document.createElement('div');
+            container.className = 'knob-container';
+            container.innerHTML =
+                `<div class="knob" id="${id}Knob">` +
+                    `<div class="knob-visual">` +
+                        `<svg viewBox="0 0 ${vb} ${vb}">` +
+                            `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
+                            `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
+                        `</svg>` +
+                    `</div>` +
+                `</div>` +
+                `<div class="knob-label">${label}</div>` +
+                `<div class="knob-value" id="${id}Value"></div>`;
+            return container;
+        }
+
+        // displayFactor converts the parameter's engineering value (from
+        // getScaledValue / the backend-pushed range) into display units,
+        // e.g. 100 for 0..1 -> %, 1000 for seconds -> ms. Min/max come from
+        // sliderState.properties so a retuned C++ range can't silently
+        // diverge from a hardcoded JS copy.
+        function setupFxKnob(id, sliderState, displayFactor, suffix, formatter) {
+            if (!sliderState) return;
+            const knobEl = document.getElementById(id + 'Knob');
+            const vine = document.getElementById(id + 'Vine');
+            const valueDisplay = document.getElementById(id + 'Value');
+            if (!knobEl || !vine || !valueDisplay) return;
+
+            const r = parseFloat(vine.getAttribute('r'));
+            const arcLength = 2 * Math.PI * r * 0.75;
+            let isEditing = false;
+
+            function displayBounds() {
+                const p = sliderState.properties || {};
+                const start = (typeof p.start === 'number') ? p.start : 0;
+                const end = (typeof p.end === 'number') ? p.end : 1;
+                return { min: start * displayFactor, max: end * displayFactor };
+            }
+
+            function updateVisual() {
+                const normValue = sliderState.getNormalisedValue();
+                const realValue = sliderState.getScaledValue() * displayFactor;
+                vine.style.strokeDashoffset = arcLength - (normValue * arcLength);
+                if (!isEditing) {
+                    valueDisplay.textContent = formatter(realValue) + suffix;
+                }
+            }
+
+            sliderState.valueChangedEvent.addListener(() => updateVisual());
+            sliderState.propertiesChangedEvent.addListener(() => updateVisual());
+
+            const knobVisual = knobEl.querySelector('.knob-visual');
+            (knobVisual || knobEl).addEventListener('mousedown', (e) => {
+                fxKnobDrag.active = true;
+                fxKnobDrag.state = sliderState;
+                fxKnobDrag.lastY = e.clientY;
+                fxKnobDrag.virtualNorm = sliderState.getNormalisedValue();
+                sliderState.sliderDragStarted();
+                e.preventDefault();
+            });
+
+            (knobVisual || knobEl).addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = sliderState.getNormalisedValue();
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                // Bracket in a drag gesture — hosts that gate automation
+                // recording on gestures would otherwise miss wheel edits
+                sliderState.sliderDragStarted();
+                sliderState.setNormalisedValue(Math.max(0, Math.min(1, currentNorm + delta)));
+                sliderState.sliderDragEnded();
+            }, { passive: false });
+
+            updateVisual();
+
+            valueDisplay.style.cursor = 'text';
+            valueDisplay.title = 'Double-click to edit';
+            valueDisplay.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (isEditing) return;
+                isEditing = true;
+                const realValue = sliderState.getScaledValue() * displayFactor;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = formatter(realValue);
+                input.style.cssText = `
+                    width: 45px; text-align: center; font-size: 9px;
+                    color: var(--brown-frame); background: rgba(255,248,220,0.9);
+                    border: 1px solid var(--brown-border); border-radius: 3px;
+                    padding: 1px 2px; outline: none; user-select: text;
+                    -webkit-user-select: text;
+                `;
+                valueDisplay.textContent = '';
+                valueDisplay.appendChild(input);
+                input.focus();
+                input.select();
+
+                function commitValue() {
+                    if (!isEditing) return;
+                    const rawVal = parseFloat(input.value);
+                    if (!isNaN(rawVal)) {
+                        const { min, max } = displayBounds();
+                        const clamped = Math.max(min, Math.min(max, rawVal));
+                        const p = sliderState.properties || {};
+                        const skew = (typeof p.skew === 'number' && p.skew > 0) ? p.skew : 1;
+                        let norm = (clamped - min) / (max - min);
+                        if (skew !== 1 && norm > 0)
+                            norm = Math.pow(norm, skew);
+                        sliderState.sliderDragStarted();
+                        sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
+                        sliderState.sliderDragEnded();
+                    }
+                    isEditing = false;
+                    updateVisual();
+                }
+
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
+                    else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
+                });
+                input.addEventListener('blur', () => { if (isEditing) commitValue(); });
+            });
+        }
+
+        function populateFxKnobs(containerId, knobs) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            knobs.forEach(k => container.appendChild(makeFxKnob(k.id, k.label)));
+        }
+
+        function setupFxBypassToggle(fxName, toggleState) {
+            const btn = document.getElementById(fxName + 'BypassBtn');
+            const section = document.getElementById(fxName + 'Section');
+            if (!btn || !section || !toggleState) return;
+
+            function updateVisual() {
+                const bypassed = toggleState.getValue();
+                btn.textContent = bypassed ? 'Off' : 'On';
+                btn.classList.toggle('bypassed', bypassed);
+                section.classList.toggle('bypassed', bypassed);
+            }
+
+            toggleState.valueChangedEvent.addListener(() => updateVisual());
+            btn.addEventListener('click', () => toggleState.setValue(!toggleState.getValue()));
+            updateVisual();
+        }
+
+        function initializeEffects() {
+            try {
+                // Populate knobs
+                populateFxKnobs('chorus-knobs', [
+                    { id: 'chorusRate', label: 'Rate' },
+                    { id: 'chorusDepth', label: 'Depth' },
+                    { id: 'chorusMix', label: 'Mix' },
+                ]);
+
+                const delayRow = document.getElementById('delay-knobs');
+                if (delayRow) {
+                    delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
+                    delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+
+                    const modeWrap = document.createElement('div');
+                    modeWrap.className = 'fx-dropdown-container';
+                    const modeLbl = document.createElement('div');
+                    modeLbl.className = 'knob-label';
+                    modeLbl.textContent = 'Mode';
+                    const modeSel = document.createElement('select');
+                    modeSel.className = 'fx-dropdown';
+                    modeSel.id = 'delayModeSelect';
+                    ['Normal', 'PingPong'].forEach((name, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent = name;
+                        modeSel.appendChild(opt);
+                    });
+                    modeWrap.appendChild(modeLbl);
+                    modeWrap.appendChild(modeSel);
+                    delayRow.appendChild(modeWrap);
+                    delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+                }
+
+                populateFxKnobs('eq-knobs', [
+                    { id: 'eqLowGain', label: 'Low' },
+                    { id: 'eqMidGain', label: 'Mid' },
+                    { id: 'eqMidFreq', label: 'Mid Freq' },
+                    { id: 'eqHighGain', label: 'High' },
+                ]);
+
+                populateFxKnobs('reverb-knobs', [
+                    { id: 'reverbSize', label: 'Size' },
+                    { id: 'reverbDamp', label: 'Damp' },
+                    { id: 'reverbPredelay', label: 'Pre-dly' },
+                    { id: 'reverbMod', label: 'Mod' },
+                    { id: 'reverbShimmer', label: 'Shimmer' },
+                    { id: 'reverbMix', label: 'Mix' },
+                ]);
+
+                // Get JUCE states
+                const chorusRateState     = Juce.getSliderState('chorusRate');
+                const chorusDepthState    = Juce.getSliderState('chorusDepth');
+                const chorusMixState      = Juce.getSliderState('chorusMix');
+                const delayTimeState      = Juce.getSliderState('delayTime');
+                const delayFeedbackState  = Juce.getSliderState('delayFeedback');
+                const delayModeState      = Juce.getComboBoxState('delayMode');
+                const delayMixState       = Juce.getSliderState('delayMix');
+                const eqLowGainState      = Juce.getSliderState('eqLowGain');
+                const eqMidGainState      = Juce.getSliderState('eqMidGain');
+                const eqMidFreqState      = Juce.getSliderState('eqMidFreq');
+                const eqHighGainState     = Juce.getSliderState('eqHighGain');
+                const reverbSizeState     = Juce.getSliderState('reverbSize');
+                const reverbDampState     = Juce.getSliderState('reverbDamp');
+                const reverbPredelayState = Juce.getSliderState('reverbPredelay');
+                const reverbMixState      = Juce.getSliderState('reverbMix');
+                const reverbModState      = Juce.getSliderState('reverbMod');
+                const reverbShimmerState  = Juce.getSliderState('reverbShimmer');
+                const chorusBypassState   = Juce.getToggleState('chorusBypass');
+                const delayBypassState    = Juce.getToggleState('delayBypass');
+                const eqBypassState       = Juce.getToggleState('eqBypass');
+                const reverbBypassState   = Juce.getToggleState('reverbBypass');
+
+                // Setup knobs with display-unit factors (engineering value × factor)
+                setupFxKnob('chorusRate',      chorusRateState,     1, ' Hz', v => v.toFixed(2));
+                setupFxKnob('chorusDepth',     chorusDepthState,    100, '%', v => Math.round(v));
+                setupFxKnob('chorusMix',       chorusMixState,      100, '%', v => Math.round(v));
+                setupFxKnob('delayTime',       delayTimeState,      1000, ' ms', v => Math.round(v));
+                setupFxKnob('delayFeedback',   delayFeedbackState,  100, '%', v => Math.round(v));
+                setupFxKnob('delayMix',        delayMixState,       100, '%', v => Math.round(v));
+                setupFxKnob('eqLowGain',       eqLowGainState,      1, ' dB', v => v.toFixed(1));
+                setupFxKnob('eqMidGain',       eqMidGainState,      1, ' dB', v => v.toFixed(1));
+                setupFxKnob('eqMidFreq',       eqMidFreqState,      1, ' Hz', v => Math.round(v));
+                setupFxKnob('eqHighGain',      eqHighGainState,     1, ' dB', v => v.toFixed(1));
+                setupFxKnob('reverbSize',      reverbSizeState,     100, '%', v => Math.round(v));
+                setupFxKnob('reverbDamp',      reverbDampState,     100, '%', v => Math.round(v));
+                setupFxKnob('reverbPredelay',  reverbPredelayState, 1, ' ms', v => Math.round(v));
+                setupFxKnob('reverbMod',       reverbModState,      100, '%', v => Math.round(v));
+                setupFxKnob('reverbShimmer',   reverbShimmerState,  100, '%', v => Math.round(v));
+                setupFxKnob('reverbMix',       reverbMixState,      100, '%', v => Math.round(v));
+
+                // Delay mode dropdown
+                const modeSelect = document.getElementById('delayModeSelect');
+                if (modeSelect && delayModeState) {
+                    modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+                    modeSelect.addEventListener('change', (e) => {
+                        delayModeState.setChoiceIndex(e.target.selectedIndex);
+                    });
+                    delayModeState.valueChangedEvent.addListener(() => {
+                        modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+                    });
+                }
+
+                // Bypass toggles
+                setupFxBypassToggle('chorus', chorusBypassState);
+                setupFxBypassToggle('delay', delayBypassState);
+                setupFxBypassToggle('eq', eqBypassState);
+                setupFxBypassToggle('reverb', reverbBypassState);
+
+                console.log('[Effects] Panel initialized (v1.14.0)');
+            } catch (error) {
+                console.error('Failed to initialize effects:', error);
+            }
+        }
+
+        // ====================================================================
+        // Initialize All Bindings
+        // ====================================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Bind all slider parameters
+            Object.keys(PARAMS).forEach(paramName => {
+                bindSliderParam(paramName);
+            });
+
+            // Bind tone hole toggle
+            bindToneHoleToggle();
+
+            // Bind ADSR toggle
+            bindAdsrToggle();
+
+            // Bind instrument preset selector
+            await bindInstrumentPreset();
+
+            // Initialize effects panel
+            initializeEffects();
+
+            // Initialize preset display
+            await refreshPresetDisplay();
+        });
+
+    </script>
+
+</body>
+</html>
