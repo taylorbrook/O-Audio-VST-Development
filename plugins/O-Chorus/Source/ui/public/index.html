@@ -460,6 +460,103 @@
       outline: 1px solid #3a5c4a;
       outline-offset: 1px;
     }
+
+    /* ===== HOVER-HELP (v1.4.0) =====
+       The surface the delegated renderer paints into. Styled in THIS page's
+       vocabulary rather than pasted in from the reference implementation: the
+       same rgba(245,230,211,0.97) plate, rgba(139,115,85,0.4) hairline,
+       3 px radius and 1px/2px/8px shadow the settings popover and the preset
+       dropdown already use, Garamond throughout, and the #5C4A32 uppercase of
+       .group-label / .lfo-ring-label for the title line. O-simpleFM's tooltip
+       is a dark #2a2118 chip, which is that plugin's system and would read as a
+       foreign object over this paper ground.
+
+       ── THE FRAME IS 700 x 125, THE SHORTEST IN THE REPO ────────────────────
+
+       125 px minus the renderer's 8 px margin top and bottom leaves 109 px for
+       the WHOLE surface, and the arithmetic below is why this tip is wide and
+       short rather than narrow and tall:
+
+           padding      5 + 5   = 10.00
+           border       1 + 1   =  2.00
+           title      9 x 1.3   = 11.70   + 2.00 margin-bottom
+           ------------------------------
+           chrome               = 25.70 px
+           body budget  109 - 25.70 = 83.30 px
+           body line   10 x 1.3 = 13.00 px  ->  SIX lines, and no more
+
+       A seventh body line is 91.00 + 25.70 = 116.70 px of surface in a 109 px
+       well: there is no x or y at which the clamp could place it. Every figure
+       above is measured, not derived — the line box really is 13.00 px
+       (90.7 -> 77.7 -> 64.7 across three, four and five body lines) and the
+       chrome really is 25.70 px (90.7 − 5 x 13.00).
+
+       384 px IS BOUGHT MARGIN, NOT A NECESSITY, and saying otherwise was the
+       first draft of this comment. It claimed these ten bodies "would run 10-12
+       lines at O-Bass's 208 px cap and none could be shown". Measured, at
+       208 px they run four to five lines and the tallest is 90.7 px, which
+       fits the 109 px well perfectly well — with 18.3 px, under a line and a
+       half, of margin. At 384 px the tallest is 64.7 px with 44.3 px of
+       headroom, which is the room a native-speaker review needs when it
+       replaces a machine-drafted French sentence with a longer human one.
+       384 is a little over half the 700 px frame and leaves 692 − 384 = 308 px
+       of horizontal travel for the clamp: the horizontal axis is the one this
+       page has room on, so that is the axis the copy is allowed to spend.
+
+       EVERY DECLARATION BELOW IS LOAD-BEARING:
+
+         position: fixed    — the clamp measures against the VIEWPORT. It also
+                              keeps the node out of flow, so adding it moves
+                              nothing (check-ui-labels moved=0 before and after).
+         visibility+opacity — hidden at rest. What CATCHES an un-hidden surface
+                              is check-i18n assertion 10 and boot-all-uis' text
+                              count, NOT check-ui-labels, which stayed
+                              byte-identically green over exactly this mistake
+                              on O-Bass: a fixed box at 0,0 has the same rect in
+                              both languages, so it neither moves nor changes
+                              the visible element SET. visibility rather than
+                              display:none is deliberate — the box keeps layout,
+                              so position() can measure getBoundingClientRect()
+                              BEFORE the tip is shown.
+         pointer-events     — none, or the surface steals the hover that is
+                              keeping it open and the tip flickers.
+         max-width          — a hard cap is what forces French to WRAP rather
+                              than run off the right edge, and the wrap is what
+                              the 6-line ceiling above is counted in.        */
+    .tooltip {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 200;
+      max-width: 384px;
+      padding: 5px 8px;
+      background: rgba(245, 230, 211, 0.97);
+      border: 1px solid rgba(139, 115, 85, 0.4);
+      border-radius: 3px;
+      box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.15);
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 10px;
+      line-height: 1.3;
+      color: #3C2F2F;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.12s ease;
+      pointer-events: none;
+    }
+
+    .tooltip.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .tooltip .tip-title {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #5C4A32;
+      margin-bottom: 2px;
+    }
   </style>
 </head>
 <body>
@@ -646,6 +743,13 @@
         </label>
       </div>
     </div>
+
+    <!-- v1.4.0: the hover-help surface. EMPTY at rest and hidden at rest, so
+         it enters neither check-i18n assertion 10's uncovered-text sweep nor
+         boot-all-uis' text count. The renderer fills it with createElement +
+         textContent on every hover; nothing on this page ever writes markup
+         into it. -->
+    <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
   </div>
 
   <script type="module" src="./js/juce/index.js"></script>
@@ -1050,11 +1154,177 @@
         });
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // HOVER-HELP (v1.4.0)
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // Ported from O-simpleFM's setupTooltips (js/app.js:384-462). It looks up NO
+    // copy: applyI18n() has already written data-tip-title and data-tip onto
+    // each anchor in the current language, and rewrites both on every language
+    // change. This function only positions and shows what the anchor is already
+    // carrying, which is why a language switch needs no hook here at all.
+    //
+    // Every property below is load-bearing:
+    //
+    //  1  DELEGATED ON document, never querySelectorAll('[data-tip]') at setup.
+    //     No anchor carries data-tip until applyI18n() has run, so a setup-time
+    //     query binds NOTHING and fails silently.
+    //  2  pointerover / pointerout / focusin / focusout, because they BUBBLE.
+    //     pointerenter and focus do not, and delegation needs the bubble phase.
+    //  3  pointerout IGNORES a move between two descendants of the SAME anchor.
+    //     Each .knob-container holds a visual, a caption and a readout, so
+    //     without this the tip flickers off and on at every child boundary.
+    //  4  createElement + textContent, NEVER innerHTML. Localized copy must not
+    //     reach a markup path (the runtime half of check-i18n assertion 9,
+    //     which forbids an angle bracket in an i18n.js string literal).
+    //  5  CLAMPED ON ALL FOUR EDGES with an 8 px margin, flipping to the
+    //     opposite side of the cursor on overflow AND clamping the flipped
+    //     result again. In a 125 px frame the vertical flip is not an edge
+    //     case: every knob cell spans y 28..103, so the naive y + 16 puts the
+    //     tip's top below the frame's own bottom at almost every anchor.
+    //  6  Escape hides it, and so does pointerdown: this page starts a knob
+    //     drag on mousedown, and a tip left standing over a knob being dragged
+    //     is a tip covering the readout the user is watching.
+    //  7  drag.active suppresses a SHOW outright. That is the one deliberate
+    //     addition to the reference family, and it is specific to this page: a
+    //     drag long enough to cross into the neighbouring .knob-container would
+    //     otherwise open that neighbour's tip mid-gesture, over the readout the
+    //     user is dragging to reach. pointerdown alone cannot cover it, because
+    //     the pointerover comes AFTER it.
+    function setupTooltips() {
+        const tip = document.getElementById('tooltip');
+        if (!tip) { console.warn('tooltip surface missing - hover-help unavailable'); return; }
+
+        let active = null;
+
+        const show = (el, x, y) => {
+            const title = el.getAttribute('data-tip-title');
+            const body  = el.getAttribute('data-tip');
+            if (!title && !body) return;
+
+            tip.textContent = '';
+            if (title) {
+                const t = document.createElement('span');
+                t.className = 'tip-title';
+                t.textContent = title;
+                tip.appendChild(t);
+            }
+            if (body) tip.appendChild(document.createTextNode(body));
+
+            tip.classList.add('show');
+            tip.setAttribute('aria-hidden', 'false');
+            position(x, y);
+        };
+
+        // Measured AFTER the content is in place and AFTER .show, so the rect is
+        // the real one. visibility:hidden keeps layout, so the box is measurable
+        // even on the frame before it becomes visible.
+        const position = (x, y) => {
+            const M = 8;
+            const r = tip.getBoundingClientRect();
+            let nx = x + 14;
+            let ny = y + 16;
+
+            // Flip to the other side of the cursor rather than sliding, so the
+            // tip never sits UNDER the pointer that opened it.
+            if (nx + r.width  > window.innerWidth  - M) nx = x - r.width  - 14;
+            if (ny + r.height > window.innerHeight - M) ny = y - r.height - 12;
+
+            // ...and clamp the flipped result too. ONE FLIP IS NOT ENOUGH IN
+            // THIS FRAME. A 60 px tip opened on a knob whose centre is at
+            // y = 65 wants y = 81 below the cursor (81 + 60 = 141, past 117)
+            // and y = -7 above it — outside on BOTH sides of the flip. Every
+            // vertical placement on this page lands on the line below, not on
+            // the flip above it.
+            if (nx + r.width  > window.innerWidth  - M) nx = window.innerWidth  - M - r.width;
+            if (ny + r.height > window.innerHeight - M) ny = window.innerHeight - M - r.height;
+
+            tip.style.left = `${Math.max(M, nx)}px`;
+            tip.style.top  = `${Math.max(M, ny)}px`;
+        };
+
+        const hide = () => {
+            tip.classList.remove('show');
+            tip.setAttribute('aria-hidden', 'true');
+            active = null;
+        };
+
+        const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
+
+        document.addEventListener('pointerover', (e) => {
+            if (drag.active) return;
+            const el = anchorOf(e.target);
+            if (!el || el === active) return;
+            active = el;
+            show(el, e.clientX, e.clientY);
+        });
+
+        document.addEventListener('pointermove', (e) => {
+            if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('pointerout', (e) => {
+            if (!active) return;
+            if (anchorOf(e.relatedTarget) === active) return;
+            hide();
+        });
+
+        // THE FOCUS ARM IS LATCHED TO THE KEYBOARD, and the reason is measured.
+        //
+        // A mouse click on a <button> focuses it, so an unconditional focusin
+        // rule re-opens the tip that pointerdown just hid — with the pointer
+        // still on the anchor and no further pointerover to come. Measured on
+        // the two pilots that shipped without the latch: clicking #gear-btn
+        // left a tip covering the settings popover it had just opened by
+        // 146 x 35 px (O-Bass) and 161 x 29 px (O-AnalogSaturation). Both gates
+        // stayed green throughout; check-ui-labels counts the surface as
+        // pointer-events:none DECORATION and never as a label.
+        //
+        // :focus-visible is deliberately NOT the discriminator. Chromium reports
+        // it false for a programmatic .focus() following a click, so a gate
+        // driving focus directly would measure "no tip" and record that as
+        // correct. An explicit last-input-device latch is the same rule and is
+        // drivable from a test with real events: any keydown clears it.
+        let lastInputWasPointer = false;
+
+        document.addEventListener('pointerdown', () => { lastInputWasPointer = true; hide(); });
+
+        document.addEventListener('focusin', (e) => {
+            if (lastInputWasPointer) return;
+            const el = anchorOf(e.target);
+            if (!el) return;
+            active = el;
+            const r = el.getBoundingClientRect();
+            show(el, r.left + r.width / 2, r.bottom);
+        });
+
+        document.addEventListener('focusout', hide);
+
+        // One keydown listener, two jobs: any key at all means the keyboard is
+        // driving again, which releases the latch above; Escape additionally
+        // hides. Registered AFTER initializeSettingsPopover's own keydown, so
+        // that handler's Escape -> gearBtnEl.focus() is still seen with the
+        // latch as the PREVIOUS input left it: a pointer user who clicked the
+        // gear and then pressed Escape gets no tip, a keyboard user does.
+        document.addEventListener('keydown', (e) => {
+            lastInputWasPointer = false;
+            if (e.key === 'Escape') hide();
+        });
+    }
+
     // Guarded, and LAST. Every parameter binding above has already been
     // registered, so an i18n failure leaves an English plugin that still works
     // rather than a dead page.
+    //
+    // setupTooltips() runs AFTER initI18n() and inside the SAME try/catch.
+    // After, because the anchors carry no data-tip until applyI18n has run —
+    // delegation would survive the other order, but the focusin path reads the
+    // attribute at bind time on nothing. Same try/catch, because if initI18n
+    // threw there are no tip attributes to render anyway, and a top-level call
+    // reaching a lower let/const is the TDZ throw that would take this whole
+    // inline module with it (pattern_module_toplevel_init_tdz).
     initializeSettingsPopover();
-    try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+    try { initI18n(); setupTooltips(); } catch (e) { console.error('i18n init failed:', e); }
   </script>
 </body>
 </html>
