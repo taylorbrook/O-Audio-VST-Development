@@ -86,17 +86,17 @@
 // "0 à 100 %" here, exactly as the 21 already-shipped tooltip plugins do it:
 // French decimal comma, a space before the percent sign, U+2212 for the minus.
 //
-// THE DECIMAL SEPARATOR IS AN OPEN DECISION AND THIS FILE TAKES THE MAJORITY
-// SIDE. Exactly one string on this page carries a decimal at all —
-// tip.rate's "0,05 à 5,00 Hz" — and the shipped suite writes it with a comma
-// (O-Bitrot "0,6 %", O-Emulator "0,1 à 10", and every other French tooltip
-// body in the repo). O-Comp's Stage M executor went the other way and kept the
-// readout's POINT, on the grounds that #rateValue prints "1.00 Hz" with a
-// point in both languages under D-03 and a user reading both at once sees two
-// conventions. Both readings are defensible; this is recorded as a decision
-// item rather than settled here, because settling it silently in one plugin is
-// how twenty-two plugins end up with two house styles. If a reviewer picks the
-// point, ONE string changes on this page.
+// THE DECIMAL SEPARATOR IS A COMMA — SETTLED BY THE DEVELOPER, 2026-08-30, and
+// this file was already on the right side of it. Exactly one string on this
+// page carries a decimal at all: tip.rate's "0,05 à 5,00 Hz", matching every
+// French tooltip body in the shipped suite (O-Bitrot "0,6 %", O-Emulator
+// "0,1 à 10").
+//
+// O-Comp and O-SimpleReverb shipped the POINT in the same batch, reasoning that
+// the readout prints "1.00 Hz" with a point in both languages under D-03. They
+// were corrected rather than this file. The readout keeps its point — that is
+// D-03 — and the body keeps its comma, because the readout is a
+// machine-formatted value and the body is prose.
 //
 // D-01 arm 1 still does not apply anywhere on this page. O-Chorus has NO
 // AudioParameterChoice at all, so no option string exists for a French sentence

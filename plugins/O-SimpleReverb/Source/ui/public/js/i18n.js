@@ -77,6 +77,21 @@ export const LANGUAGES = ['en', 'fr'];
 // names from their deleted title= attributes at v1.6.0 and are self-describing
 // (Stage M brief, "Not in M1").
 //
+// ── THE DECIMAL SEPARATOR IN A FRENCH BODY IS A COMMA ───────────────────────
+//
+// SETTLED BY THE DEVELOPER, 2026-08-30. v1.7.0 first shipped tip.decay with the
+// readout's POINT — "1.0x", "De 0.5x à 2.0x" — on the unstated assumption that
+// a body should spell a number the way .value-display does. Two plugins in the
+// same batch disagreed with each other about this, and the comma won: it is
+// correct French, and every one of the 21 already-shipped tooltip plugins
+// already writes it that way.
+//
+// The READOUT keeps its point. That is D-03, which exempts the readout NODE,
+// and it does not move. A body is prose and takes French convention; a readout
+// is a machine-formatted value and takes the page's. They differ on purpose.
+//
+// One string on this page was affected: tip.decay.
+//
 // ── THE TITLES ARE THE PAGE'S CAPTIONS, AND TWICE THAT IS NOT THE DUMP ──────
 //
 // The brief's rule is that where the page's caption differs from the
@@ -153,9 +168,11 @@ export const LANGUAGES = ['en', 'fr'];
 //
 // ── NUMBERS INSIDE A BODY ARE PROSE (D-03) ─────────────────────────────────
 //
-// D-03 exempts readout NODES, not digits. `0 to 100 %` becomes `0 à 100 %`,
-// `0.5x to 2.0x` becomes `de 0.5x à 2.0x`, exactly as the 21 already-shipped
-// tooltip plugins do it.
+// D-03 exempts readout NODES, not digits. `0 to 100 %` becomes `0 à 100 %` and
+// `0.5x to 2.0x` becomes `de 0,5x à 2,0x` — French spacing before the percent
+// sign AND the French decimal comma, exactly as the 21 already-shipped tooltip
+// plugins do it. This sentence originally claimed the comma while the entry
+// below shipped the point; both now say comma.
 // ============================================================================
 
 export const I18N = Object.freeze({
@@ -231,7 +248,7 @@ export const I18N = Object.freeze({
         en: { t: "Decay",
               b: "Stretches or shortens the tail the Type set, by growing the room and easing its damping together. The centre of the knob is exactly 1.0x — the type's own untouched decay — so this is a trim, not a time in seconds. 0.5x to 2.0x." },
         fr: { t: "Déclin",
-              b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1.0x, soit le déclin propre du type : c'est donc un ajustement et non une durée en secondes. De 0.5x à 2.0x.",
+              b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1,0x, soit le déclin propre du type : c'est donc un ajustement et non une durée en secondes. De 0,5x à 2,0x.",
               reviewed: false },
     },
 

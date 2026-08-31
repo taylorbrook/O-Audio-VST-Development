@@ -71,6 +71,19 @@ Hover-help, in both languages. Stage M batch M1 of the repo-wide i18n rollout.
   and the working tree: text 25, aria-label 8, title 0, `[data-i18n]` 13. No pin was added,
   so none is claimed and none is owed a negative control.
 
+### Changed
+- **The French decimal separator is a comma.** Settled by the developer,
+  2026-08-30, after two plugins in the same Stage M batch shipped opposite
+  answers. `tip.attack`'s `0.1 à 100 ms` now reads `0,1 à 100 ms`.
+
+  The reasoning that produced the point was that the readout formats with a
+  point in both languages under D-03, so a body saying `0,1` beside a readout
+  saying `0.1` names a control the page does not have. The decision went the
+  other way: the comma is correct French and it is what all 21 already-shipped
+  tooltip plugins write. **The readout keeps its point** — D-03 exempts the
+  readout NODE and that has not moved — because a readout is a
+  machine-formatted value and a tooltip body is prose.
+
 ## [1.6.0] - 2026-08-29
 
 The page speaks French. Stage K batch K3 of the repo-wide i18n rollout, canon v2.

@@ -27,6 +27,19 @@ All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be do
 - All eight parameters declare no `withLabel()`, so every unit in the tooltip copy was recovered from the page's own formatter rather than from the dump.
 - The footer wordmark still reads a hard-coded `Ouaricon Audio v1.5.5` and is stale against this version, for the same reason recorded at v1.6.0.
 
+### Changed
+- **The French decimal separator is a comma.** Settled by the developer,
+  2026-08-30, after two plugins in the same Stage M batch shipped opposite
+  answers. `tip.decay`'s `1.0x` and `De 0.5x à 2.0x` now reads `1,0x` and `De 0,5x à 2,0x`.
+
+  The reasoning that produced the point was that the readout formats with a
+  point in both languages under D-03, so a body saying `0,1` beside a readout
+  saying `0.1` names a control the page does not have. The decision went the
+  other way: the comma is correct French and it is what all 21 already-shipped
+  tooltip plugins write. **The readout keeps its point** — D-03 exempts the
+  readout NODE and that has not moved — because a readout is a
+  machine-formatted value and a tooltip body is prose.
+
 ## [1.6.0] - 2026-08-29
 
 ### Added
