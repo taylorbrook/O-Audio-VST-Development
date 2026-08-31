@@ -1,0 +1,12 @@
+# plugin	O-Chorus
+# params	8
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+rate	Rate		2147483647	0.05	5.00	0.561166	1.00	automatable
+depth	Depth		2147483647	0.00	1.00	0.500000	0.50	automatable
+voices	Voices		8	1	8	0.428571	4	automatable
+spread	Spread		2147483647	0.00	1.00	0.000000	0.00	automatable
+width	Width		2147483647	0.00	1.00	0.700000	0.70	automatable
+tone	Tone		2147483647	-1.00	1.00	0.500000	-0.00	automatable
+mix	Mix		2147483647	0.00	1.00	0.500000	0.50	automatable
+drive	Drive		2147483647	0.00	1.00	0.300000	0.30	automatable

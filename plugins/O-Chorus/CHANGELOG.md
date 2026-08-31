@@ -1,5 +1,128 @@
 # O-Chorus Changelog
 
+## v1.4.0 (2026-08-30)
+
+### Added
+
+- **Hover-help, in English and French.** Every one of the eight parameters now
+  has a tooltip, plus the settings gear and the language selector — ten entries,
+  ten `TIP_BINDINGS` rows, each with an `en` and an `fr` `{t, b}`. Hover a knob
+  cell and a surface follows the cursor with the control's name and a short
+  description ending in its range.
+- **The renderer that makes them visible.** v1.3.0 had no `#tooltip` node, no
+  `.tooltip` rule and no hover handler anywhere on the page, so authoring the
+  copy alone would have shipped ten INVISIBLE strings past three green gates.
+  That is not a guess — it was measured on this plugin: with `setupTooltips()`
+  commented out and everything else identical, `check-i18n --plugin O-Chorus`
+  reported ALL CHECKS PASS and `check-ui-labels --plugin O-Chorus` reported ALL
+  CHECKS PASSED with zero FAILs, while the new render gate reported 158
+  failures. `check-i18n` assertion 2 only counts bindings, `check-ui-labels` has
+  no tooltip awareness at all, and `boot-all-uis` counts `aria-label` and
+  `title` and never `data-tip`.
+- `tests/ui_tip_render_check.js` — 240 assertions, the seat where an invisible
+  tooltip becomes loud. It drives the real page at the shipping 700 x 125 frame
+  read out of `PluginEditor.cpp`, hovers all ten anchors in `en`, then `fr`,
+  then `en` again, and asserts the rendered title and body are BYTE-EQUAL to the
+  table (not "contains" — a stale `.tip-title` passes a contains check) and that
+  the tip rectangle is inside all four viewport edges every time.
+
+### Notes
+
+- **THE CLAMP IS THE NORMAL PATH ON THIS FRAME, AND THE NUMBER SAYS SO.** All
+  20 placements (ten anchors x two languages) overflow the naive `cursor + 16`
+  offset, and 17 of the 20 are outside on BOTH sides of the flip and land on the
+  SECOND clamp. A renderer that flipped once and stopped would put a tooltip
+  partly off-screen at 17 of 20 anchors here.
+- **All eight parameters have an EMPTY `label` in the runtime dump.** Not one
+  calls `withLabel()`, so `params.tsv` carries no unit and its
+  `textAtMin`/`textAtMax` are raw parameter values. Seven of the eight disagree
+  with what the user reads, because the page's own formatter rescales them —
+  `depth` dumps `0.00 .. 1.00` and renders `50%`; `tone` dumps `-1.00 .. 1.00`
+  and renders `+0%` with a formatter-added sign. Every range in the tooltip
+  bodies was recovered from the `params` array at `index.html:686-693`, and
+  `rate` is the only parameter whose dumped numbers could be quoted as they
+  stand.
+- **Not one of the eight knobs carries an id**, so all eight bindings are
+  `.knob[data-param="..."]` attribute selectors walking up to
+  `.knob-container`. The only id inside a knob is on the SVG arc, and
+  `.knob-vine` is `fill: none` with `stroke-width: 3` — walked with
+  `elementFromPoint`, 147 of 4526 points inside the cell land on it. A tip bound
+  to the id would have a hover target 3.2 % the size of the cell, and one that
+  changes size with the parameter value.
+- **The two chrome anchors bind BARE, with no wrapper**, because `#gear-btn`
+  and `#settings-popover` share `.settings-cluster`: a wrapper walk from
+  `#lang-select` would resolve to the gear's anchor and show the gear's tip.
+- **The focus arm is latched to the keyboard.** A mouse click on a `<button>`
+  focuses it, so an unconditional `focusin` rule re-opens the tip `pointerdown`
+  just hid, on top of whatever the click opened. Measured here by deleting the
+  latch: clicking `#gear-btn` left a 384 x 52 tip covering the 170 x 32 settings
+  popover it had just opened by **4672 px2**. `:focus-visible` is deliberately
+  not the discriminator — Chromium reports it false for a programmatic
+  `.focus()` after a click, so a gate driving focus directly would measure "no
+  tip" and record that as correct.
+- **A `pointerdown`-only guard is not enough for a knob drag**, so `drag.active`
+  suppresses a show outright. A drag long enough to cross into the neighbouring
+  `.knob-container` would otherwise open that neighbour's tip mid-gesture, over
+  the readout the user is dragging to reach; the `pointerover` arrives AFTER the
+  `pointerdown`.
+- **A claim in this version's own first draft was false, and measuring it caught
+  it.** The tooltip CSS comment originally said these ten bodies "would run
+  10-12 lines at O-Bass's 208 px cap and none could be shown". They run four to
+  five lines there, and the tallest is 90.7 px inside a 109 px well — it fits.
+  What the shipped 384 px cap buys is headroom: 64.7 px tallest, 44.3 px spare
+  instead of 18.3, which is the room a native-speaker review needs to lengthen a
+  sentence. The comment now says what was measured.
+- **Geometry: nothing moved.** `check-ui-labels --plugin O-Chorus` is identical
+  before and after in both driven states, `moved=0` both, once the `#lfo-dot`
+  NOTE is set aside — that dot is animated by `requestAnimationFrame` and its
+  sampled position differs between two runs of the SAME tree. The `[8b]`
+  inert-element count stays at **3**, not 5: the latch plus `pointerdown ->
+  hide()` means the gate's state-driver click leaves no tip open. That count is
+  what moved 7 -> 9 on O-Emulator with the defect present. **No geometry pin was
+  added, so none is claimed and no negative control is owed.**
+- The eight `.knob-value` readouts stay English forever (D-03 binds to NODES).
+  A number inside a localized tooltip body is ordinary prose, so `0 to 100%`
+  becomes `0 à 100 %`.
+- Every French string is a machine draft, `reviewed: false`. The
+  native-speaker worklist for this plugin is now 28 entries (10 tooltip,
+  18 label).
+
+### Changed
+
+- `CMakeLists.txt` gains the `OUARICON_BUILD_TESTS` option and the
+  `ouaricon_add_param_dump(OuariconChorus ...)` call, and
+  `PluginProcessor.cpp` moves `#include "PluginEditor.h"` behind
+  `#if JUCE_WEB_BROWSER` directly above `createEditor()` with a
+  `GenericAudioProcessorEditor` fallback. The param-dump console target builds
+  with `JUCE_WEB_BROWSER=0` and does not compile the editor TU, so a
+  top-of-file include breaks the link. Under a normal build
+  `JUCE_WEB_BROWSER=1` and behaviour is byte-identical.
+- `.planning/params.tsv` — the runtime parameter inventory this version's
+  ranges were reconciled against, committed alongside the wiring that produces
+  it.
+
+### Not done, deliberately
+
+- **No hover-help on/off toggle.** Two shipped plugins have one; the other 19
+  tooltip plugins do not. Adding one means a second control in the gear
+  popover, a persisted preference through C++ and a `data-tip-always` bypass so
+  the toggle's own tip works when tips are off — a separate pass across 41
+  plugins, not a side effect of this one.
+- **No preset-bar tips.** Those four controls took accessible names from their
+  deleted `title=` attributes at v1.3.0 and are self-describing.
+- **The gear tip describes ONLY the language selector**, because that is all the
+  popover holds. O-Tapestop's wording promises a hover-help toggle this plugin
+  does not have, and a tip that lies is worse than no tip.
+- **The French decimal separator is left as the suite's comma** (`0,05 à
+  5,00 Hz`), matching all 21 shipped tooltip plugins, and flagged as an open
+  decision: O-Comp's Stage M executor kept the readout's POINT instead, on the
+  grounds that the readout prints `1.00 Hz` in both languages under D-03.
+  Exactly one string on this page is affected.
+- **An already-open tip does not re-render on a language change.** `applyI18n()`
+  rewrites the anchors' attributes; nothing re-reads them for the surface
+  currently on screen. This is canon behaviour shared with all 21 shipped
+  tooltip plugins — reported, not worked around.
+
 ## v1.3.0 (2026-08-29)
 
 ### Added

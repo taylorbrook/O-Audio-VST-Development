@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Chorus page labels, English + French (v1.3.0)
+// i18n.js — O-Chorus page labels and hover-help, English + French (v1.4.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,17 +32,75 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.4.0: THIS PLUGIN NOW HAS HOVER-HELP, AND IT HAD NO RENDERER ──────────
 //
-// v1.2.3 carried no data-tip and no data-tooltip anywhere on the page — only
-// four native title= attributes on the preset bar, which contract §4 DELETES
-// rather than localizes, moving their existing text into data-i18n-aria. No
-// hover-help prose is INVENTED here: authoring it is Stage M's job. I18N is
-// therefore empty and TIP_BINDINGS is empty, which is this plugin's correct
-// state rather than a gap. check-i18n assertion 2 reports it as "0 tip(s)
-// bound" instead of passing silently, and the emptiness is only admissible
-// BECAUSE no I18N entry carries a body — an emptied TIP_BINDINGS over a bodied
-// table would be orphaned copy and would fail.
+// v1.3.0 shipped the page in French with I18N and TIP_BINDINGS both EMPTY,
+// which was that version's correct state rather than a gap. v1.4.0 authors ten
+// tips: one per parameter, plus the gear and the language selector.
+//
+// AUTHORING COPY ALONE WOULD HAVE SHIPPED TEN INVISIBLE STRINGS. applyI18n()
+// only WRITES data-tip-title and data-tip onto the anchors named at the foot of
+// this file; the code that READS those attributes and paints a surface is
+// per-plugin, and this plugin had none of it — no #tooltip node, no .tooltip
+// rule, no hover handler. All three gates would have stayed green over it:
+// check-i18n assertion 2 only counts bindings, check-ui-labels has no tooltip
+// awareness at all, and boot-all-uis counts aria-label and title and never
+// data-tip. v1.4.0 therefore ports the delegated renderer (O-simpleFM's family)
+// into index.html alongside the copy, and adds tests/ui_tip_render_check.js as
+// the gate that can actually SEE a rendered tip.
+//
+// TEN TIPS FOR TEN ANCHORS, AND EVERY PARAMETER HAS ONE. The runtime dump
+// (.planning/params.tsv) lists eight parameters and this page carries a knob
+// for all eight — unlike O-Bass, where two of five were host-reachable but not
+// page-reachable. The other two entries are chrome: the gear and the language
+// selector.
+//
+// ── THE UNITS ARE THE PAGE'S, NOT THE DUMP'S ────────────────────────────────
+//
+// ALL EIGHT PARAMETERS HAVE AN EMPTY `label` COLUMN. Not one calls
+// withLabel() (PluginProcessor.cpp:40-64), so params.tsv carries no unit for
+// any of them and its textAtMin/textAtMax are the RAW parameter values. Seven
+// of the eight disagree with what the user actually reads, because the page's
+// own formatter rescales them. Every range below was recovered from that
+// formatter — the `params` array at index.html:686-693 — and never invented:
+//
+//   rate    dump 0.05 .. 5.00   fmt index.html:686  -> "1.00 Hz"     Hz, as dumped
+//   depth   dump 0.00 .. 1.00   fmt index.html:687  -> "50%"         x100, %
+//   voices  dump 1 .. 8         fmt index.html:688  -> "4"           bare count
+//   spread  dump 0.00 .. 1.00   fmt index.html:689  -> "0%"          x100, %
+//   width   dump 0.00 .. 1.00   fmt index.html:690  -> "70%"         x100, %
+//   tone    dump -1.00 .. 1.00  fmt index.html:691  -> "+0%"         x100, SIGNED %
+//   mix     dump 0.00 .. 1.00   fmt index.html:692  -> "50%"         x100, %
+//   drive   dump 0.00 .. 1.00   fmt index.html:693  -> "30%"         x100, %
+//
+// So "rate is the worked example for an empty label" understates it: rate is
+// the ONE parameter whose dumped numbers can be quoted as they stand. A body
+// that said "0 to 1" for Depth would be describing the automation lane at a
+// user who is looking at a readout that says 50%.
+//
+// ── D-03 BINDS TO NODES, NOT TO SENTENCES ──────────────────────────────────
+//
+// The eight .knob-value spans are readout nodes and stay English forever — they
+// are not [data-i18n] elements and never become one. A number INSIDE a
+// localized tooltip body is ordinary prose, so "0 to 100%" becomes
+// "0 à 100 %" here, exactly as the 21 already-shipped tooltip plugins do it:
+// French decimal comma, a space before the percent sign, U+2212 for the minus.
+//
+// THE DECIMAL SEPARATOR IS AN OPEN DECISION AND THIS FILE TAKES THE MAJORITY
+// SIDE. Exactly one string on this page carries a decimal at all —
+// tip.rate's "0,05 à 5,00 Hz" — and the shipped suite writes it with a comma
+// (O-Bitrot "0,6 %", O-Emulator "0,1 à 10", and every other French tooltip
+// body in the repo). O-Comp's Stage M executor went the other way and kept the
+// readout's POINT, on the grounds that #rateValue prints "1.00 Hz" with a
+// point in both languages under D-03 and a user reading both at once sees two
+// conventions. Both readings are defensible; this is recorded as a decision
+// item rather than settled here, because settling it silently in one plugin is
+// how twenty-two plugins end up with two house styles. If a reviewer picks the
+// point, ONE string changes on this page.
+//
+// D-01 arm 1 still does not apply anywhere on this page. O-Chorus has NO
+// AudioParameterChoice at all, so no option string exists for a French sentence
+// to disagree with in the host automation lane.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -55,17 +113,221 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {t, b}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin with no tooltips today, so Stage M can
-// add bodies here without touching the label keys below.
+// TITLE = the control's own caption, EXCEPT where French had to abbreviate it.
+// The knob captions live in a 62 px cell with a wrap cliff at 62.00 px, which
+// forced PROFONDEUR down to PROF. and SATURATION down to SATUR. (see the LABELS
+// comment below for the measurements). A tooltip has no such cell, so the two
+// titles here spell the abbreviation out — which is the one place on the page
+// where a user can learn what PROF. is short for. The other six French titles
+// are the caption's own word in sentence case; .tip-title applies
+// text-transform: uppercase, so what renders is byte-identical to the caption.
+//
+// BODY = what the control does, when to reach for it, and it ENDS WITH THE
+// RANGE AND UNIT. Three sentences at most — this is a tooltip, not a manual.
+//
+// ── THE 125 px FRAME DICTATES THE SHAPE OF EVERY BODY ───────────────────────
+//
+// 125 px tall, minus the renderer's 8 px margin top and bottom, leaves 109 px
+// for the whole surface. At the shipped type (10 px / 1.3 body, 9 px title,
+// 5 px padding, 1 px border) the chrome costs 25.7 px, so SIX body lines is
+// the hard ceiling and the seventh cannot be placed anywhere in the frame.
+//
+// The cap that keeps them inside it is 384 px, a little over half the 700 px
+// frame, and MEASURED rather than assumed: at 384 the tallest of the twenty
+// (English tip.rate) is 64.7 px, three body lines, with 44.3 px of headroom.
+// The first draft of this comment claimed the same bodies would be unplaceable
+// at O-Bass's 208 px cap; they are not — they run four to five lines there and
+// the tallest is 90.7 px, which fits. What 384 buys is the 18.3 px difference,
+// which is the room a native-speaker review needs to replace a machine-drafted
+// French sentence with a longer human one without pushing a tip out of the
+// frame. Every body below was measured in BOTH languages by
+// tests/ui_tip_render_check.js, which asserts the rect is inside all four
+// edges rather than merely that a tip exists.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`, no exceptions.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── rate — AudioParameterFloat 0.05..5.0, skew 0.35, default 1.0 ────────
+    //
+    // The ONE parameter whose dumped range can be quoted verbatim. The unit is
+    // Hz because the formatter at index.html:686 prints ' Hz', not because a
+    // chorus rate is usually in Hz.
+    'tip.rate': {
+        en: { t: 'Rate',
+              b: 'Sets how fast the LFO sweeps every voice’s delay time — the speed of the '
+               + 'chorus movement. Slow settings drift and widen; fast settings tighten '
+               + 'toward vibrato. 0.05 to 5.00 Hz.' },
+        fr: { t: 'Vitesse',
+              b: 'Règle la vitesse à laquelle le LFO balaie le temps de retard de chaque voix '
+               + '— la vitesse du mouvement du chorus. Les réglages lents dérivent et '
+               + 'élargissent ; les rapides se resserrent vers le vibrato. 0,05 à 5,00 Hz.',
+              reviewed: false },
+    },
+
+    // ── depth — AudioParameterFloat 0..1, default 0.5 ───────────────────────
+    //
+    // Dumped 0.00 .. 1.00 with no label; the readout at index.html:687 prints
+    // Math.round(n * 100) + '%', so the user's range is 0 to 100%. The ±5 ms
+    // figure is delayRangeMs (ChorusEngine.h:62) around baseDelayMs 10 (h:61).
+    'tip.depth': {
+        en: { t: 'Depth',
+              b: 'Sets how far the LFO moves each voice’s delay around its 10 ms centre, up '
+               + 'to ±5 ms. Low values thicken the sound without audible pitch movement; high '
+               + 'values sing. 0 to 100%.' },
+        fr: { t: 'Profondeur',
+              b: 'Règle l’amplitude du balayage du LFO autour du retard central de 10 ms, '
+               + 'jusqu’à ±5 ms. Les valeurs basses épaississent sans mouvement de hauteur '
+               + 'audible ; les valeurs hautes chantent. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── voices — AudioParameterInt 1..8, default 4 ──────────────────────────
+    //
+    // The one parameter whose dumped range IS the readout: index.html:688
+    // prints the integer bare, with no unit. The level compensation is the
+    // 1/sqrt(n) voiceScale at ChorusEngine.cpp:335-346, and the reason a count
+    // change is safe while playing is the 50 ms crossfade (h:79).
+    'tip.voices': {
+        en: { t: 'Voices',
+              b: 'Number of delayed copies summed into the wet signal, each with its own LFO '
+               + 'phase and pan position. More voices thicken and smooth the chorus; the '
+               + 'output is level-compensated, so the count can be changed while playing. '
+               + '1 to 8.' },
+        fr: { t: 'Voix',
+              b: 'Nombre de copies retardées additionnées au signal traité, chacune avec sa '
+               + 'propre phase de LFO et sa position stéréo. Plus de voix épaissit et lisse le '
+               + 'chorus ; le niveau étant compensé, la valeur peut être changée en jouant. '
+               + '1 à 8.',
+              reviewed: false },
+    },
+
+    // ── spread — AudioParameterFloat 0..1, default 0.0 ──────────────────────
+    //
+    // ±15 ms is spreadRangeMs (ChorusEngine.h:64), applied to each voice's base
+    // delay at cpp:258-262. Readout at index.html:689 is a percentage.
+    'tip.spread': {
+        en: { t: 'Spread',
+              b: 'Offsets each voice’s base delay away from the others, by up to ±15 ms, so '
+               + 'the copies no longer sit on top of one another. Low values give one tight '
+               + 'ensemble; high values give a scattered, doubled feel. 0 to 100%.' },
+        fr: { t: 'Écart',
+              b: 'Décale le retard de base de chaque voix par rapport aux autres, jusqu’à '
+               + '±15 ms, pour que les copies ne se superposent plus. Les valeurs basses '
+               + 'donnent un ensemble serré ; les hautes, un doublage dispersé. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── width — AudioParameterFloat 0..1, default 0.7 ───────────────────────
+    //
+    // Equal-power panning at ChorusEngine.cpp:277-281: width scales each voice's
+    // pan away from centre, so 0 collapses the wet signal to mono. Readout at
+    // index.html:690 is a percentage.
+    'tip.width': {
+        en: { t: 'Width',
+              b: 'Scales how far apart the voices are panned across the stereo image, on an '
+               + 'equal-power law. At 0% every voice sits dead centre for a mono-safe chorus; '
+               + 'at 100% they span the whole field. 0 to 100%.' },
+        fr: { t: 'Largeur',
+              b: 'Règle l’écartement des voix dans l’image stéréo, selon une loi à puissance '
+               + 'constante. À 0 % toutes les voix restent au centre, pour un chorus '
+               + 'compatible mono ; à 100 % elles occupent tout le champ. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── tone — AudioParameterFloat -1..+1, default 0.0 ──────────────────────
+    //
+    // THE ONE PARAMETER WHOSE SIGN THE FORMATTER ADDS. Dumped -1.00 .. 1.00;
+    // index.html:691 prints Math.round((n * 2 - 1) * 100) with a '+' prefix on
+    // positives, so the user reads -100% .. +100%. The 2 kHz / 8 kHz / 20 kHz
+    // figures are mapToneParamToCutoff (ChorusEngine.cpp:161-176), and the
+    // filter runs on the WET path only (cpp:350-351).
+    'tip.tone': {
+        en: { t: 'Tone',
+              b: 'Tilts the brightness of the chorused signal only, through a low-pass that '
+               + 'runs from 2 kHz to 20 kHz with its centre at 8 kHz. Negative values tuck the '
+               + 'effect under a bright dry track; positive values let it shimmer. '
+               + '−100 to +100%.' },
+        fr: { t: 'Timbre',
+              b: 'Incline la brillance du seul signal traité, par un passe-bas allant de 2 kHz '
+               + 'à 20 kHz et centré sur 8 kHz. Les valeurs négatives glissent l’effet sous une '
+               + 'piste sèche brillante ; les positives le font scintiller. −100 à +100 %.',
+              reviewed: false },
+    },
+
+    // ── mix — AudioParameterFloat 0..1, default 0.5 ─────────────────────────
+    //
+    // A linear dry/wet crossfade (ChorusEngine.cpp:353-355), so 100% removes
+    // the dry path entirely. Readout at index.html:692 is a percentage.
+    'tip.mix': {
+        en: { t: 'Mix',
+              b: 'Blends the dry input against the chorused signal. At 50% the two sit level '
+               + 'for a classic doubling; past that the effect leads, and at 100% the dry path '
+               + 'is gone entirely. 0 to 100%.' },
+        fr: { t: 'Dosage',
+              b: 'Équilibre le signal direct et le signal traité. À 50 % les deux sont à '
+               + 'niveau égal, pour un doublage classique ; au-delà l’effet domine, et à 100 % '
+               + 'le signal direct disparaît. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── drive — AudioParameterFloat 0..1, default 0.3 ───────────────────────
+    //
+    // saturate() at ChorusEngine.cpp:146-159 — an asymmetric tanh (the positive
+    // half driven 1.0x, the negative 0.9x) applied per voice BEFORE the sum,
+    // which is where a bucket-brigade chorus gets its softness. Readout at
+    // index.html:693 is a percentage. The French title spells out SATUR.
+    'tip.drive': {
+        en: { t: 'Drive',
+              b: 'Adds an asymmetric tanh saturation to each delayed voice before they are '
+               + 'summed — the soft clipping a bucket-brigade chorus gets from its own '
+               + 'circuitry. Keep it low for warmth, raise it for grit. 0 to 100%.' },
+        fr: { t: 'Saturation',
+              b: 'Ajoute une saturation tanh asymétrique à chaque voix retardée avant la '
+               + 'somme : l’écrêtage doux qu’un chorus à ligne à retard analogique tient de '
+               + 'son propre circuit. Basse pour la chaleur, haute pour le grain. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── The gear ───────────────────────────────────────────────────────────
+    //
+    // THIS BODY DESCRIBES ONLY WHAT THE POPOVER ACTUALLY HOLDS. O-Tapestop's
+    // wording promises a hover-help on/off toggle; this plugin has no such
+    // control and M1 does not add one, so promising it would be a tip that
+    // lies. One row, the language selector, and Escape closes it
+    // (index.html's initializeSettingsPopover).
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel above this button. It holds the interface language '
+               + 'and nothing else. Press Escape to close it.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient la langue '
+               + 'de l’interface et rien d’autre. Appuyez sur Échap pour le fermer.',
+              reviewed: false },
+    },
+
+    // ── The language selector ──────────────────────────────────────────────
+    //
+    // The two option words are named in both bodies as ENDONYMS, which is what
+    // the selector itself shows and what I18N_EXEMPT already reasons about
+    // below. They are not AudioParameterChoice options — this plugin has none —
+    // so D-01 arm 1 is not in play; they stay English because a language name
+    // is never translated, in prose or in a selector.
+    'tip.language': {
+        en: { t: 'Language',
+              b: 'Chooses the language of every caption, tooltip and accessible name on this '
+               + 'panel. The choice is saved with the plugin and restored the next time it '
+               + 'opens. English or Français.' },
+        fr: { t: 'Langue',
+              b: 'Choisit la langue de tous les libellés, info-bulles et noms accessibles de ce '
+               + 'panneau. Le choix est enregistré avec le plugin et restauré à la prochaine '
+               + 'ouverture. English ou Français.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -257,25 +519,71 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key, wrapper]
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() does document.querySelector(selector), then closest(wrapper) when
+// a wrapper is given, and writes data-tip-title + data-tip onto whatever that
+// lands on. The wrapper exists so the ANCHOR is the cell a user aims at rather
+// than the addressable child inside it.
+//
+// BOTH HALVES OF T17'S "BIND TO THE IDS THE UI ALREADY USES" ARE FALSE HERE,
+// and they are false for different reasons, so they were checked separately.
+//
+//   THE ID HALF. Not one of the eight knobs carries an id. The only id inside
+//   a knob is on the SVG arc — id="vine-rate" and friends — and .knob-vine is
+//   `fill: none` with `stroke-width: 3`, so under SVG's default
+//   pointer-events: visiblePainted only the PAINTED STROKE is hittable. Walked
+//   pixel by pixel over one cell with elementFromPoint: 147 of 4526 points
+//   inside the .knob-container land on #vine-rate. 3.2 %. And the painted
+//   length is stroke-dashoffset, which the knob rewrites on every value
+//   change — so the size of that 3.2 % target moves with the parameter. A tip
+//   bound there is a tip nobody can open. What the markup gives instead is
+//   .knob[data-param="..."], so every knob binding below is an attribute
+//   selector.
+//
+//   THE WRAPPER HALF. .knob-container, NOT .knob, and it is load-bearing
+//   rather than tidiness: measured at 700 x 125, .knob is 50 x 73 and its
+//   container is 62 x 73, in BOTH languages. The 6 px of cell either side is
+//   exactly where a pointer arriving from the neighbouring knob crosses, and
+//   binding .knob would open and close the tip in that gap. The container is
+//   also the box the caption's own width belongs to.
+//
+// THE TWO CHROME ANCHORS TAKE NO WRAPPER, AND THAT IS DELIBERATE. #gear-btn
+// and #settings-popover share one ancestor, .settings-cluster; a wrapper walk
+// from #lang-select would climb past the popover into that cluster and resolve
+// to the GEAR's anchor, so hovering the selector would show the gear's tip
+// (O-Comp hit exactly this). #gear-btn is a 20 x 20 button that IS its own
+// hover target, and #lang-select is the select itself. Wrapping the select in
+// .settings-row instead would make the caption LANGUAGE share one tip with it
+// across 152 px of an already-open 170 px panel, firing while the pointer was
+// merely crossing the panel to reach the selector.
+//
+// EVERY SELECTOR HERE IS ASSERTED TO RESOLVE by tests/ui_tip_render_check.js.
+// applyI18n's own `i18n: tip target not found` is a console.warn, which
+// boot-all-uis reports and nothing fails on.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['.knob[data-param="rate"]',   'tip.rate',   '.knob-container'],
+    ['.knob[data-param="depth"]',  'tip.depth',  '.knob-container'],
+    ['.knob[data-param="voices"]', 'tip.voices', '.knob-container'],
+    ['.knob[data-param="spread"]', 'tip.spread', '.knob-container'],
+    ['.knob[data-param="width"]',  'tip.width',  '.knob-container'],
+    ['.knob[data-param="tone"]',   'tip.tone',   '.knob-container'],
+    ['.knob[data-param="mix"]',    'tip.mix',    '.knob-container'],
+    ['.knob[data-param="drive"]',  'tip.drive',  '.knob-container'],
+    ['#gear-btn',                  'tip.settings'],
+    ['#lang-select',               'tip.language'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v1.4.0: applyI18n() calls it once per TIP_BINDINGS row, on every
+// language change, and the ten rows above are no longer zero. It is exported
+// verbatim all the same, so the canon block stays byte-identical to the other
+// forty-two copies.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
