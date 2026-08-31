@@ -1231,3 +1231,631 @@ Checkpoint 4 (host session save/reopen) reasoned, not executed. Windows/WebView2
 font metrics remain the standing hardware-blocked deferral, and **tooltips are new
 surface for it** — French wraps taller inside a fixed `max-width`, so a wider face
 shows there first.
+
+---
+
+# BATCH M3 — the last four, and the batch that is bigger than M1 and M2 together
+
+Everything above still binds. Where this section disagrees with anything above,
+THIS section wins for an M3 plugin.
+
+## Baseline, measured this session
+
+```
+node scripts/check-i18n.js 2>&1 | grep -cE '\[2\] 0 tip\(s\) bound'   →  4
+node scripts/check-i18n.js                                            →  ALL CHECKS PASS, 43 plugins
+```
+
+The four are **O-Bells, O-Formant, O-Prism, O-Wind** — exactly the set M2 named.
+**After M3 the count must read 0.**
+
+### THE SIZE CLAIM, CORRECTED
+
+The dispatch premise said *"O-Prism alone is 173 parameters — larger than M1 and
+M2 combined."* **It is not: M1+M2 is 249.** O-Prism at 173 is 2.4× the whole of
+M1 and just under the whole of M2 (177).
+
+**What IS true, and is the number that matters: M3 is 358 parameters across four
+plugins — 44% more than M1 and M2 combined, in a fifth as many dispatches.**
+
+| Batch | Plugins | Params |
+|---|---|---|
+| M1 | 10 | 72 |
+| M2 | 8 | 177 |
+| **M3** | **4** | **358** |
+
+And the real argument for giving O-Prism its own dispatch is **not the count** —
+it is a structural one that no plugin in M1 or M2 had. See "O-Prism is a
+different problem" below.
+
+## THE PARAM DUMPS ARE WIRED AND RUN — by the orchestrator, this session
+
+**Correction to the dispatch premise, which said param-dumps were wired for none
+of the four: O-Prism's has been wired and COMMITTED since Stage A (`5ee01ed4`),**
+and its `params.tsv` (173 rows) was already sitting untracked in the tree from
+the calibration run that established the repo-wide 607 figure. O-Prism's
+executor commits `params.tsv` **only** — its `CMakeLists.txt` and
+`PluginProcessor.cpp` are already correct and must not be touched.
+
+The other three were wired and run this session. In O-Bells, O-Formant and
+O-Wind's working trees, **uncommitted, and yours to commit in your one plugin
+commit**:
+
+| Path | What it is |
+|---|---|
+| `plugins/<Name>/.planning/params.tsv` | your authoritative parameter inventory |
+| `plugins/<Name>/CMakeLists.txt` | +14 lines: the `option(OUARICON_BUILD_TESTS ...)` + `ouaricon_add_param_dump()` block |
+| `plugins/<Name>/Source/PluginProcessor.cpp` | +15 lines: the `#if JUCE_WEB_BROWSER` include guard + `GenericAudioProcessorEditor` fallback |
+
+All three took the **M1 two-line shape**, not O-TextureForge's six-site shape —
+none of the three has a `getActiveEditor()` or `dynamic_cast<...Editor*>` site in
+its processor (verified: zero across all three). Read the diff
+(`git diff -- plugins/<Name>`) before you commit it — you are signing it.
+
+**Both arms are compile-verified**, 0 errors: the isolated configure built each
+plugin's own target (`JUCE_WEB_BROWSER=1`, editor TU compiled) *and* its
+`-param-dump` target (`JUCE_WEB_BROWSER=0`, editor TU excluded).
+
+### Divergence 1 — the isolated configure SKIPPED the two heavy plugins
+
+`cmake -B /private/tmp/claude-501/m3-paramdump -G Ninja -DOUARICON_BUILD_TESTS=ON
+-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DSKIP_PLUGINS="O-TextureForge;O-Texture"`.
+
+The root `CMakeLists.txt:43` exposes a `SKIP_PLUGINS` cache list. Using it means
+the umappp / knncolle / **sanisizer** FetchContent chain is never entered, which
+sidesteps **both** M2 decision items 5 and 6 (the 10.13 deployment-target failure
+and the `GIT_TAG master` rebase conflict) rather than working around them. M2's
+orchestrator hit both and had to resolve the sanisizer divergence under the mutex.
+**M3 hit neither.** Recorded because it is the cheaper recipe, not because
+anything changed in the repo.
+
+## Batch M3 — 4 plugins, 358 parameters
+
+| Plugin | Params | Frame | Served root | Page shape | Version → |
+|---|---|---|---|---|---|
+| O-Wind | **56** | 900×600 | `Resources/ui` | single-file (2 inline modules) + **shared-module** tuning panel | "1.17.0" → "1.18.0" |
+| O-Formant | **64** | 800×600 | `Source/ui/public` | index.html (3 inline modules) + `js/main.js` + `js/tuning-panel.js` | 1.26.0 → 1.27.0 |
+| O-Bells | **65** | 800×600 | `Resources/ui` | index.html (2 inline modules) + `js/tuning-panel.js` + `css/` | 4.2.0 → 4.3.0 |
+| O-Prism | **173** | **1200×800** | `Source/ui/public` | index.html (2 inline modules) + `js/wavetable-editor.js` + `css/` | 1.21.0 → 1.22.0 |
+
+**Versions are MINOR.** **O-Wind spells its version `VERSION "1.17.0"` WITH
+QUOTES — keep them.** The other three are unquoted.
+
+**No plugin in this batch has a tight frame.** M1's O-Chorus (700×125) and M2's
+O-AnalogEQ (920×220) are behind you; the smallest frame here is 800×600. The
+four-edge clamp is a real assertion, not the normal path — **which means your
+negative-control plant has to be much bigger to break it. O-Detune measured
+~448 px of clamp room and noted a habitual 40× plant would have fit and reported
+nothing; on 800×600 and 1200×800 the arithmetic is worse again. SEARCH for a
+plant size that fails, the way O-AnalogEQ did. Do not guess one.**
+
+### Divergence 2 — O-Wind serves the tuning panel from the SHARED MODULE
+
+O-Bells and O-Formant each carry a **vendored** `js/tuning-panel.js` inside their
+served root. O-Wind does not: `CMakeLists.txt:97-98` embeds
+`${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js` and
+`snippets/tuning-panel.css` straight into `O-Wind_UIResources`, and
+`PluginEditor.cpp:847` serves them at `/js/tuning-panel.js`.
+
+**So a `find` over O-Wind's served root shows no tuning panel and the page still
+imports one.** That is a serving shape, not a 404 — do not report it as a missing
+file. O-Prism has no shared tuning panel at all; its tuning tab is bespoke inline.
+
+## Starting i18n state — measured, per plugin
+
+| Plugin | `I18N` | `LABELS` | `I18N_EXEMPT` | `TIP_BINDINGS` |
+|---|---|---|---|---|
+| O-Wind | 0 | 67 | — | 0 |
+| **O-Formant** | **5** | 120 | — | 0 |
+| O-Bells | 0 | 122 | — | 0 |
+| O-Prism | 0 | 155 | — | 0 |
+
+**O-Formant's five `I18N` entries are `canvas.lyrics`, `canvas.plosive`,
+`canvas.fricative`, `canvas.mixed` and `js.savePresetAs` — canvas `fillText`
+prose and a `window.prompt` caption, every one `b: ''`.** Verified: zero
+non-empty `b:` in the block. Per the K4 decision they are NOT tooltips. **Do not
+give them bodies, do not bind them, do not delete them.** Its `i18n.js:39-63`
+header already explains why they are there; read it. Your authored tips are new
+keys alongside them, and only YOUR keys go in `TIP_BINDINGS`.
+
+All four carry `#gear-btn` and `#lang-select` — verified, one occurrence each.
+All four have `tests/i18n-states.json`; O-Bells and O-Prism also have
+`tests/ui-stub/`. **None of the four has a runnable gate today** — no
+`*_check.js` anywhere, and no `Source/tests/` (M2 finding 7's trap does not fire
+here, but check anyway). Your `ui_tip_render_check.js` will be the first
+executable gate in all four.
+
+`grep -rn 'setVisible' Source/` targets the web view on **none** of the four.
+
+## THE DEFINING PROPERTY OF M3: every page is TABBED, and controls start HIDDEN
+
+M1 and M2 were mostly flat pages. **All four M3 pages are tab decks**, and a
+`.tab-content` that is not `.active` is `display: none` — a zero-size rect that
+cannot be hovered and cannot be measured.
+
+| Plugin | Tab panels | Active at load |
+|---|---|---|
+| O-Wind | 1 | — |
+| O-Bells | 3 | 1 |
+| O-Formant | 4 (`synth` / `effects` / `lyrics` / `tuning`) | `synth` |
+| O-Prism | 5 (`synth` / `mod` / `tuning` / `effects` / `wavetable`) | `synth` |
+
+**M2 finding 5 is the governing rule and it is now the batch's main event: drive
+out of a hidden state through the page's own path, NEVER by stripping the class.**
+Click the tab. Stripping `display:none` off `#mod-tab` measures a state the
+plugin only reaches by a click you did not make, and O-Prism has four such tabs.
+
+**And three of the four lazy-`import()` the shared tuning panel** — O-Bells
+(`index.html:2999`), O-Formant (`:1424`), O-Wind (`:1993`). That is **O-Reed's
+`referencePitch` trap, batch-wide**: the panel is absent from the DOM when
+`applyI18n()` runs, so a `TIP_BINDINGS` selector into it resolves to null and
+warns. Report it; do not force-mount the panel to satisfy a count.
+
+## SIXTEEN parameters are host-reachable and page-unreachable, BEFORE O-Prism
+
+M1 found 1. M2 found 7. **M3's three smaller plugins carry 16 between them**,
+measured as zero occurrences of the parameter ID anywhere in the served root
+**and** zero in the shared tuning panel, against 1–5 C++ files each:
+
+| Plugin | Parameters with no page reference |
+|---|---|
+| O-Bells (4) | `tuning_masterTune`, `tuning_octaveStretch`, `tuning_pitchBendRange`, `tuning_temperamentPreset` |
+| O-Formant (7) | `consonantVOT`, `sourceFilterCoupling`, `tuning_masterTune`, `tuning_tuningMode`, `tuning_octaveStretch`, `tuning_pitchBendRange`, `tuning_temperamentPreset` |
+| O-Wind (5) | `attackChiff`, `humanize`, `vibratoOnset`, `inharmonicity`, `referencePitch` |
+
+**This is a measurement, not a verdict, and confirming it is step 1 of your
+nine.** In particular the `tuning_*` family is exactly where a lazily-mounted
+panel would hide a control from a static scan — but note that **none of them
+appears in the shared tuning panel module either**, which is what separates them
+from O-Reed's `referencePitch`. Check the panel's own markup and its native-
+function names before you call one unreachable, and say which way you resolved it.
+
+**Do not add a control to satisfy the count.** Report the parameter, its type,
+and that it is host-reachable but not page-reachable.
+
+## O-PRISM IS A DIFFERENT PROBLEM — and this, not 173, is why it gets its own dispatch
+
+O-Prism's 173 parameters split three ways, and the split is structural:
+
+| Class | Count | Anchor exists when `applyI18n()` runs? |
+|---|---|---|
+| Statically anchored (incl. 61 JS-expanded knobs) | **107** | **YES** |
+| Async mod-matrix rows | **64** | **NO** |
+| No page reference at all | **2** | n/a |
+
+**1. The 61 knobs are JS-expanded but SAFE.** `expandKnobMarkup()`
+(`index.html:1929`) is a synchronous IIFE that rewrites every
+`div.knob-container[data-knob]` placeholder into SVG markup during module
+evaluation — long before `initI18n()` at `:4193`. Its comment block
+(`:1936-1968`) is the best single document on this page: it records why the
+caption key is declared on the STATIC container and **moved** onto the generated
+`.knob-label`, and why `removeAttribute` is not optional (keeping the key makes
+the next language sweep call `applyLabel(container)`, whose `textContent` write
+**deletes the entire expanded knob**). Read it before you bind anything to a
+knob. Your tip anchors are `#knob-<paramId>` / the `.knob-container`, both live.
+
+**2. The 64 mod-matrix parameters ARRIVE TOO LATE, and no shipped plugin has the
+mechanism.** `<div id="mod-matrix-rows">` is **empty in the static markup**
+(`:1458`). An `(async function(){...})()` at `:2848` `await`s
+`Juce.getNativeFunction('getModSourceNames')()` and `('getModDestNames')()`,
+then builds 16 rows with `const prefix = 'modSlot' + i` (`:2873`) and
+`container.appendChild(row)`. Because of the `await`, **every one of those 64
+anchors is absent from the DOM at `applyI18n()` time**. A `TIP_BINDINGS` entry
+for any of them resolves to null, warns `i18n: tip target not found`, and binds
+nothing — and `boot-all-uis` will see the warning.
+
+  This is measurable without running anything: **0 of the 64 `modSlot*` IDs
+  appear as a whole string literal anywhere in the served root.** They exist only
+  as that concatenation.
+
+  O-Prism already has the injected-subtree hook — `localizeSubtree(root)`
+  (`:1905`, exposed as `window.__localizeSubtree`, called at 8 sites). **It does
+  not solve this.** It loops `applyLabel` over `[data-i18n]` and
+  `applyI18nAttributes` over the aria/placeholder/alt attributes. **It does not
+  write `data-tip-title` / `data-tip`**, and the mod-matrix builder does not call
+  it at all.
+
+  **DO NOT INVENT THE MECHANISM.** Extending `localizeSubtree` to carry tip
+  attributes is a canon-shaped change, `scripts/` is the orchestrator's, and a
+  one-plugin workaround is precisely what hides a repo-wide hole — the rule that
+  has already produced ten gate fixes in this task. **Ship the 107. Report the 64
+  with this evidence and stop.** The precedent is exact: M2 reported O-Reed's
+  `referencePitch` as page-unreachable for the same reason at a scale of one, and
+  did not force it.
+
+**3. `stereoWidth` and `velocityCurve` appear nowhere in the served root** — the
+two genuine page-unreachable candidates, on the same footing as the 16 above.
+Confirm and report.
+
+**4. Every one of O-Prism's 173 parameters has an EMPTY `label` column.** 0%, the
+worst in the suite (O-Bells 69%, O-Formant 34%, O-Wind 28%). **Every unit on this
+page must be recovered from the page's own formatter, and the brief requires you
+to cite the formatter's file:line for each one.** `bindKnob(paramId, formatFn,
+defaultNorm, size)` at `:2370` is where those formatters are passed. Budget for
+this: it is the single largest piece of copy-authoring work in the whole stage.
+
+## What M3 must leave behind
+
+- zero-tip count **4 → 0**
+- `check-i18n` ALL CHECKS PASS across 43; `boot-all-uis` 43/43, native `title=`
+  still **0** repo-wide
+- four `tests/ui_tip_render_check.js` — the first runnable gate in each of these
+  four plugins
+- a decision item for the **64 async mod-matrix anchors**, with the evidence above
+
+## Batch M3 additions to the decision items
+
+13. **`SKIP_PLUGINS` is the cheap recipe for an isolated configure.** Divergence 1.
+    It does not fix decision items 5 or 6; it routes around them.
+14. **O-Prism's 64 mod-matrix parameters cannot be reached by `TIP_BINDINGS`.**
+    The canon writes tip attributes during `applyI18n()`; those anchors do not
+    exist yet, and `localizeSubtree` — the page's own injected-subtree hook —
+    does not carry tip attributes. Needs a canon decision, not a patch.
+15. **Sixteen more host-reachable / page-unreachable parameters** (plus O-Prism's
+    two). Running total across M1–M3: **1 + 7 + 18 = 26**. At some point this
+    stops being a per-batch finding and becomes a question about the suite.
+16. **Checkpoint 5 recedes again.** M3 will add roughly 350+ machine-drafted
+    French entries. Repo total after M2 was 3471.
+
+---
+
+# BATCH M3 COMPLETE — 4 of 4, and STAGE M IS DONE
+
+All four landed 2026-08-31. **The zero-tip count went 4 → 0.** Repo-wide
+`check-i18n` ALL CHECKS PASS across 43; `boot-all-uis` 43/43 clean, 0 warn,
+0 failed; native `title=` still 0 repo-wide.
+
+| Plugin | Version | Commit | Files | Params → controls | Tips | Render gate |
+|---|---|---|---|---|---|---|
+| O-Wind | 1.18.0 | `8c6e1c97` | 7 | 56 → 50 | 52 | 774/774 |
+| O-Bells | 4.3.0 | `31fcd0cf` | 7 | 65 → 63 | 65 | 1024/1024 |
+| O-Formant | 1.27.0 | `6c898178` | 8 | 64 → 57 | 57 | 1360/1360 |
+| O-Prism | 1.22.0 | `db939f7f` | 6 | 173 → 105 | 107 | 2180/2180 |
+
+**281 tips authored** (274 parameter + 8 chrome, minus double-bindings), every
+French entry `reviewed: false`. **5338 render-gate assertions, 0 failures.**
+Four new `tests/ui_tip_render_check.js` — **the first runnable gate any of these
+four plugins has ever had.**
+
+**Stage M total across M1+M2+M3: 22 plugins, 607 parameters, 556 tips.**
+
+The French worklist is now **3751** repo-wide; M3 added 749 entries across the
+four (O-Prism's 262 is the largest single block in the repo).
+
+---
+
+# CORRECTIONS AND CARRIED TRAPS FROM M3
+
+Where this section disagrees with anything above, THIS section wins.
+
+## 1. `check-i18n` READS THE WORKING TREE, NOT HEAD — so a repo-wide count in a shared checkout reports OTHER executors' UNCOMMITTED work as shipped
+
+**This is the batch's most important finding and it is about the orchestration,
+not any plugin.** O-Wind finished first, ran
+`grep -cE '\[2\] 0 tip\(s\) bound'`, got **0**, and concluded in its report that
+*"M3's exit condition is met — all four landed."* **Only O-Wind had committed.**
+The other three had authored `i18n.js` into the working tree and had not yet
+reached their commit step; the gate saw their files and counted them.
+
+Every gate in `scripts/` reads the filesystem. In a trunk-based checkout with N
+concurrent executors, **a repo-wide gate result is a statement about the union of
+everybody's uncommitted work**, and no executor can distinguish its own
+contribution from its neighbours'.
+
+**The rule: an executor may report the repo-wide number as an observation, but
+must never conclude a BATCH is complete from it.** Only `git log` can say that.
+Verify with `git log --oneline -- plugins/<Name>` per plugin, never with a
+gate count.
+
+This is the eighth instance in this task of a gate certifying something it cannot
+see, and the first that crosses session boundaries.
+
+## 2. NO GATE IN THIS REPO SEES A DANGLING TIP BINDING AT RUNTIME — and the M brief said the opposite
+
+The M1 brief states that `boot-all-uis` *"is the only gate that sees a swallowed
+binding failure"* and that *"a console warning there is a real failure, not
+noise."* **Both halves are false, and the M3 dispatch prompts repeated the error.**
+
+- `scripts/i18n-canon.js:165` — `console.warn(\`i18n: tip target not found: ${selector}\`)`
+- `scripts/boot-all-uis.js:141` — `if (m.type() !== 'error') return;`
+
+**A `console.warn` is dropped before it is ever examined.** So a `TIP_BINDINGS`
+row that resolves to nothing is invisible to `check-i18n` (which only checks the
+key exists in `I18N`, statically), invisible to `check-ui-labels` (no tooltip
+awareness at all), and invisible to `boot-all-uis`.
+
+Found by O-Bells and verified at both line numbers. **This is why assertion [1]
+of the per-plugin render gate — every `TIP_BINDINGS` selector resolves, as a hard
+FAIL — is the only thing standing between this stage and 556 silently dead
+bindings.** It is now load-bearing for the whole feature, on all 22 plugins.
+
+**Owner: `scripts/`, i.e. the orchestrator.** Recorded as decision item 17.
+
+## 3. A GREP OF PARAMETER IDs OVER A SERVED ROOT CANNOT ESTABLISH REACHABILITY — it failed in BOTH directions, five times
+
+The orchestrator measured the M3 page-unreachable sets by counting occurrences of
+each parameter ID in the served root. **Three executors independently found the
+method wrong, and it errs both ways:**
+
+**False negatives — a control reached through a NATIVE-FUNCTION ALIAS.** The ID
+never appears; the control is real.
+
+| Plugin | Parameter | The alias |
+|---|---|---|
+| O-Wind | `referencePitch` | shared panel's master-tune knob → `getMasterTune`/`setMasterTune`, routed at `PluginEditor.cpp:337-355` |
+| O-Bells | `tuning_masterTune` | `tuning-panel.js:1012/1035` → `PluginEditor.cpp:506` |
+| O-Bells | `tuning_octaveStretch` | `tuning-panel.js:271/976` → `PluginEditor.cpp:486` |
+
+**False positives — a string that is not an anchor.** O-Prism's `tonic` matched
+a CSS class family (`.tonic-selector`, `.tonic-label`, `.tonic-value`,
+`.tonic-arrow`); `tuningPreset` matched a `getSliderState` argument the page
+takes only to *listen* on.
+
+**Consequences for the numbers in the M3 section above:** the claimed 16
+page-unreachable across the three smaller plugins is **14**; O-Prism's claimed
+107 / 64 / 2 split is **105 / 65 / 3**.
+
+**The same scan produced the running 26 figure across M1-M3. Treat that number as
+an upper bound that has never been audited by this method's own critics.**
+
+**The rule: a parameter is page-unreachable only when the ID is absent AND no
+native function reaches it. Check the bridge, not just the string.**
+
+## 4. THE MECHANISM FOR A LATE-MOUNTING ANCHOR EXISTS, ON EXACTLY ONE PLUGIN IN 43, AND IT IS ONE LINE
+
+O-Bells binds two anchors inside a lazily-`import()`ed panel that O-Reed and
+O-Formant could not. The whole difference:
+
+```js
+window.__reapplyI18n = () => applyI18n(uiLanguage);   // index.html:1992
+```
+
+declared **outside** the byte-compared canon region, and called by the panel's own
+init after it mounts:
+
+```js
+if (window.__reapplyI18n) window.__reapplyI18n();      // index.html:3066
+```
+
+`grep -rl '__reapplyI18n'` across all 43 served roots returns **O-Bells and
+nothing else.**
+
+**It is not the same thing as `localizeSubtree`.** O-Prism's `localizeSubtree`
+(8 call sites) loops `applyLabel` over `[data-i18n]` and `applyI18nAttributes`
+over aria/placeholder/alt — **it writes no tip attributes.** `__reapplyI18n`
+re-runs the whole sweep, tip bindings included.
+
+Cost on O-Bells: one `console.warn` per late selector on the first sweep, which
+its gate **pins to exactly those two selectors** rather than relaxing.
+
+**So decision item 14 is no longer an open canon question — it is a shipped,
+proven, one-line precedent waiting to be generalised.**
+
+## 5. O-PRISM'S 64 ANCHORS HAVE A SECOND BLOCKER THE DISPATCH DID NOT NAME
+
+The dispatch said the rows arrive after `applyI18n()`. True. But **the rows carry
+no per-parameter id even after they arrive** — the columns are `.mod-col-src` /
+`.mod-col-dst` / `.mod-col-amt` / `.mod-col-on` inside `#mod-row-<i>`.
+
+**So `__reapplyI18n` alone would not fix O-Prism.** The fix is two things: run the
+tip write after injection, *and* give the rows addressable nodes. O-Prism's gate
+asserts the evidence rather than asserting about it — `[8]` counts
+`document.querySelectorAll('[id^="modSlot"]')` and requires **0**, so if the page
+ever grows those ids the gate says so.
+
+O-Prism correctly shipped the 105 and stopped.
+
+## 6. STRUCTURAL CLAIMS IN THE M3 SECTION THAT WERE MEASURED WRONG
+
+The orchestrator's own pre-dispatch measurements, corrected by the executors:
+
+| Claim | Truth | How it was mismeasured |
+|---|---|---|
+| O-Wind has **1** tab panel | **3** (`#tab-sound` active, `#tab-tuning`, `#tab-effects`); 21 of 52 anchors on the hidden Effects tab | counted `class="tab-content"` literals; O-Wind names them differently |
+| O-Formant's page has **3** inline modules | **1**, at `:1402` | 3 is `check-i18n`'s *module* count (inline + `js/main.js` + `js/tuning-panel.js`), not a count of `<script type="module">` |
+| O-Prism has **61** JS-expanded knobs | **64** — 60 plain `div.knob-container` plus the four `#lfoN-rate-wrap`, which carry an id as well as `data-knob` | the placeholder grep missed the id-bearing variants |
+| `I18N_EXEMPT` column `—` for all four | O-Wind's is **15** | not measured before dispatch |
+
+**None changed an executor's approach**, because every dispatch said "confirm
+each, do not take them on faith" and every executor did. That instruction is the
+reason these are corrections and not defects.
+
+## 7. FIVE SHIPPED DEFECTS FOUND WHILE WRITING COPY — the stage's highest yield yet
+
+M2 found three. M3 found five, plus one that was fixed:
+
+- **O-Wind: `toneHoleToggle` is DEAD.** `PluginProcessor.cpp:316-319` records the
+  tone-hole DSP was never implemented. The switch moves, the automation lane
+  moves, nothing is heard.
+- **O-Wind: all four FX bypass buttons read INVERTED** against their parameter —
+  the face says `On` while `chorusBypass` sits at `Off`. **O-Prism has the same
+  defect on five buttons** (`bindBypassToggle`, `index.html:3213`). Two plugins,
+  same shape, found independently.
+- **O-Formant: three knobs are wired to relays that do not exist.** `js/main.js:288-290`
+  asks for `consonantAttackSlider` / `HoldSlider` / `DecaySlider`; `PluginEditor.cpp`
+  declares 54 relays and none of those three. The parameters are live and every
+  one of the 16 consonant presets sets them; the *controls* are dead.
+  (`pattern_webview_native_fn_bridge_gap`.)
+- **O-Formant: a session saved at A4 = 442 Hz reopens at 440.** The tuning panel's
+  A4 REF and Stretch knobs call `setMasterTune`/`setOctaveStretch`
+  (`PluginEditor.cpp:327-345`), which write the `TuningEngine` **directly and never
+  the parameter**. `getStateInformation()` does not save them, and
+  `setStateInformation()` then pushes the never-updated parameters back into the
+  engine (`PluginProcessor.cpp:986-987`).
+- **O-Prism: two dead `bindKnob()` calls** (`:2721`, `:2722`) look for
+  `#knob-masterTune` / `#knob-octaveStretch`, neither of which exists. Harmless —
+  both parameters have working bespoke controls — but `octStretchFmt`'s
+  three-decimal formatter is passed to a call that never runs while the readout the
+  user sees prints two decimals from a different line.
+
+**FIXED, because it was this feature's own foundation: O-Formant's language
+persistence had been dead since v1.26.0.** `js/main.js` imported four *named*
+bindings from `./juce/index.js` and no namespace, so `Juce` was unbound,
+`initI18n()`'s first statement threw `ReferenceError`, and its own `try/catch`
+degraded the feature to session-only behind a `console.warn` **that no gate fails
+on**. One added `import * as Juce`. This is
+`critical_juce_webview_namespace_vs_postmessage`, and it is the third
+gate-blind-to-a-warning finding in this batch alone.
+
+Every one of these went into a tooltip body rather than being described as
+intended. **A tip that lies is worse than no tip** has now rewritten ten sentences
+in this task.
+
+## 8. THE NEGATIVE CONTROL THAT NEEDED THREE INSTRUMENTS
+
+O-Wind's boundary guard (renderer property 3 — ignore a move between two
+descendants of the same anchor). **A post-hoc DOM read passed 774/774 with the
+guard deleted. So did a per-frame opacity sampler** (min opacity 1 over 25
+frames). `pointerout` and `pointerover` for one move land in the **same task**, so
+the tip hides and reopens before the style system settles and before any frame
+renders.
+
+**Only a `MutationObserver` on the class attribute sees it** — 10 mutations,
+5 hides, with the guard gone. The naive assertion is kept one line below,
+explicitly labelled as passing both ways.
+
+Same family as M2 finding 6's static-grep note, one layer deeper: **a control that
+samples STATE cannot see a transition that begins and ends inside one task.**
+
+## 9. THE GUARD THAT MUST ASSERT ITS OWN RELEASE — proven, not argued
+
+M2 finding 2 said a `pointerHeld` drag guard "must assert the RELEASE as well as
+the hold, or it is a permanent off switch that passes." **O-Prism ran it:**
+deleting the `pointerup`/`pointercancel` release gave **1290 FAIL / 890 pass** —
+the flag latches on the first click and no tip ever opens again.
+
+The drag-guard *need* also split cleanly along M2's predicted line, and both
+branches were measured rather than defaulted: **O-Formant needed none** (all three
+drag surfaces call `setPointerCapture` — `main.js:510, :685, :852`, the
+O-AnalogEQ shape); **O-Bells needed one** (sliders, FX knobs and the A4 knob all
+drag on `mousedown` + `document.mousemove`, with **zero** `setPointerCapture`
+calls anywhere).
+
+## 10. THE EDITOR GUARD BELONGS IN `show()`, NOT IN `focusin`
+
+O-Bells: a double-click value editor replaces a readout's text node with an
+`<input>` **under a stationary cursor**, and Chromium dispatches a fresh
+`pointerover` for the new element. The latch has nothing to say about that — it is
+not a focus event. A `focusin`-sited guard passed every static check and failed
+the behavioural control.
+
+## 11. THE BLUR 2×2 SPLIT AGAIN, AND EVERY EXECUTOR RAN IT
+
+M2 finding 6 said to run the 2×2 and report the cell rather than assume. M3's
+score: **O-Wind and O-Bells and O-Prism → blur load-bearing** (the O-Tremolo
+cell); **O-Formant → blur is decoration** (the O-TextureForge cell, an accident of
+section order). Kept and labelled in all four.
+
+The static-grep half is now confirmed on **ten** plugins: deleting only
+`if (lastInputWasPointer) return;` leaves every `grep -c lastInputWasPointer`
+green. O-Prism's returned 3 through an entire failing run.
+
+## 12. A HOVER HARNESS THAT SCROLLS ON VIEWPORT VISIBILITY IS BLIND TO A SCROLL-CONTAINER CLIP
+
+O-Formant, and it is the trap to carry to the next tabbed page. A `hoverAnchor`
+that scrolls only when the rect leaves the **viewport** does not notice an element
+clipped by its own **scroll container**. A previous anchor's scroll left
+`.right-col` mid-way; `glottalRd`'s rect read y=71 against the container's own top
+of 90; the pointer landed on the tab bar; and the surface was measured still
+carrying the **previous anchor's text** — **84 failures that look exactly like a
+copy bug.**
+
+**Fix: scroll unconditionally, and assert `elementFromPoint` lands on the anchor
+before every hover.** Same family as
+`pattern_rect_gate_cannot_see_paint_order` — a rect comparison cannot see what is
+actually under the cursor.
+
+## 13. THE PLANT SEARCH, ON LARGE FRAMES
+
+Every executor searched rather than guessed, and every one of them found the
+habitual plant would have reported nothing:
+
+| Plugin | Frame | Habitual 40× plant | First size that overflows |
+|---|---|---|---|
+| O-Formant | 800×600 | 640 chars → 248 px, **fits** | 1920 chars → 649 px |
+| O-Bells | 800×600 | — | 3504 chars → 1236.9 px |
+| O-Wind | 900×600 | 4× → 262.5 px, fits | boundary 9×→10× (1460 chars) |
+| O-Prism | 1200×800 | — | 3200 chars → 1063 px |
+
+**O-Prism also found the positive control's window is narrow and easy to miss.**
+A clamp probe must be taller than `max(H−24−y, y−20)` to fit on neither side and
+shorter than `H` to be the clamp rather than the overflow probe again — roughly
+390–799 px at mid-height on that page. Its first draft doubled to an **8481 px**
+tip, "which is section 6's probe wearing 6b's name"; stepping by 5 reps found the
+real one at 1625 chars / 585.7 px.
+
+## 14. "BIND TO THE IDS THE UI ALREADY USES" — the final score is 2 of 18
+
+M3's rows, completing the tally:
+
+| Plugin | Selector half | Target half |
+|---|---|---|
+| **O-Prism** | **TRUE** — 107 of 107 are ids; the page has no `data-param` at all | **TRUE** for 81 of 107 — `.knob-container` is an inline-flex column whose only child is `#knob-<paramId>`, so the rects are identical |
+| O-Formant | false — 45 of 57 knobs carry no id | true for 53 of 57 (the O-Freeze reason: `.knob-wrap` IS the flex column); `.toggle-wrap` matches TWICE, so `closest()` not `querySelector` |
+| O-Bells | mixed | mixed |
+| O-Wind | mixed | mixed |
+
+**O-Freeze and O-Prism are the only two plugins in eighteen where the naive
+reading of T17 holds on both halves** — and they are at opposite ends of the size
+range, which is the point: it is a property of how the page was built, not of how
+big it is. Check the two halves separately, every time.
+
+## 15. A SECOND HOVER SURFACE CAN ALREADY BE ON THE PAGE
+
+O-Bells' `.hi-fi-toggle` carried its own `:hover`-only `.toggle-tooltip` at
+`z-index: 100` — a pre-existing tooltip that would have painted **alongside** the
+new renderer. The div and its three CSS rules were deleted and its sentence moved
+**verbatim, both languages**, into `tip.highFidelity`'s body, with the now-unused
+`label.hiFiNote` key deleted rather than orphaned (assertion 15).
+
+**Grep your page for an existing `:hover` surface before you add one.** Contract
+§4 deletes native `title=`; it says nothing about a hand-rolled CSS tooltip, and
+`check-i18n` assertion 11 does not look for one.
+
+## 16. `--amend` WAS UNSAFE AGAIN, AND THE SHARED-HEAD RACE FIRED
+
+O-Bells' parent is `8c6e1c97` — **O-Wind's M3 commit landed between O-Bells'
+status check and its commit.** Every executor used `<sha>^` rather than `HEAD~1`
+and every one was right to. Third batch running, third time this has mattered.
+
+## DECISION ITEMS — added by M3
+
+17. **No gate sees a dangling tip binding.** Finding 2. `boot-all-uis.js:141`
+    drops every non-`error` console message and the canon warns at `warn` level.
+    The cheapest fix is to promote that one canon line to `console.error`, or to
+    have `boot-all-uis` match `i18n:` warnings specifically. **`scripts/` is the
+    orchestrator's; this is the eleventh gate fix this task has surfaced and the
+    first that the whole T17 feature rests on.**
+18. **Generalise `__reapplyI18n`.** Finding 4. One line, shipped on O-Bells,
+    absent from 42. It is what O-Reed's `referencePitch`, O-Formant's tuning
+    panel and O-Wind's panel all needed. Supersedes decision item 14 as an *open
+    question* — the question now is only whether to roll it out, not what to build.
+19. **O-Prism's mod matrix needs addressable row nodes as well.** Finding 5.
+    `__reapplyI18n` alone is insufficient there.
+20. **The 26 host-reachable / page-unreachable figure is unaudited.** Finding 3
+    shows the scan that produced it errs in both directions. The real count is
+    unknown; M3's own contribution is 14 + 3 = **17**, after correction from 18.
+21. **Two plugins ship inverted bypass buttons** (O-Wind 4, O-Prism 5). Same
+    shape, found independently. Host-visible either way it is fixed.
+22. **O-Formant's A4 tuning is lost on session reopen.** Finding 7. Host-visible.
+23. **`scripts/serve-ui.js:320` seeds the stub from `params.tsv`'s `id` column**,
+    but O-Formant's page asks for `<id>Slider`. Nothing matches, so
+    `built.seedFrom` reports `param-dump (64 rows)` while `__stubReport.rangesFrom`
+    reports `neutral-defaults` and every readout renders `0.50`. Two fields
+    disagreeing is the tell. Not blocking; `scripts/` is the orchestrator's.
+24. **`check-ui-labels.js:1022`** prints `${seenVisible.size} of ${allPaths.length}`
+    — a union across states against a single-state snapshot. Read "123 of 123" by
+    coincidence before O-Bells' commit and "123 of 122" after, purely because one
+    never-visible node was removed. Not an assertion, not a blocker.
+25. **Checkpoint 5 is now 3751 entries.** M3 added 749. No native speaker has read
+    any of them, on any of the 43 plugins.
+
+## STILL NOT VERIFIED, on all four
+
+No DAW test — `auval` and headless Chromium only, never a real WKWebView. The
+Standalone `.app` is stale on all four (`build-and-install.sh` builds VST3 + AU
+only). Checkpoint 4 (host session save/reopen) reasoned, not executed — **and
+O-Formant's finding 7 is now a live reason to actually run it.** Windows/WebView2
+font metrics remain the standing hardware-blocked deferral, and tooltips are new
+surface for it: French already wraps taller inside the fixed cap on every one of
+the four (O-Prism 123.9 → 139.3 px), so a wider face shows there first.
