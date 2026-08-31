@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-AnalogEQ page labels, English + French (v1.2.0)
+// i18n.js — O-AnalogEQ page labels and hover-help, English + French (v1.3.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,16 +32,29 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.3.0 GIVES THIS PLUGIN HOVER-HELP, AND A RENDERER TO PAINT IT ────────
 //
-// v1.1.11 carried no data-tip and no data-tooltip anywhere on the page — only
-// five native title= attributes on the preset bar, which contract §4 DELETES
-// rather than localizes, moving their existing text into data-i18n-aria. No
-// hover-help prose is INVENTED here: authoring it is Stage M's job. I18N is
-// therefore empty and TIP_BINDINGS is empty, which is this plugin's correct
-// state rather than a gap. check-i18n assertion 2 reports it as "0 tip(s)
-// bound", and the emptiness is only admissible BECAUSE no I18N entry carries a
-// body — an emptied TIP_BINDINGS over a bodied table would be orphaned copy.
+// v1.2.0 shipped with I18N and TIP_BINDINGS both EMPTY, which was that
+// version's correct state: v1.1.11 carried no data-tip anywhere on the page,
+// only five native title= attributes on the preset bar that contract §4 DELETES
+// rather than localizes. Authoring the prose was deferred to Stage M, and this
+// is Stage M.
+//
+// THE ATTRIBUTES ARE NOT THE FEATURE. applyI18n() writes data-tip-title and
+// data-tip onto each anchor named in TIP_BINDINGS and stops there; the code
+// that READS those attributes and paints a surface is per-plugin and did not
+// exist on this page at all — no #tooltip node, no .tooltip rule, no hover
+// handler. Authoring thirteen bodies and binding them, with no other change,
+// would have shipped thirteen INVISIBLE strings past three green gates:
+// check-i18n reads the table statically, check-ui-labels has no tooltip
+// awareness whatsoever, and boot-all-uis counts aria-label and title and never
+// data-tip. index.html therefore also gains the delegated renderer and its CSS,
+// and plugins/O-AnalogEQ/tests/ui_tip_render_check.js is the seat where a tip
+// that never appeared FAILS instead of passing quietly.
+//
+// THIRTEEN TIPS FOR FIFTEEN OF SIXTEEN PARAMETERS, and both gaps are findings
+// rather than omissions — see the TIP_BINDINGS block at the foot of this file
+// for the dual-knob pairing and for output_gain, which has no control at all.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -54,17 +67,289 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy (v1.3.0). A tooltip entry is {t, b}: a title and a
+// body, in each language.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin with no tooltips today, so Stage M can
-// add bodies here without touching the label keys below.
+// ── WHERE THE RANGES COME FROM ─────────────────────────────────────────────
+//
+// .planning/params.tsv, produced by a RUNTIME walk of getParameters() on a
+// constructed processor (scripts/param-dump), not by a regex over
+// createParameterLayout(). Sixteen parameters.
+//
+// ELEVEN OF THE SIXTEEN CARRY A REAL `label` COLUMN — every *_freq is "Hz" and
+// every *_gain is "dB", and each agrees with the page's own formatter at
+// index.html:963-971. The brief's "label is empty far more often than the plan
+// implies" is FALSE on this plugin: only the two Q choices and the five bools
+// have an empty label, and for those the range is option words rather than a
+// number, so there is no unit to recover.
+//
+// ONE RANGE HAD TO BE RECOVERED FROM THE FORMATTER ANYWAY, and it is hf_freq.
+// The dump says textAtMax 20000.0, but index.html:970 renders
+// `hz >= 10000 ? (hz / 1000).toFixed(1) + 'k' : Math.round(hz)`, so the top of
+// that knob READS "20.0k Hz" and never "20000 Hz". The body below quotes what
+// the user sees.
+//
+// ── THE NUMBERS ARE SPELLED DIFFERENTLY IN THE TWO LANGUAGES, ON PURPOSE ────
+//
+// A tooltip body is PROSE and takes French convention: decimal COMMA, a space
+// before a unit, U+2212 for the minus sign. The READOUT keeps its point —
+// #lf_db renders "0.0 dB" in both languages because D-03 exempts the readout
+// NODE, and that has not moved. So `−12.0 to +12.0 dB` here becomes
+// `−12,0 à +12,0 dB` there while the readout under the knob still says
+// `-12.0 dB`. They differ because one is prose and the other is a
+// machine-formatted value. Settled by the developer, 2026-08-30; three M1
+// plugins had to be corrected in f0eb50c8 for getting it the other way.
+//
+// ── OPTION WORDS STAY ENGLISH INSIDE A FRENCH SENTENCE ──────────────────────
+//
+// WIDE / MED / TIGHT are lmf_q and hmf_q AudioParameterChoice options, exempt
+// on the PAGE under D-01 arm 1 (see I18N_EXEMPT below) because the face and the
+// host automation lane must agree. Inside a tooltip body they are being NAMED
+// rather than displayed, so the sentence around them is French and the three
+// words are not: a French user reading "TIGHT" in the body then finds exactly
+// "TIGHT" on the control and in the DAW's automation lane. Off / On are the
+// same case for the five booleans.
+//
+// ── COPY IS textContent ON EVERY PATH ───────────────────────────────────────
+//
+// No string below contains an angle bracket (check-i18n assertion 9), and the
+// renderer builds the surface with createElement + createTextNode rather than
+// innerHTML, so machine-drafted French cannot open a markup path.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── THE FOUR DUAL KNOBS ─────────────────────────────────────────────────
+    //
+    // ONE TIP EACH, FOR TWO PARAMETERS, AND THAT IS FORCED BY THE PAGE RATHER
+    // THAN CHOSEN. Each band is a single concentric control: `.knob-outer`
+    // (frequency) and `.knob-inner` (gain) are BOTH `pointer-events: none`
+    // (index.html:229, :271), so neither is hoverable and neither can carry a
+    // tip. The only node that receives a pointer event is their parent
+    // `.dual-knob-container`, which decides outer-vs-inner from the cursor's
+    // DISTANCE FROM THE CENTRE at pointerdown (INNER_THRESHOLD 0.60,
+    // index.html:1000-1010) — a radius, not a child boundary, and nothing a
+    // hover anchor can be attached to.
+    //
+    // So one anchor holds one tip that names both rings, which is the same
+    // trade O-Texture made for its X/Y pad. Adding a second binding on the same
+    // node would SILENTLY OVERWRITE the first — applyI18n writes onto whatever
+    // the selector resolves to — while check-i18n cheerfully reported two bound
+    // tips. Making the two rings separately hoverable is a change to a working
+    // control's hit-testing and is NOT made here.
+    'tip.lfBand': {
+        en: { t: 'LF Frequency & Gain',
+              b: 'The outer ring sets the corner frequency of the low shelf and the inner '
+               + 'dial sets its gain, so everything below the corner is lifted or cut '
+               + 'together. Reach for it to put weight under a thin source, or to clear mud '
+               + 'without touching the mids. Frequency 30 to 500 Hz; gain −12.0 to +12.0 dB.' },
+        fr: { t: 'LF — Fréquence et gain',
+              b: 'La bague extérieure règle la fréquence de coupure du plateau grave et le '
+               + 'cadran intérieur son gain : tout ce qui est sous la coupure est relevé ou '
+               + 'atténué d’un bloc. À utiliser pour donner du corps à une source maigre, ou '
+               + 'pour dégager le bas sans toucher aux médiums. Fréquence 30 à 500 Hz ; gain '
+               + '−12,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    'tip.lmfBand': {
+        en: { t: 'LMF Frequency & Gain',
+              b: 'The outer ring sets the centre frequency of the low-mid bell and the inner '
+               + 'dial sets its gain, lifting or cutting a band around that centre while '
+               + 'leaving the rest alone. This is where boxiness and body live on most '
+               + 'sources. Frequency 100 to 2000 Hz; gain −12.0 to +12.0 dB.' },
+        fr: { t: 'LMF — Fréquence et gain',
+              b: 'La bague extérieure règle la fréquence centrale de la cloche bas-médium et '
+               + 'le cadran intérieur son gain, relevant ou atténuant une bande autour de ce '
+               + 'centre sans toucher au reste. C’est là que se logent le corps et l’effet de '
+               + 'boîte sur la plupart des sources. Fréquence 100 à 2000 Hz ; gain −12,0 à '
+               + '+12,0 dB.',
+              reviewed: false },
+    },
+
+    'tip.hmfBand': {
+        en: { t: 'HMF Frequency & Gain',
+              b: 'The outer ring sets the centre frequency of the high-mid bell and the inner '
+               + 'dial sets its gain. Reach for it for presence and attack, or to pull back '
+               + 'harshness in the range the ear is most sensitive to. Frequency 500 to '
+               + '8000 Hz; gain −12.0 to +12.0 dB.' },
+        fr: { t: 'HMF — Fréquence et gain',
+              b: 'La bague extérieure règle la fréquence centrale de la cloche haut-médium et '
+               + 'le cadran intérieur son gain. À utiliser pour la présence et l’attaque, ou '
+               + 'pour adoucir la dureté dans la zone où l’oreille est la plus sensible. '
+               + 'Fréquence 500 à 8000 Hz ; gain −12,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    // The one range that had to be read off the formatter rather than the dump:
+    // index.html:970 prints a "k" abbreviation above 10 kHz, so the top of this
+    // knob reads "20.0k Hz" and the dump's 20000.0 is never displayed.
+    'tip.hfBand': {
+        en: { t: 'HF Frequency & Gain',
+              b: 'The outer ring sets the corner frequency of the high shelf and the inner '
+               + 'dial sets its gain, so everything above the corner is lifted or cut '
+               + 'together. Reach for it for air and sheen, or to take the edge off a bright '
+               + 'source. Frequency 2000 Hz to 20.0k Hz; gain −12.0 to +12.0 dB.' },
+        fr: { t: 'HF — Fréquence et gain',
+              b: 'La bague extérieure règle la fréquence de coupure du plateau aigu et le '
+               + 'cadran intérieur son gain : tout ce qui est au-dessus de la coupure est '
+               + 'relevé ou atténué d’un bloc. À utiliser pour l’air et le brillant, ou pour '
+               + 'arrondir une source trop mordante. Fréquence 2000 Hz à 20,0k Hz ; gain '
+               + '−12,0 à +12,0 dB.',
+              reviewed: false },
+    },
+
+    // ── THE FOUR BAND SWITCHES ──────────────────────────────────────────────
+    //
+    // Each band caption IS its own on/off switch (an AudioParameterBool whose
+    // only face is a CSS class), so the title here is the caption the user is
+    // pointing at rather than the dump's "LF On" — the page wins over the
+    // automation lane for a title, per the brief.
+    //
+    // "Skipped rather than flattened" is measured, not idiomatic: processBlock
+    // guards each stage with `if (lfOn) lfFilter.process(context)`
+    // (PluginProcessor.cpp:344-347), so an off band costs nothing and cannot
+    // colour the signal at all.
+    'tip.lfOn': {
+        en: { t: 'LF Shelf',
+              b: 'Click the caption to switch the low shelf in or out of the signal path. '
+               + 'When it is off the filter stage is skipped outright rather than flattened, '
+               + 'so the band cannot colour the sound at all, and the caption dims. '
+               + 'Off or On.' },
+        fr: { t: 'LF Plat.',
+              b: 'Cliquez sur l’étiquette pour insérer ou retirer le plateau grave du trajet '
+               + 'du signal. Quand il est désactivé, l’étage de filtrage est court-circuité '
+               + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
+               + 'l’étiquette s’estompe. Off ou On.',
+              reviewed: false },
+    },
+
+    'tip.lmfOn': {
+        en: { t: 'LMF Bell',
+              b: 'Click the caption to switch the low-mid bell in or out of the signal path. '
+               + 'When it is off the filter stage is skipped outright rather than flattened, '
+               + 'and the caption dims. Off or On.' },
+        fr: { t: 'Cloche LMF',
+              b: 'Cliquez sur l’étiquette pour insérer ou retirer la cloche bas-médium du '
+               + 'trajet du signal. Quand elle est désactivée, l’étage de filtrage est '
+               + 'court-circuité plutôt qu’aplani, et l’étiquette s’estompe. Off ou On.',
+              reviewed: false },
+    },
+
+    'tip.hmfOn': {
+        en: { t: 'HMF Bell',
+              b: 'Click the caption to switch the high-mid bell in or out of the signal path. '
+               + 'When it is off the filter stage is skipped outright rather than flattened, '
+               + 'and the caption dims. Off or On.' },
+        fr: { t: 'Cloche HMF',
+              b: 'Cliquez sur l’étiquette pour insérer ou retirer la cloche haut-médium du '
+               + 'trajet du signal. Quand elle est désactivée, l’étage de filtrage est '
+               + 'court-circuité plutôt qu’aplani, et l’étiquette s’estompe. Off ou On.',
+              reviewed: false },
+    },
+
+    'tip.hfOn': {
+        en: { t: 'HF Shelf',
+              b: 'Click the caption to switch the high shelf in or out of the signal path. '
+               + 'When it is off the filter stage is skipped outright rather than flattened, '
+               + 'so the band cannot colour the sound at all, and the caption dims. '
+               + 'Off or On.' },
+        fr: { t: 'HF Plat.',
+              b: 'Cliquez sur l’étiquette pour insérer ou retirer le plateau aigu du trajet '
+               + 'du signal. Quand il est désactivé, l’étage de filtrage est court-circuité '
+               + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
+               + 'l’étiquette s’estompe. Off ou On.',
+              reviewed: false },
+    },
+
+    // ── THE TWO Q SELECTORS ─────────────────────────────────────────────────
+    //
+    // The three Q values are qValues[] = { 0.5, 1.0, 2.0 } at
+    // PluginProcessor.h:122, indexed by the choice. They are quoted because the
+    // three option WORDS say which is broader but not by how much, and a
+    // numeric Q is what an engineer coming from a console expects to compare.
+    'tip.lmfQ': {
+        en: { t: 'LMF Q',
+              b: 'Sets how wide a slice of the spectrum the low-mid bell lifts or cuts around '
+               + 'its centre frequency. WIDE is broad and musical, TIGHT is surgical enough to '
+               + 'pull one resonance without thinning the source. Three settings: WIDE, MED, '
+               + 'TIGHT — Q 0.5, 1.0 and 2.0.' },
+        fr: { t: 'Q LMF',
+              b: 'Règle la largeur de la tranche de spectre que la cloche bas-médium relève ou '
+               + 'atténue autour de sa fréquence centrale. WIDE est large et musical, TIGHT '
+               + 'assez chirurgical pour retirer une résonance sans amaigrir la source. Trois '
+               + 'réglages : WIDE, MED, TIGHT — Q 0,5, 1,0 et 2,0.',
+              reviewed: false },
+    },
+
+    'tip.hmfQ': {
+        en: { t: 'HMF Q',
+              b: 'Sets how wide a slice of the spectrum the high-mid bell lifts or cuts around '
+               + 'its centre frequency. WIDE is broad and musical, TIGHT is surgical enough to '
+               + 'pull one resonance without dulling the source. Three settings: WIDE, MED, '
+               + 'TIGHT — Q 0.5, 1.0 and 2.0.' },
+        fr: { t: 'Q HMF',
+              b: 'Règle la largeur de la tranche de spectre que la cloche haut-médium relève ou '
+               + 'atténue autour de sa fréquence centrale. WIDE est large et musical, TIGHT '
+               + 'assez chirurgical pour retirer une résonance sans ternir la source. Trois '
+               + 'réglages : WIDE, MED, TIGHT — Q 0,5, 1,0 et 2,0.',
+              reviewed: false },
+    },
+
+    // ── THE SATURATION SWITCH ───────────────────────────────────────────────
+    //
+    // The stage is `tanh(x * 0.5) * 2.0` (PluginProcessor.cpp:253), placed
+    // AFTER all four bands and BEFORE the output gain (cpp:344-352). The 0.5
+    // pre-gain with the 2.0 post-gain is what makes it warmth rather than
+    // drive, and saying "after the four bands" is the part a user cannot guess
+    // from the face.
+    'tip.analog': {
+        en: { t: 'Analog',
+              b: 'Switches a gentle saturation stage in after all four bands, adding harmonic '
+               + 'warmth and rounding the peaks the EQ has just created. Reach for it when a '
+               + 'clean boost sounds brittle; leave it off for surgical corrective work. '
+               + 'Off or On.' },
+        fr: { t: 'Analog.',
+              b: 'Insère un étage de saturation douce après les quatre bandes, qui ajoute une '
+               + 'chaleur harmonique et arrondit les crêtes que l’égaliseur vient de créer. À '
+               + 'utiliser quand un relèvement propre sonne cassant ; à laisser désactivé pour '
+               + 'un travail correctif chirurgical. Off ou On.',
+              reviewed: false },
+    },
+
+    // ── THE CHROME ──────────────────────────────────────────────────────────
+    //
+    // THE GEAR TIP DESCRIBES ONLY WHAT THIS POPOVER ACTUALLY HOLDS. It is one
+    // row and that row is the language selector; this plugin has no hover-help
+    // on/off toggle, so the wording O-Tapestop uses would promise a control
+    // that is not there. A tip that lies is worse than no tip.
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens the settings panel above this button. It holds one control, the '
+               + 'interface language, and closes again on a click outside it or on Escape.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient un seul '
+               + 'contrôle, la langue de l’interface, et se referme par un clic à l’extérieur '
+               + 'ou par la touche Échap.',
+              reviewed: false },
+    },
+
+    // D-03 IS RESTATED HERE BECAUSE IT IS THE ONE THING A USER WILL TEST. The
+    // captions, the accessible names and this hover-help change language; the
+    // value readouts under the knobs keep their English units and their decimal
+    // POINT, deliberately.
+    'tip.language': {
+        en: { t: 'Interface language',
+              b: 'Chooses the language of the page: every caption, every accessible name and '
+               + 'this hover-help. The value readouts under the knobs keep their numbers and '
+               + 'their English units. English or Français.' },
+        fr: { t: 'Langue de l’interface',
+              b: 'Choisit la langue de la page : chaque étiquette, chaque nom accessible et '
+               + 'cette aide contextuelle. Les valeurs affichées sous les boutons conservent '
+               + 'leurs nombres et leurs unités anglaises. English ou Français.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -358,25 +643,91 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper].
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), then closest(wrapper) if a
+// wrapper is given, and writes data-tip-title + data-tip onto whatever it lands
+// on. The delegated renderer in index.html then walks closest('[data-tip]')
+// from the pointer's target, so the node named here IS the hover cell.
+//
+// ── T17'S "BIND TO THE ids THE UI ALREADY USES" IS WRONG HERE TWICE ─────────
+//
+// It is now wrong on six plugins out of six, for a different reason each time,
+// and the SELECTOR half and the TARGET half fail independently. On this page:
+//
+//   SELECTOR half — the four dual knobs have no per-band id that is usable.
+//   `#lf_freq_knob` and `#lf_gain_knob` DO exist, and binding either would be
+//   the naive reading of T17, but both are `pointer-events: none`
+//   (index.html:229, :271): a tip bound to them can never open. The
+//   addressable node is `.dual-knob-container[data-param-outer="lf_freq"]`.
+//
+//   TARGET half — that container is 65 x 65, and it sits inside an 85 x 85
+//   `.dual-knob-wrapper` that also carries the frequency scale (`.freq-notches`,
+//   itself pointer-events: none, so the wrapper receives those events). The
+//   scale ring is part of the control the user is aiming at, so the wrapper
+//   walk widens the hover cell from 65 x 65 to 85 x 85 — 4225 px2 to 7225 px2,
+//   a 71% larger target — without moving a pixel of paint.
+//
+// The other nine bind BARE, and each is checked rather than assumed:
+//   #lf_on / #lmf_on / #hmf_on / #hf_on  the .band-label IS the switch and IS
+//                                       the 85 x 21 hover cell.
+//   #lmf_q / #hmf_q                      the .three-way-toggle is 110 x 18 and
+//                                       its three options are children, so
+//                                       closest() reaches it from any of them.
+//   #analog                              75 x 22, its own cell.
+//
+// ── THE CHROME BINDS BARE, AND THAT IS LOAD-BEARING ────────────────────────
+//
+// `#gear-btn` and `#lang-select` share the ancestor `.settings-cluster`, so a
+// wrapper walk on either would resolve BOTH to the cluster — and the cluster's
+// own rect is the gear's 18 x 18 box, because the popover inside it is
+// absolutely positioned. Hovering the language selector would then open the
+// GEAR's tip. O-Comp hit exactly this and it is the reason both rows below have
+// no third element.
+//
+// ── FIFTEEN PARAMETERS, THIRTEEN TIPS, AND BOTH GAPS ARE FINDINGS ──────────
+//
+// 1. THE FOUR DUAL KNOBS CARRY TWO PARAMETERS EACH ON ONE HOVER TARGET. See
+//    the I18N comment above: the two rings are pointer-events: none and the
+//    control resolves them by cursor RADIUS, so there is exactly one anchor and
+//    it gets one tip naming both. A second row on the same node would silently
+//    overwrite the first while check-i18n reported two bound tips.
+//
+// 2. output_gain HAS NO CONTROL ON THE PAGE AT ALL, and that is deliberate and
+//    documented in the source rather than an oversight: PluginProcessor.cpp:88
+//    records it as removed in the v1.0.5 UI simplification (review item IN-01),
+//    kept because it is host-automatable and because factory presets set it
+//    ("Surgical Cut" = +1 dB). It is host-reachable and page-unreachable.
+//    NO CONTROL WAS ADDED TO SATISFY THE COUNT — that would be a feature change
+//    with a geometry cost on a 220 px frame — and no body was authored for it,
+//    because an authored body with nothing to bind is an ORPHAN that check-i18n
+//    assertion 2 fails.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['.dual-knob-container[data-param-outer="lf_freq"]',  'tip.lfBand',  '.dual-knob-wrapper'],
+    ['.dual-knob-container[data-param-outer="lmf_freq"]', 'tip.lmfBand', '.dual-knob-wrapper'],
+    ['.dual-knob-container[data-param-outer="hmf_freq"]', 'tip.hmfBand', '.dual-knob-wrapper'],
+    ['.dual-knob-container[data-param-outer="hf_freq"]',  'tip.hfBand',  '.dual-knob-wrapper'],
+    ['#lf_on',      'tip.lfOn'],
+    ['#lmf_on',     'tip.lmfOn'],
+    ['#hmf_on',     'tip.hmfOn'],
+    ['#hf_on',      'tip.hfOn'],
+    ['#lmf_q',      'tip.lmfQ'],
+    ['#hmf_q',      'tip.hmfQ'],
+    ['#analog',     'tip.analog'],
+    ['#gear-btn',   'tip.settings'],
+    ['#lang-select', 'tip.language'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// Live as of v1.3.0: applyI18n() calls it once per TIP_BINDINGS row, and there
+// are now thirteen. It was exported verbatim while the table was empty so that
+// the canon block stayed byte-identical to the other forty-two copies, and
+// adding the bodies needed no change to it at all.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
