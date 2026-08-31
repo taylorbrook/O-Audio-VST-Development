@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-AnalogEQ page labels and hover-help, English + French (v1.3.0)
+// i18n.js — O-AnalogEQ page labels and hover-help, English + French (v1.3.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -31,6 +31,57 @@
 // converting them to underscores, so a second file named i18n-fr.js would have
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
+//
+// ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 14 of 43 entries (3 terminology, 10 typography, 4 grammar/idiom,
+// 3 meaning — an entry can carry more than one). sameAsEn: kept 2, translated
+// 0. termNote exemptions: 0 — no contextual glossary exemption was needed here.
+// i18n-fr-lint 20 findings -> 0, --strict exit 0 (7 T4, 5 T5, 4 T7, 2 G1, 2 F1).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+//
+// The decisions a later reader needs:
+//
+//   SAUVER -> ENREG., AND THE v1.3.0 WIDTH DEFENCE OF SAUVER WAS WRONG BY
+//   MEASUREMENT. See the preset-button block in LABELS: the glossary's
+//   abbreviation is 3.75 px NARROWER than the calque it replaces.
+//
+//   LABEL IN NAME HOLDS BY STEM ONLY on #savePreset from here on — "ENREG." is
+//   not a substring of "Enregistrer un préréglage dans un fichier". Recorded in
+//   the aria block; no caption was invented to close it.
+//
+//   aria.presetList takes the glossary's settled INFINITIVE ("Cliquer pour
+//   parcourir les préréglages") while the three tooltip bodies keep the
+//   IMPERATIVE their English uses ("Cliquez sur l’étiquette"). The glossary
+//   settles that one accessible name across every preset bar in the suite; the
+//   register rule ("pick one per plugin") governs prose bodies, which are not
+//   the same register class as a fixed accessible name.
+//
+//   THE FOUR BAND TIP TITLES AND tip.analog KEEP THE CAPTION'S ABBREVIATION —
+//   LF Plat., HF Plat., Analog. — rather than expanding to Plateau LF /
+//   Analogique in the roomier tooltip surface. M2's finding that "the caption
+//   wins" reverses for a TRUNCATED caption allows either branch; this is the
+//   branch taken, because on this page the caption IS the switch the user is
+//   pointing at and identification beats expansion. Recorded so the reviewer
+//   can reverse it deliberately rather than discover it.
+//
+//   Off / On STAY ENGLISH in the bodies, unchanged: they are the words the
+//   host's automation lane shows for the five AudioParameterBools. The state
+//   verb in the same sentence is French ("Quand il est désactivé").
+//
+//   THE Q VALUES ARE SEPARATED BY SEMICOLONS — "Q 0,5 ; 1,0 et 2,0" — because
+//   the decimal COMMA this suite settled on makes "0,5, 1,0 et 2,0" ambiguous.
+//   A semicolon list whose members contain commas is the standard French form.
+//
+//   Ranges read "de X à Y" inside a sentence, per the glossary's Ranges rule.
+//   LMF and HMF stay sameAsEn — the band-caption block below says why.
+//
+// ── <html lang> NOW FOLLOWS THE SELECTOR (canon change, all 43 plugins) ─────
+//
+// applyI18n() sets document.documentElement.lang = uiLanguage, so assistive
+// technology reads the page in the language it is being displayed in. The canon
+// was synced into every canon-bearing file at repo level with no version bump;
+// the user-visible half of it ships with this version.
 //
 // ── v1.3.0 GIVES THIS PLUGIN HOVER-HELP, AND A RENDERER TO PAINT IT ────────
 //
@@ -145,10 +196,10 @@ export const I18N = Object.freeze({
                + 'without touching the mids. Frequency 30 to 500 Hz; gain −12.0 to +12.0 dB.' },
         fr: { t: 'LF — Fréquence et gain',
               b: 'La bague extérieure règle la fréquence de coupure du plateau grave et le '
-               + 'cadran intérieur son gain : tout ce qui est sous la coupure est relevé ou '
-               + 'atténué d’un bloc. À utiliser pour donner du corps à une source maigre, ou '
-               + 'pour dégager le bas sans toucher aux médiums. Fréquence 30 à 500 Hz ; gain '
-               + '−12,0 à +12,0 dB.',
+               + 'cadran intérieur son gain : tout ce qui est sous la coupure est relevé '
+               + 'ou atténué d’un bloc. À utiliser pour donner du corps à une source maigre, '
+               + 'ou pour dégager le bas sans toucher aux médiums. Fréquence de 30 à '
+               + '500 Hz ; gain de −12,0 à +12,0 dB.',
               reviewed: false },
     },
 
@@ -162,8 +213,8 @@ export const I18N = Object.freeze({
               b: 'La bague extérieure règle la fréquence centrale de la cloche bas-médium et '
                + 'le cadran intérieur son gain, relevant ou atténuant une bande autour de ce '
                + 'centre sans toucher au reste. C’est là que se logent le corps et l’effet de '
-               + 'boîte sur la plupart des sources. Fréquence 100 à 2000 Hz ; gain −12,0 à '
-               + '+12,0 dB.',
+               + 'boîte sur la plupart des sources. Fréquence de 100 à 2000 Hz ; gain '
+               + 'de −12,0 à +12,0 dB.',
               reviewed: false },
     },
 
@@ -177,7 +228,7 @@ export const I18N = Object.freeze({
               b: 'La bague extérieure règle la fréquence centrale de la cloche haut-médium et '
                + 'le cadran intérieur son gain. À utiliser pour la présence et l’attaque, ou '
                + 'pour adoucir la dureté dans la zone où l’oreille est la plus sensible. '
-               + 'Fréquence 500 à 8000 Hz ; gain −12,0 à +12,0 dB.',
+               + 'Fréquence de 500 à 8000 Hz ; gain de −12,0 à +12,0 dB.',
               reviewed: false },
     },
 
@@ -192,10 +243,10 @@ export const I18N = Object.freeze({
                + 'source. Frequency 2000 Hz to 20.0k Hz; gain −12.0 to +12.0 dB.' },
         fr: { t: 'HF — Fréquence et gain',
               b: 'La bague extérieure règle la fréquence de coupure du plateau aigu et le '
-               + 'cadran intérieur son gain : tout ce qui est au-dessus de la coupure est '
-               + 'relevé ou atténué d’un bloc. À utiliser pour l’air et le brillant, ou pour '
-               + 'arrondir une source trop mordante. Fréquence 2000 Hz à 20,0k Hz ; gain '
-               + '−12,0 à +12,0 dB.',
+               + 'cadran intérieur son gain : tout ce qui est au-dessus de la coupure '
+               + 'est relevé ou atténué d’un bloc. À utiliser pour l’air et le brillant, ou '
+               + 'pour arrondir une source trop mordante. Fréquence de 2000 Hz à '
+               + '20,0k Hz ; gain de −12,0 à +12,0 dB.',
               reviewed: false },
     },
 
@@ -219,7 +270,7 @@ export const I18N = Object.freeze({
         fr: { t: 'LF Plat.',
               b: 'Cliquez sur l’étiquette pour insérer ou retirer le plateau grave du trajet '
                + 'du signal. Quand il est désactivé, l’étage de filtrage est court-circuité '
-               + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
+               + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
                + 'l’étiquette s’estompe. Off ou On.',
               reviewed: false },
     },
@@ -257,7 +308,7 @@ export const I18N = Object.freeze({
         fr: { t: 'HF Plat.',
               b: 'Cliquez sur l’étiquette pour insérer ou retirer le plateau aigu du trajet '
                + 'du signal. Quand il est désactivé, l’étage de filtrage est court-circuité '
-               + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
+               + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
                + 'l’étiquette s’estompe. Off ou On.',
               reviewed: false },
     },
@@ -277,8 +328,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Q LMF',
               b: 'Règle la largeur de la tranche de spectre que la cloche bas-médium relève ou '
                + 'atténue autour de sa fréquence centrale. WIDE est large et musical, TIGHT '
-               + 'assez chirurgical pour retirer une résonance sans amaigrir la source. Trois '
-               + 'réglages : WIDE, MED, TIGHT — Q 0,5, 1,0 et 2,0.',
+               + 'est assez chirurgical pour retirer une résonance sans amaigrir la source. '
+               + 'Trois réglages : WIDE, MED, TIGHT — Q 0,5 ; 1,0 et 2,0.',
               reviewed: false },
     },
 
@@ -291,8 +342,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Q HMF',
               b: 'Règle la largeur de la tranche de spectre que la cloche haut-médium relève ou '
                + 'atténue autour de sa fréquence centrale. WIDE est large et musical, TIGHT '
-               + 'assez chirurgical pour retirer une résonance sans ternir la source. Trois '
-               + 'réglages : WIDE, MED, TIGHT — Q 0,5, 1,0 et 2,0.',
+               + 'est assez chirurgical pour retirer une résonance sans ternir la source. '
+               + 'Trois réglages : WIDE, MED, TIGHT — Q 0,5 ; 1,0 et 2,0.',
               reviewed: false },
     },
 
@@ -310,10 +361,10 @@ export const I18N = Object.freeze({
                + 'clean boost sounds brittle; leave it off for surgical corrective work. '
                + 'Off or On.' },
         fr: { t: 'Analog.',
-              b: 'Insère un étage de saturation douce après les quatre bandes, qui ajoute une '
+              b: 'Insère après les quatre bandes un étage de saturation douce qui ajoute une '
                + 'chaleur harmonique et arrondit les crêtes que l’égaliseur vient de créer. À '
-               + 'utiliser quand un relèvement propre sonne cassant ; à laisser désactivé pour '
-               + 'un travail correctif chirurgical. Off ou On.',
+               + 'utiliser quand un relèvement propre sonne cassant ; à laisser désactivé '
+               + 'pour un travail correctif chirurgical. Off ou On.',
               reviewed: false },
     },
 
@@ -328,8 +379,8 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel above this button. It holds one control, the '
                + 'interface language, and closes again on a click outside it or on Escape.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient un seul '
-               + 'contrôle, la langue de l’interface, et se referme par un clic à l’extérieur '
+              b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient une seule '
+               + 'commande, la langue de l’interface, et se referme par un clic à l’extérieur '
                + 'ou par la touche Échap.',
               reviewed: false },
     },
@@ -344,9 +395,9 @@ export const I18N = Object.freeze({
                + 'this hover-help. The value readouts under the knobs keep their numbers and '
                + 'their English units. English or Français.' },
         fr: { t: 'Langue de l’interface',
-              b: 'Choisit la langue de la page : chaque étiquette, chaque nom accessible et '
-               + 'cette aide contextuelle. Les valeurs affichées sous les boutons conservent '
-               + 'leurs nombres et leurs unités anglaises. English ou Français.',
+              b: 'Choisit la langue de la page : chaque étiquette, chaque nom accessible '
+               + 'et cette aide contextuelle. Les valeurs affichées sous les boutons rotatifs '
+               + 'conservent leurs nombres et leurs unités anglaises. English ou Français.',
               reviewed: false },
     },
 });
@@ -495,21 +546,31 @@ export const LABELS = Object.freeze({
     //
     // `#savePreset, #loadPreset` are PINNED to 62 px in index.html. Rendered
     // text against that pin's 48 px content box — 62 border-box less 2 px
-    // border and 12 px padding:
+    // border and 12 px padding. RE-MEASURED at v1.3.1 with the gate's own
+    // Range.selectNodeContents, on the real node, at the shipping 920 x 220
+    // frame:
     //
-    //     SAVE  24.52 -> SAUVER   39.25    8.75 px spare
+    //     SAVE  24.52 -> ENREG.   35.50   12.50 px spare   (v1.3.0: SAUVER 39.25)
     //     LOAD  27.16 -> CHARGER  46.80    1.20 px spare   TIGHTEST ON THE PAGE
     //
-    // 62 px is O-Chorus's and O-DigiDelay's number, kept so the suite's preset
-    // bar is one shape across the batch. CHARGER's 1.20 px is the tightest
-    // French margin shipped here and it is thinner than O-DigiDelay's 1.48 px
-    // on the identical string, because this page's 9 px type carries 0.06em
-    // letter-spacing. OUVRIR (37.75, 10.25 px spare) is the reviewer's lever if
-    // 1.20 px is judged too thin on Windows metrics — it is what O-Detune
-    // already ships for this control — and taking it would require moving
-    // aria.loadPreset's French to match, so that label-in-name still holds.
-    // ENREGISTRER (66.95) would need the pin raised to 82 px.
-    'label.save': { en: { t: 'SAVE' }, fr: { t: 'SAUVER',  reviewed: false } },
+    // v1.3.0 SHIPPED SAUVER AND DEFENDED IT ON WIDTH, AND THE DEFENCE WAS WRONG
+    // BY MEASUREMENT RATHER THAN BY TASTE. ENREG. — what the suite glossary
+    // settles for "Save" where a caption is pinned — is 3.75 px NARROWER than
+    // the calque it replaces. The term and the geometry wanted the same string
+    // all along, and only the second half was ever checked. ENREGISTRER (66.95)
+    // still does not fit; the pin is NOT raised to 82 px.
+    //
+    // CHARGER is the glossary's ROOT term and stays. 62 px is O-Chorus's and
+    // O-DigiDelay's number, kept so the suite's preset bar is one shape across
+    // the batch. CHARGER's 1.20 px is the tightest French margin shipped here
+    // and it is thinner than O-DigiDelay's 1.48 px on the identical string,
+    // because this page's 9 px type carries 0.06em letter-spacing. OUVRIR
+    // (37.75, 10.25 px spare) is glossary-accepted for "Load" and is the
+    // reviewer's lever if 1.20 px is judged too thin on Windows metrics — it is
+    // what O-Detune already ships for this control — and taking it would
+    // require moving aria.loadPreset's French to match, so that label-in-name
+    // still holds.
+    'label.save': { en: { t: 'SAVE' }, fr: { t: 'ENREG.',  reviewed: false } },
     'label.load': { en: { t: 'LOAD' }, fr: { t: 'CHARGER', reviewed: false } },
 
     // ── The preset dropdown's empty line, written through setLabel() ────────
@@ -546,9 +607,20 @@ export const LABELS = Object.freeze({
     // LABEL IN NAME. #savePreset and #loadPreset carry BOTH a visible caption
     // and an aria-label, and an aria-label REPLACES the accessible name rather
     // than extending it. Each of those two names therefore CONTAINS its own
-    // visible caption — "Save" in "Save preset to file", "SAUVER" in "Sauver un
-    // préréglage dans un fichier" — so a voice-control user saying the caption
-    // still hits the button (WCAG 2.5.3, which matches case-insensitively).
+    // visible caption — "Save" in "Save preset to file", "CHARGER" in "Charger
+    // un préréglage depuis un fichier" — so a voice-control user saying the
+    // caption still hits the button (WCAG 2.5.3, which matches
+    // case-insensitively).
+    //
+    // ONE EXCEPTION AS OF v1.3.1, AND IT IS THE ABBREVIATION'S. The French save
+    // caption is ENREG., and "ENREG." is NOT a substring of "Enregistrer un
+    // préréglage dans un fichier" — the period ends it. Containment holds on the
+    // STEM "Enreg" only, which is the same partial that O-Comp recorded for the
+    // identical pair. No caption was invented to close the gap: the full word is
+    // 66.95 px against a 48 px content box. The other repair — cutting the
+    // accessible name down to "Enreg. un préréglage…" — buys the voice-control
+    // user a substring by making the name worse for the screen-reader user, and
+    // was not made.
     //
     // That is why aria.loadPreset's French says "Charger" and not "Ouvrir":
     // the visible French caption is CHARGER. O-DigiDelay v1.3.0 ships
@@ -567,9 +639,9 @@ export const LABELS = Object.freeze({
     'aria.nextPreset': { en: { t: 'Next preset' },
                          fr: { t: 'Préréglage suivant',   reviewed: false } },
     'aria.presetList': { en: { t: 'Click to browse presets' },
-                         fr: { t: 'Cliquez pour parcourir les préréglages', reviewed: false } },
+                         fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
     'aria.savePreset': { en: { t: 'Save preset to file' },
-                         fr: { t: 'Sauver un préréglage dans un fichier', reviewed: false } },
+                         fr: { t: 'Enregistrer un préréglage dans un fichier', reviewed: false } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
                          fr: { t: 'Charger un préréglage depuis un fichier', reviewed: false } },
 

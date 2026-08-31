@@ -1,5 +1,58 @@
 # O-AnalogEQ Changelog
 
+## [1.3.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **14 of 43 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, which went from **20 findings to
+  0** (`--strict` exit 0). Terminology: the preset button now reads **ENREG.**
+  rather than SAUVER — *sauver* is a calque, and the glossary's abbreviation
+  measures **35.50 px against SAUVER's 39.25**, so it is 3.75 px NARROWER inside
+  the same 62 px pin; the save button's accessible name follows it to
+  *Enregistrer un préréglage dans un fichier*, and the preset dropdown's takes
+  the glossary's settled *Cliquer pour parcourir les préréglages*. Typography:
+  no-break spaces before every `:` and `;` and between every number and its unit
+  (*500 Hz*, *−12,0 dB*), ten tooltip bodies. Grammar and idiom: a misplaced
+  relative clause in the Analog tip, a missing verb in both Q tips, *une seule
+  commande* for *un seul contrôle*, ranges as *de X à Y*, and the Q values
+  separated by semicolons because the French decimal comma made *0,5, 1,0*
+  ambiguous.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Unchanged, deliberately
+
+- **`reviewed: false` on all 30 French entries.** That flag means a native
+  speaker read the string; this pass is a second machine reading against a
+  glossary and a lint, and it is recorded in the `i18n.js` header instead.
+- **The four band tip titles and the Analog tip title keep their caption's
+  abbreviation** (*LF Plat.*, *HF Plat.*, *Analog.*) rather than expanding in
+  the roomier tooltip: on this page the caption IS the switch being pointed at.
+- **Off / On stay English in the bodies** — they are the words the host's
+  automation lane shows for the five boolean parameters.
+- **LMF and HMF stay `sameAsEn`** — they are the band abbreviations silk-screened
+  on the consoles sold in France.
+
+### Known
+
+- **WCAG 2.5.3 label-in-name now holds by STEM on the save button.** *ENREG.* is
+  not a substring of *Enregistrer un préréglage dans un fichier* because the
+  period ends it; containment holds on *Enreg*. The full word is 66.95 px
+  against a 48 px content box, so no caption was invented to close it.
+- **The `TIGHT` Q option clips its own right edge in ENGLISH** — Stage M
+  decision item 10, re-measured here at **1.88 px past the toggle's content box,
+  IDENTICALLY in both languages, on both `#lmf_q` and `#hmf_q`**.
+  `.three-way-option` is `flex: 1` without `min-width: 0`, so the three options
+  do not fit the 108 px toggle and `overflow: hidden` takes the difference off
+  the last one. Pre-existing since v1.2.0, unreachable by French
+  (`WIDE / MED / TIGHT` are `I18N_EXEMPT` verbatim parameter option strings, so
+  the French pass cannot reach those nodes at all) and fixable only in CSS,
+  which Stage N does not touch.
+
 ## [1.3.0] - 2026-08-30
 
 ### Added — hover-help, in both languages (Stage M batch M2)
