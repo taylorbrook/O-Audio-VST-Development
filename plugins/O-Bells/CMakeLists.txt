@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    VERSION 4.2.0
+    VERSION 4.3.0
 
     # Synthesizer configuration
     IS_SYNTH TRUE
@@ -112,3 +112,17 @@ target_link_libraries(O-Bells
     PRIVATE
         O-Bells_UIResources
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Bells test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # Runtime parameter inventory. Static parsing of createParameterLayout()
+    # provably undercounts in this repo — IDs can be string-concatenated and
+    # parameters can come from a factory lambda. Only a walk of
+    # AudioProcessor::getParameters() on a constructed processor sees the real set.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(O-Bells ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+endif()

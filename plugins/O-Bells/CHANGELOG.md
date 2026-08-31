@@ -2,6 +2,75 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.3.0] - 2026-08-31
+
+### Added — hover-help, in both languages
+
+Every control on the page now has a hover tooltip: a title and two or three
+sentences saying what it does, when to reach for it, and the range and unit it
+covers. **65 entries — 63 parameters plus the gear button and the language
+selector — in English and French**, switching with the rest of the page.
+
+**This needed a RENDERER as well as copy, and that is the whole point.** canon
+v2's `applyI18n()` writes `data-tip-title` and `data-tip` attributes onto the
+anchors named in `TIP_BINDINGS`, and stops there. The thing that reads them and
+paints a surface is per-plugin code, and at v4.2.0 this plugin had none — no
+`#tooltip` element, no `.tooltip` rule, no hover handler. Authoring the copy
+alone would have shipped 65 invisible strings and three green gates.
+
+- `index.html` — the `#tooltip` surface, its CSS in this page's own parchment
+  vocabulary, and `setupTooltips()`, ported from O-simpleFM's delegated
+  cursor-following renderer and called after `initI18n()` inside the same
+  `try/catch`.
+- `Resources/ui/js/i18n.js` — the 65 `I18N` entries and the 65 `TIP_BINDINGS`
+  rows. All French is a machine draft, `reviewed: false` on all 65.
+- `tests/ui_tip_render_check.js` — **the first runnable gate this plugin has.**
+  1024 assertions, 0 failures. No existing gate can see a rendered tooltip:
+  `check-i18n` reads the table statically, `check-ui-labels` has no tooltip
+  awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never
+  `data-tip`. Both of those were measured here rather than assumed — the label
+  gate's 14-state output is identical before and after except for one retired
+  label, and `boot-all-uis` reads `text=147 aria=19 title=0` on both sides.
+
+### Changed
+
+- The High Fidelity switch's bespoke `:hover`-only note is **gone**. It was a
+  second hover surface at `z-index: 100` and would have painted alongside the
+  new tooltip on the same hover. Its sentence moved **verbatim, in both
+  languages**, into the High Fidelity tooltip's body — no new prose invented,
+  the same rule contract §4 applies to a native `title=`.
+
+### Fixed
+
+- Two defects found by the gate rather than by reading, both in the renderer as
+  first written:
+  - a drag that strayed out of the cell being turned opened the **neighbouring**
+    control's tip over the one under the user's hand. None of this page's
+    sliders, FX knobs or the A4 knob calls `setPointerCapture`, so every
+    boundary event during a drag lands on whatever is under the cursor. Fixed
+    with a `pointerHeld` flag cleared on `pointerup`/`pointercancel`.
+  - double-clicking an FX knob's readout to type a value left a tooltip parked
+    over the input. The first guard sat in `focusin` and passed every static
+    check while failing the behavioural one: replacing the readout's text node
+    with an `<input>` mutates the DOM under a stationary cursor and Chromium
+    dispatches a fresh `pointerover`, which the focus latch has nothing to say
+    about. The guard now sits in `show()`, where it covers every entry path.
+
+### Known — reported, not fixed
+
+- **Two parameters are host-reachable and page-unreachable.**
+  `tuning_pitchBendRange` and `tuning_temperamentPreset` have no control
+  anywhere in the served page, so they get no tooltip. Both are automatable and
+  both reach the tuning engine. `tuning_temperamentPreset` has a complete
+  native-function bridge on the C++ side (`setTemperamentPreset` /
+  `getTemperamentPreset`) that nothing on the page ever calls. No control was
+  added to satisfy a count — that is a feature change with a geometry cost.
+- The two tuning-panel tooltips (**A4 Reference**, **Octave Stretch**) log one
+  `i18n: tip target not found` warning each at load, because the panel is
+  imported lazily and is not in the DOM when the first sweep runs. They bind on
+  the panel's own re-apply immediately afterwards. The gate pins the warning set
+  to exactly those two rather than relaxing the check.
+
 ## [4.2.0] - 2026-08-29
 
 ### Added — the PAGE speaks French
