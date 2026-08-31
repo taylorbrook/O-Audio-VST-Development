@@ -1,0 +1,284 @@
+# plugin	O-Prism
+# uiRoot	Source/ui/public
+# generated	2026-08-30T20:55:40.643Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	968	h1		LABEL	no	ui.o-prism	O-PRISM	prose survives the readout filter
+html-text	index.html	974	#preset-current-name		UNSURE	no	preset-current-name	— Init —	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	980	span.subtitle		LABEL	no	subtitle.microtonal-wavetable-synthesizer	Microtonal Wavetable Synthesizer	prose survives the readout filter
+html-text	index.html	990	div.tab.active		LABEL	no	tab.synth	Synth	prose survives the readout filter
+html-text	index.html	991	div.tab		LABEL	no	tab.mod	Mod	prose survives the readout filter
+html-text	index.html	992	div.tab		LABEL	no	tab.tuning	Tuning	prose survives the readout filter
+html-text	index.html	993	div.tab		LABEL	no	tab.effects	Effects	prose survives the readout filter
+html-text	index.html	994	div.tab		LABEL	no	tab.wavetable	Wavetable	prose survives the readout filter
+html-text	index.html	1006	div.section-header		LABEL	no	synth-tab.oscillator-a	Oscillator A	prose survives the readout filter
+html-text	index.html	1010	div.wt-drop-overlay		LABEL	no	canvaswrapa.drop-wav	Drop WAV	prose survives the readout filter
+html-text	index.html	1014	span.dropdown-label		LABEL	no	synth-tab.shape	Shape	prose survives the readout filter
+html-text	index.html	1017	option		LABEL	no	select-oscatable.saw	Saw	prose survives the readout filter
+html-text	index.html	1017	option		LABEL	no	select-oscatable.square	Square	prose survives the readout filter
+html-text	index.html	1017	option		LABEL	no	select-oscatable.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1017	option		LABEL	no	select-oscatable.sine	Sine	prose survives the readout filter
+html-text	index.html	1018	option		LABEL	no	select-oscatable.pwm-sweep	PWM Sweep	prose survives the readout filter
+html-text	index.html	1018	option		LABEL	no	select-oscatable.supersaw	Supersaw	prose survives the readout filter
+html-text	index.html	1018	option		LABEL	no	select-oscatable.sync-sweep	Sync Sweep	prose survives the readout filter
+html-text	index.html	1021	option		LABEL	no	select-oscatable.fm-e-piano	FM E.Piano	prose survives the readout filter
+html-text	index.html	1021	option		LABEL	no	select-oscatable.fm-bell	FM Bell	prose survives the readout filter
+html-text	index.html	1021	option		LABEL	no	select-oscatable.fm-metallic	FM Metallic	prose survives the readout filter
+html-text	index.html	1022	option		LABEL	no	select-oscatable.wavefold	Wavefold	prose survives the readout filter
+html-text	index.html	1022	option		LABEL	no	select-oscatable.bitcrush	Bitcrush	prose survives the readout filter
+html-text	index.html	1025	option		LABEL	no	select-oscatable.vowel-morph	Vowel Morph	prose survives the readout filter
+html-text	index.html	1025	option		LABEL	no	select-oscatable.choir-pad	Choir Pad	prose survives the readout filter
+html-text	index.html	1026	option		LABEL	no	select-oscatable.vocal-lead	Vocal Lead	prose survives the readout filter
+html-text	index.html	1026	option		LABEL	no	select-oscatable.formant-filter	Formant Filter	prose survives the readout filter
+html-text	index.html	1029	option		LABEL	no	select-oscatable.harmonic-series	Harmonic Series	prose survives the readout filter
+html-text	index.html	1029	option		LABEL	no	select-oscatable.spectral-tilt	Spectral Tilt	prose survives the readout filter
+html-text	index.html	1030	option		LABEL	no	select-oscatable.odd-harmonics	Odd Harmonics	prose survives the readout filter
+html-text	index.html	1030	option		LABEL	no	select-oscatable.harmonic-stretch	Harmonic Stretch	prose survives the readout filter
+html-text	index.html	1031	option		LABEL	no	select-oscatable.comb-sweep	Comb Sweep	prose survives the readout filter
+html-text	index.html	1031	option		LABEL	no	select-oscatable.prism-spectrum	Prism Spectrum	prose survives the readout filter
+html-text	index.html	1034	option		LABEL	no	select-oscatable.breath	Breath	prose survives the readout filter
+html-text	index.html	1034	option		LABEL	no	select-oscatable.plucked-string	Plucked String	prose survives the readout filter
+html-text	index.html	1035	option		LABEL	no	select-oscatable.church-bell	Church Bell	prose survives the readout filter
+html-text	index.html	1035	option		LABEL	no	select-oscatable.organ-sweep	Organ Sweep	prose survives the readout filter
+html-text	index.html	1036	option		LABEL	no	select-oscatable.wind	Wind	prose survives the readout filter
+html-text	index.html	1036	option		LABEL	no	select-oscatable.filtered-noise	Filtered Noise	prose survives the readout filter
+html-text	index.html	1050	span.dropdown-label		LABEL	no	synth-tab.warp	Warp	prose survives the readout filter
+html-text	index.html	1052	option		LABEL	no	select-oscawarptype.off	Off	prose survives the readout filter
+html-text	index.html	1052	option		LABEL	no	select-oscawarptype.sync	Sync	prose survives the readout filter
+html-text	index.html	1052	option		LABEL	no	select-oscawarptype.bend	Bend	prose survives the readout filter
+html-text	index.html	1052	option		LABEL	no	select-oscawarptype.fm	FM	prose survives the readout filter
+html-text	index.html	1052	option		LABEL	no	select-oscawarptype.window	Window	prose survives the readout filter
+html-text	index.html	1060	div.section-header		LABEL	no	synth-tab.oscillator-b	Oscillator B	prose survives the readout filter
+html-text	index.html	1064	div.wt-drop-overlay		LABEL	no	canvaswrapb.drop-wav	Drop WAV	prose survives the readout filter
+html-text	index.html	1068	span.dropdown-label		LABEL	no	synth-tab.shape-2	Shape	prose survives the readout filter
+html-text	index.html	1071	option		LABEL	no	select-oscbtable.saw	Saw	prose survives the readout filter
+html-text	index.html	1071	option		LABEL	no	select-oscbtable.square	Square	prose survives the readout filter
+html-text	index.html	1071	option		LABEL	no	select-oscbtable.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1071	option		LABEL	no	select-oscbtable.sine	Sine	prose survives the readout filter
+html-text	index.html	1072	option		LABEL	no	select-oscbtable.pwm-sweep	PWM Sweep	prose survives the readout filter
+html-text	index.html	1072	option		LABEL	no	select-oscbtable.supersaw	Supersaw	prose survives the readout filter
+html-text	index.html	1072	option		LABEL	no	select-oscbtable.sync-sweep	Sync Sweep	prose survives the readout filter
+html-text	index.html	1075	option		LABEL	no	select-oscbtable.fm-e-piano	FM E.Piano	prose survives the readout filter
+html-text	index.html	1075	option		LABEL	no	select-oscbtable.fm-bell	FM Bell	prose survives the readout filter
+html-text	index.html	1075	option		LABEL	no	select-oscbtable.fm-metallic	FM Metallic	prose survives the readout filter
+html-text	index.html	1076	option		LABEL	no	select-oscbtable.wavefold	Wavefold	prose survives the readout filter
+html-text	index.html	1076	option		LABEL	no	select-oscbtable.bitcrush	Bitcrush	prose survives the readout filter
+html-text	index.html	1079	option		LABEL	no	select-oscbtable.vowel-morph	Vowel Morph	prose survives the readout filter
+html-text	index.html	1079	option		LABEL	no	select-oscbtable.choir-pad	Choir Pad	prose survives the readout filter
+html-text	index.html	1080	option		LABEL	no	select-oscbtable.vocal-lead	Vocal Lead	prose survives the readout filter
+html-text	index.html	1080	option		LABEL	no	select-oscbtable.formant-filter	Formant Filter	prose survives the readout filter
+html-text	index.html	1083	option		LABEL	no	select-oscbtable.harmonic-series	Harmonic Series	prose survives the readout filter
+html-text	index.html	1083	option		LABEL	no	select-oscbtable.spectral-tilt	Spectral Tilt	prose survives the readout filter
+html-text	index.html	1084	option		LABEL	no	select-oscbtable.odd-harmonics	Odd Harmonics	prose survives the readout filter
+html-text	index.html	1084	option		LABEL	no	select-oscbtable.harmonic-stretch	Harmonic Stretch	prose survives the readout filter
+html-text	index.html	1085	option		LABEL	no	select-oscbtable.comb-sweep	Comb Sweep	prose survives the readout filter
+html-text	index.html	1085	option		LABEL	no	select-oscbtable.prism-spectrum	Prism Spectrum	prose survives the readout filter
+html-text	index.html	1088	option		LABEL	no	select-oscbtable.breath	Breath	prose survives the readout filter
+html-text	index.html	1088	option		LABEL	no	select-oscbtable.plucked-string	Plucked String	prose survives the readout filter
+html-text	index.html	1089	option		LABEL	no	select-oscbtable.church-bell	Church Bell	prose survives the readout filter
+html-text	index.html	1089	option		LABEL	no	select-oscbtable.organ-sweep	Organ Sweep	prose survives the readout filter
+html-text	index.html	1090	option		LABEL	no	select-oscbtable.wind	Wind	prose survives the readout filter
+html-text	index.html	1090	option		LABEL	no	select-oscbtable.filtered-noise	Filtered Noise	prose survives the readout filter
+html-text	index.html	1104	span.dropdown-label		LABEL	no	synth-tab.warp-2	Warp	prose survives the readout filter
+html-text	index.html	1106	option		LABEL	no	select-oscbwarptype.off	Off	prose survives the readout filter
+html-text	index.html	1106	option		LABEL	no	select-oscbwarptype.sync	Sync	prose survives the readout filter
+html-text	index.html	1106	option		LABEL	no	select-oscbwarptype.bend	Bend	prose survives the readout filter
+html-text	index.html	1106	option		LABEL	no	select-oscbwarptype.fm	FM	prose survives the readout filter
+html-text	index.html	1106	option		LABEL	no	select-oscbwarptype.window	Window	prose survives the readout filter
+html-text	index.html	1116	div.section-header		LABEL	no	synth-tab.sub-oscillator	Sub Oscillator	prose survives the readout filter
+html-text	index.html	1119	span.dropdown-label		LABEL	no	synth-tab.shape-3	Shape	prose survives the readout filter
+html-text	index.html	1121	option		LABEL	no	select-subshape.sine	Sine	prose survives the readout filter
+html-text	index.html	1121	option		LABEL	no	select-subshape.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1121	option		LABEL	no	select-subshape.saw	Saw	prose survives the readout filter
+html-text	index.html	1121	option		LABEL	no	select-subshape.square	Square	prose survives the readout filter
+html-text	index.html	1125	span.dropdown-label		LABEL	no	synth-tab.octave	Octave	prose survives the readout filter
+html-text	index.html	1127	option		LABEL	no	select-suboctave.1-oct	-1 Oct	prose survives the readout filter
+html-text	index.html	1127	option		LABEL	no	select-suboctave.2-oct	-2 Oct	prose survives the readout filter
+html-text	index.html	1127	option		LABEL	no	select-suboctave.3-oct	-3 Oct	prose survives the readout filter
+html-text	index.html	1127	option		LABEL	no	select-suboctave.4-oct	-4 Oct	prose survives the readout filter
+html-text	index.html	1131	span.dropdown-label		LABEL	no	synth-tab.routing	Routing	prose survives the readout filter
+html-text	index.html	1133	option		LABEL	no	select-subrouting.post-filter	Post-Filter	prose survives the readout filter
+html-text	index.html	1133	option		LABEL	no	select-subrouting.pre-filter	Pre-Filter	prose survives the readout filter
+html-text	index.html	1140	div.section-header		LABEL	no	synth-tab.noise	Noise	prose survives the readout filter
+html-text	index.html	1143	span.dropdown-label		LABEL	no	synth-tab.type	Type	prose survives the readout filter
+html-text	index.html	1145	option		LABEL	no	select-noisetype.white	White	prose survives the readout filter
+html-text	index.html	1145	option		LABEL	no	select-noisetype.pink	Pink	prose survives the readout filter
+html-text	index.html	1145	option		LABEL	no	select-noisetype.brown	Brown	prose survives the readout filter
+html-text	index.html	1145	option		LABEL	no	select-noisetype.digital	Digital	prose survives the readout filter
+html-text	index.html	1145	option		LABEL	no	select-noisetype.vinyl	Vinyl	prose survives the readout filter
+html-text	index.html	1145	option		LABEL	no	select-noisetype.wind	Wind	prose survives the readout filter
+html-text	index.html	1152	div.section-header		LABEL	no	synth-tab.performance	Performance	prose survives the readout filter
+html-text	index.html	1156	span.dropdown-label		LABEL	no	synth-tab.glide-mode	Glide Mode	prose survives the readout filter
+html-text	index.html	1158	option		LABEL	no	select-glidemode.off	Off	prose survives the readout filter
+html-text	index.html	1158	option		LABEL	no	select-glidemode.legato	Legato	prose survives the readout filter
+html-text	index.html	1158	option		LABEL	no	select-glidemode.always	Always	prose survives the readout filter
+html-text	index.html	1169	div.section-header		LABEL	no	synth-tab.filter-a	Filter A	prose survives the readout filter
+html-text	index.html	1172	span.dropdown-label		LABEL	no	synth-tab.type-2	Type	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.lp12	LP12	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.lp24	LP24	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.hp12	HP12	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.hp24	HP24	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.bp12	BP12	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.bp24	BP24	prose survives the readout filter
+html-text	index.html	1174	option		LABEL	no	select-filtatype.notch	Notch	prose survives the readout filter
+html-text	index.html	1185	span.dropdown-label		LABEL	no	synth-tab.filter-routing	Filter Routing	prose survives the readout filter
+html-text	index.html	1187	option		LABEL	no	select-filtrouting.serial	Serial	prose survives the readout filter
+html-text	index.html	1187	option		LABEL	no	select-filtrouting.parallel	Parallel	prose survives the readout filter
+html-text	index.html	1192	div.section-header		LABEL	no	synth-tab.filter-b	Filter B	prose survives the readout filter
+html-text	index.html	1195	span.dropdown-label		LABEL	no	synth-tab.type-3	Type	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.lp12	LP12	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.lp24	LP24	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.hp12	HP12	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.hp24	HP24	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.bp12	BP12	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.bp24	BP24	prose survives the readout filter
+html-text	index.html	1197	option		LABEL	no	select-filtbtype.notch	Notch	prose survives the readout filter
+html-text	index.html	1211	div.section-header		LABEL	no	synth-tab.amp-envelope	Amp Envelope	prose survives the readout filter
+html-text	index.html	1220	div.section-header		LABEL	no	synth-tab.filter-envelope	Filter Envelope	prose survives the readout filter
+html-text	index.html	1235	div.section-header		UNSURE	no	lfo1-section.lfo-1	LFO 1	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1235	#toggle-lfo1Sync		LABEL	no	toggle-lfo1Sync	Free	prose survives the readout filter
+html-text	index.html	1235	#toggle-lfo1FreeRun		LABEL	no	toggle-lfo1FreeRun	Retrig	prose survives the readout filter
+html-text	index.html	1239	span.dropdown-label		LABEL	no	lfo1-div-wrap.division	Division	prose survives the readout filter
+html-text	index.html	1247	span.dropdown-label		LABEL	no	lfo1-section.shape	Shape	prose survives the readout filter
+html-text	index.html	1249	option		LABEL	no	select-lfo1shape.sine	Sine	prose survives the readout filter
+html-text	index.html	1249	option		LABEL	no	select-lfo1shape.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1249	option		LABEL	no	select-lfo1shape.saw	Saw	prose survives the readout filter
+html-text	index.html	1249	option		LABEL	no	select-lfo1shape.square	Square	prose survives the readout filter
+html-text	index.html	1255	div.section-header		UNSURE	no	lfo2-section.lfo-2	LFO 2	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1255	#toggle-lfo2Sync		LABEL	no	toggle-lfo2Sync	Free	prose survives the readout filter
+html-text	index.html	1255	#toggle-lfo2FreeRun		LABEL	no	toggle-lfo2FreeRun	Retrig	prose survives the readout filter
+html-text	index.html	1259	span.dropdown-label		LABEL	no	lfo2-div-wrap.division	Division	prose survives the readout filter
+html-text	index.html	1267	span.dropdown-label		LABEL	no	lfo2-section.shape	Shape	prose survives the readout filter
+html-text	index.html	1269	option		LABEL	no	select-lfo2shape.sine	Sine	prose survives the readout filter
+html-text	index.html	1269	option		LABEL	no	select-lfo2shape.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1269	option		LABEL	no	select-lfo2shape.saw	Saw	prose survives the readout filter
+html-text	index.html	1269	option		LABEL	no	select-lfo2shape.square	Square	prose survives the readout filter
+html-text	index.html	1275	div.section-header		UNSURE	no	lfo3-section.lfo-3	LFO 3	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1275	#toggle-lfo3Sync		LABEL	no	toggle-lfo3Sync	Free	prose survives the readout filter
+html-text	index.html	1275	#toggle-lfo3FreeRun		LABEL	no	toggle-lfo3FreeRun	Retrig	prose survives the readout filter
+html-text	index.html	1279	span.dropdown-label		LABEL	no	lfo3-div-wrap.division	Division	prose survives the readout filter
+html-text	index.html	1287	span.dropdown-label		LABEL	no	lfo3-section.shape	Shape	prose survives the readout filter
+html-text	index.html	1289	option		LABEL	no	select-lfo3shape.sine	Sine	prose survives the readout filter
+html-text	index.html	1289	option		LABEL	no	select-lfo3shape.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1289	option		LABEL	no	select-lfo3shape.saw	Saw	prose survives the readout filter
+html-text	index.html	1289	option		LABEL	no	select-lfo3shape.square	Square	prose survives the readout filter
+html-text	index.html	1295	div.section-header		UNSURE	no	lfo4-section.lfo-4	LFO 4	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1295	#toggle-lfo4Sync		LABEL	no	toggle-lfo4Sync	Free	prose survives the readout filter
+html-text	index.html	1295	#toggle-lfo4FreeRun		LABEL	no	toggle-lfo4FreeRun	Retrig	prose survives the readout filter
+html-text	index.html	1299	span.dropdown-label		LABEL	no	lfo4-div-wrap.division	Division	prose survives the readout filter
+html-text	index.html	1307	span.dropdown-label		LABEL	no	lfo4-section.shape	Shape	prose survives the readout filter
+html-text	index.html	1309	option		LABEL	no	select-lfo4shape.sine	Sine	prose survives the readout filter
+html-text	index.html	1309	option		LABEL	no	select-lfo4shape.triangle	Triangle	prose survives the readout filter
+html-text	index.html	1309	option		LABEL	no	select-lfo4shape.saw	Saw	prose survives the readout filter
+html-text	index.html	1309	option		LABEL	no	select-lfo4shape.square	Square	prose survives the readout filter
+html-text	index.html	1321	div.section-header		LABEL	no	mod-tab.modulation-matrix	Modulation Matrix	prose survives the readout filter
+html-text	index.html	1322	div.mod-matrix-info		LABEL	no	mod-tab.route-any-source-to	Route any source to any destination. 16 slots available.	prose survives the readout filter
+html-text	index.html	1325	span.mod-col-on		LABEL	no	mod-tab.on	On	prose survives the readout filter
+html-text	index.html	1327	span.mod-col-src		LABEL	no	mod-tab.source	Source	prose survives the readout filter
+html-text	index.html	1328	span.mod-col-dst		LABEL	no	mod-tab.destination	Destination	prose survives the readout filter
+html-text	index.html	1329	span.mod-col-amt		LABEL	no	mod-tab.amount	Amount	prose survives the readout filter
+html-text	index.html	1342	div.interval-list-header		LABEL	no	interval-list.intervals-12-notes	Intervals (12 notes)	prose survives the readout filter
+html-text	index.html	1348	button.viz-btn.active		LABEL	no	tuning-tab.circle	Circle	prose survives the readout filter
+html-text	index.html	1349	button.viz-btn		LABEL	no	tuning-tab.polar	Polar	prose survives the readout filter
+html-text	index.html	1350	button.viz-btn		LABEL	no	tuning-tab.matrix	Matrix	prose survives the readout filter
+html-text	index.html	1351	button.viz-btn		LABEL	no	tuning-tab.true-keys	True Keys	prose survives the readout filter
+html-text	index.html	1352	button.viz-btn		LABEL	no	tuning-tab.rotation	Rotation	prose survives the readout filter
+html-text	index.html	1366	div.pitch-circle-label		LABEL	no	circle-view.scale-intervals	Scale Intervals	prose survives the readout filter
+html-text	index.html	1374	div.tk-hint		LABEL	no	truekeys-view.hold-2-notes-to	Hold 2+ notes to see intervals	prose survives the readout filter
+html-text	index.html	1385	span.library-header-text		LABEL	no	library-header.tuning-library	Tuning Library	prose survives the readout filter
+html-text	index.html	1391	option		LABEL	no	library-filter.all-categories	All Categories	prose survives the readout filter
+html-text	index.html	1392	option		LABEL	no	library-filter.historical	Historical	prose survives the readout filter
+html-text	index.html	1393	option		LABEL	no	library-filter.just-intonation	Just Intonation	prose survives the readout filter
+html-text	index.html	1394	option		LABEL	no	library-filter.equal-divisions	Equal Divisions	prose survives the readout filter
+html-text	index.html	1395	option		LABEL	no	library-filter.non-octave	Non-Octave	prose survives the readout filter
+html-text	index.html	1396	option		LABEL	no	library-filter.world	World	prose survives the readout filter
+html-text	index.html	1412	span.knob-label		LABEL	no	ref-pitch-knob.a4-ref	A4 Ref	prose survives the readout filter
+html-text	index.html	1413	#ref-pitch-value		READOUT	no	ref-pitch-value	440.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1418	#scale-name-display		LABEL	no	scale-name-display	12-TET Standard	prose survives the readout filter
+html-text	index.html	1423	span.octave-stretch-label		LABEL	no	tuning-tab.stretch	Stretch	prose survives the readout filter
+html-text	index.html	1433	#btn-load-scl		LABEL	no	btn-load-scl	Load .SCL	prose survives the readout filter
+html-text	index.html	1434	#btn-load-kbm		LABEL	no	btn-load-kbm	Load .KBM	prose survives the readout filter
+html-text	index.html	1435	#btn-save-scl		LABEL	no	btn-save-scl	Save .SCL	prose survives the readout filter
+html-text	index.html	1436	#btn-save-kbm		LABEL	no	btn-save-kbm	Save .KBM	prose survives the readout filter
+html-text	index.html	1437	#btn-export-html		LABEL	no	btn-export-html	Export HTML	prose survives the readout filter
+html-text	index.html	1444	span.generator-header-text		LABEL	no	generator-header.generate-scale	Generate Scale	prose survives the readout filter
+html-text	index.html	1450	option		LABEL	no	generator-type.edo-equal-division	EDO (Equal Division)	prose survives the readout filter
+html-text	index.html	1451	option		LABEL	no	generator-type.harmonic-series	Harmonic Series	prose survives the readout filter
+html-text	index.html	1452	option		LABEL	no	generator-type.rank-2-temperament	Rank-2 Temperament	prose survives the readout filter
+html-text	index.html	1457	label		LABEL	no	generator-inputs.divisions	Divisions	prose survives the readout filter
+html-text	index.html	1461	label		LABEL	no	generator-inputs.period-cents	Period (cents)	prose survives the readout filter
+html-text	index.html	1465	#btn-generate		LABEL	no	btn-generate	Generate	prose survives the readout filter
+html-text	index.html	1477	span		LABEL	no	section-delay.delay	Delay	prose survives the readout filter
+html-text	index.html	1477	#toggle-delayBypass		LABEL	no	toggle-delayBypass	ON	prose survives the readout filter
+html-text	index.html	1482	span.dropdown-label		LABEL	no	section-delay.mode	Mode	prose survives the readout filter
+html-text	index.html	1484	option		LABEL	no	select-delaymode.normal	Normal	prose survives the readout filter
+html-text	index.html	1484	option		LABEL	no	select-delaymode.pingpong	PingPong	prose survives the readout filter
+html-text	index.html	1488	span.dropdown-label		LABEL	no	section-delay.sync	Sync	prose survives the readout filter
+html-text	index.html	1489	#toggle-delaySync		LABEL	no	toggle-delaySync	Off	prose survives the readout filter
+html-text	index.html	1492	span.dropdown-label		LABEL	no	section-delay.division	Division	prose survives the readout filter
+html-text	index.html	1505	span		LABEL	no	section-chorus.chorus	Chorus	prose survives the readout filter
+html-text	index.html	1505	#toggle-chorusBypass		LABEL	no	toggle-chorusBypass	ON	prose survives the readout filter
+html-text	index.html	1515	span		LABEL	no	section-dist.distortion	Distortion	prose survives the readout filter
+html-text	index.html	1515	#toggle-distBypass		LABEL	no	toggle-distBypass	ON	prose survives the readout filter
+html-text	index.html	1518	span.dropdown-label		LABEL	no	section-dist.type	Type	prose survives the readout filter
+html-text	index.html	1520	option		LABEL	no	select-disttype.softclip	SoftClip	prose survives the readout filter
+html-text	index.html	1520	option		LABEL	no	select-disttype.hardclip	HardClip	prose survives the readout filter
+html-text	index.html	1520	option		LABEL	no	select-disttype.tube	Tube	prose survives the readout filter
+html-text	index.html	1520	option		LABEL	no	select-disttype.fold	Fold	prose survives the readout filter
+html-text	index.html	1530	span		LABEL	no	section-reverb.reverb	Reverb	prose survives the readout filter
+html-text	index.html	1530	#toggle-reverbBypass		LABEL	no	toggle-reverbBypass	ON	prose survives the readout filter
+html-text	index.html	1543	span		LABEL	no	section-eq.3-band-eq	3-Band EQ	prose survives the readout filter
+html-text	index.html	1543	#toggle-eqBypass		LABEL	no	toggle-eqBypass	ON	prose survives the readout filter
+html-text	index.html	1559	button.wt-osc-btn.active		LABEL	no	wavetable-tab.osc-a	Osc A	prose survives the readout filter
+html-text	index.html	1560	button.wt-osc-btn		LABEL	no	wavetable-tab.osc-b	Osc B	prose survives the readout filter
+html-text	index.html	1571	span.wt-label		LABEL	no	wavetable-tab.harmonics	Harmonics	prose survives the readout filter
+html-text	index.html	1582	span.wt-waveform-preview-label		LABEL	no	wavetable-tab.waveform	Waveform	prose survives the readout filter
+html-text	index.html	1590	#wt-op-normalize		LABEL	no	wt-op-normalize	Normalize	prose survives the readout filter
+html-text	index.html	1591	#wt-op-normalizeGlobal		LABEL	no	wt-op-normalizeGlobal	Normalize Global	prose survives the readout filter
+html-text	index.html	1593	#wt-op-fade		LABEL	no	wt-op-fade	Fade Edges	prose survives the readout filter
+html-text	index.html	1594	#wt-op-reverse		LABEL	no	wt-op-reverse	Reverse	prose survives the readout filter
+html-text	index.html	1595	#wt-op-reverseOrder		LABEL	no	wt-op-reverseOrder	Reverse Order	prose survives the readout filter
+html-text	index.html	1596	#wt-op-smooth		LABEL	no	wt-op-smooth	Smooth	prose survives the readout filter
+html-text	index.html	1598	#wt-op-save		LABEL	no	wt-op-save	Save	prose survives the readout filter
+html-text	index.html	1609	h3		LABEL	no	wt-save-modal-overlay.save-wavetable	Save Wavetable	prose survives the readout filter
+html-text	index.html	1612	#wt-save-cancel		LABEL	no	wt-save-cancel	Cancel	prose survives the readout filter
+html-text	index.html	1613	#wt-save-confirm		LABEL	no	wt-save-confirm	Save	prose survives the readout filter
+html-text	index.html	1621	h3		LABEL	no	preset-save-modal-overlay.save-preset	Save Preset	prose survives the readout filter
+html-text	index.html	1624	#preset-save-cancel		LABEL	no	preset-save-cancel	Cancel	prose survives the readout filter
+html-text	index.html	1625	#preset-save-confirm		LABEL	no	preset-save-confirm	Save	prose survives the readout filter
+html-text	index.html	1638	span.footer-label		LABEL	no	footer-label.master	Master	prose survives the readout filter
+html-text	index.html	1643	span.footer-label		LABEL	no	footer-label.osc-mix	Osc Mix	prose survives the readout filter
+html-text	index.html	3821	h3		LABEL	no	wt-modal-backdrop.user-wavetables	User Wavetables	prose survives the readout filter
+html-text	index.html	3823	#wt-modal-close		LABEL	no	wt-modal-close	Close	prose survives the readout filter
+html-attr	index.html	971	#btn-preset-prev	title	LABEL	no	btn-preset-prev	Previous Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	972	#preset-display	title	UNSURE	no	preset-display	Click to browse presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	976	#btn-preset-next	title	LABEL	no	btn-preset-next	Next Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	977	#btn-preset-save	title	LABEL	no	btn-preset-save	Save Preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1600	#wt-undo-btn	title	LABEL	no	wt-undo-btn	Undo (Ctrl+Z)	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1601	#wt-redo-btn	title	LABEL	no	wt-redo-btn	Redo (Ctrl+Shift+Z)	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	1610	#wt-save-name-input	placeholder	LABEL	no	wt-save-name-input	Wavetable name...	prose survives the readout filter
+html-attr	index.html	1622	#preset-save-name-input	placeholder	LABEL	no	preset-save-name-input	Preset name...	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	1748	nameEl.textContent		LABEL	no	ui.init	— Init —	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1651	2459	syncBtn.textContent		LABEL	no	ui.sync	Sync	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	2464	syncBtn.textContent		LABEL	no	ui.free	Free	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	2489	btn.textContent		LABEL	no	ui.free-run	Free Run	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	2492	btn.textContent		LABEL	no	ui.retrig	Retrig	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	2730	syncBtn.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1651	2730	syncBtn.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1651	2750	btn.textContent		LABEL	no	ui.off-2	OFF	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1651	2750	btn.textContent		LABEL	no	ui.on-2	ON	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1651	2910	importOpt.textContent		LABEL	no	ui.import-wav	Import WAV...	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	2916	manageOpt.textContent		LABEL	no	ui.manage	Manage...	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3055	list.innerHTML		LABEL	no	ui.no-user-wavetables-imported	No user wavetables imported yet.	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3064	btn.textContent		LABEL	no	ui.delete	Delete	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3345	container.innerHTML		LABEL	no	ui.hold-2-notes-to	Hold 2+ notes to see intervals	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3466	nameEl.textContent		LABEL	no	ui.custom	Custom	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3528	scaleNameDisplay.textContent		LABEL	no	ui.12-tet-standard	12-TET Standard	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1651	3530	scaleNameDisplay.textContent		LABEL	no	ui.12-tet-standard-2	12-TET Standard	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3733	inputsDiv.innerHTML		LABEL	no	ui.divisions	Divisions	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3733	inputsDiv.innerHTML		LABEL	no	ui.period-cents	Period (cents)	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3736	inputsDiv.innerHTML		LABEL	no	ui.start-harmonic	Start Harmonic	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3736	inputsDiv.innerHTML		LABEL	no	ui.end-harmonic	End Harmonic	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3739	inputsDiv.innerHTML		LABEL	no	ui.generator-cents	Generator (cents)	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3739	inputsDiv.innerHTML		LABEL	no	ui.period-cents-2	Period (cents)	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1651	3739	inputsDiv.innerHTML		LABEL	no	ui.notes	Notes	prose survives the readout filter

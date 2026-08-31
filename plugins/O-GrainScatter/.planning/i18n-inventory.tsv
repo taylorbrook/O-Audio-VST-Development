@@ -1,0 +1,83 @@
+# plugin	O-GrainScatter
+# uiRoot	Source/ui/public
+# generated	2026-08-29T18:30:55.474Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	464	h1		LABEL	no	ui.o-grainscatter	O-GrainScatter	prose survives the readout filter
+html-text	index.html	465	span.tagline		LABEL	yes	tagline.harmonic-stutter-engine	Harmonic Stutter Engine	prose survives the readout filter
+html-text	index.html	479	span.settings-label		LABEL	yes	settings-popover.language	Language	prose survives the readout filter
+html-text	index.html	484	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	485	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	494	span.viz-label		LABEL	yes	viz-label.grain-scatter	Grain Scatter	prose survives the readout filter
+html-text	index.html	498	span.viz-label		LABEL	yes	viz-label.euclidean	Euclidean	prose survives the readout filter
+html-text	index.html	505	button.toggle.freeze-toggle		LABEL	yes	toggle.freeze	Freeze	prose survives the readout filter
+html-text	index.html	514	div.group-label		LABEL	yes	group-label.core-engine	Core Engine	prose survives the readout filter
+html-text	index.html	517	span.knob-name		LABEL	yes	knob-name.grain-size	Grain Size	prose survives the readout filter
+html-text	index.html	519	span.knob-value		READOUT	no	knob-value.100-ms	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	522	span.knob-name		LABEL	yes	knob-name.density	Density	prose survives the readout filter
+html-text	index.html	527	span.knob-name		LABEL	yes	knob-name.scan	Scan	prose survives the readout filter
+html-text	index.html	532	span.knob-name		LABEL	yes	knob-name.spread	Spread	prose survives the readout filter
+html-text	index.html	537	span.knob-name		LABEL	yes	knob-name.reverse	Reverse	prose survives the readout filter
+html-text	index.html	542	span.knob-name		LABEL	yes	knob-name.feedback	Feedback	prose survives the readout filter
+html-text	index.html	547	span.knob-name		LABEL	yes	knob-name.dry-wet	Dry/Wet	prose survives the readout filter
+html-text	index.html	552	span.knob-name		LABEL	yes	knob-name.size-rnd	Size Rnd	prose survives the readout filter
+html-text	index.html	557	span.knob-name		LABEL	yes	knob-name.amp-rnd	Amp Rnd	prose survives the readout filter
+html-text	index.html	562	span.dropdown-name		LABEL	yes	dropdown-name.shape	Shape	prose survives the readout filter
+html-text	index.html	564	option		LABEL	no	ui.hann	Hann	prose survives the readout filter
+html-text	index.html	565	option		LABEL	no	ui.triangle	Triangle	prose survives the readout filter
+html-text	index.html	566	option		LABEL	no	ui.trapezoid	Trapezoid	prose survives the readout filter
+html-text	index.html	567	option		LABEL	no	ui.tukey	Tukey	prose survives the readout filter
+html-text	index.html	568	option		LABEL	no	ui.blackman	Blackman	prose survives the readout filter
+html-text	index.html	569	option		LABEL	no	ui.exp-decay	Exp Decay	prose survives the readout filter
+html-text	index.html	577	div.group-label		LABEL	yes	group-label.pitch-scale	Pitch & Scale	prose survives the readout filter
+html-text	index.html	580	span.knob-name		LABEL	yes	knob-name.pitch-rnd	Pitch Rnd	prose survives the readout filter
+html-text	index.html	585	span.knob-name		LABEL	yes	knob-name.pan-rnd	Pan Rnd	prose survives the readout filter
+html-text	index.html	590	span.dropdown-name		LABEL	yes	dropdown-name.scale	Scale	prose survives the readout filter
+html-text	index.html	592	option		LABEL	no	ui.chromatic	Chromatic	prose survives the readout filter
+html-text	index.html	593	option		LABEL	no	ui.major	Major	prose survives the readout filter
+html-text	index.html	594	option		LABEL	no	ui.minor	Minor	prose survives the readout filter
+html-text	index.html	595	option		LABEL	no	ui.pentatonic	Pentatonic	prose survives the readout filter
+html-text	index.html	596	option		LABEL	no	ui.whole-tone	Whole Tone	prose survives the readout filter
+html-text	index.html	600	span.dropdown-name		LABEL	yes	dropdown-name.root-note	Root Note	prose survives the readout filter
+html-text	index.html	608	span.dropdown-name		LABEL	yes	dropdown-name.pitch-mode	Pitch Mode	prose survives the readout filter
+html-text	index.html	610	option		LABEL	no	ui.random	Random	prose survives the readout filter
+html-text	index.html	611	option		LABEL	no	ui.ladder-up	Ladder Up	prose survives the readout filter
+html-text	index.html	612	option		LABEL	no	ui.ladder-down	Ladder Down	prose survives the readout filter
+html-text	index.html	613	option		LABEL	no	ui.pendulum	Pendulum	prose survives the readout filter
+html-text	index.html	617	#pitch-hint		LABEL	yes	pitch-hint	Increase Pitch Rnd to activate	prose survives the readout filter
+html-text	index.html	623	div.group-label		LABEL	yes	group-label.beat-sync	Beat Sync	prose survives the readout filter
+html-text	index.html	626	span.dropdown-name		LABEL	yes	dropdown-name.sync-mode	Sync Mode	prose survives the readout filter
+html-text	index.html	628	option		LABEL	no	ui.free	Free	prose survives the readout filter
+html-text	index.html	634	span.knob-name		LABEL	yes	knob-name.probability	Probability	prose survives the readout filter
+html-text	index.html	639	span.knob-name		LABEL	yes	knob-name.repeats	Repeats	prose survives the readout filter
+html-text	index.html	645	#stutter-gate-btn		LABEL	yes	stutter-gate-btn	Stutter Gate	prose survives the readout filter
+html-text	index.html	652	div.group-label		LABEL	yes	group-label.euclidean-rhythm	Euclidean Rhythm	prose survives the readout filter
+html-text	index.html	655	span.knob-name		LABEL	yes	knob-name.pulses	Pulses	prose survives the readout filter
+html-text	index.html	660	span.knob-name		LABEL	yes	knob-name.steps	Steps	prose survives the readout filter
+html-text	index.html	665	span.knob-name		LABEL	yes	knob-name.rotation	Rotation	prose survives the readout filter
+html-text	index.html	670	span.knob-name		LABEL	yes	knob-name.swing	Swing	prose survives the readout filter
+html-text	index.html	681	div.group-label		LABEL	yes	spatial-group.spatial-audio	Spatial Audio	prose survives the readout filter
+html-text	index.html	684	span.dropdown-name		LABEL	yes	spatial-group.mode	Mode	prose survives the readout filter
+html-text	index.html	686	option		LABEL	no	spatial-group.off	Off	prose survives the readout filter
+html-text	index.html	687	option		LABEL	no	spatial-group.scatter	Scatter	prose survives the readout filter
+html-text	index.html	688	option		LABEL	no	spatial-group.trajectory	Trajectory	prose survives the readout filter
+html-text	index.html	692	span.knob-name		LABEL	yes	spatial-group.azimuth	Azimuth	prose survives the readout filter
+html-text	index.html	697	span.knob-name		LABEL	yes	spatial-group.elevation	Elevation	prose survives the readout filter
+html-text	index.html	702	span.knob-name		LABEL	yes	spatial-group.az-spread	Az Spread	prose survives the readout filter
+html-text	index.html	707	span.knob-name		LABEL	yes	spatial-group.el-spread	El Spread	prose survives the readout filter
+html-text	index.html	712	span.knob-name		LABEL	yes	spatial-group.distance	Distance	prose survives the readout filter
+html-text	index.html	717	span.knob-name		LABEL	yes	spatial-group.width	Width	prose survives the readout filter
+html-text	index.html	722	span.dropdown-name		LABEL	yes	spatial-group.trajectory-2	Trajectory	prose survives the readout filter
+html-text	index.html	724	option		LABEL	no	spatial-group.static	Static	prose survives the readout filter
+html-text	index.html	725	option		LABEL	no	spatial-group.orbital	Orbital	prose survives the readout filter
+html-text	index.html	726	option		LABEL	no	spatial-group.spiral	Spiral	prose survives the readout filter
+html-text	index.html	727	option		LABEL	no	spatial-group.random	Random	prose survives the readout filter
+html-text	index.html	731	span.knob-name		LABEL	yes	spatial-group.traj-speed	Traj Speed	prose survives the readout filter
+html-text	index.html	736	span.knob-name		LABEL	yes	spatial-group.dist-lpf	Dist LPF	prose survives the readout filter
+html-text	index.html	741	span.knob-name		LABEL	yes	spatial-group.doppler	Doppler	prose survives the readout filter
+html-text	index.html	746	span.knob-name		LABEL	yes	spatial-group.smoothing	Smoothing	prose survives the readout filter
+html-text	index.html	748	span.knob-value		READOUT	no	spatial-group.5-ms	5 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	751	#spatial-hint		LABEL	yes	spatial-hint	Set Mode to Scatter or Trajectory to enable	prose survives the readout filter
+html-attr	index.html	474	#gear-btn	aria-label	LABEL	yes	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	477	#settings-popover	aria-label	LABEL	yes	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	483	#lang-select	aria-label	LABEL	yes	lang-select	Interface language	prose survives the readout filter

@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>O-Emulator</title>
+<style>
+  /* ============ WebView constraints ============ */
+  html, body { height: 100%; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg-paper: #F5E6D3;
+    --bg-paper-light: #FAF0E6;
+    --panel: rgba(250, 240, 230, 0.66);
+    --brown-border: #8B7355;
+    --brown-frame: #5C4033;
+    --brown-text: #3C2F2F;
+    --green-light: #8BA870;
+    --green-mid: #6B8E4E;
+    --green-dark: #3C5C1A;
+    --green-darkest: #2C3E10;
+    --knob-ring: #C9A27B;
+    --seg-a: #F5DEB3;
+    --seg-b: #E8D5B7;
+    --knob-core: #FFF8DC;
+    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  }
+
+  /* ============ per-console accent system ============
+     One accent hue shifts per console (RESEARCH §2 — console brand colors
+     pulled down to naturalist ink saturation). Swapped by the SAME
+     getComboBoxState listener that renders the segments, so host automation
+     and preset load re-theme too. --accent-fill is the accent at 0.5 alpha
+     over the paper tone (active segment); --accent-dark is the accent
+     darkened ~15% (active border/text, knob stems, info readout). */
+  body[data-console="0"] { --accent: #7B6480; --accent-dark: #68556D; --accent-fill: rgba(123,100,128,0.5); }  /* SNES — muted plum */
+  body[data-console="1"] { --accent: #5F7386; --accent-dark: #516272; --accent-fill: rgba(95,115,134,0.5);  }  /* PS1 — slate */
+  body[data-console="2"] { --accent: #9B5A48; --accent-dark: #844D3D; --accent-fill: rgba(155,90,72,0.5);   }  /* NES — brick oxide */
+  body[data-console="3"] { --accent: #6F7D3F; --accent-dark: #5E6A36; --accent-fill: rgba(111,125,63,0.5);  }  /* Game Boy — DMG olive */
+  body[data-console="4"] { --accent: #4E7A70; --accent-dark: #42685F; --accent-fill: rgba(78,122,112,0.5);  }  /* Genesis — deep teal */
+
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+    overflow: hidden;
+    font-family: var(--serif);
+    color: var(--brown-text);
+    background: var(--bg-paper);
+  }
+
+  /* ====== plugin frame — WebView is exactly 620 × 430 ====== */
+  .plugin {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: 3px solid var(--brown-frame);
+    background:
+      linear-gradient(rgba(245,230,211,0.42), rgba(240,222,200,0.5)),
+      url("img/paper.jpg") center / cover no-repeat, var(--bg-paper);
+    overflow: hidden;
+  }
+
+  /* ghosted specimen — Marsh, The Dinocerata (1886), Dinoceras mirabile.
+     Extinct species for discontinued consoles. Landscape plate (1.96:1) that
+     underlaps the knob row: z above paper, below controls, never clickable. */
+  .specimen {
+    position: absolute;
+    right: -140px;
+    top: 55%;
+    transform: translateY(-50%);
+    height: 60%;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 1;
+    filter: sepia(0.25) saturate(0.85);
+  }
+
+  .corner-fleuron {
+    position: absolute;
+    font-size: 13px;
+    color: rgba(60,47,47,0.28);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .corner-fleuron.bl { left: 8px; bottom: 4px; }
+  .corner-fleuron.tr { right: 8px; top: 4px; transform: scaleX(-1); }
+
+  .inner {
+    position: absolute;
+    inset: 0;
+    padding: 16px 22px 20px;
+    display: flex;
+    flex-direction: column;
+    z-index: 2;
+  }
+
+  /* ============ header ============ */
+  .hdr {
+    height: 48px;
+    flex: 0 0 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--brown-border);
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .hdr::after {  /* second rule of the double hairline */
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -4px;
+    height: 1px;
+    background: rgba(139,115,85,0.4);
+  }
+  .wordmark {
+    font-size: 25px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    color: var(--brown-text);
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+  }
+  .wordmark .fleuron { font-size: 15px; color: rgba(60,47,47,0.55); margin-right: 8px; vertical-align: 3px; }
+  /* ============ preset band (Stage 4 — preset-manager v1.0.6) ============
+     Prev/next + name plate + save/load/delete, no menu in v1.0. Element IDs
+     are exactly the ones preset-manager.js binds; #preset-name stays
+     childless (_updateDisplay writes textContent). Button copy lives in
+     data-label / data-confirm, never in JS. Sized compact — the header also
+     carries the wordmark and the plate line; final width call at the visual
+     gate. */
+  .preset-band {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-end;
+    min-height: 26px;
+    padding-bottom: 1px;
+  }
+  .preset-nav,
+  .preset-btn {
+    font-family: var(--serif);
+    font-variant: small-caps;
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    color: var(--brown-text);
+    background: rgba(250,240,230,0.75);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .preset-nav {
+    width: 20px;
+    height: 20px;
+    padding: 0 0 1px;
+    font-size: 8px;
+    line-height: 1;
+  }
+  .preset-btn { padding: 2px 7px 3px; }
+
+  /* ══ v1.1.0 — the ONE French geometry pin on this page ═══════════════════
+     The three text buttons are pinned to a FIXED width and their side padding
+     is moved into it, so the band's total width is language-invariant.
+
+     WHY A PIN IS UNAVOIDABLE HERE. .hdr is 570 px of content holding three
+     flex children whose max-content widths total 732.28 px — it is 162 px
+     OVER-FULL in ENGLISH at v1.0.1. .preset-band cannot absorb any of that
+     (every child is nowrap or a fixed width, so its min-content IS its
+     max-content), so the shrink lands entirely on .wordmark, which is already
+     at its own min-content, and on .hdr-right, which ends up as exactly
+     `570 - 159.66 - bandWidth`. The band's width therefore SETS .hdr-right's
+     width, and .brand and .hdr-right are non-label elements the geometry diff
+     measures. Enreg. / Ouvrir / Suppr. grow the unpinned band by 19.5 px and
+     slide both of them.
+
+     WHY THESE THREE NUMBERS. Dropping the 7 px side padding into the width is
+     what makes a language-invariant total POSSIBLE at all: with the padding
+     kept, Enreg. alone would need a 49.5 px button. Measured, rendered:
+
+         #preset-save    36 px content   Save 22.25   Enreg. 32.47   +3.53
+         #preset-load    37 px content   Load 24.48   Ouvrir 33.81   +3.19
+         #preset-delete  49 px content   Delete 33.41  Suppr. 30.38
+                                         Confirm? 44.75  Sûr ? 26.23  +4.25
+
+     (Content boxes measured, not derived: the 1.5 px borders round to 1 px
+     each side in device pixels, so each box is 1 px wider than the arithmetic.
+     "Sûr ?" is 26.23 ONE LINE in this box; the 17.69 a first pass recorded was
+     the widest line of the WRAPPED string in the unpinned 33 px box, which is
+     the same wrap the armed row of NC-1 below reproduces.)
+
+     38 + 39 + 51 = 128.00 against English's natural 38.25 + 40.48 + 49.41 =
+     128.14, so the band goes 284.14 -> 284.00 and .hdr-right 126.20 -> 126.34.
+     0.14 px, well under the gate's 0.5 px tolerance and under a pixel of ink.
+
+     THE PIN IS NOT DECORATION — negative control, run: reverting these three
+     rules alone with the French left in place fails assertion 7 in all three
+     states. At rest, .preset-band dw=+16.5 and .hdr-right and .brand both
+     dx=+16.5 dw=-16.5. With the delete button ARMED it is worse: "Sûr ?" wraps
+     in the unpinned 33 px box and the band grows 4 px TALLER, moving
+     #preset-prev, #preset-next and #preset-name as well. */
+  #preset-save   { width: 38px; padding: 2px 0 3px; }
+  #preset-load   { width: 39px; padding: 2px 0 3px; }
+  #preset-delete { width: 51px; padding: 2px 0 3px; }
+
+  .preset-nav:not(:disabled):hover,
+  .preset-btn:not(:disabled):hover {
+    background: var(--knob-core);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 5px rgba(0,0,0,0.25);
+  }
+  .preset-nav:disabled,
+  .preset-btn:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  #preset-delete[data-armed="1"] {
+    background: rgba(139,69,19,0.3);
+    border-color: var(--brown-frame);
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+  }
+  .preset-name {
+    width: 96px;
+    padding: 3px 8px 4px;
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--brown-text);
+    background: var(--bg-paper-light);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .hdr-right { text-align: right; line-height: 1.45; padding-bottom: 1px; }
+  .hdr-right .brand {
+    font-variant: small-caps;
+    letter-spacing: 2.5px;
+    font-size: 11px;
+    color: var(--brown-frame);
+  }
+  .hdr-right .plate {
+    font-style: italic;
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    color: rgba(92,64,51,0.8);
+  }
+
+  /* ============ console selector (5-segment) ============
+     O-Bitrot .seg language extended to five buttons, full width. Divider is
+     NEUTRAL BROWN, not the template green — resolved design call: the green
+     hairline clashed against the plum/brick/slate accent fills, the brown
+     reads cleanly under all five. Active segment is accent-tinted (the accent
+     IS the theming mechanism and the selector is its home); hover keeps the
+     template light-green tint so the toggle language survives. */
+  .console-row {
+    flex: 0 0 auto;
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+  }
+  .seg {
+    display: inline-flex;
+    width: 100%;
+    border: 1.5px solid var(--green-dark);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+  }
+  .seg button {
+    flex: 1 1 0;
+    font-family: var(--serif);
+    font-size: 13px;
+    font-variant: small-caps;
+    letter-spacing: 1.5px;
+    color: var(--green-darkest);
+    background: rgba(139,168,112,0.15);
+    border: none;
+    padding: 6px 10px 7px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .seg button + button { border-left: 1px solid rgba(92,64,51,0.4); }
+  .seg button.sel {
+    background: var(--accent-fill);
+    color: var(--accent-dark);
+    font-weight: 600;
+  }
+  .seg button:hover:not(.sel) { background: rgba(139,168,112,0.3); }
+
+  /* ============ info readout ============ */
+  .console-info {
+    flex: 0 0 auto;
+    margin-top: 9px;
+    text-align: center;
+    font-style: italic;
+    font-size: 12.5px;
+    letter-spacing: 1px;
+    color: var(--accent-dark);
+    transition: color 0.2s;
+  }
+
+  /* ============ knob row ============ */
+  .knob-row {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 6px 20px 2px;
+  }
+  .ctl {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+  }
+  .ctl-label {
+    font-variant: small-caps;
+    letter-spacing: 2px;
+    font-size: 13px;
+    color: var(--brown-frame);
+  }
+  .knob {
+    position: relative;
+    border-radius: 50%;
+    border: 2px solid var(--brown-border);
+    cursor: ns-resize;
+    touch-action: none;
+    background:
+      radial-gradient(circle, var(--knob-core) 0 20%, transparent 20.5%),
+      radial-gradient(circle, transparent 57%, var(--knob-ring) 57.5% 67%, rgba(139,115,85,0.85) 67% 70%, transparent 70.5%),
+      repeating-conic-gradient(from -90deg,
+        var(--seg-a) 0 34deg, var(--brown-border) 34deg 36deg,
+        var(--seg-b) 36deg 70deg, var(--brown-border) 70deg 72deg);
+    box-shadow:
+      inset 1px 1px 3px rgba(0,0,0,0.3),
+      inset -1px -1px 2px rgba(255,248,220,0.5),
+      2px 2px 6px rgba(0,0,0,0.25);
+    transition: transform 0.1s ease-out;
+  }
+  .knob:hover { transform: scale(1.05); }
+  .knob:active { transform: scale(0.98); }
+  .k60 { width: 60px; height: 60px; }
+
+  /* indicator stem — tinted by the active console accent */
+  .stem { position: absolute; inset: 0; transform: rotate(0deg); pointer-events: none; }
+  .stem::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 7%;
+    width: 2.5px; height: 30%;
+    margin-left: -1.25px;
+    background: var(--accent-dark);
+    border-radius: 2px;
+    box-shadow: 0 0 1px rgba(255,248,220,0.6);
+  }
+
+  .ro {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    color: var(--brown-text);
+    min-height: 15px;
+  }
+
+  /* Double-click value entry (O-Prism pattern). Overlaid ON the readout span,
+     which keeps its own text (rendered transparent) so the box never changes
+     size. Background transparent, ink copied from the readout's computed
+     colour by attachValueEntry() — currentColor carries it to the underline. */
+  .knob-value-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+    text-align: center;
+    outline: none;
+  }
+
+  /* ============ settings popover (v1.1.0) ============
+     Styled in THIS page's vocabulary, not pasted in from another plugin. The
+     gear is the .preset-nav idiom exactly — a small paper-filled box, 1.5 px
+     --brown-border, 4 px radius, the same 1px/1px/3px drop shadow — and its
+     OPEN state uses the page's one "active" pair, --accent-fill over
+     --accent-dark, which is the same rule .seg button.sel uses. That means the
+     open gear re-themes with the console alongside every other accented
+     surface, which is the conceit the whole page is built on.
+
+     BOTTOM-RIGHT, and deliberately not top-right. The header is 162 px
+     over-full in English before anything is added to it (see the preset-btn
+     note above), and .corner-fleuron.tr already owns right:8px/top:4px. The
+     region below the knob row is genuinely empty: the .ctl columns end at
+     y=331 and the ghosted specimen ends at y=363, so the cluster at
+     y=386..408 sits on plain paper and the panel above it clears both.
+     Absolutely positioned against .plugin, so it is outside the flex flow
+     entirely and moves nothing. */
+  .settings-cluster {
+    position: absolute;
+    right: 22px;
+    bottom: 16px;
+    z-index: 60;
+  }
+
+  .gear-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0 0 1px;
+    font-family: var(--serif);
+    font-size: 12px;
+    line-height: 1;
+    color: var(--brown-text);
+    background: rgba(250, 240, 230, 0.75);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.15);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .gear-btn:hover {
+    background: var(--knob-core);
+    transform: translateY(-1px);
+    box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.25);
+  }
+  .gear-btn[aria-expanded="true"] {
+    background: var(--accent-fill);
+    border-color: var(--accent-dark);
+    color: var(--accent-dark);
+  }
+  .gear-btn:focus-visible {
+    outline: 2px solid var(--brown-frame);
+    outline-offset: 2px;
+  }
+
+  /* Opens UPWARDS and to the left — the gear is 16 px from the bottom of a
+     430 px frame, so a panel below it would leave the frame entirely.
+
+     WIDTH IS PINNED, not min-width. .settings-popover is not a [data-i18n]
+     element, so check-ui-labels assertion 7 measures its box in BOTH languages
+     and any language-driven resize is a reported failure. A hard width makes
+     the panel's rect language-invariant by construction. 164 px holds the
+     English row (LANGUAGE + English) and the French one (LANGUE + Français)
+     with room to spare, measured as rendered rather than from a font probe:
+     font-variant and letter-spacing are not in getComputedStyle().font. */
+  .settings-popover {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    z-index: 61;
+    width: 164px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: rgba(250, 240, 230, 0.97);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .settings-popover[hidden] { display: none; }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  /* nowrap because the row is space-between: a caption that wrapped would grow
+     the row's height and move the control beside it. */
+  .settings-label {
+    font-family: var(--serif);
+    font-variant: small-caps;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    color: var(--brown-text);
+    white-space: nowrap;
+  }
+
+  .settings-select {
+    flex: 0 0 auto;
+    padding: 1px 3px 2px;
+    font-family: var(--serif);
+    font-size: 10px;
+    line-height: 1.3;
+    color: var(--brown-text);
+    background: rgba(250, 240, 230, 0.75);
+    border: 1.5px solid var(--brown-border);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .settings-select:focus-visible {
+    outline: 2px solid var(--brown-frame);
+    outline-offset: 1px;
+  }
+</style>
+</head>
+<body data-console="0">
+  <div class="plugin">
+    <img class="specimen" src="img/specimen.webp" alt="" draggable="false" />
+    <span class="corner-fleuron tr">❦</span>
+    <span class="corner-fleuron bl">❦</span>
+
+    <div class="inner">
+      <!-- ================= header ================= -->
+      <div class="hdr">
+        <!-- NOT a [data-i18n] element, for two reasons, both recorded in
+             I18N_EXEMPT: a product name is never translated, and the text
+             node has a ❦ span sibling that applyLabel's textContent write
+             would delete. -->
+        <div class="wordmark"><span class="fleuron">❦</span>O-EMULATOR</div>
+        <!-- Preset band — IDs are exactly the ones preset-manager.js binds.
+             All buttons ship disabled and are un-disabled only after
+             presetManager.initialize() resolves. -->
+        <div class="preset-band">
+          <button type="button" class="preset-nav" id="preset-prev"
+                  data-i18n-aria="aria.presetPrev" aria-label="Previous preset" disabled>&#9664;</button>
+          <button type="button" class="preset-nav" id="preset-next"
+                  data-i18n-aria="aria.presetNext" aria-label="Next preset" disabled>&#9654;</button>
+          <!-- Unkeyed on purpose: this element DISPLAYS a preset name, and a
+               name IS the JSON filename (D-02). It is written by the shared
+               preset-manager module's _updateDisplay(), never by this page.
+               I18N_EXEMPT carries the reason. -->
+          <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+          <!-- data-label is the ownership mirror the canon block writes beside
+               textContent, so a state updater reads the current caption back
+               instead of erasing it
+               (pattern_js_state_updater_overwrites_html_labels).
+               data-confirm is GONE: the armed face of the delete button is now
+               the key "ui.confirm" applied through setLabel(), because an
+               attribute holds ONE string and a language switch mid-arm would
+               have restored the English face. -->
+          <button type="button" class="preset-btn" id="preset-save"
+                  data-i18n="label.save" data-label="Save" disabled>Save</button>
+          <button type="button" class="preset-btn" id="preset-load"
+                  data-i18n="label.load" data-label="Load" disabled>Load</button>
+          <button type="button" class="preset-btn" id="preset-delete"
+                  data-i18n="label.delete" data-label="Delete" data-armed="0" disabled>Delete</button>
+        </div>
+        <div class="hdr-right">
+          <!-- The company name is never translated — I18N_EXEMPT. -->
+          <div data-i18n="brand.ouaricon-audio" class="brand">Ouaricon Audio</div>
+          <div class="plate" data-i18n="label.plate"
+               data-label="A Survey of Extinct Consoles · Plate CDLXXXVII">A Survey of Extinct Consoles · Plate CDLXXXVII</div>
+        </div>
+      </div>
+
+      <!-- ================= console selector ================= -->
+      <div class="console-row">
+        <!-- The five captions carry the `console` AudioParameterChoice option
+             strings — four of them BYTE FOR BYTE, so D-01 arm 1 exempts them
+             and none carries a key: the page and the host automation lane have
+             to agree about the same setting. "GB" is the abbreviated form of
+             the option "Game Boy"; that divergence predates this commit and is
+             reported, not changed. All five reasons are in I18N_EXEMPT.
+             The GROUP's accessible name does localize — "Console" is the
+             parameter's DISPLAY NAME, not one of its options. -->
+        <div class="seg" data-param="console" role="group"
+             data-i18n-aria="aria.console" aria-label="Console">
+          <button data-i18n="ui.snes" type="button" data-value="0">SNES</button>
+          <button data-i18n="ui.ps1" type="button" data-value="1">PS1</button>
+          <button data-i18n="ui.nes" type="button" data-value="2">NES</button>
+          <button data-i18n="ui.gb" type="button" data-value="3">GB</button>
+          <button data-i18n="ui.genesis" type="button" data-value="4">Genesis</button>
+        </div>
+      </div>
+
+      <!-- static per-console spec line — written only by the console listener -->
+      <div class="console-info" id="consoleInfo">&nbsp;</div>
+
+      <!-- ================= macro knobs ================= -->
+      <div class="knob-row">
+        <div class="ctl">
+          <div class="ctl-label" data-i18n="label.crush" data-label="Crush">Crush</div>
+          <div class="knob k60" data-param="crush" data-default="50" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          <div class="ro">&nbsp;</div>
+        </div>
+        <div class="ctl">
+          <div class="ctl-label" data-i18n="label.age" data-label="Age">Age</div>
+          <div class="knob k60" data-param="age" data-default="20" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          <div class="ro">&nbsp;</div>
+        </div>
+        <div class="ctl">
+          <div class="ctl-label" data-i18n="label.reverb" data-label="Reverb">Reverb</div>
+          <div class="knob k60" data-param="reverb" data-default="0" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          <div class="ro">&nbsp;</div>
+        </div>
+        <div class="ctl">
+          <div class="ctl-label" data-i18n="label.mix" data-label="Mix">Mix</div>
+          <div class="knob k60" data-param="mix" data-default="100" data-unit="%" data-dec="0"><div class="stem"></div></div>
+          <div class="ro">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= settings (v1.1.0) =================
+         ONE row. This plugin has no hover-help to switch on or off — v1.0.1
+         carried no data-tip and no native title= anywhere on the page — and
+         authoring that copy is Stage M's job, so the popover holds the
+         language selector alone.
+
+         A direct child of .plugin rather than of .inner, so it is out of the
+         flex column entirely; .inner is position:absolute;inset:0 over the
+         same box, so the two would place identically, but keeping the cluster
+         outside means nothing in the column can ever reflow around it. -->
+    <div class="settings-cluster">
+      <button type="button" class="gear-btn" id="gear-btn"
+              aria-haspopup="dialog" aria-expanded="false"
+              data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+      <div class="settings-popover" id="settings-popover" role="dialog"
+           data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+        <label class="settings-row" for="lang-select">
+          <span class="settings-label" data-i18n="label.language" data-label="Language">Language</span>
+          <!-- ENDONYMS. Never localized: a French speaker looking for their
+               language looks for "Fran&ccedil;ais". -->
+          <select class="settings-select" id="lang-select"
+                  data-i18n-aria="aria.langSelect" aria-label="Interface language">
+            <option value="en">English</option>
+            <option value="fr">Fran&ccedil;ais</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  // JUCE 8 frontend library — always bind parameters through the Juce
+  // ES-module namespace, never through the raw injected backend global
+  // (repo pattern critical_juce_webview_namespace_vs_postmessage).
+  import * as Juce from "./js/juce/index.js";
+  // Preset UI module (Stage 4) — the generated copy under modules/ tracks the
+  // canonical preset-manager source at every CMake configure.
+  import { PresetManager } from "./modules/preset-manager.js";
+  // v1.1.0: the label table. The canonical import line, re-rooted from
+  // './i18n.js' to './js/i18n.js' because this plugin's controller is an
+  // inline <script type="module"> at the UI root rather than a js/app.js.
+  // check-i18n assertion 6 accepts exactly that one substitution and nothing
+  // else. I18N and TIP_BINDINGS are both EMPTY here (this page has no
+  // hover-help) and are imported anyway so the canon block below stays
+  // byte-identical to the other forty-two copies.
+  import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+  // Native application feel
+  document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
+  document.addEventListener("dragstart", (e) => e.preventDefault());
+
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+  // Invert C++ NormalisableRange using the state's own properties (start/end/
+  // skew arrive from the backend). All four floats are linear 0–100 in v1.0,
+  // but the skew-aware form is kept anyway — zero cost, future-proof.
+  const scaledToNormalised = (state, scaled) => {
+    const p = state.properties;
+    if (!p || p.end === p.start) return 0;
+    const skew = p.skew > 0 ? p.skew : 1;
+    return clamp01(Math.pow(clamp01((scaled - p.start) / (p.end - p.start)), skew));
+  };
+
+  // Readout formatting only — the VALUE always comes from getScaledValue().
+  const fmtValue = (el, v) => {
+    const dec = +(el.dataset.dec || 0);
+    const unit = el.dataset.unit || "";
+    const s = v.toFixed(dec);
+    return unit ? s + " " + unit : s;
+  };
+
+  // ============ double-click value entry (O-Prism pattern) ============
+  // Opens an inline editor on a value-readout span. opts.format() renders the
+  // live value; opts.parse(text) returns a SCALED value or null to reject.
+  // Enter/blur commits, Esc cancels; unparseable or UNTOUCHED input is
+  // discarded without ever writing the parameter (the readout is rounded for
+  // display — writing it back would quantise the parameter to the rounding).
+  function attachValueEntry(valueEl, state, opts) {
+    if (!valueEl || !state) return;
+    if (valueEl.dataset.editing === "1") return;   // already open
+
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    // Read the readout's ink BEFORE hiding it — the span's own colour is about
+    // to become transparent, so `inherit` on the input would resolve invisible.
+    const inkColor = getComputedStyle(valueEl).color;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "knob-value-input";
+    input.value = currentText;
+    input.spellcheck = false;
+    input.autocomplete = "off";
+    input.style.color = inkColor;
+
+    // The span keeps its own text (rendered transparent) so its box stays
+    // exactly the size it was — the input is overlaid on top of it.
+    valueEl.dataset.editing = "1";
+    valueEl.style.position = "relative";
+    valueEl.style.color = "transparent";
+    valueEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      delete valueEl.dataset.editing;
+      input.remove();
+      valueEl.style.position = prevPosition;
+      valueEl.style.color = prevColor;
+      // Re-render from live state: the parameter may have moved (host
+      // automation, preset load) while readout updates were suppressed.
+      valueEl.textContent = opts.format();
+    };
+
+    const commit = () => {
+      if (closed) return;
+      if (input.value === currentText) { close(); return; }   // untouched guard
+      const scaled = opts.parse(input.value);
+      if (scaled !== null && isFinite(scaled)) {
+        state.sliderDragStarted();
+        state.setNormalisedValue(scaledToNormalised(state, scaled));
+        state.sliderDragEnded();
+      }
+      close();
+    };
+
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+      else if (e.key === "Escape") { e.preventDefault(); close(); }
+    });
+    input.addEventListener("blur", commit);
+    // The readout sits under the knob's drag column — without these, clicking
+    // into the field would leak into knob handlers.
+    input.addEventListener("pointerdown", (e) => e.stopPropagation());
+    input.addEventListener("mousedown", (e) => e.stopPropagation());
+    input.addEventListener("dblclick", (e) => e.stopPropagation());
+    input.addEventListener("wheel", (e) => e.stopPropagation());
+  }
+
+  // ============ knobs (4 floats: crush / age / reverb / mix) ============
+  const setupKnob = (el) => {
+    const state = Juce.getSliderState(el.dataset.param);
+    const stem = el.querySelector(".stem");
+    const ro = el.closest(".ctl")?.querySelector(".ro");
+
+    const render = () => {
+      stem.style.transform = `rotate(${-135 + state.getNormalisedValue() * 270}deg)`;
+      // Suppressed while an entry field is open — textContent would wipe out
+      // the <input> that lives inside this span.
+      if (ro && ro.dataset.editing !== "1")
+        ro.textContent = fmtValue(el, state.getScaledValue());
+    };
+    state.valueChangedEvent.addListener(render);
+    state.propertiesChangedEvent.addListener(render);
+    render();
+
+    // Alt/Option-click resets to default. CAPTURE phase so it preempts the
+    // drag handler below — on the bubble phase the knob would reset and then
+    // immediately start dragging.
+    el.addEventListener("pointerdown", (e) => {
+      if (!e.altKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNormalised(state, +el.dataset.default));
+      state.sliderDragEnded();
+    }, true);
+
+    let dragY = null, dragNorm = 0;
+    el.addEventListener("pointerdown", (e) => {
+      dragY = e.clientY;
+      dragNorm = state.getNormalisedValue();
+      state.sliderDragStarted();
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (dragY === null) return;
+      const fine = e.shiftKey ? 0.001 : 0.005;
+      state.setNormalisedValue(clamp01(dragNorm + (dragY - e.clientY) * fine));
+    });
+    const endDrag = (e) => {
+      if (dragY === null) return;
+      dragY = null;
+      state.sliderDragEnded();
+      el.releasePointerCapture(e.pointerId);
+    };
+    el.addEventListener("pointerup", endDrag);
+    el.addEventListener("pointercancel", endDrag);
+
+    // Double-click opens inline value entry (Alt/Option-click resets instead).
+    el.addEventListener("dblclick", (e) => {
+      if (e.altKey) return;
+      attachValueEntry(ro, state, {
+        format: () => fmtValue(el, state.getScaledValue()),
+        parse: (text) => {
+          const v = parseFloat(text.replace(",", ".").replace("%", "").trim());
+          if (!isFinite(v)) return null;
+          return Math.min(100, Math.max(0, v));
+        },
+      });
+    });
+
+    el.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      state.sliderDragStarted();
+      state.setNormalisedValue(clamp01(state.getNormalisedValue() + (e.deltaY < 0 ? 0.02 : -0.02)));
+      state.sliderDragEnded();
+    }, { passive: false });
+  };
+  document.querySelectorAll(".knob[data-param]").forEach(setupKnob);
+
+  // ============ console selector + accent + info readout ============
+  // Static per-console spec table — names/rates/codecs locked to
+  // ARCHITECTURE.md. Written ONLY from the listener below; segment button
+  // labels are HTML-authored and never touched by script
+  // (pattern_js_state_updater_overwrites_html_labels).
+  const CONSOLE_SPECS = [
+    { name: "SNES",     spec: "BRR 4-bit · 32 kHz · Gaussian" },
+    { name: "PS1",      spec: "SPU-ADPCM · 22.05 kHz · Gaussian" },
+    { name: "NES",      spec: "DPCM · 33.144 kHz · ZOH" },
+    { name: "Game Boy", spec: "4-bit wave · 16.384 kHz · ZOH" },
+    { name: "Genesis",  spec: "8-bit DAC · 26.32 kHz · ZOH" },
+  ];
+  const infoEl = document.getElementById("consoleInfo");
+
+  document.querySelectorAll(".seg[data-param]").forEach((seg) => {
+    const state = Juce.getComboBoxState(seg.dataset.param);
+    const buttons = seg.querySelectorAll("button");
+    const render = () => {
+      const idx = state.getChoiceIndex();
+      buttons.forEach((b) => b.classList.toggle("sel", +b.dataset.value === idx));
+      // One write point for the whole theme: segments, accent vars (via the
+      // body attribute the CSS keys on), and the spec readout. Relay events
+      // fire on host automation and preset load alike, so everything stays
+      // fresh with no revision counter.
+      const c = CONSOLE_SPECS[idx];
+      if (c) {
+        document.body.dataset.console = String(idx);
+        infoEl.textContent = c.name + " — " + c.spec;
+      }
+    };
+    state.valueChangedEvent.addListener(render);
+    render();
+    buttons.forEach((b) =>
+      b.addEventListener("click", () => state.setChoiceIndex(+b.dataset.value)));
+  });
+
+  // ================= preset band (Stage 4) — modules/preset-manager.js ======
+  // Constructor + EXPLICIT DOM refs for all six band elements, plus
+  // getNativeFunction — omitting it leaves the band rendered but silently
+  // inert. NEVER createPresetBar() (innerHTML-wipes, no delete button).
+  // This block runs LAST in the module script: the page is loaded in a
+  // visible WebView, so native-fn completions are not dropped
+  // (a hidden view drops them and initialize() would hang).
+  {
+    let deleteArmTimer = null;
+
+    // Two-click armed delete — first call arms the button and shows its
+    // armed face; a second click within 2.5 s confirms. Never
+    // window.confirm() — native confirm dialogs inside a JUCE WebView are
+    // unreliable.
+    //
+    // v1.1.0: THE TWO FACES ARE KEYS, not the data-label / data-confirm
+    // attributes they were through v1.0.1. Those attributes were the right
+    // answer while the page was English-only — they kept the copy out of
+    // this script, which is what
+    // pattern_js_state_updater_overwrites_html_labels asks for. They are
+    // the wrong answer once the page has two languages: an attribute holds
+    // ONE string, so switching to French while the button was armed would
+    // have restored the ENGLISH armed face and left it there. setLabel()
+    // makes the button a [data-i18n] element from that moment on, so the
+    // language sweep owns whichever face is showing.
+    //
+    // setLabel is a hoisted function DECLARATION in the canon block at the
+    // end of this module, and this closure only ever runs from a click
+    // handler, so the `let uiLanguage` it reads is long past its temporal
+    // dead zone by then (pattern_module_toplevel_init_tdz).
+    const armedConfirmDelete = () => {
+      const btn = document.getElementById("preset-delete");
+      if (!btn) return false;
+
+      const disarm = () => {
+        if (deleteArmTimer) { clearTimeout(deleteArmTimer); deleteArmTimer = null; }
+        btn.dataset.armed = "0";
+        setLabel(btn, "label.delete");
+      };
+
+      if (btn.dataset.armed === "1") {
+        disarm();
+        return true;          // second click within the window — confirmed
+      }
+
+      btn.dataset.armed = "1";
+      setLabel(btn, "ui.confirm");
+      deleteArmTimer = setTimeout(disarm, 2500);
+      return false;           // first click — armed only
+    };
+
+    const byId = (id) => document.getElementById(id);
+    const els = ["preset-prev", "preset-next", "preset-name",
+                 "preset-save", "preset-load", "preset-delete"].map(byId);
+
+    if (els.some((el) => !el)) {
+      console.error("Missing preset-band elements — preset band disabled");
+    } else {
+      const [prevEl, nextEl, nameEl, saveEl, loadEl, deleteEl] = els;
+
+      const presetManager = new PresetManager({
+        displayElement: nameEl,   // stays childless — _updateDisplay writes textContent
+        // The list is FLAT alphabetical (no menu, no grouping), so the
+        // module's native prev/next walkers agree with the display order by
+        // construction — pass the arrows straight in, unlike O-Bitrot whose
+        // grouped menu forced a walk-order override.
+        prevButton: prevEl,
+        nextButton: nextEl,
+        saveButton: saveEl,
+        loadButton: loadEl,
+        deleteButton: deleteEl,
+        getNativeFunction: Juce.getNativeFunction,
+        onConfirmDelete: () => armedConfirmDelete(),
+        // Knobs/segments/accent all refresh through relay listeners on preset
+        // load — no extra work needed here.
+      });
+
+      // The band ships disabled in the markup. Un-disable only after
+      // initialize() resolves (native fns bound, first refresh done) — if
+      // the bridge never comes up, the buttons stay honestly disabled
+      // instead of enabled-but-inert.
+      presetManager.initialize().then(() => {
+        [prevEl, nextEl, saveEl, loadEl, deleteEl]
+          .forEach((el) => { el.disabled = false; });
+      });
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
+  // ═════════════════════════════════════════════════════════════════════
+  //
+  // Byte-compared by check-i18n assertion 6 after comment stripping and
+  // whitespace normalisation. Do not edit it here; edit the canon and every
+  // copy together, which is the whole point of holding it as data.
+  //
+  // It sits at the END of the module, below every existing initializer, and
+  // is REACHED only through the guarded initI18n() call further down. A
+  // top-level statement up here that touched a lower `let` would be a TDZ
+  // throw taking every later initializer with it, and on this plugin "every
+  // later initializer" is the ENTIRE UI — knobs, console selector, accent
+  // theming and preset band are one inline module, not files that can fail
+  // in isolation (pattern_module_toplevel_init_tdz).
+
+  let uiLanguage = 'en';
+  let getUiLanguageNative = null;
+  let setUiLanguageNative = null;
+
+  // LABELS first, I18N as the fallback: a control whose tooltip title already IS
+  // its label carries one key, not two copies of the same string.
+  function trLabel(key, lang, vars) {
+      const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+      if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+      const s = entry[lang] || entry.en;
+      const resolve = (v) => {
+          const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+          return nested ? String((nested[lang] || nested.en).t) : String(v);
+      };
+      return vars
+          ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+          : String(s.t);
+  }
+
+  function applyLabel(el) {
+      const key = el.dataset.i18n;
+      if (!key) return;
+      let vars = null;
+      try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+      catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+      const s = trLabel(key, uiLanguage, vars);
+      el.dataset.label = s;
+      el.textContent   = s;
+  }
+
+  function applyI18nAttributes(el) {
+      const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+      for (const [prop, attr] of pairs) {
+          const key = el.dataset[prop];
+          if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+      }
+  }
+
+  function setLabel(el, key, vars) {
+      if (!el) return;
+      el.dataset.i18n = key;
+      if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+      applyLabel(el);
+  }
+
+  function applyI18n(lang) {
+      uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+      for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+          const el = document.querySelector(selector);
+          if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+          const target = wrapper ? (el.closest(wrapper) || el) : el;
+          const s = tr(key, uiLanguage, vars);
+          target.setAttribute('data-tip-title', s.t);
+          target.setAttribute('data-tip', s.b);
+      }
+      for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+      for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+          applyI18nAttributes(el);
+      const sel = document.getElementById('lang-select');
+      if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+  }
+
+  // Exposed so a clamp gate can drive the language without teaching the ui-stub a
+  // promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+  window.__setLanguage = applyI18n;
+  // Exposed for the same reason, and so a sibling module can write a localized
+  // label without app.js having to export anything — O-Bitrot's controller is an
+  // inline <script type="module">, where an export declaration has nowhere to go.
+  window.__setLabel = setLabel;
+
+  function initI18n() {
+      try {
+          getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+          setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+      } catch (e) {
+          console.warn('Language preference not available, session-only:', e);
+      }
+
+      // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+      try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+      if (getUiLanguageNative) {
+          getUiLanguageNative()
+              .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+              .catch((e) => console.warn('Could not read language preference:', e));
+      }
+
+      const sel = document.getElementById('lang-select');
+      if (sel) sel.addEventListener('change', (e) => {
+          applyI18n(e.target.value);
+          if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+      });
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // The settings popover (v1.1.0)
+  // ═════════════════════════════════════════════════════════════════════
+  //
+  // ONE row — the language selector. This plugin has no hover-help to
+  // switch on or off (v1.0.1 carried no data-tip and no native title=
+  // anywhere), and authoring that copy is Stage M's job.
+  //
+  // The panel opens UPWARDS: the gear sits 16 px from the bottom of a
+  // 430 px frame, so a panel below it would leave the frame entirely.
+
+  let settingsPopoverEl = null;
+  let gearBtnEl = null;
+
+  function setSettingsPopoverOpen(open) {
+    if (!settingsPopoverEl || !gearBtnEl) return;
+    settingsPopoverEl.hidden = !open;
+    gearBtnEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function initializeSettingsPopover() {
+    gearBtnEl = document.getElementById('gear-btn');
+    settingsPopoverEl = document.getElementById('settings-popover');
+
+    if (!gearBtnEl || !settingsPopoverEl) {
+      console.warn('settings popover missing - language selector unavailable');
+      return;
+    }
+
+    gearBtnEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setSettingsPopoverOpen(settingsPopoverEl.hidden);
+    });
+
+    // Dismiss on a press anywhere else, and on Escape. pointerdown rather
+    // than click, so the panel is gone before a drag on a knob underneath
+    // it begins — every knob on this page starts its drag on pointerdown.
+    document.addEventListener('pointerdown', (e) => {
+      if (settingsPopoverEl.hidden) return;
+      if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
+      setSettingsPopoverOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !settingsPopoverEl.hidden) {
+        setSettingsPopoverOpen(false);
+        gearBtnEl.focus();
+      }
+    });
+  }
+
+  // Guarded, and LAST. Every relay binding, every knob and the preset band
+  // have already run, so an i18n failure leaves an English plugin that
+  // still works rather than a dead page.
+  initializeSettingsPopover();
+  try { initI18n(); } catch (e) { console.error('i18n init failed:', e); }
+</script>
+</body>
+</html>

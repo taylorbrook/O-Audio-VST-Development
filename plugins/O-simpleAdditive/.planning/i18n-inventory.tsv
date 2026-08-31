@@ -1,0 +1,58 @@
+# plugin	O-simpleAdditive
+# uiRoot	Source/ui/public
+# generated	2026-08-28T04:24:18.584Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	36	h1.title		UNSURE	no	title.o-simple	O – simple	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	36	span.title-accent		LABEL	no	title-accent.additive	Additive	prose survives the readout filter
+html-text	index.html	37	p.subtitle		LABEL	no	subtitle.additive-wavetable-scan-synthesizer	Additive · Wavetable-Scan Synthesizer · A Field Guide	prose survives the readout filter
+html-text	index.html	44	span.drawbar-title		LABEL	no	drawbar-title.harmonic-drawbars	Harmonic Drawbars	prose survives the readout filter
+html-text	index.html	45	span.viz-hint		LABEL	no	viz-hint.each-bar-is-one	each bar is one overtone · the row reads as the live spectrum (glow = what's sounding)	prose survives the readout filter
+html-text	index.html	54	div.viz-label		UNSURE	no	viz-label.waveform	Waveform ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	54	span.viz-hint		LABEL	no	viz-hint.the-summed-single-cycle	the summed single-cycle shape (morphs as you scan)	prose survives the readout filter
+html-text	index.html	64	h2.group-title		LABEL	no	group-title.morph-wavetable	Morph · Wavetable	prose survives the readout filter
+html-text	index.html	68	div.knob-label		LABEL	no	knob-label.frame-b	Frame B	prose survives the readout filter
+html-text	index.html	72	div.knob-label		LABEL	no	knob-label.scan	Scan	prose survives the readout filter
+html-text	index.html	77	div.knob-label		LABEL	no	knob-label.lfo-rate	LFO Rate	prose survives the readout filter
+html-text	index.html	78	#val-scanLfoRate		READOUT	no	val-scanLfoRate	0.50 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	82	div.knob-label		LABEL	no	knob-label.lfo-depth	LFO Depth	prose survives the readout filter
+html-text	index.html	87	div.knob-label		LABEL	no	knob-label.env-scan	Env→Scan	prose survives the readout filter
+html-text	index.html	94	h2.group-title		LABEL	no	group-title.spectral-shaping	Spectral Shaping	prose survives the readout filter
+html-text	index.html	98	div.knob-label		LABEL	no	knob-label.spectral-decay	Spectral Decay	prose survives the readout filter
+html-text	index.html	103	div.knob-label		LABEL	no	knob-label.bit-depth	Bit Depth	prose survives the readout filter
+html-text	index.html	107	div.knob-label		LABEL	no	knob-label.vel-decay	Vel→Decay	prose survives the readout filter
+html-text	index.html	117	h2.group-title		LABEL	no	group-title.amplitude-envelope	Amplitude Envelope	prose survives the readout filter
+html-text	index.html	121	div.knob-label		LABEL	no	knob-label.attack	Attack	prose survives the readout filter
+html-text	index.html	122	#val-ampAttack		READOUT	no	val-ampAttack	5 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	126	div.knob-label		LABEL	no	knob-label.decay	Decay	prose survives the readout filter
+html-text	index.html	127	#val-ampDecay		READOUT	no	val-ampDecay	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	131	div.knob-label		LABEL	no	knob-label.sustain	Sustain	prose survives the readout filter
+html-text	index.html	136	div.knob-label		LABEL	no	knob-label.release	Release	prose survives the readout filter
+html-text	index.html	137	#val-ampRelease		READOUT	no	val-ampRelease	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	143	h2.group-title		LABEL	no	group-title.modulation-envelope-scan	Modulation Envelope · → Scan	prose survives the readout filter
+html-text	index.html	147	div.knob-label		LABEL	no	knob-label.attack-2	Attack	prose survives the readout filter
+html-text	index.html	148	#val-modAttack		READOUT	no	val-modAttack	5 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	152	div.knob-label		LABEL	no	knob-label.decay-2	Decay	prose survives the readout filter
+html-text	index.html	153	#val-modDecay		READOUT	no	val-modDecay	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	157	div.knob-label		LABEL	no	knob-label.sustain-2	Sustain	prose survives the readout filter
+html-text	index.html	162	div.knob-label		LABEL	no	knob-label.release-2	Release	prose survives the readout filter
+html-text	index.html	163	#val-modRelease		READOUT	no	val-modRelease	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	169	h2.group-title		LABEL	no	group-title.output	Output	prose survives the readout filter
+html-text	index.html	173	div.knob-label		LABEL	no	knob-label.level	Level	prose survives the readout filter
+html-text	index.html	174	#val-outputLevel		READOUT	no	val-outputLevel	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	183	div.tour-label		LABEL	no	tour-label.lesson-presets	Lesson Presets	prose survives the readout filter
+html-text	index.html	185	button.tour-btn		LABEL	yes	tour-btn.pure-sine	Pure Sine	prose survives the readout filter
+html-text	index.html	186	button.tour-btn		LABEL	yes	tour-btn.sawtooth	Sawtooth	prose survives the readout filter
+html-text	index.html	187	button.tour-btn		LABEL	yes	tour-btn.square	Square	prose survives the readout filter
+html-text	index.html	188	button.tour-btn		LABEL	yes	tour-btn.organ	Organ	prose survives the readout filter
+html-text	index.html	189	button.tour-btn		LABEL	yes	tour-btn.morph-pad	Morph Pad	prose survives the readout filter
+html-text	index.html	190	button.tour-btn		LABEL	yes	tour-btn.lo-fi-bells	Lo-Fi Bells	prose survives the readout filter
+html-text	index.html	192	#tourCaption		LABEL	no	tourCaption	Hover any control for an explanation · pick a lesson to hear a concept.	prose survives the readout filter
+html-text	index.html	197	div.keyboard-label		UNSURE	no	keyboard-label.play	Play ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	197	span.kbd-hint		LABEL	no	kbd-hint.click-the-keys-or	click the keys or use your computer keyboard (A S D F G H J K · W E T Y U)	prose survives the readout filter
+html-attr	index.html	67	#combo-frameBSource	aria-label	LABEL	no	combo-frameBSource	Frame B source	prose survives the readout filter
+html-attr	index.html	102	#combo-bitDepth	aria-label	LABEL	no	combo-bitDepth	Bit depth	prose survives the readout filter
+html-attr	index.html	198	#keyboard	aria-label	LABEL	no	keyboard	On-screen keyboard	prose survives the readout filter
+js-composed	js/app.js	211	cell.innerHTML		LABEL	no	ui.div-class-drawbar-id	<div class="drawbar" id="drawbar-${id}" role="slider" tabindex="0" aria-label="Partial ${k} level">	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/app.js	234	valEl.textContent		READOUT	no	ui.pct	${pct}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	421	tip.innerHTML		LABEL	no	ui.span-class-tip-title	<span class="tip-title">${entry[0]}</span>${entry[1]}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one

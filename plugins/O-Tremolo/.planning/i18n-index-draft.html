@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Tremolo, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Tremolo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #2a2a2a;
+            font-family: 'Garamond', 'Times New Roman', serif;
+        }
+
+        .plugin-container {
+            width: 600px;
+            height: 400px;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 3px solid #5C4033;
+            overflow: hidden;
+        }
+
+        .background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .botanical-overlay {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 71.25%;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .title {
+            font-size: 24px;
+            color: #3C2F2F;
+            letter-spacing: 2px;
+            font-weight: normal;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+        }
+
+        /* Preset Bar Styles */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(139, 168, 112, 0.25);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            padding: 4px 8px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+            position: relative;
+        }
+
+        .preset-nav-btn {
+            width: 22px;
+            height: 22px;
+            background: rgba(107, 142, 35, 0.4);
+            border: 1px solid #3C5C1A;
+            border-radius: 3px;
+            font-family: 'Garamond', serif;
+            font-size: 14px;
+            font-weight: bold;
+            color: #2C3E10;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .preset-nav-btn:hover {
+            background: rgba(107, 142, 35, 0.6);
+            transform: scale(1.05);
+        }
+
+        .preset-name {
+            min-width: 100px;
+            max-width: 140px;
+            text-align: center;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            color: #3C2F2F;
+            padding: 2px 6px;
+            background: rgba(255, 248, 220, 0.5);
+            border-radius: 2px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preset-name:hover {
+            background: rgba(255, 248, 220, 0.8);
+        }
+
+        .preset-save-btn {
+            padding: 3px 8px;
+            background: rgba(107, 142, 35, 0.3);
+            border: 1px solid #3C5C1A;
+            border-radius: 3px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-save-btn:hover {
+            background: rgba(107, 142, 35, 0.5);
+        }
+
+        /* Preset Dropdown Menu */
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 4px;
+            background: rgba(255, 248, 220, 0.95);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: 2px 4px 8px rgba(0,0,0,0.3);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .preset-dropdown.show {
+            display: block;
+        }
+
+        .preset-dropdown-header {
+            padding: 4px 8px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8B7355;
+            background: rgba(139, 115, 85, 0.1);
+            border-bottom: 1px solid rgba(92, 64, 51, 0.2);
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 10px;
+            font-size: 11px;
+            color: #3C2F2F;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(92, 64, 51, 0.1);
+            transition: background 0.15s;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.3);
+            font-weight: bold;
+        }
+
+        .preset-dropdown-item.factory {
+            font-style: italic;
+        }
+
+        /* Load button style */
+        .preset-load-btn {
+            padding: 3px 8px;
+            background: rgba(107, 142, 35, 0.3);
+            border: 1px solid #3C5C1A;
+            border-radius: 3px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-load-btn:hover {
+            background: rgba(107, 142, 35, 0.5);
+        }
+
+        .controls-section {
+            display: flex;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .left-panel {
+            flex: 0 0 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .right-panel {
+            flex: 0 0 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .buttons-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toggle-button {
+            width: 70px;
+            padding: 8px 12px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #3C5C1A;
+            border-radius: 4px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toggle-button::before {
+            content: '❦';
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 8px;
+            color: rgba(60, 92, 26, 0.3);
+            pointer-events: none;
+        }
+
+        .toggle-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: repeating-linear-gradient(90deg, #3C5C1A 0px, #3C5C1A 3px, transparent 3px, transparent 6px);
+            opacity: 0.3;
+        }
+
+        .toggle-button:hover {
+            background: rgba(139, 168, 112, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 2px 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .toggle-button.active {
+            background: rgba(107, 142, 35, 0.6);
+            color: #1a2a10;
+            border-color: #2C3E10;
+        }
+
+        .knobs-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .depth-knob-container {
+            margin-top: -5px;
+        }
+
+        .knob {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            /* Botanical seed cross-section background - vintage cream/sepia palette */
+            background:
+                /* Outer ring - aged paper tone */
+                radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+                /* Seed segments - 10 radial chambers with engraving lines */
+                conic-gradient(from 0deg,
+                    #F5DEB3 0deg, #F5DEB3 18deg,
+                    #8B7355 18deg, #8B7355 19deg,
+                    #E8D5B7 19deg, #E8D5B7 36deg,
+                    #8B7355 36deg, #8B7355 37deg,
+                    #F5DEB3 37deg, #F5DEB3 54deg,
+                    #8B7355 54deg, #8B7355 55deg,
+                    #E8D5B7 55deg, #E8D5B7 72deg,
+                    #8B7355 72deg, #8B7355 73deg,
+                    #F5DEB3 73deg, #F5DEB3 90deg,
+                    #8B7355 90deg, #8B7355 91deg,
+                    #E8D5B7 91deg, #E8D5B7 108deg,
+                    #8B7355 108deg, #8B7355 109deg,
+                    #F5DEB3 109deg, #F5DEB3 126deg,
+                    #8B7355 126deg, #8B7355 127deg,
+                    #E8D5B7 127deg, #E8D5B7 144deg,
+                    #8B7355 144deg, #8B7355 145deg,
+                    #F5DEB3 145deg, #F5DEB3 162deg,
+                    #8B7355 162deg, #8B7355 163deg,
+                    #E8D5B7 163deg, #E8D5B7 180deg,
+                    #8B7355 180deg, #8B7355 181deg,
+                    #F5DEB3 181deg, #F5DEB3 198deg,
+                    #8B7355 198deg, #8B7355 199deg,
+                    #E8D5B7 199deg, #E8D5B7 216deg,
+                    #8B7355 216deg, #8B7355 217deg,
+                    #F5DEB3 217deg, #F5DEB3 234deg,
+                    #8B7355 234deg, #8B7355 235deg,
+                    #E8D5B7 235deg, #E8D5B7 252deg,
+                    #8B7355 252deg, #8B7355 253deg,
+                    #F5DEB3 253deg, #F5DEB3 270deg,
+                    #8B7355 270deg, #8B7355 271deg,
+                    #E8D5B7 271deg, #E8D5B7 288deg,
+                    #8B7355 288deg, #8B7355 289deg,
+                    #F5DEB3 289deg, #F5DEB3 306deg,
+                    #8B7355 306deg, #8B7355 307deg,
+                    #E8D5B7 307deg, #E8D5B7 324deg,
+                    #8B7355 324deg, #8B7355 325deg,
+                    #F5DEB3 325deg, #F5DEB3 342deg,
+                    #8B7355 342deg, #8B7355 343deg,
+                    #E8D5B7 343deg, #E8D5B7 360deg
+                ),
+                /* Inner center - lighter seed core */
+                radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            border: 2px solid #8B7355;
+            box-shadow:
+                /* Engraved depth effect */
+                inset 1px 1px 3px rgba(0,0,0,0.3),
+                inset -1px -1px 2px rgba(255,248,220,0.5),
+                /* Outer shadow for paper depth */
+                2px 2px 6px rgba(0,0,0,0.25);
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s;
+            overflow: hidden;
+        }
+
+        .knob:hover {
+            transform: scale(1.05);
+        }
+
+        .knob::before {
+            /* Cross-hatching engraving texture overlay */
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                /* Fine radial lines from center (like botanical engraving) */
+                repeating-conic-gradient(from 0deg at 50% 50%,
+                    transparent 0deg,
+                    transparent 2deg,
+                    rgba(139, 115, 85, 0.15) 2deg,
+                    rgba(139, 115, 85, 0.15) 2.5deg,
+                    transparent 2.5deg,
+                    transparent 36deg
+                ),
+                /* Concentric circles for seed texture */
+                repeating-radial-gradient(circle at 50% 50%,
+                    transparent 0px,
+                    transparent 8px,
+                    rgba(139, 115, 85, 0.08) 8px,
+                    rgba(139, 115, 85, 0.08) 9px
+                );
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        .knob::after {
+            /* Subtle botanical motif in center */
+            content: '✿';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            color: rgba(139, 115, 85, 0.25);
+            pointer-events: none;
+        }
+
+        .knob-indicator {
+            /* Indicator styled as highlighted seed segment */
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 22px solid #8B6914;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+            opacity: 0.9;
+        }
+
+        .knob-label {
+            font-size: 13px;
+            color: #3C2F2F;
+            font-weight: 600;
+        }
+
+        .knob-value {
+            font-size: 11px;
+            color: #5C4033;
+            font-weight: bold;
+        }
+
+        .waveform-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .section-label {
+            font-size: 12px;
+            color: #3C2F2F;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .waveform-selector {
+            width: 100%;
+            padding: 8px 28px 8px 12px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            font-family: 'Garamond', serif;
+            font-size: 13px;
+            color: #3C2F2F;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            background-image:
+                linear-gradient(135deg, transparent 45%, rgba(92, 64, 51, 0.1) 45%, rgba(92, 64, 51, 0.1) 55%, transparent 55%),
+                linear-gradient(225deg, transparent 45%, rgba(92, 64, 51, 0.1) 45%, rgba(92, 64, 51, 0.1) 55%, transparent 55%);
+            background-size: 8px 8px;
+            background-position: calc(100% - 12px) center, calc(100% - 8px) center;
+            background-repeat: no-repeat;
+            appearance: none;
+            text-align: center;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(107, 142, 35, 0.3);
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(107, 142, 35, 0.3);
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(107, 142, 35, 0.3);
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, #6B8E23, #3C5C1A);
+            border: 2px solid #2C3E10;
+            cursor: pointer;
+            box-shadow:
+                0 2px 4px rgba(0,0,0,0.3),
+                inset 0 1px 2px rgba(255,255,255,0.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, #6B8E23, #3C5C1A);
+            border: 2px solid #2C3E10;
+            cursor: pointer;
+            box-shadow:
+                0 2px 4px rgba(0,0,0,0.3),
+                inset 0 1px 2px rgba(255,255,255,0.2);
+        }
+
+        .visualizer {
+            width: 100%;
+            aspect-ratio: 1;
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .visualizer::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            border: 1px solid rgba(92, 64, 51, 0.15);
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .visualizer::after {
+            content: '❦';
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            font-size: 10px;
+            color: rgba(92, 64, 51, 0.2);
+            pointer-events: none;
+        }
+
+        .footer-brand {
+            position: absolute;
+            bottom: 6px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(60, 47, 47, 0.4);
+            pointer-events: none;
+        }
+
+        .footer-brand .version {
+            margin-left: 4px;
+            font-size: 8px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="plugin-container">
+        <img src="img/paper.jpg" alt="Background" class="background">
+        <img src="img/carrot.png" alt="Botanical" class="botanical-overlay">
+
+        <div class="content">
+            <div class="header">
+                <h1 data-i18n="title.o-tremolo" class="title">O-Tremolo</h1>
+                <div class="preset-bar">
+                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
+                    <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
+                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&gt;</button>
+                    <button data-i18n="loadPreset" class="preset-load-btn" id="loadPreset" title="Load preset from file">Load</button>
+                    <button data-i18n="savePreset" class="preset-save-btn" id="savePreset" title="Save current settings">Save</button>
+                    <div class="preset-dropdown" id="presetDropdown"></div>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <div class="left-panel">
+                    <div class="buttons-row">
+                        <button data-i18n="panButton" class="toggle-button" id="panButton">Pan Sync</button>
+                        <button data-i18n="tempoButton" class="toggle-button" id="tempoButton">Tempo Sync</button>
+                    </div>
+
+                    <div class="knobs-row">
+                        <div class="knob-container">
+                            <div class="knob" id="speedKnob">
+                                <div class="knob-indicator" id="speedIndicator"></div>
+                            </div>
+                            <div data-i18n="knob-label.speed" class="knob-label">Speed</div>
+                            <div class="knob-value" id="speedValue">4.5 Hz</div>
+                        </div>
+                        <div class="knob-container depth-knob-container">
+                            <div class="knob" id="depthKnob">
+                                <div class="knob-indicator" id="depthIndicator"></div>
+                            </div>
+                            <div data-i18n="knob-label.depth" class="knob-label">Depth</div>
+                            <div class="knob-value" id="depthValue">75%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-panel">
+                    <div class="waveform-section">
+                        <label data-i18n="section-label.waveform" class="section-label">Waveform</label>
+                        <select class="waveform-selector" id="waveformSelect">
+                            <option data-i18n="waveformselect.sine" value="0">Sine</option>
+                            <option data-i18n="waveformselect.triangle" value="1">Triangle</option>
+                            <option data-i18n="waveformselect.phasor" value="2">Phasor</option>
+                            <option data-i18n="waveformselect.noise" value="3">Noise</option>
+                            <option data-i18n="waveformselect.square" value="4">Square</option>
+                            <option data-i18n="waveformselect.pulse" value="5">Pulse</option>
+                        </select>
+                    </div>
+
+                    <div class="waveform-section">
+                        <canvas class="visualizer" id="waveformCanvas"></canvas>
+                    </div>
+
+                    <div class="slider-container">
+                        <label data-i18n="section-label.smoothing" class="section-label">Smoothing</label>
+                        <input type="range" min="0" max="100" value="30" class="slider" id="smoothingSlider">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-brand">
+            <spandata-i18n="ui.ouaricon-audio" >Ouaricon Audio</span>
+            <span class="version" id="versionLabel"></span>
+        </div>
+    </div>
+
+    <!-- JUCE WebView Bridge - ES6 Module Import (Pattern #21) -->
+    <script type="module" src="js/juce/check_native_interop.js"></script>
+    <script type="module">
+        import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
+        import { PresetManager } from './modules/preset-manager.js';
+
+        // JUCE Parameter States
+        let speedState, depthState, waveformState, smoothingState, panSyncState, tempoSyncState, syncDivisionState;
+
+        // Single source of truth for waveform options — index divisor is derived from this
+        // length so adding/removing a waveform never breaks the normalized↔index mapping (IN-05).
+        // Order MUST match the C++ WAVEFORM_PARAM StringArray and the <select> options.
+        const WAVEFORM_NAMES = ['sine', 'triangle', 'phasor', 'noise', 'square', 'pulse'];
+
+        // Reference to the Speed knob's own updateVisual(), hoisted so the Tempo Sync toggle can
+        // re-snap the indicator + readout from a single source of truth when sync engages/disengages.
+        let updateSpeedVisual = null;
+
+        // Musical divisions table. Order MUST match the C++ SYNC_DIVISION_PARAM choices
+        // (which mirror kMusicalDivisions), so this array index == the parameter's choice index.
+        const musicalDivisions = [
+            // Straight divisions
+            { name: "1/1",   beatMultiplier: 4.0 },
+            { name: "1/2",   beatMultiplier: 2.0 },
+            { name: "1/4",   beatMultiplier: 1.0 },
+            { name: "1/8",   beatMultiplier: 0.5 },
+            { name: "1/16",  beatMultiplier: 0.25 },
+            { name: "1/32",  beatMultiplier: 0.125 },
+            // Triplets
+            { name: "1/2T",  beatMultiplier: 1.333333 },
+            { name: "1/4T",  beatMultiplier: 0.666667 },
+            { name: "1/8T",  beatMultiplier: 0.333333 },
+            { name: "1/16T", beatMultiplier: 0.166667 },
+            { name: "1/32T", beatMultiplier: 0.083333 },
+            // Quintuplets
+            { name: "1/2Q",  beatMultiplier: 1.6 },
+            { name: "1/4Q",  beatMultiplier: 0.8 },
+            { name: "1/8Q",  beatMultiplier: 0.4 },
+            { name: "1/16Q", beatMultiplier: 0.2 },
+            { name: "1/32Q", beatMultiplier: 0.1 }
+        ];
+
+        // Slow→fast display order for the synced Speed knob (v1.6.0). The synced rate is
+        // beatsPerSecond / beatMultiplier, so a LARGER multiplier is a SLOWER rate — sorting by
+        // multiplier descending lays the divisions out slowest→fastest along the knob arc. Each
+        // entry keeps its ORIGINAL choice index so the knob can drive SYNC_DIVISION_PARAM directly.
+        const syncDivisionOrder = musicalDivisions
+            .map((d, i) => ({ name: d.name, choiceIndex: i, beatMultiplier: d.beatMultiplier }))
+            .sort((a, b) => b.beatMultiplier - a.beatMultiplier);
+        // Reverse lookup: choice index → position in syncDivisionOrder (for indicator angle + stepping).
+        const syncDivisionPosByChoice = [];
+        syncDivisionOrder.forEach((d, pos) => { syncDivisionPosByChoice[d.choiceIndex] = pos; });
+
+        // Wait for DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('JUCE backend:', window.__JUCE__?.backend);
+
+            // Initialize parameter states
+            speedState = getSliderState('speed');
+            depthState = getSliderState('depth');
+            waveformState = getSliderState('waveform');
+            smoothingState = getSliderState('smoothing');
+            panSyncState = getToggleState('panSync');
+            tempoSyncState = getToggleState('tempoSync');
+            syncDivisionState = getComboBoxState('syncDivision');
+
+            // Setup knobs (WR-02: real values come from the JUCE scaled value, not hardcoded ranges)
+            setupKnob('speed', speedState, ' Hz');
+            setupKnob('depth', depthState, '%');
+
+            // Setup toggle buttons
+            setupToggle('panButton', panSyncState);
+            setupToggle('tempoButton', tempoSyncState);
+
+            // Setup waveform selector
+            setupWaveformSelector();
+
+            // Setup smoothing slider
+            setupSmoothingSlider();
+
+            // Initialize canvas
+            initCanvas();
+
+            // Initialize Preset Manager (JUCE 8 pattern: pass getNativeFunction)
+            const presetNameDisplay = document.getElementById('presetName');
+            const presetDropdown = document.getElementById('presetDropdown');
+
+            const presetManager = new PresetManager({
+                displayElement: presetNameDisplay,
+                prevButton: document.getElementById('prevPreset'),
+                nextButton: document.getElementById('nextPreset'),
+                saveButton: document.getElementById('savePreset'),
+                loadButton: document.getElementById('loadPreset'),
+                getNativeFunction: getNativeFunction,
+                onPresetChanged: (name) => {
+                    console.log('Preset loaded:', name);
+                    hidePresetDropdown();
+                },
+                onPresetListUpdated: (list) => {
+                    console.log('Preset list updated:', list.length, 'presets');
+                }
+            });
+            presetManager.initialize();
+
+            // Fetch plugin version from C++ and display in footer
+            const getPluginVersion = getNativeFunction('getPluginVersion');
+            getPluginVersion().then(version => {
+                const versionLabel = document.getElementById('versionLabel');
+                if (versionLabel && version) {
+                    versionLabel.textContent = 'v' + version;
+                }
+            });
+
+            // Preset dropdown functionality (IN-02: distinguish Factory vs User presets
+            // via the isFactoryPreset native fn instead of labeling every entry "Factory")
+            async function showPresetDropdown() {
+                const presets = presetManager.getPresetList();
+                presetDropdown.innerHTML = '';
+
+                if (presets.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'preset-dropdown-item';
+                    empty.textContent = 'No presets available';
+                    empty.style.fontStyle = 'italic';
+                    empty.style.color = '#888';
+                    presetDropdown.appendChild(empty);
+                    presetDropdown.classList.add('show');
+                    return;
+                }
+
+                // Classify each preset (default to factory if the check fails)
+                const flags = await Promise.all(presets.map(async (name) => {
+                    try { return await presetManager.isFactoryPreset(name); }
+                    catch (e) { return true; }
+                }));
+
+                const factoryNames = [];
+                const userNames = [];
+                presets.forEach((name, i) => {
+                    (flags[i] ? factoryNames : userNames).push(name);
+                });
+
+                const current = presetManager.getCurrentPreset();
+
+                const addSection = (headerText, names, isFactory) => {
+                    if (names.length === 0) return;
+                    const header = document.createElement('div');
+                    header.className = 'preset-dropdown-header';
+                    header.textContent = headerText;
+                    presetDropdown.appendChild(header);
+
+                    names.forEach(presetName => {
+                        const item = document.createElement('div');
+                        item.className = 'preset-dropdown-item' + (isFactory ? ' factory' : '');
+                        if (presetName === current) {
+                            item.classList.add('active');
+                        }
+                        item.textContent = presetName;
+                        item.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            presetManager.loadPreset(presetName);
+                        });
+                        presetDropdown.appendChild(item);
+                    });
+                };
+
+                addSection('Factory', factoryNames, true);
+                addSection('User', userNames, false);
+
+                presetDropdown.classList.add('show');
+            }
+
+            function hidePresetDropdown() {
+                presetDropdown.classList.remove('show');
+            }
+
+            // Click on preset name to show dropdown
+            presetNameDisplay.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (presetDropdown.classList.contains('show')) {
+                    hidePresetDropdown();
+                } else {
+                    showPresetDropdown();
+                }
+            });
+
+            // Click outside to close dropdown
+            document.addEventListener('click', (e) => {
+                if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+                    hidePresetDropdown();
+                }
+            });
+        });
+
+        // Knob setup with JUCE binding (Pattern #16: Relative drag, Pattern #15: No callback params)
+        function setupKnob(paramId, state, unit) {
+            if (!state) {
+                console.error(`Failed to get slider state for ${paramId}`);
+                return;
+            }
+
+            const knob = document.getElementById(`${paramId}Knob`);
+            const indicator = document.getElementById(`${paramId}Indicator`);
+            const valueDisplay = document.getElementById(`${paramId}Value`);
+            const isSpeed = paramId === 'speed';
+
+            let isDragging = false;
+            let lastY = 0;
+            let dragAccum = 0;  // px accumulated for discrete stepping (synced Speed knob)
+
+            // True when the Speed knob should behave as a discrete division stepper.
+            function speedSyncActive() {
+                return isSpeed && tempoSyncState && tempoSyncState.getValue();
+            }
+
+            // Update visual from normalized value (0-1)
+            function updateVisual() {
+                // WR-02: real value comes straight from the JUCE scaled value (honors the C++
+                // NormalisableRange + skew), not a hardcoded JS min/max that can silently drift.
+                const realValue = state.getScaledValue();
+
+                if (speedSyncActive() && syncDivisionState) {
+                    // Synced (v1.6.0): the knob is a discrete stepper backed by SYNC_DIVISION_PARAM.
+                    // Snap the indicator to the selected division's slot in the slow→fast arc and
+                    // show its name. No Hz round-trip, and every division is reachable at any tempo.
+                    const choiceIdx = syncDivisionState.getChoiceIndex();
+                    const n = syncDivisionOrder.length;
+                    const pos = syncDivisionPosByChoice[choiceIdx] ?? 0;
+                    const frac = n > 1 ? pos / (n - 1) : 0.5;
+                    const angle = -140 + (frac * 280);
+                    indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                    indicator.style.transformOrigin = 'center 30px';
+                    valueDisplay.textContent = musicalDivisions[choiceIdx]?.name ?? '';
+                } else {
+                    // Continuous: rotate straight from the normalized value.
+                    const normValue = state.getNormalisedValue();
+                    const angle = -140 + (normValue * 280);
+                    indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                    indicator.style.transformOrigin = 'center 30px';
+                    valueDisplay.textContent = realValue.toFixed(1) + unit;
+                }
+
+                // Redraw waveform
+                drawWaveform();
+            }
+
+            // Hoist the Speed knob's updater so the Tempo Sync toggle can re-snap it.
+            if (isSpeed) updateSpeedVisual = updateVisual;
+
+            // JUCE → UI: Listen for parameter changes (Pattern #15: NO parameters passed)
+            state.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // Re-render once the backend pushes the real range/skew (WR-02) so getScaledValue()
+            // and the indicator angle are correct even on the initial paint.
+            state.propertiesChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // Speed knob only: repaint when the synced division changes. That value lives on
+            // SYNC_DIVISION_PARAM (automation / preset recall / this knob's own drag), not on the
+            // Speed slider's own state, so the slider's valueChangedEvent would never fire for it.
+            if (isSpeed && syncDivisionState) {
+                syncDivisionState.valueChangedEvent.addListener(() => updateVisual());
+                syncDivisionState.propertiesChangedEvent.addListener(() => updateVisual());
+            }
+
+            // UI → JUCE: Mouse drag (Pattern #16: RELATIVE drag)
+            knob.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastY = e.clientY;
+                dragAccum = 0;
+                state.sliderDragStarted();
+                e.preventDefault();
+            });
+
+            const PX_PER_DIVISION = 14;  // vertical travel to advance one synced division
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                // Relative drag: frame-delta, not absolute
+                const deltaY = lastY - e.clientY;
+                lastY = e.clientY;
+
+                if (speedSyncActive() && syncDivisionState) {
+                    // Synced (v1.6.0): step through divisions one detent at a time in slow→fast
+                    // display order, writing the discrete SYNC_DIVISION_PARAM directly — no Hz math.
+                    dragAccum += deltaY;
+                    const stepsToMove = Math.trunc(dragAccum / PX_PER_DIVISION);
+                    if (stepsToMove !== 0) {
+                        dragAccum -= stepsToMove * PX_PER_DIVISION;
+                        const n = syncDivisionOrder.length;
+                        const curPos = syncDivisionPosByChoice[syncDivisionState.getChoiceIndex()] ?? 0;
+                        const pos = Math.max(0, Math.min(n - 1, curPos + stepsToMove));
+                        syncDivisionState.setChoiceIndex(syncDivisionOrder[pos].choiceIndex);
+                    }
+                    return;
+                }
+
+                // Continuous drag
+                const currentNorm = state.getNormalisedValue();
+                const sensitivity = 0.005;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + (deltaY * sensitivity)));
+                state.setNormalisedValue(newNorm);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    state.sliderDragEnded();
+                    isDragging = false;
+                }
+            });
+
+            // Initial update
+            updateVisual();
+        }
+
+        // Toggle button setup with JUCE binding (Pattern #19: Use getToggleState)
+        function setupToggle(buttonId, state) {
+            if (!state) {
+                console.error(`Failed to get toggle state for ${buttonId}`);
+                return;
+            }
+
+            const button = document.getElementById(buttonId);
+
+            // Update visual from state
+            function updateVisual() {
+                const isActive = state.getValue();
+                if (isActive) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+
+                // If this is the Tempo Sync button, re-snap the Speed knob (indicator + readout)
+                // via its own updater — single source of truth — so it flips between the discrete
+                // division stepper (synced) and continuous Hz (free) the instant sync toggles.
+                if (buttonId === 'tempoButton' && updateSpeedVisual) {
+                    updateSpeedVisual();
+                }
+            }
+
+            // JUCE → UI: Listen for parameter changes
+            state.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // UI → JUCE: Click handler
+            button.addEventListener('click', () => {
+                const currentValue = state.getValue();
+                state.setValue(!currentValue);
+            });
+
+            // Initial update
+            updateVisual();
+        }
+
+        // Waveform selector setup
+        function setupWaveformSelector() {
+            if (!waveformState) {
+                console.error('Failed to get waveform state');
+                return;
+            }
+
+            const selector = document.getElementById('waveformSelect');
+
+            // IN-05: divisor derived from the option count, not a hardcoded 5, so the
+            // normalized↔index mapping stays correct if a waveform is ever added/removed.
+            const maxIndex = WAVEFORM_NAMES.length - 1;
+
+            // Update visual from state
+            function updateVisual() {
+                const normValue = waveformState.getNormalisedValue();
+                const index = Math.round(normValue * maxIndex);
+                selector.value = index.toString();
+                drawWaveform();
+            }
+
+            // JUCE → UI
+            waveformState.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // UI → JUCE
+            selector.addEventListener('change', () => {
+                const index = parseInt(selector.value);
+                const normValue = maxIndex > 0 ? index / maxIndex : 0;
+                waveformState.setNormalisedValue(normValue);
+            });
+
+            // Initial update
+            updateVisual();
+        }
+
+        // Smoothing slider setup
+        function setupSmoothingSlider() {
+            if (!smoothingState) {
+                console.error('Failed to get smoothing state');
+                return;
+            }
+
+            const slider = document.getElementById('smoothingSlider');
+
+            // Update visual from state
+            function updateVisual() {
+                const normValue = smoothingState.getNormalisedValue();
+                const realValue = normValue * 100; // 0-100%
+                slider.value = realValue;
+                drawWaveform();
+            }
+
+            // JUCE → UI
+            smoothingState.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // UI → JUCE
+            slider.addEventListener('input', () => {
+                const realValue = parseFloat(slider.value);
+                const normValue = realValue / 100;
+                smoothingState.setNormalisedValue(normValue);
+            });
+
+            // Initial update
+            updateVisual();
+        }
+
+        // Canvas initialization
+        let canvas, ctx;
+        function initCanvas() {
+            canvas = document.getElementById('waveformCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth * 2;
+            canvas.height = canvas.offsetHeight * 2;
+            ctx.scale(2, 2);
+            drawWaveform();
+        }
+
+        // Waveform visualization
+
+        function drawWaveform() {
+            if (!canvas || !ctx || !waveformState || !smoothingState || !depthState) return;
+
+            // IN-03: reset the visualizer smoothing state per redraw so the first sample
+            // doesn't smooth against the previous draw's trailing value.
+            let smoothedY = 0;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            const centerY = height / 2;
+
+            // Scale amplitude by depth (0-100% depth → 0-1 multiplier)
+            const depthMultiplier = depthState.getNormalisedValue();
+            const amplitude = (height / 2) * 0.8 * depthMultiplier;
+
+            // IN-05: derive index from the shared waveform list length, not a hardcoded 5.
+            const waveformIndex = Math.round(waveformState.getNormalisedValue() * (WAVEFORM_NAMES.length - 1));
+            const smoothing = smoothingState.getNormalisedValue();
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(92, 64, 51, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, (height / 4) * i);
+                ctx.lineTo(width, (height / 4) * i);
+                ctx.stroke();
+            }
+
+            // Waveform
+            ctx.strokeStyle = '#5C4033';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const waveform = WAVEFORM_NAMES[waveformIndex] || 'sine';
+
+            // Helper function for smooth transitions (matches C++ smoothTransition)
+            function smoothTransition(t) {
+                return t * t * (3.0 - 2.0 * t);
+            }
+
+            // Sample-and-hold noise storage
+            let noiseValues = [];
+            if (waveform === 'noise') {
+                // Generate 4 random values for the 4 quarters
+                for (let i = 0; i < 4; i++) {
+                    noiseValues.push(Math.random() * 2 - 1);
+                }
+            }
+
+            for (let x = 0; x < width; x++) {
+                const t = x / width;
+                let y;
+
+                switch(waveform) {
+                    case 'sine':
+                        y = Math.sin(t * Math.PI * 4);
+                        break;
+
+                    case 'triangle':
+                        y = Math.abs((t * 4) % 2 - 1) * 2 - 1;
+                        break;
+
+                    case 'phasor': {
+                        // Sawtooth with smooth reset
+                        const phase = (t * 4) % 1;
+                        const transitionWidth = 0.02;
+                        if (phase < transitionWidth) {
+                            const tt = phase / transitionWidth;
+                            const smoothed = smoothTransition(tt);
+                            y = -1.0 + smoothed * (phase * 2.0 + 1.0);
+                        } else {
+                            y = phase * 2 - 1;
+                        }
+                        break;
+                    }
+
+                    case 'noise': {
+                        // Sample-and-hold: 4 samples per cycle
+                        const quarter = Math.floor(t * 4) % 4;
+                        y = noiseValues[quarter];
+                        break;
+                    }
+
+                    case 'square': {
+                        const phase = (t * 4) % 1;
+                        const transitionWidth = 0.02;
+                        if (phase < 0.5) {
+                            if (phase < transitionWidth) {
+                                const tt = phase / transitionWidth;
+                                y = -1 + smoothTransition(tt) * 2;
+                            } else {
+                                y = 1;
+                            }
+                        } else {
+                            if (phase < 0.5 + transitionWidth) {
+                                const tt = (phase - 0.5) / transitionWidth;
+                                y = 1 - smoothTransition(tt) * 2;
+                            } else {
+                                y = -1;
+                            }
+                        }
+                        break;
+                    }
+
+                    case 'pulse': {
+                        const phase = (t * 4) % 1;
+                        const dutyCycle = 0.2;
+                        const transitionWidth = 0.02;
+                        if (phase < dutyCycle) {
+                            if (phase < transitionWidth) {
+                                const tt = phase / transitionWidth;
+                                y = -1 + smoothTransition(tt) * 2;
+                            } else {
+                                y = 1;
+                            }
+                        } else {
+                            if (phase < dutyCycle + transitionWidth) {
+                                const tt = (phase - dutyCycle) / transitionWidth;
+                                y = 1 - smoothTransition(tt) * 2;
+                            } else {
+                                y = -1;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (smoothing > 0 && x > 0) {
+                    y = smoothedY + (y - smoothedY) * (1 - smoothing * 0.9);
+                }
+                smoothedY = y;
+
+                const plotY = centerY - (y * amplitude);
+                x === 0 ? ctx.moveTo(x, plotY) : ctx.lineTo(x, plotY);
+            }
+
+            ctx.stroke();
+        }
+    </script>
+</body>
+</html>

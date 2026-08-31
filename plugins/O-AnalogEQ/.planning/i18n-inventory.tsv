@@ -1,0 +1,35 @@
+# plugin	O-AnalogEQ
+# uiRoot	Source/ui/public
+# generated	2026-08-29T06:10:45.217Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	514	div.title		LABEL	no	title.ouaricon-analog-equalizer	OUARICON ANALOG EQUALIZER	prose survives the readout filter
+html-text	index.html	519	#presetName		UNSURE	no	presetName	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	521	#savePreset		LABEL	no	savePreset	SAVE	prose survives the readout filter
+html-text	index.html	522	#loadPreset		LABEL	no	loadPreset	LOAD	prose survives the readout filter
+html-text	index.html	527	#lf_on		LABEL	no	lf_on	LF SHELF	prose survives the readout filter
+html-text	index.html	557	#lf_tooltip		READOUT	no	lf_tooltip	100 Hz / 0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	562	#lmf_on		LABEL	no	lmf_on	LMF	prose survives the readout filter
+html-text	index.html	592	#lmf_tooltip		READOUT	no	lmf_tooltip	500 Hz / 0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	596	div.three-way-option		LABEL	no	lmf-q.wide	WIDE	prose survives the readout filter
+html-text	index.html	597	div.three-way-option.active		LABEL	no	lmf-q.med	MED	prose survives the readout filter
+html-text	index.html	598	div.three-way-option		LABEL	no	lmf-q.tight	TIGHT	prose survives the readout filter
+html-text	index.html	602	#hmf_on		LABEL	no	hmf_on	HMF	prose survives the readout filter
+html-text	index.html	632	#hmf_tooltip		READOUT	no	hmf_tooltip	2000 Hz / 0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	636	div.three-way-option		LABEL	no	hmf-q.wide	WIDE	prose survives the readout filter
+html-text	index.html	637	div.three-way-option.active		LABEL	no	hmf-q.med	MED	prose survives the readout filter
+html-text	index.html	638	div.three-way-option		LABEL	no	hmf-q.tight	TIGHT	prose survives the readout filter
+html-text	index.html	642	#hf_on		LABEL	no	hf_on	HF SHELF	prose survives the readout filter
+html-text	index.html	672	#hf_tooltip		READOUT	no	hf_tooltip	8000 Hz / 0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	677	#lf_db		READOUT	no	lf_db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	678	#lmf_db		READOUT	no	lmf_db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	679	#hmf_db		READOUT	no	hmf_db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	680	#hf_db		READOUT	no	hf_db	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	683	#analog		LABEL	no	analog	ANALOG	prose survives the readout filter
+html-text	index.html	697	div.vu-meter-label		LABEL	no	vu-meter-label.level	Level	prose survives the readout filter
+html-attr	index.html	518	#prevPreset	title	LABEL	no	prevPreset	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	519	#presetName	title	UNSURE	no	presetName-2	Click to browse presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	520	#nextPreset	title	LABEL	no	nextPreset	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	521	#savePreset	title	LABEL	no	savePreset-2	Save preset to file	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	522	#loadPreset	title	LABEL	no	loadPreset-2	Load preset from file	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 702	1017	empty.textContent		LABEL	no	ui.no-presets	No presets	prose survives the readout filter

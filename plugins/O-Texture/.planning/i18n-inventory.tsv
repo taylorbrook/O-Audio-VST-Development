@@ -1,0 +1,32 @@
+# plugin	O-Texture
+# uiRoot	Source/ui/public
+# generated	2026-08-29T02:59:37.577Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	40	h1		LABEL	no	ui.o-texture	O-TEXTURE	prose survives the readout filter
+html-text	index.html	56	span.settings-label		LABEL	yes	settings-popover.language	Language	prose survives the readout filter
+html-text	index.html	62	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	63	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	79	button		LABEL	no	ui.generate	Generate	prose survives the readout filter
+html-text	index.html	83	button		LABEL	no	ui.transform	Transform	prose survives the readout filter
+html-text	index.html	96	div.label		LABEL	yes	slider-chara.char-a	Char A	prose survives the readout filter
+html-text	index.html	105	div.label		LABEL	yes	slider-charb.char-b	Char B	prose survives the readout filter
+html-text	index.html	114	div.label		LABEL	yes	slider-evolve.evolve	Evolve	prose survives the readout filter
+html-text	index.html	144	span.label		LABEL	no	label.rain	Rain	prose survives the readout filter
+html-text	index.html	156	span.label		LABEL	no	label.metal	Metal	prose survives the readout filter
+html-text	index.html	166	span.label		LABEL	no	label.wind	Wind	prose survives the readout filter
+html-text	index.html	179	span.label		LABEL	no	label.crowd	Crowd	prose survives the readout filter
+html-text	index.html	189	span.label		LABEL	no	label.synth	Synth	prose survives the readout filter
+html-text	index.html	199	span.label		LABEL	no	label.organic	Organic	prose survives the readout filter
+html-text	index.html	211	div.knob-label		LABEL	yes	knob-label.brightness	Brightness	prose survives the readout filter
+html-text	index.html	221	div.knob-label		LABEL	yes	knob-label.mix	Mix	prose survives the readout filter
+html-text	index.html	232	div.freeze-label		LABEL	yes	freeze-label.freeze	Freeze	prose survives the readout filter
+html-attr	index.html	48	#gear-btn	aria-label	LABEL	yes	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	51	#settings-popover	aria-label	LABEL	yes	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	61	#lang-select	aria-label	LABEL	yes	lang-select	Interface language	prose survives the readout filter
+html-attr	index.html	83	button	aria-label	LABEL	yes	ui.transform-coming-soon-aria	Transform — coming soon	prose survives the readout filter
+html-attr	index.html	150	button.source-button	aria-label	LABEL	yes	source-button.metal-coming-soon-aria	Metal — coming soon	prose survives the readout filter
+html-attr	index.html	162	button.source-button	aria-label	LABEL	yes	source-button.wind-coming-soon-aria	Wind — coming soon	prose survives the readout filter
+html-attr	index.html	172	button.source-button	aria-label	LABEL	yes	source-button.crowd-coming-soon-aria	Crowd — coming soon	prose survives the readout filter
+html-attr	index.html	185	button.source-button	aria-label	LABEL	yes	source-button.synth-coming-soon-aria	Synth — coming soon	prose survives the readout filter
+html-attr	index.html	195	button.source-button	aria-label	LABEL	yes	source-button.organic-coming-soon-aria	Organic — coming soon	prose survives the readout filter

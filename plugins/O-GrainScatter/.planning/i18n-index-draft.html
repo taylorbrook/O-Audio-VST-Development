@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-GrainScatter, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-GrainScatter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 40%, #E8D0B8 100%);
+            color: #3C2F2F;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ── Layout ── */
+        .plugin-container {
+            width: 100%; height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            padding: 10px 24px 6px;
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            border-bottom: 1px solid rgba(139,115,85,0.25);
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+        }
+        .header .tagline {
+            font-size: 10px;
+            color: #8B7355;
+            letter-spacing: 1.5px;
+            font-style: italic;
+        }
+
+        /* ── Visualization Area ── */
+        .viz-area {
+            display: flex;
+            flex: 1 1 auto;
+            min-height: 200px;
+            padding: 8px 16px;
+            gap: 12px;
+        }
+        .viz-panel {
+            background: rgba(255,248,220,0.3);
+            border: 1px solid rgba(139,115,85,0.3);
+            border-radius: 4px;
+            position: relative;
+        }
+        .viz-panel .viz-label {
+            position: absolute;
+            top: 4px; left: 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8B7355;
+            opacity: 0.7;
+        }
+        .grain-viz { flex: 65; }
+        .euclidean-viz { flex: 35; }
+        .grain-viz canvas, .euclidean-viz canvas {
+            width: 100%; height: 100%;
+            display: block;
+        }
+
+        /* ── Freeze Toggle (between viz and controls) ── */
+        .freeze-bar {
+            display: flex;
+            justify-content: center;
+            padding: 4px 0 2px;
+        }
+
+        /* ── Controls Area ── */
+        .controls-area {
+            flex: 0 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 6px;
+            padding: 4px 16px 10px;
+        }
+
+        /* ── Control Groups ── */
+        .group {
+            background: rgba(255,248,220,0.2);
+            border: 1px solid rgba(139,115,85,0.2);
+            border-radius: 4px;
+            padding: 6px 10px;
+        }
+        .group-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8B7355;
+            margin-bottom: 6px;
+            font-variant: small-caps;
+        }
+        .group-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        /* ── Knob ── */
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 62px;
+        }
+        .knob-name {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5C4033;
+            margin-bottom: 3px;
+            text-align: center;
+            line-height: 1.1;
+            height: 18px;
+            display: flex;
+            align-items: center;
+        }
+        .knob {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid #8B7355;
+            position: relative;
+            cursor: pointer;
+            background:
+                radial-gradient(circle, transparent 86%, #C9A27B 86%, #C9A27B 90%, #8B7355 90%, #8B7355 92%, transparent 92%),
+                conic-gradient(from 0deg,
+                    #F5DEB3 0deg, #F5DEB3 18deg, #8B7355 18deg, #8B7355 19deg,
+                    #E8D5B7 19deg, #E8D5B7 36deg, #8B7355 36deg, #8B7355 37deg,
+                    #F5DEB3 37deg, #F5DEB3 54deg, #8B7355 54deg, #8B7355 55deg,
+                    #E8D5B7 55deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 73deg,
+                    #F5DEB3 73deg, #F5DEB3 90deg, #8B7355 90deg, #8B7355 91deg,
+                    #E8D5B7 91deg, #E8D5B7 108deg, #8B7355 108deg, #8B7355 109deg,
+                    #F5DEB3 109deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 127deg,
+                    #E8D5B7 127deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
+                    #F5DEB3 145deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 163deg,
+                    #E8D5B7 163deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 181deg,
+                    #F5DEB3 181deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 199deg,
+                    #E8D5B7 199deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
+                    #F5DEB3 217deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 235deg,
+                    #E8D5B7 235deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 253deg,
+                    #F5DEB3 253deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 271deg,
+                    #E8D5B7 271deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
+                    #F5DEB3 289deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 307deg,
+                    #E8D5B7 307deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 325deg,
+                    #F5DEB3 325deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 343deg,
+                    #E8D5B7 343deg, #E8D5B7 360deg
+                ),
+                radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3),
+                        inset -1px -1px 2px rgba(255,248,220,0.5),
+                        2px 2px 6px rgba(0,0,0,0.2);
+        }
+        .knob-indicator {
+            position: absolute;
+            top: 2px;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 18px solid #8B6914;
+            transform: translateX(-50%) rotate(0deg);
+            transform-origin: center 22px;
+            pointer-events: none;
+        }
+        .knob-value {
+            font-size: 9px;
+            color: #5C4033;
+            margin-top: 2px;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        /* ── Dropdown ── */
+        .dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 80px;
+        }
+        .dropdown-name {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5C4033;
+            margin-bottom: 3px;
+            text-align: center;
+            height: 18px;
+            display: flex;
+            align-items: center;
+        }
+        .dropdown {
+            width: 100%;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            padding: 4px 6px;
+            border-radius: 3px;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238B7355'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 5px center;
+            padding-right: 18px;
+        }
+        .dropdown:focus { outline: 1px solid #6B8E4E; }
+
+        /* ── Toggle ── */
+        .toggle {
+            background: rgba(139,168,112,0.2);
+            border: 2px solid #5C7A3A;
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .toggle.active {
+            background: rgba(107,142,35,0.5);
+            border-color: #2C3E10;
+        }
+
+        /* A LOAD-BEARING WIDTH PIN, not decoration. #stutter-gate-btn is a
+           [data-i18n] element, so assertion 7 does not measure IT — but its
+           parent, the inline-styled flex wrapper beside REPEATS, is not keyed
+           and shrink-wraps the button. French "Porte bég." is 16.87 px narrower
+           than "Stutter Gate", so an unpinned button CONTRACTS the wrapper in
+           French and the diff reports it as moved.
+
+           110px is the ENGLISH border box (109.95) rounded up, so English moves
+           by 0.05 px — an order of magnitude inside the gate's 0.5 px
+           tolerance — while the rectangle becomes language-invariant. It also
+           caps what a future French edit may spend here: "Porte bégaiement"
+           (138.58) would overflow it visibly instead of pushing silently. */
+        #stutter-gate-btn {
+            width: 110px;
+        }
+        /* ── Pitch gate dimming ── */
+        .dropdown-container {
+            transition: opacity 0.3s;
+        }
+        .dropdown-container.dimmed {
+            opacity: 0.25;
+            pointer-events: none;
+        }
+        .pitch-hint {
+            font-size: 8px;
+            color: #8B7355;
+            font-style: italic;
+            text-align: center;
+            width: 100%;
+            padding-top: 2px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .pitch-hint.visible {
+            opacity: 1;
+        }
+
+        .toggle.freeze-toggle.active {
+            box-shadow: 0 0 12px rgba(107,142,78,0.5), 0 0 24px rgba(107,142,78,0.2);
+            animation: freezePulse 2s ease-in-out infinite;
+        }
+        @keyframes freezePulse {
+            0%, 100% { box-shadow: 0 0 12px rgba(107,142,78,0.5), 0 0 24px rgba(107,142,78,0.2); }
+            50% { box-shadow: 0 0 20px rgba(107,142,78,0.7), 0 0 32px rgba(107,142,78,0.3); }
+        }
+
+        /* ── Fleuron ── */
+        .fleuron {
+            font-size: 11px;
+            color: rgba(92,64,51,0.3);
+            text-align: center;
+            padding: 2px 0;
+        }
+
+        /* ── Spatial Section ── */
+        .spatial-section {
+            padding: 4px 16px 6px;
+        }
+        .spatial-section .group {
+            background: rgba(255,248,220,0.2);
+            border: 1px solid rgba(139,115,85,0.2);
+            border-radius: 4px;
+            padding: 6px 10px;
+        }
+        .spatial-controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: flex-start;
+        }
+        .spatial-hint {
+            font-size: 8px;
+            color: #8B7355;
+            font-style: italic;
+            text-align: center;
+            width: 100%;
+            padding-top: 2px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .spatial-hint.visible {
+            opacity: 1;
+        }
+
+        /* ── Settings cluster (v2.5.0) ──────────────────────────────────────
+           The gear and its popover are NEW UI. They are positioned absolutely
+           in the header's empty right margin so that NOT ONE existing element
+           moves to make room for them — the page is a fixed 900x800 with
+           overflow:hidden and a spatial row that has exactly zero px of slack,
+           so an in-flow insertion anywhere would have to be paid for somewhere.
+
+           Styled in this plugin's own visual system rather than pasted in: the
+           Garamond of the body, the #8B7355 rules and #FFF8DC cream of the
+           knobs, and the olive rgba(107,142,78) the freeze toggle already uses
+           for its active state. */
+        .settings-cluster {
+            position: absolute;
+            top: 11px;
+            right: 24px;
+            z-index: 60;
+        }
+
+        .gear-btn {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(107,142,78,0.22);
+            border: 1px solid #8B7355;
+            border-radius: 50%;
+            color: #5C4033;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .gear-btn:hover { background: rgba(107,142,78,0.4); }
+        .gear-btn[aria-expanded="true"] { background: rgba(107,142,78,0.55); }
+        .gear-btn:focus-visible { outline: 2px solid #6B8E4E; outline-offset: 2px; }
+
+        /* Opens DOWNWARDS. The gear sits 11 px from the TOP of an 800 px frame,
+           so there is no reason to open upward the way the short-framed plugins
+           in this rollout had to.
+
+           WIDTH IS PINNED, and the pin is load-bearing for the same reason it
+           is on O-DigiDelay, O-AnalogEQ, O-Bass and O-SimpleReverb:
+           .settings-popover is NOT a [data-i18n] element, so assertion 7
+           measures its box in both languages, and French SHRINKS the caption
+           inside it (LANGUAGE -> LANGUE). An auto-width panel would therefore
+           CONTRACT in French and be reported as moved. A hard width makes the
+           rectangle language-invariant by construction. */
+        .settings-popover {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 61;
+            width: 170px;
+            padding: 7px 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(255,248,220,0.98);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(60,47,47,0.35);
+        }
+
+        .settings-popover[hidden] { display: none; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        /* nowrap because the row is space-between: a caption that wrapped would
+           grow the row's height and move the select beside it.
+
+           A GUARD, NOT A PIN, and labelled as such — its negative control is
+           reported in the commit message rather than claimed as a fix. It ships
+           declared because it converts the next French edit on this caption
+           from a silent push into a loud failure. */
+        .settings-label {
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #5C4033;
+            white-space: nowrap;
+        }
+
+        .settings-select {
+            flex: 0 0 auto;
+            padding: 1px 3px;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 2px;
+            color: #3C2F2F;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 10px;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+
+        .settings-select:focus { outline: 1px solid #6B8E4E; }
+    </style>
+</head>
+<body>
+<div class="plugin-container">
+    <!-- Header -->
+    <div class="header">
+        <h1data-i18n="ui.o-grainscatter" >O-GrainScatter</h1>
+        <span class="tagline" data-i18n="label.tagline">Harmonic Stutter Engine</span>
+    </div>
+
+    <!-- The language selector. NEW UI in v2.5.0, and the only control this
+         commit adds. Absolutely positioned in the header's empty right margin
+         so that no existing element moves to make room for it. -->
+    <div class="settings-cluster">
+        <button type="button" class="gear-btn" id="gear-btn"
+                aria-haspopup="dialog" aria-expanded="false"
+                data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+
+        <div class="settings-popover" id="settings-popover"
+             role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
+            <label class="settings-row" for="lang-select">
+                <span class="settings-label" data-i18n="label.language">Language</span>
+                <!-- ENDONYMS. Never localized: a French speaker looking for
+                     their language looks for "Fran&ccedil;ais". -->
+                <select class="settings-select" id="lang-select"
+                        data-i18n-aria="aria.langSelect" aria-label="Interface language">
+                    <option value="en">English</option>
+                    <option value="fr">Fran&ccedil;ais</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <!-- Visualization -->
+    <div class="viz-area">
+        <div class="viz-panel grain-viz">
+            <span class="viz-label" data-i18n="label.vizGrain">Grain Scatter</span>
+            <canvas id="grain-canvas"></canvas>
+        </div>
+        <div class="viz-panel euclidean-viz">
+            <span class="viz-label" data-i18n="label.vizEuclidean">Euclidean</span>
+            <canvas id="euclidean-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Freeze bar -->
+    <div class="freeze-bar">
+        <button class="toggle freeze-toggle" data-param="freeze" data-i18n="label.freeze">Freeze</button>
+    </div>
+
+    <div class="fleuron">&#10087;</div>
+
+    <!-- Controls -->
+    <div class="controls-area">
+        <!-- Group 1: Core Engine -->
+        <div class="group">
+            <div class="group-label" data-i18n="label.coreEngine">Core Engine</div>
+            <div class="group-controls">
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.grainSize">Grain Size</span>
+                    <div class="knob" data-param="grain_size"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="grain_size">100 ms</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.density">Density</span>
+                    <div class="knob" data-param="density"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="density">50%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.scan">Scan</span>
+                    <div class="knob" data-param="scan_position"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="scan_position">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.spread">Spread</span>
+                    <div class="knob" data-param="spread"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="spread">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.reverse">Reverse</span>
+                    <div class="knob" data-param="reverse"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="reverse">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.feedback">Feedback</span>
+                    <div class="knob" data-param="feedback"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="feedback">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.dryWet">Dry/Wet</span>
+                    <div class="knob" data-param="dry_wet"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="dry_wet">50%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.sizeRnd">Size Rnd</span>
+                    <div class="knob" data-param="size_random"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="size_random">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.ampRnd">Amp Rnd</span>
+                    <div class="knob" data-param="amp_random"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="amp_random">0%</span>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.shape">Shape</span>
+                    <select class="dropdown" data-param="grain_shape">
+                        <optiondata-i18n="ui.hann" >Hann</option>
+                        <optiondata-i18n="ui.triangle" >Triangle</option>
+                        <optiondata-i18n="ui.trapezoid" >Trapezoid</option>
+                        <optiondata-i18n="ui.tukey" >Tukey</option>
+                        <optiondata-i18n="ui.blackman" >Blackman</option>
+                        <optiondata-i18n="ui.exp-decay" >Exp Decay</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group 2: Pitch & Scale -->
+        <div class="group">
+            <div class="group-label" data-i18n="label.pitchScale">Pitch &amp; Scale</div>
+            <div class="group-controls">
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.pitchRnd">Pitch Rnd</span>
+                    <div class="knob" data-param="pitch_random"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="pitch_random">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.panRnd">Pan Rnd</span>
+                    <div class="knob" data-param="pan_random"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="pan_random">0%</span>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.scale">Scale</span>
+                    <select class="dropdown" data-param="scale">
+                        <optiondata-i18n="ui.chromatic" >Chromatic</option>
+                        <optiondata-i18n="ui.major" >Major</option>
+                        <optiondata-i18n="ui.minor" >Minor</option>
+                        <optiondata-i18n="ui.pentatonic" >Pentatonic</option>
+                        <optiondata-i18n="ui.whole-tone" >Whole Tone</option>
+                    </select>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.rootNote">Root Note</span>
+                    <select class="dropdown" data-param="root_note">
+                        <option>C</option><option>C#</option><option>D</option><option>D#</option>
+                        <option>E</option><option>F</option><option>F#</option><option>G</option>
+                        <option>G#</option><option>A</option><option>A#</option><option>B</option>
+                    </select>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.pitchMode">Pitch Mode</span>
+                    <select class="dropdown" data-param="pitch_mode">
+                        <optiondata-i18n="ui.random" >Random</option>
+                        <optiondata-i18n="ui.ladder-up" >Ladder Up</option>
+                        <optiondata-i18n="ui.ladder-down" >Ladder Down</option>
+                        <optiondata-i18n="ui.pendulum" >Pendulum</option>
+                    </select>
+                </div>
+                <div class="pitch-hint" id="pitch-hint" data-i18n="label.pitchHint"
+                     data-i18n-vars='{"n":"label.pitchRnd"}'>Increase Pitch Rnd to activate</div>
+            </div>
+        </div>
+
+        <!-- Group 3: Beat Sync -->
+        <div class="group">
+            <div class="group-label" data-i18n="label.beatSync">Beat Sync</div>
+            <div class="group-controls">
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.syncMode">Sync Mode</span>
+                    <select class="dropdown" data-param="sync_mode">
+                        <optiondata-i18n="ui.free" >Free</option>
+                        <option>1/4</option><option>1/8</option><option>1/16</option>
+                        <option>1/32</option><option>1/8T</option><option>1/16T</option>
+                    </select>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.probability">Probability</span>
+                    <div class="knob" data-param="probability"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="probability">100%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.repeats">Repeats</span>
+                    <div class="knob" data-param="repeats"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="repeats">4</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;padding-bottom:4px;">
+                    <button class="toggle" id="stutter-gate-btn" data-param="stutter_gate"
+                            data-i18n="label.stutterGate">Stutter Gate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group 4: Euclidean -->
+        <div class="group">
+            <div class="group-label" data-i18n="label.euclideanRhythm">Euclidean Rhythm</div>
+            <div class="group-controls">
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.pulses">Pulses</span>
+                    <div class="knob" data-param="euclidean_pulses"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="euclidean_pulses">4</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.steps">Steps</span>
+                    <div class="knob" data-param="euclidean_steps"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="euclidean_steps">8</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.rotation">Rotation</span>
+                    <div class="knob" data-param="euclidean_rotation"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="euclidean_rotation">0</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.swing">Swing</span>
+                    <div class="knob" data-param="euclidean_swing"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="euclidean_swing">50%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spatial Audio Section -->
+    <div class="spatial-section">
+        <div class="group" id="spatial-group">
+            <div class="group-label" data-i18n="label.spatialAudio">Spatial Audio</div>
+            <div class="spatial-controls-row">
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.mode">Mode</span>
+                    <select class="dropdown" data-param="spatial_mode">
+                        <optiondata-i18n="spatial-group.off" >Off</option>
+                        <optiondata-i18n="spatial-group.scatter" >Scatter</option>
+                        <optiondata-i18n="spatial-group.trajectory" >Trajectory</option>
+                    </select>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.azimuth">Azimuth</span>
+                    <div class="knob" data-param="azimuth"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="azimuth">0&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.elevation">Elevation</span>
+                    <div class="knob" data-param="elevation"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="elevation">0&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.azSpread">Az Spread</span>
+                    <div class="knob" data-param="az_spread"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="az_spread">90&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.elSpread">El Spread</span>
+                    <div class="knob" data-param="el_spread"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="el_spread">45&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.distance">Distance</span>
+                    <div class="knob" data-param="distance"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="distance">50%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.width">Width</span>
+                    <div class="knob" data-param="spatial_width"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="spatial_width">50%</span>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name" data-i18n="label.trajectory">Trajectory</span>
+                    <select class="dropdown" data-param="trajectory">
+                        <optiondata-i18n="spatial-group.static" >Static</option>
+                        <optiondata-i18n="spatial-group.orbital" >Orbital</option>
+                        <optiondata-i18n="spatial-group.spiral" >Spiral</option>
+                        <optiondata-i18n="spatial-group.random" >Random</option>
+                    </select>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.trajSpeed">Traj Speed</span>
+                    <div class="knob" data-param="traj_speed"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="traj_speed">100%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.distLpf">Dist LPF</span>
+                    <div class="knob" data-param="dist_lpf"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="dist_lpf">100%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.doppler">Doppler</span>
+                    <div class="knob" data-param="doppler"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="doppler">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name" data-i18n="label.smoothing">Smoothing</span>
+                    <div class="knob" data-param="spatial_smooth"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="spatial_smooth">5 ms</span>
+                </div>
+            </div>
+            <div class="spatial-hint" id="spatial-hint" data-i18n="label.spatialHint">Set Mode to Scatter or Trajectory to enable</div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

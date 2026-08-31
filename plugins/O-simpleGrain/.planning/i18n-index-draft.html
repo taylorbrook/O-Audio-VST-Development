@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-simpleGrain, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-simpleGrain</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay (shared house style with the simple-series siblings) -->
+  <img src="img/insects.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span data-i18n="title-accent.grain" class="title-accent">Grain</span></h1>
+        <p data-i18n="subtitle.granular-synthesizer-a-field" class="subtitle">Granular Synthesizer &#183; A Field Guide</p>
+      </div>
+
+      <!-- Concept-preset tour bar (8 buttons; wired in Phase 3.3 — inert shell now) -->
+      <div class="preset-bar-container">
+        <span class="preset-fleuron">&#10086;</span>
+        <div class="preset-bar-tour" id="presetTour" role="group" aria-label="Concept presets">
+          <button class="tour-btn" data-preset="Single Grain"       data-tip="lessonSingleGrain">Single Grain</button>
+          <button class="tour-btn" data-preset="Pitched Buzz"       data-tip="lessonPitchedBuzz">Pitched Buzz</button>
+          <button class="tour-btn" data-preset="Fragments"          data-tip="lessonFragments">Fragments</button>
+          <button class="tour-btn" data-preset="Smooth Cloud"       data-tip="lessonSmoothCloud">Smooth Cloud</button>
+          <button class="tour-btn" data-preset="Frozen Pad"         data-tip="lessonFrozenPad">Frozen Pad</button>
+          <button class="tour-btn" data-preset="Asynchronous Cloud" data-tip="lessonAsyncCloud">Async Cloud</button>
+          <button class="tour-btn" data-preset="Granular Fire"      data-tip="lessonGranularFire">Granular Fire</button>
+          <button class="tour-btn" data-preset="Rect Click"         data-tip="lessonRectClick">Rect Click</button>
+          <button class="tip-toggle" id="tipToggle" aria-pressed="true" aria-label="Toggle tooltips">?</button>
+        </div>
+        <!-- One-line lesson caption — set when a preset is clicked (Phase 3.3) -->
+        <div data-i18n="tourCaption" class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a concept preset to hear it isolated.</div>
+      </div>
+    </header>
+
+    <!-- ─── Workspace: 2×2 viz grid (left) + side control rail (right) ── -->
+    <div class="workspace">
+      <!-- Main viz column -->
+      <main class="viz-main">
+        <!-- 2×2 visualization grid — empty placeholders this phase; 3.2 fills them -->
+        <section class="viz-grid">
+          <div class="viz-cell" data-tip="vizCloud">
+            <div class="viz-label">Grain Cloud &#183; <span data-i18n="viz-hint.each-grain-scatters-as" class="viz-hint">each grain scatters as a dot (read-position &times; pitch)</span></div>
+            <div class="canvas-wrap"><canvas id="cloudCanvas"></canvas></div>
+          </div>
+          <div class="viz-cell" data-tip="vizWave">
+            <div class="viz-label">Source Waveform &#183; <span data-i18n="viz-hint.playhead-freeze-pin-spray" class="viz-hint">playhead, freeze pin &amp; spray range</span></div>
+            <div class="canvas-wrap">
+              <canvas id="sourceWaveCanvas"></canvas>
+              <!-- Window-envelope inset (UI-03) tucked into the waveform corner -->
+              <div class="window-inset">
+                <span data-i18n="inset-label.window" class="inset-label">Window</span>
+                <canvas id="windowInsetCanvas"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="viz-cell" data-tip="vizScope">
+            <div class="viz-label">Output Scope &#183; <span data-i18n="viz-hint.the-post-gain-waveform" class="viz-hint">the post-gain waveform</span></div>
+            <div class="canvas-wrap scope-wrap"><canvas id="scopeCanvas"></canvas></div>
+          </div>
+          <div class="viz-cell" data-tip="vizSpectrum">
+            <div class="viz-label">Spectrum &#183; <span data-i18n="viz-hint.discrete-sidebands-at-scatter" class="viz-hint">discrete sidebands at scatter 0 &rarr; noise as scatter rises</span></div>
+            <div class="canvas-wrap"><canvas id="spectrumCanvas"></canvas></div>
+          </div>
+        </section>
+
+        <!-- Grain / overlap / CPU readout (live values land in 3.2) -->
+        <div class="grain-readout" data-tip="readout">
+          <div class="readout-item"><span data-i18n="readout-key.grains" class="readout-key">Grains</span><span class="readout-val" id="readoutGrains">0/192</span></div>
+          <div class="readout-item"><span data-i18n="readout-key.overlap" class="readout-key">Overlap</span><span class="readout-val" id="readoutOverlap">&times;0.0</span></div>
+          <div class="readout-item"><span data-i18n="readout-key.cpu" class="readout-key">CPU</span><span class="cpu-bar" id="cpuBar"><span class="cpu-fill" id="cpuFill"></span></span></div>
+        </div>
+      </main>
+
+      <!-- Side control rail -->
+      <aside class="side-rail">
+        <!-- Source -->
+        <section class="group">
+          <h2 data-i18n="group-title.source" class="group-title">Source</h2>
+          <div class="source-row">
+            <div class="source-pick-row">
+              <div class="select-cell" data-tip="sourceSample">
+                <select class="combo" id="combo-sourceSample" aria-label="Source sample"></select>
+              </div>
+              <button class="btn-load" id="btnLoad" type="button" data-tip="loadSource">Load&#8230;</button>
+            </div>
+            <div class="source-drop-zone" id="source-drop-zone" data-tip="dropZone">
+              Drag a .wav / .aif here to granulate your own sound
+            </div>
+            <div class="source-status" id="sourceStatus"></div>
+          </div>
+        </section>
+
+        <!-- Grain -->
+        <section class="group">
+          <h2 data-i18n="group-title.grain" class="group-title">Grain</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="grainSize">
+              <div class="knob" id="knob-grainSize" data-param="grainSize"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.size" class="knob-label">Size</div>
+              <div class="knob-value" id="val-grainSize">30 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="density">
+              <div class="knob" id="knob-density" data-param="density"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.density" class="knob-label">Density</div>
+              <div class="knob-value" id="val-density">40/s</div>
+            </div>
+            <div class="knob-cell" data-tip="position">
+              <div class="knob" id="knob-position" data-param="position"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.position" class="knob-label">Position</div>
+              <div class="knob-value" id="val-position">50%</div>
+            </div>
+            <div class="knob-cell" data-tip="scan">
+              <div class="knob" id="knob-scan" data-param="scan"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.scan" class="knob-label">Scan</div>
+              <div class="knob-value" id="val-scan">0%</div>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <button class="toggle" id="toggle-freeze" data-tip="freeze">
+              Freeze<span class="fleuron-corner">&#10086;</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Window -->
+        <section class="group">
+          <h2 data-i18n="group-title.window" class="group-title">Window</h2>
+          <div class="knob-row">
+            <div class="select-cell" data-tip="windowShape">
+              <select class="combo" id="combo-windowShape" aria-label="Window shape"></select>
+              <div data-i18n="knob-label.shape" class="knob-label">Shape</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Spray & Scatter -->
+        <section class="group">
+          <h2 data-i18n="group-title.spray-scatter" class="group-title">Spray &amp; Scatter</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="pitchSpray">
+              <div class="knob knob-sm" id="knob-pitchSpray" data-param="pitchSpray"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.pitch-spray" class="knob-label">Pitch Spray</div>
+              <div class="knob-value" id="val-pitchSpray">0 st</div>
+            </div>
+            <div class="knob-cell" data-tip="positionSpray">
+              <div class="knob knob-sm" id="knob-positionSpray" data-param="positionSpray"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.pos-spray" class="knob-label">Pos Spray</div>
+              <div class="knob-value" id="val-positionSpray">0%</div>
+            </div>
+            <div class="knob-cell" data-tip="scatter">
+              <div class="knob knob-sm" id="knob-scatter" data-param="scatter"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.scatter" class="knob-label">Scatter</div>
+              <div class="knob-value" id="val-scatter">0%</div>
+            </div>
+            <div class="knob-cell" data-tip="grainPitch">
+              <div class="knob knob-sm" id="knob-grainPitch" data-param="grainPitch"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.grain-pitch" class="knob-label">Grain Pitch</div>
+              <div class="knob-value" id="val-grainPitch">0 st</div>
+            </div>
+            <div class="knob-cell" data-tip="panSpray">
+              <div class="knob knob-sm" id="knob-panSpray" data-param="panSpray"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.pan-spray" class="knob-label">Pan Spray</div>
+              <div class="knob-value" id="val-panSpray">0%</div>
+            </div>
+            <div class="knob-cell" data-tip="velToDensity">
+              <div class="knob knob-sm" id="knob-velToDensity" data-param="velToDensity"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.vel-density" class="knob-label">Vel&#8594;Density</div>
+              <div class="knob-value" id="val-velToDensity">0%</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Amp ADSR -->
+        <section class="group group-env">
+          <h2 data-i18n="group-title.amplitude-envelope" class="group-title">Amplitude Envelope</h2>
+          <div class="toggle-row">
+            <button class="toggle" id="toggle-adsrEnabled" data-tip="adsrEnabled">
+              ADSR<span class="fleuron-corner">&#10086;</span>
+            </button>
+          </div>
+          <div class="knob-row" id="env-knobs">
+            <div class="knob-cell" data-tip="ampAttack">
+              <div class="knob knob-sm" id="knob-ampAttack" data-param="ampAttack"><div class="knob-stem"></div></div>
+              <div data-i18n="env-knobs.attack" class="knob-label">Attack</div>
+              <div class="knob-value" id="val-ampAttack">10 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="ampDecay">
+              <div class="knob knob-sm" id="knob-ampDecay" data-param="ampDecay"><div class="knob-stem"></div></div>
+              <div data-i18n="env-knobs.decay" class="knob-label">Decay</div>
+              <div class="knob-value" id="val-ampDecay">300 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="ampSustain">
+              <div class="knob knob-sm" id="knob-ampSustain" data-param="ampSustain"><div class="knob-stem"></div></div>
+              <div data-i18n="env-knobs.sustain" class="knob-label">Sustain</div>
+              <div class="knob-value" id="val-ampSustain">80%</div>
+            </div>
+            <div class="knob-cell" data-tip="ampRelease">
+              <div class="knob knob-sm" id="knob-ampRelease" data-param="ampRelease"><div class="knob-stem"></div></div>
+              <div data-i18n="env-knobs.release" class="knob-label">Release</div>
+              <div class="knob-value" id="val-ampRelease">400 ms</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Output -->
+        <section class="group group-output">
+          <h2 data-i18n="group-title.output" class="group-title">Output</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="outputLevel">
+              <div class="knob" id="knob-outputLevel" data-param="outputLevel"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.level" class="knob-label">Level</div>
+              <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- ─── On-screen keyboard (play without external MIDI) ─────── -->
+    <section class="keyboard-panel">
+      <div class="keyboard-label">Play &#183; <span data-i18n="kbd-hint.click-the-keys-or" class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+    </section>
+  </div>
+
+  <!-- Floating tooltip + toast -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- JUCE native-interop guard (must load before app.js as a module) -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

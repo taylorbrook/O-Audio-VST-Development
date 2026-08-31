@@ -1,0 +1,34 @@
+# plugin	O-Comp
+# uiRoot	Source/ui/public
+# generated	2026-08-29T18:09:59.851Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	399	div.title		LABEL	no	title.ouaricon-compressor	Ouaricon Compressor	prose survives the readout filter
+html-text	index.html	403	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	407	#preset-load		LABEL	no	preset-load	Load	prose survives the readout filter
+html-text	index.html	408	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	424	div.param-label		LABEL	no	param-label.threshold	Threshold	prose survives the readout filter
+html-text	index.html	425	#threshold-value		READOUT	no	threshold-value	-20.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	439	div.param-label		LABEL	no	param-label.ratio	Ratio	prose survives the readout filter
+html-text	index.html	454	div.param-label		LABEL	no	param-label.attack	Attack	prose survives the readout filter
+html-text	index.html	455	#attack-value		READOUT	no	attack-value	10.0 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	469	div.param-label		LABEL	no	param-label.release	Release	prose survives the readout filter
+html-text	index.html	470	#release-value		READOUT	no	release-value	100 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	484	div.param-label		LABEL	no	param-label.knee	Knee	prose survives the readout filter
+html-text	index.html	485	#knee-value		READOUT	no	knee-value	6.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	499	div.param-label		LABEL	no	param-label.output	Output	prose survives the readout filter
+html-text	index.html	500	#output-value		READOUT	no	output-value	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	505	div.param-label		LABEL	no	param-label.auto-gain	Auto-Gain	prose survives the readout filter
+html-text	index.html	506	#auto-gain-toggle		LABEL	no	auto-gain-toggle	OFF	prose survives the readout filter
+html-text	index.html	534	div.viz-label		LABEL	no	viz-label.transfer-curve	Transfer Curve	prose survives the readout filter
+html-attr	index.html	401	#preset-prev	title	LABEL	no	preset-prev	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	403	#preset-name	title	UNSURE	no	preset-name-2	Click to browse presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	406	#preset-next	title	LABEL	no	preset-next	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	407	#preset-load	title	LABEL	no	preset-load-2	Load preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	408	#preset-save	title	LABEL	no	preset-save-2	Save preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 563	759	toggle.textContent		LABEL	no	ui.on	ON	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 563	759	toggle.textContent		LABEL	no	ui.off	OFF	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 563	771	toggle.textContent		LABEL	no	ui.on-2	ON	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 563	771	toggle.textContent		LABEL	no	ui.off-2	OFF	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 563	1008	emptyItem.textContent		LABEL	no	ui.no-presets	No presets	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 563	1018	header.textContent		LABEL	no	ui.presets	Presets	prose survives the readout filter

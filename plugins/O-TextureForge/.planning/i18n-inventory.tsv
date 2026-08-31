@@ -1,0 +1,29 @@
+# plugin	O-TextureForge
+# uiRoot	Source/ui/public
+# generated	2026-08-29T03:04:13.640Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	42	h1		LABEL	no	ui.o-textureforge	O-TextureForge	prose survives the readout filter
+html-text	index.html	43	span.tagline		LABEL	no	tagline.concatenative-texture-engine	Concatenative Texture Engine	prose survives the readout filter
+html-text	index.html	54	div.scatter-placeholder		UNSURE	no	scatter-placeholder.drop-an-audio-file	Drop an audio file to begin	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	61	span.section-label		LABEL	no	section-label.timbral-macros	Timbral Macros	prose survives the readout filter
+html-text	index.html	64	span.knob-label		LABEL	no	knob-label.energy	Energy	prose survives the readout filter
+html-text	index.html	69	span.knob-label		LABEL	no	knob-label.brightness	Brightness	prose survives the readout filter
+html-text	index.html	74	span.knob-label		LABEL	no	knob-label.texture	Texture	prose survives the readout filter
+html-text	index.html	81	span.section-label		LABEL	no	section-label.scatter-position	Scatter Position	prose survives the readout filter
+html-text	index.html	84	span.knob-label		LABEL	no	knob-label.scatter-x	Scatter X	prose survives the readout filter
+html-text	index.html	89	span.knob-label		LABEL	no	knob-label.scatter-y	Scatter Y	prose survives the readout filter
+html-text	index.html	94	span.knob-label		LABEL	no	knob-label.variation	Variation	prose survives the readout filter
+html-text	index.html	101	span.umap-progress-label		LABEL	no	umap-progress-label.umap	UMAP	prose survives the readout filter
+html-text	index.html	114	span.knob-label		LABEL	no	knob-label.position	Position	prose survives the readout filter
+html-text	index.html	119	span.knob-label		LABEL	no	knob-label.grain-size	Grain Size	prose survives the readout filter
+html-text	index.html	120	span.knob-value		READOUT	no	knob-value.50ms	50ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	124	span.knob-label		LABEL	no	knob-label.density	Density	prose survives the readout filter
+html-text	index.html	129	span.knob-label		LABEL	no	knob-label.crossfade	Crossfade	prose survives the readout filter
+html-text	index.html	134	span.knob-label		LABEL	no	knob-label.gain	Gain	prose survives the readout filter
+html-text	index.html	135	span.knob-value		READOUT	no	knob-value.0-db	0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	139	span.midi-mode-label		LABEL	no	midi-mode-label.midi-mode	MIDI Mode	prose survives the readout filter
+html-text	index.html	141	option		LABEL	no	midi-mode.pitch-mapped	Pitch-Mapped	prose survives the readout filter
+html-text	index.html	142	option		LABEL	no	midi-mode.trigger-modulate	Trigger + Modulate	prose survives the readout filter
+html-text	index.html	143	option		LABEL	no	midi-mode.generative-drone	Generative Drone	prose survives the readout filter
+html-text	index.html	145	#drop-zone		LABEL	no	drop-zone	Drop audio file here	prose survives the readout filter

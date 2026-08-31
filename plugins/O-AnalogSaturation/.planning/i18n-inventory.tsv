@@ -1,0 +1,25 @@
+# plugin	O-AnalogSaturation
+# uiRoot	Source/ui/public
+# generated	2026-08-29T02:28:43.738Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	593	div.title		LABEL	no	title.ouaricon-saturation	OUARICON SATURATION	prose survives the readout filter
+html-text	index.html	609	span.settings-label		LABEL	yes	settings-popover.language	Language	prose survives the readout filter
+html-text	index.html	614	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	615	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	626	button.model-button.active		LABEL	no	model-button.magnetic	MAGNETIC	prose survives the readout filter
+html-text	index.html	627	button.model-button		LABEL	no	model-button.tube	TUBE	prose survives the readout filter
+html-text	index.html	628	button.model-button		LABEL	no	model-button.transformer	TRANSFORMER	prose survives the readout filter
+html-text	index.html	629	button.model-button		LABEL	no	model-button.diode	DIODE	prose survives the readout filter
+html-text	index.html	645	div.vu-label		LABEL	yes	vu-label.in	IN	prose survives the readout filter
+html-text	index.html	658	div.knob-label		LABEL	yes	knob-label.intensity	INTENSITY	prose survives the readout filter
+html-text	index.html	682	div.vu-label		LABEL	yes	vu-label.out	OUT	prose survives the readout filter
+html-text	index.html	687	div.quality-label		LABEL	yes	quality-label.quality	QUALITY	prose survives the readout filter
+html-text	index.html	693	button.quality-button		LABEL	no	quality-button.low	LOW	prose survives the readout filter
+html-text	index.html	694	button.quality-button.active		LABEL	no	quality-button.mid	MID	prose survives the readout filter
+html-text	index.html	695	button.quality-button		LABEL	no	quality-button.high	HIGH	prose survives the readout filter
+html-text	index.html	700	#autogainToggle		LABEL	yes	autogainToggle	AUTOGAIN	prose survives the readout filter
+html-attr	index.html	601	#gear-btn	aria-label	LABEL	yes	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	604	#settings-popover	aria-label	LABEL	yes	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	613	#lang-select	aria-label	LABEL	yes	lang-select	Interface language	prose survives the readout filter
+html-attr	index.html	666	#snakeImage	alt	LABEL	yes	snakeImage	Snake illustration	prose survives the readout filter

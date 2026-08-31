@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Reed, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Reed</title>
+    <link rel="stylesheet" href="/css/tuning-panel.css">
+    <style>
+        /* ====================================================================
+           O-Reed Naturalist Theme
+           Ouaricon Audio - Physical Modeling Reed Wind Synthesizer
+           ==================================================================== */
+
+        :root {
+            --bg-paper: #F5E6D3;
+            --bg-paper-mid: #EBD9C7;
+            --bg-paper-dark: #E8D5BE;
+            --bg-paper-darker: #D4C4AD;
+            --bg-accent: #D4C4B0;
+            --brown-border: #8B7355;
+            --brown-frame: #5C4033;
+            --brown-frame-light: #7A5C47;
+            --brown-text: #3C2F2F;
+            --brown-text-light: #6B5B4F;
+            --brown-text-lighter: #8B7B6F;
+            --green-light: #8BA870;
+            --green-mid: #6B8E4E;
+            --green-dark: #4A6B35;
+            --green-darkest: #2C3E10;
+            --green-accent: #A3C288;
+            --knob-ring: #C9A27B;
+            --knob-track: #D4C4AD;
+            --knob-fill: #6B8E4E;
+            --knob-size: 50px;
+            --white-overlay: rgba(255, 255, 255, 0.15);
+            --shadow-soft: rgba(60, 47, 47, 0.15);
+            --shadow-hard: rgba(60, 47, 47, 0.3);
+            --toggle-off: #C4B39A;
+            --toggle-on: #6B8E4E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 900px;
+            height: 600px;
+            overflow: hidden;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            background: var(--bg-paper);
+            color: var(--brown-text);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ====================================================================
+           Header Bar
+           ==================================================================== */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            height: 36px;
+            min-height: 36px;
+            padding: 0 12px;
+            background: var(--brown-frame);
+            color: var(--bg-paper);
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .plugin-name {
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-right: auto;
+        }
+
+        .tab-btn {
+            background: none;
+            border: 1px solid rgba(245, 230, 211, 0.3);
+            color: var(--bg-paper);
+            padding: 4px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            transition: all 0.15s;
+        }
+        .tab-btn:hover { background: rgba(245, 230, 211, 0.15); }
+        .tab-btn.active {
+            background: var(--green-dark);
+            border-color: var(--green-mid);
+        }
+
+        .brand-label {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.5;
+            margin-left: 4px;
+        }
+
+        /* ====================================================================
+           Tab Content
+           ==================================================================== */
+        .tab-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tab-panel {
+            display: none;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .tab-panel.active { display: flex; }
+
+        /* ====================================================================
+           Instrument Panel (scrollable)
+           ==================================================================== */
+        .instrument-panel {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            padding: 10px 14px 14px;
+        }
+
+        /* ====================================================================
+           XY Pad
+           ==================================================================== */
+        .xy-pad-container {
+            margin-bottom: 10px;
+        }
+
+        .xy-pad-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 4px;
+        }
+
+        .xy-pad-wrap {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .xy-pad-box {
+            position: relative;
+            width: 200px;
+            height: 170px;
+            background: rgba(255, 255, 255, 0.35);
+            border: 1px solid var(--brown-border);
+            border-radius: 6px;
+            cursor: crosshair;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .xy-axis-label {
+            position: absolute;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-lighter);
+        }
+        .xy-axis-x { bottom: 3px; left: 50%; transform: translateX(-50%); }
+        .xy-axis-y { left: 3px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+
+        .xy-cursor {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--green-mid);
+            border: 2px solid var(--brown-text);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 2;
+            box-shadow: 0 0 4px var(--shadow-soft);
+        }
+
+        .xy-crosshair-h, .xy-crosshair-v {
+            position: absolute;
+            background: rgba(107, 142, 78, 0.3);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .xy-crosshair-h { height: 1px; left: 0; right: 0; }
+        .xy-crosshair-v { width: 1px; top: 0; bottom: 0; }
+
+        .xy-preset-marker {
+            position: absolute;
+            font-size: 7px;
+            color: var(--brown-text-lighter);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0.6;
+            white-space: nowrap;
+        }
+
+        .xy-info-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .xy-preset-select {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--brown-border);
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-family: inherit;
+            font-size: 11px;
+            color: var(--brown-text);
+            cursor: pointer;
+            outline: none;
+            width: 100%;
+        }
+        .xy-preset-select:focus { border-color: var(--green-mid); }
+
+        .xy-values {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .xy-val-item {
+            font-size: 9px;
+            color: var(--brown-text-light);
+        }
+        .xy-val-item span {
+            font-style: italic;
+            color: var(--brown-text);
+        }
+
+        /* ====================================================================
+           Section (collapsible)
+           ==================================================================== */
+        .section {
+            margin-bottom: 6px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid var(--bg-paper-darker);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            padding: 5px 8px;
+            cursor: pointer;
+            gap: 5px;
+            transition: background 0.15s;
+        }
+        .section-header:hover { background: var(--white-overlay); }
+
+        .section-chevron {
+            font-size: 9px;
+            color: var(--brown-text-lighter);
+            transition: transform 0.2s;
+            width: 10px;
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--brown-text-lighter);
+        }
+
+        .section-content {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.25s ease, padding 0.25s ease;
+            padding: 4px 8px 8px;
+        }
+
+        .section.collapsed .section-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .section.collapsed .section-content {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        /* ====================================================================
+           Param Row
+           ==================================================================== */
+        .param-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+
+        /* ====================================================================
+           Knob Control
+           ==================================================================== */
+        .knob-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60px;
+            gap: 1px;
+        }
+
+        .knob-wrapper {
+            width: var(--knob-size);
+            height: var(--knob-size);
+            position: relative;
+            cursor: grab;
+        }
+        .knob-wrapper:active { cursor: grabbing; }
+
+        .knob-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: var(--knob-track);
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .knob-fill {
+            fill: none;
+            stroke: var(--knob-fill);
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .knob-center {
+            fill: var(--bg-paper);
+            stroke: var(--bg-paper-darker);
+            stroke-width: 1;
+        }
+
+        .knob-indicator {
+            fill: none;
+            stroke: var(--brown-text);
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .knob-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--brown-text-light);
+            text-align: center;
+            line-height: 1.1;
+            max-width: 60px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .knob-value {
+            font-size: 9px;
+            color: var(--brown-text);
+            text-align: center;
+            font-style: italic;
+            min-height: 11px;
+        }
+
+        /* ====================================================================
+           Dropdown Control (inline)
+           ==================================================================== */
+        .dropdown-control {
+            margin-top: 4px;
+        }
+
+        .dropdown-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-lighter);
+            margin-bottom: 2px;
+        }
+
+        .dropdown-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid var(--brown-border);
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-family: inherit;
+            font-size: 11px;
+            color: var(--brown-text);
+            cursor: pointer;
+            outline: none;
+        }
+        .dropdown-select:focus { border-color: var(--green-mid); }
+
+        /* ====================================================================
+           Toggle Control
+           ==================================================================== */
+        .toggle-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 0;
+        }
+
+        .toggle-track {
+            width: 34px;
+            height: 18px;
+            border-radius: 9px;
+            background: var(--toggle-off);
+            position: relative;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .toggle-track.on { background: var(--toggle-on); }
+
+        .toggle-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--bg-paper);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+            box-shadow: 0 1px 3px var(--shadow-soft);
+        }
+        .toggle-track.on .toggle-thumb { left: 18px; }
+
+        .toggle-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brown-text-light);
+        }
+
+        /* ====================================================================
+           Bore Visualization Placeholder
+           ==================================================================== */
+        .bore-viz-placeholder {
+            width: 100%;
+            height: 110px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px dashed var(--bg-paper-darker);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--brown-text-lighter);
+            font-size: 11px;
+            font-style: italic;
+        }
+
+        /* ====================================================================
+           Tuning Panel
+           ==================================================================== */
+        #tuning-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .tuning-tab-panel {
+            flex-direction: column;
+            padding: 12px 18px;
+            overflow-y: auto;
+        }
+
+        /* ====================================================================
+           Effects Placeholder
+           ==================================================================== */
+        .effects-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--brown-text-lighter);
+        }
+        .effects-placeholder h2 {
+            font-weight: 400;
+            font-style: italic;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .effects-placeholder p {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* ====================================================================
+           Scrollbar
+           ==================================================================== */
+        .instrument-panel::-webkit-scrollbar { width: 5px; }
+        .instrument-panel::-webkit-scrollbar-track { background: transparent; }
+        .instrument-panel::-webkit-scrollbar-thumb {
+            background: var(--bg-paper-darker);
+            border-radius: 3px;
+        }
+        .instrument-panel::-webkit-scrollbar-thumb:hover {
+            background: var(--brown-border);
+        }
+
+        .tuning-tab-panel::-webkit-scrollbar { width: 5px; }
+        .tuning-tab-panel::-webkit-scrollbar-track { background: transparent; }
+        .tuning-tab-panel::-webkit-scrollbar-thumb {
+            background: var(--bg-paper-darker);
+            border-radius: 3px;
+        }
+
+        /* ====================================================================
+           Utility
+           ==================================================================== */
+        .hidden { display: none !important; }
+
+        .controls-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================================================================
+         Header Bar
+         ================================================================ -->
+    <div class="header-bar">
+        <span data-i18n="plugin-name.o-reed" class="plugin-name">O-Reed</span>
+        <button data-i18n="tab-btn.instrument" class="tab-btn active" data-tab="instrument">Instrument</button>
+        <button data-i18n="tab-btn.tuning" class="tab-btn" data-tab="tuning">Tuning</button>
+        <button data-i18n="tab-btn.fx" class="tab-btn" data-tab="fx">FX</button>
+        <span data-i18n="brand-label.ouaricon" class="brand-label">Ouaricon</span>
+    </div>
+
+    <!-- ================================================================
+         Tab Content
+         ================================================================ -->
+    <div class="tab-content">
+
+        <!-- INSTRUMENT TAB -->
+        <div class="tab-panel active" id="tab-instrument">
+            <div class="instrument-panel">
+
+                <!-- XY Pad: Bore Character x Double Reed -->
+                <div class="xy-pad-container">
+                    <div data-i18n="tab-instrument.instrument-morphing" class="xy-pad-label">Instrument Morphing</div>
+                    <div class="xy-pad-wrap">
+                        <div class="xy-pad-box" id="xy-pad">
+                            <span data-i18n="xy-pad.bore-character" class="xy-axis-label xy-axis-x">Bore Character</span>
+                            <span data-i18n="xy-pad.double-reed" class="xy-axis-label xy-axis-y">Double Reed</span>
+                            <div class="xy-crosshair-h" id="xy-ch"></div>
+                            <div class="xy-crosshair-v" id="xy-cv"></div>
+                            <div class="xy-cursor" id="xy-cursor"></div>
+                        </div>
+                        <div class="xy-info-panel">
+                            <div class="dropdown-control">
+                                <div data-i18n="tab-instrument.instrument-preset" class="dropdown-label">Instrument Preset</div>
+                                <select class="xy-preset-select" id="instrumentPreset"></select>
+                            </div>
+                            <div class="xy-values">
+                                <div class="xy-val-item">Bore: <span id="xy-bore-val">0.00</span></div>
+                                <div class="xy-val-item">Reed: <span id="xy-reed-val">0.00</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRIMARY CONTROLS (expanded by default) -->
+                <div class="section" data-expanded="true">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.primary-controls" class="section-title">Primary Controls</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="breathPressure">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.breath" class="knob-label">Breath</div>
+                                <div class="knob-value">0.50</div>
+                            </div>
+                            <div class="knob-control" data-param="embouchure">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.embouchure" class="knob-label">Embouchure</div>
+                                <div class="knob-value">0.40</div>
+                            </div>
+                            <div class="knob-control" data-param="reedHardness">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.reed-hard" class="knob-label">Reed Hard.</div>
+                                <div class="knob-value">0.50</div>
+                            </div>
+                            <div class="knob-control" data-param="outputGain">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.output" class="knob-label">Output</div>
+                                <div class="knob-value">0.0 dB</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BORE & RESONANCE (collapsed) -->
+                <div class="section collapsed">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.bore-resonance" class="section-title">Bore &amp; Resonance</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="boreCharacter">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.character" class="knob-label">Character</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="boreDiameter">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.diameter" class="knob-label">Diameter</div>
+                                <div class="knob-value">0.50</div>
+                            </div>
+                            <div class="knob-control" data-param="bellSize">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.bell-size" class="knob-label">Bell Size</div>
+                                <div class="knob-value">0.50</div>
+                            </div>
+                            <div class="knob-control" data-param="boreLength">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.length" class="knob-label">Length</div>
+                                <div class="knob-value">0.50</div>
+                            </div>
+                            <div class="knob-control" data-param="toneHoleCutoff">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.tone-hole" class="knob-label">Tone Hole</div>
+                                <div class="knob-value">1500 Hz</div>
+                            </div>
+                            <div class="knob-control" data-param="registerHole">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.register" class="knob-label">Register</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-control">
+                            <div data-i18n="tab-instrument.bore-profile" class="dropdown-label">Bore Profile</div>
+                            <select class="dropdown-select" id="boreProfile"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BORE VISUALIZATION (collapsed) -->
+                <div class="section collapsed">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.bore-visualization" class="section-title">Bore Visualization</span>
+                    </div>
+                    <div class="section-content">
+                        <div data-i18n="tab-instrument.bore-cross-section-visualization" class="bore-viz-placeholder">
+                            Bore cross-section visualization (coming soon)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REED (collapsed) -->
+                <div class="section collapsed">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.reed-2" class="section-title">Reed</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="reedOpening">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.opening" class="knob-label">Opening</div>
+                                <div class="knob-value">0.40</div>
+                            </div>
+                            <div class="knob-control" data-param="reedMass">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.mass" class="knob-label">Mass</div>
+                                <div class="knob-value">0.30</div>
+                            </div>
+                            <div class="knob-control" data-param="reedDamping">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.damping" class="knob-label">Damping</div>
+                                <div class="knob-value">0.50</div>
+                            </div>
+                            <div class="knob-control" data-param="doubleReed">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.double-reed" class="knob-label">Double Reed</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="mouthpieceVol">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.mouthpiece" class="knob-label">Mouthpiece</div>
+                                <div class="knob-value">0.30</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EXPRESSION (collapsed) -->
+                <div class="section collapsed">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.expression" class="section-title">Expression</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="vibratoDepth">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.vib-depth" class="knob-label">Vib Depth</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="vibratoRate">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.vib-rate" class="knob-label">Vib Rate</div>
+                                <div class="knob-value">5.0 Hz</div>
+                            </div>
+                            <div class="knob-control" data-param="growlAmount">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.growl" class="knob-label">Growl</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="flutterTongue">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.flutter" class="knob-label">Flutter</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="subtone">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.subtone" class="knob-label">Subtone</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="attackChiff">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.chiff" class="knob-label">Chiff</div>
+                                <div class="knob-value">0.30</div>
+                            </div>
+                            <div class="knob-control" data-param="airNoise">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.air-noise" class="knob-label">Air Noise</div>
+                                <div class="knob-value">0.15</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-control">
+                            <div data-i18n="tab-instrument.vibrato-source" class="dropdown-label">Vibrato Source</div>
+                            <select class="dropdown-select" id="vibratoSource"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SOUND DESIGN (collapsed) -->
+                <div class="section collapsed">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.sound-design" class="section-title">Sound Design</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="infiniteSustain">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.inf-sustain" class="knob-label">Inf. Sustain</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="reverseBore">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.rev-bore" class="knob-label">Rev. Bore</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="feedbackPath">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.feedback" class="knob-label">Feedback</div>
+                                <div class="knob-value">0.00</div>
+                            </div>
+                            <div class="knob-control" data-param="dronePitch">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.drone-pitch" class="knob-label">Drone Pitch</div>
+                                <div class="knob-value">0 ct</div>
+                            </div>
+                        </div>
+                        <div class="controls-inline" style="margin-top: 6px;">
+                            <div class="toggle-control" id="dualBore-toggle">
+                                <div class="toggle-track">
+                                    <div class="toggle-thumb"></div>
+                                </div>
+                                <span data-i18n="dualbore-toggle.dual-bore" class="toggle-label">Dual Bore</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VOICE (collapsed) -->
+                <div class="section collapsed">
+                    <div class="section-header">
+                        <span class="section-chevron">&#9660;</span>
+                        <span data-i18n="tab-instrument.voice" class="section-title">Voice</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="param-row">
+                            <div class="knob-control" data-param="maxVoices">
+                                <div class="knob-wrapper"></div>
+                                <div data-i18n="tab-instrument.max-voices" class="knob-label">Max Voices</div>
+                                <div class="knob-value">8</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-control">
+                            <div data-i18n="tab-instrument.poly-mode" class="dropdown-label">Poly Mode</div>
+                            <select class="dropdown-select" id="polyMode"></select>
+                        </div>
+                        <div class="dropdown-control">
+                            <div data-i18n="tab-instrument.oversampling" class="dropdown-label">Oversampling</div>
+                            <select class="dropdown-select" id="oversampling"></select>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TUNING TAB -->
+        <div class="tab-panel tuning-tab-panel" id="tab-tuning">
+            <div id="tuning-container"></div>
+        </div>
+
+        <!-- FX TAB -->
+        <div class="tab-panel" id="tab-fx">
+            <div class="effects-placeholder">
+                <h2data-i18n="tab-fx.coming-soon" >Coming Soon</h2>
+                <pdata-i18n="tab-fx.effects-processing-will-be" >Effects processing will be added in a future update.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JUCE WebView Bridge -->
+    <script src="/js/juce/index.js"></script>
+    <script src="/js/juce/check_native_interop.js"></script>
+
+    <script type="module">
+        import * as Juce from '/js/juce/index.js';
+
+        // ====================================================================
+        // Parameter Definitions (raw ranges for display formatting)
+        // ====================================================================
+        const PARAMS = {
+            breathPressure:  { min: 0, max: 1, default: 0.5,  unit: '',     decimals: 2 },
+            embouchure:      { min: 0, max: 1, default: 0.4,  unit: '',     decimals: 2 },
+            reedHardness:    { min: 0, max: 1, default: 0.5,  unit: '',     decimals: 2 },
+            boreCharacter:   { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            reedOpening:     { min: 0, max: 1, default: 0.4,  unit: '',     decimals: 2 },
+            bellSize:        { min: 0, max: 1, default: 0.5,  unit: '',     decimals: 2 },
+            airNoise:        { min: 0, max: 1, default: 0.15, unit: '',     decimals: 2 },
+            doubleReed:      { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            boreDiameter:    { min: 0, max: 1, default: 0.5,  unit: '',     decimals: 2 },
+            reedMass:        { min: 0, max: 1, default: 0.3,  unit: '',     decimals: 2 },
+            reedDamping:     { min: 0, max: 1, default: 0.5,  unit: '',     decimals: 2 },
+            mouthpieceVol:   { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            toneHoleCutoff:  { min: 200, max: 8000, default: 1500, unit: ' Hz', decimals: 0, skew: 0.3 },
+            registerHole:    { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            boreLength:      { min: 0, max: 1, default: 0.5,  unit: '',     decimals: 2 },
+            vibratoDepth:    { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            vibratoRate:     { min: 1, max: 10, default: 5.0,  unit: ' Hz', decimals: 1 },
+            growlAmount:     { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            flutterTongue:   { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            subtone:         { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            attackChiff:     { min: 0, max: 1, default: 0.3,  unit: '',     decimals: 2 },
+            infiniteSustain: { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            reverseBore:     { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            dronePitch:      { min: -2400, max: 2400, default: 0, unit: ' ct', decimals: 0 },
+            feedbackPath:    { min: 0, max: 1, default: 0.0,  unit: '',     decimals: 2 },
+            referencePitch:  { min: 220, max: 880, default: 440, unit: ' Hz', decimals: 1 },
+            maxVoices:       { min: 1, max: 16, default: 8,   unit: '',     decimals: 0 },
+            outputGain:      { min: -60, max: 12, default: 0,  unit: ' dB', decimals: 1 },
+        };
+
+        // ====================================================================
+        // XY Pad Preset Markers
+        // ====================================================================
+        const XY_PRESETS = [
+            { x: 0.00, y: 0.00, label: 'Clar' },
+            { x: 0.05, y: 0.00, label: 'B.Clar' },
+            { x: 0.65, y: 0.00, label: 'A.Sax' },
+            { x: 0.70, y: 0.00, label: 'T.Sax' },
+            { x: 0.60, y: 0.00, label: 'S.Sax' },
+            { x: 0.75, y: 0.00, label: 'B.Sax' },
+            { x: 0.50, y: 0.50, label: 'Oboe' },
+            { x: 0.55, y: 0.45, label: 'E.Hrn' },
+            { x: 0.45, y: 0.55, label: 'Bsn' },
+            { x: 0.20, y: 0.65, label: 'Ddk' },
+            { x: 0.70, y: 0.70, label: 'Shn' },
+            { x: 0.75, y: 0.80, label: 'Suona' },
+            { x: 0.15, y: 0.75, label: 'Hch' },
+            { x: 0.80, y: 0.85, label: 'Zrn' },
+            { x: 0.30, y: 0.60, label: 'Piri' },
+        ];
+
+        // ====================================================================
+        // SVG Arc Knob Rendering
+        // ====================================================================
+        const ARC_START = 135;
+        const ARC_END = 405;
+        const ARC_RANGE = ARC_END - ARC_START;
+
+        function polarToCartesian(cx, cy, r, angleDeg) {
+            const rad = (angleDeg - 90) * Math.PI / 180;
+            return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+        }
+
+        function describeArc(cx, cy, r, startAngle, endAngle) {
+            const start = polarToCartesian(cx, cy, r, endAngle);
+            const end = polarToCartesian(cx, cy, r, startAngle);
+            const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+            return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+        }
+
+        function createKnobSVG(container) {
+            const size = 50;
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = 20;
+            const innerR = 12;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+            svg.classList.add('knob-svg');
+
+            const track = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            track.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_END));
+            track.classList.add('knob-track');
+            svg.appendChild(track);
+
+            const fill = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_START));
+            fill.classList.add('knob-fill');
+            fill.dataset.role = 'fill';
+            svg.appendChild(fill);
+
+            const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            center.setAttribute('cx', cx);
+            center.setAttribute('cy', cy);
+            center.setAttribute('r', innerR);
+            center.classList.add('knob-center');
+            svg.appendChild(center);
+
+            const indicator = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            indicator.classList.add('knob-indicator');
+            indicator.dataset.role = 'indicator';
+            svg.appendChild(indicator);
+
+            container.appendChild(svg);
+            return svg;
+        }
+
+        function updateKnobVisual(control, normValue) {
+            const svg = control.querySelector('.knob-svg');
+            if (!svg) return;
+
+            const size = 50;
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = 20;
+            const innerR = 12;
+
+            const angle = ARC_START + normValue * ARC_RANGE;
+
+            const fill = svg.querySelector('[data-role="fill"]');
+            if (normValue < 0.005) {
+                fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, ARC_START));
+            } else {
+                fill.setAttribute('d', describeArc(cx, cy, r, ARC_START, angle));
+            }
+
+            const indicator = svg.querySelector('[data-role="indicator"]');
+            const iStart = polarToCartesian(cx, cy, innerR - 2, angle);
+            const iEnd = polarToCartesian(cx, cy, r - 2, angle);
+            indicator.setAttribute('x1', iStart.x);
+            indicator.setAttribute('y1', iStart.y);
+            indicator.setAttribute('x2', iEnd.x);
+            indicator.setAttribute('y2', iEnd.y);
+        }
+
+        function normToRaw(paramName, norm) {
+            const def = PARAMS[paramName];
+            if (!def) return norm;
+            // Handle skewed parameters (toneHoleCutoff)
+            if (def.skew && def.skew !== 1.0) {
+                const skewed = Math.pow(norm, 1.0 / def.skew);
+                return def.min + skewed * (def.max - def.min);
+            }
+            return def.min + norm * (def.max - def.min);
+        }
+
+        function formatValue(paramName, rawValue) {
+            const def = PARAMS[paramName];
+            if (!def) return rawValue.toFixed(2);
+            return rawValue.toFixed(def.decimals) + def.unit;
+        }
+
+        // ====================================================================
+        // Slider Parameter Binding (JUCE WebSliderRelay)
+        // ====================================================================
+        const sliderStates = {};
+
+        function bindSliderParam(paramName) {
+            const control = document.querySelector(`.knob-control[data-param="${paramName}"]`);
+            if (!control) { console.warn('No control for:', paramName); return; }
+
+            const wrapper = control.querySelector('.knob-wrapper');
+            createKnobSVG(wrapper);
+
+            try {
+                const state = Juce.getSliderState(paramName);
+                sliderStates[paramName] = state;
+
+                const initNorm = state.getNormalisedValue();
+                updateKnobVisual(control, initNorm);
+                control.querySelector('.knob-value').textContent =
+                    formatValue(paramName, normToRaw(paramName, initNorm));
+
+                // JUCE -> UI
+                state.valueChangedEvent.addListener(() => {
+                    const norm = state.getNormalisedValue();
+                    updateKnobVisual(control, norm);
+                    control.querySelector('.knob-value').textContent =
+                        formatValue(paramName, normToRaw(paramName, norm));
+                    // Update XY pad if relevant
+                    if (paramName === 'boreCharacter' || paramName === 'doubleReed') {
+                        updateXYFromParams();
+                    }
+                });
+
+                // UI -> JUCE (pointer drag)
+                let dragging = false;
+                let dragStartY = 0;
+                let dragStartNorm = 0;
+
+                wrapper.addEventListener('pointerdown', (e) => {
+                    dragging = true;
+                    dragStartY = e.clientY;
+                    dragStartNorm = state.getNormalisedValue();
+                    state.sliderDragStarted();
+                    wrapper.setPointerCapture(e.pointerId);
+                    e.preventDefault();
+                });
+
+                wrapper.addEventListener('pointermove', (e) => {
+                    if (!dragging) return;
+                    const dy = dragStartY - e.clientY;
+                    const sensitivity = e.shiftKey ? 600 : 200;
+                    let newNorm = dragStartNorm + dy / sensitivity;
+                    newNorm = Math.max(0, Math.min(1, newNorm));
+                    state.setNormalisedValue(newNorm);
+                });
+
+                wrapper.addEventListener('pointerup', (e) => {
+                    if (dragging) {
+                        dragging = false;
+                        state.sliderDragEnded();
+                    }
+                });
+
+                // Double-click reset
+                wrapper.addEventListener('dblclick', (e) => {
+                    const def = PARAMS[paramName];
+                    if (def) {
+                        const defaultNorm = (def.default - def.min) / (def.max - def.min);
+                        state.sliderDragStarted();
+                        state.setNormalisedValue(defaultNorm);
+                        state.sliderDragEnded();
+                    }
+                    e.preventDefault();
+                });
+
+            } catch (err) {
+                console.error('Failed to bind slider:', paramName, err);
+            }
+        }
+
+        // ====================================================================
+        // ComboBox Binding (JUCE WebComboBoxRelay)
+        // ====================================================================
+        function bindComboBox(paramId, selectId) {
+            const selectEl = document.getElementById(selectId);
+            if (!selectEl) { console.warn('No select for:', selectId); return; }
+
+            try {
+                const state = Juce.getComboBoxState(paramId);
+
+                function initFromState() {
+                    // Populate options from properties if available
+                    const props = state.properties;
+                    if (props && props.choices && selectEl.options.length === 0) {
+                        props.choices.forEach((choice, i) => {
+                            const opt = document.createElement('option');
+                            opt.value = i;
+                            opt.textContent = choice;
+                            selectEl.appendChild(opt);
+                        });
+                    }
+                    const idx = state.getChoiceIndex();
+                    if (idx >= 0) selectEl.selectedIndex = idx;
+                }
+                initFromState();
+
+                state.propertiesChangedEvent.addListener(() => { initFromState(); });
+                state.valueChangedEvent.addListener(() => {
+                    const idx = state.getChoiceIndex();
+                    if (idx >= 0) selectEl.selectedIndex = idx;
+                });
+
+                selectEl.addEventListener('change', () => {
+                    state.setChoiceIndex(selectEl.selectedIndex);
+                });
+
+            } catch (err) {
+                console.error('Failed to bind combo:', paramId, err);
+            }
+        }
+
+        // ====================================================================
+        // Toggle Binding (JUCE WebToggleButtonRelay)
+        // ====================================================================
+        function bindToggle(paramId, elementId) {
+            const toggleEl = document.getElementById(elementId);
+            if (!toggleEl) return;
+            const trackEl = toggleEl.querySelector('.toggle-track');
+
+            try {
+                const state = Juce.getToggleState(paramId);
+
+                if (state.getValue()) trackEl.classList.add('on');
+
+                state.valueChangedEvent.addListener(() => {
+                    if (state.getValue()) {
+                        trackEl.classList.add('on');
+                    } else {
+                        trackEl.classList.remove('on');
+                    }
+                });
+
+                toggleEl.addEventListener('click', () => {
+                    state.setValue(!state.getValue());
+                });
+
+            } catch (err) {
+                console.error('Failed to bind toggle:', paramId, err);
+            }
+        }
+
+        // ====================================================================
+        // XY Pad (boreCharacter x doubleReed)
+        // ====================================================================
+        const xyPad = document.getElementById('xy-pad');
+        const xyCursor = document.getElementById('xy-cursor');
+        const xyCH = document.getElementById('xy-ch');
+        const xyCV = document.getElementById('xy-cv');
+        const xyBoreVal = document.getElementById('xy-bore-val');
+        const xyReedVal = document.getElementById('xy-reed-val');
+
+        function updateXYCursor(normX, normY) {
+            const w = xyPad.clientWidth;
+            const h = xyPad.clientHeight;
+            const px = normX * w;
+            const py = (1 - normY) * h;
+            xyCursor.style.left = px + 'px';
+            xyCursor.style.top = py + 'px';
+            xyCH.style.top = py + 'px';
+            xyCV.style.left = px + 'px';
+            xyBoreVal.textContent = normX.toFixed(2);
+            xyReedVal.textContent = normY.toFixed(2);
+        }
+
+        function updateXYFromParams() {
+            const boreState = sliderStates['boreCharacter'];
+            const reedState = sliderStates['doubleReed'];
+            if (boreState && reedState) {
+                updateXYCursor(boreState.getNormalisedValue(), reedState.getNormalisedValue());
+            }
+        }
+
+        // Populate XY preset markers
+        function populateXYMarkers() {
+            XY_PRESETS.forEach(p => {
+                const marker = document.createElement('div');
+                marker.className = 'xy-preset-marker';
+                marker.textContent = p.label;
+                marker.style.left = (p.x * 100) + '%';
+                marker.style.top = ((1 - p.y) * 100) + '%';
+                xyPad.appendChild(marker);
+            });
+        }
+
+        // XY Pad drag interaction
+        let xyDragging = false;
+
+        function xySetFromEvent(e) {
+            const rect = xyPad.getBoundingClientRect();
+            let nx = (e.clientX - rect.left) / rect.width;
+            let ny = 1 - (e.clientY - rect.top) / rect.height;
+            nx = Math.max(0, Math.min(1, nx));
+            ny = Math.max(0, Math.min(1, ny));
+
+            const boreState = sliderStates['boreCharacter'];
+            const reedState = sliderStates['doubleReed'];
+            if (boreState) boreState.setNormalisedValue(nx);
+            if (reedState) reedState.setNormalisedValue(ny);
+        }
+
+        xyPad.addEventListener('pointerdown', (e) => {
+            xyDragging = true;
+            xyPad.setPointerCapture(e.pointerId);
+            const boreState = sliderStates['boreCharacter'];
+            const reedState = sliderStates['doubleReed'];
+            if (boreState) boreState.sliderDragStarted();
+            if (reedState) reedState.sliderDragStarted();
+            xySetFromEvent(e);
+            e.preventDefault();
+        });
+
+        xyPad.addEventListener('pointermove', (e) => {
+            if (!xyDragging) return;
+            xySetFromEvent(e);
+        });
+
+        xyPad.addEventListener('pointerup', (e) => {
+            if (xyDragging) {
+                xyDragging = false;
+                const boreState = sliderStates['boreCharacter'];
+                const reedState = sliderStates['doubleReed'];
+                if (boreState) boreState.sliderDragEnded();
+                if (reedState) reedState.sliderDragEnded();
+            }
+        });
+
+        // ====================================================================
+        // Collapsible Sections
+        // ====================================================================
+        document.querySelectorAll('.section-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const section = header.parentElement;
+                section.classList.toggle('collapsed');
+            });
+        });
+
+        // ====================================================================
+        // Tab Navigation
+        // ====================================================================
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        let tuningInitialized = false;
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.dataset.tab;
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabPanels.forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + tabId).classList.add('active');
+
+                if (tabId === 'tuning' && !tuningInitialized) {
+                    initTuningPanel();
+                    tuningInitialized = true;
+                }
+            });
+        });
+
+        // ====================================================================
+        // Tuning Panel Integration (lazy loaded)
+        // ====================================================================
+        async function initTuningPanel() {
+            try {
+                const module = await import('/js/tuning-panel.js');
+                if (module && module.initTuningPanel) {
+                    module.initTuningPanel(document.getElementById('tuning-container'), Juce);
+                } else if (module && module.default) {
+                    module.default(document.getElementById('tuning-container'), Juce);
+                }
+            } catch (err) {
+                console.error('Failed to init tuning panel:', err);
+                document.getElementById('tuning-container').innerHTML =
+                    '<div style="padding:20px;color:#8B7355;font-style:italic;">Tuning panel failed to load.</div>';
+            }
+        }
+
+        // ====================================================================
+        // Initialize All Bindings
+        // ====================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Bind all 28 slider parameters
+            Object.keys(PARAMS).forEach(paramName => {
+                bindSliderParam(paramName);
+            });
+
+            // Bind 6 combobox parameters
+            bindComboBox('instrumentPreset', 'instrumentPreset');
+            bindComboBox('boreProfile', 'boreProfile');
+            bindComboBox('vibratoSource', 'vibratoSource');
+            bindComboBox('tuningSystem', 'tuningSystem');
+            bindComboBox('polyMode', 'polyMode');
+            bindComboBox('oversampling', 'oversampling');
+
+            // Bind 1 toggle parameter
+            bindToggle('dualBore', 'dualBore-toggle');
+
+            // XY pad markers + initial position
+            populateXYMarkers();
+            updateXYFromParams();
+        });
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-MultiBandCompressor, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-MultiBandCompressor</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="plugin-container">
+        <!-- Header -->
+        <header class="plugin-header">
+            <h1 data-i18n="plugin-title.o-multibandcompressor" class="plugin-title">O-MultiBandCompressor</h1>
+
+            <!-- v1.5.0: preset bar. The dropdown is a sibling of the buttons and is
+                 positioned against .preset-bar, which needs position:relative. -->
+            <div class="preset-bar" id="presetBar">
+                <button type="button" class="preset-btn" id="prevPreset"
+                        aria-label="Previous preset">&#9664;</button>
+                <div class="preset-name-display" id="presetName" role="button" tabindex="0"
+                     aria-haspopup="listbox" aria-expanded="false">Default</div>
+                <button type="button" class="preset-btn" id="nextPreset"
+                        aria-label="Next preset">&#9654;</button>
+                <button data-i18n="savePreset" type="button" class="preset-btn preset-btn-text" id="savePreset">Save</button>
+                <button data-i18n="loadPreset" type="button" class="preset-btn preset-btn-text" id="loadPreset">Load</button>
+                <div class="preset-dropdown" id="presetDropdown" role="listbox" aria-label="Presets"></div>
+            </div>
+
+            <div class="header-right">
+                <span data-i18n="brand-name.ouaricon-audio" class="brand-name">Ouaricon Audio</span>
+
+                <!-- v1.10.0: settings popover. Replaces the v1.4.1 "?" button in
+                     this slot and carries the hover-help toggle that used to be
+                     it, alongside the new language selector — the toggle MOVED
+                     here, it is not duplicated.
+
+                     Both controls carry data-tip-always, so the controls that
+                     reach and restore the help layer can always explain
+                     themselves even while help is off.
+
+                     No copy is authored in this markup. Every data-tip /
+                     data-tip-title on this page is written at runtime by
+                     applyI18n() from js/i18n.js; scripts/check-i18n.js
+                     assertion 3 fails the build if a literal reappears here. -->
+                <div class="settings-cluster">
+                    <button type="button" class="gear-btn" id="gear-btn"
+                            aria-haspopup="dialog" aria-expanded="false"
+                            aria-label="Settings" data-tip-always>&#9881;</button>
+
+                    <div class="settings-popover" id="settings-popover"
+                         role="dialog" aria-label="Settings" hidden>
+                        <label class="settings-row" for="lang-select">
+                            <!-- data-label so a shared state updater that writes
+                                 textContent reads the authored caption back
+                                 instead of erasing it. -->
+                            <span data-i18n="lang-select" class="settings-label" data-label="Language">Language</span>
+                            <!-- Endonyms. Never localized, never written by a
+                                 state updater: a French speaker looking for
+                                 their language looks for "Français". -->
+                            <select id="lang-select">
+                                <option value="en">English</option>
+                                <option value="fr">Fran&ccedil;ais</option>
+                            </select>
+                        </label>
+
+                        <!-- A div, not a <label for="tips-toggle">: a button is a
+                             labelable element, so a label wrapping it can
+                             re-dispatch the click and toggle twice. The button
+                             names itself with aria-label instead. -->
+                        <div class="settings-row">
+                            <span data-i18n="settings-popover.hover-help" class="settings-label" data-label="Hover help">Hover help</span>
+                            <button data-i18n="tips-toggle" type="button" class="settings-toggle" id="tips-toggle"
+                                    aria-pressed="true" aria-label="Toggle hover help"
+                                    data-tip-always>On</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Spectrum Analyzer Area -->
+        <section class="spectrum-section">
+            <div class="meter input-meter">
+                <div class="meter-fill" id="inputMeterFill"></div>
+                <span data-i18n="meter-label.in" class="meter-label">IN</span>
+            </div>
+
+            <div class="spectrum-container">
+                <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
+                <div class="spectrum-overlay">
+                    <!-- v1.4.0: initial left values are the true log-scale positions of the
+                         parameter defaults (200 Hz / 2 kHz / 8 kHz) so the lines do not jump
+                         when the first C++ position push arrives. -->
+                    <div class="crossover-line" id="crossover1" style="left: 33.3%;">
+                        <div class="crossover-handle"></div>
+                        <span class="crossover-label">200 Hz</span>
+                    </div>
+                    <div class="crossover-line" id="crossover2" style="left: 66.7%;">
+                        <div class="crossover-handle"></div>
+                        <span class="crossover-label">2 kHz</span>
+                    </div>
+                    <div class="crossover-line" id="crossover3" style="left: 86.7%;">
+                        <div class="crossover-handle"></div>
+                        <span class="crossover-label">8 kHz</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="meter output-meter">
+                <div class="meter-fill" id="outputMeterFill"></div>
+                <span data-i18n="meter-label.out" class="meter-label">OUT</span>
+            </div>
+        </section>
+
+        <!-- Band Controls -->
+        <section class="bands-section">
+            <!-- Low Band -->
+            <div class="band" id="band-low">
+                <div class="band-header">
+                    <h3 data-i18n="band-low.low" class="band-title">LOW</h3>
+                    <div class="band-range" id="range-low">20 Hz - 200 Hz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grLow"></div>
+                        <span data-i18n="band-low.gr" class="gr-label">GR</span>
+                    </div>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <div class="knob" id="low-threshold" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-low.thresh" class="knob-label">Thresh</label>
+                            <span class="knob-value" id="low-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="low-ratio" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-low.ratio" class="knob-label">Ratio</label>
+                            <span class="knob-value" id="low-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="low-attack" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-low.attack" class="knob-label">Attack</label>
+                            <span class="knob-value" id="low-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="low-release" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-low.release" class="knob-label">Release</label>
+                            <span class="knob-value" id="low-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="low-knee" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-low.knee" class="knob-label">Knee</label>
+                            <span class="knob-value" id="low-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="low-makeup" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-low.makeup" class="knob-label">Makeup</label>
+                            <span class="knob-value" id="low-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="detector-group">
+                        <div data-i18n="band-low.detector-sidechain" class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="low-peak-rms" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-low.pk-rms" class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="low-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="low-sc-hpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-low.sc-hpf" class="knob-label">SC HPF</label>
+                                <span data-i18n="low-sc-hpf-value" class="knob-value" id="low-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="low-sc-lpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-low.sc-lpf" class="knob-label">SC LPF</label>
+                                <span data-i18n="low-sc-lpf-value" class="knob-value" id="low-sc-lpf-value">Off</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button data-i18n="low-solo" type="button" class="band-button" id="low-solo" data-label="Solo" aria-pressed="false">SOLO</button>
+                        <button data-i18n="low-bypass" type="button" class="band-button" id="low-bypass" data-label="Bypass" aria-pressed="false">BYPASS</button>
+                        <button data-i18n="low-sc-listen" type="button" class="band-button" id="low-sc-listen" data-label="SC Listen" aria-pressed="false">SC LISTEN</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Low-Mid Band -->
+            <div class="band" id="band-lomid">
+                <div class="band-header">
+                    <h3 data-i18n="band-lomid.low-mid" class="band-title">LOW-MID</h3>
+                    <div class="band-range" id="range-lomid">200 Hz - 2 kHz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grLomid"></div>
+                        <span data-i18n="band-lomid.gr" class="gr-label">GR</span>
+                    </div>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <div class="knob" id="lomid-threshold" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-lomid.thresh" class="knob-label">Thresh</label>
+                            <span class="knob-value" id="lomid-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="lomid-ratio" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-lomid.ratio" class="knob-label">Ratio</label>
+                            <span class="knob-value" id="lomid-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="lomid-attack" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-lomid.attack" class="knob-label">Attack</label>
+                            <span class="knob-value" id="lomid-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="lomid-release" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-lomid.release" class="knob-label">Release</label>
+                            <span class="knob-value" id="lomid-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="lomid-knee" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-lomid.knee" class="knob-label">Knee</label>
+                            <span class="knob-value" id="lomid-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="lomid-makeup" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-lomid.makeup" class="knob-label">Makeup</label>
+                            <span class="knob-value" id="lomid-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="detector-group">
+                        <div data-i18n="band-lomid.detector-sidechain" class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="lomid-peak-rms" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-lomid.pk-rms" class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="lomid-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="lomid-sc-hpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-lomid.sc-hpf" class="knob-label">SC HPF</label>
+                                <span data-i18n="lomid-sc-hpf-value" class="knob-value" id="lomid-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="lomid-sc-lpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-lomid.sc-lpf" class="knob-label">SC LPF</label>
+                                <span data-i18n="lomid-sc-lpf-value" class="knob-value" id="lomid-sc-lpf-value">Off</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button data-i18n="lomid-solo" type="button" class="band-button" id="lomid-solo" data-label="Solo" aria-pressed="false">SOLO</button>
+                        <button data-i18n="lomid-bypass" type="button" class="band-button" id="lomid-bypass" data-label="Bypass" aria-pressed="false">BYPASS</button>
+                        <button data-i18n="lomid-sc-listen" type="button" class="band-button" id="lomid-sc-listen" data-label="SC Listen" aria-pressed="false">SC LISTEN</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- High-Mid Band -->
+            <div class="band" id="band-himid">
+                <div class="band-header">
+                    <h3 data-i18n="band-himid.high-mid" class="band-title">HIGH-MID</h3>
+                    <div class="band-range" id="range-himid">2 kHz - 8 kHz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grHimid"></div>
+                        <span data-i18n="band-himid.gr" class="gr-label">GR</span>
+                    </div>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <div class="knob" id="himid-threshold" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-himid.thresh" class="knob-label">Thresh</label>
+                            <span class="knob-value" id="himid-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="himid-ratio" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-himid.ratio" class="knob-label">Ratio</label>
+                            <span class="knob-value" id="himid-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="himid-attack" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-himid.attack" class="knob-label">Attack</label>
+                            <span class="knob-value" id="himid-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="himid-release" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-himid.release" class="knob-label">Release</label>
+                            <span class="knob-value" id="himid-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="himid-knee" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-himid.knee" class="knob-label">Knee</label>
+                            <span class="knob-value" id="himid-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="himid-makeup" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-himid.makeup" class="knob-label">Makeup</label>
+                            <span class="knob-value" id="himid-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="detector-group">
+                        <div data-i18n="band-himid.detector-sidechain" class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="himid-peak-rms" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-himid.pk-rms" class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="himid-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="himid-sc-hpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-himid.sc-hpf" class="knob-label">SC HPF</label>
+                                <span data-i18n="himid-sc-hpf-value" class="knob-value" id="himid-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="himid-sc-lpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-himid.sc-lpf" class="knob-label">SC LPF</label>
+                                <span data-i18n="himid-sc-lpf-value" class="knob-value" id="himid-sc-lpf-value">Off</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button data-i18n="himid-solo" type="button" class="band-button" id="himid-solo" data-label="Solo" aria-pressed="false">SOLO</button>
+                        <button data-i18n="himid-bypass" type="button" class="band-button" id="himid-bypass" data-label="Bypass" aria-pressed="false">BYPASS</button>
+                        <button data-i18n="himid-sc-listen" type="button" class="band-button" id="himid-sc-listen" data-label="SC Listen" aria-pressed="false">SC LISTEN</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- High Band -->
+            <div class="band" id="band-high">
+                <div class="band-header">
+                    <h3 data-i18n="band-high.high" class="band-title">HIGH</h3>
+                    <div class="band-range" id="range-high">8 kHz - 20 kHz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grHigh"></div>
+                        <span data-i18n="band-high.gr" class="gr-label">GR</span>
+                    </div>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <div class="knob" id="high-threshold" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-high.thresh" class="knob-label">Thresh</label>
+                            <span class="knob-value" id="high-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="high-ratio" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-high.ratio" class="knob-label">Ratio</label>
+                            <span class="knob-value" id="high-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="high-attack" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-high.attack" class="knob-label">Attack</label>
+                            <span class="knob-value" id="high-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="high-release" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-high.release" class="knob-label">Release</label>
+                            <span class="knob-value" id="high-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="high-knee" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-high.knee" class="knob-label">Knee</label>
+                            <span class="knob-value" id="high-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <div class="knob" id="high-makeup" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                            <label data-i18n="band-high.makeup" class="knob-label">Makeup</label>
+                            <span class="knob-value" id="high-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="detector-group">
+                        <div data-i18n="band-high.detector-sidechain" class="detector-title">Detector / Sidechain</div>
+                        <div class="detector-grid">
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="high-peak-rms" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-high.pk-rms" class="knob-label">Pk/RMS</label>
+                                <span class="knob-value" id="high-peak-rms-value">50%</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="high-sc-hpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-high.sc-hpf" class="knob-label">SC HPF</label>
+                                <span data-i18n="high-sc-hpf-value" class="knob-value" id="high-sc-hpf-value">Off</span>
+                            </div>
+                            <div class="knob-control">
+                                <div class="knob knob-sm" id="high-sc-lpf" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                                <label data-i18n="band-high.sc-lpf" class="knob-label">SC LPF</label>
+                                <span data-i18n="high-sc-lpf-value" class="knob-value" id="high-sc-lpf-value">Off</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button data-i18n="high-solo" type="button" class="band-button" id="high-solo" data-label="Solo" aria-pressed="false">SOLO</button>
+                        <button data-i18n="high-bypass" type="button" class="band-button" id="high-bypass" data-label="Bypass" aria-pressed="false">BYPASS</button>
+                        <button data-i18n="high-sc-listen" type="button" class="band-button" id="high-sc-listen" data-label="SC Listen" aria-pressed="false">SC LISTEN</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Global Controls -->
+        <footer class="global-controls">
+            <div class="control-group">
+                <label data-i18n="control-label.input" class="control-label">Input</label>
+                <div class="knob global-knob" id="input-gain" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                <span class="control-value" id="input-gain-value">0 dB</span>
+            </div>
+
+            <div class="control-group">
+                <label data-i18n="mix" class="control-label">Mix</label>
+                <div class="knob global-knob" id="mix" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                <span class="control-value" id="mix-value">100%</span>
+            </div>
+
+            <div class="control-group">
+                <label data-i18n="control-label.auto-mu" class="control-label">Auto-MU</label>
+                <button data-i18n="auto-makeup" class="toggle-button" id="auto-makeup">Off</button>
+            </div>
+
+            <div class="control-group">
+                <label data-i18n="control-label.m-s-mode" class="control-label">M/S Mode</label>
+                <select id="ms-mode" class="mode-select">
+                    <option data-i18n="ms-mode.off" value="0">Off</option>
+                    <option data-i18n="ms-mode.mid" value="1">Mid</option>
+                    <option data-i18n="ms-mode.side" value="2">Side</option>
+                    <option data-i18n="ms-mode.both" value="3">Both</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label data-i18n="control-label.output" class="control-label">Output</label>
+                <div class="knob global-knob" id="output-gain" tabindex="0" role="slider"><div class="knob-stem"></div></div>
+                <span class="control-value" id="output-gain-value">0 dB</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- v1.4.0: Tooltip layer. Lives outside .plugin-container (which is overflow:hidden)
+         so tips near the panel edge are never clipped. Content is set from app.js. -->
+    <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <!-- JUCE WebView Bridge -->
+    <script type="module" src="js/juce/check_native_interop.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

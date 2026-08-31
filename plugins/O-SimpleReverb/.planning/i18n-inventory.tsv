@@ -1,0 +1,36 @@
+# plugin	O-SimpleReverb
+# uiRoot	Source/ui/public
+# generated	2026-08-29T17:43:07.754Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	654	h1.title		LABEL	no	title.ouaricon-simple-reverb	Ouaricon Simple Reverb	prose survives the readout filter
+html-text	index.html	669	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	676	#preset-save		LABEL	yes	preset-save	Save	prose survives the readout filter
+html-text	index.html	679	#preset-load		LABEL	yes	preset-load	Load	prose survives the readout filter
+html-text	index.html	686	option		LABEL	no	type.booth	Booth	prose survives the readout filter
+html-text	index.html	687	option		LABEL	no	type.room	Room	prose survives the readout filter
+html-text	index.html	688	option		LABEL	no	type.hall	Hall	prose survives the readout filter
+html-text	index.html	689	option		LABEL	no	type.spring	Spring	prose survives the readout filter
+html-text	index.html	690	option		LABEL	no	type.plate	Plate	prose survives the readout filter
+html-text	index.html	691	option		LABEL	no	type.ambient	Ambient	prose survives the readout filter
+html-text	index.html	706	span.knob-label		LABEL	yes	character-knob.character	Character	prose survives the readout filter
+html-text	index.html	707	#CHARACTER-value		LABEL	no	CHARACTER-value	neutral	prose survives the readout filter
+html-text	index.html	722	span.knob-label		LABEL	yes	lpfreq-knob.low-cut	Low Cut	prose survives the readout filter
+html-text	index.html	731	#LPFREQ-value		LABEL	yes	LPFREQ-value	OFF	prose survives the readout filter
+html-text	index.html	744	span.knob-label		LABEL	yes	wet-knob.wet	Wet	prose survives the readout filter
+html-text	index.html	758	span.knob-label		LABEL	yes	dry-knob.dry	Dry	prose survives the readout filter
+html-text	index.html	775	span.knob-label		LABEL	yes	decay-knob.decay	Decay	prose survives the readout filter
+html-text	index.html	816	span.knob-label		LABEL	yes	size-knob.size	Size	prose survives the readout filter
+html-text	index.html	828	span.version		LABEL	no	version.ouaricon-audio-v1-5	Ouaricon Audio v1.5.5	prose survives the readout filter
+html-text	index.html	845	span.settings-label		LABEL	yes	settings-popover.language	Language	prose survives the readout filter
+html-text	index.html	850	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	851	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-attr	index.html	645	img.background	alt	LABEL	yes	background.background-alt	Background	prose survives the readout filter
+html-attr	index.html	646	img.botanical-overlay	alt	LABEL	yes	botanical-overlay.botanical-alt	Botanical	prose survives the readout filter
+html-attr	index.html	667	#preset-prev	aria-label	LABEL	yes	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	673	#preset-next	aria-label	LABEL	yes	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	676	#preset-save	aria-label	LABEL	yes	preset-save-2	Save preset	prose survives the readout filter
+html-attr	index.html	679	#preset-load	aria-label	LABEL	yes	preset-load-2	Load preset	prose survives the readout filter
+html-attr	index.html	840	#gear-btn	aria-label	LABEL	yes	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	843	#settings-popover	aria-label	LABEL	yes	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	849	#lang-select	aria-label	LABEL	yes	lang-select	Interface language	prose survives the readout filter

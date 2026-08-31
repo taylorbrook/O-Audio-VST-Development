@@ -1,0 +1,67 @@
+# plugin	O-simplePhysicalModelSynth
+# uiRoot	Source/ui/public
+# generated	2026-08-28T17:52:12.588Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	33	h1.title		UNSURE	no	title.o-simple	O – simple	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	33	span.title-accent		LABEL	no	title-accent.physicalmodel	PhysicalModel	prose survives the readout filter
+html-text	index.html	34	p.subtitle		LABEL	no	subtitle.karplus-strong-string-modal	Karplus–Strong String & Modal Resonator Synthesizer · A Field Guide	prose survives the readout filter
+html-text	index.html	42	#presetName		LABEL	no	presetName	Default	prose survives the readout filter
+html-text	index.html	44	#presetSave		LABEL	no	presetSave	Save	prose survives the readout filter
+html-text	index.html	45	#presetDelete		LABEL	no	presetDelete	Delete	prose survives the readout filter
+html-text	index.html	58	div.viz-label		UNSURE	no	viz-label.signal-flow	Signal Flow ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	58	span.viz-hint		LABEL	no	viz-hint.excitation-resonator-loop-material	excitation → resonator loop → material → out	prose survives the readout filter
+html-text	index.html	72	text.box-text		LABEL	no	loopsvg.excite	EXCITE	prose survives the readout filter
+html-text	index.html	73	text.box-sub		LABEL	no	loopsvg.pluck-strike-bow	pluck·strike·bow	prose survives the readout filter
+html-text	index.html	79	text.box-text		LABEL	no	loopsvg.resonator	RESONATOR	prose survives the readout filter
+html-text	index.html	80	#resonatorMode		LABEL	no	resonatorMode	string · loop	prose survives the readout filter
+html-text	index.html	103	text.box-text		LABEL	no	loopsvg.material	MATERIAL	prose survives the readout filter
+html-text	index.html	104	text.box-sub		LABEL	no	loopsvg.damp-decay	damp·decay	prose survives the readout filter
+html-text	index.html	117	div.viz-label		UNSURE	no	viz-label.spectrum	Spectrum ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	117	span.viz-hint		LABEL	no	viz-hint.harmonic-comb-vs-inharmonic	harmonic comb vs inharmonic modes	prose survives the readout filter
+html-text	index.html	122	div.viz-label		UNSURE	no	viz-label.waveform	Waveform ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	122	span.viz-hint		LABEL	no	viz-hint.the-ringing-string-body	the ringing string / body, decaying	prose survives the readout filter
+html-text	index.html	132	h2.group-title		LABEL	no	group-title.1-excitation	1 · Excitation	prose survives the readout filter
+html-text	index.html	136	div.knob-label		LABEL	no	knob-label.type	Type	prose survives the readout filter
+html-text	index.html	140	div.knob-label		LABEL	no	knob-label.position	Position	prose survives the readout filter
+html-text	index.html	145	div.knob-label		LABEL	no	knob-label.color	Color	prose survives the readout filter
+html-text	index.html	150	div.knob-label		LABEL	no	knob-label.bow-force	Bow Force	prose survives the readout filter
+html-text	index.html	158	h2.group-title		LABEL	no	group-title.2-resonator	2 · Resonator	prose survives the readout filter
+html-text	index.html	162	div.knob-label		LABEL	no	knob-label.engine	Engine	prose survives the readout filter
+html-text	index.html	166	div.knob-label		LABEL	no	knob-label.string-model	String Model	prose survives the readout filter
+html-text	index.html	170	div.knob-label		LABEL	no	knob-label.inharmonicity	Inharmonicity	prose survives the readout filter
+html-text	index.html	175	div.knob-label		LABEL	no	knob-label.mode-bright	Mode Bright	prose survives the readout filter
+html-text	index.html	183	h2.group-title		LABEL	no	group-title.3-material-tuning	3 · Material · Tuning	prose survives the readout filter
+html-text	index.html	187	div.knob-label		LABEL	no	knob-label.material	Material	prose survives the readout filter
+html-text	index.html	192	div.knob-label		LABEL	no	knob-label.damping	Damping	prose survives the readout filter
+html-text	index.html	197	div.knob-label		LABEL	no	knob-label.decay	Decay	prose survives the readout filter
+html-text	index.html	202	div.knob-label		LABEL	no	knob-label.coarse	Coarse	prose survives the readout filter
+html-text	index.html	203	#val-coarseTune		READOUT	no	val-coarseTune	0 st	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	207	div.knob-label		LABEL	no	knob-label.fine	Fine	prose survives the readout filter
+html-text	index.html	215	h2.group-title		LABEL	no	group-title.4-amp-output	4 · Amp · Output	prose survives the readout filter
+html-text	index.html	219	div.knob-label		LABEL	no	knob-label.attack	Attack	prose survives the readout filter
+html-text	index.html	220	#val-ampAttack		READOUT	no	val-ampAttack	1 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	224	div.knob-label		LABEL	no	knob-label.release	Release	prose survives the readout filter
+html-text	index.html	225	#val-ampRelease		READOUT	no	val-ampRelease	200 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	229	div.knob-label		LABEL	no	knob-label.vel-bright	Vel→Bright	prose survives the readout filter
+html-text	index.html	234	div.knob-label		LABEL	no	knob-label.level	Level	prose survives the readout filter
+html-text	index.html	235	#val-outputLevel		READOUT	no	val-outputLevel	-6.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	243	div.keyboard-label		UNSURE	no	keyboard-label.play	Play ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	243	span.kbd-hint		LABEL	no	kbd-hint.click-the-keys-or	click the keys or use your computer keyboard (A S D F G H J K · W E T Y U)	prose survives the readout filter
+html-attr	index.html	41	#presetPrev	title	LABEL	no	presetPrev	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	41	#presetPrev	aria-label	LABEL	no	presetPrev-2	Previous preset	prose survives the readout filter
+html-attr	index.html	42	#presetName	title	LABEL	no	presetName-2	Browse presets	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	43	#presetNext	title	LABEL	no	presetNext	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	43	#presetNext	aria-label	LABEL	no	presetNext-2	Next preset	prose survives the readout filter
+html-attr	index.html	44	#presetSave	title	LABEL	no	presetSave-2	Save current settings as a user preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	45	#presetDelete	title	LABEL	no	presetDelete-2	Delete the current user preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	46	#presetDropdown	aria-label	LABEL	no	presetDropdown	Presets	prose survives the readout filter
+html-attr	index.html	48	#tipToggle	aria-label	LABEL	no	tipToggle	Toggle tooltips	prose survives the readout filter
+html-attr	index.html	60	#loopSvg	aria-label	LABEL	no	loopSvg	Excitation to resonator to material to output signal-flow diagram	prose survives the readout filter
+html-attr	index.html	135	#combo-excitationType	aria-label	LABEL	no	combo-excitationType	Excitation type	prose survives the readout filter
+html-attr	index.html	161	#combo-resonatorType	aria-label	LABEL	no	combo-resonatorType	Resonator type	prose survives the readout filter
+html-attr	index.html	165	#combo-stringModel	aria-label	LABEL	no	combo-stringModel	String model	prose survives the readout filter
+html-attr	index.html	244	#keyboard	aria-label	LABEL	no	keyboard	On-screen keyboard	prose survives the readout filter
+js-prose	js/app.js	566	cap.textContent		LABEL	no	ui.modal-stems	modal · stems	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	566	cap.textContent		LABEL	no	ui.string-loop	string · loop	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/app.js	585	tip.innerHTML		LABEL	no	ui.span-class-tip-title	<span class="tip-title">${entry[0]}</span>${entry[1]}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one

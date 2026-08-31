@@ -1,0 +1,4482 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-Lyrica, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=700, height=450">
+    <title>OuariconLyrica</title>
+    <style>
+        /* ====================================================================
+           CRITICAL CSS CONSTRAINTS
+           ==================================================================== */
+
+        /* Use 100%, NOT 100vh - JUCE WebView requires percentage-based sizing */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ====================================================================
+           NATIVE APPLICATION FEEL
+           ==================================================================== */
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
+            background: #2a2a2a;
+            font-family: 'Garamond', 'Times New Roman', serif;
+
+            /* Native feel CSS */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            cursor: default;
+        }
+
+        .plugin-container {
+            width: 700px;
+            height: 450px;
+            position: relative;
+            /* Actual paper texture background */
+            background: url('/images/paper1.jpg') center center / cover no-repeat;
+            border: 3px solid #5C4033;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* Botanical Overlay */
+        .botanical-overlay {
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 480px;
+            opacity: 0.25;
+            pointer-events: none;
+            z-index: 1;
+            transition: right 0.4s ease-out, opacity 0.4s ease-out;
+        }
+
+        .botanical-overlay.techniques-position {
+            right: -80px;
+            opacity: 0.20;
+        }
+
+        .botanical-overlay.tuning-position {
+            right: -130px;
+            opacity: 0.15;
+        }
+
+        .botanical-overlay.effects-position {
+            right: -180px;
+            opacity: 0.12;
+        }
+
+        /* ====================================================================
+           HEADER
+           ==================================================================== */
+
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.5);
+            z-index: 10;
+            background: rgba(245, 230, 211, 0.9);
+        }
+
+        .title {
+            font-size: 16px;
+            font-weight: normal;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+        }
+
+        .voice-display {
+            font-size: 10px;
+            color: #5C4033;
+            letter-spacing: 1px;
+        }
+
+        /* ====================================================================
+           v1.5.0: PRESET BAR - Matching Marimba's working implementation
+           ==================================================================== */
+
+        .preset-browser {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            padding: 4px 10px;
+            height: 28px;
+        }
+
+        .preset-arrow {
+            width: 24px;
+            height: 24px;
+            background: rgba(139, 168, 112, 0.5);
+            border: 2px solid #3C5C1A;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #3C2F2F;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .preset-arrow:hover {
+            background: rgba(107, 142, 35, 0.6);
+            border-color: #2a4a10;
+        }
+
+        .preset-arrow:active {
+            background: rgba(107, 142, 35, 0.8);
+            transform: scale(0.95);
+        }
+
+        .preset-name-wrapper {
+            position: relative;
+        }
+
+        .preset-name {
+            font-size: 10px;
+            color: #3C2F2F;
+            min-width: 120px;
+            text-align: center;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: background 0.15s;
+        }
+
+        .preset-name:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .preset-name::after {
+            content: ' \25BC';
+            font-size: 7px;
+            opacity: 0.6;
+        }
+
+        /* Preset dropdown menu */
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 180px;
+            max-height: 240px;
+            overflow-y: auto;
+            background: rgba(245, 230, 211, 0.98);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        .preset-dropdown.show {
+            display: block;
+        }
+
+        .preset-dropdown-header {
+            padding: 4px 12px;
+            font-size: 8px;
+            color: #8B7355;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            background: rgba(212, 196, 176, 0.5);
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 12px;
+            font-size: 10px;
+            color: #3C2F2F;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+        }
+
+        .preset-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.25);
+            font-weight: 600;
+        }
+
+        /* v1.5.1: Preset action buttons (Save/Load) */
+        .preset-action-btn {
+            padding: 3px 8px;
+            font-size: 9px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            color: #3C2F2F;
+            background: rgba(212, 196, 176, 0.8);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(139, 168, 112, 0.4);
+            border-color: #6B8E4E;
+        }
+
+        .preset-action-btn:active {
+            transform: scale(0.95);
+            background: rgba(139, 168, 112, 0.6);
+        }
+
+        /* ====================================================================
+           TAB BAR
+           ==================================================================== */
+
+        .tab-bar {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            display: flex;
+            background: rgba(235, 217, 199, 0.95);
+            border-bottom: 1px solid rgba(139, 115, 85, 0.5);
+            z-index: 10;
+        }
+
+        .tab {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: normal;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            border-right: 1px solid rgba(139, 115, 85, 0.3);
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .tab:last-child {
+            border-right: none;
+        }
+
+        .tab.active {
+            background: rgba(139, 168, 112, 0.3);
+            color: #3C2F2F;
+            font-weight: 500;
+        }
+
+        .tab:hover:not(.active) {
+            background: rgba(139, 168, 112, 0.15);
+        }
+
+        /* ====================================================================
+           TAB CONTENT
+           ==================================================================== */
+
+        .tab-content {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 110px);
+            padding: 15px 20px;
+            overflow-y: auto;
+            display: none;
+            z-index: 5;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ====================================================================
+           SECTION STYLING
+           ==================================================================== */
+
+        .section {
+            margin-bottom: 12px;
+        }
+
+        .section-header {
+            font-size: 9px;
+            font-weight: normal;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+        }
+
+        .section-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 15px;
+        }
+
+        /* ====================================================================
+           SLIDER STYLING
+           ==================================================================== */
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 100px;
+            flex: 1;
+            max-width: 140px;
+        }
+
+        .slider-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Slider track */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to bottom, #D4C4B0 0%, #E8D5B7 50%, #D4C4B0 100%);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.15);
+        }
+
+        /* Slider thumb */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 30% 30%, #FFF8DC 0%, #F5DEB3 40%, #D4C4B0 100%);
+            border: 2px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.25);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(0.95);
+        }
+
+        .slider-value {
+            font-size: 9px;
+            color: #5C4033;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        /* ====================================================================
+           DROPDOWN STYLING
+           ==================================================================== */
+
+        .dropdown-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 100px;
+            flex: 1;
+            max-width: 140px;
+        }
+
+        .dropdown-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        select {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            padding: 5px 25px 5px 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: linear-gradient(to bottom, #FAF0E6 0%, #EBD9C7 100%);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235C4033'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+        }
+
+        select:hover {
+            background: linear-gradient(to bottom, #FFF8DC 0%, #F5E6D3 100%);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #6B8E4E;
+        }
+
+        /* ====================================================================
+           FOOTER
+           ==================================================================== */
+
+        /* v1.18.1: Footer expanded to include keyboard */
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-top: 1px solid rgba(139, 115, 85, 0.5);
+            z-index: 10;
+            background: rgba(245, 230, 211, 0.9);
+        }
+
+        .master-volume {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .master-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .master-slider {
+            width: 120px;
+        }
+
+        .master-value {
+            font-size: 10px;
+            color: #5C4033;
+            min-width: 50px;
+        }
+
+        /* v1.18.1: Footer keyboard - compact 2-octave layout */
+        .footer-keyboard {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            max-width: 380px;
+            margin: 0 15px;
+        }
+
+        .footer-keyboard-viz {
+            width: 100%;
+            height: 42px;
+            background: #FAF0E6;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            display: flex;
+            overflow: visible;
+            position: relative;
+        }
+
+        .footer-keyboard .white-key {
+            flex: 1;
+            background: #FAF0E6;
+            border-right: 1px solid rgba(139, 115, 85, 0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 2px;
+            transition: background 0.15s, transform 0.1s;
+            cursor: pointer;
+            z-index: 1;
+            min-width: 0;
+        }
+
+        .footer-keyboard .white-key:last-of-type {
+            border-right: none;
+        }
+
+        .footer-keyboard .white-key.mapped {
+            background: rgba(139, 168, 112, 0.35);
+        }
+
+        .footer-keyboard .white-key span {
+            font-size: 6px;
+            color: #5C4033;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .footer-keyboard .white-key:hover:not(.pressed) {
+            background: #FFF8DC;
+        }
+
+        .footer-keyboard .white-key.mapped:hover:not(.pressed) {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .footer-keyboard .white-key:active, .footer-keyboard .white-key.pressed {
+            background: #8BC34A !important;
+            transform: translateY(1px);
+            z-index: 2;
+        }
+
+        .footer-keyboard .black-key {
+            position: absolute;
+            width: 14px;
+            height: 28px;
+            background: #3C2F2F;
+            border-radius: 0 0 2px 2px;
+            top: 0;
+            z-index: 10;
+            transition: background 0.15s, transform 0.1s;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .footer-keyboard .black-key.mapped {
+            background: #4A6B2A;
+        }
+
+        .footer-keyboard .black-key:hover {
+            background: #5A3A3A;
+        }
+
+        .footer-keyboard .black-key.mapped:hover {
+            background: #5A8B3A;
+        }
+
+        .footer-keyboard .black-key:active, .footer-keyboard .black-key.pressed {
+            background: #8BC34A !important;
+            transform: translateY(1px);
+            box-shadow: 0 0 2px rgba(0,0,0,0.3);
+        }
+
+        .footer-keyboard-help {
+            font-size: 7px;
+            color: #8B7355;
+            text-align: center;
+        }
+
+        .brand {
+            font-size: 8px;
+            color: #8B7355;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        /* ====================================================================
+           PLACEHOLDER TABS
+           ==================================================================== */
+
+        .placeholder-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #8B7355;
+            text-align: center;
+        }
+
+        .placeholder-content h3 {
+            font-size: 14px;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .placeholder-content p {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        /* v1.32.0: Effects Tab Styles */
+        #effects-tab {
+            gap: 6px;
+        }
+
+        .fx-section {
+            background: rgba(255, 248, 220, 0.25);
+            border: 1px solid rgba(139, 115, 85, 0.35);
+            border-radius: 5px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fx-header {
+            display: contents;
+        }
+
+        .fx-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #2C3E10;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: auto;
+        }
+
+        .fx-bypass-btn {
+            padding: 2px 8px;
+            background: rgba(107, 142, 35, 0.5);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #1a2a10;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            order: 99;
+            margin-left: auto;
+        }
+
+        .fx-bypass-btn.bypassed {
+            background: rgba(139, 115, 85, 0.2);
+            color: rgba(60, 47, 47, 0.4);
+        }
+
+        .fx-knobs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fx-section.bypassed .fx-knobs {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* SVG Vine-Arc Knobs for Effects Tab */
+        #effects-tab .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+        }
+
+        #effects-tab .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #effects-tab .knob-visual {
+            width: 44px;
+            height: 44px;
+            position: relative;
+        }
+
+        #effects-tab .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        #effects-tab .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
+        }
+
+        #effects-tab .knob-vine {
+            fill: none;
+            stroke: #6B8E23;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        #effects-tab .knob-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #effects-tab .knob-value {
+            font-size: 9px;
+            color: #5C4033;
+            font-weight: bold;
+        }
+
+        .fx-dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .fx-dropdown {
+            padding: 2px 4px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #3C2F2F;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* ====================================================================
+           v1.7.0: TUNING TAB STYLES - Marimba-style layout
+           ==================================================================== */
+
+        /* Tuning Visualization Container - Left side */
+        /* v1.7.2: Added width: fit-content to prevent invisible overflow blocking tuning mode buttons */
+        .tuning-viz-container {
+            position: absolute;
+            left: 20px;
+            top: 15px;
+            bottom: 65px;
+            width: fit-content;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        /* Pitch Circle - v1.7.7: Centered above keyboard, 125% size */
+        /* Updated v1.10.0: Now inside viz-container, use relative positioning */
+        .pitch-circle {
+            position: relative;
+            width: 188px;
+            height: 188px;
+        }
+
+        .pitch-circle svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .pitch-circle-label {
+            position: absolute;
+            bottom: -16px;
+            width: 100%;
+            text-align: center;
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Interval List */
+        .interval-list {
+            width: 115px;
+            max-height: 280px;
+            background: rgba(235, 217, 199, 0.6);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            overflow-y: auto;
+            padding: 4px 6px;
+            order: -1;
+        }
+
+        .interval-list-header {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+            padding-bottom: 3px;
+            margin-bottom: 3px;
+            text-align: center;
+        }
+
+        .tonic-selector {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 4px;
+            margin-bottom: 3px;
+            background: rgba(139, 168, 112, 0.2);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+        }
+
+        .tonic-label {
+            font-size: 7px;
+            color: #5C4033;
+            text-transform: uppercase;
+        }
+
+        .tonic-value {
+            font-size: 9px;
+            font-weight: bold;
+            color: #3C2F2F;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .tonic-arrows {
+            display: flex;
+            gap: 2px;
+        }
+
+        .tonic-arrow {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.6);
+            border: 1px solid rgba(139, 115, 85, 0.5);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .tonic-arrow:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .interval-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 3px;
+            border-radius: 2px;
+            margin-bottom: 1px;
+        }
+
+        .interval-item:hover {
+            background: rgba(139, 168, 112, 0.15);
+        }
+
+        .interval-degree {
+            color: #5C4033;
+            font-weight: 500;
+            font-size: 8px;
+            min-width: 18px;
+        }
+
+        .interval-input {
+            width: 50px;
+            background: rgba(245, 230, 211, 0.8);
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 8px;
+            color: #3C2F2F;
+            text-align: right;
+            padding: 0 3px;
+            outline: none;
+        }
+
+        .interval-input:focus {
+            background: #FFF;
+            border-color: #6B8E4E;
+        }
+
+        .interval-input:disabled {
+            background: rgba(200, 200, 200, 0.3);
+            color: #888;
+        }
+
+        /* Tuning Controls Panel - Right side */
+        .tuning-controls-panel {
+            position: absolute;
+            right: 25px;
+            top: 15px;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding-bottom: 70px; /* v1.18.2: Space for sticky footer */
+        }
+
+        /* v1.18.2: Mode buttons removed - tuning-mode-section, tuning-mode-buttons, tuning-mode-btn CSS deleted */
+
+        /* A4 Reference Knob */
+        .tuning-ref-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ref-knob-container {
+            position: relative;
+            width: 60px;
+            height: 60px;
+        }
+
+        .ref-knob {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(255, 248, 220, 0.9) 0%,
+                rgba(245, 222, 179, 0.8) 40%,
+                rgba(212, 196, 176, 0.7) 70%,
+                rgba(139, 115, 85, 0.5) 100%);
+            border: 2px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.2), inset 1px 1px 3px rgba(255,255,255,0.3);
+        }
+
+        .ref-knob-indicator {
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 12px;
+            background: #3C2F2F;
+            border-radius: 2px;
+            transform-origin: center 25px;
+        }
+
+        .ref-knob-label {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        .ref-knob-value {
+            font-size: 10px;
+            color: #3C2F2F;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        /* Scale name display */
+        .scale-name-display {
+            padding: 6px 10px;
+            background: rgba(245, 230, 211, 0.8);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 10px;
+            color: #3C2F2F;
+            text-align: center;
+            min-height: 24px;
+            width: 100%;
+        }
+
+        /* File operation buttons */
+        .tuning-file-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .tuning-file-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+
+        .tuning-file-btn {
+            padding: 5px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .tuning-file-btn:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .tuning-file-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* v1.16.0: Export HTML button styling */
+        .tuning-export-btn {
+            grid-column: span 2;
+            background: rgba(139, 115, 85, 0.15);
+            border-color: #6b5a42;
+            color: #5c4033;
+        }
+
+        .tuning-export-btn:hover {
+            background: rgba(139, 115, 85, 0.3);
+        }
+
+        /* v1.14.0: Scale Generator Section */
+        .generator-section {
+            margin-top: 8px;
+            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            padding-top: 8px;
+        }
+
+        .generator-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .generator-header-text {
+            font-size: 9px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .generator-toggle {
+            font-size: 10px;
+            color: #8B7355;
+            transition: transform 0.2s;
+        }
+
+        .generator-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .generator-content {
+            display: none;
+            padding-top: 8px;
+        }
+
+        .generator-content.expanded {
+            display: block;
+        }
+
+        .generator-type-row {
+            margin-bottom: 8px;
+        }
+
+        .generator-type-select {
+            width: 100%;
+            padding: 5px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(245, 230, 211, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .generator-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .gen-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gen-row label {
+            font-size: 9px;
+            color: #5C4033;
+            flex-shrink: 0;
+        }
+
+        .gen-row input[type="number"] {
+            width: 70px;
+            padding: 4px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(255, 248, 220, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            text-align: right;
+        }
+
+        .gen-row input[type="number"]:focus {
+            outline: none;
+            border-color: #6B8E4E;
+        }
+
+        .generator-btn {
+            width: 100%;
+            padding: 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #3C2F2F;
+            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
+            border: 1px solid #6B8E4E;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .generator-btn:hover {
+            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9));
+        }
+
+        .generator-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* v1.18.2: Temperament preset dropdown removed - tuning-preset-section CSS deleted */
+
+        /* v1.9.0: Octave Stretch Slider */
+        .octave-stretch-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .octave-stretch-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .octave-stretch-label {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 40px;
+        }
+
+        .octave-stretch-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .octave-stretch-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(255, 248, 220, 0.9) 0%,
+                rgba(212, 196, 176, 0.8) 70%,
+                rgba(139, 115, 85, 0.6) 100%);
+            border: 1px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .octave-stretch-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(255, 248, 220, 0.9) 0%,
+                rgba(212, 196, 176, 0.8) 70%,
+                rgba(139, 115, 85, 0.6) 100%);
+            border: 1px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .octave-stretch-value {
+            font-size: 9px;
+            font-family: monospace;
+            color: #3C2F2F;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        /* v1.18.1: Old keyboard-section CSS removed - keyboard now in footer */
+
+        /* ====================================================================
+           v1.10.0: VISUALIZATION MODE STYLES - Phase 2
+           ==================================================================== */
+
+        /* Viz mode toggle buttons */
+        .viz-mode-toggle {
+            position: absolute;
+            left: calc(50% - 40px);
+            transform: translateX(-50%);
+            top: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 20;
+        }
+
+        /* v1.30.0: Glissando toggle buttons */
+        .gliss-toggle {
+            padding: 2px 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            float: right;
+            margin-top: -2px;
+        }
+
+        .gliss-toggle:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .gliss-toggle.active {
+            background: rgba(139, 168, 112, 0.5);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            font-weight: 500;
+        }
+
+        /* v1.30.0: Keyswitch settings compact layout */
+        .ks-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .ks-row .dropdown-label {
+            min-width: 50px;
+            font-size: 9px;
+        }
+
+        .ks-row select {
+            flex: 1;
+            max-width: 80px;
+        }
+
+        .viz-btn {
+            padding: 4px 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .viz-btn:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .viz-btn.active {
+            background: rgba(139, 168, 112, 0.5);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            font-weight: 500;
+        }
+
+        /* Visualization container (replaces pitch-circle for multi-mode) */
+        .viz-container {
+            position: absolute;
+            width: 220px;
+            height: 210px;
+            left: calc(50% - 40px);
+            transform: translateX(-50%);
+            bottom: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hidden class for inactive visualizations */
+        .viz-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+        .viz-view.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Polar wheel canvas */
+        #polar-canvas {
+            width: 180px;
+            height: 180px;
+        }
+
+        /* Matrix visualization */
+        .matrix-view {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 4px;
+        }
+
+        .matrix-table {
+            border-collapse: collapse;
+            font-size: 8px;
+            width: 100%;
+        }
+
+        .matrix-table th, .matrix-table td {
+            padding: 2px 3px;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            text-align: center;
+            min-width: 22px;
+        }
+
+        .matrix-table th {
+            background: rgba(139, 115, 85, 0.25);
+            font-weight: 600;
+            color: #3C2F2F;
+        }
+
+        .matrix-cell {
+            font-family: monospace;
+            font-size: 7px;
+        }
+
+        /* True Keys visualization */
+        .truekeys-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .tk-hint {
+            font-size: 11px;
+            color: #5C4033;
+            opacity: 0.7;
+            text-align: center;
+        }
+
+        .tk-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .tk-interval {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(235, 217, 199, 0.6);
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 4px;
+        }
+
+        .tk-interval span:first-child {
+            font-size: 10px;
+            color: #3C2F2F;
+            font-weight: 500;
+        }
+
+        .tk-cents {
+            font-family: monospace;
+            font-size: 11px;
+            color: #3C5C1A;
+            font-weight: 600;
+        }
+
+        /* Modal Rotation Matrix */
+        .rotation-view {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 2px;
+        }
+
+        .rotation-table {
+            border-collapse: collapse;
+            font-size: 7px;
+            width: 100%;
+        }
+
+        .rotation-table th, .rotation-table td {
+            padding: 1px 2px;
+            border: 1px solid rgba(139, 115, 85, 0.25);
+            text-align: center;
+            min-width: 18px;
+        }
+
+        .rotation-table th {
+            background: rgba(139, 115, 85, 0.2);
+            font-weight: 500;
+            color: #3C2F2F;
+        }
+
+        .mode-name {
+            background: rgba(139, 115, 85, 0.3) !important;
+            font-weight: bold;
+            font-size: 8px;
+        }
+
+        .int-cell {
+            font-family: monospace;
+            font-size: 7px;
+        }
+
+        .int-cell.small { background: rgba(33, 150, 243, 0.35); }
+        .int-cell.medium { background: rgba(76, 175, 80, 0.35); }
+        .int-cell.large { background: rgba(255, 152, 0, 0.35); }
+
+        /* Deviation display in interval list */
+        .interval-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 3px;
+            border-radius: 2px;
+            margin-bottom: 1px;
+        }
+
+        .interval-row:hover {
+            background: rgba(139, 168, 112, 0.15);
+        }
+
+        .note-name {
+            color: #5C4033;
+            font-weight: 500;
+            font-size: 8px;
+            min-width: 18px;
+        }
+
+        .cents-value {
+            font-family: monospace;
+            font-size: 8px;
+            color: #3C2F2F;
+        }
+
+        .deviation {
+            font-family: monospace;
+            font-size: 7px;
+            opacity: 0.8;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        .deviation.pure { color: #4CAF50; }
+        .deviation.sharp { color: #FF9800; }
+        .deviation.flat { color: #2196F3; }
+
+        /* v1.15.0: Tuning Library Section */
+        /* v1.18.2: When at top, no margin/border needed */
+        .library-section {
+            margin-top: 8px;
+            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            padding-top: 8px;
+        }
+
+        .library-section.library-section-top {
+            margin-top: 0;
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .library-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .library-header-text {
+            font-size: 9px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .library-toggle {
+            font-size: 10px;
+            color: #8B7355;
+            transition: transform 0.2s;
+        }
+
+        .library-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .library-content {
+            display: none;
+            padding-top: 8px;
+        }
+
+        .library-content.expanded {
+            display: block;
+        }
+
+        .library-filter {
+            margin-bottom: 8px;
+        }
+
+        .library-filter-select {
+            width: 100%;
+            padding: 5px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(245, 230, 211, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .library-filter-select:focus {
+            border-color: #6B8E4E;
+        }
+
+        .library-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            background: rgba(245, 230, 211, 0.5);
+        }
+
+        .library-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.15);
+            transition: background 0.15s;
+        }
+
+        .library-item:last-child {
+            border-bottom: none;
+        }
+
+        .library-item:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .library-item.selected {
+            background: rgba(139, 168, 112, 0.35);
+        }
+
+        .library-item-name {
+            font-size: 10px;
+            color: #3C2F2F;
+            font-weight: 500;
+        }
+
+        .library-item-info {
+            font-size: 8px;
+            color: #8B7355;
+            margin-top: 2px;
+        }
+
+        .library-item-desc {
+            font-size: 8px;
+            color: #5C4033;
+            font-style: italic;
+            margin-top: 2px;
+            display: none;
+        }
+
+        .library-item:hover .library-item-desc {
+            display: block;
+        }
+
+        /* Scrollbar styling for library list */
+        .library-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .library-list::-webkit-scrollbar-track {
+            background: rgba(139, 115, 85, 0.1);
+            border-radius: 3px;
+        }
+
+        .library-list::-webkit-scrollbar-thumb {
+            background: rgba(139, 115, 85, 0.4);
+            border-radius: 3px;
+        }
+
+        .library-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 115, 85, 0.6);
+        }
+
+        /* ====================================================================
+           v1.18.0: TOOLTIP SYSTEM
+           ==================================================================== */
+
+        /* Tooltip toggle button (?) - positioned bottom-right */
+        .tooltip-toggle {
+            position: absolute;
+            bottom: 50px;
+            right: 15px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            color: #5C4033;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 150ms ease;
+            z-index: 100;
+        }
+
+        .tooltip-toggle:hover {
+            background: rgba(139, 168, 112, 0.5);
+            border-color: #6B8E4E;
+        }
+
+        .tooltip-toggle.active {
+            background: rgba(139, 168, 112, 0.7);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            box-shadow: 0 0 6px rgba(107, 142, 78, 0.4);
+        }
+
+        /* Tooltip container (appears on hover when tooltips enabled) */
+        .tooltip {
+            position: absolute;
+            background: rgba(60, 47, 47, 0.95);
+            color: #F5E6D3;
+            padding: 6px 10px;
+            border: 1px solid rgba(139, 115, 85, 0.6);
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            line-height: 1.4;
+            max-width: 200px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 150ms ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            white-space: normal;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        /* Elements with tooltips get subtle indicator when tooltips enabled */
+        .tooltips-enabled [data-tooltip]:hover {
+            outline: 1px dashed rgba(139, 168, 112, 0.4);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="plugin-container">
+        <!-- Botanical Overlay -->
+        <img src="/images/fern_naturalistsmisc1Geor_0089.png" class="botanical-overlay" id="botanicalOverlay" alt="">
+
+        <!-- v1.18.0: Tooltip toggle button -->
+        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+
+        <!-- Tooltip element (positioned dynamically by JS) -->
+        <div class="tooltip" id="tooltip"></div>
+
+        <!-- Header -->
+        <div class="header">
+            <span data-i18n="title.ouaricon-lyrica" class="title">Ouaricon Lyrica</span>
+            <!-- v1.5.1: Complete Preset Bar with Save/Load -->
+            <div class="preset-browser">
+                <div class="preset-arrow" id="preset-prev" title="Previous preset">&#9664;</div>
+                <div class="preset-name-wrapper">
+                    <div class="preset-name" id="preset-name-display">Default</div>
+                    <div class="preset-dropdown" id="preset-dropdown"></div>
+                </div>
+                <div class="preset-arrow" id="preset-next" title="Next preset">&#9654;</div>
+                <div data-i18n="preset-save" class="preset-action-btn" id="preset-save" title="Save preset">Save</div>
+                <div data-i18n="preset-load" class="preset-action-btn" id="preset-load" title="Load preset">Load</div>
+            </div>
+            <span class="voice-display">Voices: <span id="voiceCount">0</span>/16</span>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div data-i18n="tab-sound" class="tab active" id="tab-sound">SOUND</div>
+            <div data-i18n="tab-techniques" class="tab" id="tab-techniques">TECHNIQUES</div>
+            <div data-i18n="tab-tuning" class="tab" id="tab-tuning">TUNING</div>
+            <div data-i18n="tab-effects" class="tab" id="tab-effects">EFFECTS</div>
+        </div>
+
+        <!-- ================================================================
+             SOUND TAB
+             ================================================================ -->
+        <div id="sound-tab" class="tab-content active">
+            <!-- MAIN Section -->
+            <div class="section">
+                <div data-i18n="sound-tab.main" class="section-header">Main</div>
+                <div class="section-content">
+                    <div class="slider-group" data-tooltip="Brightness: Controls the high-frequency content of the string tone. Higher values produce a brighter, more brilliant sound.">
+                        <span data-i18n="sound-tab.brightness" class="slider-label">Brightness</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="brightness" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="brightnessValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Timbre: Adjusts the tonal warmth of the string. Lower values produce darker, warmer tones; higher values add brightness.">
+                        <span data-i18n="sound-tab.timbre" class="slider-label">Timbre</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="timbre" min="0" max="1" step="0.001" value="0.7">
+                            <span class="slider-value" id="timbreValue">70%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Decay Time: How long the string resonates after being plucked. Longer decay creates sustained, ethereal notes.">
+                        <span data-i18n="sound-tab.decay-time" class="slider-label">Decay Time</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="decayTime" min="0" max="1" step="0.001" value="0.247">
+                            <span class="slider-value" id="decayTimeValue">5.0s</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Attack Noise: Amount of pluck transient noise. Higher values add scratchy, percussive attack character.">
+                        <span data-i18n="sound-tab.attack-noise" class="slider-label">Attack Noise</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="attackNoise" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="attackNoiseValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Humanize: Adds natural per-note variation to pluck position, finger hardness, pitch, and attack noise. Creates realistic, organic performances where no two notes sound exactly alike.">
+                        <span data-i18n="sound-tab.humanize" class="slider-label">Humanize</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="humanize" min="0" max="1" step="0.001" value="0">
+                            <span class="slider-value" id="humanizeValue">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STRING Section -->
+            <div class="section">
+                <div data-i18n="sound-tab.string" class="section-header">String</div>
+                <div class="section-content">
+                    <div class="dropdown-group" data-tooltip="Material: The string material affects tone, brightness, and sustain. Gut is warm and mellow; Wire is bright; Crystal has bell-like qualities.">
+                        <span data-i18n="sound-tab.material" class="dropdown-label">Material</span>
+                        <select id="stringMaterial">
+                            <option data-i18n="stringmaterial.gut" value="0">Gut</option>
+                            <option data-i18n="stringmaterial.nylon" value="1">Nylon</option>
+                            <option data-i18n="stringmaterial.wire" value="2">Wire</option>
+                            <option data-i18n="stringmaterial.carbon" value="3">Carbon</option>
+                            <option data-i18n="stringmaterial.metal-alloy" value="4">Metal Alloy</option>
+                            <option data-i18n="stringmaterial.glass" value="5">Glass</option>
+                            <option data-i18n="stringmaterial.crystal" value="6">Crystal</option>
+                            <option data-i18n="stringmaterial.energy" value="7">Energy</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" data-tooltip="Tension: String tightness affects resonance and brightness. Higher tension creates a brighter, more resonant tone.">
+                        <span data-i18n="sound-tab.tension" class="slider-label">Tension</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="stringTension" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="stringTensionValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Gauge: String thickness affects damping. Thinner strings are brighter with quick decay; thicker strings are darker with more body.">
+                        <span data-i18n="sound-tab.gauge" class="slider-label">Gauge</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="stringGauge" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="stringGaugeValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Length: Virtual string length affects decay character. Shorter strings have punchy decay; longer strings sustain with diffuse tails.">
+                        <span data-i18n="sound-tab.length" class="slider-label">Length</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="stringLength" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="stringLengthValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Stiffness: Controls harmonic stretch (inharmonicity). Higher values create bell-like, slightly detuned overtones.">
+                        <span data-i18n="sound-tab.stiffness" class="slider-label">Stiffness</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="stringStiffness" min="0" max="1" step="0.001" value="0.2">
+                            <span class="slider-value" id="stringStiffnessValue">20%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BODY Section -->
+            <div class="section">
+                <div data-i18n="sound-tab.body" class="section-header">Body</div>
+                <div class="section-content">
+                    <div class="slider-group" data-tooltip="Size: The soundboard size affects bass response and overall fullness. Larger bodies produce deeper, more resonant tones.">
+                        <span data-i18n="sound-tab.size" class="slider-label">Size</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="bodySize" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="bodySizeValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Resonance: Body resonance amount. Higher values add more sympathetic body vibration to the string sound.">
+                        <span data-i18n="sound-tab.resonance" class="slider-label">Resonance</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="bodyResonance" min="0" max="1" step="0.001" value="0.6">
+                            <span class="slider-value" id="bodyResonanceValue">60%</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Wood Type: Soundboard wood affects tonal character. Spruce is balanced; Maple is bright; Exotic woods have unique timbres.">
+                        <span data-i18n="sound-tab.wood-type" class="dropdown-label">Wood Type</span>
+                        <select id="woodType">
+                            <option data-i18n="woodtype.spruce" value="0">Spruce</option>
+                            <option data-i18n="woodtype.maple" value="1">Maple</option>
+                            <option data-i18n="woodtype.exotic" value="2">Exotic</option>
+                            <option data-i18n="woodtype.synthetic" value="3">Synthetic</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" data-tooltip="Mode Spread: Spreads body resonance modes across frequencies. Higher values create a more complex, diffuse resonance.">
+                        <span data-i18n="sound-tab.mode-spread" class="slider-label">Mode Spread</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="bodyModeSpread" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="bodyModeSpreadValue">0%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Bridge Brightness: Affects the transfer of high frequencies from string to body. Higher values add clarity and definition.">
+                        <span data-i18n="sound-tab.bridge-bright" class="slider-label">Bridge Bright</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="bridgeBrightness" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="bridgeBrightnessValue">50%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXCITATION Section -->
+            <div class="section">
+                <div data-i18n="sound-tab.excitation" class="section-header">Excitation</div>
+                <div class="section-content">
+                    <div class="slider-group" data-tooltip="Pluck Position: Where the string is plucked. Near the soundhole (0%) has more bass; near the bridge (100%) has more brilliance.">
+                        <span data-i18n="sound-tab.pluck-position" class="slider-label">Pluck Position</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="pluckPosition" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="pluckPositionValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Finger Hardness: How firm the plucking finger is. Soft fingertips (0%) sound mellow; hard fingernails (100%) sound sharp.">
+                        <span data-i18n="sound-tab.finger-hardness" class="slider-label">Finger Hardness</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="fingerHardness" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="fingerHardnessValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Technique: Playing technique changes the excitation character. Harmonics produce bell-like tones; Muted creates percussive plucks.">
+                        <span data-i18n="sound-tab.technique" class="dropdown-label">Technique</span>
+                        <select id="technique">
+                            <option data-i18n="technique.normal" value="0">Normal</option>
+                            <option data-i18n="technique.harmonic" value="1">Harmonic</option>
+                            <option data-i18n="technique.muted" value="2">Muted</option>
+                            <option data-i18n="technique.pres-de-la-table" value="3">Pres de la table</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SYMPATHETIC Section -->
+            <div class="section">
+                <div data-i18n="sound-tab.sympathetic" class="section-header">Sympathetic</div>
+                <div class="section-content">
+                    <div class="slider-group" data-tooltip="Amount: Sympathetic resonance intensity. How much unplayed strings vibrate in response to played notes. Creates richness.">
+                        <span data-i18n="sound-tab.amount" class="slider-label">Amount</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="sympatheticAmount" min="0" max="1" step="0.001" value="0.3">
+                            <span class="slider-value" id="sympatheticAmountValue">30%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Sharpness (Q): The tuning sharpness of sympathetic filters. Higher Q values create more focused, ringing resonance.">
+                        <span data-i18n="sound-tab.sharpness-q" class="slider-label">Sharpness (Q)</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="sympatheticQ" min="0" max="1" step="0.001" value="0.247">
+                            <span class="slider-value" id="sympatheticQValue">Q 5.0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             TECHNIQUES TAB
+             ================================================================ -->
+        <div id="techniques-tab" class="tab-content">
+            <!-- v1.30.0: Keyswitch Settings -->
+            <div class="section">
+                <div data-i18n="techniques-tab.keyswitch-settings" class="section-header">Keyswitch Settings</div>
+                <div class="section-content">
+                    <div class="dropdown-group" data-tooltip="Free KS: MIDI note that activates Free glissando while held. Keyswitch notes are filtered from playback.">
+                        <span data-i18n="techniques-tab.free-ks" class="dropdown-label">Free KS</span>
+                        <select id="freeKeyswitchNote"></select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Scale KS: MIDI note that activates Scale-Locked glissando while held. Keyswitch notes are filtered from playback.">
+                        <span data-i18n="techniques-tab.scale-ks" class="dropdown-label">Scale KS</span>
+                        <select id="scaleKeyswitchNote"></select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- v1.30.0: Free Glissando Section -->
+            <div class="section">
+                <div class="section-header">
+                    Free Glissando
+                    <button data-i18n="freeToggleBtn" class="gliss-toggle" id="freeToggleBtn">OFF</button>
+                </div>
+                <div class="section-content">
+                    <div class="dropdown-group" data-tooltip="Sync: Lock the Free glissando sweep time to host tempo. When set to a rhythmic value, the Time slider is replaced by the synced duration.">
+                        <span data-i18n="techniques-tab.sync" class="dropdown-label">Sync</span>
+                        <select id="freeTempoSync">
+                            <option data-i18n="freetemposync.off" value="0">Off</option>
+                            <option value="1">1/32</option>
+                            <option value="2">1/16</option>
+                            <option value="3">1/16D</option>
+                            <option value="4">1/8T</option>
+                            <option value="5">1/8</option>
+                            <option value="6">1/8D</option>
+                            <option value="7">1/4T</option>
+                            <option value="8">1/4</option>
+                            <option value="9">1/4D</option>
+                            <option value="10">1/2</option>
+                            <option value="11">1/2D</option>
+                            <option data-i18n="freetemposync.1-bar" value="12">1 Bar</option>
+                            <option data-i18n="freetemposync.2-bars" value="13">2 Bars</option>
+                            <option data-i18n="freetemposync.4-bars" value="14">4 Bars</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="freeTimeGroup" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
+                        <span data-i18n="freetimegroup.time" class="slider-label">Time</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoTime" min="0" max="1" step="0.001" value="0.082">
+                            <span class="slider-value" id="glissandoTimeValue">50 ms</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Shape: Acceleration curve for the free glissando sweep.">
+                        <span data-i18n="techniques-tab.shape" class="dropdown-label">Shape</span>
+                        <select id="freeShape">
+                            <option data-i18n="freeshape.linear" value="0">Linear</option>
+                            <option data-i18n="freeshape.accelerate" value="1">Accelerate</option>
+                            <option data-i18n="freeshape.decelerate" value="2">Decelerate</option>
+                            <option data-i18n="freeshape.s-curve" value="3">S-Curve</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Interval: How far the free glissando sweeps in semitones.">
+                        <span data-i18n="techniques-tab.interval" class="dropdown-label">Interval</span>
+                        <select id="freeInterval">
+                            <option data-i18n="freeinterval.minor-2nd" value="0">Minor 2nd</option>
+                            <option data-i18n="freeinterval.major-2nd" value="1">Major 2nd</option>
+                            <option data-i18n="freeinterval.minor-3rd" value="2">Minor 3rd</option>
+                            <option data-i18n="freeinterval.major-3rd" value="3">Major 3rd</option>
+                            <option data-i18n="freeinterval.perfect-4th" value="4">Perfect 4th</option>
+                            <option data-i18n="freeinterval.tritone" value="5">Tritone</option>
+                            <option data-i18n="freeinterval.perfect-5th" value="6">Perfect 5th</option>
+                            <option data-i18n="freeinterval.minor-6th" value="7">Minor 6th</option>
+                            <option data-i18n="freeinterval.major-6th" value="8">Major 6th</option>
+                            <option data-i18n="freeinterval.minor-7th" value="9">Minor 7th</option>
+                            <option data-i18n="freeinterval.major-7th" value="10">Major 7th</option>
+                            <option data-i18n="freeinterval.octave" value="11">Octave</option>
+                            <option data-i18n="freeinterval.octave-5th" value="12">Octave + 5th</option>
+                            <option data-i18n="freeinterval.2-octaves" value="13">2 Octaves</option>
+                            <option data-i18n="freeinterval.2-5-octaves" value="14">2.5 Octaves</option>
+                            <option data-i18n="freeinterval.3-octaves" value="15">3 Octaves</option>
+                            <option data-i18n="freeinterval.custom" value="16">Custom</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Direction: Whether the free glissando sweeps up to the played note or down to it.">
+                        <span data-i18n="techniques-tab.direction" class="dropdown-label">Direction</span>
+                        <select id="freeDirection">
+                            <option data-i18n="freedirection.up-to-note" value="0">Up to Note</option>
+                            <option data-i18n="freedirection.down-to-note" value="1">Down to Note</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="freeCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Exact semitone count (1-48) for the free glissando sweep distance.">
+                        <span data-i18n="freecustomsemitonesgroup.semitones" class="slider-label">Semitones</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="freeCustomSemitones" min="0" max="1" step="0.001" value="0.234">
+                            <span class="slider-value" id="freeCustomSemitonesValue">12 st</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- v1.30.0: Scale-Locked Glissando Section -->
+            <div class="section">
+                <div class="section-header">
+                    Scale-Locked Glissando
+                    <button data-i18n="scaleToggleBtn" class="gliss-toggle" id="scaleToggleBtn">OFF</button>
+                </div>
+                <div class="section-content">
+                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor/Pentatonic are 12-note patterns; Custom uses toggle buttons to select individual degrees. Major/Minor/Pentatonic are disabled for non-12-note tunings.">
+                        <span data-i18n="techniques-tab.scale" class="dropdown-label">Scale</span>
+                        <select id="glissandoScale">
+                            <option data-i18n="glissandoscale.major" value="0">Major</option>
+                            <option data-i18n="glissandoscale.minor" value="1">Minor</option>
+                            <option data-i18n="glissandoscale.pentatonic" value="2">Pentatonic</option>
+                            <option data-i18n="glissandoscale.custom" value="3">Custom</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Tonic: Root note for the glissando scale. Independent from the tuning tab tonic. Determines which notes belong to the selected scale pattern.">
+                        <span data-i18n="techniques-tab.key" class="dropdown-label">Key</span>
+                        <select id="glissandoTonic">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div id="customDegreeToggles" style="display:none; margin: 4px 0; padding: 4px 0;">
+                        <span data-i18n="customdegreetoggles.degrees" class="dropdown-label" style="margin-bottom: 3px; display: block;">Degrees</span>
+                        <div id="degreeButtonContainer" style="display: flex; flex-wrap: wrap; gap: 3px;"></div>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Sync: Lock the Scale-Locked glissando total duration to host tempo. When set to a rhythmic value, the Speed slider is replaced by tempo-synced timing.">
+                        <span data-i18n="techniques-tab.sync-2" class="dropdown-label">Sync</span>
+                        <select id="scaleTempoSync">
+                            <option data-i18n="scaletemposync.off" value="0">Off</option>
+                            <option value="1">1/32</option>
+                            <option value="2">1/16</option>
+                            <option value="3">1/16D</option>
+                            <option value="4">1/8T</option>
+                            <option value="5">1/8</option>
+                            <option value="6">1/8D</option>
+                            <option value="7">1/4T</option>
+                            <option value="8">1/4</option>
+                            <option value="9">1/4D</option>
+                            <option value="10">1/2</option>
+                            <option value="11">1/2D</option>
+                            <option data-i18n="scaletemposync.1-bar" value="12">1 Bar</option>
+                            <option data-i18n="scaletemposync.2-bars" value="13">2 Bars</option>
+                            <option data-i18n="scaletemposync.4-bars" value="14">4 Bars</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="scaleSpeedGroup" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
+                        <span data-i18n="scalespeedgroup.speed" class="slider-label">Speed</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoSpeed" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="glissandoSpeedValue">12.0 n/s</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Shape: Acceleration curve for the scale-locked glissando sweep.">
+                        <span data-i18n="techniques-tab.shape-2" class="dropdown-label">Shape</span>
+                        <select id="glissandoShape">
+                            <option data-i18n="glissandoshape.linear" value="0">Linear</option>
+                            <option data-i18n="glissandoshape.accelerate" value="1">Accelerate</option>
+                            <option data-i18n="glissandoshape.decelerate" value="2">Decelerate</option>
+                            <option data-i18n="glissandoshape.s-curve" value="3">S-Curve</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Interval: How far the scale-locked glissando sweeps in semitones.">
+                        <span data-i18n="techniques-tab.interval-2" class="dropdown-label">Interval</span>
+                        <select id="glissandoInterval">
+                            <option data-i18n="glissandointerval.minor-2nd" value="0">Minor 2nd</option>
+                            <option data-i18n="glissandointerval.major-2nd" value="1">Major 2nd</option>
+                            <option data-i18n="glissandointerval.minor-3rd" value="2">Minor 3rd</option>
+                            <option data-i18n="glissandointerval.major-3rd" value="3">Major 3rd</option>
+                            <option data-i18n="glissandointerval.perfect-4th" value="4">Perfect 4th</option>
+                            <option data-i18n="glissandointerval.tritone" value="5">Tritone</option>
+                            <option data-i18n="glissandointerval.perfect-5th" value="6">Perfect 5th</option>
+                            <option data-i18n="glissandointerval.minor-6th" value="7">Minor 6th</option>
+                            <option data-i18n="glissandointerval.major-6th" value="8">Major 6th</option>
+                            <option data-i18n="glissandointerval.minor-7th" value="9">Minor 7th</option>
+                            <option data-i18n="glissandointerval.major-7th" value="10">Major 7th</option>
+                            <option data-i18n="glissandointerval.octave" value="11">Octave</option>
+                            <option data-i18n="glissandointerval.octave-5th" value="12">Octave + 5th</option>
+                            <option data-i18n="glissandointerval.2-octaves" value="13">2 Octaves</option>
+                            <option data-i18n="glissandointerval.2-5-octaves" value="14">2.5 Octaves</option>
+                            <option data-i18n="glissandointerval.3-octaves" value="15">3 Octaves</option>
+                            <option data-i18n="glissandointerval.custom" value="16">Custom</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Direction: Whether the scale-locked glissando sweeps up to the played note or down to it.">
+                        <span data-i18n="techniques-tab.direction-2" class="dropdown-label">Direction</span>
+                        <select id="glissandoDirection">
+                            <option data-i18n="glissandodirection.up-to-note" value="0">Up to Note</option>
+                            <option data-i18n="glissandodirection.down-to-note" value="1">Down to Note</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="glissandoCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Exact semitone count (1-48) for the scale-locked glissando sweep distance.">
+                        <span data-i18n="glissandocustomsemitonesgroup.semitones" class="slider-label">Semitones</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoCustomSemitones" min="0" max="1" step="0.001" value="0.234">
+                            <span class="slider-value" id="glissandoCustomSemitonesValue">12 st</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Gliss Softness: How much the excitation changes during glissando. 0% is a full deliberate pluck; 60% (default) is a realistic brush; 100% is a very light ethereal sweep.">
+                        <span data-i18n="techniques-tab.softness" class="slider-label">Softness</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoExcitation" min="0" max="1" step="0.001" value="0.6">
+                            <span class="slider-value" id="glissandoExcitationValue">60%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Humanize: Adds natural timing jitter to each glissando step. Simulates the slight irregularity of a real harpist's arm sweep across strings.">
+                        <span data-i18n="techniques-tab.humanize" class="slider-label">Humanize</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoHumanize" min="0" max="1" step="0.001" value="0.3">
+                            <span class="slider-value" id="glissandoHumanizeValue">30%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Dynamics Start: Velocity at the beginning of the glissando sweep. Lower values mean softer attack and more damping. Default 50% gives a subtle lead-in.">
+                        <span data-i18n="techniques-tab.dynamics-start" class="slider-label">Dynamics: Start</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoVelStart" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="glissandoVelStartValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Dynamics End: Velocity at the end of the glissando sweep. Higher values mean brighter sustain. Default 70% gives a natural ascending crescendo.">
+                        <span data-i18n="techniques-tab.dynamics-end" class="slider-label">Dynamics: End</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoVelEnd" min="0" max="1" step="0.001" value="0.7">
+                            <span class="slider-value" id="glissandoVelEndValue">70%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             TUNING TAB - v1.7.0: Marimba-style Layout
+             ================================================================ -->
+        <div id="tuning-tab" class="tab-content">
+            <!-- LEFT SIDE: Interval List -->
+            <div class="tuning-viz-container">
+                <div class="interval-list" id="interval-list">
+                    <div data-i18n="interval-list.intervals-12-notes" class="interval-list-header">Intervals (12 notes)</div>
+                    <!-- Tonic selector + intervals populated by JS -->
+                </div>
+            </div>
+
+            <!-- v1.10.0: Visualization Mode Toggle -->
+            <div class="viz-mode-toggle">
+                <button data-i18n="tuning-tab.circle" class="viz-btn active" data-mode="circle" onclick="window.setVizMode && window.setVizMode('circle')">Circle</button>
+                <button data-i18n="tuning-tab.polar" class="viz-btn" data-mode="polar" onclick="window.setVizMode && window.setVizMode('polar')">Polar</button>
+                <button data-i18n="tuning-tab.matrix" class="viz-btn" data-mode="matrix" onclick="window.setVizMode && window.setVizMode('matrix')">Matrix</button>
+                <button data-i18n="tuning-tab.true-keys" class="viz-btn" data-mode="truekeys" onclick="window.setVizMode && window.setVizMode('truekeys')">True Keys</button>
+                <button data-i18n="tuning-tab.rotation" class="viz-btn" data-mode="rotation" onclick="window.setVizMode && window.setVizMode('rotation')">Rotation</button>
+            </div>
+
+            <!-- CENTER: Visualization Container - v1.10.0: Multi-mode support -->
+            <div class="viz-container" id="viz-container">
+                <!-- Circle View (default) -->
+                <div class="viz-view active" id="circle-view">
+                    <div class="pitch-circle">
+                        <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                            <!-- Outer circle -->
+                            <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                            <!-- Inner circle -->
+                            <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                            <!-- Center dot -->
+                            <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                            <!-- Interval lines (drawn by JS) -->
+                            <g id="interval-lines"></g>
+                            <!-- Degree labels around the circle -->
+                            <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                        </svg>
+                        <div data-i18n="circle-view.scale-intervals" class="pitch-circle-label">Scale Intervals</div>
+                    </div>
+                </div>
+
+                <!-- Polar/Radial View -->
+                <div class="viz-view" id="polar-view">
+                    <canvas id="polar-canvas" width="180" height="180"></canvas>
+                </div>
+
+                <!-- Matrix View -->
+                <div class="viz-view matrix-view" id="matrix-view">
+                    <!-- Generated by JS -->
+                </div>
+
+                <!-- True Keys View -->
+                <div class="viz-view truekeys-view" id="truekeys-view">
+                    <div data-i18n="truekeys-view.hold-2-notes-to" class="tk-hint">Hold 2+ notes to see intervals</div>
+                </div>
+
+                <!-- Modal Rotation View -->
+                <div class="viz-view rotation-view" id="rotation-view">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+
+            <!-- RIGHT SIDE: Tuning Controls -->
+            <div class="tuning-controls-panel">
+                <!-- v1.18.2: Tuning Library moved to top (was at bottom) -->
+                <!-- Dropdown and mode buttons removed - library is the primary interface -->
+                <div class="library-section library-section-top" id="library-section">
+                    <div class="library-header" onclick="window.toggleLibrary && window.toggleLibrary()">
+                        <span data-i18n="library-section.tuning-library" class="library-header-text">Tuning Library</span>
+                        <span class="library-toggle" id="library-toggle">▼</span>
+                    </div>
+                    <div class="library-content" id="library-content">
+                        <div class="library-filter">
+                            <select id="library-filter" class="library-filter-select" onchange="window.handleLibraryFilter && window.handleLibraryFilter(this.value)">
+                                <option data-i18n="library-filter.all-categories" value="all">All Categories</option>
+                                <option data-i18n="library-filter.historical" value="Historical">Historical</option>
+                                <option data-i18n="library-filter.just-intonation" value="Just Intonation">Just Intonation</option>
+                                <option data-i18n="library-filter.equal-divisions" value="Equal Divisions">Equal Divisions</option>
+                                <option data-i18n="library-filter.non-octave" value="Non-Octave">Non-Octave</option>
+                                <option data-i18n="library-filter.world" value="World">World</option>
+                            </select>
+                        </div>
+                        <div class="library-list" id="library-list">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reference Pitch Knob -->
+                <div class="tuning-ref-section" data-tooltip="A4 Reference: The concert pitch for A4. Standard is 440 Hz. Historical tunings may use 415 Hz (Baroque) or 432 Hz.">
+                    <div class="ref-knob-container">
+                        <div class="ref-knob" id="ref-pitch-knob">
+                            <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
+                        </div>
+                    </div>
+                    <div data-i18n="tuning-tab.a4-ref" class="ref-knob-label">A4 REF</div>
+                    <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
+                </div>
+
+                <!-- Scale Name Display -->
+                <div data-i18n="scale-name-display" class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+
+                <!-- v1.9.0: Octave Stretch Slider -->
+                <div class="octave-stretch-section" data-tooltip="Octave Stretch: Stretches octaves slightly. Values >1.0 widen octaves (piano-like). Used for compensating string inharmonicity.">
+                    <div class="octave-stretch-row">
+                        <span data-i18n="tuning-tab.stretch" class="octave-stretch-label">Stretch</span>
+                        <input type="range" id="octave-stretch" class="octave-stretch-slider"
+                               min="0.95" max="1.25" step="0.01" value="1.0"
+                               oninput="window.handleOctaveStretchChange && window.handleOctaveStretchChange(this.value)">
+                        <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+                    </div>
+                </div>
+
+                <!-- File operation buttons - v1.18.2: Always visible (mode buttons removed) -->
+                <!-- v1.16.0: Added Export HTML button -->
+                <div class="tuning-file-section" id="scala-buttons">
+                    <div class="tuning-file-buttons">
+                        <button data-i18n="btn-load-scl" class="tuning-file-btn" id="btn-load-scl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
+                        <button data-i18n="btn-load-kbm" class="tuning-file-btn" id="btn-load-kbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
+                        <button data-i18n="btn-save-scl" class="tuning-file-btn" id="btn-save-scl" onclick="window.handleSaveSCL && window.handleSaveSCL()">Save .SCL</button>
+                        <button data-i18n="btn-save-kbm" class="tuning-file-btn" id="btn-save-kbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
+                        <button data-i18n="btn-export-html" class="tuning-file-btn tuning-export-btn" id="btn-export-html" onclick="window.handleExportHTML && window.handleExportHTML()">Export HTML</button>
+                    </div>
+                </div>
+
+                <!-- v1.14.0: Scale Generator Section -->
+                <div class="generator-section" id="generator-section">
+                    <div class="generator-header" onclick="window.toggleGenerator && window.toggleGenerator()">
+                        <span data-i18n="generator-section.generate-scale" class="generator-header-text">Generate Scale</span>
+                        <span class="generator-toggle" id="generator-toggle">▼</span>
+                    </div>
+                    <div class="generator-content" id="generator-content">
+                        <div class="generator-type-row">
+                            <select id="generator-type" class="generator-type-select" onchange="window.handleGeneratorTypeChange && window.handleGeneratorTypeChange(this.value)">
+                                <option data-i18n="generator-type.edo-equal-division" value="edo">EDO (Equal Division)</option>
+                                <option data-i18n="generator-type.harmonic-series" value="harmonic">Harmonic Series</option>
+                                <option data-i18n="generator-type.rank-2-temperament" value="rank2">Rank-2 Temperament</option>
+                            </select>
+                        </div>
+                        <div class="generator-inputs" id="generator-inputs">
+                            <!-- EDO inputs (default) -->
+                            <div class="gen-row">
+                                <labeldata-i18n="generator-inputs.divisions" >Divisions</label>
+                                <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                            </div>
+                            <div class="gen-row">
+                                <labeldata-i18n="generator-inputs.period" >Period (¢)</label>
+                                <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                            </div>
+                        </div>
+                        <button data-i18n="generator-content.generate" class="generator-btn" onclick="window.handleGenerate && window.handleGenerate()">Generate</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- v1.18.1: Keyboard moved to footer -->
+        </div>
+
+        <!-- ================================================================
+             v1.32.0: EFFECTS TAB (Chorus, Delay, EQ, Reverb)
+             ================================================================ -->
+        <div id="effects-tab" class="tab-content">
+            <div class="fx-section" id="chorusSection">
+                <div class="fx-header">
+                    <span data-i18n="chorussection.chorus" class="fx-title">Chorus</span>
+                    <button data-i18n="chorusBypassBtn" class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="chorus-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="delaySection">
+                <div class="fx-header">
+                    <span data-i18n="delaysection.delay" class="fx-title">Delay</span>
+                    <button data-i18n="delayBypassBtn" class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="delay-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="reverbSection">
+                <div class="fx-header">
+                    <span data-i18n="reverbsection.reverb" class="fx-title">Reverb</span>
+                    <button data-i18n="reverbBypassBtn" class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="reverb-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="eqSection">
+                <div class="fx-header">
+                    <span data-i18n="eqsection.eq" class="fx-title">EQ</span>
+                    <button data-i18n="eqBypassBtn" class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="eq-knobs"></div>
+            </div>
+        </div>
+
+        <!-- Footer - v1.18.1: Keyboard moved here from Tuning tab -->
+        <div class="footer">
+            <div class="master-volume" data-tooltip="Master Volume: The final output level of the instrument. Shown in dB. 0 dB is unity gain (no change).">
+                <span data-i18n="master-label.master" class="master-label">Master</span>
+                <input type="range" id="masterVolume" class="master-slider" min="0" max="1" step="0.001" value="0.909">
+                <span class="master-value" id="masterVolumeValue">0.0 dB</span>
+            </div>
+            <!-- v1.18.1: 2-octave keyboard in footer -->
+            <div class="footer-keyboard">
+                <div class="footer-keyboard-viz" id="keyboard-viz">
+                    <!-- 2 Octaves: C3-B4 (MIDI 48-71) - 14 White keys -->
+                    <div class="white-key mapped" data-note="48"><span>C3</span></div>
+                    <div class="white-key mapped" data-note="50"><span>D</span></div>
+                    <div class="white-key mapped" data-note="52"><span>E</span></div>
+                    <div class="white-key mapped" data-note="53"><span>F</span></div>
+                    <div class="white-key mapped" data-note="55"><span>G</span></div>
+                    <div class="white-key mapped" data-note="57"><span>A</span></div>
+                    <div class="white-key mapped" data-note="59"><span>B</span></div>
+                    <div class="white-key mapped" data-note="60"><span>C4</span></div>
+                    <div class="white-key mapped" data-note="62"><span>D</span></div>
+                    <div class="white-key mapped" data-note="64"><span>E</span></div>
+                    <div class="white-key mapped" data-note="65"><span>F</span></div>
+                    <div class="white-key mapped" data-note="67"><span>G</span></div>
+                    <div class="white-key mapped" data-note="69"><span>A</span></div>
+                    <div class="white-key mapped" data-note="71"><span>B</span></div>
+                    <!-- Black keys - 10 total for 2 octaves -->
+                    <!-- Octave 1 (C3-B3): positioned as percentages of 14 white keys -->
+                    <div class="black-key mapped" data-note="49" style="left: calc(100% / 14 * 1 - 7px);"></div>
+                    <div class="black-key mapped" data-note="51" style="left: calc(100% / 14 * 2 - 7px);"></div>
+                    <div class="black-key mapped" data-note="54" style="left: calc(100% / 14 * 4 - 7px);"></div>
+                    <div class="black-key mapped" data-note="56" style="left: calc(100% / 14 * 5 - 7px);"></div>
+                    <div class="black-key mapped" data-note="58" style="left: calc(100% / 14 * 6 - 7px);"></div>
+                    <!-- Octave 2 (C4-B4) -->
+                    <div class="black-key mapped" data-note="61" style="left: calc(100% / 14 * 8 - 7px);"></div>
+                    <div class="black-key mapped" data-note="63" style="left: calc(100% / 14 * 9 - 7px);"></div>
+                    <div class="black-key mapped" data-note="66" style="left: calc(100% / 14 * 11 - 7px);"></div>
+                    <div class="black-key mapped" data-note="68" style="left: calc(100% / 14 * 12 - 7px);"></div>
+                    <div class="black-key mapped" data-note="70" style="left: calc(100% / 14 * 13 - 7px);"></div>
+                </div>
+                <div data-i18n="footer-keyboard-help.click-to-play" class="footer-keyboard-help">Click to play</div>
+            </div>
+            <span data-i18n="brand.ouaricon-audio" class="brand">Ouaricon Audio</span>
+        </div>
+    </div>
+
+    <!-- JUCE Bridge -->
+    <!-- v1.18.2: Mode buttons removed - library is primary interface -->
+    <!-- v1.7.3: Added global handlers for SCL/KBM file operations -->
+    <script>
+        // Store current tuning mode globally for module access
+        // v1.18.2: Default to Custom mode (1) since library is now primary
+        window.currentTuningMode = 1;
+
+        // v1.18.2: Simplified - mode buttons removed, this is now just for internal state
+        window.handleModeClick = function(mode, btn) {
+            window.currentTuningMode = mode;
+            // Notify the module to sync with JUCE
+            if (window.onTuningModeChanged) {
+                window.onTuningModeChanged(mode);
+            }
+        };
+
+        // v1.7.3: JUCE API reference (set by module on load)
+        window.JuceAPI = null;
+
+        // v1.7.3: File operation handlers - defined here (non-module) for immediate availability
+        window.handleLoadSCL = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var name = await window.JuceAPI.getNativeFunction('loadScalaFile')();
+                if (name) {
+                    var el = document.getElementById('scale-name-display');
+                    if (el) el.textContent = name;
+                    if (window.onScalaLoaded) window.onScalaLoaded(name);
+                }
+            } catch (e) {
+                console.error('[Tuning] Load SCL failed:', e);
+            }
+        };
+
+        window.handleLoadKBM = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var result = await window.JuceAPI.getNativeFunction('loadKBMFile')();
+                if (result) console.log('[Tuning] Loaded KBM file');
+            } catch (e) {
+                console.error('[Tuning] Load KBM failed:', e);
+            }
+        };
+
+        window.handleSaveSCL = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('saveScalaFile')();
+                if (filename) console.log('[Tuning] Saved SCL:', filename);
+            } catch (e) {
+                console.error('[Tuning] Save SCL failed:', e);
+            }
+        };
+
+        window.handleSaveKBM = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('saveKBMFile')();
+                if (filename) console.log('[Tuning] Saved KBM:', filename);
+            } catch (e) {
+                console.error('[Tuning] Save KBM failed:', e);
+            }
+        };
+
+        // v1.16.0: Export tuning as HTML documentation
+        window.handleExportHTML = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('exportTuningHTML')();
+                if (filename) {
+                    console.log('[Tuning] Exported HTML:', filename);
+                }
+            } catch (e) {
+                console.error('[Tuning] Export HTML failed:', e);
+            }
+        };
+
+        // v1.7.3: Interval change handler
+        window.handleIntervalChange = function(index, valueStr) {
+            if (window.onIntervalChanged) {
+                window.onIntervalChanged(index, valueStr);
+            } else {
+                console.error('[Tuning] onIntervalChanged not defined');
+            }
+        };
+
+        // v1.7.3: Tonic arrow handlers
+        window.handleTonicDown = function() {
+            if (window.onTonicDown) window.onTonicDown();
+        };
+
+        window.handleTonicUp = function() {
+            if (window.onTonicUp) window.onTonicUp();
+        };
+
+        // v1.9.0: Temperament preset change handler
+        window.handlePresetChange = async function(value) {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            var index = parseInt(value);
+            try {
+                await window.JuceAPI.getNativeFunction('setTemperamentPreset')(index);
+                console.log('[Tuning] Set preset:', index);
+                // Refresh tuning display
+                if (window.refreshTuningState) {
+                    window.refreshTuningState();
+                }
+            } catch (e) {
+                console.error('[Tuning] Set preset failed:', e);
+            }
+        };
+
+        // v1.9.0: Octave stretch change handler
+        window.handleOctaveStretchChange = async function(value) {
+            var stretch = parseFloat(value);
+            var valueEl = document.getElementById('octave-stretch-value');
+            if (valueEl) valueEl.textContent = stretch.toFixed(2);
+
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                await window.JuceAPI.getNativeFunction('setOctaveStretch')(stretch);
+            } catch (e) {
+                console.error('[Tuning] Set octave stretch failed:', e);
+            }
+        };
+
+        // v1.18.2: When .scl file loaded, update scale name display
+        window.onScalaLoaded = function(filename) {
+            var scaleNameEl = document.getElementById('scale-name-display');
+            if (scaleNameEl) {
+                scaleNameEl.textContent = filename;
+            }
+        };
+
+        // v1.14.0: Scale Generator handlers
+        window.generatorType = 'edo';
+
+        window.toggleGenerator = function() {
+            var content = document.getElementById('generator-content');
+            var toggle = document.getElementById('generator-toggle');
+            if (content && toggle) {
+                content.classList.toggle('expanded');
+                toggle.classList.toggle('expanded');
+            }
+        };
+
+        window.handleGeneratorTypeChange = function(type) {
+            window.generatorType = type;
+            var inputsDiv = document.getElementById('generator-inputs');
+            if (!inputsDiv) return;
+
+            switch (type) {
+                case 'edo':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Divisions</label>
+                            <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                        </div>
+                        <div class="gen-row">
+                            <label>Period (¢)</label>
+                            <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                        </div>
+                    `;
+                    break;
+                case 'harmonic':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Start Harmonic</label>
+                            <input type="number" id="gen-start" value="8" min="1" max="32">
+                        </div>
+                        <div class="gen-row">
+                            <label>End Harmonic</label>
+                            <input type="number" id="gen-end" value="16" min="2" max="64">
+                        </div>
+                    `;
+                    break;
+                case 'rank2':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Generator (¢)</label>
+                            <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
+                        </div>
+                        <div class="gen-row">
+                            <label>Period (¢)</label>
+                            <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
+                        </div>
+                        <div class="gen-row">
+                            <label>Notes</label>
+                            <input type="number" id="gen-count" value="12" min="3" max="31">
+                        </div>
+                    `;
+                    break;
+            }
+        };
+
+        window.handleGenerate = async function() {
+            if (!window.JuceAPI) {
+                console.error('[Generator] JUCE not ready');
+                return;
+            }
+
+            try {
+                var intervalsJson, scaleName;
+
+                switch (window.generatorType) {
+                    case 'edo': {
+                        var divisions = parseInt(document.getElementById('gen-divisions').value);
+                        var period = parseFloat(document.getElementById('gen-period').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateEDO')(divisions, period);
+                        scaleName = divisions + '-EDO';
+                        if (Math.abs(period - 1200) > 0.1) {
+                            scaleName += ' (' + period.toFixed(0) + '¢)';
+                        }
+                        console.log('[Generator] Generated EDO:', divisions, 'divisions, period:', period);
+                        break;
+                    }
+                    case 'harmonic': {
+                        var start = parseInt(document.getElementById('gen-start').value);
+                        var end = parseInt(document.getElementById('gen-end').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateHarmonicSeries')(start, end);
+                        scaleName = 'Harmonics ' + start + '-' + end;
+                        console.log('[Generator] Generated Harmonic Series:', start, 'to', end);
+                        break;
+                    }
+                    case 'rank2': {
+                        var generator = parseFloat(document.getElementById('gen-generator').value);
+                        var period = parseFloat(document.getElementById('gen-r2-period').value);
+                        var count = parseInt(document.getElementById('gen-count').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateRank2')(generator, period, count);
+                        scaleName = 'Rank-2 (' + generator.toFixed(1) + '¢, ' + count + ' notes)';
+                        console.log('[Generator] Generated Rank-2:', generator, '¢ gen,', count, 'notes');
+                        break;
+                    }
+                }
+
+                // Apply the generated scale
+                var success = await window.JuceAPI.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
+                if (success) {
+                    console.log('[Generator] Applied scale:', scaleName);
+
+                    // v1.18.2: Update scale name display and refresh
+                    var scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl) {
+                        scaleNameEl.textContent = scaleName;
+                    }
+
+                    // Refresh tuning display
+                    if (window.refreshTuningState) {
+                        window.refreshTuningState();
+                    }
+                } else {
+                    console.error('[Generator] Failed to apply scale');
+                }
+            } catch (e) {
+                console.error('[Generator] Generate failed:', e);
+            }
+        };
+
+        // v1.15.0: Tuning Library handlers
+        window.embeddedTunings = [];
+        window.libraryFilter = 'all';
+
+        window.toggleLibrary = function() {
+            var content = document.getElementById('library-content');
+            var toggle = document.getElementById('library-toggle');
+            if (content && toggle) {
+                content.classList.toggle('expanded');
+                toggle.classList.toggle('expanded');
+                // Load tunings on first expand
+                if (content.classList.contains('expanded') && window.embeddedTunings.length === 0) {
+                    window.loadEmbeddedTunings();
+                }
+            }
+        };
+
+        window.loadEmbeddedTunings = async function() {
+            if (!window.JuceAPI) {
+                console.error('[Library] JUCE not ready');
+                return;
+            }
+            try {
+                var jsonStr = await window.JuceAPI.getNativeFunction('getEmbeddedTuningList')();
+                window.embeddedTunings = JSON.parse(jsonStr);
+                console.log('[Library] Loaded', window.embeddedTunings.length, 'embedded tunings');
+                window.renderLibraryList();
+            } catch (e) {
+                console.error('[Library] Failed to load tunings:', e);
+            }
+        };
+
+        window.handleLibraryFilter = function(category) {
+            window.libraryFilter = category;
+            window.renderLibraryList();
+        };
+
+        window.renderLibraryList = function() {
+            var listEl = document.getElementById('library-list');
+            if (!listEl) return;
+
+            var filtered = window.embeddedTunings;
+            if (window.libraryFilter !== 'all') {
+                filtered = window.embeddedTunings.filter(function(t) {
+                    return t.category === window.libraryFilter;
+                });
+            }
+
+            var html = '';
+            filtered.forEach(function(tuning) {
+                var periodNote = tuning.period !== 1200 ? ' (' + tuning.period.toFixed(0) + '¢ period)' : '';
+                html += '<div class="library-item" data-id="' + tuning.id + '" onclick="window.handleLoadEmbeddedTuning(\'' + tuning.id + '\')">';
+                html += '<div class="library-item-name">' + tuning.name + '</div>';
+                html += '<div class="library-item-info">' + tuning.category + ' • ' + tuning.noteCount + ' notes' + periodNote + '</div>';
+                html += '<div class="library-item-desc">' + tuning.description + '</div>';
+                html += '</div>';
+            });
+
+            listEl.innerHTML = html;
+        };
+
+        window.handleLoadEmbeddedTuning = async function(tuningId) {
+            if (!window.JuceAPI) {
+                console.error('[Library] JUCE not ready');
+                return;
+            }
+            try {
+                var success = await window.JuceAPI.getNativeFunction('loadEmbeddedTuning')(tuningId);
+                if (success) {
+                    console.log('[Library] Loaded tuning:', tuningId);
+
+                    // Find the tuning to get name
+                    var tuning = window.embeddedTunings.find(function(t) { return t.id === tuningId; });
+
+                    // Update visual selection
+                    var items = document.querySelectorAll('.library-item');
+                    items.forEach(function(item) {
+                        item.classList.toggle('selected', item.dataset.id === tuningId);
+                    });
+
+                    // v1.18.2: Update scale name display
+                    var scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl && tuning) {
+                        scaleNameEl.textContent = tuning.name;
+                    }
+
+                    // Refresh tuning display
+                    if (window.refreshTuningState) {
+                        window.refreshTuningState();
+                    }
+                } else {
+                    console.error('[Library] Failed to load tuning:', tuningId);
+                }
+            } catch (e) {
+                console.error('[Library] Load failed:', e);
+            }
+        };
+    </script>
+
+    <script type="module" src="/js/app.js"></script>
+    <script type="module">
+        import * as Juce from '/js/juce/index.js';
+
+        // v1.7.3: Expose JUCE API to global handlers (defined in non-module script above)
+        window.JuceAPI = Juce;
+        console.log('[Module] JUCE API exposed to global handlers');
+
+        // ====================================================================
+        // Tab Switching
+        // ====================================================================
+        const tabIds = ['sound', 'techniques', 'tuning', 'effects'];
+        const botanicalOverlay = document.getElementById('botanicalOverlay');
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            tabIds.forEach(id => {
+                const tabBtn = document.getElementById(`tab-${id}`);
+                const tabContent = document.getElementById(`${id}-tab`);
+                if (id === tabName) {
+                    tabBtn.classList.add('active');
+                    tabContent.classList.add('active');
+                } else {
+                    tabBtn.classList.remove('active');
+                    tabContent.classList.remove('active');
+                }
+            });
+
+            // Update botanical overlay position
+            botanicalOverlay.className = 'botanical-overlay';
+            if (tabName === 'techniques') {
+                botanicalOverlay.classList.add('techniques-position');
+            } else if (tabName === 'tuning') {
+                botanicalOverlay.classList.add('tuning-position');
+            } else if (tabName === 'effects') {
+                botanicalOverlay.classList.add('effects-position');
+            }
+        }
+
+        // Tab click handlers
+        tabIds.forEach(id => {
+            document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id));
+        });
+
+        // ====================================================================
+        // Parameter Bindings - Sliders
+        // ====================================================================
+        // WR-07: normalised parameter defaults, fetched once from the C++ getParameterDefaults
+        // native fn (the JUCE WebSlider `properties` payload carries no default). Populated
+        // asynchronously at startup; double-click-reset handlers read it by reference.
+        let paramDefaults = {};
+        (async () => {
+            try {
+                const defs = await window.JuceAPI.getNativeFunction('getParameterDefaults')();
+                if (defs && typeof defs === 'object') paramDefaults = defs;
+            } catch (e) {
+                console.warn('getParameterDefaults failed:', e);
+            }
+        })();
+
+        // WR-08: `format` now receives the SKEW-AWARE SCALED value from sliderState.getScaledValue()
+        // (engineering units straight from the C++ NormalisableRange), not the raw 0–1 normalised
+        // value. This removes the hard-coded per-knob range/skew math that had drifted from C++
+        // (masterVolume was off by up to 24 dB, sympatheticQ ~2× at the midpoint, etc.). Percent
+        // knobs whose range is 0–1 read identically; the rest just label the true scaled value.
+        const pct = s => `${Math.round(s * 100)}%`;
+        const sliderParams = [
+            { id: 'masterVolume', format: s => `${s.toFixed(1)} dB` },      // range -60..6 dB
+            { id: 'brightness', format: pct },
+            { id: 'timbre', format: pct },
+            { id: 'decayTime', format: s =>                                  // range 0.1..20 s (skew 0.4)
+                s < 1 ? `${(s * 1000).toFixed(0)}ms` : `${s.toFixed(1)}s` },
+            { id: 'attackNoise', format: pct },
+            { id: 'humanize', format: pct },
+            { id: 'bodySize', format: pct },
+            { id: 'bodyResonance', format: pct },
+            { id: 'bodyModeSpread', format: s => `${Math.round(s * 100)}%` }, // range -1..1
+            { id: 'bridgeBrightness', format: pct },
+            { id: 'sympatheticAmount', format: pct },
+            { id: 'sympatheticQ', format: s => `Q ${s.toFixed(1)}` },        // range 0.1..20 (skew 0.5)
+            { id: 'pluckPosition', format: pct },
+            { id: 'fingerHardness', format: pct },
+            { id: 'stringTension', format: pct },
+            { id: 'stringGauge', format: pct },
+            { id: 'stringLength', format: pct },
+            { id: 'stringStiffness', format: pct },
+            { id: 'glissandoSpeed', format: s => `${s.toFixed(1)} n/s` },    // range 4..30 (skew 0.5)
+            { id: 'glissandoCustomSemitones', format: s => `${Math.round(s)} st` }, // range 1..48
+            { id: 'glissandoHumanize', format: pct },
+            { id: 'glissandoVelStart', format: pct },
+            { id: 'glissandoVelEnd', format: pct },
+            { id: 'glissandoExcitation', format: pct },
+            { id: 'glissandoTime', format: s => `${Math.round(s * 1000)} ms` } // range 0.01..0.5 s (skew 0.5)
+        ];
+        // Note: masterTune is controlled by the A4 REF knob in tuning tab (not a slider)
+
+        sliderParams.forEach(param => {
+            const slider = document.getElementById(param.id);
+            const valueDisplay = document.getElementById(`${param.id}Value`);
+            if (!slider || !valueDisplay) return;
+
+            try {
+                // Get JUCE slider state
+                const sliderState = Juce.getSliderState(param.id);
+                if (!sliderState || !sliderState.valueChangedEvent) return;
+
+                // Bind slider to JUCE (WR-08: display the skew-aware scaled value; the HTML range
+                // input itself stays in normalised 0–1 space).
+                sliderState.valueChangedEvent.addListener(() => {
+                    slider.value = sliderState.getNormalisedValue();
+                    valueDisplay.textContent = param.format(sliderState.getScaledValue());
+                });
+
+                // User interaction
+                slider.addEventListener('input', () => {
+                    sliderState.setNormalisedValue(parseFloat(slider.value));
+                });
+
+                slider.addEventListener('mousedown', () => sliderState.sliderDragStarted());
+                slider.addEventListener('mouseup', () => sliderState.sliderDragEnded());
+                slider.addEventListener('touchstart', () => sliderState.sliderDragStarted());
+                slider.addEventListener('touchend', () => sliderState.sliderDragEnded());
+
+                // Double-click to reset. WR-07: the JUCE WebSlider `properties` payload has NO
+                // defaultValue field, so the old `properties.defaultValue` was undefined →
+                // setNormalisedValue(undefined) → NaN pushed to the backend. Use the normalised
+                // defaults fetched from the getParameterDefaults native fn (see paramDefaults below).
+                slider.addEventListener('dblclick', () => {
+                    const d = paramDefaults[param.id];
+                    if (typeof d === 'number' && isFinite(d))
+                        sliderState.setNormalisedValue(d);
+                });
+
+                // Initialize display (WR-08: scaled value)
+                slider.value = sliderState.getNormalisedValue();
+                valueDisplay.textContent = param.format(sliderState.getScaledValue());
+            } catch (e) {
+                console.warn(`Slider binding failed for ${param.id}:`, e);
+            }
+        });
+
+        // ====================================================================
+        // Parameter Bindings - Dropdowns
+        // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
+        // ====================================================================
+        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoScale', 'glissandoTonic', 'glissandoShape', 'glissandoInterval', 'glissandoDirection', 'freeShape', 'freeInterval', 'freeDirection', 'freeTempoSync', 'scaleTempoSync'];
+
+        dropdownParams.forEach(paramId => {
+            const select = document.getElementById(paramId);
+            if (!select) return;
+
+            try {
+                const comboState = Juce.getComboBoxState(paramId);
+                if (!comboState || !comboState.valueChangedEvent) return;
+
+                // Bind to JUCE
+                comboState.valueChangedEvent.addListener(() => {
+                    select.value = comboState.getChoiceIndex();
+                });
+
+                // User interaction
+                select.addEventListener('change', () => {
+                    comboState.setChoiceIndex(parseInt(select.value));
+                });
+
+                // Initialize
+                select.value = comboState.getChoiceIndex();
+            } catch (err) {
+                console.warn('[Dropdown] Failed to bind ' + paramId + ':', err);
+            }
+        });
+
+        // ====================================================================
+        // v1.30.0: Glissando toggle buttons + keyswitch dropdowns + custom semitones visibility
+        // ====================================================================
+        {
+            // Helper: bind bool toggle param to button
+            function inlineBindToggle(paramId, buttonId) {
+                const button = document.getElementById(buttonId);
+                if (!button) return;
+
+                try {
+                    let state, getValue, setValue;
+                    if (typeof Juce.getToggleState === 'function') {
+                        state = Juce.getToggleState(paramId);
+                        getValue = () => state.getValue();
+                        setValue = (v) => state.setValue(v);
+                    } else {
+                        state = Juce.getSliderState(paramId);
+                        getValue = () => state.getNormalisedValue() >= 0.5;
+                        setValue = (v) => state.setNormalisedValue(v ? 1.0 : 0.0);
+                    }
+
+                    const updateBtn = (isOn) => {
+                        button.textContent = isOn ? 'ON' : 'OFF';
+                        button.classList.toggle('active', isOn);
+                    };
+
+                    updateBtn(getValue());
+
+                    button.addEventListener('click', () => {
+                        const newVal = !getValue();
+                        setValue(newVal);
+                        updateBtn(newVal);
+                    });
+
+                    state.valueChangedEvent.addListener(() => {
+                        updateBtn(getValue());
+                    });
+                } catch (e) {
+                    console.warn('[Toggle] Failed to bind ' + paramId + ':', e);
+                }
+            }
+
+            inlineBindToggle('freeToggle', 'freeToggleBtn');
+            inlineBindToggle('scaleToggle', 'scaleToggleBtn');
+
+            // Helper: populate and bind keyswitch dropdown
+            function inlineBindKeyswitch(paramId) {
+                const el = document.getElementById(paramId);
+                if (!el) return;
+
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                el.innerHTML = '';
+                for (let i = 0; i < 48; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = noteNames[i % 12] + (Math.floor(i / 12) - 1);
+                    el.appendChild(opt);
+                }
+
+                // Bind like standard dropdown
+                try {
+                    const comboState = Juce.getComboBoxState(paramId);
+                    if (!comboState || !comboState.valueChangedEvent) return;
+                    comboState.valueChangedEvent.addListener(() => {
+                        el.value = comboState.getChoiceIndex();
+                    });
+                    el.addEventListener('change', () => {
+                        comboState.setChoiceIndex(parseInt(el.value));
+                    });
+                    el.value = comboState.getChoiceIndex();
+                } catch (e) {
+                    console.warn('[Keyswitch] Failed to bind ' + paramId + ':', e);
+                }
+            }
+
+            inlineBindKeyswitch('freeKeyswitchNote');
+            inlineBindKeyswitch('scaleKeyswitchNote');
+
+            // Custom semitones visibility per section
+            function setupInlineCustomVis(intervalId, groupId) {
+                const intervalSel = document.getElementById(intervalId);
+                const group = document.getElementById(groupId);
+                if (!intervalSel || !group) return;
+
+                const update = () => {
+                    group.style.display = (parseInt(intervalSel.value) === 16) ? '' : 'none';
+                };
+                intervalSel.addEventListener('change', update);
+                try {
+                    const st = Juce.getComboBoxState(intervalId);
+                    if (st && st.valueChangedEvent) st.valueChangedEvent.addListener(update);
+                } catch (e) {}
+                update();
+            }
+
+            setupInlineCustomVis('freeInterval', 'freeCustomSemitonesGroup');
+            setupInlineCustomVis('glissandoInterval', 'glissandoCustomSemitonesGroup');
+
+            // v1.31.0: Tempo sync visibility — hide Time/Speed slider when sync is active
+            function setupInlineTempoSyncVis(syncId, manualGroupId) {
+                const syncSel = document.getElementById(syncId);
+                const manualGroup = document.getElementById(manualGroupId);
+                if (!syncSel || !manualGroup) return;
+
+                const update = () => {
+                    manualGroup.style.display = (parseInt(syncSel.value) === 0) ? '' : 'none';
+                };
+                syncSel.addEventListener('change', update);
+                try {
+                    const st = Juce.getComboBoxState(syncId);
+                    if (st && st.valueChangedEvent) st.valueChangedEvent.addListener(() => {
+                        syncSel.value = st.getChoiceIndex();
+                        update();
+                    });
+                } catch (e) {}
+                update();
+            }
+
+            setupInlineTempoSyncVis('freeTempoSync', 'freeTimeGroup');
+            setupInlineTempoSyncVis('scaleTempoSync', 'scaleSpeedGroup');
+
+            // Free custom semitones slider binding (inline)
+            try {
+                const freeCSSlider = document.getElementById('freeCustomSemitones');
+                const freeCSValue = document.getElementById('freeCustomSemitonesValue');
+                if (freeCSSlider && freeCSValue) {
+                    const sliderState = Juce.getSliderState('freeCustomSemitones');
+                    const initVal = sliderState.getNormalisedValue();
+                    freeCSSlider.value = initVal;
+                    freeCSValue.textContent = Math.round(1 + initVal * 47) + ' st';
+
+                    freeCSSlider.addEventListener('input', (e) => {
+                        const v = parseFloat(e.target.value);
+                        sliderState.setNormalisedValue(v);
+                        freeCSValue.textContent = Math.round(1 + v * 47) + ' st';
+                    });
+
+                    sliderState.valueChangedEvent.addListener(() => {
+                        const v = sliderState.getNormalisedValue();
+                        freeCSSlider.value = v;
+                        freeCSValue.textContent = Math.round(1 + v * 47) + ' st';
+                    });
+                }
+            } catch (e) {
+                console.warn('[Slider] Failed to bind freeCustomSemitones:', e);
+            }
+        }
+
+        // v1.35.1: Effects Tab knobs & bypass now handled by js/app.js module
+        // (duplicate inline code removed to fix doubled controls & broken bypass toggles)
+
+        // ====================================================================
+        // v1.30.0: Custom Degree Toggle Buttons + Non-12 Scale Handling
+        // ====================================================================
+        {
+            let currentDegreeMaskLow = 0xFFFFFFFF;
+            let currentDegreeMaskHigh = 0xFFFFFFFF;
+            let currentDegreeCount = 12;
+
+            const scaleSelect = document.getElementById('glissandoScale');
+            const toggleContainer = document.getElementById('customDegreeToggles');
+            const buttonContainer = document.getElementById('degreeButtonContainer');
+
+            // Initialize from C++ state
+            async function initDegreeState() {
+                try {
+                    const result = await Juce.getNativeFunction('getGlissCustomDegrees')();
+                    if (result && typeof result.low === 'number') {
+                        currentDegreeMaskLow = result.low;
+                        currentDegreeMaskHigh = result.high;
+                    }
+                    const count = await Juce.getNativeFunction('getScaleDegreeCount')();
+                    if (typeof count === 'number' && count > 0) {
+                        currentDegreeCount = count;
+                    }
+                } catch (e) {
+                    console.warn('[Degrees] Init failed:', e);
+                }
+                updateDegreeButtons();
+                updateScaleOptionsForDegreeCount();
+            }
+
+            function isDegreeEnabled(degree) {
+                if (degree < 32) return (currentDegreeMaskLow >>> degree) & 1;
+                return (currentDegreeMaskHigh >>> (degree - 32)) & 1;
+            }
+
+            function toggleDegree(degree) {
+                if (degree < 32) currentDegreeMaskLow ^= (1 << degree);
+                else currentDegreeMaskHigh ^= (1 << (degree - 32));
+                Juce.getNativeFunction('setGlissCustomDegrees')(currentDegreeMaskLow, currentDegreeMaskHigh);
+            }
+
+            function updateDegreeButtons() {
+                buttonContainer.innerHTML = '';
+                for (let i = 0; i < currentDegreeCount; i++) {
+                    const btn = document.createElement('button');
+                    btn.textContent = (i + 1).toString();
+                    btn.className = 'degree-btn' + (isDegreeEnabled(i) ? ' active' : '');
+                    btn.style.cssText = 'min-width: 24px; height: 20px; font-size: 10px; padding: 0 3px; border: 1px solid rgba(139,119,91,0.4); border-radius: 3px; cursor: pointer; background: ' + (isDegreeEnabled(i) ? 'rgba(139,119,91,0.5)' : 'rgba(0,0,0,0.2)') + '; color: ' + (isDegreeEnabled(i) ? '#f5efe6' : 'rgba(245,239,230,0.4)') + ';';
+                    btn.addEventListener('click', () => {
+                        toggleDegree(i);
+                        const on = isDegreeEnabled(i);
+                        btn.className = 'degree-btn' + (on ? ' active' : '');
+                        btn.style.background = on ? 'rgba(139,119,91,0.5)' : 'rgba(0,0,0,0.2)';
+                        btn.style.color = on ? '#f5efe6' : 'rgba(245,239,230,0.4)';
+                    });
+                    buttonContainer.appendChild(btn);
+                }
+            }
+
+            // Show/hide degree toggles based on scale selection
+            function updateDegreeVisibility() {
+                if (!toggleContainer || !scaleSelect) return;
+                toggleContainer.style.display = (parseInt(scaleSelect.value) === 3) ? '' : 'none';
+            }
+
+            // Disable Major/Minor/Pentatonic for non-12-note tunings
+            function updateScaleOptionsForDegreeCount() {
+                if (!scaleSelect) return;
+                const non12 = currentDegreeCount !== 12;
+                for (let i = 0; i < 3; i++) {
+                    scaleSelect.options[i].disabled = non12;
+                    scaleSelect.options[i].textContent = scaleSelect.options[i].textContent.replace(' (N/A)', '') + (non12 ? ' (N/A)' : '');
+                }
+                // If non-12 and currently on a 12-note scale, force to Custom
+                if (non12 && parseInt(scaleSelect.value) < 3) {
+                    scaleSelect.value = 3;
+                    try {
+                        const comboState = Juce.getComboBoxState('glissandoScale');
+                        if (comboState) comboState.setChoiceIndex(3);
+                    } catch (e) {}
+                }
+                updateDegreeVisibility();
+            }
+
+            if (scaleSelect) {
+                scaleSelect.addEventListener('change', updateDegreeVisibility);
+                try {
+                    const st = Juce.getComboBoxState('glissandoScale');
+                    if (st && st.valueChangedEvent) st.valueChangedEvent.addListener(updateDegreeVisibility);
+                } catch (e) {}
+            }
+
+            // Listen for scale degree count changes from C++ timer
+            window.__JUCE__.backend.addEventListener('scaleDegreeCountChanged', (count) => {
+                if (typeof count === 'number' && count > 0 && count !== currentDegreeCount) {
+                    currentDegreeCount = count;
+                    // Reset bitmask when scale size changes
+                    currentDegreeMaskLow = 0xFFFFFFFF;
+                    currentDegreeMaskHigh = 0xFFFFFFFF;
+                    Juce.getNativeFunction('setGlissCustomDegrees')(currentDegreeMaskLow, currentDegreeMaskHigh);
+                    updateDegreeButtons();
+                    updateScaleOptionsForDegreeCount();
+                }
+            });
+
+            initDegreeState();
+        }
+
+        // ====================================================================
+        // Voice Count Polling
+        // ====================================================================
+        async function updateVoiceCount() {
+            try {
+                const count = await Juce.getNativeFunction('getVoiceCount')();
+                document.getElementById('voiceCount').textContent = count;
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+
+        setInterval(updateVoiceCount, 100);
+        updateVoiceCount();
+
+        // ====================================================================
+        // v1.5.4: PRESET SYSTEM - Fixed: Get native functions at CALL TIME
+        // Root cause: Functions obtained at page load may not be registered yet.
+        // Solution: Use same pattern as getVoiceCount - get AND call in one step.
+        // ====================================================================
+
+        console.log('[Presets] Initializing preset system...');
+
+        // Preset display elements
+        const presetNameDisplay = document.getElementById('preset-name-display');
+        const presetDropdown = document.getElementById('preset-dropdown');
+
+
+        // Current preset list (cached for navigation)
+        let presetList = [];
+        let currentPresetIndex = 0;
+
+        // Update preset name display
+        function updatePresetDisplay(presetName) {
+            presetNameDisplay.textContent = presetName || 'Default';
+        }
+
+        // Load preset list from backend
+        async function refreshPresetList() {
+            try {
+                const list = await Juce.getNativeFunction('getPresetList')();
+                if (Array.isArray(list)) {
+                    presetList = list;
+                    console.log('[Presets] List loaded:', presetList.length, 'presets');
+                }
+            } catch (e) {
+                console.error('[Presets] Failed to load list:', e);
+            }
+        }
+
+        // Populate and show dropdown menu
+        function showPresetDropdown() {
+            console.log('[Presets] Showing dropdown with', presetList.length, 'presets');
+            presetDropdown.innerHTML = '';
+
+            if (presetList.length === 0) {
+                const emptyItem = document.createElement('div');
+                emptyItem.className = 'preset-dropdown-item';
+                emptyItem.textContent = 'No presets available';
+                emptyItem.style.fontStyle = 'italic';
+                emptyItem.style.opacity = '0.6';
+                presetDropdown.appendChild(emptyItem);
+                presetDropdown.classList.add('show');
+                return;
+            }
+
+            // All presets are factory presets for now
+            const header = document.createElement('div');
+            header.className = 'preset-dropdown-header';
+            header.textContent = 'Factory';
+            presetDropdown.appendChild(header);
+
+            presetList.forEach(presetName => {
+                const item = document.createElement('div');
+                item.className = 'preset-dropdown-item';
+                if (presetName === presetNameDisplay.textContent) item.classList.add('active');
+                item.textContent = presetName;
+                item.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    hidePresetDropdown();
+                    try {
+                        await Juce.getNativeFunction('loadPreset')(presetName);
+                        updatePresetDisplay(presetName);
+                        console.log('[Presets] Selected:', presetName);
+                    } catch (err) {
+                        console.error('[Presets] Failed to load:', err);
+                    }
+                });
+                presetDropdown.appendChild(item);
+            });
+
+            presetDropdown.classList.add('show');
+        }
+
+        // Hide dropdown
+        function hidePresetDropdown() {
+            presetDropdown.classList.remove('show');
+        }
+
+        // Initialize presets (get current preset and list)
+        async function initializePresets() {
+            await refreshPresetList();
+
+            try {
+                const currentName = await Juce.getNativeFunction('getCurrentPreset')();
+                updatePresetDisplay(currentName);
+                console.log('[Presets] Current preset:', currentName);
+                currentPresetIndex = presetList.indexOf(currentName);
+                if (currentPresetIndex < 0) currentPresetIndex = 0;
+            } catch (e) {
+                console.error('[Presets] Failed to get current preset:', e);
+            }
+
+            console.log('[Presets] System initialized');
+        }
+
+        // ====================================================================
+        // EVENT LISTENERS
+        // ====================================================================
+
+        // Previous preset button
+        document.getElementById('preset-prev').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('selectPreviousPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Prev failed:', err);
+            }
+        });
+
+        // Next preset button
+        document.getElementById('preset-next').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('selectNextPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Next failed:', err);
+            }
+        });
+
+        // Preset name click - toggle dropdown
+        presetNameDisplay.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (presetDropdown.classList.contains('show')) {
+                hidePresetDropdown();
+            } else {
+                await refreshPresetList();
+                showPresetDropdown();
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+                hidePresetDropdown();
+            }
+        });
+
+        // Save button - opens file dialog
+        document.getElementById('preset-save').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const savedName = await Juce.getNativeFunction('savePresetWithDialog')();
+                if (savedName) {
+                    updatePresetDisplay(savedName);
+                    await refreshPresetList();
+                }
+            } catch (err) {
+                console.error('[Presets] Save failed:', err);
+            }
+        });
+
+        // Load button - opens file dialog
+        document.getElementById('preset-load').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const loadedName = await Juce.getNativeFunction('loadPresetFromFile')();
+                if (loadedName) {
+                    updatePresetDisplay(loadedName);
+                    await refreshPresetList();
+                }
+            } catch (err) {
+                console.error('[Presets] Load failed:', err);
+            }
+        });
+
+        // Callback when preset is loaded (called from C++ if needed)
+        window.onPresetLoaded = function(presetName) {
+            console.log('[Presets] Preset loaded callback:', presetName);
+            updatePresetDisplay(presetName);
+            hidePresetDropdown();
+        };
+
+        // Initialize preset system
+        initializePresets();
+
+
+        // ====================================================================
+        // v1.7.0: TUNING SYSTEM - Marimba-style layout
+        // ====================================================================
+
+        console.log('[Tuning] Initializing tuning system...');
+
+        // Note names
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // Current tuning state
+        let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+        let currentTonic = 0;
+        let currentTuningMode = 0; // 0 = 12-TET, 1 = Custom, 2 = MTS-ESP
+
+        // Elements
+        const intervalList = document.getElementById('interval-list');
+        const pitchCircleSvg = document.getElementById('pitch-circle-svg');
+        const scaleNameDisplay = document.getElementById('scale-name-display');
+        // v1.18.2: modeButtons removed - library is primary interface
+        const refPitchKnob = document.getElementById('ref-pitch-knob');
+        const refPitchIndicator = document.getElementById('ref-pitch-indicator');
+        const refPitchValue = document.getElementById('ref-pitch-value');
+
+        // Get degree label (note name for 12-tone, number otherwise)
+        function getDegreeLabel(index, total) {
+            if (total === 12) {
+                return noteNames[(index + currentTonic) % 12];
+            }
+            return String(index);
+        }
+
+        // Update pitch circle with radial lines (Marimba style)
+        function updatePitchCircle() {
+            const linesGroup = document.getElementById('interval-lines');
+            const labelsGroup = document.getElementById('degree-labels');
+            linesGroup.innerHTML = '';
+            labelsGroup.innerHTML = '';
+
+            // v1.7.7: Updated for 188px circle (125% of original 150px)
+            const cx = 94, cy = 94;
+            const innerR = 13, outerR = 73, labelR = 80;
+            const total = currentIntervals.length;
+            const fontSize = total > 12 ? 6 : 9;
+
+            currentIntervals.forEach((cents, i) => {
+                // Angle: 12 o'clock = 0, clockwise
+                const rad = (cents / 1200) * 2 * Math.PI - Math.PI / 2;
+                const x1 = cx + innerR * Math.cos(rad);
+                const y1 = cy + innerR * Math.sin(rad);
+                const x2 = cx + outerR * Math.cos(rad);
+                const y2 = cy + outerR * Math.sin(rad);
+
+                // Draw line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#6B8E4E');
+                line.setAttribute('stroke-width', total > 19 ? '1' : '2');
+                line.setAttribute('stroke-linecap', 'round');
+                linesGroup.appendChild(line);
+
+                // Draw label (skip some labels if too many notes)
+                if (total <= 24 || i % 2 === 0) {
+                    const labelX = cx + labelR * Math.cos(rad);
+                    const labelY = cy + labelR * Math.sin(rad);
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', labelX);
+                    text.setAttribute('y', labelY + 2);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('font-size', fontSize);
+                    text.setAttribute('fill', '#3C2F2F');
+                    text.textContent = getDegreeLabel(i, total);
+                    labelsGroup.appendChild(text);
+                }
+            });
+        }
+
+        // ====================================================================
+        // v1.7.9: NOTE FLASH VISUALIZATION (Polyphonic tracking for tuning circle)
+        // ====================================================================
+
+        // Map: scaleIndex -> { count: number, maxVelocity: number }
+        // count tracks how many notes map to this scale degree (for octave stacking)
+        // maxVelocity tracks the highest velocity for intensity
+        const activeNotes = new Map();
+
+        // Map MIDI note to scale index
+        // v1.11.0: Account for tonic rotation so C always flashes at C position
+        // v1.13.1: Fix non-12 scales to use linear mapping from anchor point
+        function midiNoteToScaleIndex(midiNote) {
+            const scaleSize = currentIntervals.length;
+
+            if (scaleSize === 12) {
+                // 12-TET: pitch class with tonic rotation
+                const noteInOctave = midiNote % 12;
+                return (noteInOctave - currentTonic + 12) % 12;
+            } else {
+                // Non-12: linear mapping from anchor point (MIDI 60 + tonic)
+                const anchorNote = 60 + currentTonic;
+                let scaleDegree = (midiNote - anchorNote) % scaleSize;
+                if (scaleDegree < 0) scaleDegree += scaleSize;
+                return scaleDegree;
+            }
+        }
+
+        // Calculate red color intensity based on velocity (0-1)
+        // Low velocity: darker red (rgb(120, 40, 40))
+        // High velocity: bright red (rgb(220, 0, 0))
+        function velocityToColor(velocity) {
+            const minR = 120, maxR = 220;
+            const minG = 40, maxG = 0;
+            const minB = 40, maxB = 0;
+
+            const r = Math.round(minR + velocity * (maxR - minR));
+            const g = Math.round(minG + velocity * (maxG - minG));
+            const b = Math.round(minB + velocity * (maxB - minB));
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Activate interval line for a note (note-on)
+        function setNoteActive(midiNote, velocity) {
+            const scaleIndex = midiNoteToScaleIndex(midiNote);
+
+            // Track this note
+            if (activeNotes.has(scaleIndex)) {
+                const entry = activeNotes.get(scaleIndex);
+                entry.count++;
+                entry.maxVelocity = Math.max(entry.maxVelocity, velocity);
+            } else {
+                activeNotes.set(scaleIndex, { count: 1, maxVelocity: velocity });
+            }
+
+            // Update visual
+            updateIntervalLineVisual(scaleIndex);
+        }
+
+        // Deactivate interval line for a note (note-off)
+        function setNoteInactive(midiNote) {
+            const scaleIndex = midiNoteToScaleIndex(midiNote);
+
+            if (activeNotes.has(scaleIndex)) {
+                const entry = activeNotes.get(scaleIndex);
+                entry.count--;
+
+                if (entry.count <= 0) {
+                    activeNotes.delete(scaleIndex);
+                }
+            }
+
+            // Update visual
+            updateIntervalLineVisual(scaleIndex);
+        }
+
+        // Update the visual appearance of an interval line
+        function updateIntervalLineVisual(scaleIndex) {
+            const linesGroup = document.getElementById('interval-lines');
+            const lines = linesGroup.querySelectorAll('line');
+
+            if (scaleIndex >= 0 && scaleIndex < lines.length) {
+                const line = lines[scaleIndex];
+
+                if (activeNotes.has(scaleIndex)) {
+                    // Active: red with velocity-based intensity
+                    const entry = activeNotes.get(scaleIndex);
+                    line.setAttribute('stroke', velocityToColor(entry.maxVelocity));
+                    line.setAttribute('stroke-width', '4');
+                } else {
+                    // Inactive: restore original green
+                    const scaleSize = currentIntervals.length;
+                    line.setAttribute('stroke', '#6B8E4E');
+                    line.setAttribute('stroke-width', scaleSize > 19 ? '1' : '2');
+                }
+            }
+        }
+
+        // Export to window for C++ evaluateJavascript calls
+        window.setNoteActive = setNoteActive;
+        window.setNoteInactive = setNoteInactive;
+
+        // ====================================================================
+        // v1.10.0: VISUALIZATION MODE SWITCHING
+        // ====================================================================
+
+        let vizMode = 'circle';
+        let heldNotes = [];   // MIDI note numbers currently held
+        let heldFreqs = [];   // Corresponding frequencies
+
+        // Switch visualization mode
+        function setVizMode(mode) {
+            vizMode = mode;
+
+            // Update button highlights
+            document.querySelectorAll('.viz-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+
+            // Show/hide visualization views
+            document.querySelectorAll('.viz-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            const viewId = mode + '-view';
+            const targetView = document.getElementById(viewId);
+            if (targetView) targetView.classList.add('active');
+
+            // Update the visualization
+            updateVisualization();
+        }
+
+        // Main visualization update dispatcher
+        function updateVisualization() {
+            switch (vizMode) {
+                case 'circle':
+                    updatePitchCircle();
+                    break;
+                case 'polar':
+                    drawPolarWheel();
+                    break;
+                case 'matrix':
+                    drawIntervalMatrix();
+                    break;
+                case 'truekeys':
+                    updateTrueKeysDisplay();
+                    break;
+                case 'rotation':
+                    drawModalRotationMatrix();
+                    break;
+            }
+        }
+
+        // Export setVizMode to window for onclick handlers
+        window.setVizMode = setVizMode;
+
+        // ====================================================================
+        // v1.10.0: POLAR/RADIAL TONE WHEEL
+        // ====================================================================
+
+        function drawPolarWheel() {
+            const canvas = document.getElementById('polar-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const maxR = Math.min(cx, cy) - 15;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background circle
+            ctx.fillStyle = 'rgba(235, 217, 199, 0.4)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Reference circles (200, 400, 600, 800, 1000, 1200 cents)
+            ctx.strokeStyle = 'rgba(139, 115, 85, 0.25)';
+            ctx.lineWidth = 0.5;
+            for (let c = 200; c <= 1200; c += 200) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, (c / 1200) * maxR, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Outer rim
+            ctx.strokeStyle = '#8B7355';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Center dot
+            ctx.fillStyle = '#3C2F2F';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Scale degree nodes
+            const total = currentIntervals.length;
+            for (let i = 0; i < total; i++) {
+                // Angle: position around the wheel (evenly spaced by index)
+                const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
+                // Radius: based on cents value (further = higher pitch)
+                const cents = currentIntervals[i];
+                const r = (cents / 1200) * maxR;
+                const x = cx + Math.cos(angle) * r;
+                const y = cy + Math.sin(angle) * r;
+
+                // Check if this scale degree has an active note
+                const isActive = activeNotes.has(i);
+
+                // Draw node
+                ctx.fillStyle = isActive ? '#FFD700' : '#6B8E4E';
+                ctx.beginPath();
+                ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Node border
+                ctx.strokeStyle = isActive ? '#B8860B' : '#3C2F2F';
+                ctx.lineWidth = isActive ? 2 : 1;
+                ctx.stroke();
+
+                // Label (position just outside the node)
+                const labelR = r + 14;
+                const labelX = cx + Math.cos(angle) * labelR;
+                const labelY = cy + Math.sin(angle) * labelR;
+
+                ctx.fillStyle = '#3C2F2F';
+                ctx.font = total > 12 ? '8px Garamond' : '10px Garamond';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(getDegreeLabel(i, total), labelX, labelY);
+            }
+        }
+
+        // ====================================================================
+        // v1.10.0: INTERVAL MATRIX
+        // ====================================================================
+
+        function drawIntervalMatrix() {
+            const container = document.getElementById('matrix-view');
+            if (!container) return;
+
+            const total = currentIntervals.length;
+
+            let html = '<table class="matrix-table"><tr><th></th>';
+            // Header row with note names
+            for (let i = 0; i < total; i++) {
+                html += `<th>${getDegreeLabel(i, total)}</th>`;
+            }
+            html += '</tr>';
+
+            // Data rows - interval from row note to column note
+            for (let from = 0; from < total; from++) {
+                html += `<tr><th>${getDegreeLabel(from, total)}</th>`;
+                for (let to = 0; to < total; to++) {
+                    let interval = currentIntervals[to] - currentIntervals[from];
+                    if (interval < 0) interval += 1200;
+
+                    // Color coding based on interval type
+                    let cellClass = 'matrix-cell';
+                    if (interval === 0) cellClass += ' pure';
+                    else if (Math.abs(interval - 700) < 20) cellClass += ' medium'; // ~P5
+                    else if (Math.abs(interval - 500) < 20) cellClass += ' medium'; // ~P4
+                    else if (Math.abs(interval - 400) < 20) cellClass += ' small';  // ~M3
+
+                    html += `<td class="${cellClass}" title="${interval.toFixed(1)}¢">${Math.round(interval)}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table>';
+
+            container.innerHTML = html;
+        }
+
+        // ====================================================================
+        // v1.10.0: TRUE KEYS - Real-time intervals between held notes
+        // ====================================================================
+
+        // Called from C++ timerCallback with held note data
+        window.updateHeldNotes = function(notes, freqs) {
+            heldNotes = notes || [];
+            heldFreqs = freqs || [];
+            if (vizMode === 'truekeys') updateTrueKeysDisplay();
+        };
+
+        function midiToNoteName(midi) {
+            const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            return names[midi % 12] + Math.floor(midi / 12 - 1);
+        }
+
+        function updateTrueKeysDisplay() {
+            const container = document.getElementById('truekeys-view');
+            if (!container) return;
+
+            if (heldNotes.length < 2) {
+                container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+                return;
+            }
+
+            let html = '<div class="tk-grid">';
+
+            // Sort notes by pitch for consistent display
+            const sortedIndices = heldNotes
+                .map((note, i) => ({ note, freq: heldFreqs[i], i }))
+                .sort((a, b) => a.note - b.note);
+
+            // Calculate interval between each pair of adjacent notes
+            for (let i = 0; i < sortedIndices.length - 1; i++) {
+                const lower = sortedIndices[i];
+                const upper = sortedIndices[i + 1];
+                const cents = 1200 * Math.log2(upper.freq / lower.freq);
+
+                // Identify common interval names
+                let intervalName = '';
+                if (Math.abs(cents - 100) < 15) intervalName = '(m2)';
+                else if (Math.abs(cents - 200) < 15) intervalName = '(M2)';
+                else if (Math.abs(cents - 300) < 15) intervalName = '(m3)';
+                else if (Math.abs(cents - 400) < 15) intervalName = '(M3)';
+                else if (Math.abs(cents - 500) < 15) intervalName = '(P4)';
+                else if (Math.abs(cents - 600) < 15) intervalName = '(TT)';
+                else if (Math.abs(cents - 700) < 15) intervalName = '(P5)';
+                else if (Math.abs(cents - 800) < 15) intervalName = '(m6)';
+                else if (Math.abs(cents - 900) < 15) intervalName = '(M6)';
+                else if (Math.abs(cents - 1000) < 15) intervalName = '(m7)';
+                else if (Math.abs(cents - 1100) < 15) intervalName = '(M7)';
+                else if (Math.abs(cents - 1200) < 15) intervalName = '(P8)';
+
+                html += `
+                    <div class="tk-interval">
+                        <span>${midiToNoteName(lower.note)} → ${midiToNoteName(upper.note)} ${intervalName}</span>
+                        <span class="tk-cents">${cents.toFixed(1)}¢</span>
+                    </div>
+                `;
+            }
+
+            // Also show total span (lowest to highest)
+            if (sortedIndices.length > 2) {
+                const lowest = sortedIndices[0];
+                const highest = sortedIndices[sortedIndices.length - 1];
+                const totalCents = 1200 * Math.log2(highest.freq / lowest.freq);
+                html += `
+                    <div class="tk-interval" style="border-color: #6B8E4E; margin-top: 6px;">
+                        <span><strong>Total span</strong></span>
+                        <span class="tk-cents">${totalCents.toFixed(1)}¢</span>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ====================================================================
+        // v1.10.0: MODAL ROTATION MATRIX
+        // ====================================================================
+
+        function drawModalRotationMatrix() {
+            const container = document.getElementById('rotation-view');
+            if (!container) return;
+
+            const total = currentIntervals.length;
+
+            let html = '<table class="rotation-table"><tr><th>Mode</th>';
+            // Header: degree numbers 1 through total
+            for (let i = 1; i <= total; i++) {
+                html += `<th>${i}</th>`;
+            }
+            html += '</tr>';
+
+            // Each row is a mode starting on a different scale degree
+            for (let start = 0; start < total; start++) {
+                html += `<tr><td class="mode-name">${getDegreeLabel(start, total)}</td>`;
+
+                let prevCents = currentIntervals[start];
+
+                for (let step = 0; step < total; step++) {
+                    const deg = (start + step) % total;
+                    let cents = currentIntervals[deg];
+
+                    // Handle wrap-around for degrees < start
+                    if (deg < start) cents += 1200;
+
+                    // Calculate interval from previous note in this mode
+                    let interval;
+                    if (step === 0) {
+                        interval = 0;
+                    } else {
+                        const prevDeg = (start + step - 1) % total;
+                        let prevCentsVal = currentIntervals[prevDeg];
+                        if (prevDeg < start) prevCentsVal += 1200;
+                        interval = cents - prevCentsVal;
+                    }
+
+                    // Color code by interval size
+                    let cls = 'int-cell';
+                    if (step === 0) {
+                        cls += ''; // Unison, no special color
+                    } else if (interval < 100) {
+                        cls += ' small';  // Semitone or smaller (blue)
+                    } else if (interval < 250) {
+                        cls += ' medium'; // Whole tone (green)
+                    } else {
+                        cls += ' large';  // Minor third or larger (orange)
+                    }
+
+                    html += `<td class="${cls}" title="${interval.toFixed(1)}¢">${step === 0 ? '-' : Math.round(interval)}</td>`;
+                }
+                html += '</tr>';
+            }
+
+            html += '</table>';
+            container.innerHTML = html;
+        }
+
+        // Update interval list UI (with tonic selector)
+        // v1.7.3: Using inline onchange handlers instead of addEventListener
+        // v1.10.0: Added deviation display (±cents from equal temperament)
+        // v1.13.0: Show tonic selector for ALL scale sizes (not just 12-tone)
+        // v1.13.1: Always fetch tonic from processor to ensure sync after state restoration
+        async function updateIntervalListUI() {
+            // v1.13.1: Fetch current tonic from processor to stay in sync
+            try {
+                const fetchedTonic = await Juce.getNativeFunction('getTonicNote')();
+                if (typeof fetchedTonic === 'number' && fetchedTonic >= 0 && fetchedTonic <= 11) {
+                    currentTonic = fetchedTonic;
+                }
+            } catch (e) {
+                console.log('[Tuning] Could not fetch tonic, using cached value');
+            }
+
+            const total = currentIntervals.length;
+
+            // v1.13.0: Show tonic selector for all scale sizes
+            // Tonic transposes by 12-TET semitones (shifts anchor point)
+            // v1.7.3: Using inline onclick for tonic arrows
+            const tooltipText = total === 12
+                ? 'Change tonic note (transposes instrument)'
+                : 'Transpose by semitones (shifts scale anchor point)';
+            const tonicHtml = `
+                <div class="tonic-selector" title="${tooltipText}">
+                    <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
+                    <span class="tonic-label">Tonic:</span>
+                    <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
+                    <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
+                </div>
+            `;
+
+            let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
+
+            // Show rows for actual number of intervals
+            // v1.11.1: Allow editing in any mode - editing auto-switches to Custom mode via backend
+            for (let i = 0; i < total; i++) {
+                const cents = currentIntervals[i] || 0;
+                const isUnison = (i === 0);
+                const displayValue = isUnison ? '0' : cents.toFixed(1);
+                const label = getDegreeLabel(i, total);
+                const isDisabled = isUnison; // Only unison (0 cents) is non-editable
+
+                // v1.10.0: Calculate deviation from equal temperament
+                const equalCents = (i * 1200 / total);
+                const deviation = cents - equalCents;
+                const devSign = deviation >= 0 ? '+' : '';
+                const devClass = Math.abs(deviation) < 1 ? 'pure' : (deviation > 0 ? 'sharp' : 'flat');
+
+                // v1.7.3: Using inline onchange handler
+                const onchangeAttr = isDisabled ? '' : `onchange="window.handleIntervalChange && window.handleIntervalChange(${i}, this.value)"`;
+
+                // v1.10.0: Show deviation only if not in 12-TET mode (mode 0) or if there's actual deviation
+                const showDeviation = (currentTuningMode !== 0 || Math.abs(deviation) >= 0.5);
+
+                html += `
+                    <div class="interval-row">
+                        <span class="note-name">${label}</span>
+                        <input type="text"
+                               class="interval-input"
+                               data-index="${i}"
+                               value="${displayValue}"
+                               ${isDisabled ? 'disabled' : ''}
+                               ${onchangeAttr}
+                               placeholder="${Math.round(equalCents)}">
+                        ${showDeviation ? `<span class="deviation ${devClass}" title="Deviation from equal temperament">${devSign}${deviation.toFixed(1)}</span>` : '<span class="deviation"></span>'}
+                    </div>
+                `;
+            }
+
+            intervalList.innerHTML = html;
+
+            // v1.12.3: Use event delegation instead of inline handlers (more reliable in WebView)
+            intervalList.querySelectorAll('.interval-input').forEach(input => {
+                if (input.disabled) return;
+                const index = parseInt(input.dataset.index, 10);
+
+                input.addEventListener('change', () => {
+                    window.handleIntervalChange(index, input.value);
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    }
+                });
+            });
+        }
+
+        // v1.7.3: Callbacks for global handlers (tonic arrows)
+        window.onTonicDown = async () => {
+            currentTonic = (currentTonic - 1 + 12) % 12;
+            // v1.13.1: Update processor FIRST, then refresh UI
+            try {
+                await Juce.getNativeFunction('setTonicNote')(currentTonic);
+            } catch (e) {
+                console.error('[Tuning] Failed to set tonic:', e);
+            }
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updateVisualization();
+            await updateIntervalListUI();
+        };
+
+        window.onTonicUp = async () => {
+            currentTonic = (currentTonic + 1) % 12;
+            // v1.13.1: Update processor FIRST, then refresh UI
+            try {
+                await Juce.getNativeFunction('setTonicNote')(currentTonic);
+            } catch (e) {
+                console.error('[Tuning] Failed to set tonic:', e);
+            }
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updateVisualization();
+            await updateIntervalListUI();
+        };
+
+        // v1.7.3: Callback for interval input changes
+        // v1.11.1: Now uses setSingleInterval for reliable single-value updates
+        window.onIntervalChanged = async (index, valueStr) => {
+            const value = parseFloat(valueStr);
+            if (!isNaN(value) && value >= 0 && value <= 1200) {
+                currentIntervals[index] = value;
+
+                // v1.18.2: Switch to Custom mode when user manually edits intervals
+                if (currentTuningMode !== 1) {
+                    currentTuningMode = 1;
+                    window.currentTuningMode = 1;
+                    const scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl) scaleNameEl.textContent = 'Custom';
+                }
+
+                updateVisualization();
+
+                // v1.11.1: Encode index and cents as single number: index * 10000 + cents
+                const encoded = index * 10000 + Math.round(value);
+                try {
+                    await Juce.getNativeFunction('setSingleIntervalEncoded')(encoded);
+                    console.log('[Tuning] Interval', index, 'changed to', value);
+                } catch (e) {
+                    console.error('[Tuning] Failed to set interval:', e);
+                }
+            }
+        };
+
+        // Apply intervals to backend
+        async function applyIntervalsToBackend(intervals, name) {
+            try {
+                await Juce.getNativeFunction('setTuningIntervals')(intervals, name);
+                console.log('[Tuning] Applied intervals:', name);
+            } catch (e) {
+                console.error('[Tuning] Failed to apply intervals:', e);
+            }
+        }
+
+        // Load intervals from backend
+        async function loadIntervalsFromBackend() {
+            try {
+                const intervals = await Juce.getNativeFunction('getTuningIntervals')();
+                if (Array.isArray(intervals) && intervals.length > 0) {
+                    // v1.12.2: C++ returns N+1 intervals (including period at end)
+                    // For 12-tone scales, we get 13 values [0,100,...,1100,1200]
+                    // UI should display 12 intervals (exclude period)
+                    // Check if last value is the octave/period (1200 for 12-tone, 1902 for Bohlen-Pierce)
+                    if (intervals.length === 13 && Math.abs(intervals[12] - 1200) < 1) {
+                        // Standard 12-tone scale - exclude period for UI display
+                        currentIntervals = intervals.slice(0, 12);
+                    } else if (intervals.length === 14 && Math.abs(intervals[13] - 1902) < 1) {
+                        // Bohlen-Pierce (13-tone) - exclude tritave
+                        currentIntervals = intervals.slice(0, 13);
+                    } else {
+                        // Other scales - use as-is (might need adjustment)
+                        currentIntervals = intervals;
+                    }
+                    await updateIntervalListUI();
+                    updateVisualization();
+                    console.log('[Tuning] Loaded', currentIntervals.length, 'intervals from backend');
+                }
+            } catch (e) {
+                console.warn('[Tuning] Failed to load intervals:', e);
+            }
+        }
+
+        // Update scale name display
+        async function updateScaleNameDisplay() {
+            try {
+                const name = await Juce.getNativeFunction('getTuningName')();
+                scaleNameDisplay.textContent = name || '12-TET Standard';
+            } catch (e) {
+                scaleNameDisplay.textContent = '12-TET Standard';
+            }
+        }
+
+        // ====================================================================
+        // A4 Reference Pitch Knob (draggable)
+        // ====================================================================
+        let knobDragging = false;
+        let knobStartY = 0;
+        let knobStartValue = 0.5;
+
+        // Get masterTune slider state from JUCE
+        const masterTuneState = Juce.getSliderState('masterTune');
+
+        function updateKnobVisual(normalizedValue) {
+            // Range: -135 to +135 degrees (270 degree sweep)
+            const angle = -135 + normalizedValue * 270;
+            refPitchIndicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+            // Display Hz value (415-465 Hz range)
+            const hz = 415 + normalizedValue * 50;
+            refPitchValue.textContent = `${hz.toFixed(1)} Hz`;
+        }
+
+        if (masterTuneState) {
+            // Sync from JUCE
+            masterTuneState.valueChangedEvent.addListener(() => {
+                const val = masterTuneState.getNormalisedValue();
+                updateKnobVisual(val);
+            });
+            updateKnobVisual(masterTuneState.getNormalisedValue());
+        }
+
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            knobDragging = true;
+            knobStartY = e.clientY;
+            knobStartValue = masterTuneState ? masterTuneState.getNormalisedValue() : 0.5;
+            if (masterTuneState) masterTuneState.sliderDragStarted();
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!knobDragging) return;
+            const deltaY = knobStartY - e.clientY;
+            const sensitivity = 0.005;
+            let newValue = knobStartValue + deltaY * sensitivity;
+            newValue = Math.max(0, Math.min(1, newValue));
+            if (masterTuneState) {
+                masterTuneState.setNormalisedValue(newValue);
+            }
+            updateKnobVisual(newValue);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (knobDragging) {
+                knobDragging = false;
+                if (masterTuneState) masterTuneState.sliderDragEnded();
+            }
+        });
+
+        // Double-click to reset to 440 Hz (center)
+        refPitchKnob.addEventListener('dblclick', () => {
+            if (masterTuneState) {
+                masterTuneState.setNormalisedValue(0.5);
+            }
+            updateKnobVisual(0.5);
+        });
+
+        // ====================================================================
+        // Tuning Mode State (v1.18.2: Mode buttons removed, state kept for backend sync)
+        // ====================================================================
+        const tuningModeState = Juce.getComboBoxState('tuningMode');
+
+        if (tuningModeState && tuningModeState.valueChangedEvent) {
+            tuningModeState.valueChangedEvent.addListener(async () => {
+                currentTuningMode = tuningModeState.getChoiceIndex();
+                await updateIntervalListUI(); // Re-render to update editable state
+            });
+            currentTuningMode = tuningModeState.getChoiceIndex();
+        }
+
+        // v1.7.2: Callback for global click handler - syncs with JUCE and updates UI
+        window.onTuningModeChanged = async (mode) => {
+            // Update module state
+            currentTuningMode = mode;
+
+            // v1.13.3: For 12-TET mode, reset UI intervals and sync to backend
+            // For Custom mode, load intervals FROM backend (don't overwrite with stale UI data)
+            if (mode === 0) {
+                // Switching to 12-TET: set standard intervals
+                currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+                applyIntervalsToBackend(currentIntervals, '12-TET Standard');
+            } else if (mode === 1) {
+                // Switching to Custom: load current backend intervals (preserve Scala files)
+                await loadIntervalsFromBackend();
+            }
+            // Mode 2 (MTS-ESP): no interval changes needed
+
+            // Update interval list and visualization
+            await updateIntervalListUI();
+            updateVisualization();
+
+            // Sync with JUCE backend
+            if (tuningModeState) {
+                try {
+                    tuningModeState.setChoiceIndex(mode);
+                } catch (e) {
+                    console.error('[Tuning] Failed to sync mode with JUCE:', e);
+                }
+            }
+        };
+
+        // ====================================================================
+        // File Buttons - v1.7.3: Callbacks for global handlers
+        // (The actual handlers are in the non-module script above for immediate availability)
+        // ====================================================================
+        window.onScalaLoaded = async (name) => {
+            // Update UI after .scl file loaded
+            await loadIntervalsFromBackend();
+            if (tuningModeState) tuningModeState.setChoiceIndex(1);
+            await updateIntervalListUI();
+            updateVisualization();
+        };
+
+        // ====================================================================
+        // Keyboard Visualization (click to play) - v1.7.4: Now triggers actual notes!
+        // ====================================================================
+        const keyboardViz = document.getElementById('keyboard-viz');
+        if (keyboardViz) {
+            const keys = keyboardViz.querySelectorAll('.white-key, .black-key');
+
+            // Track which notes are currently pressed to avoid duplicate triggers
+            const pressedNotes = new Set();
+
+            keys.forEach(key => {
+                const midiNote = parseInt(key.dataset.note);
+                if (isNaN(midiNote)) return;
+
+                key.addEventListener('mousedown', async (e) => {
+                    e.preventDefault();
+                    key.classList.add('pressed');
+                    if (key.classList.contains('white-key')) {
+                        key.classList.add('active');
+                    }
+
+                    // Trigger note if not already pressed
+                    if (!pressedNotes.has(midiNote)) {
+                        pressedNotes.add(midiNote);
+                        console.log('[Keyboard] Triggering note ON:', midiNote);
+                        try {
+                            const result = await Juce.getNativeFunction('triggerNoteOn')(midiNote, 0.8);
+                            console.log('[Keyboard] Note ON result:', result);
+                        } catch (e) {
+                            console.error('[Keyboard] Note on failed:', e);
+                        }
+                    }
+                });
+
+                key.addEventListener('mouseup', async () => {
+                    key.classList.remove('pressed');
+                    key.classList.remove('active');
+
+                    // Release note
+                    if (pressedNotes.has(midiNote)) {
+                        pressedNotes.delete(midiNote);
+                        try {
+                            await Juce.getNativeFunction('triggerNoteOff')(midiNote);
+                        } catch (e) {
+                            console.warn('[Keyboard] Note off failed:', e);
+                        }
+                    }
+                });
+
+                key.addEventListener('mouseleave', async () => {
+                    key.classList.remove('pressed');
+                    key.classList.remove('active');
+
+                    // Release note if leaving while pressed
+                    if (pressedNotes.has(midiNote)) {
+                        pressedNotes.delete(midiNote);
+                        try {
+                            await Juce.getNativeFunction('triggerNoteOff')(midiNote);
+                        } catch (e) {
+                            console.warn('[Keyboard] Note off failed:', e);
+                        }
+                    }
+                });
+            });
+        }
+
+        // ====================================================================
+        // Initialize Tuning System
+        // ====================================================================
+        async function initializeTuning() {
+            await loadIntervalsFromBackend();
+            await updateScaleNameDisplay();
+
+            try {
+                const tonic = await Juce.getNativeFunction('getTonicNote')();
+                currentTonic = tonic || 0;
+            } catch (e) {
+                // Ignore - use default tonic
+            }
+
+            // v1.18.2: Preset dropdown removed - octave stretch still needed
+            try {
+                const stretch = await Juce.getNativeFunction('getOctaveStretch')();
+                const stretchSlider = document.getElementById('octave-stretch');
+                const stretchValue = document.getElementById('octave-stretch-value');
+                if (stretchSlider && stretch !== undefined) {
+                    stretchSlider.value = stretch;
+                }
+                if (stretchValue && stretch !== undefined) {
+                    stretchValue.textContent = stretch.toFixed(2);
+                }
+            } catch (e) {
+                console.warn('[Tuning] Failed to get octave stretch:', e);
+            }
+
+            await updateIntervalListUI();
+            updateVisualization();
+        }
+
+        // v1.9.0: Global function for refreshing tuning state after preset change
+        window.refreshTuningState = async function() {
+            await loadIntervalsFromBackend();
+            await updateScaleNameDisplay();
+            await updateIntervalListUI();
+            updateVisualization();
+        };
+
+        // v1.13.1: Sync tonic from processor (called by C++ timer to handle state restoration)
+        window.syncTonicFromProcessor = function(tonic) {
+            if (typeof tonic === 'number' && tonic >= 0 && tonic <= 11 && tonic !== currentTonic) {
+                currentTonic = tonic;
+                const tonicDisplay = document.getElementById('tonic-display');
+                if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+                updateVisualization();
+                console.log('[Tuning] Synced tonic from processor:', tonic);
+            }
+        };
+
+        // ====================================================================
+        // v1.18.0: Tooltip System
+        // ====================================================================
+        (function initTooltipSystem() {
+            const tooltipToggle = document.getElementById('tooltip-toggle');
+            const tooltip = document.getElementById('tooltip');
+            const pluginContainer = document.querySelector('.plugin-container');
+            let tooltipsEnabled = false;
+
+            // Toggle tooltips on/off
+            tooltipToggle.addEventListener('click', function() {
+                tooltipsEnabled = !tooltipsEnabled;
+                tooltipToggle.classList.toggle('active', tooltipsEnabled);
+                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+
+                // Hide tooltip when disabling
+                if (!tooltipsEnabled) {
+                    tooltip.classList.remove('visible');
+                }
+
+                // Save state via JUCE native function (if available)
+                if (window.JuceAPI && window.JuceAPI.getNativeFunction) {
+                    try {
+                        window.JuceAPI.getNativeFunction('setTooltipsEnabled')(tooltipsEnabled);
+                    } catch (e) {
+                        // Silently ignore if function not available
+                    }
+                }
+            });
+
+            // Show tooltip on hover over elements with data-tooltip
+            pluginContainer.addEventListener('mouseover', function(e) {
+                if (!tooltipsEnabled) return;
+
+                const target = e.target.closest('[data-tooltip]');
+                if (!target) return;
+
+                const text = target.getAttribute('data-tooltip');
+                if (!text) return;
+
+                tooltip.textContent = text;
+                tooltip.classList.add('visible');
+
+                // Position tooltip above the element
+                const rect = target.getBoundingClientRect();
+                const containerRect = pluginContainer.getBoundingClientRect();
+
+                // Calculate position relative to container
+                let left = rect.left - containerRect.left + rect.width / 2;
+                let top = rect.top - containerRect.top - 8;
+
+                // Constrain within container bounds
+                const tooltipWidth = tooltip.offsetWidth || 200;
+                const tooltipHeight = tooltip.offsetHeight || 40;
+
+                // Keep tooltip within horizontal bounds
+                if (left - tooltipWidth / 2 < 10) {
+                    left = tooltipWidth / 2 + 10;
+                } else if (left + tooltipWidth / 2 > containerRect.width - 10) {
+                    left = containerRect.width - tooltipWidth / 2 - 10;
+                }
+
+                // Check if tooltip would go above container - if so, show below
+                if (top - tooltipHeight < 0) {
+                    top = rect.bottom - containerRect.top + 8;
+                }
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.transform = 'translateX(-50%)';
+            });
+
+            // Hide tooltip when mouse leaves element
+            pluginContainer.addEventListener('mouseout', function(e) {
+                const target = e.target.closest('[data-tooltip]');
+                if (target) {
+                    tooltip.classList.remove('visible');
+                }
+            });
+
+            // Restore tooltip state from JUCE (if available)
+            window.restoreTooltipState = function(enabled) {
+                tooltipsEnabled = !!enabled;
+                tooltipToggle.classList.toggle('active', tooltipsEnabled);
+                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+            };
+        })();
+
+        initializeTuning();
+    </script>
+</body>
+</html>

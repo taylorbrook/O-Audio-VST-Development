@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-simpleFM, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-simpleFM</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay (insect — buzzing/sideband character of FM) -->
+  <img src="img/insects.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span data-i18n="title-accent.fm" class="title-accent">FM</span></h1>
+        <p data-i18n="subtitle.two-operator-phase-modulation" class="subtitle">Two-Operator Phase-Modulation Synthesizer &#183; A Field Guide</p>
+      </div>
+
+      <!-- Preset bar (factory + user JSON presets via OuariconPresetManager) -->
+      <div class="preset-bar-container">
+        <span class="preset-fleuron">&#10086;</span>
+        <div class="preset-bar" id="presetBar">
+          <button class="preset-nav" id="presetPrev" type="button" title="Previous preset" aria-label="Previous preset">&#9664;</button>
+          <button data-i18n="presetName" class="preset-name" id="presetName" type="button" title="Browse presets" aria-haspopup="listbox" aria-expanded="false">Default</button>
+          <button class="preset-nav" id="presetNext" type="button" title="Next preset" aria-label="Next preset">&#9654;</button>
+          <button data-i18n="presetSave" class="preset-act" id="presetSave" type="button" title="Save current settings as a user preset">Save</button>
+          <button data-i18n="presetDelete" class="preset-act" id="presetDelete" type="button" title="Delete the current user preset">Delete</button>
+          <div class="preset-dropdown" id="presetDropdown" role="listbox" aria-label="Presets"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─── Visualization (headline) ───────────────────────────── -->
+    <section class="viz-panel">
+      <div class="viz-block">
+        <div class="viz-label">Spectrum &#183; <span data-i18n="viz-hint.discrete-sidebands-bloom-as" class="viz-hint">discrete sidebands bloom as Mod Index rises</span></div>
+        <div class="canvas-wrap"><canvas id="spectrumCanvas"></canvas></div>
+      </div>
+      <div class="viz-block">
+        <div class="viz-label">Waveform &#183; <span data-i18n="viz-hint.the-resulting-carrier-shape" class="viz-hint">the resulting carrier shape</span></div>
+        <div class="canvas-wrap scope-wrap"><canvas id="scopeCanvas"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ─── Operator routing diagram ───────────────────────────── -->
+    <section class="routing-panel" data-tip="routing">
+      <div data-i18n="routing-label.signal-path" class="routing-label">Signal Path</div>
+      <svg id="routingSvg" viewBox="0 0 320 86" preserveAspectRatio="xMidYMid meet">
+        <!-- self-feedback loop on MOD -->
+        <path id="fbArc" class="route-arc" d="M 70 30 C 70 4, 26 4, 26 30" fill="none" />
+        <polygon id="fbHead" class="route-head" points="22,24 30,24 26,33" />
+        <!-- MOD -> CAR arrow -->
+        <line id="modToCar" class="route-line" x1="96" y1="43" x2="190" y2="43" />
+        <polygon id="modToCarHead" class="route-head" points="190,38 190,48 200,43" />
+        <!-- CAR -> OUT arrow -->
+        <line class="route-line route-line-out" x1="262" y1="43" x2="296" y2="43" />
+        <polygon class="route-head" points="296,38 296,48 306,43" />
+        <!-- operator nodes -->
+        <circle id="opMod" class="op-node op-mod" cx="48" cy="43" r="24" />
+        <text data-i18n="routingsvg.mod" class="op-text" x="48" y="47" text-anchor="middle">MOD</text>
+        <circle id="opCar" class="op-node op-car" cx="226" cy="43" r="24" />
+        <text data-i18n="routingsvg.car" class="op-text" x="226" y="47" text-anchor="middle">CAR</text>
+        <text class="op-out" x="312" y="47" text-anchor="end">&#9834;</text>
+      </svg>
+      <div class="routing-readout-col">
+        <div class="routing-readout" data-tip="readout" tabindex="0"><span id="routeRatioRead">1.00 : 1</span> &#183; I&#8202;=&#8202;<span id="routeIndexRead">0.0</span><span data-i18n="carrierNullBadge" class="carrier-null-badge" id="carrierNullBadge" title="Carrier null: the modulation index sits at the first Bessel J&#8320; zero (&#946; &#8776; 2.405), so the carrier (f&#8203;c) vanishes and all energy moves into the sidebands.">carrier null</span></div>
+        <div data-i18n="routeMeta" class="routing-meta" id="routeMeta">harmonic &#183; &#8776; 1 sideband</div>
+      </div>
+    </section>
+
+    <!-- ─── Control groups ─────────────────────────────────────── -->
+    <main class="controls">
+      <section class="group">
+        <h2 data-i18n="group-title.operators" class="group-title">Operators</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="ratio">
+            <div class="knob" id="knob-ratio"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.ratio-c-m" class="knob-label">Ratio C:M</div>
+            <div class="knob-value" id="val-ratio">1.00</div>
+          </div>
+          <div class="knob-cell" data-tip="modIndex">
+            <div class="knob" id="knob-modIndex"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.mod-index" class="knob-label">Mod Index</div>
+            <div class="knob-value" id="val-modIndex">0.00</div>
+          </div>
+          <div class="knob-cell" data-tip="feedback">
+            <div class="knob" id="knob-feedback"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.feedback" class="knob-label">Feedback</div>
+            <div class="knob-value" id="val-feedback">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="modFixedHz">
+            <div class="knob" id="knob-modFixedHz"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.fixed-hz" class="knob-label">Fixed Hz</div>
+            <div class="knob-value" id="val-modFixedHz">220 Hz</div>
+          </div>
+          <div class="knob-cell" data-tip="modEnvToIndex">
+            <div class="knob" id="knob-modEnvToIndex"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.env-index" class="knob-label">Env&#8594;Index</div>
+            <div class="knob-value" id="val-modEnvToIndex">100%</div>
+          </div>
+          <div class="knob-cell" data-tip="velToIndex">
+            <div class="knob" id="knob-velToIndex"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.vel-index" class="knob-label">Vel&#8594;Index</div>
+            <div class="knob-value" id="val-velToIndex">0%</div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <button class="toggle" id="toggle-ratioSnap" data-tip="ratioSnap">
+            <span class="fleuron-corner">&#10086;</span>Ratio Snap
+          </button>
+          <button class="toggle" id="toggle-modFixedMode" data-tip="modFixedMode">
+            <span class="fleuron-corner">&#10086;</span>Fixed Mode
+          </button>
+        </div>
+      </section>
+
+      <div class="env-pair">
+        <section class="group group-env">
+          <h2 data-i18n="group-title.modulator-envelope" class="group-title">Modulator Envelope</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="modAttack">
+              <div class="knob knob-sm" id="knob-modAttack"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.attack" class="knob-label">Attack</div>
+              <div class="knob-value" id="val-modAttack">10 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="modDecay">
+              <div class="knob knob-sm" id="knob-modDecay"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.decay" class="knob-label">Decay</div>
+              <div class="knob-value" id="val-modDecay">300 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="modSustain">
+              <div class="knob knob-sm" id="knob-modSustain"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.sustain" class="knob-label">Sustain</div>
+              <div class="knob-value" id="val-modSustain">0%</div>
+            </div>
+            <div class="knob-cell" data-tip="modRelease">
+              <div class="knob knob-sm" id="knob-modRelease"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.release" class="knob-label">Release</div>
+              <div class="knob-value" id="val-modRelease">300 ms</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="group group-env">
+          <h2 data-i18n="group-title.amplitude-envelope" class="group-title">Amplitude Envelope</h2>
+          <div class="knob-row">
+            <div class="knob-cell" data-tip="ampAttack">
+              <div class="knob knob-sm" id="knob-ampAttack"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.attack-2" class="knob-label">Attack</div>
+              <div class="knob-value" id="val-ampAttack">10 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="ampDecay">
+              <div class="knob knob-sm" id="knob-ampDecay"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.decay-2" class="knob-label">Decay</div>
+              <div class="knob-value" id="val-ampDecay">300 ms</div>
+            </div>
+            <div class="knob-cell" data-tip="ampSustain">
+              <div class="knob knob-sm" id="knob-ampSustain"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.sustain-2" class="knob-label">Sustain</div>
+              <div class="knob-value" id="val-ampSustain">80%</div>
+            </div>
+            <div class="knob-cell" data-tip="ampRelease">
+              <div class="knob knob-sm" id="knob-ampRelease"><div class="knob-stem"></div></div>
+              <div data-i18n="knob-label.release-2" class="knob-label">Release</div>
+              <div class="knob-value" id="val-ampRelease">300 ms</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="group group-output">
+        <h2 data-i18n="group-title.output" class="group-title">Output</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="outputLevel">
+            <div class="knob" id="knob-outputLevel"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.level" class="knob-label">Level</div>
+            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ─── Preset tour ────────────────────────────────────────── -->
+    <section class="preset-tour">
+      <div data-i18n="tour-label.lesson-presets" class="tour-label">Lesson Presets</div>
+      <div class="tour-buttons">
+        <button class="tour-btn" data-preset="epiano" data-tip="lessonEpiano">E-Piano</button>
+        <button class="tour-btn" data-preset="tubular" data-tip="lessonTubular">Tubular Bell</button>
+        <button class="tour-btn" data-preset="brass" data-tip="lessonBrass">Brass</button>
+        <button class="tour-btn" data-preset="clarinet" data-tip="lessonClarinet">Clarinet</button>
+        <button class="tour-btn" data-preset="clang" data-tip="lessonClang">Clang Bell</button>
+      </div>
+      <div data-i18n="tourCaption" class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a lesson to hear a concept.</div>
+    </section>
+
+    <!-- ─── On-screen keyboard (play without external MIDI) ─────── -->
+    <section class="keyboard-panel">
+      <div class="keyboard-label">Play &#183; <span data-i18n="kbd-hint.click-the-keys-or" class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+    </section>
+  </div>
+
+  <!-- Floating tooltip -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <!-- JUCE native-interop guard (must load before app.js as a module) -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

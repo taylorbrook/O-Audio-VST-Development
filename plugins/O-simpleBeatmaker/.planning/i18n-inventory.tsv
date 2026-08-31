@@ -1,0 +1,62 @@
+# plugin	O-simpleBeatmaker
+# uiRoot	Source/ui/public
+# generated	2026-08-28T18:30:40.768Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	33	h1.title		UNSURE	no	title.o-simple	O – simple	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	33	span.title-accent		LABEL	no	title-accent.beatmaker	Beatmaker	prose survives the readout filter
+html-text	index.html	34	p.subtitle		LABEL	no	subtitle.step-sequencer-drum-machine	Step-Sequencer Drum Machine · program a beat, then watch velocity, swing, quantize & humanize reshape it · A Field Guide	prose survives the readout filter
+html-text	index.html	37	span.tr-label		LABEL	no	tr-label.tempo	tempo	prose survives the readout filter
+html-text	index.html	37	span.tr-unit		UNIT	no	tr-unit.bpm	BPM	unit symbol, language-neutral (D-03)
+html-text	index.html	38	span.tr-label		LABEL	no	tr-label.length	length	prose survives the readout filter
+html-text	index.html	38	span.tr-unit		LABEL	no	tr-unit.steps	steps	prose survives the readout filter
+html-text	index.html	39	#readTransport		LABEL	no	readTransport	● free-run	prose survives the readout filter
+html-text	index.html	45	div.grid-label		UNSURE	no	grid-label.step-grid	Step Grid ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	46	span.grid-hint		UNSURE	no	grid-hint.click-a-cell-to	click a cell to light a step; click again to cycle	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	46	em		LABEL	no	ui.normal-accent-ghost	normal → accent → ghost	prose survives the readout filter
+html-text	index.html	46	span.grid-hint		UNSURE	no	grid-hint.right-click-or	; right-click (or	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	46	kbd		LABEL	no	ui.del	Del	prose survives the readout filter
+html-text	index.html	46	span.grid-hint		UNSURE	no	grid-hint.to-clear-the-bar	) to clear · the bar sweeping across is the playhead	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	47	#clearGridBtn		LABEL	yes	clearGridBtn	Clear all	prose survives the readout filter
+html-text	index.html	56	div.lane-label		UNSURE	no	lane-label.timing-groove-lane	Timing / Groove Lane ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	57	span.lane-hint		UNSURE	no	lane-hint.each-hit-s	each hit's	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	57	em		LABEL	no	ui.actual	actual	prose survives the readout filter
+html-text	index.html	57	span.lane-hint		UNSURE	no	lane-hint.offset-from-its-grid	offset from its grid line — left of the line = early, right = late. This is the Δt baked into the audio, not a guess.	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	61	span.lk.lk-grid		LABEL	no	lk.grid-line-nominal-step	│ grid line (nominal step)	prose survives the readout filter
+html-text	index.html	62	span.lk.lk-swing		LABEL	no	lk.swing-steady-lateness-on	swing → steady lateness on off-beats	prose survives the readout filter
+html-text	index.html	63	span.lk.lk-human		LABEL	no	lk.humanize-random-scatter	humanize → random scatter	prose survives the readout filter
+html-text	index.html	64	span.lk.lk-quant		LABEL	no	lk.quantize-pulls-scatter-back	quantize → pulls scatter back	prose survives the readout filter
+html-text	index.html	70	div.midi-label		UNSURE	no	midi-label.live-midi-readout	Live MIDI Readout ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	71	span.midi-hint		LABEL	no	midi-hint.note-on-messages-as	note-on messages as steps fire — the grid and this list are two views of one MIDI stream	prose survives the readout filter
+html-text	index.html	79	h2.group-title		LABEL	no	group-title.timing-feel	Timing Feel	prose survives the readout filter
+html-text	index.html	83	div.knob-label		LABEL	no	knob-label.swing	Swing	prose survives the readout filter
+html-text	index.html	88	div.knob-label		LABEL	no	knob-label.humanize	Humanize	prose survives the readout filter
+html-text	index.html	93	div.knob-label		LABEL	no	knob-label.quantize	Quantize	prose survives the readout filter
+html-text	index.html	98	div.knob-label		LABEL	no	knob-label.tempo	Tempo	prose survives the readout filter
+html-text	index.html	99	#val-tempo		READOUT	no	val-tempo	120 BPM	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	104	div.knob-label		LABEL	no	knob-label.pattern-length	Pattern Length	prose survives the readout filter
+html-text	index.html	110	h2.group-title		UNSURE	no	group-title.drum-voices	Drum Voices	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	110	span.group-route		LABEL	no	group-route.tune-decay-tone-level	tune · decay · tone · level · mute / solo	prose survives the readout filter
+html-text	index.html	116	h2.group-title		LABEL	no	group-title.master	Master	prose survives the readout filter
+html-text	index.html	119	div.knob-label		LABEL	no	knob-label.output	Output	prose survives the readout filter
+html-text	index.html	120	#val-outputLevel		READOUT	no	val-outputLevel	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	127	div.tour-label		UNSURE	no	tour-label.lesson-presets	Lesson Presets	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	127	span.tour-soon		LABEL	no	tour-soon.click-one-each-isolates	(click one — each isolates a single idea)	prose survives the readout filter
+html-text	index.html	129	button.tour-btn		LABEL	yes	tour-btn.straight	Straight	prose survives the readout filter
+html-text	index.html	130	button.tour-btn		LABEL	yes	tour-btn.backbeat-accents	Backbeat + Accents	prose survives the readout filter
+html-text	index.html	131	button.tour-btn		LABEL	yes	tour-btn.ghost-notes	Ghost Notes	prose survives the readout filter
+html-text	index.html	132	button.tour-btn		LABEL	yes	tour-btn.triplet-swing	Triplet Swing	prose survives the readout filter
+html-text	index.html	133	button.tour-btn		LABEL	yes	tour-btn.humanized	Humanized	prose survives the readout filter
+html-text	index.html	134	button.tour-btn		LABEL	yes	tour-btn.quantize-demo	Quantize Demo	prose survives the readout filter
+html-text	index.html	136	#tourCaption		LABEL	no	tourCaption	Hover any control for a plain-language explanation · click a lesson preset to load it, then tweak a knob.	prose survives the readout filter
+html-attr	index.html	103	#combo-patternLength	aria-label	LABEL	no	combo-patternLength	Pattern length	prose survives the readout filter
+js-prose	js/app.js	270	mark.textContent		LABEL	no	ui.accent	accent	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	270	mark.textContent		LABEL	no	ui.ghost	ghost	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	310	cell.innerHTML		LABEL	no	ui.div-class-cell-fill	<div class="cell-fill"></div><div class="cell-mark"></div>	prose survives the readout filter
+js-composed	js/app.js	459	row.innerHTML		LABEL	no	ui.span-class-srccls-srctxt	<span class="${srcCls}">${srcTxt}</span> 	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/app.js	481	tEl.textContent		LABEL	no	ui.synced	● synced	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/app.js	481	tEl.textContent		LABEL	no	ui.free-run	● free-run	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/app.js	536	tip.innerHTML		LABEL	no	ui.span-class-tt-title	<span class="tt-title">${t[0]}</span>${t[1]}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/app.js	580	caption.textContent		LABEL	no	ui.btn-getattribute-data-preset	“${btn.getAttribute("data-preset")}” loaded — tweak a knob to hear the concept.	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/app.js	603	strip.innerHTML		LABEL	no	ui.div-class-vs-name	<div class="vs-name">${v.name}</div>\n      <div class="vs-knobs">${knobs}</div>\n      <div class="vs-toggles">\n        <button class="toggle-btn mute" id="toggle-${v.prefix}Mute" data-tip="voiceMute">Mute</button>\n        <button class="toggle-btn solo" id="toggle-${v.prefix}Solo" data-tip="voiceSolo">Solo</button>\n      </div>	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/app.js	274	setAttribute	aria-label	LABEL	no	ui.voices-v-name-step	${VOICES[v].name} step ${s + 1}: ${vel === 0 ? "off" : `${tier} (velocity ${vel})`}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-ReverseDelay, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-ReverseDelay</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Botanical overlay — one specimen per plugin (birds: airy, reversed flight). -->
+  <img src="img/birds.png" class="botanical-overlay" alt="" />
+
+  <div class="frame">
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <header class="header">
+      <h1 class="title">O&#8202;&#8211;&#8202;Reverse<span data-i18n="knob-delayTime" class="title-accent">Delay</span></h1>
+      <p data-i18n="subtitle.granular-reverse-delay-a" class="subtitle">Granular Reverse Delay &#183; A Field Guide</p>
+
+      <!-- ─── Settings (v1.9.0) ──────────────────────────────────────────
+           NO COPY IS AUTHORED IN THIS MARKUP. Every data-tip / data-tip-title
+           on this page is written at runtime by applyI18n() out of
+           js/i18n.js, and scripts/check-i18n.js assertion 3 fails if a literal
+           reappears here.
+
+           ONE ROW, and there must not be a second. D13 scoped this plugin's
+           hover help to display only — no on/off toggle, no persisted enabled
+           flag, no setTooltipsEnabled native function — and
+           tests/ui_frontend_check.js section 14 asserts that by NAME against
+           both app.js and PluginEditor.cpp. v1.9.0 adds the language pair and
+           nothing else; the bridge goes 13 -> 15.
+
+           Absolutely positioned inside the header rather than added as a flex
+           child: .header is text-align:center, and a flex child would have
+           re-laid out the centred title that every clamp measurement to date
+           was taken against. -->
+      <div class="settings-cluster">
+        <button type="button"
+                class="gear-btn"
+                id="gear-btn"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-label="Settings">&#9881;</button>
+
+        <div class="settings-popover" id="settings-popover"
+             role="dialog" aria-label="Settings" hidden>
+
+          <label class="settings-row" for="lang-select">
+            <!-- data-label so a shared state updater that writes textContent
+                 reads the authored caption back instead of erasing it
+                 (pattern_js_state_updater_overwrites_html_labels). Nothing
+                 writes it today; this is what keeps that true if something
+                 ever does. -->
+            <span data-i18n="lang-select" class="settings-label" data-label="Language">Language</span>
+            <!-- ENDONYMS. Never localized and never written by a state
+                 updater: a French speaker looking for their language looks
+                 for "Fran&ccedil;ais". -->
+            <select class="settings-select" id="lang-select"
+                    aria-label="Hover help language">
+              <option value="en">English</option>
+              <option value="fr">Fran&ccedil;ais</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <!-- ─── Preset bar (Stage 4) ─────────────────────────────────────────
+         44 px band (32 px tall + 12 px margin) under the header. Transparent
+         over the paper gradient with a hairline rule below, mirroring the
+         header's — a second field-guide register line rather than chrome. It
+         deliberately does NOT carry the plugin name: that would give the page
+         two competing title bars.
+
+         Element IDs are the ones js/preset-manager.js binds. Button copy lives
+         HERE, in data-label / data-confirm, never in JS — a shared JS state
+         updater writing textContent silently erases HTML-authored labels
+         (pattern_js_state_updater_overwrites_html_labels). #preset-name is the
+         sanctioned exception: _updateDisplay() owning its own element is the
+         module's intended behaviour. Its placeholder is "Default" because a
+         fresh instance genuinely reports "Default" — deliberately not a member
+         of the preset list. -->
+    <div class="preset-bar">
+      <span class="fleuron">&#10086;</span>
+      <button type="button" class="preset-nav" id="preset-prev" aria-label="Previous preset">&#9664;</button>
+      <button type="button" class="preset-nav" id="preset-next" aria-label="Next preset">&#9654;</button>
+      <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+      <button data-i18n="preset-save" type="button" class="preset-btn" id="preset-save" data-label="Save">Save</button>
+      <button data-i18n="preset-load" type="button" class="preset-btn" id="preset-load" data-label="Load">Load</button>
+      <button data-i18n="preset-delete" type="button" class="preset-btn" id="preset-delete"
+              data-label="Delete" data-confirm="Confirm?" data-armed="0">Delete</button>
+      <span class="fleuron">&#10086;</span>
+    </div>
+
+    <!-- ─── Groups ──────────────────────────────────────────────────────
+         THREE specimen rows sharing ONE pinned width contract
+         (190 | 190 | 276 | 190), so the columns align down the page.
+
+         Row 1 — signal flow (D9), unchanged from v1.0.1.
+         Row 2 — character. RANDOM shipped with v1.1's four grain
+                 randomisations; WINDOW, COUNT and SPACE were framed and
+                 labelled empty at the same time, so that filling them through
+                 v1.6 would never resize the window again. Resizing is what
+                 invalidates the tooltip edge-clamp verification, so it was done
+                 once, there.
+
+                 That plan held exactly: WINDOW filled at v1.2.0, COUNT at
+                 v1.3.0 and the last one — SPACE, now MOTION — at v1.6.0, and
+                 the frame did not move once across five releases and eleven
+                 controls.
+         Row 3 — space & response (v1.7.0). The reserve was spent, so this is
+                 the row-3 decision the review's section D warned about, paid at
+                 the same 940 px WIDTH: the tooltip clamp gate is horizontal, so
+                 a taller frame leaves the geometry under test unchanged and a
+                 wider one would not have.
+
+                 SOURCE | DUCK | DRIFT | COLOUR, with COLOUR framed and empty on
+                 the same principle that bought the last five releases.
+      -->
+    <main class="groups">
+
+      <div class="group-row group-row-1">
+
+      <!-- TIME ─────────────────────────────────────────────────────────── -->
+      <section class="group group-time">
+        <div data-i18n="group-label.time" class="group-label">Time</div>
+        <div class="group-body">
+
+          <!-- syncMode: two-segment pair. FREE / SYNC text is authored HERE and
+               is NEVER rewritten by JS — refresh() toggles classes + aria-pressed
+               only (pattern_js_state_updater_overwrites_html_labels). -->
+          <div class="segments" id="syncSegments" role="group" aria-label="Sync Mode">
+            <button data-i18n="seg-free" type="button" class="segment" id="seg-free" data-choice="0" aria-pressed="false">Free</button>
+            <button data-i18n="seg-sync" type="button" class="segment" id="seg-sync" data-choice="1" aria-pressed="true">Sync</button>
+          </div>
+
+          <!-- Fixed-dimension slot: both wraps are absolutely positioned to the
+               same box, so the FREE↔SYNC swap produces zero layout shift. -->
+          <div class="time-slot">
+            <div class="slot-wrap hidden" id="wrap-delayTime">
+              <div class="knob-cell">
+                <div class="knob" id="knob-delayTime" data-param="delayTime"><div class="knob-stem"></div></div>
+                <div data-i18n="knob-delayTime" class="knob-label">Delay</div>
+                <div class="knob-value" id="val-delayTime">&#8212;</div>
+              </div>
+            </div>
+
+            <div class="slot-wrap" id="wrap-noteDivision">
+              <div class="select-cell">
+                <!-- Options are built at runtime from properties.choices — the C++
+                     StringArray is the single source of truth (never hardcode). -->
+                <select class="division-select" id="combo-noteDivision" aria-label="Note Division"></select>
+                <div data-i18n="combo-noteDivision" class="knob-label">Division</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- GRAIN ────────────────────────────────────────────────────────── -->
+      <section class="group group-grain">
+        <div data-i18n="group-label.grain" class="group-label">Grain</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-grainSize" data-param="grainSize"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.size" class="knob-label">Size</div>
+            <div class="knob-value" id="val-grainSize">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-density" data-param="density"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-density" class="knob-label">Density</div>
+            <div class="knob-value" id="val-density">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEEDBACK ─────────────────────────────────────────────────────── -->
+      <section class="group group-feedback">
+        <div data-i18n="knob-feedback" class="group-label">Feedback</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-feedback" data-param="feedback"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.amount" class="knob-label">Amount</div>
+            <div class="knob-value" id="val-feedback">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-lowCut" data-param="lowCut"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-lowCut" class="knob-label">Low Cut</div>
+            <div class="knob-value" id="val-lowCut">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-highCut" data-param="highCut"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-highCut" class="knob-label">High Cut</div>
+            <div class="knob-value" id="val-highCut">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTPUT ───────────────────────────────────────────────────────── -->
+      <section class="group group-output">
+        <div data-i18n="group-label.output" class="group-label">Output</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-width" data-param="width"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-width" class="knob-label">Width</div>
+            <div class="knob-value" id="val-width">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-mix" class="knob-label">Mix</div>
+            <div class="knob-value" id="val-mix">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      </div><!-- /.group-row-1 -->
+
+      <div class="group-row group-row-2">
+
+      <!-- RANDOM (v1.1.0, B3) ──────────────────────────────────────────
+           Four knob-cells wrapping to a 2x2 grid in a 190 px panel. Every
+           one defaults to 0, which is the exact no-op: a v1.0 session or
+           preset opened here sounds identical until one of these is moved. -->
+      <section class="group group-random">
+        <div data-i18n="group-label.random" class="group-label">Random</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-jitter" data-param="jitter"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-jitter" class="knob-label">Jitter</div>
+            <div class="knob-value" id="val-jitter">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-delayScatter" data-param="delayScatter"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-delayScatter" class="knob-label">Scatter</div>
+            <div class="knob-value" id="val-delayScatter">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-sizeRandom" data-param="sizeRandom"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.size-rnd" class="knob-label">Size Rnd</div>
+            <div class="knob-value" id="val-sizeRandom">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-gainRandom" data-param="gainRandom"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.gain-rnd" class="knob-label">Gain Rnd</div>
+            <div class="knob-value" id="val-gainRandom">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WINDOW (v1.2.0, B1) ──────────────────────────────────────────────
+           The first reserved panel to be filled, and it cost exactly what
+           v1.1.0 promised it would: markup only. No CSS rule, no width change,
+           no resize — so the tooltip edge-clamp geometry is the same one
+           v1.1.0 verified (it is re-measured anyway, because two new anchors
+           exist, but the LAYOUT under test is unchanged).
+
+           Shape sits above Tilt because it selects which family of envelopes
+           the tilt then leans — reading the panel top-to-bottom is reading the
+           signal path. Both default to the shipped Hann: Shape to index 0 and
+           Tilt to its CENTRE, which is the one control on this page whose
+           no-op is not zero. -->
+      <section class="group group-window">
+        <div data-i18n="group-label.window" class="group-label">Window</div>
+        <div class="group-body">
+          <div class="select-cell">
+            <!-- Options built at runtime from properties.choices — the C++
+                 StringArray is the single source of truth (never hardcode). -->
+            <select class="division-select shape-select" id="combo-grainShape" aria-label="Grain Shape"></select>
+            <div data-i18n="combo-grainShape" class="knob-label">Shape</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-grainTilt" data-param="grainTilt"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-grainTilt" class="knob-label">Tilt</div>
+            <div class="knob-value" id="val-grainTilt">&#8212;</div>
+          </div>
+
+          <!-- v1.4.0: Tukey taper. Applies ONLY to the Tukey shape, so the cell
+               carries .knob-cell-inert whenever another shape is selected — a
+               visual dim plus aria-disabled, driven by refreshTaperEnabled() in
+               app.js. The relay stays bound either way; only the appearance
+               changes, so this is never a dead control, just an inapplicable
+               one saying so. -->
+          <div class="knob-cell" id="cell-tukeyTaper">
+            <div class="knob" id="knob-tukeyTaper" data-param="tukeyTaper"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-tukeyTaper" class="knob-label">Taper</div>
+            <div class="knob-value" id="val-tukeyTaper">&#8212;</div>
+          </div>
+
+          <!-- Envelope display, under the controls that shape it (v1.4.0).
+               Reading the panel top-to-bottom is now Shape -> Tilt/Taper ->
+               the resulting window, i.e. cause then effect, which is the same
+               ordering the panel already used for Shape over Tilt.
+
+               It lives HERE rather than in a panel of its own so the graph sits
+               with the three controls it answers to. That costs the panel some
+               room, which is why .group-window shrinks its own knobs, select and
+               gaps — every one of those overrides is scoped to this panel and
+               changes nothing anywhere else on the page.
+
+               Full-width, so flex-wrap puts it on its own row beneath both
+               knobs. -->
+          <div class="env-cell" id="envelopeCell">
+            <!-- width/height are rewritten in JS for the device pixel ratio.
+                 The CSS gives the ELEMENT its size; these attributes are the
+                 backing store — a canvas is a replaced element, so CSS alone
+                 would scale a blurry 300x150 default rather than resize it
+                 (o-textureforge-cursor-bug). -->
+            <canvas id="envelopeCanvas" width="144" height="58" role="img"
+                    aria-label="Grain amplitude envelope"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- COUNT (v1.3.0, B2) ───────────────────────────────────────────────
+           The second reserved panel filled, and the one place this release
+           costs more than markup: the readout below needs its own CSS block
+           (.meter-cell), because it is the first element on the page that is
+           neither a knob, a select nor a segment pair.
+
+           It takes the panel that was labelled MOTION — the 276 px column, not
+           the 190 px one — because a knob plus two readout lines does not fit
+           the narrow width without crowding, and because the LABEL had to
+           change anyway: "Motion" describes delay-time drift (review B4 #6),
+           which is not this. That control now has SPACE reserved for it; the
+           row-3 decision the review's section D warns about arrives with
+           whichever of ducking / diffusion / stereo-source lands after that.
+
+           Count sits above the readout because it sets the ceiling the readout
+           reports against — reading the panel top-to-bottom is reading cause
+           then effect, the same ordering WINDOW uses for Shape over Tilt.
+           Default 8 is v1.2.0's hard-coded ceiling, so a v1.0-v1.2 session
+           opened here reads exactly as it did. -->
+      <section class="group group-count">
+        <div data-i18n="group-label.count" class="group-label">Count</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-grainCount" data-param="grainCount"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.count" class="knob-label">Count</div>
+            <div class="knob-value" id="val-grainCount">&#8212;</div>
+          </div>
+
+          <!-- Live engine readout, polled from getGrainMeter. Values are written
+               with textContent into the SPANS only — the "Active" / "Overlap"
+               captions are authored here and never touched by JS
+               (pattern_js_state_updater_overwrites_html_labels). aria-live is
+               off: this updates ~15x/s and would flood a screen reader. -->
+          <div class="meter-cell" id="grainMeter">
+            <div class="meter-row">
+              <span data-i18n="grainmeter.active" class="meter-label">Active</span>
+              <span class="meter-value" id="meter-active" aria-live="off">&#8212;</span>
+            </div>
+            <div class="meter-row">
+              <span data-i18n="grainmeter.overlap" class="meter-label">Overlap</span>
+              <span class="meter-value" id="meter-overlap" aria-live="off">&#8212;</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MOTION (v1.6.0, B4 #1-#3) ────────────────────────────────────────
+           The LAST reserved panel, filled — and it cost exactly what v1.1.0
+           promised the reserve would cost: markup, one width alias in the CSS
+           and nothing else. No panel width, position or height changed, so the
+           tooltip edge-clamp geometry is the one already verified and the
+           940 x 743 frame is untouched (pattern_tooltip_clamp_gate_viewport_sensitive).
+
+           The three controls belong together because all three are properties of
+           the capture buffer rather than of the grains: whether it is being
+           written at all (Freeze), which way grains travel through it
+           (Direction), and how much of its own output is written back (Regen).
+
+           Freeze sits on top as a full-width segment pair, matching TIME's
+           Free/Sync: it is the one control here that is a STATE rather than an
+           amount, and reading the panel top-to-bottom is state then amounts.
+           Its OFF / FREEZE text is authored HERE and never rewritten by JS
+           (pattern_js_state_updater_overwrites_html_labels) — the same rule that
+           had the preset buttons reading the wrong labels in every DAW until it
+           was found.
+
+           All three default to their no-op, which for once is plain zero for
+           every one of them: freeze off, direction 0 (all-reverse), regen 0 dB.
+           A v1.0-v1.5 session or preset opened here therefore sounds exactly as
+           it did. -->
+      <section class="group group-motion">
+        <div data-i18n="group-label.motion" class="group-label">Motion</div>
+        <div class="group-body">
+
+          <div class="segments" id="freezeSegments" role="group" aria-label="Freeze">
+            <button data-i18n="seg-freeze-off" type="button" class="segment" id="seg-freeze-off" data-choice="0" aria-pressed="true">Off</button>
+            <button data-i18n="freezeSegments" type="button" class="segment" id="seg-freeze-on" data-choice="1" aria-pressed="false">Freeze</button>
+          </div>
+
+          <div class="knob-cell">
+            <div class="knob" id="knob-direction" data-param="direction"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-direction" class="knob-label">Direction</div>
+            <div class="knob-value" id="val-direction">&#8212;</div>
+          </div>
+
+          <div class="knob-cell">
+            <div class="knob" id="knob-regenMakeup" data-param="regenMakeup"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-regenMakeup" class="knob-label">Regen</div>
+            <div class="knob-value" id="val-regenMakeup">&#8212;</div>
+          </div>
+
+        </div>
+      </section>
+
+      </div><!-- /.group-row-2 -->
+
+      <div class="group-row group-row-3">
+
+      <!-- SOURCE (v1.7.0, B4 #5) ───────────────────────────────────────────
+           What the grains READ, which through v1.6.0 was always the mono sum —
+           so the source's own stereo image was discarded before a grain saw it,
+           and Width could only pan mono copies of it. Stereo latches a channel
+           per grain, following that grain's pan side, so material that was on
+           the right comes back on the right.
+
+           A segment pair rather than a select, matching TIME's Free/Sync: it
+           names two modes rather than picking from a list. The MONO / STEREO
+           text is authored HERE and never rewritten by JS
+           (pattern_js_state_updater_overwrites_html_labels).
+
+           Mono Sum is index 0 and the default, which is load-bearing: an absent
+           key in a v1.0-v1.6 session or preset resolves to index 0, so index 0
+           has to be the shipped behaviour. -->
+      <section class="group group-source">
+        <div data-i18n="sourceSegments" class="group-label">Source</div>
+        <div class="group-body">
+
+          <div class="segments" id="sourceSegments" role="group" aria-label="Source Mode">
+            <button data-i18n="seg-source-mono" type="button" class="segment" id="seg-source-mono" data-choice="0" aria-pressed="true">Mono</button>
+            <button data-i18n="seg-source-stereo" type="button" class="segment" id="seg-source-stereo" data-choice="1" aria-pressed="false">Stereo</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- DUCK (v1.7.0, B4 #4) ─────────────────────────────────────────────
+           One knob, centred. The wet is attenuated by the dry input's envelope,
+           so the wash blooms in the gaps instead of competing with the source —
+           the brief's "vocal ambience behind a lead" case, specifically.
+
+           Applied to the OUTPUT only and never to the feedback tap, so it
+           changes WHEN the tail is heard and not how long it lasts. -->
+      <section class="group group-duck">
+        <div data-i18n="knob-duck" class="group-label">Duck</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-duck" data-param="duck"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-duck" class="knob-label">Duck</div>
+            <div class="knob-value" id="val-duck">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DRIFT (v1.7.0, B4 #6) ────────────────────────────────────────────
+           The 276 px column, for the same reason FEEDBACK and COUNT have it:
+           two knobs plus their readouts crowd a 190 px panel.
+
+           Rate sits above Depth because it sets the character Depth then scales
+           — the same cause-then-effect ordering WINDOW uses for Shape over Tilt
+           and COUNT uses for Count over its readout.
+
+           Rate is INERT while Depth is 0, which is the shipped state. Its cell
+           carries .knob-cell-inert then, exactly as Taper's does when the window
+           is not Tukey — dimmed and aria-disabled, but never unbound. -->
+      <section class="group group-drift">
+        <div data-i18n="group-label.drift" class="group-label">Drift</div>
+        <div class="group-body">
+          <div class="knob-cell" id="cell-driftRate">
+            <div class="knob" id="knob-driftRate" data-param="driftRate"><div class="knob-stem"></div></div>
+            <div data-i18n="cell-driftrate.rate" class="knob-label">Rate</div>
+            <div class="knob-value" id="val-driftRate">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-driftDepth" data-param="driftDepth"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.depth" class="knob-label">Depth</div>
+            <div class="knob-value" id="val-driftDepth">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- COLOUR (v1.8.0, B4 #7-#8) ────────────────────────────────────────
+           The reserve is SPENT, and it paid exactly what it was framed to pay.
+           v1.7.0 left this panel empty during a resize it was making anyway, on
+           the bet that the next release would then cost markup instead of
+           another resize. It did: two knob-cells are 72 + 14 + 72 = 158 px in
+           the 190 px panel already here, which is the shape GRAIN and OUTPUT
+           have had since Stage 3. No width change, no height change, no new
+           geometry — so the tooltip clamp geometry under test is untouched.
+
+           Diffusion above Drive, matching the loop's own order (allpasses feed
+           the saturator, not the reverse) — the same cause-then-effect ordering
+           DRIFT uses for Rate over Depth.
+
+           Neither knob is ever inert: diffusion at 0 leaves drive fully audible
+           and vice versa, so unlike Drift's Rate cell there is no .knob-cell-inert
+           state here. -->
+      <section class="group group-colour">
+        <div data-i18n="group-label.colour" class="group-label">Colour</div>
+        <div class="group-body">
+          <div class="knob-cell">
+            <div class="knob" id="knob-diffusion" data-param="diffusion"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-diffusion" class="knob-label">Diffusion</div>
+            <div class="knob-value" id="val-diffusion">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-drive" data-param="drive"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-drive" class="knob-label">Drive</div>
+            <div class="knob-value" id="val-drive">&#8212;</div>
+          </div>
+        </div>
+      </section>
+
+      </div><!-- /.group-row-3 -->
+
+    </main>
+
+    <footer class="footer">
+      <span class="fleuron">&#10086;</span>
+      <span data-i18n="footer-text.drag-vertically-wheel-or" class="footer-text">Drag vertically &#183; wheel or arrows to trim &#183; double-click to reset</span>
+      <span class="fleuron">&#10086;</span>
+    </footer>
+  </div>
+
+  <!-- Hover-help layer. Lives OUTSIDE .frame and is position:fixed, so a tip on
+       an edge control is not clipped by the frame's inset shadow. Content is
+       written with textContent from the anchors' two tip attributes, which as
+       of v1.9.0 are themselves written at runtime by applyI18n() out of
+       js/i18n.js rather than authored in this file. -->
+  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

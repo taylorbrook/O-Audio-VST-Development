@@ -1,0 +1,30 @@
+# plugin	O-Emulator
+# uiRoot	Source/ui/public
+# generated	2026-08-29T03:29:02.990Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	524	div.wordmark		UNSURE	no	wordmark.o-emulator	O-EMULATOR	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	537	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	547	#preset-save		LABEL	yes	preset-save	Save	prose survives the readout filter
+html-text	index.html	549	#preset-load		LABEL	yes	preset-load	Load	prose survives the readout filter
+html-text	index.html	551	#preset-delete		LABEL	yes	preset-delete	Delete	prose survives the readout filter
+html-text	index.html	555	div.brand		LABEL	no	brand.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-text	index.html	557	div.plate		LABEL	yes	plate.a-survey-of-extinct	A Survey of Extinct Consoles · Plate CDLXXXVII	prose survives the readout filter
+html-text	index.html	573	button		LABEL	no	ui.snes	SNES	prose survives the readout filter
+html-text	index.html	574	button		LABEL	no	ui.ps1	PS1	prose survives the readout filter
+html-text	index.html	575	button		LABEL	no	ui.nes	NES	prose survives the readout filter
+html-text	index.html	576	button		LABEL	no	ui.gb	GB	prose survives the readout filter
+html-text	index.html	577	button		LABEL	no	ui.genesis	Genesis	prose survives the readout filter
+html-text	index.html	587	div.ctl-label		LABEL	yes	ctl-label.crush	Crush	prose survives the readout filter
+html-text	index.html	592	div.ctl-label		LABEL	yes	ctl-label.age	Age	prose survives the readout filter
+html-text	index.html	597	div.ctl-label		LABEL	yes	ctl-label.reverb	Reverb	prose survives the readout filter
+html-text	index.html	602	div.ctl-label		LABEL	yes	ctl-label.mix	Mix	prose survives the readout filter
+html-text	index.html	627	span.settings-label		LABEL	yes	settings-popover.language	Language	prose survives the readout filter
+html-text	index.html	632	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	633	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-attr	index.html	530	#preset-prev	aria-label	LABEL	yes	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	532	#preset-next	aria-label	LABEL	yes	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	572	div.seg	aria-label	LABEL	yes	seg.console-aria-label	Console	prose survives the readout filter
+html-attr	index.html	622	#gear-btn	aria-label	LABEL	yes	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	625	#settings-popover	aria-label	LABEL	yes	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	631	#lang-select	aria-label	LABEL	yes	lang-select	Interface language	prose survives the readout filter

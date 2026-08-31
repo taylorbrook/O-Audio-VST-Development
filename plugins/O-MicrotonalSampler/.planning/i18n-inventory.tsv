@@ -1,0 +1,180 @@
+# plugin	O-MicrotonalSampler
+# uiRoot	Resources/ui
+# generated	2026-08-30T05:56:25.021Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	53	h1		LABEL	no	header.o-microtonalsampler	O-MicrotonalSampler	prose survives the readout filter
+html-text	index.html	57	button.tab-btn.active		LABEL	no	tab-strip.sample-map	Sample Map	prose survives the readout filter
+html-text	index.html	58	button.tab-btn		LABEL	no	tab-strip.tuning	Tuning	prose survives the readout filter
+html-text	index.html	59	button.tab-btn		LABEL	no	tab-strip.about	About	prose survives the readout filter
+html-text	index.html	65	#save-preset-btn		LABEL	no	save-preset-btn	Save Preset…	prose survives the readout filter
+html-text	index.html	67	#load-preset-btn		LABEL	no	load-preset-btn	Load Preset…	prose survives the readout filter
+html-text	index.html	77	span.drop-zone-text		LABEL	no	folder-drop-zone.drop-folder-here	Drop folder here	prose survives the readout filter
+html-text	index.html	79	span.drop-zone-or		LABEL	no	folder-drop-zone.or	or	prose survives the readout filter
+html-text	index.html	81	#load-folder-btn		LABEL	no	load-folder-btn	Load Folder…	prose survives the readout filter
+html-text	index.html	83	#batch-loop-btn		LABEL	no	batch-loop-btn	Batch loop…	prose survives the readout filter
+html-text	index.html	85	#clear-samples-btn		LABEL	no	clear-samples-btn	Clear samples	prose survives the readout filter
+html-text	index.html	98	label		LABEL	no	technique-preset-row.technique-preset	Technique preset	prose survives the readout filter
+html-text	index.html	101	option		UNSURE	no	technique-preset-select.choose-family	Choose family…	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	102	option		UNSURE	no	technique-preset-select.strings	Strings	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	103	option		UNSURE	no	technique-preset-select.winds	Winds	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	104	option		UNSURE	no	technique-preset-select.brass	Brass	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	105	option		UNSURE	no	technique-preset-select.generic	Generic	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	120	span		LABEL	no	technique-ks-controls.ks	KS	prose survives the readout filter
+html-text	index.html	123	label.ks-range-label		UNSURE	no	technique-ks-controls.low	low	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	127	label.ks-range-label		UNSURE	no	technique-ks-controls.high	high	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	141	span		LABEL	no	trigger-panel.triggers-cc-pc	Triggers (CC + PC)	prose survives the readout filter
+html-text	index.html	143	#trigger-precedence-indicator		LABEL	no	trigger-precedence-indicator	KS > CC > PC > history	prose survives the readout filter
+html-text	index.html	150	#cc-trigger-heading		LABEL	no	cc-trigger-heading	CC trigger	prose survives the readout filter
+html-text	index.html	152	label.trigger-cc-number-label		UNSURE	no	trigger-panel.cc	CC#	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	156	span.trigger-hint		LABEL	no	trigger-panel.value-0-127-technique	value 0–127 → technique slot	prose survives the readout filter
+html-text	index.html	161	th		LABEL	no	cc-trigger-table.slot	slot	prose survives the readout filter
+html-text	index.html	162	th		LABEL	no	cc-trigger-table.low	low	prose survives the readout filter
+html-text	index.html	163	th		LABEL	no	cc-trigger-table.high	high	prose survives the readout filter
+html-text	index.html	164	th		LABEL	no	cc-trigger-table.tech	tech	prose survives the readout filter
+html-text	index.html	176	#pc-trigger-heading		LABEL	no	pc-trigger-heading	PC trigger	prose survives the readout filter
+html-text	index.html	178	span.trigger-hint		LABEL	no	trigger-panel.program-technique-slot	program # → technique slot	prose survives the readout filter
+html-text	index.html	183	th		LABEL	no	pc-trigger-table.slot	slot	prose survives the readout filter
+html-text	index.html	184	th		LABEL	no	pc-trigger-table.pc	PC#	prose survives the readout filter
+html-text	index.html	185	th		LABEL	no	pc-trigger-table.tech	tech	prose survives the readout filter
+html-text	index.html	194	#trigger-reset		LABEL	no	trigger-reset	Reset to defaults	prose survives the readout filter
+html-text	index.html	207	span		LABEL	no	trim-panel.trims-loudness	Trims (loudness)	prose survives the readout filter
+html-text	index.html	208	#trim-active-tech		LABEL	no	trim-active-tech	ord	prose survives the readout filter
+html-text	index.html	212	#trim-tech-label		LABEL	no	trim-tech-label	Technique	prose survives the readout filter
+html-text	index.html	216	#trim-tech-readout		READOUT	no	trim-tech-readout	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	224	#trim-layer-readout-0		READOUT	no	trim-layer-readout-0	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	227	#trim-layer-label-1		LABEL	no	trim-layer-label-1	mp	prose survives the readout filter
+html-text	index.html	231	#trim-layer-readout-1		READOUT	no	trim-layer-readout-1	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	234	#trim-layer-label-2		LABEL	no	trim-layer-label-2	mf	prose survives the readout filter
+html-text	index.html	238	#trim-layer-readout-2		READOUT	no	trim-layer-readout-2	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	245	#trim-layer-readout-3		READOUT	no	trim-layer-readout-3	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	249	span.trim-hint		LABEL	no	trim-panel.double-click-a-slider	Double-click a slider to reset to 0 dB	prose survives the readout filter
+html-text	index.html	250	#trim-reset		LABEL	no	trim-reset	Reset all trims	prose survives the readout filter
+html-text	index.html	271	button		LABEL	no	cell-context-menu.replace	Replace…	prose survives the readout filter
+html-text	index.html	272	button		LABEL	no	cell-context-menu.open-loop-editor	Open Loop Editor	prose survives the readout filter
+html-text	index.html	273	button.context-menu-destructive		LABEL	no	cell-context-menu.delete-sample	Delete sample	prose survives the readout filter
+html-text	index.html	276	summary		LABEL	no	issues-disclosure.issues	Issues	prose survives the readout filter
+html-text	index.html	280	div.loop-editor-placeholder		LABEL	no	loop-editor-panel.select-a-loaded-sample	Select a loaded sample slot to edit loop points	prose survives the readout filter
+html-text	index.html	299	span		UNSURE	no	loop-editor-panel.loop-start	Loop start:	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	299	span		UNIT	no	loop-editor-panel.ms	ms	unit symbol, language-neutral (D-03)
+html-text	index.html	301	span		UNSURE	no	loop-editor-panel.loop-end	Loop end:	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	301	span		UNIT	no	loop-editor-panel.ms-2	ms	unit symbol, language-neutral (D-03)
+html-text	index.html	303	span		UNSURE	no	loop-editor-panel.mode	Mode:	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	306	#loop-reset		LABEL	no	loop-reset	Reset to auto-detect	prose survives the readout filter
+html-text	index.html	307	#loop-cancel		LABEL	no	loop-cancel	Cancel	prose survives the readout filter
+html-text	index.html	308	#loop-apply		LABEL	no	loop-apply	Apply	prose survives the readout filter
+html-text	index.html	320	#confirm-dialog-title		LABEL	no	confirm-dialog-title	Are you sure?	prose survives the readout filter
+html-text	index.html	323	#confirm-cancel-btn		LABEL	no	confirm-cancel-btn	Cancel	prose survives the readout filter
+html-text	index.html	324	#confirm-confirm-btn		LABEL	no	confirm-confirm-btn	Confirm	prose survives the readout filter
+html-text	index.html	336	#batch-loop-title		LABEL	no	batch-loop-title	Batch loop points	prose survives the readout filter
+html-text	index.html	337	p.confirm-dialog-message		LABEL	no	batch-loop-dialog.apply-one-loop-region	Apply one loop region to every loaded sample at once. One-shot samples (too short to loop) are left untouched.	prose survives the readout filter
+html-text	index.html	343	span.bl-label		LABEL	no	batch-loop-dialog.units	Units	prose survives the readout filter
+html-text	index.html	347	span		LABEL	no	batch-loop-dialog.proportional	Proportional (%)	prose survives the readout filter
+html-text	index.html	351	span		LABEL	no	batch-loop-dialog.milliseconds	Milliseconds	prose survives the readout filter
+html-text	index.html	357	label.bl-label		LABEL	no	batch-loop-dialog.loop-start	Loop start	prose survives the readout filter
+html-text	index.html	363	label.bl-label		LABEL	no	batch-loop-dialog.loop-end	Loop end	prose survives the readout filter
+html-text	index.html	371	#bl-cancel-btn		LABEL	no	bl-cancel-btn	Cancel	prose survives the readout filter
+html-text	index.html	372	#bl-apply-btn		LABEL	no	bl-apply-btn	Apply to all	prose survives the readout filter
+html-text	index.html	384	#diagnostic-dialog-title		LABEL	no	diagnostic-dialog-title	Diagnostic	prose survives the readout filter
+html-text	index.html	385	#diagnostic-dialog-hint		LABEL	no	diagnostic-dialog-hint	Auto-copied to clipboard. Select the text below and ⌘C if it wasn't.	prose survives the readout filter
+html-text	index.html	391	#diagnostic-copy-btn		LABEL	no	diagnostic-copy-btn	Copy again	prose survives the readout filter
+html-text	index.html	392	#diagnostic-close-btn		LABEL	no	diagnostic-close-btn	Close	prose survives the readout filter
+html-text	index.html	406	#missing-folder-dialog-title		LABEL	no	missing-folder-dialog-title	Sample folder not found	prose survives the readout filter
+html-text	index.html	412	#missing-folder-skip-btn		LABEL	no	missing-folder-skip-btn	Skip	prose survives the readout filter
+html-text	index.html	413	#missing-folder-locate-btn		LABEL	no	missing-folder-locate-btn	Locate folder…	prose survives the readout filter
+html-text	index.html	426	#rr-confirm-dialog-title		LABEL	no	rr-confirm-dialog-title	Multiple samples for the same note	prose survives the readout filter
+html-text	index.html	429	p.confirm-dialog-message		UNSURE	no	rr-confirm-dialog.the-folder-contains-more	The folder contains more than one sample for the same note and velocity layer, without explicit	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	431	code		LABEL	no	rr-confirm-dialog.rr	rr	prose survives the readout filter
+html-text	index.html	431	code		LABEL	no	rr-confirm-dialog.take	take	prose survives the readout filter
+html-text	index.html	432	code		LABEL	no	rr-confirm-dialog.tk	tk	prose survives the readout filter
+html-text	index.html	432	p.confirm-dialog-message		UNSURE	no	rr-confirm-dialog.tokens-in-the-filenames	tokens in the filenames. Treat them as round-robin variants?	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	437	#rr-confirm-cancel		LABEL	no	rr-confirm-cancel	Cancel load	prose survives the readout filter
+html-text	index.html	438	#rr-confirm-accept		LABEL	no	rr-confirm-accept	Treat as variants	prose survives the readout filter
+html-text	index.html	455	#folder-load-options-title		LABEL	no	folder-load-options-title	Load samples	prose survives the readout filter
+html-text	index.html	458	span.flo-label		LABEL	no	folder-load-options-dialog.layer	Layer	prose survives the readout filter
+html-text	index.html	468	span.flo-label		LABEL	no	folder-load-options-dialog.technique	Technique	prose survives the readout filter
+html-text	index.html	475	span.flo-label		LABEL	no	folder-load-options-dialog.when-loading	When loading	prose survives the readout filter
+html-text	index.html	479	span		LABEL	no	folder-load-options-dialog.add-to-layer	Add to layer	prose survives the readout filter
+html-text	index.html	483	span		LABEL	no	folder-load-options-dialog.replace-this-layer	Replace this layer	prose survives the readout filter
+html-text	index.html	487	span		LABEL	no	folder-load-options-dialog.replace-all-samples	Replace all samples	prose survives the readout filter
+html-text	index.html	491	span		LABEL	no	folder-load-options-dialog.layer-as-round-robin	Layer as round-robin	prose survives the readout filter
+html-text	index.html	499	span.flo-override-title		LABEL	no	folder-load-options-dialog.force-all-samples-onto	Force all samples onto this layer	prose survives the readout filter
+html-text	index.html	500	span.flo-override-sub		UNSURE	no	folder-load-options-dialog.otherwise-filename-tokens	Otherwise filename tokens (	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	500	code		LABEL	no	folder-load-options-dialog.ff	_ff	prose survives the readout filter
+html-text	index.html	500	span.flo-override-sub		UNSURE	no	folder-load-options-dialog.etc-decide-the-layer	, etc.) decide the layer	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	507	span.flo-override-title		LABEL	no	folder-load-options-dialog.force-all-samples-onto-2	Force all samples onto this technique	prose survives the readout filter
+html-text	index.html	508	span.flo-override-sub		UNSURE	no	folder-load-options-dialog.otherwise-filename-tokens-2	Otherwise filename tokens (	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	508	code		LABEL	no	folder-load-options-dialog.pizz	_pizz	prose survives the readout filter
+html-text	index.html	508	code		LABEL	no	folder-load-options-dialog.harm	_harm	prose survives the readout filter
+html-text	index.html	508	span.flo-override-sub		UNSURE	no	folder-load-options-dialog.etc-decide-the-technique	, etc.) decide the technique	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	520	span		LABEL	no	folder-load-options-dialog.embed-audio-in-project	Embed audio in project state	prose survives the readout filter
+html-text	index.html	527	#flo-cancel-btn		LABEL	no	flo-cancel-btn	Cancel	prose survives the readout filter
+html-text	index.html	528	#flo-confirm-btn		LABEL	no	flo-confirm-btn	Load…	prose survives the readout filter
+html-text	index.html	542	#embed-size-confirm-title		LABEL	no	embed-size-confirm-title	Embed audio in project?	prose survives the readout filter
+html-text	index.html	546	p.confirm-dialog-message.embed-size-confirm-detail		LABEL	no	embed-size-confirm-dialog.the-audio-data-will	The audio data will be written into your DAW project file. Project saves and reopens will be slower for large libraries, but the samples will travel with the project across folders and machines.	prose survives the readout filter
+html-text	index.html	553	#embed-size-cancel-btn		LABEL	no	embed-size-cancel-btn	Cancel	prose survives the readout filter
+html-text	index.html	554	#embed-size-confirm-btn		LABEL	no	embed-size-confirm-btn	Embed and load	prose survives the readout filter
+html-text	index.html	570	#per-cell-merge-title		LABEL	no	per-cell-merge-title	Cell already has samples	prose survives the readout filter
+html-text	index.html	573	#per-cell-merge-cancel-btn		LABEL	no	per-cell-merge-cancel-btn	Cancel	prose survives the readout filter
+html-text	index.html	574	#per-cell-merge-replace-btn		LABEL	no	per-cell-merge-replace-btn	Replace cell	prose survives the readout filter
+html-text	index.html	575	#per-cell-merge-merge-btn		LABEL	no	per-cell-merge-merge-btn	Add as round-robin	prose survives the readout filter
+html-text	index.html	587	#technique-rename-title		LABEL	no	technique-rename-title	Rename technique	prose survives the readout filter
+html-text	index.html	590	p.confirm-dialog-message		UNSURE	no	technique-rename-dialog.slot	Slot	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	591	p.confirm-dialog-message		UNSURE	no	technique-rename-dialog.enter-a-new-name	: enter a new name. Names appear in the tab strip and Dorico expression maps.	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	598	#technique-rename-cancel		LABEL	no	technique-rename-cancel	Cancel	prose survives the readout filter
+html-text	index.html	599	#technique-rename-save		LABEL	no	technique-rename-save	Save	prose survives the readout filter
+html-text	index.html	614	h2.about-title		LABEL	no	about-content.o-microtonalsampler	O-MicrotonalSampler	prose survives the readout filter
+html-text	index.html	616	p.about-tagline		LABEL	no	about-content.microtonal-sample-engine-for	Microtonal sample engine for Dorico microtonal playback.	prose survives the readout filter
+html-text	index.html	619	p.about-blurb		LABEL	no	about-content.per-key-per-velocity	Per-key, per-velocity-layer sample mapping with offline loop auto-detection, manual loop editing, and the Ouaricon tuning-system family. Built on JUCE 8.	prose survives the readout filter
+html-text	index.html	625	span		LABEL	no	about-content.made-by	Made by	prose survives the readout filter
+html-text	index.html	629	a.about-link		LABEL	no	about-content.ouaricon	Ouaricon	prose survives the readout filter
+html-attr	index.html	65	#save-preset-btn	title	LABEL	no	save-preset-btn-2	Save plugin state to .omspreset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	67	#load-preset-btn	title	LABEL	no	load-preset-btn-2	Load plugin state from .omspreset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	100	#technique-preset-select	title	LABEL	no	technique-preset-select	Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	110	#technique-tabs	aria-label	LABEL	no	technique-tabs	Playing techniques	prose survives the readout filter
+html-attr	index.html	114	#technique-add	title	LABEL	no	technique-add	Add technique slot	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	116	#technique-remove	title	LABEL	no	technique-remove	Remove last technique slot	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	215	#trim-tech-slider	aria-label	LABEL	no	trim-tech-slider	Technique master trim (dB)	prose survives the readout filter
+html-attr	index.html	223	#trim-layer-slider-0	aria-label	LABEL	no	trim-layer-slider-0	Layer p trim (dB)	prose survives the readout filter
+html-attr	index.html	230	#trim-layer-slider-1	aria-label	LABEL	no	trim-layer-slider-1	Layer mp trim (dB)	prose survives the readout filter
+html-attr	index.html	237	#trim-layer-slider-2	aria-label	LABEL	no	trim-layer-slider-2	Layer mf trim (dB)	prose survives the readout filter
+html-attr	index.html	244	#trim-layer-slider-3	aria-label	LABEL	no	trim-layer-slider-3	Layer f trim (dB)	prose survives the readout filter
+html-attr	index.html	291	#loop-close	aria-label	LABEL	no	loop-close	Close loop editor	prose survives the readout filter
+html-attr	index.html	459	#flo-layer-select	aria-label	LABEL	no	flo-layer-select	Target velocity layer	prose survives the readout filter
+html-attr	index.html	469	#flo-technique-select	aria-label	LABEL	no	flo-technique-select	Target technique slot	prose survives the readout filter
+js-prose	js/sampler-app.js	671	container.innerHTML		LABEL	no	ui.tuning-panel-unavailable	Tuning panel unavailable.	prose survives the readout filter
+js-composed	js/sampler-app.js	786	issues.querySelector('summary').textContent		LABEL	no	ui.issues-skipped-length-file	Issues (${skipped.length} file${skipped.length === 1 ? '' : 's'} skipped)	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/sampler-app.js	1355	startUnit.textContent		UNIT	no	ui.ms	ms	unit symbol, language-neutral (D-03)
+js-prose	js/sampler-app.js	1356	endUnit.textContent		UNIT	no	ui.ms-2	ms	unit symbol, language-neutral (D-03)
+js-prose	js/sampler-app.js	1384	errEl.textContent		LABEL	no	ui.start-and-end-must	Start and end must be 0–100 %, with end greater than start.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1385	errEl.textContent		LABEL	no	ui.start-and-end-must-2	Start and end must be in ms, with end greater than start.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/sampler-app.js	1739	sizeEl.textContent		LABEL	no	ui.project-state-will-grow	Project state will grow by ~${formatBytes(sizeBytes)}.	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/sampler-app.js	1746	sizeEl.textContent		LABEL	no	ui.size-will-be-confirmed	Size will be confirmed after folder selection.	prose survives the readout filter
+js-composed	js/sampler-app.js	1866	messageEl.textContent		LABEL	no	ui.embedding-folder-folderlabel-will	Embedding folder ${folderLabel}will add 	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/sampler-app.js	1867	messageEl.textContent		LABEL	no	ui.formatbytes-sizebytes-to-your	~${formatBytes(sizeBytes)} to your project state.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/sampler-app.js	1902	messageEl.textContent		LABEL	no	ui.notename-layer-mark-already	${noteName} layer ${mark} already holds the maximum ${variantWord}. Replace the cell, or cancel.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/sampler-app.js	1903	messageEl.textContent		LABEL	no	ui.notename-layer-mark-already-2	${noteName} layer ${mark} already holds ${variantWord}. Add this sample as round-robin variant ${existingCount + 1}, or replace the cell?	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1933	titleEl.textContent		LABEL	no	ui.are-you-sure	Are you sure?	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1935	confirmEl.textContent		LABEL	no	ui.confirm	Confirm	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1958	titleEl.textContent		LABEL	no	ui.diagnostic	Diagnostic	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1960	copyBtn.textContent		LABEL	no	ui.copy-again	Copy again	prose survives the readout filter
+js-prose	js/sampler-app.js	1985	hintEl.textContent		LABEL	no	ui.auto-copied-to-clipboard	Auto-copied to clipboard. (Select below + ⌘C if you need it again.)	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1986	hintEl.textContent		LABEL	no	ui.clipboard-write-blocked-select	Clipboard write blocked — select the text below and ⌘C to copy.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1993	copyBtn.textContent		LABEL	no	ui.copied	Copied ✓	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1993	copyBtn.textContent		LABEL	no	ui.copy-failed	Copy failed	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	1994	copyBtn.textContent		LABEL	no	ui.copy-again-2	Copy again	prose survives the readout filter
+js-composed	js/sampler-app.js	2213	label.textContent		LABEL	no	ui.variant-editorstate-variantindex-1	Variant ${editorState.variantIndex + 1} of ${editorState.variantCount}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/sampler-app.js	2237	fnEl.textContent		LABEL	no	ui.unknown	(unknown)	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-composed	js/sampler-app.js	2238	midiEl.textContent		LABEL	no	ui.midi-snap-midinote	MIDI ${snap.midiNote}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/sampler-app.js	2649	titleEl.textContent		LABEL	no	ui.drag-dropped-samples-not	Drag-dropped samples not embedded	prose survives the readout filter
+js-composed	js/sampler-app.js	2652	messageEl.textContent		LABEL	no	ui.samples-were-drag-dropped	Samples were drag-dropped from "${friendly}" without "Embed audio" 	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	2653	messageEl.textContent		LABEL	no	ui.enabled-so-they-could	enabled, so they could not be re-loaded automatically. 	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	2654	messageEl.textContent		LABEL	no	ui.re-drag-the-folder	Re-drag the folder onto the plugin, or browse to its current location.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	2657	locateBtn.textContent		LABEL	no	ui.browse-for-folder	Browse for folder…	prose survives the readout filter
+js-prose	js/sampler-app.js	2659	titleEl.textContent		LABEL	no	ui.sample-folder-not-found	Sample folder not found	prose survives the readout filter
+js-composed	js/sampler-app.js	2669	messageEl.textContent		LABEL	no	ui.the-sample-folder-foldername	The sample folder "${folderName}" was not found at its saved location. Locate it now, or skip and load samples manually.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	2670	messageEl.textContent		LABEL	no	ui.the-saved-sample-folder	The saved sample folder was not found. Locate it now, or skip and load samples manually.	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	2671	pathEl.textContent		LABEL	no	ui.empty-path	(empty path)	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	js/sampler-app.js	2673	locateBtn.textContent		LABEL	no	ui.locate-folder	Locate folder…	prose survives the readout filter
+js-composed	js/sampler-app.js	2748	head.textContent		LABEL	no	ui.midi-d-midinote-velocitylayertorange	MIDI ${d.midiNote} · ${velocityLayerToRange(d.velocityLayer).mark}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/sampler-app.js	2923	btn.textContent		READOUT	no	ui.name-count	${name} (${count})	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)

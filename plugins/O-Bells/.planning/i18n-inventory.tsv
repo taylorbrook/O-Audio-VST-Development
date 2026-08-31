@@ -1,0 +1,96 @@
+# plugin	O-Bells
+# uiRoot	Resources/ui
+# generated	2026-08-30T02:38:49.000Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	1151	h1		LABEL	no	ui.ouaricon-bells	Ouaricon Bells	prose survives the readout filter
+html-text	index.html	1155	#preset-name-display		UNSURE	no	preset-name-display	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	1159	#preset-save		LABEL	no	preset-save	Save	prose survives the readout filter
+html-text	index.html	1160	#preset-load		LABEL	no	preset-load	Load	prose survives the readout filter
+html-text	index.html	1167	div.tab.active		LABEL	no	tab.instrument	Instrument	prose survives the readout filter
+html-text	index.html	1168	div.tab		LABEL	no	tab.tuning	Tuning	prose survives the readout filter
+html-text	index.html	1169	div.tab		LABEL	no	tab.effects	Effects	prose survives the readout filter
+html-text	index.html	1177	span.cpu-warning-text		UNSURE	no	cpu-warning.estimated-bell-decay	Estimated bell decay:	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1178	span.cpu-warning-text		UNSURE	no	cpu-warning.long-decays-with-polyphony	. Long decays with polyphony may cause high CPU usage, distortion, or stuttering.	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1185	div.section-title		LABEL	no	instrument-tab.synthesis	Synthesis	prose survives the readout filter
+html-text	index.html	1188	div.param-label		LABEL	no	instrument-tab.damping	Damping	prose survives the readout filter
+html-text	index.html	1195	div.param-label		LABEL	no	instrument-tab.overtone-brightness	Overtone Brightness	prose survives the readout filter
+html-text	index.html	1202	div.param-label		LABEL	no	instrument-tab.acoustic-brightness	Acoustic Brightness	prose survives the readout filter
+html-text	index.html	1209	div.param-label		LABEL	no	instrument-tab.material	Material	prose survives the readout filter
+html-text	index.html	1218	div.param-label		LABEL	no	instrument-tab.inharmonicity	Inharmonicity	prose survives the readout filter
+html-text	index.html	1225	div.param-label		LABEL	no	instrument-tab.air-absorption	Air Absorption	prose survives the readout filter
+html-text	index.html	1232	div.param-label		LABEL	no	instrument-tab.air-time	Air Time	prose survives the readout filter
+html-text	index.html	1241	div.param-label		LABEL	no	bloomspeed-control.bloom-speed	Bloom Speed	prose survives the readout filter
+html-text	index.html	1248	div.param-label		LABEL	no	bloomamount-control.bloom-amount	Bloom Amount	prose survives the readout filter
+html-text	index.html	1255	div.param-label		LABEL	no	bloom-main-row.shimmer	Shimmer	prose survives the readout filter
+html-text	index.html	1267	div.toggle-label		LABEL	no	bloom-fine-toggle.bloom-fine-controls-override	Bloom Fine Controls (Override Mode)	prose survives the readout filter
+html-text	index.html	1270	div.section-hint		LABEL	no	bloom-fine-content.per-band-control-main	Per-band control - main sliders disabled when active	prose survives the readout filter
+html-text	index.html	1273	div.param-label		LABEL	no	bloom-fine-content.speed-low	Speed Low	prose survives the readout filter
+html-text	index.html	1280	div.param-label		LABEL	no	bloom-fine-content.speed-mid	Speed Mid	prose survives the readout filter
+html-text	index.html	1287	div.param-label		LABEL	no	bloom-fine-content.speed-high	Speed High	prose survives the readout filter
+html-text	index.html	1299	div.param-label		LABEL	no	bloom-fine-content.amount-low	Amount Low	prose survives the readout filter
+html-text	index.html	1306	div.param-label		LABEL	no	bloom-fine-content.amount-mid	Amount Mid	prose survives the readout filter
+html-text	index.html	1313	div.param-label		LABEL	no	bloom-fine-content.amount-high	Amount High	prose survives the readout filter
+html-text	index.html	1329	div.section-title		LABEL	no	instrument-tab.ensemble	Ensemble	prose survives the readout filter
+html-text	index.html	1332	div.param-label		LABEL	no	instrument-tab.unison	Unison	prose survives the readout filter
+html-text	index.html	1339	div.param-label		LABEL	no	instrument-tab.detune	Detune	prose survives the readout filter
+html-text	index.html	1343	div.param-value		READOUT	no	instrument-tab.10ct	10ct	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1346	div.param-label		LABEL	no	instrument-tab.sub	Sub	prose survives the readout filter
+html-text	index.html	1355	div.param-label		LABEL	no	instrument-tab.oct	Oct	prose survives the readout filter
+html-text	index.html	1362	div.param-label		LABEL	no	instrument-tab.spread	Spread	prose survives the readout filter
+html-text	index.html	1376	div.section-title		LABEL	no	instrument-tab.onsets	Onsets	prose survives the readout filter
+html-text	index.html	1379	div.param-label		LABEL	no	instrument-tab.strike	Strike	prose survives the readout filter
+html-text	index.html	1386	div.param-label		LABEL	no	instrument-tab.mallet	Mallet	prose survives the readout filter
+html-text	index.html	1393	div.param-label		LABEL	no	instrument-tab.attack-amount	Attack Amount	prose survives the readout filter
+html-text	index.html	1402	div.param-label		LABEL	no	instrument-tab.noise	Noise	prose survives the readout filter
+html-text	index.html	1404	div.choice-button.active		LABEL	no	instrument-tab.click	Click	prose survives the readout filter
+html-text	index.html	1405	div.choice-button		LABEL	no	instrument-tab.thud	Thud	prose survives the readout filter
+html-text	index.html	1406	div.choice-button		LABEL	no	instrument-tab.ping	Ping	prose survives the readout filter
+html-text	index.html	1410	div.param-label		LABEL	no	instrument-tab.velocity	Velocity	prose survives the readout filter
+html-text	index.html	1412	div.choice-button.active		LABEL	no	instrument-tab.linear	Linear	prose survives the readout filter
+html-text	index.html	1413	div.choice-button		LABEL	no	instrument-tab.exp	Exp	prose survives the readout filter
+html-text	index.html	1414	div.choice-button		LABEL	no	instrument-tab.log	Log	prose survives the readout filter
+html-text	index.html	1425	div.section-title		LABEL	no	instrument-tab.advanced	Advanced	prose survives the readout filter
+html-text	index.html	1428	div.param-label		LABEL	no	instrument-tab.partial-tune	Partial Tune	prose survives the readout filter
+html-text	index.html	1432	div.param-value		READOUT	no	instrument-tab.0ct	0ct	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1435	div.param-label		LABEL	no	instrument-tab.pitch-env	Pitch Env	prose survives the readout filter
+html-text	index.html	1442	div.param-label		LABEL	no	instrument-tab.p-env-time	P.Env Time	prose survives the readout filter
+html-text	index.html	1446	div.param-value		READOUT	no	instrument-tab.50ms	50ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1449	div.param-label		LABEL	no	instrument-tab.nonlinear	Nonlinear	prose survives the readout filter
+html-text	index.html	1460	div.section-title		LABEL	no	envelope-section.multi-stage-envelope	Multi-Stage Envelope	prose survives the readout filter
+html-text	index.html	1461	div.section-hint		LABEL	no	envelope-section.controls-how-different-frequencies	Controls how different frequencies decay over time	prose survives the readout filter
+html-text	index.html	1464	div.param-label		LABEL	no	envelope-section.strike-time	Strike Time	prose survives the readout filter
+html-text	index.html	1468	div.param-value		READOUT	no	envelope-section.30ms	30ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1471	div.param-label		LABEL	no	envelope-section.brilliance	Brilliance	prose survives the readout filter
+html-text	index.html	1478	div.param-label		LABEL	no	envelope-section.body-time	Body Time	prose survives the readout filter
+html-text	index.html	1485	div.param-label		LABEL	no	envelope-section.hum-sustain	Hum Sustain	prose survives the readout filter
+html-text	index.html	1496	div.section-title		LABEL	no	instrument-tab.filter	Filter	prose survives the readout filter
+html-text	index.html	1501	div.toggle-label		LABEL	no	lp-filter-toggle.lp-filter	LP Filter	prose survives the readout filter
+html-text	index.html	1505	div.param-label		LABEL	no	instrument-tab.cutoff	Cutoff	prose survives the readout filter
+html-text	index.html	1509	div.param-value		READOUT	no	instrument-tab.20-0-khz	20.0 kHz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1516	div.section-title		LABEL	no	instrument-tab.performance	Performance	prose survives the readout filter
+html-text	index.html	1521	div.toggle-label		LABEL	no	hi-fi-toggle.high-fidelity	High Fidelity	prose survives the readout filter
+html-text	index.html	1522	div.toggle-tooltip		LABEL	no	hi-fi-toggle.disables-voice-culling-for	Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony.	prose survives the readout filter
+html-text	index.html	1530	div.section-title		LABEL	no	instrument-tab.output	Output	prose survives the readout filter
+html-text	index.html	1533	div.param-label		LABEL	no	instrument-tab.humanize	Humanize	prose survives the readout filter
+html-text	index.html	1540	div.param-label		LABEL	no	instrument-tab.level	Level	prose survives the readout filter
+html-text	index.html	1563	span.fx-title		LABEL	no	chorussection.chorus	Chorus	prose survives the readout filter
+html-text	index.html	1564	#chorusBypassBtn		LABEL	no	chorusBypassBtn	On	prose survives the readout filter
+html-text	index.html	1571	span.fx-title		LABEL	no	delaysection.delay	Delay	prose survives the readout filter
+html-text	index.html	1572	#delayBypassBtn		LABEL	no	delayBypassBtn	On	prose survives the readout filter
+html-text	index.html	1579	span.fx-title		LABEL	no	reverbsection.reverb	Reverb	prose survives the readout filter
+html-text	index.html	1580	#reverbBypassBtn		LABEL	no	reverbBypassBtn	On	prose survives the readout filter
+html-text	index.html	1587	span.fx-title		LABEL	no	eqsection.eq	EQ	prose survives the readout filter
+html-text	index.html	1588	#eqBypassBtn		LABEL	no	eqBypassBtn	On	prose survives the readout filter
+html-text	index.html	1601	span.footer-gain-label		LABEL	no	footer-gain-label.gain	Gain	prose survives the readout filter
+html-text	index.html	1605	#footer-gain-value		READOUT	no	footer-gain-value	0dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1611	div.footer-keyboard-help		LABEL	no	footer-keyboard-help.click-or-use-z	Click or use Z-M, Q-P keys	prose survives the readout filter
+html-text	index.html	1615	p		LABEL	no	ui.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-attr	index.html	1146	#botanicalOverlay	alt	LABEL	no	botanicalOverlay	Snail	prose survives the readout filter
+js-composed	index.html inline <script type="module"> @line 1620	1987	cpuWarningEstimate.textContent		READOUT	no	ui.math-round-seconds-s	~${Math.round(seconds)}s	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	index.html inline <script type="module"> @line 1620	2045	footerGainValue.textContent		UNIT	no	ui.outputgainstate-getscaledvalue-tofixed-1	${outputGainState.getScaledValue().toFixed(1)}dB	unit symbol, language-neutral (D-03)
+js-composed	index.html inline <script type="module"> @line 1620	2116	label.textContent		READOUT	no	ui.c-octavenum	C${octaveNum}	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-prose	index.html inline <script type="module"> @line 1620	2203	presetNameDisplay.textContent		LABEL	no	ui.default	Default	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1620	2520	btn.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1620	2520	btn.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1620	2555	modeLbl.textContent		LABEL	no	ui.mode	Mode	prose survives the readout filter

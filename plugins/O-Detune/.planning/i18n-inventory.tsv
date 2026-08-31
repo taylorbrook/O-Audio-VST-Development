@@ -1,0 +1,44 @@
+# plugin	O-Detune
+# uiRoot	Source/ui/public
+# generated	2026-08-29T03:04:07.899Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	584	div.logo		UNSURE	no	app.ouaricon	Ouaricon	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	584	span		LABEL	no	app.detune	Detune	prose survives the readout filter
+html-text	index.html	587	#presetName		UNSURE	no	presetName	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	589	#loadPreset		LABEL	no	loadPreset	Load	prose survives the readout filter
+html-text	index.html	590	#savePreset		LABEL	no	savePreset	Save	prose survives the readout filter
+html-text	index.html	599	div.panel-label		LABEL	no	wobble-panel.wobble	Wobble	prose survives the readout filter
+html-text	index.html	602	span.dropdown-label		LABEL	no	wobble-panel.era	Era	prose survives the readout filter
+html-text	index.html	610	span.dropdown-label		LABEL	no	wobble-panel.shape	Shape	prose survives the readout filter
+html-text	index.html	612	option		LABEL	no	wobble-shape.sine	Sine	prose survives the readout filter
+html-text	index.html	613	option		LABEL	no	wobble-shape.triangle	Triangle	prose survives the readout filter
+html-text	index.html	614	option		LABEL	no	wobble-shape.random	Random	prose survives the readout filter
+html-text	index.html	626	span.knob-label		LABEL	no	wobble-rate-knob.rate	Rate	prose survives the readout filter
+html-text	index.html	627	#wobble_rate_value		READOUT	no	wobble_rate_value	2.0 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	633	span.toggle-label		LABEL	no	wobble-panel.sync	Sync	prose survives the readout filter
+html-text	index.html	645	span.knob-label		LABEL	no	wobble-depth-knob.depth	Depth	prose survives the readout filter
+html-text	index.html	646	#wobble_depth_value		READOUT	no	wobble_depth_value	25 ct	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	654	span.blend-label		LABEL	no	app.blend	Blend	prose survives the readout filter
+html-text	index.html	669	div.panel-label		LABEL	no	unison-panel.unison	Unison	prose survives the readout filter
+html-text	index.html	672	span.dropdown-label		LABEL	no	unison-panel.voices	Voices	prose survives the readout filter
+html-text	index.html	682	span.dropdown-label		LABEL	no	unison-panel.dist	Dist	prose survives the readout filter
+html-text	index.html	684	option		LABEL	no	unison-dist.linear	Linear	prose survives the readout filter
+html-text	index.html	685	option		LABEL	no	unison-dist.exp	Exp	prose survives the readout filter
+html-text	index.html	686	option		LABEL	no	unison-dist.random	Random	prose survives the readout filter
+html-text	index.html	698	span.knob-label		LABEL	no	unison-detune-knob.detune	Detune	prose survives the readout filter
+html-text	index.html	699	#unison_detune_value		READOUT	no	unison_detune_value	15 ct	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	711	span.knob-label		LABEL	no	unison-spread-knob.spread	Spread	prose survives the readout filter
+html-text	index.html	725	span.knob-label		LABEL	no	random-amt-knob.random	Random	prose survives the readout filter
+html-text	index.html	737	span.slider-label		UNSURE	no	app.width	Width:	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	751	span.knob-label		LABEL	no	delay-knob.pre-dly	Pre-Dly	prose survives the readout filter
+html-text	index.html	752	#delay_value		READOUT	no	delay_value	0 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	764	span.knob-label		LABEL	no	feedback-knob.feedback	Feedback	prose survives the readout filter
+html-text	index.html	774	span.toggle-label		LABEL	no	app.mono-safe	Mono-Safe	prose survives the readout filter
+html-text	index.html	786	span.knob-label		LABEL	no	mix-knob.mix	Mix	prose survives the readout filter
+html-attr	index.html	586	#prevPreset	title	LABEL	no	prevPreset	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	587	#presetName	title	UNSURE	no	presetName-2	Click to see all presets	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-attr	index.html	588	#nextPreset	title	LABEL	no	nextPreset	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	589	#loadPreset	title	LABEL	no	loadPreset-2	Load preset from file	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	590	#savePreset	title	LABEL	no	savePreset-2	Save current settings	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+js-prose	index.html inline <script type="module"> @line 795	993	valueDisplay.textContent		UNIT	no	ui.hz	 Hz	unit symbol, language-neutral (D-03)

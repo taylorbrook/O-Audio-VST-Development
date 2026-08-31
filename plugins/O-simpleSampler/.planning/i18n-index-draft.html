@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-simpleSampler, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-simpleSampler</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="frame">
+    <!-- ─── Header ─────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="title-block">
+        <h1 class="title">O&#8202;&#8211;&#8202;simple<span data-i18n="title-accent.sampler" class="title-accent">Sampler</span></h1>
+        <p data-i18n="subtitle.keyboard-sampler-a-field" class="subtitle">Keyboard Sampler &#183; A Field Guide</p>
+      </div>
+
+      <!-- Concept-preset tour shell (7 buttons; wired in Phase 3.3 — inert now) -->
+      <div class="preset-bar-container">
+        <span class="preset-fleuron">&#10086;</span>
+        <div class="preset-bar-tour" id="presetTour" role="group" aria-label="Concept presets">
+          <button class="tour-btn" data-preset="Raw One-Shot"          data-tip="lessonRawOneShot">Raw One-Shot</button>
+          <button class="tour-btn" data-preset="Tuned Across the Keyboard" data-tip="lessonTunedKeyboard">Tuned</button>
+          <button class="tour-btn" data-preset="Looped Pad"            data-tip="lessonLoopedPad">Looped Pad</button>
+          <button class="tour-btn" data-preset="Reversed Swell"        data-tip="lessonReversedSwell">Reversed</button>
+          <button class="tour-btn" data-preset="Repitch vs Stretch A/B" data-tip="lessonRepitchStretch">Repitch&#47;Stretch</button>
+          <button class="tour-btn" data-preset="SP-1200 Crunch"        data-tip="lessonSp1200">SP-1200</button>
+          <button class="tour-btn" data-preset="Filtered & Enveloped"  data-tip="lessonFilteredEnv">Filtered</button>
+        </div>
+        <!-- Tooltip visibility toggle. Deliberately carries NO data-tip: the
+             tooltip layer manages the title attribute of every [data-tip]
+             element and strips it when tips are off, which would leave this
+             button unlabelled in exactly the state it exists to undo. Its own
+             title is authored here and never touched. -->
+        <button class="tips-toggle" id="tipsToggle" type="button" aria-pressed="true"
+                aria-label="Toggle tooltips"
+                title="Tooltips &#8212; hover help on every control. Click to turn the explanations off or back on.">?</button>
+        <div data-i18n="tourCaption" class="tour-caption" id="tourCaption">Hover any control for an explanation &#183; pick a concept preset to hear it isolated.</div>
+      </div>
+    </header>
+
+    <!-- ─── Headline: interactive waveform editor (canvas reserved for 3.2) ── -->
+    <section class="wave-editor" data-tip="vizWaveform">
+      <div class="viz-label">Waveform Editor &#183; <span data-i18n="viz-hint.drag-start-end-loop" class="viz-hint">drag start&#47;end &amp; loop handles; the playhead tracks the live read position</span></div>
+      <div class="canvas-wrap wave-wrap"><canvas id="waveformCanvas"></canvas></div>
+    </section>
+
+    <!-- ─── Control rack: 7 groups, left→right in signal-path order ────── -->
+    <div class="rack">
+      <!-- SOURCE -->
+      <section class="group group-source">
+        <h2 data-i18n="group-title.source" class="group-title">Source</h2>
+        <div class="source-row">
+          <button class="btn-load" id="btnLoad" type="button" data-tip="loadSource">Load&#8230;</button>
+          <div class="source-drop-zone" id="source-drop-zone" data-tip="dropZone">
+            Drop a .wav&#47;.aif here to sample your own sound
+          </div>
+          <div class="source-status" id="sourceStatus"></div>
+        </div>
+      </section>
+
+      <!-- REGION -->
+      <section class="group group-region">
+        <h2 data-i18n="group-title.region" class="group-title">Region</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="start">
+            <div class="knob knob-sm" id="knob-start" data-param="start"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.start" class="knob-label">Start</div>
+            <div class="knob-value" id="val-start">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="end">
+            <div class="knob knob-sm" id="knob-end" data-param="end"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.end" class="knob-label">End</div>
+            <div class="knob-value" id="val-end">100%</div>
+          </div>
+          <div class="knob-cell" data-tip="loopStart">
+            <div class="knob knob-sm" id="knob-loopStart" data-param="loopStart"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.loop-start" class="knob-label">Loop Start</div>
+            <div class="knob-value" id="val-loopStart">0%</div>
+          </div>
+          <div class="knob-cell" data-tip="loopEnd">
+            <div class="knob knob-sm" id="knob-loopEnd" data-param="loopEnd"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.loop-end" class="knob-label">Loop End</div>
+            <div class="knob-value" id="val-loopEnd">100%</div>
+          </div>
+          <div class="knob-cell" data-tip="loopCrossfade">
+            <div class="knob knob-sm" id="knob-loopCrossfade" data-param="loopCrossfade"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.loop-xf" class="knob-label">Loop XF</div>
+            <div class="knob-value" id="val-loopCrossfade">10 ms</div>
+          </div>
+        </div>
+        <div class="region-row">
+          <div class="select-cell" data-tip="loopMode">
+            <select class="combo combo-sm" id="combo-loopMode" aria-label="Loop mode"></select>
+            <div data-i18n="knob-label.loop-mode" class="knob-label">Loop Mode</div>
+          </div>
+          <div class="toggle-cell">
+            <button class="toggle" id="toggle-reverse" data-tip="reverse">
+              Reverse<span class="fleuron-corner">&#10086;</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PITCH -->
+      <section class="group group-pitch">
+        <h2 data-i18n="group-title.pitch" class="group-title">Pitch</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="rootKey">
+            <div class="knob knob-sm" id="knob-rootKey" data-param="rootKey"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.root-key" class="knob-label">Root Key</div>
+            <div class="knob-value" id="val-rootKey">C3</div>
+          </div>
+          <div class="knob-cell" data-tip="tune">
+            <div class="knob knob-sm" id="knob-tune" data-param="tune"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.tune" class="knob-label">Tune</div>
+            <div class="knob-value" id="val-tune">0 st</div>
+          </div>
+          <div class="knob-cell" data-tip="fine">
+            <div class="knob knob-sm" id="knob-fine" data-param="fine"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.fine" class="knob-label">Fine</div>
+            <div class="knob-value" id="val-fine">0 c</div>
+          </div>
+        </div>
+        <div class="region-row">
+          <div class="select-cell" data-tip="pitchMode">
+            <select class="combo combo-sm" id="combo-pitchMode" aria-label="Pitch mode"></select>
+            <div data-i18n="knob-label.pitch-mode" class="knob-label">Pitch Mode</div>
+          </div>
+          <div class="pitch-mode-readout" id="pitchModeReadout" data-tip="pitchMode"></div>
+        </div>
+      </section>
+
+      <!-- VINTAGE -->
+      <section class="group group-vintage">
+        <h2 data-i18n="group-title.vintage" class="group-title">Vintage</h2>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="vintage">
+            <div class="knob" id="knob-vintage" data-param="vintage"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.amount" class="knob-label">Amount</div>
+            <div class="knob-value" id="val-vintage">0%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILTER -->
+      <section class="group group-filter">
+        <h2 data-i18n="group-title.filter" class="group-title">Filter</h2>
+        <div class="canvas-wrap mini-wrap" data-tip="vizFilter"><canvas id="filterCanvas"></canvas></div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="filterCutoff">
+            <div class="knob knob-sm" id="knob-filterCutoff" data-param="filterCutoff"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.cutoff" class="knob-label">Cutoff</div>
+            <div class="knob-value" id="val-filterCutoff">20 kHz</div>
+          </div>
+          <div class="knob-cell" data-tip="filterResonance">
+            <div class="knob knob-sm" id="knob-filterResonance" data-param="filterResonance"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.resonance" class="knob-label">Resonance</div>
+            <div class="knob-value" id="val-filterResonance">0%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AMP -->
+      <section class="group group-amp">
+        <h2 data-i18n="group-title.amplitude-envelope" class="group-title">Amplitude Envelope</h2>
+        <div class="canvas-wrap mini-wrap" data-tip="vizAmp"><canvas id="ampCanvas"></canvas></div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="ampAttack">
+            <div class="knob knob-sm" id="knob-ampAttack" data-param="ampAttack"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.attack" class="knob-label">Attack</div>
+            <div class="knob-value" id="val-ampAttack">5 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="ampDecay">
+            <div class="knob knob-sm" id="knob-ampDecay" data-param="ampDecay"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.decay" class="knob-label">Decay</div>
+            <div class="knob-value" id="val-ampDecay">300 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="ampSustain">
+            <div class="knob knob-sm" id="knob-ampSustain" data-param="ampSustain"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.sustain" class="knob-label">Sustain</div>
+            <div class="knob-value" id="val-ampSustain">100%</div>
+          </div>
+          <div class="knob-cell" data-tip="ampRelease">
+            <div class="knob knob-sm" id="knob-ampRelease" data-param="ampRelease"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.release" class="knob-label">Release</div>
+            <div class="knob-value" id="val-ampRelease">200 ms</div>
+          </div>
+          <div class="knob-cell" data-tip="velToAmp">
+            <div class="knob knob-sm" id="knob-velToAmp" data-param="velToAmp"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.vel-amp" class="knob-label">Vel&#8594;Amp</div>
+            <div class="knob-value" id="val-velToAmp">50%</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OUTPUT -->
+      <section class="group group-output">
+        <h2 data-i18n="group-title.output" class="group-title">Output</h2>
+        <div class="canvas-wrap mini-wrap scope-wrap" data-tip="vizScope"><canvas id="scopeCanvas"></canvas></div>
+        <div class="knob-row">
+          <div class="knob-cell" data-tip="outputLevel">
+            <div class="knob" id="knob-outputLevel" data-param="outputLevel"><div class="knob-stem"></div></div>
+            <div data-i18n="knob-label.level" class="knob-label">Level</div>
+            <div class="knob-value" id="val-outputLevel">0.0 dB</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ─── On-screen keyboard (play without external MIDI) ─────── -->
+    <section class="keyboard-panel">
+      <div class="keyboard-label">Play &#183; <span data-i18n="kbd-hint.click-the-keys-or" class="kbd-hint">click the keys or use your computer keyboard (A&#8202;S&#8202;D&#8202;F&#8202;G&#8202;H&#8202;J&#8202;K &#183; W&#8202;E&#8202;T&#8202;Y&#8202;U)</span></div>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+    </section>
+  </div>
+
+  <!-- Floating tooltip + toast -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- JUCE native-interop guard (must load before app.js as a module) -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

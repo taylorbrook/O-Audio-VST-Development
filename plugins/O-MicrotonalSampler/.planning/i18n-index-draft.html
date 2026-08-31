@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<!--
+  This file is part of O-MicrotonalSampler, an Ouaricon Audio plugin.
+  Copyright (C) 2026  Ouaricon Audio
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-MicrotonalSampler</title>
+
+  <!-- JUCE WebView native interop check (carried verbatim). Must run before
+       sampler-app.js so window.__JUCE__ is populated. -->
+  <script type="module" src="js/juce/check_native_interop.js"></script>
+
+  <!-- App stylesheets. v1.2.0: the read-only overlay is removed — the
+       Tuning tab is now an editable authoring surface (selectable
+       library, .scl/.kbm load, scale generator, interval editing). -->
+  <link rel="stylesheet" href="css/sampler-shell.css" />
+  <link rel="stylesheet" href="css/tuning-panel.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- v1.10.0: Naturalist aesthetic — antique anatomical brain engraving.
+         Anchored to right edge of #app, behind all interactive content via
+         z-index: 0. pointer-events: none so it never blocks clicks. Tab
+         switching applies position classes (samplemap-position / tuning-
+         position / about-position) for subtle parallax-style movement. -->
+    <img src="/images/brains.png"
+         class="anatomy-overlay samplemap-position"
+         id="anatomyOverlay"
+         alt=""
+         aria-hidden="true">
+
+    <!-- ============== HEADER ============== -->
+    <header id="header">
+      <div class="header-left">
+        <h1data-i18n="header.o-microtonalsampler" >O-MicrotonalSampler</h1>
+        <span id="tuning-readout" class="tuning-readout"></span>
+      </div>
+      <nav id="tab-strip">
+        <button data-i18n="tab-strip.sample-map" class="tab-btn active" data-tab="samplemap">Sample Map</button>
+        <button data-i18n="tab-strip.tuning" class="tab-btn" data-tab="tuning">Tuning</button>
+        <button data-i18n="tab-strip.about" class="tab-btn" data-tab="about">About</button>
+      </nav>
+      <!-- v1.3.0 — preset save/load (full plugin state including the
+           loaded sample folder reference and current tuning). -->
+      <div class="header-actions">
+        <button data-i18n="save-preset-btn" id="save-preset-btn" type="button" class="header-action-btn"
+                title="Save plugin state to .omspreset">Save Preset…</button>
+        <button data-i18n="load-preset-btn" id="load-preset-btn" type="button" class="header-action-btn"
+                title="Load plugin state from .omspreset">Load Preset…</button>
+      </div>
+    </header>
+
+    <!-- ============== TAB BODIES ============== -->
+    <main id="tab-bodies">
+
+      <!-- Sample Map (default) -->
+      <section id="tab-samplemap" class="tab-body active">
+        <div id="folder-drop-zone">
+          <span data-i18n="folder-drop-zone.drop-folder-here" class="drop-zone-text">Drop folder here</span>
+          <span class="drop-zone-sep">·</span>
+          <span data-i18n="folder-drop-zone.or" class="drop-zone-or">or</span>
+          <span class="drop-zone-sep">·</span>
+          <button data-i18n="load-folder-btn" id="load-folder-btn" type="button">Load Folder…</button>
+          <span class="drop-zone-sep">·</span>
+          <button data-i18n="batch-loop-btn" id="batch-loop-btn" type="button" disabled>Batch loop…</button>
+          <span class="drop-zone-sep">·</span>
+          <button data-i18n="clear-samples-btn" id="clear-samples-btn" type="button" disabled>Clear samples</button>
+        </div>
+
+        <!-- v1.14.0: Technique tab strip + KS picker. Hidden by default
+             (technique_count=1, ks_enabled=false). Becomes visible the
+             moment the user expands beyond a single technique slot — the
+             back-compat path for v1.13.0 sessions stays visually identical.
+             Tabs: left-click to switch active, right-click to rename. -->
+        <!-- v1.20.0: technique naming presets. Always visible (the bar below
+             hides at count==1) so a non-string instrument can be set up in one
+             action — picking a family renames all 8 slots in Dorico keyswitch
+             order and grows the technique count to 8. -->
+        <div id="technique-preset-row" class="technique-preset-row">
+          <label data-i18n="technique-preset-row.technique-preset" for="technique-preset-select">Technique preset</label>
+          <select id="technique-preset-select" class="technique-preset-select"
+                  title="Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)">
+            <option value="" selected>Choose family…</option>
+            <option value="strings">Strings</option>
+            <option value="winds">Winds</option>
+            <option value="brass">Brass</option>
+            <option value="generic">Generic</option>
+          </select>
+        </div>
+        <div id="technique-bar" class="technique-bar">
+          <div id="technique-tabs" class="technique-tabs"
+               role="tablist" aria-label="Playing techniques">
+            <!-- Populated by renderTechniqueTabs(). -->
+          </div>
+          <button id="technique-add" type="button"
+                  class="technique-control" title="Add technique slot">+</button>
+          <button id="technique-remove" type="button"
+                  class="technique-control" title="Remove last technique slot">−</button>
+          <div id="technique-ks-controls" class="technique-ks-controls">
+            <label class="ks-toggle-label">
+              <input type="checkbox" id="technique-ks-enabled" />
+              <spandata-i18n="technique-ks-controls.ks" >KS</span>
+            </label>
+            <span class="ks-range-sep">·</span>
+            <label class="ks-range-label">low
+              <input type="number" id="technique-ks-low"
+                     min="0" max="127" step="1" value="0" />
+            </label>
+            <label class="ks-range-label">high
+              <input type="number" id="technique-ks-high"
+                     min="0" max="127" step="1" value="9" />
+            </label>
+          </div>
+        </div>
+        <!-- v1.15.0: CC + PC trigger panel. Three trigger mechanisms share
+             one technique cursor with KS > CC > PC > history precedence.
+             KS lives inline in the technique-bar above; CC + PC are gated
+             behind this disclosure so they don't clutter the default UI.
+             Whole panel is hidden when technique_count==1 (matches the
+             technique-bar visibility contract). -->
+        <details id="trigger-panel" class="trigger-panel" hidden>
+          <summary class="trigger-panel-summary">
+            <spandata-i18n="trigger-panel.triggers-cc-pc" >Triggers (CC + PC)</span>
+            <span data-i18n="trigger-precedence-indicator" id="trigger-precedence-indicator"
+                  class="trigger-precedence">KS &gt; CC &gt; PC &gt; history</span>
+          </summary>
+          <div class="trigger-panel-body">
+            <section class="trigger-subpanel" aria-labelledby="cc-trigger-heading">
+              <header class="trigger-subpanel-header">
+                <label class="trigger-toggle-label">
+                  <input type="checkbox" id="cc-trigger-enabled" />
+                  <span data-i18n="cc-trigger-heading" id="cc-trigger-heading">CC trigger</span>
+                </label>
+                <label class="trigger-cc-number-label">CC#
+                  <input type="number" id="cc-trigger-number"
+                         min="0" max="119" step="1" value="32" />
+                </label>
+                <span data-i18n="trigger-panel.value-0-127-technique" class="trigger-hint">value 0–127 → technique slot</span>
+              </header>
+              <table class="trigger-table" id="cc-trigger-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="cc-trigger-table.slot" scope="col">slot</th>
+                    <th data-i18n="cc-trigger-table.low" scope="col">low</th>
+                    <th data-i18n="cc-trigger-table.high" scope="col">high</th>
+                    <th data-i18n="cc-trigger-table.tech" scope="col">tech</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- 8 rows populated by renderTriggerPanel(). -->
+                </tbody>
+              </table>
+            </section>
+            <section class="trigger-subpanel" aria-labelledby="pc-trigger-heading">
+              <header class="trigger-subpanel-header">
+                <label class="trigger-toggle-label">
+                  <input type="checkbox" id="pc-trigger-enabled" />
+                  <span data-i18n="pc-trigger-heading" id="pc-trigger-heading">PC trigger</span>
+                </label>
+                <span data-i18n="trigger-panel.program-technique-slot" class="trigger-hint">program # → technique slot</span>
+              </header>
+              <table class="trigger-table" id="pc-trigger-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="pc-trigger-table.slot" scope="col">slot</th>
+                    <th data-i18n="pc-trigger-table.pc" scope="col">PC#</th>
+                    <th data-i18n="pc-trigger-table.tech" scope="col">tech</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- 8 rows populated by renderTriggerPanel(). -->
+                </tbody>
+              </table>
+            </section>
+            <div class="trigger-panel-footer">
+              <button data-i18n="trigger-reset" id="trigger-reset" type="button">Reset to defaults</button>
+            </div>
+          </div>
+        </details>
+        <!-- v1.23.0: Articulation & layer loudness trims. A <details>
+             disclosure (like the trigger panel) so it stays out of the way
+             until needed. Sliders target the ACTIVE technique; switching
+             technique tabs retargets them. Master row trims the whole
+             technique; the four layer rows (p/mp/mf/f) trim one dynamic layer
+             of that technique. ±12 dB, double-click a slider to reset. The
+             panel reveals itself whenever a library is loaded. -->
+        <details id="trim-panel" class="trim-panel" hidden>
+          <summary class="trim-panel-summary">
+            <spandata-i18n="trim-panel.trims-loudness" >Trims (loudness)</span>
+            <span data-i18n="trim-active-tech" id="trim-active-tech" class="trim-active-tech">ord</span>
+          </summary>
+          <div class="trim-panel-body">
+            <div class="trim-row trim-row-master">
+              <span data-i18n="trim-tech-label" class="trim-label" id="trim-tech-label">Technique</span>
+              <input type="range" class="trim-slider" id="trim-tech-slider"
+                     min="-12" max="12" step="0.5" value="0"
+                     aria-label="Technique master trim (dB)" />
+              <span class="trim-readout" id="trim-tech-readout">0.0 dB</span>
+            </div>
+            <div class="trim-layer-rows" id="trim-layer-rows">
+              <div class="trim-row trim-row-layer" data-layer="0">
+                <span class="trim-label trim-layer-label" id="trim-layer-label-0">p</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-0"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer p trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-0">0.0 dB</span>
+              </div>
+              <div class="trim-row trim-row-layer" data-layer="1">
+                <span data-i18n="trim-layer-label-1" class="trim-label trim-layer-label" id="trim-layer-label-1">mp</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-1"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer mp trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-1">0.0 dB</span>
+              </div>
+              <div class="trim-row trim-row-layer" data-layer="2">
+                <span data-i18n="trim-layer-label-2" class="trim-label trim-layer-label" id="trim-layer-label-2">mf</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-2"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer mf trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-2">0.0 dB</span>
+              </div>
+              <div class="trim-row trim-row-layer" data-layer="3">
+                <span class="trim-label trim-layer-label" id="trim-layer-label-3">f</span>
+                <input type="range" class="trim-slider" id="trim-layer-slider-3"
+                       min="-12" max="12" step="0.5" value="0"
+                       aria-label="Layer f trim (dB)" />
+                <span class="trim-readout" id="trim-layer-readout-3">0.0 dB</span>
+              </div>
+            </div>
+            <div class="trim-panel-footer">
+              <span data-i18n="trim-panel.double-click-a-slider" class="trim-hint">Double-click a slider to reset to 0 dB</span>
+              <button data-i18n="trim-reset" id="trim-reset" type="button">Reset all trims</button>
+            </div>
+          </div>
+        </details>
+        <!-- v1.1.0: Grid with axis labels.
+             Layout: 2-column outer wrapper.
+               • #sample-grid-vel-labels (left)  → velocity-range labels per row
+                 (stays visible during horizontal scroll).
+               • #sample-map-grid (right, scrollable) → contains the cell grid
+                 plus the C-note column labels which scroll horizontally with it. -->
+        <div id="sample-map-grid-wrapper">
+          <div id="sample-grid-vel-labels" aria-hidden="true">
+            <!-- Populated by renderGrid(): one <div> per row, top→bottom L3..L0. -->
+          </div>
+          <div id="sample-map-grid">
+            <!-- Populated dynamically by sampler-app.js renderGrid() (Phase 3.2). -->
+          </div>
+        </div>
+        <!-- CSS-only context menu — surfaced by JS on right-click; positioned
+             via inline style and hidden by default. Cleared on document click. -->
+        <div id="cell-context-menu" hidden>
+          <button data-i18n="cell-context-menu.replace" data-action="replace">Replace…</button>
+          <button data-i18n="cell-context-menu.open-loop-editor" data-action="open-loop-editor">Open Loop Editor</button>
+          <button data-i18n="cell-context-menu.delete-sample" data-action="delete-cell" class="context-menu-destructive">Delete sample</button>
+        </div>
+        <details id="issues-disclosure" hidden>
+          <summarydata-i18n="issues-disclosure.issues" >Issues</summary>
+          <ul id="issues-list"></ul>
+        </details>
+        <aside id="loop-editor-panel" class="no-selection">
+          <div data-i18n="loop-editor-panel.select-a-loaded-sample" class="loop-editor-placeholder">
+            Select a loaded sample slot to edit loop points
+          </div>
+          <header class="loop-editor-header">
+            <h3 class="loop-editor-title">
+              <span id="le-filename">—</span>
+              <span class="loop-editor-sep">·</span>
+              <span id="le-midi">—</span>
+              <span class="loop-editor-sep">·</span>
+              <span id="le-vel">—</span>
+            </h3>
+            <button id="loop-close" class="loop-close-btn" type="button" aria-label="Close loop editor">×</button>
+          </header>
+          <!-- v1.8.0: variant tab strip — visible only when cell has > 1 variant. -->
+          <div id="le-variant-tabs" class="le-variant-tabs" style="display:none"></div>
+          <div class="loop-editor-canvas-wrap">
+            <canvas id="waveform-canvas"></canvas>
+          </div>
+          <div class="loop-meta">
+            <span>Loop start: <span id="le-loop-start-ms">0</span> ms</span>
+            <span class="loop-editor-sep">·</span>
+            <span>Loop end: <span id="le-loop-end-ms">0</span> ms</span>
+            <span class="loop-editor-sep">·</span>
+            <span>Mode: <span id="le-loop-mode">—</span></span>
+          </div>
+          <div class="loop-editor-actions">
+            <button data-i18n="loop-reset" id="loop-reset" type="button">Reset to auto-detect</button>
+            <button data-i18n="loop-cancel" id="loop-cancel" type="button">Cancel</button>
+            <button data-i18n="loop-apply" id="loop-apply" type="button" class="primary">Apply</button>
+          </div>
+        </aside>
+        <div id="toast-region" aria-live="polite"></div>
+
+        <!-- v1.0.2: in-WebView confirmation modal for destructive actions
+             (currently only Clear samples). JUCE does not wire JS confirm()
+             through WKWebView's UIDelegate, so we render our own dialog. -->
+        <div id="confirm-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="confirm-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 data-i18n="confirm-dialog-title" id="confirm-dialog-title" class="confirm-dialog-title">Are you sure?</h3>
+            <p id="confirm-dialog-message" class="confirm-dialog-message"></p>
+            <div class="confirm-dialog-actions">
+              <button data-i18n="confirm-cancel-btn" id="confirm-cancel-btn" type="button">Cancel</button>
+              <button data-i18n="confirm-confirm-btn" id="confirm-confirm-btn" type="button">Confirm</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.18.0: batch loop-point modal. Applies one loop region to every
+             loaded variant at once — proportional (% of each sample) or
+             milliseconds-from-start. See openBatchLoopDialog in sampler-app.js. -->
+        <div id="batch-loop-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="batch-loop-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content batch-loop-content">
+            <h3 data-i18n="batch-loop-title" id="batch-loop-title" class="confirm-dialog-title">Batch loop points</h3>
+            <p data-i18n="batch-loop-dialog.apply-one-loop-region" class="confirm-dialog-message">
+              Apply one loop region to every loaded sample at once. One-shot
+              samples (too short to loop) are left untouched.
+            </p>
+
+            <div class="bl-row bl-modes">
+              <span data-i18n="batch-loop-dialog.units" class="bl-label">Units</span>
+              <div class="bl-mode-options">
+                <label class="bl-mode">
+                  <input type="radio" name="bl-mode" value="0" checked />
+                  <spandata-i18n="batch-loop-dialog.proportional" >Proportional (%)</span>
+                </label>
+                <label class="bl-mode">
+                  <input type="radio" name="bl-mode" value="1" />
+                  <spandata-i18n="batch-loop-dialog.milliseconds" >Milliseconds</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="bl-row">
+              <label data-i18n="batch-loop-dialog.loop-start" class="bl-label" for="bl-start">Loop start</label>
+              <input type="number" id="bl-start" class="bl-input" value="0" min="0" max="100" step="1" />
+              <span id="bl-start-unit" class="bl-unit">%</span>
+            </div>
+
+            <div class="bl-row">
+              <label data-i18n="batch-loop-dialog.loop-end" class="bl-label" for="bl-end">Loop end</label>
+              <input type="number" id="bl-end" class="bl-input" value="100" min="0" max="100" step="1" />
+              <span id="bl-end-unit" class="bl-unit">%</span>
+            </div>
+
+            <p id="bl-error" class="bl-error" hidden></p>
+
+            <div class="confirm-dialog-actions">
+              <button data-i18n="bl-cancel-btn" id="bl-cancel-btn" type="button">Cancel</button>
+              <button data-i18n="bl-apply-btn" id="bl-apply-btn" type="button" class="primary">Apply to all</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.0.3 diagnostic modal for failed drops. Auto-copies the
+             diagnostic text to the clipboard on open; the <pre> is
+             selectable as a fallback so the user can copy manually. -->
+        <div id="diagnostic-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="diagnostic-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content diagnostic-dialog-content">
+            <h3 data-i18n="diagnostic-dialog-title" id="diagnostic-dialog-title" class="confirm-dialog-title">Diagnostic</h3>
+            <p data-i18n="diagnostic-dialog-hint" id="diagnostic-dialog-hint" class="confirm-dialog-message">
+              Auto-copied to clipboard. Select the text below and ⌘C if it
+              wasn't.
+            </p>
+            <pre id="diagnostic-dialog-text" class="diagnostic-pre"></pre>
+            <div class="confirm-dialog-actions">
+              <button data-i18n="diagnostic-copy-btn" id="diagnostic-copy-btn" type="button">Copy again</button>
+              <button data-i18n="diagnostic-close-btn" id="diagnostic-close-btn" type="button">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.3.0: missing-folder modal. Surfaced when setStateInformation
+             tries to restore a folder path that no longer exists on disk
+             (project reopened on a different machine, folder moved, etc.).
+             "Locate folder…" reuses the standard folder picker; "Skip"
+             leaves the sampler empty and clears the pending state. -->
+        <div id="missing-folder-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="missing-folder-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 data-i18n="missing-folder-dialog-title" id="missing-folder-dialog-title" class="confirm-dialog-title">
+              Sample folder not found
+            </h3>
+            <p id="missing-folder-dialog-message" class="confirm-dialog-message"></p>
+            <pre id="missing-folder-saved-path" class="missing-folder-path"></pre>
+            <div class="confirm-dialog-actions">
+              <button data-i18n="missing-folder-skip-btn" id="missing-folder-skip-btn" type="button">Skip</button>
+              <button data-i18n="missing-folder-locate-btn" id="missing-folder-locate-btn" type="button">Locate folder…</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.8.0: round-robin confirmation modal. Surfaced when a folder
+             load contained multiple files for the same (note, velocity layer)
+             but no rr/take/tk filename tokens. User decides: treat as
+             round-robin variants, or cancel the load. -->
+        <div id="rr-confirm-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="rr-confirm-dialog-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content rr-confirm-dialog-content">
+            <h3 data-i18n="rr-confirm-dialog-title" id="rr-confirm-dialog-title" class="confirm-dialog-title">
+              Multiple samples for the same note
+            </h3>
+            <p class="confirm-dialog-message">
+              The folder contains more than one sample for the same note and
+              velocity layer, without explicit <codedata-i18n="rr-confirm-dialog.rr" >rr</code> / <codedata-i18n="rr-confirm-dialog.take" >take</code>
+              / <codedata-i18n="rr-confirm-dialog.tk" >tk</code> tokens in the filenames. Treat them as
+              round-robin variants?
+            </p>
+            <ul id="rr-confirm-list" class="rr-confirm-list"></ul>
+            <div class="confirm-dialog-actions">
+              <button data-i18n="rr-confirm-cancel" id="rr-confirm-cancel" type="button">Cancel load</button>
+              <button data-i18n="rr-confirm-accept" id="rr-confirm-accept" type="button" class="primary">
+                Treat as variants
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.6.0: folder-load options modal. Surfaced before the file
+             picker (button) and before drag-drop file streaming so the
+             user can route the incoming folder to a specific velocity
+             layer, choose merge mode, and override filename velocity
+             tokens. Resolves to {layer, mode, override} on Load, or null
+             on Cancel — see showFolderLoadOptionsModal in sampler-app.js. -->
+        <div id="folder-load-options-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="folder-load-options-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content folder-load-options-content">
+            <h3 data-i18n="folder-load-options-title" id="folder-load-options-title" class="confirm-dialog-title">Load samples</h3>
+
+            <div class="flo-row">
+              <span data-i18n="folder-load-options-dialog.layer" class="flo-label">Layer</span>
+              <select id="flo-layer-select" class="flo-select" aria-label="Target velocity layer">
+                <option value="0" selected>L0</option>
+                <option value="1">L1</option>
+                <option value="2">L2</option>
+                <option value="3">L3</option>
+              </select>
+            </div>
+
+            <div class="flo-row">
+              <span data-i18n="folder-load-options-dialog.technique" class="flo-label">Technique</span>
+              <select id="flo-technique-select" class="flo-select" aria-label="Target technique slot">
+                <!-- Options injected at modal-open from getTechniqueState().names -->
+              </select>
+            </div>
+
+            <div class="flo-row flo-modes">
+              <span data-i18n="folder-load-options-dialog.when-loading" class="flo-label">When loading</span>
+              <div class="flo-mode-options">
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="append" checked />
+                  <spandata-i18n="folder-load-options-dialog.add-to-layer" >Add to layer</span>
+                </label>
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="replace_layer" />
+                  <spandata-i18n="folder-load-options-dialog.replace-this-layer" >Replace this layer</span>
+                </label>
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="replace_all" />
+                  <spandata-i18n="folder-load-options-dialog.replace-all-samples" >Replace all samples</span>
+                </label>
+                <label class="flo-mode">
+                  <input type="radio" name="flo-mode" value="merge_rr" />
+                  <spandata-i18n="folder-load-options-dialog.layer-as-round-robin" >Layer as round-robin</span>
+                </label>
+              </div>
+            </div>
+
+            <label class="flo-override">
+              <input type="checkbox" id="flo-override-checkbox" />
+              <span class="flo-override-text">
+                <span data-i18n="folder-load-options-dialog.force-all-samples-onto" class="flo-override-title">Force all samples onto this layer</span>
+                <span class="flo-override-sub">Otherwise filename tokens (<code>_v1</code>, <codedata-i18n="folder-load-options-dialog.ff" >_ff</code>, etc.) decide the layer</span>
+              </span>
+            </label>
+
+            <label class="flo-override">
+              <input type="checkbox" id="flo-override-technique-checkbox" />
+              <span class="flo-override-text">
+                <span data-i18n="folder-load-options-dialog.force-all-samples-onto-2" class="flo-override-title">Force all samples onto this technique</span>
+                <span class="flo-override-sub">Otherwise filename tokens (<codedata-i18n="folder-load-options-dialog.pizz" >_pizz</code>, <codedata-i18n="folder-load-options-dialog.harm" >_harm</code>, etc.) decide the technique</span>
+              </span>
+            </label>
+
+            <!-- v1.12.0: Embed-audio toggle. When ON, the loaded audio is
+                 serialised inline into the saved project state so the
+                 samples survive folder moves, cross-machine transfer, and
+                 (for drag-drop) WKWebView temp-dir cleanup. The size label
+                 is populated live for drag-drop (where total bytes is known
+                 at modal time) and post-selection for the dialog flow. -->
+            <label class="flo-embed">
+              <input type="checkbox" id="flo-embed-checkbox" />
+              <spandata-i18n="folder-load-options-dialog.embed-audio-in-project" >Embed audio in project state</span>
+            </label>
+            <p class="flo-embed-size" id="flo-embed-size"></p>
+
+            <p class="flo-explain" id="flo-explain"></p>
+
+            <div class="confirm-dialog-actions">
+              <button data-i18n="flo-cancel-btn" id="flo-cancel-btn" type="button">Cancel</button>
+              <button data-i18n="flo-confirm-btn" id="flo-confirm-btn" type="button" class="flo-primary">Load…</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.12.0: Embed-size confirmation modal. Surfaced ONLY in the
+             Load Folder dialog flow, AFTER the user picks a folder, when
+             the options modal had embed=ON. Drag-drop already shows the
+             total in the options modal (we have the bytes at scan time),
+             so this confirmation is dialog-flow-only. -->
+        <div id="embed-size-confirm-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="embed-size-confirm-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 data-i18n="embed-size-confirm-title" id="embed-size-confirm-title" class="confirm-dialog-title">
+              Embed audio in project?
+            </h3>
+            <p id="embed-size-confirm-message" class="confirm-dialog-message"></p>
+            <p data-i18n="embed-size-confirm-dialog.the-audio-data-will" class="confirm-dialog-message embed-size-confirm-detail">
+              The audio data will be written into your DAW project file.
+              Project saves and reopens will be slower for large libraries,
+              but the samples will travel with the project across folders
+              and machines.
+            </p>
+            <div class="confirm-dialog-actions">
+              <button data-i18n="embed-size-cancel-btn" id="embed-size-cancel-btn" type="button">Cancel</button>
+              <button data-i18n="embed-size-confirm-btn" id="embed-size-confirm-btn" type="button" class="flo-primary">
+                Embed and load
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.9.0: per-cell merge prompt. Surfaced when the user triggers a
+             per-cell single-file load on a cell that already has samples. The
+             user picks merge-as-RR (append the new file as a variant) or
+             replace (current v1.8.0 behaviour). Resolves to 'merge', 'replace',
+             or null on cancel. See showPerCellMergeDialog in sampler-app.js. -->
+        <div id="per-cell-merge-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="per-cell-merge-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 data-i18n="per-cell-merge-title" id="per-cell-merge-title" class="confirm-dialog-title">Cell already has samples</h3>
+            <p id="per-cell-merge-message" class="confirm-dialog-message"></p>
+            <div class="confirm-dialog-actions">
+              <button data-i18n="per-cell-merge-cancel-btn" id="per-cell-merge-cancel-btn" type="button">Cancel</button>
+              <button data-i18n="per-cell-merge-replace-btn" id="per-cell-merge-replace-btn" type="button">Replace cell</button>
+              <button data-i18n="per-cell-merge-merge-btn" id="per-cell-merge-merge-btn"   type="button" class="flo-primary">Add as round-robin</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- v1.14.0: technique rename modal. Surfaced from a right-click on
+             a technique tab. Pre-fills the input with the current slot
+             name; Save commits via the setTechniqueName native fn. -->
+        <div id="technique-rename-dialog" class="confirm-dialog" hidden role="dialog"
+             aria-modal="true" aria-labelledby="technique-rename-title">
+          <div class="confirm-dialog-backdrop"></div>
+          <div class="confirm-dialog-content">
+            <h3 data-i18n="technique-rename-title" id="technique-rename-title" class="confirm-dialog-title">
+              Rename technique
+            </h3>
+            <p class="confirm-dialog-message">
+              Slot <span id="technique-rename-index">—</span>: enter a new
+              name. Names appear in the tab strip and Dorico expression
+              maps.
+            </p>
+            <input type="text" id="technique-rename-input"
+                   maxlength="20" autocomplete="off" spellcheck="false" />
+            <div class="confirm-dialog-actions">
+              <button data-i18n="technique-rename-cancel" id="technique-rename-cancel" type="button">Cancel</button>
+              <button data-i18n="technique-rename-save" id="technique-rename-save" type="button" class="primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tuning -->
+      <section id="tab-tuning" class="tab-body">
+        <div id="tuning-container"></div>
+      </section>
+
+      <!-- About -->
+      <section id="tab-about" class="tab-body">
+        <div id="about-content">
+          <div class="about-card">
+            <h2 data-i18n="about-content.o-microtonalsampler" class="about-title">O-MicrotonalSampler</h2>
+            <div class="about-version" id="about-version"></div>
+            <p data-i18n="about-content.microtonal-sample-engine-for" class="about-tagline">
+              Microtonal sample engine for Dorico microtonal playback.
+            </p>
+            <p data-i18n="about-content.per-key-per-velocity" class="about-blurb">
+              Per-key, per-velocity-layer sample mapping with offline loop
+              auto-detection, manual loop editing, and the Ouaricon
+              tuning-system family. Built on JUCE 8.
+            </p>
+            <div class="about-meta">
+              <spandata-i18n="about-content.made-by" >Made by</span>
+              <a data-i18n="about-content.ouaricon" class="about-link"
+                 href="https://oaudio.io/"
+                 target="_blank"
+                 rel="noopener noreferrer">Ouaricon</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ============== BOTTOM CONTROL STRIP ============== -->
+    <!-- Always visible across tabs. Knobs are rendered from SLIDER_BINDINGS
+         in sampler-app.js (renderControlStrip) before bindOneKnob runs — see
+         SIMPLIFICATION-AUDIT.md HIGH-06 (v1.16.8). Each rendered knob wraps a
+         hidden <input type="range"> so the WebSliderRelay binding (keyed on
+         element id) stays intact; the SVG arc is a visual + interaction layer
+         that mirrors the input's normalised value via input events. -->
+    <footer id="control-strip">
+    </footer>
+  </div>
+
+  <!-- App entry point. Must come after #app so it can query DOM. -->
+  <script type="module" src="js/sampler-app.js"></script>
+</body>
+</html>

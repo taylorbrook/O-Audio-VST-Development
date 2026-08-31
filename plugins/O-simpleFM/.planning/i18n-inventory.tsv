@@ -1,0 +1,73 @@
+# plugin	O-simpleFM
+# uiRoot	Source/ui/public
+# generated	2026-08-28T04:24:18.515Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	36	h1.title		UNSURE	no	title.o-simple	O – simple	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	36	span.title-accent		LABEL	no	title-accent.fm	FM	prose survives the readout filter
+html-text	index.html	37	p.subtitle		LABEL	no	subtitle.two-operator-phase-modulation	Two-Operator Phase-Modulation Synthesizer · A Field Guide	prose survives the readout filter
+html-text	index.html	45	#presetName		LABEL	no	presetName	Default	prose survives the readout filter
+html-text	index.html	47	#presetSave		LABEL	no	presetSave	Save	prose survives the readout filter
+html-text	index.html	48	#presetDelete		LABEL	no	presetDelete	Delete	prose survives the readout filter
+html-text	index.html	57	div.viz-label		UNSURE	no	viz-label.spectrum	Spectrum ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	57	span.viz-hint		LABEL	no	viz-hint.discrete-sidebands-bloom-as	discrete sidebands bloom as Mod Index rises	prose survives the readout filter
+html-text	index.html	61	div.viz-label		UNSURE	no	viz-label.waveform	Waveform ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	61	span.viz-hint		LABEL	no	viz-hint.the-resulting-carrier-shape	the resulting carrier shape	prose survives the readout filter
+html-text	index.html	68	div.routing-label		LABEL	no	routing-label.signal-path	Signal Path	prose survives the readout filter
+html-text	index.html	81	text.op-text		LABEL	no	routingsvg.mod	MOD	prose survives the readout filter
+html-text	index.html	83	text.op-text		LABEL	no	routingsvg.car	CAR	prose survives the readout filter
+html-text	index.html	87	#carrierNullBadge		LABEL	no	carrierNullBadge	carrier null	prose survives the readout filter
+html-text	index.html	88	#routeMeta		LABEL	no	routeMeta	harmonic · ≈ 1 sideband	prose survives the readout filter
+html-text	index.html	95	h2.group-title		LABEL	no	group-title.operators	Operators	prose survives the readout filter
+html-text	index.html	99	div.knob-label		LABEL	no	knob-label.ratio-c-m	Ratio C:M	prose survives the readout filter
+html-text	index.html	104	div.knob-label		LABEL	no	knob-label.mod-index	Mod Index	prose survives the readout filter
+html-text	index.html	109	div.knob-label		LABEL	no	knob-label.feedback	Feedback	prose survives the readout filter
+html-text	index.html	114	div.knob-label		LABEL	no	knob-label.fixed-hz	Fixed Hz	prose survives the readout filter
+html-text	index.html	115	#val-modFixedHz		READOUT	no	val-modFixedHz	220 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	119	div.knob-label		LABEL	no	knob-label.env-index	Env→Index	prose survives the readout filter
+html-text	index.html	124	div.knob-label		LABEL	no	knob-label.vel-index	Vel→Index	prose survives the readout filter
+html-text	index.html	130	#toggle-ratioSnap		UNSURE	yes	toggle-ratioSnap	Ratio Snap	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	133	#toggle-modFixedMode		UNSURE	yes	toggle-modFixedMode	Fixed Mode	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	140	h2.group-title		LABEL	no	group-title.modulator-envelope	Modulator Envelope	prose survives the readout filter
+html-text	index.html	144	div.knob-label		LABEL	no	knob-label.attack	Attack	prose survives the readout filter
+html-text	index.html	145	#val-modAttack		READOUT	no	val-modAttack	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	149	div.knob-label		LABEL	no	knob-label.decay	Decay	prose survives the readout filter
+html-text	index.html	150	#val-modDecay		READOUT	no	val-modDecay	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	154	div.knob-label		LABEL	no	knob-label.sustain	Sustain	prose survives the readout filter
+html-text	index.html	159	div.knob-label		LABEL	no	knob-label.release	Release	prose survives the readout filter
+html-text	index.html	160	#val-modRelease		READOUT	no	val-modRelease	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	166	h2.group-title		LABEL	no	group-title.amplitude-envelope	Amplitude Envelope	prose survives the readout filter
+html-text	index.html	170	div.knob-label		LABEL	no	knob-label.attack-2	Attack	prose survives the readout filter
+html-text	index.html	171	#val-ampAttack		READOUT	no	val-ampAttack	10 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	175	div.knob-label		LABEL	no	knob-label.decay-2	Decay	prose survives the readout filter
+html-text	index.html	176	#val-ampDecay		READOUT	no	val-ampDecay	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	180	div.knob-label		LABEL	no	knob-label.sustain-2	Sustain	prose survives the readout filter
+html-text	index.html	185	div.knob-label		LABEL	no	knob-label.release-2	Release	prose survives the readout filter
+html-text	index.html	186	#val-ampRelease		READOUT	no	val-ampRelease	300 ms	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	193	h2.group-title		LABEL	no	group-title.output	Output	prose survives the readout filter
+html-text	index.html	197	div.knob-label		LABEL	no	knob-label.level	Level	prose survives the readout filter
+html-text	index.html	198	#val-outputLevel		READOUT	no	val-outputLevel	0.0 dB	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	206	div.tour-label		LABEL	no	tour-label.lesson-presets	Lesson Presets	prose survives the readout filter
+html-text	index.html	208	button.tour-btn		LABEL	yes	tour-btn.e-piano	E-Piano	prose survives the readout filter
+html-text	index.html	209	button.tour-btn		LABEL	yes	tour-btn.tubular-bell	Tubular Bell	prose survives the readout filter
+html-text	index.html	210	button.tour-btn		LABEL	yes	tour-btn.brass	Brass	prose survives the readout filter
+html-text	index.html	211	button.tour-btn		LABEL	yes	tour-btn.clarinet	Clarinet	prose survives the readout filter
+html-text	index.html	212	button.tour-btn		LABEL	yes	tour-btn.clang-bell	Clang Bell	prose survives the readout filter
+html-text	index.html	214	#tourCaption		LABEL	no	tourCaption	Hover any control for an explanation · pick a lesson to hear a concept.	prose survives the readout filter
+html-text	index.html	219	div.keyboard-label		UNSURE	no	keyboard-label.play	Play ·	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	219	span.kbd-hint		LABEL	no	kbd-hint.click-the-keys-or	click the keys or use your computer keyboard (A S D F G H J K · W E T Y U)	prose survives the readout filter
+html-attr	index.html	44	#presetPrev	title	LABEL	no	presetPrev	Previous preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	44	#presetPrev	aria-label	LABEL	no	presetPrev-2	Previous preset	prose survives the readout filter
+html-attr	index.html	45	#presetName	title	LABEL	no	presetName-2	Browse presets	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	46	#presetNext	title	LABEL	no	presetNext	Next preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	46	#presetNext	aria-label	LABEL	no	presetNext-2	Next preset	prose survives the readout filter
+html-attr	index.html	47	#presetSave	title	LABEL	no	presetSave-2	Save current settings as a user preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	48	#presetDelete	title	LABEL	no	presetDelete-2	Delete the current user preset	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	49	#presetDropdown	aria-label	LABEL	no	presetDropdown	Presets	prose survives the readout filter
+html-attr	index.html	87	#carrierNullBadge	title	LABEL	no	carrierNullBadge-2	Carrier null: the modulation index sits at the first Bessel J₀ zero (β ≈ 2.405), so the carrier (f​c) vanishes and all energy moves into the sidebands.	native title= is the only help this element has — move the text to data-i18n-aria (contract §4)
+html-attr	index.html	220	#keyboard	aria-label	LABEL	no	keyboard	On-screen keyboard	prose survives the readout filter
+js-composed	js/app.js	251	rRead.textContent		READOUT	no	ui.ratioval-tofixed-2-1	${ratioVal.toFixed(2)} : 1	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+js-composed	js/app.js	261	meta.textContent		LABEL	no	ui.harmonic-harmonic-inharmonic-nsb	${harmonic ? "harmonic" : "inharmonic"} · ≈ ${nSb} sideband${nSb === 1 ? "" : "s"}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-composed	js/app.js	285	tip.innerHTML		LABEL	no	ui.span-class-tip-title	<span class="tip-title">${entry[0]}</span>${entry[1]}	prose sits OUTSIDE the interpolation — needs a {token} entry, not a flat one
+js-prose	js/app.js	440	cancelBtn.textContent		LABEL	no	ui.cancel	Cancel	prose survives the readout filter
+js-prose	js/app.js	443	okBtn.textContent		LABEL	no	ui.delete	Delete	prose survives the readout filter

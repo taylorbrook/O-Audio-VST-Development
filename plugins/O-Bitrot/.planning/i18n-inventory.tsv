@@ -1,0 +1,108 @@
+# plugin	O-Bitrot
+# uiRoot	Source/ui/public
+# generated	2026-08-27T19:07:23.033Z
+# NOTE	class is a SUGGESTION WITH A REASON, never a silent drop. Read every UNSURE and every DELETE row.
+# source	file	line	selector	attr	class	keyed	suggestedKey	text	reason
+html-text	index.html	871	div.wordmark		UNSURE	no	wordmark.o-bitrot	O-BITROT	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	891	#preset-name		UNSURE	no	preset-name	Default	this element DISPLAYS a preset name — exempt under D-02, because the name IS the JSON filename. Confirm it is the name and not a caption beside it
+html-text	index.html	896	#preset-save		LABEL	no	preset-save (reuses an existing entry)	Save	prose survives the readout filter
+html-text	index.html	897	#preset-load		LABEL	no	preset-load (reuses an existing entry)	Load	prose survives the readout filter
+html-text	index.html	899	#preset-delete		LABEL	no	preset-delete (reuses an existing entry)	Delete	prose survives the readout filter
+html-text	index.html	902	div.brand		LABEL	no	brand.ouaricon-audio	Ouaricon Audio	prose survives the readout filter
+html-text	index.html	903	div.plate		LABEL	no	plate.a-catalogue-of-failing	A Catalogue of Failing Media · Plate XLVII	prose survives the readout filter
+html-text	index.html	935	span.settings-label		LABEL	no	lang-select (reuses an existing entry)	Language	prose survives the readout filter
+html-text	index.html	941	option		ENDONYM	no	lang-select.english	English	a language name is never translated
+html-text	index.html	942	option		ENDONYM	no	lang-select.francais	Français	a language name is never translated
+html-text	index.html	960	span.settings-label		LABEL	no	help-toggle (reuses an existing entry)	Hover help	prose survives the readout filter
+html-text	index.html	964	#help-toggle		LABEL	no	help-toggle	Off	prose survives the readout filter
+html-text	index.html	977	em		LABEL	no	panel-tape.tab-i	Tab. I	prose survives the readout filter
+html-text	index.html	977	span.caption		UNSURE	no	panel-tape.tape	— Tape	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	979	button.en.on		LABEL	no	panel-tape.on	On	prose survives the readout filter
+html-text	index.html	984	div.ctl-label		LABEL	no	panel-tape.prob	Prob	prose survives the readout filter
+html-text	index.html	989	div.ctl-label		LABEL	no	panel-tape.stop	Stop	prose survives the readout filter
+html-text	index.html	994	div.ctl-label		LABEL	no	panel-tape.drop	Drop	prose survives the readout filter
+html-text	index.html	1001	div.ctl-label		LABEL	no	panel-tape.wow	Wow	prose survives the readout filter
+html-text	index.html	1006	div.ctl-label		LABEL	no	TAPE_HISS (reuses an existing entry)	Hiss	prose survives the readout filter
+html-text	index.html	1011	div.ctl-label		LABEL	no	panel-tape.ramp	Ramp	prose survives the readout filter
+html-text	index.html	1023	em		LABEL	no	panel-cd.tab-ii	Tab. II	prose survives the readout filter
+html-text	index.html	1023	span.caption		UNSURE	no	panel-cd.cd-skip	— CD Skip	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1025	button.en.on		LABEL	no	panel-cd.on	On	prose survives the readout filter
+html-text	index.html	1029	div.ctl-label		LABEL	no	panel-cd.prob	Prob	prose survives the readout filter
+html-text	index.html	1034	div.ctl-label		LABEL	no	CD_SEVERITY (reuses an existing entry)	Severity	prose survives the readout filter
+html-text	index.html	1039	div.ctl-label		LABEL	no	panel-cd.segment	Segment	prose survives the readout filter
+html-text	index.html	1050	em		LABEL	no	panel-vinyl.tab-iii	Tab. III	prose survives the readout filter
+html-text	index.html	1050	span.caption		UNSURE	no	panel-vinyl.vinyl	— Vinyl	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1052	button.en.on		LABEL	no	panel-vinyl.on	On	prose survives the readout filter
+html-text	index.html	1057	div.ctl-label		LABEL	no	panel-vinyl.prob	Prob	prose survives the readout filter
+html-text	index.html	1062	div.ctl-label		LABEL	no	VINYL_RPM (reuses an existing entry)	Speed	prose survives the readout filter
+html-text	index.html	1068	div.annot		LABEL	no	panel-vinyl.rev-quantum	rev. quantum	prose survives the readout filter
+html-text	index.html	1071	div.ctl-label		LABEL	no	panel-vinyl.pop	Pop	prose survives the readout filter
+html-text	index.html	1084	div.ctl-label		LABEL	no	VINYL_WEAR (reuses an existing entry)	Wear	prose survives the readout filter
+html-text	index.html	1089	div.ctl-label		LABEL	no	VINYL_WARP (reuses an existing entry)	Warp	prose survives the readout filter
+html-text	index.html	1101	em		LABEL	no	panel-packet.tab-iv	Tab. IV	prose survives the readout filter
+html-text	index.html	1101	span.caption		UNSURE	no	panel-packet.packet	— Packet	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1103	button.en		LABEL	no	panel-packet.off	Off	prose survives the readout filter
+html-text	index.html	1108	div.ctl-label		LABEL	no	panel-packet.loss	Loss	prose survives the readout filter
+html-text	index.html	1113	div.ctl-label		LABEL	no	panel-packet.burst	Burst	prose survives the readout filter
+html-text	index.html	1120	div.ctl-label		LABEL	no	panel-packet.conceal	Conceal	prose survives the readout filter
+html-text	index.html	1122	option		LABEL	no	panel-packet.silence	Silence	prose survives the readout filter
+html-text	index.html	1123	option		LABEL	no	panel-packet.repeat	Repeat	prose survives the readout filter
+html-text	index.html	1124	option		LABEL	no	panel-packet.decay	Decay	prose survives the readout filter
+html-text	index.html	1125	option		LABEL	no	panel-packet.substitute	Substitute	prose survives the readout filter
+html-text	index.html	1127	div.annot		LABEL	no	panel-packet.20-ms-packets	20 ms packets	prose survives the readout filter
+html-text	index.html	1130	div.ctl-label		LABEL	no	panel-packet.comfort	Comfort	prose survives the readout filter
+html-text	index.html	1142	em		LABEL	no	panel-codec.tab-v	Tab. V	prose survives the readout filter
+html-text	index.html	1142	span.caption		UNSURE	no	panel-codec.codec	— Codec	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1144	button.en		LABEL	no	panel-codec.off	Off	prose survives the readout filter
+html-text	index.html	1149	div.ctl-label		LABEL	no	panel-codec.line	Line	prose survives the readout filter
+html-text	index.html	1151	button		LABEL	no	panel-codec.law	μ-law	prose survives the readout filter
+html-text	index.html	1152	button		LABEL	no	panel-codec.gsm	GSM	prose survives the readout filter
+html-text	index.html	1154	div.annot		READOUT	no	panel-codec.300-3400-hz	300–3400 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1157	div.ctl-label		LABEL	no	CODEC_MIX (reuses an existing entry)	Blend	prose survives the readout filter
+html-text	index.html	1162	div.ctl-label		LABEL	no	CODEC_AGC (reuses an existing entry)	AGC	prose survives the readout filter
+html-text	index.html	1169	div.ctl-label		LABEL	no	CODEC_MAINS (reuses an existing entry)	Mains	prose survives the readout filter
+html-text	index.html	1171	button		READOUT	no	panel-codec.50-hz	50 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1172	button		READOUT	no	panel-codec.60-hz	60 Hz	no two-letter run survives once interpolations, numbers and unit tokens are removed (D-03)
+html-text	index.html	1174	div.annot		LABEL	no	panel-codec.hum-harmonics	hum + harmonics	prose survives the readout filter
+html-text	index.html	1177	div.ctl-label		LABEL	no	panel-codec.noise	Noise	prose survives the readout filter
+html-text	index.html	1189	em		LABEL	no	panel-crush.tab-vi	Tab. VI	prose survives the readout filter
+html-text	index.html	1189	span.caption		UNSURE	no	panel-crush.crush	— Crush	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1191	button.en		LABEL	no	panel-crush.off	Off	prose survives the readout filter
+html-text	index.html	1196	div.ctl-label		LABEL	no	panel-crush.bits	Bits	prose survives the readout filter
+html-text	index.html	1201	div.ctl-label		LABEL	no	panel-crush.rate	Rate	prose survives the readout filter
+html-text	index.html	1206	div.ctl-label		LABEL	no	CRUSH_JITTER (reuses an existing entry)	Jitter	prose survives the readout filter
+html-text	index.html	1213	div.ctl-label		LABEL	no	panel-crush.env	Env	prose survives the readout filter
+html-text	index.html	1218	div.ctl-label		LABEL	no	CRUSH_DITHER (reuses an existing entry)	Dither	prose survives the readout filter
+html-text	index.html	1234	em		LABEL	no	panel-rot.tab-vii	Tab. VII	prose survives the readout filter
+html-text	index.html	1234	span.caption		UNSURE	no	panel-rot.rot	— Rot	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1235	span.annot		LABEL	no	panel-rot.bit-flips-sticky-decode	bit flips · sticky decode · wrong-decode stretches	prose survives the readout filter
+html-text	index.html	1237	button.en		LABEL	no	panel-rot.off	Off	prose survives the readout filter
+html-text	index.html	1243	div.ctl-label		LABEL	no	panel-rot.prob	Prob	prose survives the readout filter
+html-text	index.html	1251	div.ctl-label		LABEL	no	panel-rot.depth	Depth	prose survives the readout filter
+html-text	index.html	1261	div.ctl-label		LABEL	no	panel-rot.sticky	Sticky	prose survives the readout filter
+html-text	index.html	1269	div.ctl-label		LABEL	no	panel-rot.garble	Garble	prose survives the readout filter
+html-text	index.html	1281	em		LABEL	no	ui.tab-viii	Tab. VIII	prose survives the readout filter
+html-text	index.html	1281	span.caption		UNSURE	no	caption.global-clock-provenance	— Global · Clock & Provenance	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1287	div.g-label		LABEL	no	clockModeSeg (reuses an existing entry)	Clock	prose survives the readout filter
+html-text	index.html	1290	button		LABEL	no	clockmodeseg.sync	Sync	prose survives the readout filter
+html-text	index.html	1291	button		LABEL	no	clockmodeseg.free	Free	prose survives the readout filter
+html-text	index.html	1302	option		LABEL	no	viewsync.1-bar	1 bar	prose survives the readout filter
+html-text	index.html	1317	div.g-label		LABEL	no	seedRo (reuses an existing entry)	Seed	prose survives the readout filter
+html-text	index.html	1328	div.g-label		LABEL	no	g-label.splices	Splices	prose survives the readout filter
+html-text	index.html	1329	#edgeBtn		UNSURE	no	edgeBtn	Hard Edges	the element holds element children as well as this text — key the text in its own <span>, or applyLabel will delete the siblings
+html-text	index.html	1330	div.annot		LABEL	no	annot.crossfades-bypassed-when-lit	crossfades bypassed when lit	prose survives the readout filter
+html-text	index.html	1338	div.ctl-label		LABEL	no	MIX (reuses an existing entry)	Mix	prose survives the readout filter
+html-attr	index.html	885	#preset-prev	aria-label	LABEL	no	preset-prev	Previous preset	prose survives the readout filter
+html-attr	index.html	886	#preset-next	aria-label	LABEL	no	preset-next	Next preset	prose survives the readout filter
+html-attr	index.html	889	#preset-select	aria-label	LABEL	no	preset-select	Browse presets	prose survives the readout filter
+html-attr	index.html	894	#preset-menu	aria-label	LABEL	no	preset-menu	Presets	prose survives the readout filter
+html-attr	index.html	925	#gear-btn	aria-label	LABEL	no	gear-btn	Settings	prose survives the readout filter
+html-attr	index.html	929	#settings-popover	aria-label	LABEL	no	settings-popover	Settings	prose survives the readout filter
+html-attr	index.html	940	#lang-select	aria-label	LABEL	no	lang-select	Hover help language	prose survives the readout filter
+html-attr	index.html	962	#help-toggle	aria-label	LABEL	no	help-toggle-2	Toggle hover help	prose survives the readout filter
+js-prose	index.html inline <script type="module"> @line 1355	1462	btn.textContent		LABEL	no	ui.on	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1355	1462	btn.textContent		LABEL	no	ui.off	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1355	1595	btn.textContent		LABEL	no	ui.delete	Delete	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1355	1604	btn.textContent		LABEL	no	ui.confirm	Confirm?	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1355	2034	toggleEl.textContent		LABEL	no	ui.on-2	On	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
+js-prose	index.html inline <script type="module"> @line 1355	2035	toggleEl.textContent		LABEL	no	ui.off-2	Off	written from a CONDITIONAL expression (ternary / || fallback). Contract §6: the inflection is authored around, not engineered — check-i18n assertion 13 rejects a ternary inside a setLabel argument
