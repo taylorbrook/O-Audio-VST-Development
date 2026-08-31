@@ -2,6 +2,67 @@
 
 All notable changes to O-Emulator are documented here.
 
+## [1.2.0] — 2026-08-30
+
+### Added
+
+- **Hover-help, in both languages.** Every one of the five parameters plus the
+  gear and the language selector now opens a tooltip on hover or keyboard
+  focus, in English or French, switching live with the language selector.
+  Seven `I18N` entries and seven `TIP_BINDINGS` in
+  `Source/ui/public/js/i18n.js`; French drafted and `reviewed: false`
+  throughout.
+- **A tooltip renderer, because there was none.** Canon v2's `applyI18n()`
+  writes `data-tip-title` and `data-tip` onto the bound anchors and stops
+  there — the code that reads those attributes and paints a surface is
+  per-plugin, and this page had no `#tooltip` element, no `.tooltip` rule and
+  no hover handler. Authoring the copy alone would have shipped seven
+  invisible strings past three green gates: `check-i18n` sees bindings and is
+  satisfied, `check-ui-labels` has no tooltip awareness at all, and
+  `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. So the
+  renderer lands with the copy: `setupTooltips()` in the inline module, ported
+  from O-simpleFM's delegated cursor-following family, with a `.tooltip` rule
+  in the page's own paper-and-brown-ink vocabulary and a title line in
+  `--accent-dark` that re-themes with the console.
+- **`tests/ui_tip_render_check.js`** — the gate that can actually see a painted
+  tip. Drives the real page at the shipping 620 x 430 frame, hovers all seven
+  anchors in both languages, asserts the rendered title and body are
+  BYTE-EQUAL to the table (not "contains" — a stale title passes a contains
+  check), and asserts the rectangle is inside the frame on all four edges. Two
+  negative controls: an over-long body planted in the served copy must make
+  the frame assertion report the overflow (it does — 250 x 485 at y=8, bottom
+  edge −63), and the focus latch below must not have killed the keyboard path.
+
+### Changed
+
+- **Focus opens a tip only from the keyboard.** The O-simpleFM renderer shows
+  a tip on any `focusin`, and a mouse click on a `<button>` focuses it — so
+  clicking the gear left its own 250 x 115 tip pinned at (320, 284) directly
+  across the settings popover the click had just opened, and it stayed until
+  focus moved. Measured, not assumed: it also turned the surface into a
+  visible element inside `check-ui-labels`' state sweep, whose `[8b]`
+  inert-element count went 7 → 9 in both driven states. A latch on the last
+  input device (`lastInputWasPointer`, cleared by any keydown) gates the focus
+  arm. `:focus-visible` was rejected as the discriminator: Chromium reports it
+  false for a programmatic `.focus()` after a click, so a gate driving focus
+  directly would measure "no tip" and record that as correct.
+
+### Notes
+
+- The preset bar gets no tips. Its four controls took accessible names from
+  their deleted `title=` attributes in v1.1.0 and are self-describing; adding
+  hover-help there is polish, not scope.
+- There is still no hover-help on/off toggle, and the gear tip says so — it
+  describes the language selector and nothing else, because a tip that
+  promises a control the plugin does not have is worse than no tip.
+- Geometry is unchanged. `check-ui-labels --plugin O-Emulator` produces output
+  byte-identical to the v1.1.0 baseline: the surface is `position: fixed`,
+  `visibility: hidden` and `opacity: 0` at rest, and that gate's visibility
+  predicate rejects all three, so an unshown tip is neither measured nor
+  swept for text. No geometry pin was added, and none was needed.
+- French is machine-drafted. 22 unreviewed entries now (7 tooltip, 15 label);
+  no native speaker has read any of it.
+
 ## [1.1.0] — 2026-08-28
 
 ### Added
