@@ -2,6 +2,35 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.14.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **15 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint: 6 terminology, 8 typography,
+  1 register. The visible ones are the hover-help switch, which now reads
+  **Activé / Désactivé** rather than Oui / Non — those are answers, not states —
+  its row label, now **Aide au survol** rather than the bare "Aide" that named
+  something different from the switch's own accessible name, and the tape
+  section's dry caption, now **DIRECT** rather than SEC, which pairs it with the
+  TRAITÉ beside it and with the tip title that already said "Signal direct".
+  The Ping-Pong tip title is **Ping-pong** rather than "Va-et-vient", so the
+  visible PING caption is once again part of the control's spoken name. In the
+  hover-help prose: typographic no-break spaces before `;`, `?` and `%`, between
+  a number and its unit, and a true minus sign (−100, −12) in the two ranges
+  that had a hyphen. MIDI note names stay English — the host displays C1, not
+  do1. ROLLOFF keeps **COUPURE** under a recorded exemption: the knob sweeps a
+  lowpass corner from 20 kHz to 2 kHz at a fixed slope, so the glossary's
+  "Pente" would name the one thing it cannot move.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+French entries remain `reviewed: false`: this pass is a second machine reading
+against a glossary and a lint, not a native speaker's.
+
 ## [1.14.0] - 2026-08-28
 
 ### Added

@@ -18,7 +18,73 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Polystutter UI copy, English + French (v1.14.0, canon v2)
+// i18n.js — O-Polystutter UI copy, English + French (v1.14.1, canon v2)
+//
+// ── v1.14.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 15 entries (6 terminology, 8 typography, 0 grammar/agreement,
+// 0 meaning, 1 register). sameAsEn: kept 18, translated 0. termNote
+// exemptions: 2 (listed). Left as drafted: the rest. reviewed: false
+// throughout — no native speaker yet. Lint 15 findings → 0, --strict exit 0.
+//
+// The decisions the next reader needs:
+//
+//   ROLLOFF stays COUPURE, and it is the file's only glossary exemption.
+//   The glossary settles rolloff → Pente, and Pente is a dB/octave SLOPE.
+//   This control is not one: TapeDegrader.cpp:344-361 sweeps a lowpass CORNER
+//   from 20 kHz to 2 kHz at a fixed 12 dB/oct Butterworth (Q = 0.707), so the
+//   slope is the one thing the knob cannot move. Both the caption and the tip
+//   title carry the termNote. Width was not the reason — PENTE measures
+//   32.00 px against COUPURE's 47.61 in a 75 px column and would have fitted.
+//
+//   DRY -> DIRECT, not SEC. The glossary's Wet/Dry pair is Traité/Direct and
+//   the tip title already read "Signal direct", so the caption was the odd one
+//   out. DIRECT is 37.31 px on one line in the 75 px .tape-knob-container,
+//   against SEC's 18.91 — measured, not assumed.
+//
+//   ON/OFF -> Activé/Désactivé, not Marche/Arrêt. Hover help is a FEATURE, not
+//   a power state, which is the glossary's own split. The faces are 47.33 px
+//   and 61.38 px border-box against .settings-toggle's 42 px min-width, so the
+//   button grows — but the row is right-anchored inside a popover pinned at
+//   min-width: 190 px (its widest French row is 165.15 px), so nothing moves:
+//   check-ui-labels [7] still reports 0 non-label elements displaced.
+//
+//   "Hover help" -> "Aide au survol", the glossary root, at 71.77 px in a
+//   white-space: nowrap .settings-label. "Aide" alone named a different thing
+//   from the aria-label ("Activer ou désactiver l'aide au survol") on the same
+//   row.
+//
+//   PING stays PING (sameAsEn) and the tip title moved to it, not the other
+//   way round. The caption is the English abbreviation and the title said
+//   "Va-et-vient", so the visible name was not contained in the accessible
+//   name (WCAG 2.5.3) in French while it was in English. Ping-pong is the term
+//   French DAWs ship, so the title yields; no caption was invented.
+//
+//   MIDI note names stay ENGLISH — "les notes C1 à B1", not "do1 à si1".
+//   The glossary keeps note names English because that is what the user's host
+//   displays. NOTE: the English sentence this mirrors is itself WRONG about the
+//   DSP (TriggerRouter.cpp:76-85 routes notes 60-63, and only note 67 triggers
+//   all lanes; every other note does nothing). Stage N does not change English
+//   copy, so the French mirrors the English deliberately and the defect is
+//   reported for a later stage.
+//
+//   DÉGRADATION BANDE stays telegraphic. "DÉGRADATION DE BANDE" measures
+//   166.89 px against the current 144.97 and the header's own 10 px of
+//   clearance before BYPASS, so the preposition does not fit.
+//
+//   Typography: U+2019 was already universal here (0 T1 findings at baseline).
+//   This pass added U+00A0 before ; and ?, before %, and between 16 and "pas",
+//   and U+2212 for the two negative-number ranges. The composed delete-confirm
+//   string keeps its {name} token byte-identical: tr() still substitutes it.
+//
+//   NO COMMITTED RENDER GATE. plugins/O-Polystutter/tests/ holds only
+//   i18n-states.json. The hover surface was driven from a scratchpad probe:
+//   105 anchors × 2 languages, every tip inside the 1000 x 690 frame, every
+//   tip's text different between languages, with the four lanes, the sequencer
+//   and the four Euclidean groups driven ON through their own controls (81 of
+//   105 anchors are pointer-unreachable at rest) and a negative control that
+//   fires on a planted English-equal French body. Stage N authored no new
+//   committed gate; the gap is reported.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -96,7 +162,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note divisions and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
     'tips-toggle': {
@@ -119,7 +185,7 @@ export const I18N = Object.freeze({
         en: { t: 'Preset',
               b: 'Click to browse and select presets. Factory presets are protected; user presets can be deleted.' },
         fr: { t: 'Préréglage',
-              b: 'Cliquer pour parcourir et choisir un préréglage. Les préréglages d’usine sont protégés ; ceux de l’utilisateur peuvent être supprimés.',
+              b: 'Cliquer pour parcourir et choisir un préréglage. Les préréglages d’usine sont protégés ; ceux de l’utilisateur peuvent être supprimés.',
               reviewed: false },
     },
     'preset-next': {
@@ -195,7 +261,7 @@ export const I18N = Object.freeze({
         en: { t: 'Probability',
               b: 'Chance that this lane triggers on each beat. 100% = always, 50% = half the time.' },
         fr: { t: 'Probabilité',
-              b: 'Chance que cette piste se déclenche à chaque temps. 100% = toujours, 50% = une fois sur deux.',
+              b: 'Chance que cette piste se déclenche à chaque temps. 100 % = toujours, 50 % = une fois sur deux.',
               reviewed: false },
     },
     'volume': {
@@ -209,7 +275,7 @@ export const I18N = Object.freeze({
         en: { t: 'Pan',
               b: 'Stereo position of the stutters. -100 = full left, +100 = full right.' },
         fr: { t: 'Panoramique',
-              b: 'Position stéréo des bégaiements. -100 = tout à gauche, +100 = tout à droite.',
+              b: 'Position stéréo des bégaiements. −100 = tout à gauche, +100 = tout à droite.',
               reviewed: false },
     },
     'swing': {
@@ -223,7 +289,7 @@ export const I18N = Object.freeze({
         en: { t: 'Pitch',
               b: 'Transpose the stutters up or down in semitones (-12 to +12).' },
         fr: { t: 'Hauteur',
-              b: 'Transposer les bégaiements vers le haut ou vers le bas, en demi-tons (-12 à +12).',
+              b: 'Transposer les bégaiements vers le haut ou vers le bas, en demi-tons (−12 à +12).',
               reviewed: false },
     },
     'pitch-rand': {
@@ -257,7 +323,7 @@ export const I18N = Object.freeze({
     'pingpong': {
         en: { t: 'Ping-Pong',
               b: 'Alternates playback direction between forward and reverse on each repeat.' },
-        fr: { t: 'Va-et-vient',
+        fr: { t: 'Ping-pong',
               b: 'Alterne le sens de lecture entre avant et arrière à chaque répétition.',
               reviewed: false },
     },
@@ -281,7 +347,7 @@ export const I18N = Object.freeze({
         en: { t: 'Sequencer',
               b: 'When ON, the 16-step pattern controls when each lane can trigger. When OFF, lanes trigger on every beat.' },
         fr: { t: 'Séquenceur',
-              b: 'Activé, le motif de 16 pas décide quand chaque piste peut se déclencher. Désactivé, les pistes se déclenchent à chaque temps.',
+              b: 'Activé, le motif de 16 pas décide quand chaque piste peut se déclencher. Désactivé, les pistes se déclenchent à chaque temps.',
               reviewed: false },
     },
     'sequencer': {
@@ -354,7 +420,8 @@ export const I18N = Object.freeze({
               b: 'High-frequency attenuation mimicking tape head wear. Higher = darker, more muffled.' },
         fr: { t: 'Coupure',
               b: 'Atténuation des aigus imitant l’usure des têtes de lecture. Plus la valeur est haute, plus le son est sombre et étouffé.',
-              reviewed: false },
+              reviewed: false,
+              termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' },
     },
     'dropout': {
         en: { t: 'Dropout',
@@ -367,7 +434,7 @@ export const I18N = Object.freeze({
         en: { t: 'Dry',
               b: 'Level of the original unprocessed signal. Set to 0% for 100% wet stutters only.' },
         fr: { t: 'Signal direct',
-              b: 'Niveau du signal d’origine, non traité. Régler sur 0% pour n’entendre que les bégaiements.',
+              b: 'Niveau du signal d’origine, non traité. Régler sur 0 % pour n’entendre que les bégaiements.',
               reviewed: false },
     },
     'wet': {
@@ -381,14 +448,14 @@ export const I18N = Object.freeze({
         en: { t: 'MIDI',
               b: 'Enable MIDI note triggering. Notes C1-B1 trigger lanes 1-4, any other note triggers all enabled lanes.' },
         fr: { t: 'MIDI',
-              b: 'Activer le déclenchement par notes MIDI. Les notes do1 à si1 déclenchent les pistes 1 à 4 ; toute autre note déclenche toutes les pistes actives.',
+              b: 'Activer le déclenchement par notes MIDI. Les notes C1 à B1 déclenchent les pistes 1 à 4 ; toute autre note déclenche toutes les pistes actives.',
               reviewed: false, sameAsEn: true },
     },
     'trig': {
         en: { t: 'Trigger',
               b: 'Manually trigger all enabled lanes instantly. Use with MAN mode for one-shot effects.' },
         fr: { t: 'Déclenchement',
-              b: 'Déclencher immédiatement et à la main toutes les pistes actives. À utiliser avec le mode MAN pour des effets ponctuels.',
+              b: 'Déclencher manuellement et immédiatement toutes les pistes actives. À utiliser avec le mode MAN pour des effets ponctuels.',
               reviewed: false },
     },
 
@@ -408,12 +475,12 @@ export const I18N = Object.freeze({
     // reads correctly in both languages whatever the name is.
     'msg-delete-preset': {
         en: { t: 'Delete preset {name}?', b: '' },
-        fr: { t: 'Supprimer le préréglage {name} ?', b: '', reviewed: false },
+        fr: { t: 'Supprimer le préréglage {name} ?', b: '', reviewed: false },
     },
 });
 
 // ============================================================================
-// LABELS — the on-page text (v1.14.0, canon v2)
+// LABELS — the on-page text (v1.14.1, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
@@ -467,13 +534,13 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide',   reviewed: false } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },  // 71.77
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
     // keys, never a ternary inside the call — check-i18n assertion 13.
-    'ui.on':           { en: { t: 'On' },  fr: { t: 'Oui', reviewed: false } },
-    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Non', reviewed: false } },
+    'ui.on':           { en: { t: 'On' },  fr: { t: 'Activé',    reviewed: false } },   // button 47.33
+    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Désactivé', reviewed: false } },   // button 61.38
 
     // ── The four lane headers ───────────────────────────────────────────────
     // ONE key with a {n} token, not four keys differing by a digit. The number
@@ -526,9 +593,11 @@ export const LABELS = Object.freeze({
     'label.wow':       { en: { t: 'WOW' },     fr: { t: 'PLEUR',   reviewed: false } },  // 32.5
     'label.flutter':   { en: { t: 'FLUTTER' }, fr: { t: 'SCINT.',  reviewed: false } },  // 32.4
     'label.hiss':      { en: { t: 'HISS' },    fr: { t: 'SOUFFLE', reviewed: false } },  // 44.6
-    'label.rolloff':   { en: { t: 'ROLLOFF' }, fr: { t: 'COUPURE', reviewed: false } },  // 47.6
+    'label.rolloff':   { en: { t: 'ROLLOFF' },
+                         fr: { t: 'COUPURE', reviewed: false,
+                               termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' } },                            // 47.6
     'label.dropout':   { en: { t: 'DROPOUT' }, fr: { t: 'CHUTES',  reviewed: false } },  // 39.8
-    'label.dry':       { en: { t: 'DRY' },     fr: { t: 'SEC',     reviewed: false } },
+    'label.dry':       { en: { t: 'DRY' },     fr: { t: 'DIRECT',  reviewed: false } },  // 37.3
     'label.wet':       { en: { t: 'WET' },     fr: { t: 'TRAITÉ',  reviewed: false } },  // 36.8
     'label.midi':      { en: { t: 'MIDI' },    fr: { t: 'MIDI',    reviewed: false, sameAsEn: true } },
     'label.trig':      { en: { t: 'TRIG' },    fr: { t: 'DÉCL',    reviewed: false } },  // 29.3 in a 60 px chip

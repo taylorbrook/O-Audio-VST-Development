@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// app.js — O-Polystutter page controller (v1.14.0)
+// app.js — O-Polystutter page controller (v1.14.1)
 //
 // NEW FILE, AND THE FILE IS THE POINT. Through v1.13.0 this plugin's controller
 // was four <script> blocks inline in index.html: the JUCE namespace shim, the
@@ -275,7 +275,7 @@ function initializeTooltips() {
 
     document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
 
-    console.log('[v1.14.0] Tooltips initialized');
+    console.log('[v1.14.1] Tooltips initialized');
 }
 
 function initializeHelpToggle() {
@@ -575,7 +575,7 @@ document.addEventListener('contextmenu', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('O-Polystutter UI v1.14.0 initializing...');
+    console.log('O-Polystutter UI v1.14.1 initializing...');
 
     // ORDER IS LOAD-BEARING, in the ordinary way rather than the TDZ way.
     //
