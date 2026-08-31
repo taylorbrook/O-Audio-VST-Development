@@ -1406,9 +1406,26 @@
                 hide();
             });
 
-            document.addEventListener('pointerdown', hide);
+            // THE FOCUS ARM IS LATCHED TO THE KEYBOARD, and the reason is measured.
+            //
+            // A mouse click on a <button> focuses it, so an unconditional focusin rule
+            // re-opens the tip that pointerdown just hid — with the pointer still on the
+            // anchor and no further pointerover to come. Measured here: clicking
+            // #gear-btn left this tip covering the settings popover it had just opened by
+            // 146 x 35 px. Both gates stayed green; check-ui-labels counts the surface as
+            // pointer-events:none DECORATION and never as a label.
+            //
+            // :focus-visible is deliberately NOT the discriminator. Chromium reports it
+            // false for a programmatic .focus() following a click, so a gate driving
+            // focus directly would measure "no tip" and record that as correct. An
+            // explicit last-input-device latch is the same rule and is drivable from a
+            // test with real events: any keydown clears it.
+            let lastInputWasPointer = false;
+
+            document.addEventListener('pointerdown', () => { lastInputWasPointer = true; hide(); });
 
             document.addEventListener('focusin', (e) => {
+                if (lastInputWasPointer) return;
                 const el = anchorOf(e.target);
                 if (!el) return;
                 active = el;
@@ -1418,7 +1435,12 @@
 
             document.addEventListener('focusout', hide);
 
-            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+            // One keydown listener, two jobs: any key at all means the keyboard is
+            // driving again, which releases the latch above; Escape additionally hides.
+            document.addEventListener('keydown', (e) => {
+                lastInputWasPointer = false;
+                if (e.key === 'Escape') hide();
+            });
         }
 
         // Guarded, and LAST. Every parameter binding above has already been

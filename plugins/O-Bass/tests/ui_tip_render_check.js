@@ -478,6 +478,77 @@ function outsideViewport(rect, W, H) {
         check(restored && outsideViewport(restored.tip.rect, W, H).length === 0,
             '[6] restored: assertion 4 is green again at the same anchor');
 
+        // ══════════════════════════════ 7. THE FOCUS LATCH, BOTH HALVES ══
+        //
+        // A mouse click on a <button> focuses it. An unconditional focusin rule
+        // therefore re-opens the tip that pointerdown just hid, with the pointer
+        // still on the anchor and no further pointerover coming — and the tip sits
+        // on top of whatever the click opened. Measured on this page before the
+        // fix: the gear's tip covered the settings popover by 146 x 35 px.
+        //
+        // BOTH halves are asserted, separately and on purpose. Asserting only that
+        // a click leaves no tip lets the feature decay into "focus never shows a
+        // tip", which passes that assertion perfectly and silently removes the
+        // keyboard half of hover-help.
+        console.log('\n-- 7. the focus latch');
+
+        await page.mouse.move(1, 1);
+        await page.waitForTimeout(150);
+        // BLUR FIRST, and this line is the whole reason the assertion below can
+        // fail at all. An earlier section of this gate leaves focus ON #gear-btn,
+        // and clicking an ALREADY-FOCUSED element fires no focusin — so without
+        // this the check reported "no tip after a click" for a page with no latch
+        // whatsoever. Verified: with the latch removed the control now fails, and
+        // with the blur removed it passes either way.
+        await page.evaluate(() => document.activeElement && document.activeElement.blur());
+        await page.waitForTimeout(100);
+        await page.click('#gear-btn');
+        await page.waitForTimeout(300);
+        const afterClick = await page.evaluate(() => {
+            const t = document.getElementById('tooltip');
+            const cs = getComputedStyle(t);
+            const r = t.getBoundingClientRect();
+            const ls = document.getElementById('lang-select');
+            const panel = ls ? ls.closest('div') : null;
+            const pr = panel ? panel.getBoundingClientRect() : null;
+            const shown = cs.visibility !== 'hidden' && cs.opacity !== '0';
+            let overlap = 0;
+            if (shown && pr) {
+                const ox = Math.max(0, Math.min(r.right, pr.right) - Math.max(r.left, pr.left));
+                const oy = Math.max(0, Math.min(r.bottom, pr.bottom) - Math.max(r.top, pr.top));
+                overlap = Math.round(ox * oy);
+            }
+            return { shown, overlap };
+        });
+        check(!afterClick.shown,
+            '[7] a POINTER click opens no tip — the latch suppresses the focusin arm'
+            + (afterClick.overlap ? ` (it covered the popover by ${afterClick.overlap} px2)` : ''));
+
+        // The keyboard half. A real tab-ring walk, not a programmatic .focus():
+        // Chromium reports :focus-visible false for a .focus() that follows a click,
+        // and .focus() on an already-focused element fires no event at all — either
+        // one would report "no tip" and record that as correct.
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(150);
+        let kbHit = null;
+        for (let i = 1; i <= 20; i++) {
+            await page.keyboard.press('Tab');
+            await page.waitForTimeout(60);
+            const r = await page.evaluate(() => {
+                const t = document.getElementById('tooltip');
+                const cs = getComputedStyle(t);
+                return { shown: cs.visibility !== 'hidden' && cs.opacity !== '0',
+                         text: (t.textContent || '').trim(),
+                         on: document.activeElement ? (document.activeElement.id || document.activeElement.className) : null };
+            });
+            if (r.shown && r.text) { kbHit = { press: i, ...r }; break; }
+        }
+        check(kbHit !== null,
+            '[7] a KEYBOARD tab still opens a tip — the accessibility half survives the latch'
+            + (kbHit ? ` (tab #${kbHit.press} on ${kbHit.on})` : ' — none in 20 tabs'));
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(150);
+
         // ── housekeeping ────────────────────────────────────────────────────
         console.log('');
         check(pageErrors.length === 0, '[7] no uncaught page error across the whole sweep',
