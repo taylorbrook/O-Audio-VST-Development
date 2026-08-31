@@ -1,5 +1,67 @@
 # O-Bass Changelog
 
+## [1.5.0] - 2026-08-30
+
+### Added
+**Hover-help, in both languages — and the renderer that makes it visible.** Stage M batch M1.
+Five `I18N` entries with an `en` and an `fr` `{t, b}` each, five `TIP_BINDINGS` rows, a
+delegated tooltip renderer ported into `index.html`, and `tests/ui_tip_render_check.js` as the
+gate that can actually see a rendered tip.
+
+- **The renderer had to be ported, not just the copy.** v1.4.0 had no `#tooltip` node, no
+  `.tooltip` rule and no hover handler. `applyI18n()` only *writes* `data-tip-title` and
+  `data-tip` onto the anchors; the code that reads them and paints a surface is per-plugin, and
+  this plugin had none. Authoring the copy alone would have shipped **five invisible strings
+  past three green gates** — `check-i18n` assertion 2 only counts bindings, `check-ui-labels`
+  has no tooltip awareness at all, and `boot-all-uis` counts `aria-label` and `title` and never
+  `data-tip`. The renderer is O-simpleFM's delegated family (~85 lines), styled in this
+  plugin's own cream-plate vocabulary rather than that plugin's dark chip.
+- **Five tips: three parameters and two chrome controls.** `tip.frequency`, `tip.enhance` and
+  `tip.output` bind through `.knob-container` — the cell a user aims at — rather than to the
+  65 px `.knob` circle, which would leave FREQUENCY's own 86 px caption outside its own
+  tooltip. `tip.settings` and `tip.language` bind to `#gear-btn` and `#lang-select` directly.
+- **The gear tip describes only what the popover contains.** It holds the language selector and
+  nothing else; this plugin has no hover-help toggle, so no sentence promises one.
+- **`tests/ui_tip_render_check.js`** — 123 assertions at the shipping 420 x 320 viewport, read
+  out of `PluginEditor.cpp` rather than assumed. Every `TIP_BINDINGS` selector must resolve;
+  every anchor must SHOW a tip on hover (the vacuity guard); the rendered title and body must be
+  **byte-equal** to the table, not merely contain it; the tip rectangle must be inside all four
+  viewport edges; and the whole sweep runs `en` -> `fr` -> `en`. It carries its own negative
+  control: a planted over-long body must be reported as overflowing, and the restore must be
+  proved byte-equal again.
+
+### Changed
+- `Source/PluginProcessor.cpp` — `#include "PluginEditor.h"` moved behind a `#if
+  JUCE_WEB_BROWSER` guard directly above `createEditor()`, with a `GenericAudioProcessorEditor`
+  fallback. The `scripts/param-dump` console target compiles this TU with `JUCE_WEB_BROWSER=0`
+  and no editor sources, so a top-of-file include breaks the link. Under a normal build
+  `JUCE_WEB_BROWSER=1` and behaviour is byte-identical.
+- `CMakeLists.txt` — `option(OUARICON_BUILD_TESTS)` and the `ouaricon_add_param_dump()` call,
+  OFF by default.
+- `.planning/params.tsv` — the runtime parameter inventory, from a walk of
+  `AudioProcessor::getParameters()` on a constructed processor.
+
+### Notes
+- **Two of the five parameters have no control on this page, in any version.** `latency_mode`
+  (an `AudioParameterChoice`, `Low Latency` / `High Fidelity`) and `bypass` (an
+  `AudioParameterBool`) are automatable and reachable from the host, and the WebView exposes
+  neither. They therefore get no tip: an authored body with no binding is an ORPHAN and
+  `check-i18n` assertion 2 fails it. This is reported as a finding, not papered over with a tip
+  nobody can open.
+- **All three parameter units come from the runtime dump's own `label` column** — `Hz`, `%`,
+  `dB` — and each agrees with the page's own readout formatter. Nothing was inferred.
+- **The clamp is the normal path at this frame size, not an edge case.** All five anchors, in
+  both languages, place their tip by flipping to the opposite side of the cursor; not one uses
+  the naive `x + 14 / y + 16` offset. Two also hit the 8 px margin floor.
+- **French grows one of the three knob tips** by 14.9 px (ENHANCE, 108.7 -> 123.6) against the
+  208 px `max-width` cap — one extra wrapped line. The gear tip *shrinks* 108.7 -> 93.9.
+- **Geometry: zero movement.** `check-ui-labels --plugin O-Bass` is **byte-identical** before
+  and after this change, in all three driven states. No geometry pin was added or removed.
+- All five French tooltip entries are **machine drafts**, `reviewed: false`. The plugin's
+  native-speaker worklist is now **24 entries** (5 tooltip + 19 label). No native speaker has
+  read any of it.
+- **No parameter IDs, ranges, types, defaults or DSP behaviour changed.**
+
 ## [1.4.0] - 2026-08-29
 
 ### Added

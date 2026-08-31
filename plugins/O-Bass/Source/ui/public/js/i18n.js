@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bass page labels, English + French (v1.4.0)
+// i18n.js — O-Bass page labels and hover-help, English + French (v1.5.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,16 +32,31 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.5.0: THIS PLUGIN NOW HAS HOVER-HELP, AND IT HAD NO RENDERER ────────
 //
-// v1.3.3 carried no data-tip and no data-tooltip anywhere on the page — only
-// five native title= attributes on the preset bar, which contract §4 DELETES
-// rather than localizes, moving their existing text into data-i18n-aria. No
-// hover-help prose is INVENTED here: authoring it is Stage M's job. I18N is
-// therefore empty and TIP_BINDINGS is empty, which is this plugin's correct
-// state rather than a gap. check-i18n assertion 2 reports it as "0 tip(s)
-// bound", and the emptiness is only admissible BECAUSE no I18N entry carries a
-// body — an emptied TIP_BINDINGS over a bodied table would be orphaned copy.
+// v1.4.0 shipped the page in French with I18N and TIP_BINDINGS both EMPTY, which
+// was that version's correct state rather than a gap. v1.5.0 authors five tips.
+//
+// AUTHORING COPY ALONE WOULD HAVE SHIPPED FIVE INVISIBLE STRINGS. applyI18n()
+// only WRITES data-tip-title and data-tip onto the anchors named below; the code
+// that reads those attributes and paints a surface is per-plugin and this plugin
+// had none of it — no #tooltip node, no .tooltip rule, no hover handler. All
+// three gates would have stayed green over it: check-i18n assertion 2 only counts
+// bindings, check-ui-labels has no tooltip awareness at all, and boot-all-uis
+// counts aria-label and title and never data-tip. v1.5.0 therefore ports the
+// delegated renderer (O-simpleFM's family) into index.html alongside the copy,
+// and adds tests/ui_tip_render_check.js as the gate that can actually SEE a
+// rendered tip.
+//
+// FIVE TIPS FOR FIVE ANCHORS, NOT FOR FIVE PARAMETERS. The runtime dump
+// (.planning/params.tsv) lists 5 parameters and this page carries controls for
+// THREE of them — crossover_freq, enhance and output. latency_mode (an
+// AudioParameterChoice, "Low Latency" / "High Fidelity") and bypass
+// (AudioParameterBool) have NO control on this page at all, in any version, so
+// there is nothing to hang a tip on. An authored body with no binding is an
+// ORPHAN and check-i18n assertion 2 fails it, so those two are reported as a
+// finding rather than papered over with a tip nobody can open. The other two
+// entries are chrome: the gear and the language selector.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -54,17 +69,142 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {t, b}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin with no tooltips today, so Stage M can
-// add bodies here without touching the label keys below.
+// TITLE = the control's own visible caption, not the dump's `name` column,
+// wherever the two differ. crossover_freq is named "Crossover" in the automation
+// lane and captioned FREQUENCY on the page; the user is reading the page, so the
+// caption wins and the French is byte-identical to label.frequency's. A title
+// that disagreed with the caption under it would read as a different control.
+//
+// BODY = what the control does, when to reach for it, and it ENDS WITH THE RANGE
+// AND UNIT. Three sentences at most — this is a tooltip, not a manual.
+//
+// THE UNITS ARE THE DUMP'S OWN, NOT RECOVERED FROM A FORMATTER. All three
+// parameters carry a real `label` in .planning/params.tsv — Hz, %, dB — and each
+// one agrees with what the page's own readout formatter prints
+// (index.html formatFrequency / formatEnhance / formatOutput). Nothing here was
+// inferred from the shape of the control.
+//
+// D-03 BINDS TO NODES, NOT TO SENTENCES. #frequencyValue, #enhanceValue and
+// #outputValue are readout nodes and stay English forever. A number INSIDE a
+// localized tooltip body is ordinary prose, so "40 to 200 Hz" becomes
+// "40 à 200 Hz" here, exactly as the 21 already-shipped tooltip plugins do it.
+//
+// THE MINUS SIGN IS U+2212, in both languages, matching the shipped suites'
+// tooltip bodies. The page's own readout prints an ASCII hyphen from
+// db.toFixed(1) and that is untouched: the readout is a node D-03 exempts, and
+// the tip body is prose.
+//
+// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`, no exceptions.
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── crossover_freq — AudioParameterFloat, 40..200 Hz, skew 0.5, default 80 ─
+    //
+    // Title is FREQUENCY (the caption), not "Crossover" (the dump's name). The
+    // body names the crossover explicitly all the same, because that IS what the
+    // control is and the caption alone does not say so.
+    'tip.frequency': {
+        en: { t: 'Frequency',
+              b: 'Sets the crossover point that splits the incoming signal into the bass band '
+               + 'this plugin enhances and the highs it leaves alone. Move it down to keep the '
+               + 'reinforcement on the sub alone, up to thicken the low mids as well. '
+               + '40 to 200 Hz.' },
+        fr: { t: 'Fréquence',
+              b: 'Règle le point de coupure qui sépare le signal entrant entre la bande grave '
+               + 'renforcée par ce plugin et les aigus qu’il laisse intacts. Descendez-le pour '
+               + 'ne renforcer que le sub, montez-le pour épaissir aussi le bas-médium. '
+               + '40 à 200 Hz.',
+              reviewed: false },
+    },
+
+    // ── enhance — AudioParameterFloat, 0..100 %, default 50 ────────────────
+    //
+    // The French TITLE is RENFORT, which is label.enhance's shipped French and
+    // was chosen there against a measured 68 px pin. A tip title that said
+    // AMPLEUR over a caption that said RENFORT would be two names for one knob.
+    'tip.enhance': {
+        en: { t: 'Enhance',
+              b: 'Sets how much reinforcement is added to the band below the crossover point. '
+               + 'A little glues a mix together; a lot rebuilds a low end that a small speaker '
+               + 'can still hear. 0 to 100 %.' },
+        fr: { t: 'Renfort',
+              b: 'Règle la quantité de renfort ajoutée à la bande située sous le point de '
+               + 'coupure. Un peu soude le mixage ; beaucoup reconstruit un grave qu’une petite '
+               + 'enceinte laisse encore entendre. 0 à 100 %.',
+              reviewed: false },
+    },
+
+    // ── output — AudioParameterFloat, −18..+18 dB, default 0 ───────────────
+    //
+    // The body points at the meter and the limiter lamp because they are the two
+    // things a user reads WHILE turning this knob, and both sit directly under
+    // it. It does NOT quote their captions: LIMIT is captioned LIM. in French
+    // and OUT stays OUT in both, so naming either verbatim would be a sentence
+    // that goes stale the moment a reviewer settles those two judgements.
+    'tip.output': {
+        en: { t: 'Output',
+              b: 'Trims the level leaving the plugin so the enhanced signal can be matched '
+               + 'against the untreated one. The meter below shows the result, and the lamp '
+               + 'beside it lights while the internal limiter is holding the peaks back. '
+               + '−18 to +18 dB.' },
+        fr: { t: 'Sortie',
+              b: 'Ajuste le niveau en sortie du plugin pour comparer le signal renforcé au '
+               + 'signal d’origine. Le vumètre en dessous affiche le résultat, et le témoin à '
+               + 'côté s’allume tant que le limiteur interne retient les crêtes. '
+               + '−18 à +18 dB.',
+              reviewed: false },
+    },
+
+    // ── #gear-btn — chrome, not a parameter ────────────────────────
+    //
+    // THIS TIP IS WHAT TELLS A USER HOVER-HELP EXISTS AT ALL, so it is the one
+    // that must not lie. The body describes ONLY what this popover contains —
+    // the language selector — because that is all it contains. O-Tapestop's
+    // wording promises a hover-help toggle; this plugin has none (M1 ships tips
+    // that are always on, recorded as a decision item), and copying that sentence
+    // would have been the third tip in this task to promise a control that is
+    // not there.
+    'tip.settings': {
+        en: { t: 'Settings',
+              b: 'Opens a small panel holding one control: the language this interface is '
+               + 'written in. Nothing in it changes the sound or the current preset. Escape or '
+               + 'a click elsewhere closes it again.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre un petit panneau contenant un seul réglage : la langue de cette '
+               + 'interface. Rien n’y modifie le son ni le préréglage en cours. Échap ou un clic '
+               + 'à côté le referme.',
+              reviewed: false },
+    },
+
+    // ── #lang-select — chrome, not a parameter ─────────────────────
+    //
+    // "saved with the plugin and comes back with the session" is a CHECKED claim,
+    // not a hopeful one: PluginProcessor::getStateInformation writes uiLanguage
+    // onto parameters.state before getStateAsXml(), and setStateInformation reads
+    // it back after replaceState() with an isVoid() guard. A tip that promised
+    // persistence the C++ did not implement would be exactly the kind of sentence
+    // this stage has had to rewrite twice already.
+    //
+    // The option words English / Français inside the selector are ENDONYMS and
+    // stay put (I18N_EXEMPT below). This sentence NAMES those languages in prose
+    // and is therefore localized — the two rules do not collide: the option in
+    // the control is an identifier, the sentence about it is copy.
+    'tip.language': {
+        en: { t: 'Language',
+              b: 'Switches every caption, accessible name and hover-help on this page between '
+               + 'English and French. Parameter values, units and preset names stay as they '
+               + 'are. The choice is saved with the plugin and comes back with the session.' },
+        fr: { t: 'Langue',
+              b: 'Bascule chaque libellé, nom accessible et bulle d’aide de cette page entre '
+               + 'l’anglais et le français. Les valeurs, les unités et les noms de préréglages '
+               + 'restent inchangés. Le choix est enregistré avec le plugin et revient avec la '
+               + 'session.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -389,25 +529,49 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key, wrapper]
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() does document.querySelector(selector), then closest(wrapper) when
+// a wrapper is given, and writes data-tip-title + data-tip onto whatever that
+// lands on. The wrapper exists so the ANCHOR is the cell a user aims at rather
+// than the addressable child inside it.
+//
+// THE THREE KNOBS BIND THROUGH .knob-container, NOT TO .knob. The .knob itself
+// is 65 x 65 px; its container is that knob plus the caption above and the
+// readout below, and the caption is the part a user's pointer arrives at first
+// when they are asking "what is this?". Binding the 65 px circle alone would put
+// FREQUENCY's own 86 px caption outside its own tooltip. The knob ids are the
+// selectors because they are what this page gives an id to — the containers
+// carry none, and inventing three ids would be markup churn for nothing.
+//
+// The two chrome anchors take no wrapper: #gear-btn is a 20 px button that IS
+// the hover target, and #lang-select is the select itself. Binding the
+// .settings-row label around the selector would make the caption LANGUAGE and
+// the selector share one tip, which reads as one control and is one control —
+// but the row is only 152 px of an already-open popover, and a tip anchored
+// there would also fire while the pointer is merely crossing the panel.
+//
+// EVERY SELECTOR HERE IS ASSERTED TO RESOLVE by tests/ui_tip_render_check.js.
+// applyI18n's own `i18n: tip target not found` is a console.warn, which
+// boot-all-uis reports but nothing fails on.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#frequencyKnob', 'tip.frequency', '.knob-container'],
+    ['#enhanceKnob',   'tip.enhance',   '.knob-container'],
+    ['#outputKnob',    'tip.output',    '.knob-container'],
+    ['#gear-btn',      'tip.settings'],
+    ['#lang-select',   'tip.language'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v1.5.0: applyI18n() calls it once per TIP_BINDINGS row, on every
+// language change, and the five rows below are no longer zero. It is exported
+// verbatim all the same, so the canon block stays byte-identical to the other
+// forty-two copies.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
