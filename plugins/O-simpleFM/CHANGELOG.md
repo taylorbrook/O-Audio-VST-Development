@@ -3,6 +3,66 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout — a second reading of
+every French entry against the suite glossary (`scripts/i18n-fr-glossary.js`) and
+the French lint (`scripts/i18n-fr-lint.js`). **No native speaker has read it yet:
+all 80 entries stay `reviewed: false`, which is what that flag means.**
+
+### Changed
+- **41 of 107 French strings revised** against the suite glossary and lint,
+  which went **63 findings → 3**. By dominant change: 10 terminology, 6 meaning,
+  5 grammar/register, 20 typography.
+  - *Terminology.* The ADSR family took the settled French: **Chute → Déclin**
+    and **Relâche → Relâchement** on the shared envelope captions, and the four
+    amplitude tip titles spell the parameter out (*Attaque d'amplitude*,
+    *Déclin d'amplitude*, *Maintien d'amplitude*, *Relâchement d'amplitude*).
+    *Chemin du signal* → **Chaîne du signal** on the routing caption and its tip.
+  - *Typography.* Straight apostrophes → **typographic ’** throughout: this
+    plugin's French was drafted with `'` where thirty-two others already used
+    `’`, and all 26 converted. No-break spaces before `: ; ? %`, between a
+    number and its unit (*0,45 s*, *3 s*, *60 %*), and inside the guillemets of
+    the delete confirmation.
+  - *Meaning.* "Pitched" was rendered *accordé* (in tune) in four bodies and is
+    now **à hauteur définie** — an inharmonic bell is not out of tune, it has no
+    definite pitch, and that distinction is the lesson. The Tubular Bell tip
+    named the control by its function (*arrondi désactivé*) rather than by the
+    caption on the page, and now says **rapport entier désactivé**. The Clang
+    tip said the sidebands themselves were *non entières*; they sit at
+    non-integer multiples.
+  - *Register.* One instruction style on the page: the settings tip is now
+    imperative (*Choisissez la langue…*) like the tour caption and the keyboard
+    hint. *cliquez les touches* → **cliquez sur les touches**.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Kept, on a measurement
+- **The carrier-null badge stays "porteuse nulle"** rather than taking the
+  glossary's *extinction de la porteuse*. The settled term measures **160.7 px**
+  against the **102 px** the badge is pinned to, and the badge is the last inline
+  box on a right-aligned readout line — it would drag both live numbers and the
+  readout column 58.7 px left (x 616 → 557.3). The glossary lists no
+  abbreviation for the term; the reading is reported so it can grow one. The
+  badge's own tooltip title does carry the settled term.
+- **"Fréq. fixe" stays**, with a `termNote`: this control is an absolute
+  frequency in Hz, which is the one case the glossary's own gloss allows.
+- **"Leçons" stays** — the glossary's short form; the root wraps to two lines
+  inside the 99 px `.tour-label` pin.
+
+### Verified
+- `i18n-fr-lint` 63 → 3, and the three that remain are structural: two are a
+  contradiction between the glossary's TERMS table and its FORBIDDEN list, one
+  is the badge width above. Reported, not worked around.
+- `check-ui-labels` all assertions pass, with **0 non-label elements moved**
+  between English and French at the 760 × 980 frame — unchanged from before the
+  pass. Negative control: a caption 51 px wider than the shipped *Relâchement*
+  fails assertions [8] and [8b] in both envelope racks.
+- 27 tooltips hovered with a real pointer in both languages, 336 assertions,
+  every tip opening inside the frame with its right-edge flip exercised.
+- `check-i18n` ALL CHECKS PASS; `boot-all-uis` 43/43 clean.
+
 ## [1.3.0] — 2026-08-28
 
 **The PAGE speaks French, not only the hover help.** (Stage I batch I2, canon v2 —

@@ -18,7 +18,74 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simpleFM interface copy, English + French (v1.3.0)
+// i18n.js — O-simpleFM interface copy, English + French (v1.3.1)
+//
+// ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 41 of 107 entries (10 terminology, 6 meaning, 5 grammar/register,
+// 20 typography), counted by each entry's DOMINANT change — the typography pass
+// (apostrophe U+2019, U+00A0 before : ; ? % and between a number and its unit)
+// also touched most of the other 21. sameAsEn: kept 1, translated 0 — "MOD" is
+// the same three letters in French, and it is a 48 px SVG node caption.
+// termNote exemptions: 1, on label.knobFixedHz. Left as drafted: the rest.
+// reviewed: false throughout — no native speaker has read any of it.
+//
+// scripts/i18n-fr-lint.js went 63 findings -> 3. The three that remain are NOT
+// fixable from this file and are reported to the orchestrator:
+//   - F1 on label.knobFixedHz "Fréq. fixe". The glossary's own gloss on "fréq."
+//     says to keep it for a frequency in Hz, which this control is
+//     (FMVoice.h:210 uses it as fm when Fixed Mode is on). A termNote is the
+//     documented exemption mechanism and the lint DOES list it as EXEMPT — but
+//     termNote only suppresses G1, so F1 is still counted.
+//   - F1 on the carrierNull tip TITLE "Extinction de la porteuse". That string
+//     is the glossary's own settled term for "carrier null"
+//     (TERMS['carrier null']), and FORBIDDEN_IN_LABELS['extinction'] fires on
+//     it — while that entry's gloss says "unless it is a reverb tail OR A
+//     CARRIER NULL". Every G1-clean rendering of this key trips F1.
+//   - G1 on label.carrierNull "porteuse nulle", kept for MEASURED width: see
+//     the badge note below.
+//
+// Decisions the next reader needs:
+//  - THE ENVELOPE CAPTIONS TOOK THE ROOT TERMS, MEASURED. "Déclin" 38.4 px and
+//    "Relâchement" 77.3 px in the 56 px envelope cells (.knob-label is nowrap
+//    and shrink-wraps, so a caption overflows symmetrically into the row gap
+//    rather than wrapping — see the v1.3.0 CSS note). Tightest clearance is
+//    "Relâchement" to "Maintien" at 15.5 px, wider than the page's existing
+//    worst pair. Negative control: "Relâchement complet" (128.7 px) overlaps
+//    "Maintien" by 10.2 px and check-ui-labels [8] and [8b] both FAIL on it, in
+//    both racks — so the pass is a measurement, not a blind spot.
+//  - THE CARRIER-NULL BADGE KEPT "porteuse nulle" AGAINST THE GLOSSARY. The
+//    settled term "extinction de la porteuse" measures 160.7 px against the
+//    102 px the badge is pinned to (.carrier-null-badge min-width, set in
+//    v1.3.0 for "porteuse nulle" at 101.1 px). The badge is the LAST inline box
+//    on a right-aligned readout line, so +58.7 px drags the two live numbers
+//    and the whole readout column left with it — measured x 616 -> 557.3. The
+//    glossary lists no abbreviation for this term; per the Stage N brief the
+//    term is kept and REPORTED so the glossary can grow one. The tip TITLE on
+//    the same badge does carry the settled term, so the user meets it on hover.
+//  - "Fréq. fixe" KEPT, with a termNote. See above; the alternative "Hz fixe"
+//    would be lint-clean, and choosing it would be dodging a false positive
+//    rather than reporting it.
+//  - "Leçons" KEPT for label.lessonPresets. It is the glossary's own second
+//    (short) form for "lesson presets", and the root "Préréglages de leçon"
+//    wraps to two lines inside the 99 px .tour-label pin (max line 83.8 px),
+//    which would grow the tour row.
+//  - "Rapport", NOT "Ratio", for the C:M ratio. The glossary settles Ratio ->
+//    Ratio for the DYNAMICS control (it sits in the dynamics block, beside
+//    Seuil and Coude); this is a frequency ratio, where "rapport C:M" is the
+//    French of the FM literature. The lint agrees — it keys on the full English
+//    caption, and "ratio (c : m)" is not in TERMS.
+//  - "hauteur définie" REPLACED "accordé" for "pitched" in four bodies. An
+//    inharmonic bell is not out of tune; it has no definite pitch, and that
+//    distinction is the lesson this plugin teaches.
+//  - THE C:M ORDERING IS THE ENGLISH'S, AND THE ENGLISH IS INVERTED. FMVoice.h:210
+//    computes fm = carrierHz * ratio, so the knob is the MODULATOR-to-carrier
+//    ratio: at 2.00 the modulator runs at twice the carrier, which is C:M = 1:2.
+//    The tip BODY ("Fréquence du modulateur par rapport à la porteuse") and the
+//    Clarinet lesson's odd-harmonic claim are both correct under that reading;
+//    only the "C : M" ordering in the caption, the tip title and the automation
+//    name is backwards. Stage N does not change English — the French mirrors it
+//    deliberately, and the defect is reported.
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin. This
 // file is a SOURCES entry in juce_add_binary_data(O-simpleFM_UIResources) and is
@@ -112,14 +179,14 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Choose the language of the interface. The choice is remembered with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Choisir la langue de l'interface. Le choix est conservé avec la session : un projet se rouvre dans la langue où il a été enregistré.",
+              b: "Choisissez la langue de l’interface. Le choix est conservé avec la session : un projet se rouvre dans la langue où il a été enregistré.",
               reviewed: false },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; value readouts, the preset names and the lesson buttons stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les boutons de leçon restent en anglais.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les boutons de leçon restent en anglais.",
               reviewed: false },
     },
 
@@ -127,43 +194,43 @@ export const I18N = Object.freeze({
     ratio: {
         en: { t: "Ratio (C : M)",
               b: "Frequency of the modulator relative to the carrier. Whole-number ratios (1, 2, 3...) give harmonic, pitched timbres; irrational ratios (1.41, 2.76) give inharmonic, bell-like tones." },
-        fr: { t: "Rapport (P : M)",
-              b: "Fréquence du modulateur par rapport à la porteuse. Les rapports entiers (1, 2, 3...) donnent des timbres harmoniques et clairement accordés ; les rapports irrationnels (1,41 ; 2,76) donnent des sons inharmoniques, proches de la cloche.",
+        fr: { t: "Rapport (P : M)",
+              b: "Fréquence du modulateur par rapport à la porteuse. Les rapports entiers (1, 2, 3...) donnent des timbres harmoniques, à hauteur définie ; les rapports irrationnels (1,41 ; 2,76) donnent des sons inharmoniques, proches de la cloche.",
               reviewed: false },
     },
     modIndex: {
         en: { t: "Modulation Index",
               b: "How hard the modulator bends the carrier's phase. Zero = pure sine. Raising it grows more and louder sidebands — the core of FM brightness." },
         fr: { t: "Indice de modulation",
-              b: "À quel point le modulateur infléchit la phase de la porteuse. Zéro = sinusoïde pure. En l'augmentant, les bandes latérales deviennent plus nombreuses et plus fortes — le cœur de la brillance FM.",
+              b: "À quel point le modulateur infléchit la phase de la porteuse. Zéro = sinusoïde pure. En l’augmentant, les bandes latérales deviennent plus nombreuses et plus fortes — le cœur de la brillance FM.",
               reviewed: false },
     },
     feedback: {
         en: { t: "Feedback",
               b: "Routes the modulator back into itself. Pushes the modulator's shape from sine toward sawtooth, then toward noise — smearing the spectrum." },
         fr: { t: "Réinjection",
-              b: "Renvoie le modulateur dans lui-même. Fait passer sa forme d'onde de la sinusoïde vers la dent de scie, puis vers le bruit — ce qui étale le spectre.",
+              b: "Renvoie le modulateur sur lui-même. Fait passer sa forme d’onde de la sinusoïde vers la dent de scie, puis vers le bruit — ce qui étale le spectre.",
               reviewed: false },
     },
     modFixedHz: {
         en: { t: "Fixed Modulator Hz",
               b: "When Fixed Mode is on, the modulator runs at this absolute frequency instead of tracking the played note — producing formant-like, key-independent colour." },
         fr: { t: "Fréquence fixe du modulateur",
-              b: "Quand le mode fixe est actif, le modulateur tourne à cette fréquence absolue au lieu de suivre la note jouée — d'où une couleur de type formant, indépendante du clavier.",
+              b: "Quand le mode fixe est actif, le modulateur oscille à cette fréquence absolue au lieu de suivre la note jouée — d’où une couleur de type formant, indépendante du clavier.",
               reviewed: false },
     },
     modEnvToIndex: {
         en: { t: "Env → Index Depth",
               b: "How much the modulator envelope drives the index over time. This makes the timbre evolve after the key is struck (bright attack → mellow tail)." },
         fr: { t: "Profondeur env. → indice",
-              b: "Dans quelle mesure l'enveloppe du modulateur pilote l'indice au fil du temps. C'est ce qui fait évoluer le timbre après la frappe (attaque brillante → fin de son adoucie).",
+              b: "Dans quelle mesure l’enveloppe du modulateur pilote l’indice au fil du temps. C’est ce qui fait évoluer le timbre après la frappe (attaque brillante → fin de son adoucie).",
               reviewed: false },
     },
     velToIndex: {
         en: { t: "Velocity → Index",
               b: "Lets how hard you play add to the modulation index — harder strikes become brighter, like an acoustic instrument." },
         fr: { t: "Vélocité → indice",
-              b: "Laisse la force de jeu s'ajouter à l'indice de modulation — plus la frappe est forte, plus le son est brillant, comme sur un instrument acoustique.",
+              b: "Laisse la force de jeu s’ajouter à l’indice de modulation — plus la frappe est forte, plus le son est brillant, comme sur un instrument acoustique.",
               reviewed: false },
     },
 
@@ -172,14 +239,14 @@ export const I18N = Object.freeze({
         en: { t: "Mod Attack",
               b: "Time for the modulator (brightness) envelope to rise after note-on." },
         fr: { t: "Attaque mod.",
-              b: "Temps que met l'enveloppe du modulateur (la brillance) à monter après le début de la note.",
+              b: "Temps que met l’enveloppe du modulateur (la brillance) à monter après le début de la note.",
               reviewed: false },
     },
     modDecay: {
         en: { t: "Mod Decay",
               b: "Time for the modulator envelope to fall from peak to its sustain level." },
-        fr: { t: "Chute mod.",
-              b: "Temps que met l'enveloppe du modulateur à descendre du sommet vers son niveau de maintien.",
+        fr: { t: "Déclin mod.",
+              b: "Temps que met l’enveloppe du modulateur à descendre du sommet vers son niveau de maintien.",
               reviewed: false },
     },
     modSustain: {
@@ -192,8 +259,8 @@ export const I18N = Object.freeze({
     modRelease: {
         en: { t: "Mod Release",
               b: "Time for brightness to fade after the key is released." },
-        fr: { t: "Relâche mod.",
-              b: "Temps que met la brillance à s'éteindre après le relâchement de la touche.",
+        fr: { t: "Relâchement mod.",
+              b: "Temps que met la brillance à s’éteindre après le relâchement de la touche.",
               reviewed: false },
     },
 
@@ -201,29 +268,29 @@ export const I18N = Object.freeze({
     ampAttack: {
         en: { t: "Amp Attack",
               b: "Time for loudness to rise after note-on." },
-        fr: { t: "Attaque ampl.",
+        fr: { t: "Attaque d’amplitude",
               b: "Temps que met le volume à monter après le début de la note.",
               reviewed: false },
     },
     ampDecay: {
         en: { t: "Amp Decay",
               b: "Time for loudness to fall from peak to its sustain level." },
-        fr: { t: "Chute ampl.",
+        fr: { t: "Déclin d’amplitude",
               b: "Temps que met le volume à descendre du sommet vers son niveau de maintien.",
               reviewed: false },
     },
     ampSustain: {
         en: { t: "Amp Sustain",
               b: "Held loudness while the key stays down." },
-        fr: { t: "Maintien ampl.",
+        fr: { t: "Maintien d’amplitude",
               b: "Volume tenu tant que la touche reste enfoncée.",
               reviewed: false },
     },
     ampRelease: {
         en: { t: "Amp Release",
               b: "Time for loudness to fade after the key is released — also sets how long the voice rings out." },
-        fr: { t: "Relâche ampl.",
-              b: "Temps que met le volume à s'éteindre après le relâchement de la touche — cela fixe aussi la durée pendant laquelle la voix continue de sonner.",
+        fr: { t: "Relâchement d’amplitude",
+              b: "Temps que met le volume à s’éteindre après le relâchement de la touche — cela fixe aussi la durée pendant laquelle la voix continue de sonner.",
               reviewed: false },
     },
 
@@ -259,15 +326,15 @@ export const I18N = Object.freeze({
     routing: {
         en: { t: "Signal Path",
               b: "MOD modulates the phase of CAR; MOD's self-loop is Feedback. Arrow thickness reflects Mod Index and Feedback amount." },
-        fr: { t: "Chemin du signal",
-              b: "MOD module la phase de POR ; la boucle de MOD sur lui-même est la réinjection. L'épaisseur des flèches reflète l'indice de modulation et le taux de réinjection.",
+        fr: { t: "Chaîne du signal",
+              b: "MOD module la phase de POR ; la boucle de MOD sur lui-même est la réinjection. L’épaisseur des flèches reflète l’indice de modulation et le taux de réinjection.",
               reviewed: false },
     },
     readout: {
         en: { t: "Live FM Readout",
               b: "The two numbers that define the tone, updating as you play. Left — the C : M ratio: the modulator's frequency relative to the played note, which sets which harmonics appear (whole numbers = pitched, irrational = bell-like). Right — I, the modulation index: how hard the modulator bends the carrier, which sets the brightness (more index = more sidebands)." },
         fr: { t: "Affichage FM en direct",
-              b: "Les deux nombres qui définissent le timbre, mis à jour pendant le jeu. À gauche — le rapport P : M, la fréquence du modulateur par rapport à la note jouée, qui décide quelles harmoniques apparaissent (entiers = son accordé, irrationnels = son de cloche). À droite — I, l'indice de modulation : à quel point le modulateur infléchit la porteuse, ce qui décide la brillance (indice plus élevé = plus de bandes latérales).",
+              b: "Les deux nombres qui définissent le timbre, mis à jour pendant le jeu. À gauche — le rapport P : M, la fréquence du modulateur par rapport à la note jouée, qui détermine quelles harmoniques apparaissent (entiers = hauteur définie, irrationnels = son de cloche). À droite — I, l’indice de modulation : à quel point le modulateur infléchit la porteuse, ce qui détermine la brillance (indice plus élevé = plus de bandes latérales).",
               reviewed: false },
     },
     // MOVED from the native title= on #carrierNullBadge, verbatim, entities
@@ -277,7 +344,7 @@ export const I18N = Object.freeze({
         en: { t: "Carrier null",
               b: "Carrier null: the modulation index sits at the first Bessel J₀ zero (β ≈ 2.405), so the carrier (f\u200bc) vanishes and all energy moves into the sidebands." },
         fr: { t: "Extinction de la porteuse",
-              b: "Extinction de la porteuse : l'indice de modulation se trouve au premier zéro de la fonction de Bessel J₀ (β ≈ 2,405), donc la porteuse (f\u200bc) disparaît et toute l'énergie passe dans les bandes latérales.",
+              b: "Extinction de la porteuse : l’indice de modulation se trouve au premier zéro de la fonction de Bessel J₀ (β ≈ 2,405), donc la porteuse (f\u200bc) disparaît et toute l’énergie passe dans les bandes latérales.",
               reviewed: false },
     },
 
@@ -288,35 +355,35 @@ export const I18N = Object.freeze({
         en: { t: "E-Piano · how it's built",
               b: "Carrier:modulator 1:1 (harmonic). A fast mod-envelope (decay 0.45 s → zero sustain) sweeps the index down from 5.5, so a bright pluck attack collapses to a near-pure sine as it rings. Velocity adds index — strike harder, sound brighter." },
         fr: { t: "E-Piano · comment il est fait",
-              b: "Porteuse:modulateur 1:1 (harmonique). Une enveloppe de modulation rapide (chute 0,45 s → maintien nul) fait descendre l'indice depuis 5,5 : une attaque pincée brillante s'effondre vers une sinusoïde presque pure pendant que la note sonne. La vélocité ajoute de l'indice — plus fort on frappe, plus c'est brillant.",
+              b: "Porteuse:modulateur 1:1 (harmonique). Une enveloppe de modulation rapide (déclin 0,45 s → maintien nul) fait descendre l’indice depuis 5,5 : une attaque pincée brillante s’effondre vers une sinusoïde presque pure pendant que la note sonne. La vélocité ajoute de l’indice — plus on frappe fort, plus le son est brillant.",
               reviewed: false },
     },
     lessonTubular: {
         en: { t: "Tubular Bell · how it's built",
               b: "Inharmonic ratio 1.41 (≈√2, snap off) puts sidebands at non-integer multiples, so the partials never fuse into a pitch — that's the metallic ring. High index (8) plus long ≈3 s decays let it shimmer out." },
         fr: { t: "Tubular Bell · comment il est fait",
-              b: "Un rapport inharmonique de 1,41 (≈√2, arrondi désactivé) place les bandes latérales à des multiples non entiers : les partiels ne fusionnent jamais en une hauteur claire — d'où la sonnerie métallique. Un indice élevé (8) et de longues chutes d'environ 3 s le laissent scintiller jusqu'au bout.",
+              b: "Un rapport inharmonique de 1,41 (≈√2, rapport entier désactivé) place les bandes latérales à des multiples non entiers : les partiels ne fusionnent jamais en une hauteur définie — d’où la sonnerie métallique. Un indice élevé (8) et de longs déclins d’environ 3 s le laissent scintiller jusqu’au bout.",
               reviewed: false },
     },
     lessonBrass: {
         en: { t: "Brass · how it's built",
               b: "Carrier:modulator 1:1 (harmonic). The index (4) swells in with the attack and holds at sustain — brightness tracks loudness, the way a blown brass note brightens as it gets louder." },
         fr: { t: "Brass · comment il est fait",
-              b: "Porteuse:modulateur 1:1 (harmonique). L'indice (4) enfle avec l'attaque et se maintient — la brillance suit le volume, comme une note de cuivre qui s'éclaircit à mesure qu'on souffle plus fort.",
+              b: "Porteuse:modulateur 1:1 (harmonique). L’indice (4) enfle avec l’attaque et tient au niveau de maintien — la brillance suit le volume, comme une note de cuivre qui s’éclaircit à mesure qu’on souffle plus fort.",
               reviewed: false },
     },
     lessonClarinet: {
         en: { t: "Clarinet · how it's built",
               b: "Carrier:modulator 2:1. A low index (2.2) keeps the spectrum sparse, and the 2:1 ratio emphasises odd harmonics → the hollow, stopped-pipe woody tone. High sustain, so it speaks steadily like a reed." },
         fr: { t: "Clarinet · comment il est fait",
-              b: "Porteuse:modulateur 2:1. Un indice faible (2,2) garde le spectre clairsemé, et le rapport 2:1 met en avant les harmoniques impaires → le timbre creux et boisé du tuyau bouché. Maintien élevé : le son parle de façon régulière, comme une anche.",
+              b: "Porteuse:modulateur 2:1. Un indice faible (2,2) garde le spectre clairsemé, et le rapport 2:1 met en avant les harmoniques impaires → le timbre creux et boisé du tuyau bouché. Maintien élevé : le son parle de façon régulière, comme une anche.",
               reviewed: false },
     },
     lessonClang: {
         en: { t: "Clang Bell · how it's built",
               b: "Inharmonic ratio 3.46 plus a very high index (14) throw a dense thicket of non-integer sidebands; 60% feedback bends the modulator toward noise. The spectrum smears into an atonal clang rather than a pitch." },
         fr: { t: "Clang Bell · comment il est fait",
-              b: "Un rapport inharmonique de 3,46 et un indice très élevé (14) projettent un fourré dense de bandes latérales non entières ; 60 % de réinjection pousse le modulateur vers le bruit. Le spectre s'étale en un fracas atonal plutôt qu'en une hauteur.",
+              b: "Un rapport inharmonique de 3,46 et un indice très élevé (14) projettent un fourré dense de bandes latérales à des multiples non entiers ; 60 % de réinjection pousse le modulateur vers le bruit. Le spectre s’étale en un fracas atonal plutôt qu’en une hauteur définie.",
               reviewed: false },
     },
 });
@@ -330,7 +397,7 @@ export const LABELS = Object.freeze({
     // ── Header ──────────────────────────────────────────────────────────────
     'label.subtitle': {
         en: { t: "Two-Operator Phase-Modulation Synthesizer · A Field Guide" },
-        fr: { t: "Synthétiseur à modulation de phase à deux opérateurs · un guide de terrain", reviewed: false },
+        fr: { t: "Synthétiseur deux opérateurs à modulation de phase · un guide de terrain", reviewed: false },
     },
     // The preset bar. The NAME shown between them is a preset name and is never
     // translated (D-02); these two are verbs on buttons and are.
@@ -352,11 +419,11 @@ export const LABELS = Object.freeze({
     },
     'label.vizSpectrumHint': {
         en: { t: "discrete sidebands bloom as Mod Index rises" },
-        fr: { t: "les bandes latérales discrètes éclosent quand l'indice monte", reviewed: false },
+        fr: { t: "les bandes latérales discrètes éclosent quand l’indice monte", reviewed: false },
     },
     'label.vizWaveform': {
         en: { t: "Waveform ·" },
-        fr: { t: "Forme d'onde ·", reviewed: false },
+        fr: { t: "Forme d’onde ·", reviewed: false },
     },
     // SHORTENED, and flagged for the reviewer. The faithful "la forme de la
     // porteuse qui en résulte" measures 226.1px against the ~165px this hint has
@@ -374,7 +441,7 @@ export const LABELS = Object.freeze({
     // ── Routing diagram ─────────────────────────────────────────────────────
     'label.signalPath': {
         en: { t: "Signal Path" },
-        fr: { t: "Chemin du signal", reviewed: false },
+        fr: { t: "Chaîne du signal", reviewed: false },
     },
     // The two operator nodes. Three letters each in BOTH languages, on purpose:
     // they sit inside 48 px SVG circles and the French abbreviation of
@@ -419,7 +486,7 @@ export const LABELS = Object.freeze({
     },
     'label.groupAmpEnv': {
         en: { t: "Amplitude Envelope" },
-        fr: { t: "Enveloppe d'amplitude", reviewed: false },
+        fr: { t: "Enveloppe d’amplitude", reviewed: false },
     },
     'label.groupOutput': {
         en: { t: "Output" },
@@ -444,7 +511,8 @@ export const LABELS = Object.freeze({
     },
     'label.knobFixedHz': {
         en: { t: "Fixed Hz" },
-        fr: { t: "Fréq. fixe", reviewed: false },
+        fr: { t: "Fréq. fixe", reviewed: false,
+              termNote: 'this control IS an absolute frequency in Hz (FMVoice.h:210 uses it as fm when Fixed Mode is on), which is the one case the glossary\'s own gloss on "fréq." allows — it forbids Fréq. only where the English is a rate' },
     },
     'label.knobEnvIndex': {
         en: { t: "Env→Index" },
@@ -460,7 +528,7 @@ export const LABELS = Object.freeze({
     },
     'label.knobDecay': {
         en: { t: "Decay" },
-        fr: { t: "Chute", reviewed: false },
+        fr: { t: "Déclin", reviewed: false },
     },
     'label.knobSustain': {
         en: { t: "Sustain" },
@@ -468,7 +536,7 @@ export const LABELS = Object.freeze({
     },
     'label.knobRelease': {
         en: { t: "Release" },
-        fr: { t: "Relâche", reviewed: false },
+        fr: { t: "Relâchement", reviewed: false },
     },
     'label.knobLevel': {
         en: { t: "Level" },
@@ -498,7 +566,7 @@ export const LABELS = Object.freeze({
     // NAME, which stays English for the same reason the button faces do.
     'label.captionEpiano': {
         en: { t: "E-Piano — ratio 1:1 + a fast mod-envelope makes a bright pluck that mellows to a sine." },
-        fr: { t: "E-Piano — rapport 1:1 et une enveloppe de modulation rapide : un pincement brillant qui s'adoucit vers une sinusoïde.", reviewed: false },
+        fr: { t: "E-Piano — rapport 1:1 et une enveloppe de modulation rapide : un pincement brillant qui s’adoucit vers une sinusoïde.", reviewed: false },
     },
     'label.captionTubular': {
         en: { t: "Tubular Bell — an inharmonic ratio (1.41) sprays non-integer sidebands → metallic ring." },
@@ -506,7 +574,7 @@ export const LABELS = Object.freeze({
     },
     'label.captionBrass': {
         en: { t: "Brass — ratio 1:1, index rises with the amp envelope; sustained, vowel-bright." },
-        fr: { t: "Brass — rapport 1:1, l'indice monte avec l'enveloppe d'amplitude ; tenu, brillant comme une voyelle.", reviewed: false },
+        fr: { t: "Brass — rapport 1:1, l’indice monte avec l’enveloppe d’amplitude ; tenu, brillant comme une voyelle.", reviewed: false },
     },
     'label.captionClarinet': {
         en: { t: "Clarinet — ratio 2:1 + low index emphasises odd harmonics → hollow, woody tone." },
@@ -527,7 +595,7 @@ export const LABELS = Object.freeze({
     // translated; only the sentence around them is.
     'label.kbdHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
-        fr: { t: "cliquez les touches ou utilisez le clavier de l'ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: false },
+        fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: false },
     },
 
     // ── Built from script ───────────────────────────────────────────────────
@@ -547,7 +615,7 @@ export const LABELS = Object.freeze({
     // value that is not itself a key literally, which is what is wanted here.
     'ui.deleteConfirm': {
         en: { t: "Delete preset \"{name}\"?" },
-        fr: { t: "Supprimer le préréglage « {name} » ?", reviewed: false },
+        fr: { t: "Supprimer le préréglage « {name} » ?", reviewed: false },
     },
     'ui.delete': {
         en: { t: "Delete" },
@@ -569,7 +637,7 @@ export const LABELS = Object.freeze({
     },
     'aria.langSelect': {
         en: { t: "Interface language" },
-        fr: { t: "Langue de l'interface", reviewed: false },
+        fr: { t: "Langue de l’interface", reviewed: false },
     },
     // MOVED from four native title= attributes deleted per contract §4. Two of
     // them (prev/next) duplicated an aria-label that was already there; the
@@ -600,7 +668,7 @@ export const LABELS = Object.freeze({
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
-        fr: { t: "Clavier à l'écran", reviewed: false },
+        fr: { t: "Clavier à l’écran", reviewed: false },
     },
 });
 
