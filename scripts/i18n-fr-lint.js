@@ -159,7 +159,12 @@ async function lintPlugin(name) {
             continue;
         }
         // labels and titles from here on
-        if (r.frObj.sameAsEn === true) info.sameAsEn.push(r);
+        // A straight copy is the CONDITION (fr === en), not the flag. The first
+        // draft counted the flag and printed 0 on a page with an unflagged copy
+        // (O-Texture pilot, tip.mode). Both are listed; the unflagged ones are
+        // the ones check-i18n assertion 4 will refuse once they are LABELS or
+        // once a tooltip's body matches too.
+        if (norm(r.fr) === norm(r.en)) info.sameAsEn.push({ ...r, flagged: r.frObj.sameAsEn === true });
         // A termNote is THE reasoned exemption, and it exempts the entry from
         // both term checks — G1 and F1. The first draft guarded only G1, so an
         // entry was printed as EXEMPT and counted as an F1 finding in the same
@@ -196,7 +201,7 @@ async function lintPlugin(name) {
 
     const CODES = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'G1', 'C1', 'F1'];
     const totals = Object.fromEntries(CODES.map((c) => [c, 0]));
-    let failedPlugins = 0, errors = 0, sameAsEnTotal = 0, termNoteTotal = 0;
+    let failedPlugins = 0, errors = 0, sameAsEnTotal = 0, sameAsEnFlagged = 0, termNoteTotal = 0;
 
     console.log('  ' + 'plugin'.padEnd(28) + ' rows ' + CODES.map((c) => c.padStart(4)).join('') + '   total');
     const details = [];
@@ -207,9 +212,9 @@ async function lintPlugin(name) {
         for (const c of CODES) totals[c] += per[c];
         const n = r.findings.length;
         if (n) failedPlugins++;
-        sameAsEnTotal += r.info.sameAsEn.length; termNoteTotal += r.info.termNote.length;
+        sameAsEnTotal += r.info.sameAsEn.length; sameAsEnFlagged += r.info.sameAsEn.filter((x) => x.flagged).length; termNoteTotal += r.info.termNote.length;
         console.log(`  ${name.padEnd(28)} ${String(r.rows).padStart(4)} ` + CODES.map((c) => String(per[c] || '·').padStart(4)).join('') + `   ${String(n).padStart(5)}${n ? '' : '  ✓'}`);
-        if (n || r.info.termNote.length) details.push(r);
+        if (n || r.info.termNote.length || r.info.sameAsEn.some((x) => !x.flagged)) details.push(r);
     }
     console.log('  ' + '─'.repeat(28 + 6 + CODES.length * 4 + 8));
     console.log('  ' + 'TOTAL'.padEnd(28) + '      ' + CODES.map((c) => String(totals[c]).padStart(4)).join('') + `   ${String(Object.values(totals).reduce((a, b) => a + b, 0)).padStart(5)}`);
@@ -224,11 +229,12 @@ async function lintPlugin(name) {
         }
         if (r.findings.length > shown.length) console.log(`  … ${r.findings.length - shown.length} more (--verbose)`);
         for (const t of r.info.termNote) console.log(`  EXEMPT (termNote) ${t.kind} ${t.key}: "${t.fr}" — ${t.frObj.termNote}`);
+        for (const c of r.info.sameAsEn.filter((x) => !x.flagged)) console.log(`  INFO  straight copy, unflagged: ${c.kind} ${c.key}: "${c.fr}"`);
     }
 
     console.log(`\n-- summary`);
     console.log(`  plugins with findings: ${failedPlugins} / ${plugins.length}${errors ? `   (${errors} could not be read)` : ''}`);
-    console.log(`  sameAsEn entries (info): ${sameAsEnTotal}   termNote exemptions (info): ${termNoteTotal}`);
+    console.log(`  straight copies fr === en (info): ${sameAsEnTotal}, of which ${sameAsEnFlagged} carry sameAsEn: true   termNote exemptions (info): ${termNoteTotal}`);
     console.log(`  codes: T1 apostrophe  T2 decimal point  T3 % spacing  T4 colon  T5 ;!?  T6 minus  T7 unit  G1 glossary  C1 casing  F1 forbidden word`);
     const anyFail = failedPlugins > 0 || errors > 0;
     if (strict && anyFail) { console.log('\nSTRICT: failures present — exit 2'); process.exit(2); }
