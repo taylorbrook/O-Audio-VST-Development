@@ -318,9 +318,9 @@ export const I18N = Object.freeze({
     // RANGES. Ten parameters carry a real `label` in the dump (s, %, dB) and are
     // quoted as dumped. Three do not — sustain, polyphony and velocity_crossfade
     // — and their ranges are phrased from the page's OWN formatter, KNOB_FORMATS
-    // in js/sampler-app.js: sustain and velocity_crossfade at :356-357 / :368-369
-    // render `v.toFixed(2)` with an EMPTY suffix, so the range is a bare 0.00 to
-    // 1.00 and no unit is invented; polyphony at :359-360 renders
+    // in js/sampler-app.js: sustain at :504-505 and velocity_crossfade at
+    // :510-511 render `v.toFixed(2)` with an EMPTY suffix, so the range is a bare
+    // 0.00 to 1.00 and no unit is invented; polyphony at :508-509 renders
     // `Math.round(v)` with an empty suffix, so "voices" is the page's own word
     // for what it counts, taken from the caption Poly rather than from a unit
     // string. The six technique / keyswitch / CC / PC parameters have empty
