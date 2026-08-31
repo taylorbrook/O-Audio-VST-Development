@@ -28,7 +28,16 @@
 */
 
 #include "PluginProcessor.h"
+
+// PluginEditor.h is included behind #if JUCE_WEB_BROWSER, and every use of
+// TextureForgeEditor below carries the same guard. The param-dump console
+// target (scripts/param-dump) compiles this TU with JUCE_WEB_BROWSER=0 and no
+// editor sources, so the editor is not a complete type there. Under a normal
+// build JUCE_WEB_BROWSER=1 and every guarded arm is taken — behaviour is
+// byte-identical to v1.1.0.
+#if JUCE_WEB_BROWSER
 #include "PluginEditor.h"
+#endif
 
 TextureForgeProcessor::TextureForgeProcessor()
     : AudioProcessor(BusesProperties()
@@ -221,7 +230,13 @@ void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
 juce::AudioProcessorEditor* TextureForgeProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new TextureForgeEditor(*this);
+#else
+    // The param-dump console target never opens an editor; this keeps the TU
+    // linkable without the editor sources.
+    return new juce::GenericAudioProcessorEditor(*this);
+#endif
 }
 
 void TextureForgeProcessor::getStateInformation(juce::MemoryBlock& destData)
@@ -293,8 +308,10 @@ void TextureForgeProcessor::setStateInformation(const void* data, int sizeInByte
                 }
                 else if (savedPath.isNotEmpty())
                 {
+#if JUCE_WEB_BROWSER
                     if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
                         editor->onCorpusMissing(savedPath);
+#endif
                 }
             });
         }
@@ -322,10 +339,12 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
                 juce::Logger::writeToLog("Corpus loaded: " + juce::String(newCorpus->grains.size()) + " grains");
 
                 // Notify editor
+#if JUCE_WEB_BROWSER
                 if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
                 {
                     editor->onCorpusLoaded(static_cast<int>(newCorpus->grains.size()));
                 }
+#endif
             }
         },
         // UMAP progress callback
@@ -334,6 +353,7 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
             if (guard.expired())
                 return;
 
+#if JUCE_WEB_BROWSER
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
                 if (progress < 0.0f)
@@ -363,6 +383,9 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
                     editor->onUmapProgress(progress);
                 }
             }
+#else
+            juce::ignoreUnused(progress);
+#endif
         },
         // Failure callback
         [this, guard](const juce::String& reason)
@@ -370,10 +393,14 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
             if (guard.expired())
                 return;
 
+#if JUCE_WEB_BROWSER
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
                 editor->onCorpusLoadFailed(reason);
             }
+#else
+            juce::ignoreUnused(reason);
+#endif
         }
     );
 }

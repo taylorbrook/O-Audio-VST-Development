@@ -1,5 +1,86 @@
 # O-TextureForge Changelog
 
+## [1.2.0] - 2026-08-30
+
+### Added
+- Hover-help, in both languages. 14 tooltips — one for each of the 12
+  parameters, plus the settings gear and the language selector — each with a
+  title and a two-or-three sentence body ending in the control's range and unit.
+  Every French body is machine-drafted and flagged `reviewed: false`; no native
+  speaker has read them.
+- A tooltip RENDERER, because authoring the copy was not the whole job. Canon
+  v2's `applyI18n()` writes `data-tip-title` and `data-tip` attributes onto the
+  anchors and stops there; the code that reads them and paints a surface is
+  per-plugin, and this page had none — `id="tooltip"` 0, `.tooltip {` 0,
+  `closest("[data-tip]")` 0. Binding 14 entries without it would have shipped 14
+  invisible strings past three green gates. Ported behaviourally from
+  O-simpleFM: one delegated, cursor-following surface, clamped on all four edges
+  with an 8 px margin, `pointer-events: none`, hidden until hovered.
+- The renderer and its styling live in `Source/ui/public/js/i18n_init.js` and
+  the page's own stylesheet, NOT in `Source/ui/src/app.js`. This is the suite's
+  only webpack-bundled page, and putting them in the bundle input would mean a
+  webpack rebuild inside every copy change.
+- A last-input-device latch on the focus arm. A mouse click on a `<button>`
+  focuses it, so an unconditional `focusin` rule parks a tip on screen after
+  every click — measured here as **4648 px²** of the gear's own tip lying across
+  the settings popover the click had just opened. `:focus-visible` is not the
+  discriminator; Chromium reports it false for a programmatic `.focus()` after a
+  click. Any keydown clears the latch, so the keyboard half of hover-help still
+  works.
+- A drag guard, which the reference renderer does not have and this page needs.
+  Every knob starts its drag on `mousedown` and tracks `document.mousemove`, so
+  a vertical drag straying into a neighbouring `.knob-row` would otherwise open
+  that row's tip on top of the control being turned.
+- `tests/ui_tip_render_check.js` — 287 assertions at the shipping 900 × 600.
+  No existing gate can see a rendered tooltip: `check-i18n` reads the table
+  statically, `check-ui-labels` has no tooltip awareness at all, and
+  `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. With
+  `setupTooltips()` commented out, this file reports 36 failures while the other
+  two stay green — `check-ui-labels` byte-identically so.
+- `.planning/params.tsv`, the runtime parameter inventory, and the
+  `OUARICON_BUILD_TESTS` / `ouaricon_add_param_dump()` block that produces it.
+
+### Changed
+- `PluginProcessor.cpp` puts `#include "PluginEditor.h"` and all five uses of
+  `TextureForgeEditor` behind `#if JUCE_WEB_BROWSER` — `createEditor()` plus the
+  four `dynamic_cast<TextureForgeEditor*>(getActiveEditor())` sites in
+  `setStateInformation()` and `loadCorpusFile()`. The param-dump console target
+  compiles this TU with `JUCE_WEB_BROWSER=0` and no editor sources. Under a
+  normal build `JUCE_WEB_BROWSER=1`, every guarded arm is the original code
+  verbatim, and behaviour is byte-identical to v1.1.0.
+- Two `I18N_EXEMPT` reasons corrected. Both said `50ms` and `0 dB` were "written
+  by src/app.js"; they are not written at all. See below.
+
+### Found and NOT fixed
+- **Three `.knob-value` readouts render BLANK, and have since v1.0.0.**
+  `setupKnob` is passed `(n) => ''` as the formatter for `grainSize`,
+  `grainDensity` and `outputGain` (`Source/ui/src/app.js:705`, `:706`, `:708`),
+  so the first `updateDisplay()` erases the authored markup fallbacks `50ms`,
+  `8` and `0 dB` and nothing replaces them. Measured in the headless harness,
+  not reasoned. Repairing it means editing the webpack INPUT and rebuilding
+  `app.bundle.js`, which is out of scope for a hover-help commit and a 220 KB
+  unreviewable diff. The three ranges in the new tooltip bodies therefore come
+  from the parameter dump rather than from the page's formatter, and say so.
+- **A fresh CMake configure of this repo cannot build this plugin.** The root
+  `CMakeLists.txt` caches `CMAKE_OSX_DEPLOYMENT_TARGET` at 10.13, and
+  `_deps/knncolle-src` needs `std::filesystem` (macOS 10.15+). The committed
+  `build/` works only because its cache says 11.0. Root-CMakeLists-owned, one
+  plugin, latent fresh-clone / CI hazard.
+- `Source/ui/package.json` still declares `"version": "1.0.0"`. It is private,
+  not host-visible, and was already stale at v1.1.0.
+
+### Not changed
+- No parameter IDs, ranges, types, defaults or DSP behaviour.
+- No geometry. `check-ui-labels` output is byte-identical to the v1.1.0
+  baseline — 0 non-label elements moved in either direction, and the tooltip
+  node does not enter the label sweep. **No pin was added, so none is owed a
+  negative control.**
+- `js/app.bundle.js` is untouched — verified by checksum.
+- No hover-help on/off toggle. Two plugins in the suite have one and forty-one
+  do not; making this the forty-second is a uniformity decision, not a side
+  effect of a copy commit.
+- Readouts stay English in both languages, per D-03.
+
 ## [1.1.0] - 2026-08-28
 
 ### Added

@@ -193,6 +193,22 @@
     </div>
 </div>
 
+<!-- v1.2.0: the hover-help surface. ONE element for the whole page — the
+     renderer in js/i18n_init.js is delegated on document, so there is no
+     per-anchor surface to keep in step. It is EMPTY in the markup and it stays
+     empty until a hover: its two text parts are built with createElement and
+     textContent, never innerHTML, because localized copy must never reach a
+     markup path (check-i18n assertion 9 forbids an angle bracket in an i18n.js
+     string literal and this is the other half of that rule).
+
+     position: fixed + visibility: hidden in the stylesheet, so an unshown
+     surface is not a visible empty box. NOTE, measured on O-Bass in M1 and
+     carried here: check-ui-labels does NOT catch an un-hidden surface — a fixed
+     box at 0,0 has the same rect in both languages, so it neither moves nor
+     changes the visible set. What catches it is check-i18n assertion 10 and
+     boot-all-uis' text count. -->
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
 <!-- App bundle (non-module, webpack output) -->
 <script src="/js/app.bundle.js"></script>
 

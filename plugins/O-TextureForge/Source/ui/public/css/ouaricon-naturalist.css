@@ -583,3 +583,61 @@ body::after {
     outline: 2px solid var(--active-green-dark);
     outline-offset: 1px;
 }
+
+/* ===== HOVER-HELP (v1.2.0) =====================================================
+   The surface js/i18n_init.js paints. ONE element, delegated, cursor-following.
+
+   Styled in this plugin's own vocabulary rather than pasted in from the
+   reference: dark walnut ink on the page's paper, the border and the shadow of
+   .settings-popover above, and the amber-light small-caps the page already uses
+   for a caption. It is deliberately DARKER than the rest of the page — a
+   cream-on-cream panel floating over cream paper reads as part of the layout,
+   which is the one thing a transient surface must not do.
+
+   position: fixed          — placed from the cursor, in viewport coordinates.
+   visibility: hidden       — an unshown surface is not a visible empty box.
+   pointer-events: none     — or the tip steals the hover keeping it open.
+   z-index: 200             — ABOVE body::after, the fern botanical overlay,
+                              which paints at z-index 100 over the whole
+                              bottom-right corner. That corner holds the Gain
+                              and Crossfade knob cells and the right end of the
+                              drop zone, so a tip opened there would paint UNDER
+                              the fern — invisible to any hover check reading
+                              only `visibility`. The render gate asserts this
+                              number against the fern's, it does not assume it.
+   max-width: 260px         — French wraps INSIDE this cap and grows the tip's
+                              HEIGHT, so this number sets every clamp decision
+                              the renderer makes. Changing it changes them all.
+   ============================================================================ */
+.tooltip {
+    position: fixed;
+    z-index: 200;
+    max-width: 260px;
+    padding: 7px 10px;
+    background: #3B2E24;
+    color: var(--paper-bg);
+    border: 1px solid var(--knob-border);
+    border-radius: 4px;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.35);
+    font-family: var(--font-primary);
+    font-size: 11px;
+    line-height: 1.4;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+}
+
+.tooltip.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tooltip .tip-title {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--amber-light);
+    margin-bottom: 3px;
+}

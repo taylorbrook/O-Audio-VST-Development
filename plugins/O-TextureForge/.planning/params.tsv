@@ -1,0 +1,16 @@
+# plugin	O-TextureForge
+# params	12
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+ENERGY	Energy		2147483647	0.00	1.00	0.500000	0.50	automatable
+BRIGHTNESS	Brightness		2147483647	0.00	1.00	0.500000	0.50	automatable
+TEXTURE	Texture		2147483647	0.00	1.00	0.500000	0.50	automatable
+POSITION	Position		2147483647	0.00	1.00	0.000000	0.00	automatable
+GRAIN_DENSITY	Grain Density		64	1	64	0.111111	8	automatable
+GRAIN_SIZE	Grain Size	ms	2147483647	10.0	500.0	0.285714	50.0	automatable
+SCATTER_X	Scatter X		2147483647	0.00	1.00	0.500000	0.50	automatable
+SCATTER_Y	Scatter Y		2147483647	0.00	1.00	0.500000	0.50	automatable
+VARIATION	Variation		2147483647	0.00	1.00	0.200000	0.20	automatable
+CROSSFADE	Crossfade	%	2147483647	0.0	100.0	0.500000	50.0	automatable
+OUTPUT_GAIN	Output Gain	dB	2147483647	-60.0	12.0	0.833333	0.0	automatable
+MIDI_MODE	MIDI Mode		3	Pitch-Mapped	Generative Drone	1.000000	Generative Drone	automatable,discrete
