@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bassoon page labels, English + French (v1.1.0)
+// i18n.js — O-Bassoon page labels and hover-help, English + French (v1.2.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -33,16 +33,25 @@
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.2.0 ADDS HOVER-HELP, AND THE COPY IS ONLY HALF OF IT ─────────────────
 //
 // v1.0.0 carried no data-tip and no data-tooltip anywhere — only three native
-// title= attributes, which contract §4 DELETES rather than localizes. Each of
-// those three was the only help its element had, so its text moved to
-// data-i18n-aria and NO NEW PROSE WAS INVENTED. Authoring hover-help copy is
-// Stage M's job. I18N is therefore empty and TIP_BINDINGS is empty, which is
-// this plugin's correct state rather than a gap: check-i18n assertion 2 reports
-// it as "0 tip(s) bound" instead of passing silently, and the emptiness is only
-// admissible BECAUSE no I18N entry carries a body.
+// title= attributes, which contract §4 DELETES rather than localizes — and
+// v1.1.0 localized the page with I18N and TIP_BINDINGS both empty, which was
+// this plugin's correct state rather than a gap.
+//
+// v1.2.0 authors twelve tips here: the ten APVTS parameters plus #gear-btn and
+// #lang-select. That alone would have shipped TWELVE INVISIBLE STRINGS. canon
+// v2's applyI18n() writes data-tip-title and data-tip onto the anchors named in
+// TIP_BINDINGS and stops there; the thing that reads those attributes and
+// paints a surface is per-plugin code, and until v1.2.0 this page had no
+// #tooltip element, no .tooltip rule and no hover handler at all. All three
+// standing gates would have stayed green through it — check-i18n only counts
+// bindings, check-ui-labels has no tooltip awareness whatsoever, and
+// boot-all-uis counts aria-label and title and never data-tip. So the renderer
+// lands in index.html in the SAME commit as this table, and
+// tests/ui_tip_render_check.js is the gate that can actually see a rendered
+// tip.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -57,17 +66,194 @@
 export const LANGUAGES = ['en', 'fr'];
 
 // ============================================================================
-// I18N — hover-help copy. EMPTY, deliberately.
+// I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}: a title and a body.
 //
-// A tooltip entry is {t, b}: a title and a body. This page has neither, so the
-// table has no entries. It is exported all the same because the canonical
-// import line names it and trLabel() falls back through it — a control whose
-// tooltip title already IS its caption is meant to carry ONE key, and that
-// fallback must exist even on a plugin that has no tooltips today, so Stage M
-// can add bodies here without touching the label keys below.
+// AUTHORED IN v1.2.0. Until then this table was empty and TIP_BINDINGS was
+// empty with it, which was this plugin's correct state rather than a gap —
+// v1.0.0 carried no data-tip anywhere, only three native title= attributes
+// that contract §4 deletes.
+//
+// ── THE TITLE IS THE PAGE'S CAPTION, NOT THE PARAMETER'S NAME ───────────────
+//
+// Every title below is byte-identical to the .knob-label above the same knob,
+// because that is the word the user is reading. The APVTS display names are
+// longer and section-qualified ("Vibrato Rate", "Attack Character") and appear
+// only in the host's automation lane, which no one is looking at while hovering
+// a knob.
+//
+// ── WHERE THE RANGES COME FROM ──────────────────────────────────────────────
+//
+// Every body ends with the range and unit, taken from .planning/params.tsv (the
+// runtime parameter dump, not a regex over createParameterLayout). Four of the
+// ten parameters carry an EMPTY `label` in the dump — breath, tone,
+// attack_character and voice_count — so their units were recovered from the
+// page's own formatter rather than invented: PARAMS in index.html declares
+// `unit: ''` for the first three (index.html:813-815) and `unit: '', isInt:
+// true` for voice_count (index.html:818), and formatValue (index.html:907)
+// appends nothing. They are genuinely unitless — a 0..1 normalised control and
+// a count — and the bodies say "0 to 1" and "1 to 16 voices" accordingly.
+//
+// One divergence between the dump and the page is deliberate and is NOT a
+// defect: vibrato_depth's APVTS label is " cents" while the page's readout
+// renders " c" (index.html:811). The body spells the unit out, because a
+// tooltip is where a user learns what the abbreviation on the readout means.
+//
+// ── D-01 ARM 1 STILL NEVER FIRES ON THIS PLUGIN ─────────────────────────────
+//
+// O-Bassoon has NO AudioParameterChoice: nine AudioParameterFloat and one
+// AudioParameterInt. There is no host automation-lane option string anywhere
+// for a French body to disagree with. The one place a body names a control's
+// end points — attack_character's Soft / Tongued — names the PAGE's own
+// end-labels, which are LABELS entries and therefore localized, so the French
+// body says "de Doux à Détaché" to match what the page beside it is showing.
+//
+// ── THE BODIES DESCRIBE THIS MODEL, NOT A GENERIC EFFECT ────────────────────
+//
+// This is a physical model, so several of these knobs name a modelling quantity
+// rather than a familiar effect control and the tooltip is the only place a user
+// can learn what one does. Each body was written against the DSP that implements
+// it — Vibrato.cpp, NoiseExciter.cpp, ModeBank.cpp, Exciter.cpp and
+// BassoonSynthesiser.h — rather than from the parameter's name, and each states
+// something a user cannot discover by turning the knob:
+//
+//   rate         at 0 Hz the LFO stops with a RANDOM per-note phase, so the
+//                vibrato freezes into a fixed detune instead of switching off
+//                (Vibrato.cpp reset() + getCurrentCents()).
+//   breath       CC2 takes over multiplicatively and hands back after 500 ms
+//                (BassoonVoice.cpp controllerMoved + setExpression).
+//   tone         partials 6-16 only; modes 1-5 are tone-invariant
+//                (ModeBank.cpp:setFundamental, k > 4).
+//   attack char  snapshotted at note-on and velocity-biased by ±0.15
+//                (Exciter.h startOnset, VELOCITY_BIAS_MAGNITUDE 0.3 halved by
+//                the (velocity - 0.5) centring).
+//   attack       there is no decay and no sustain stage: the ADSR is
+//                {attack, 0, 1, release} (BassoonVoice.cpp startNote).
+//   release      shortens the AMPLITUDE tail over a modal tail that runs to
+//                2.5 s (ModeBank.h BASE_T60[0]).
+//   voices       the cap is enforced at note-on and steals release-tails first;
+//                lowering it never cuts a sounding note (BassoonSynthesiser.h).
 // ============================================================================
 
-export const I18N = Object.freeze({});
+export const I18N = Object.freeze({
+
+    // ── Vibrato ─────────────────────────────────────────────────────────────
+
+    'tip.rate': {
+        en: { t: 'Rate',
+              b: 'Speed of the pitch vibrato, a sine oscillator per voice that bends the whole mode bank up and down. Each note starts it at a random phase, so at 0 Hz the vibrato freezes into a small fixed detune rather than switching off — Depth at 0 is what silences it. 0 to 10 Hz.' },
+        fr: { t: 'Vitesse',
+              b: 'Vitesse du vibrato de hauteur, un oscillateur sinusoïdal par voix qui fait monter et descendre tout le banc de modes. Chaque note le démarre à une phase aléatoire : à 0 Hz le vibrato se fige en un léger désaccord constant au lieu de s’arrêter — c’est Profondeur à 0 qui le fait taire. 0 à 10 Hz.',
+              reviewed: false },
+    },
+
+    'tip.depth': {
+        en: { t: 'Depth',
+              b: 'How far the vibrato bends the pitch either side of the note, in cents — 100 cents is one semitone. A bassoonist’s vibrato lives in the bottom fifth of this range; everything above that is a deliberate effect. 0 to 100 cents.' },
+        fr: { t: 'Profondeur',
+              b: 'L’amplitude du vibrato de part et d’autre de la note, en cents — 100 cents font un demi-ton. Le vibrato d’un bassoniste se tient dans le premier cinquième de la course ; au-dessus, c’est un effet délibéré. 0 à 100 cents.',
+              reviewed: false },
+    },
+
+    'tip.onset': {
+        en: { t: 'Onset',
+              b: 'The wait before the vibrato reaches full depth. Every note-on restarts the fade from nothing and ramps it in evenly over this time, which is the straight-then-warming entry a wind player makes. 0 to 2000 ms.' },
+        fr: { t: 'Délai',
+              b: 'L’attente avant que le vibrato atteigne sa pleine amplitude. Chaque note relance le fondu depuis zéro et le fait monter régulièrement sur cette durée : c’est l’entrée droite puis chaleureuse d’un instrumentiste à vent. 0 à 2000 ms.',
+              reviewed: false },
+    },
+
+    // ── Expression ──────────────────────────────────────────────────────────
+
+    'tip.breath': {
+        en: { t: 'Breath',
+              b: 'How hard the instrument is blown. It scales the filtered noise that keeps the modes ringing, so it sets loudness and the amount of audible breath together rather than one after the other. A MIDI breath controller (CC2) takes over while it is moving and hands control back half a second after it stops. 0 to 1.' },
+        fr: { t: 'Souffle',
+              b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) prend le relais tant qu’il bouge et rend la main une demi-seconde après son arrêt. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.tone': {
+        en: { t: 'Tone',
+              b: 'How long the upper partials keep ringing: partials 6 to 16 get a decay between 0.3× and 1.5× their nominal length, while the first five are left untouched. Low is a dark, quickly damped reed; high keeps the buzz of the high modes alive under the note. 0 to 1.' },
+        fr: { t: 'Timbre',
+              b: 'La durée de résonance des partiels supérieurs : les partiels 6 à 16 reçoivent une décroissance de 0,3× à 1,5× leur longueur nominale, les cinq premiers restent intacts. En bas, une anche sombre et vite amortie ; en haut, le grain des modes aigus reste vivant sous la note. 0 à 1.',
+              reviewed: false },
+    },
+
+    'tip.attackChar': {
+        en: { t: 'Attack Char',
+              b: 'Morphs the start of the note between two excitation shapes: at 0 a soft 30 ms low-passed swell, at 1 a sharp 7.5 ms noise burst — a tongued articulation. Note velocity shifts the value by up to 0.15 either way, and the result is frozen at note-on, so automating it during a note does nothing. 0 to 1, Soft to Tongued.' },
+        fr: { t: 'Caractère',
+              b: 'Fait passer le début de la note d’une forme d’excitation à l’autre : à 0 une montée douce de 30 ms filtrée dans le grave, à 1 une brève salve de bruit de 7,5 ms — un coup de langue. La vélocité décale la valeur de 0,15 au plus dans un sens ou l’autre, et le résultat est figé au début de la note : l’automatiser en cours de note ne change rien. 0 à 1, de Doux à Détaché.',
+              reviewed: false },
+    },
+
+    // ── Envelope ────────────────────────────────────────────────────────────
+
+    'tip.attack': {
+        en: { t: 'Attack',
+              b: 'How long the amplitude envelope takes to climb to full level once a note starts. There is no decay and no sustain stage — the envelope simply holds until the key is released — so this and Release are the whole shape. 0 to 2000 ms.' },
+        fr: { t: 'Attaque',
+              b: 'Le temps que met l’enveloppe d’amplitude à monter au niveau plein dès le début de la note. Il n’y a ni décroissance ni palier : l’enveloppe se maintient jusqu’au relâchement de la touche, si bien que ce réglage et Relâche forment toute la forme. 0 à 2000 ms.',
+              reviewed: false },
+    },
+
+    'tip.release': {
+        en: { t: 'Release',
+              b: 'How long the note takes to fade once the key is lifted. It shapes the amplitude only: the mode bank carries its own resonance tail of up to 2.5 seconds underneath, so a short setting cuts that tail off rather than making it decay faster. 0 to 3000 ms.' },
+        fr: { t: 'Relâche',
+              b: 'Le temps de disparition de la note une fois la touche relâchée. Il ne façonne que l’amplitude : le banc de modes garde en dessous sa propre traîne de résonance pouvant aller jusqu’à 2,5 secondes, qu’un réglage court coupe net au lieu de l’accélérer. 0 à 3000 ms.',
+              reviewed: false },
+    },
+
+    // ── Voicing & Output ────────────────────────────────────────────────────
+
+    'tip.voices': {
+        en: { t: 'Voices',
+              b: 'The most notes that may sound at once. The limit is checked at each note-on: past it a voice is taken back, preferring one already in its release tail and otherwise the oldest note. Lowering the limit never cuts a note that is already sounding. 1 to 16 voices.' },
+        fr: { t: 'Voix',
+              b: 'Le nombre maximal de notes pouvant sonner en même temps. La limite est vérifiée à chaque nouvelle note : au-delà, une voix est reprise, de préférence une déjà en fin de relâchement, sinon la plus ancienne. Baisser la limite ne coupe jamais une note en cours. De 1 à 16 voix.',
+              reviewed: false },
+    },
+
+    'tip.output': {
+        en: { t: 'Output',
+              b: 'The final level applied to the summed voices, ramped across each block so a move never clicks. Sixteen voices together are a great deal louder than one, so this is where a dense passage gets pulled back. −24 to +6 dB.' },
+        fr: { t: 'Sortie',
+              b: 'Le niveau final appliqué à la somme des voix, lissé sur chaque bloc pour qu’un mouvement ne claque jamais. Seize voix ensemble sont bien plus fortes qu’une seule : c’est ici qu’on rattrape un passage dense. −24 à +6 dB.',
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // describes ONLY what the popover actually holds. This plugin has no
+    // hover-help on/off switch — not in C++, not in storage — so the panel
+    // holds the language selector and nothing else, and the tip says exactly
+    // that. O-Tapestop's wording promises a toggle this plugin does not have,
+    // and a tip that lies is worse than no tip.
+
+    'tip.gearBtn': {
+        en: { t: 'Settings',
+              b: 'Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help change with it, and the choice is kept with the session, so a project reopens in the language it was saved in.' },
+        fr: { t: 'Réglages',
+              b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
+              reviewed: false },
+    },
+
+    // The last sentence is a statement of fact recorded in I18N_EXEMPT below:
+    // every caption inside the Tuning tab belongs to the shared
+    // scala-tuning-engine module and is not this plugin's to translate. A user
+    // who switches to French and then opens that tab deserves to have been
+    // told, rather than reading it as a bug.
+    'tip.langSelect': {
+        en: { t: 'Language',
+              b: 'The language of the captions on this page and of this hover help. English and French are available. Value readouts stay as numbers and units in both, and the Tuning tab stays in English — its panel comes from a shared module that is not part of this plugin.' },
+        fr: { t: 'Langue',
+              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées restent des nombres et des unités dans les deux langues, et l’onglet Accord demeure en anglais : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
+              reviewed: false },
+    },
+});
 
 // ============================================================================
 // LABELS — the visible text of the page. {en:{t}, fr:{t, reviewed}}.
@@ -351,25 +537,58 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key] or [selector, key, wrapper] (v1.2.0)
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; the alternative — omitting the
-// export and editing the canon block to match — would put this plugin's copy of
-// the runtime out of step with the other forty-two, which is the whole drift
-// the canon gate exists to prevent.
+// applyI18n() runs document.querySelector(selector), walks closest(wrapper) if
+// a wrapper is given, and writes data-tip-title + data-tip onto whatever it
+// lands on. setupTooltips() in index.html reads those attributes and paints the
+// surface; neither half is any use without the other.
+//
+// ── NO WRAPPER IS NEEDED ON THIS PAGE, AND THAT IS UNUSUAL ──────────────────
+//
+// T17 says "bind to the ids the UI already uses", and as on the three pilots
+// that is FALSE here: none of the ten knobs carries an id. But unlike those
+// pilots the third element of the triple is not needed either, because
+// `.knob-control[data-param="..."]` IS the hover cell — a 78px flex column
+// holding the 60px SVG, the caption and the readout. Binding the SVG and
+// walking up to the column is what the other plugins have to do; here the
+// per-parameter element and the cell the user aims at are the same node, so a
+// wrapper argument would be a no-op dressed as a decision.
+//
+// The two chrome anchors are ids, both of which this page already had.
+//
+// Order matches the page's reading order — Vibrato, Expression, Envelope,
+// Voicing & Output, then the header cluster — so a reviewer walking this list
+// walks the UI.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['.knob-control[data-param="vibrato_rate"]',     'tip.rate'],
+    ['.knob-control[data-param="vibrato_depth"]',    'tip.depth'],
+    ['.knob-control[data-param="vibrato_onset"]',    'tip.onset'],
+
+    ['.knob-control[data-param="breath"]',           'tip.breath'],
+    ['.knob-control[data-param="tone"]',             'tip.tone'],
+    ['.knob-control[data-param="attack_character"]', 'tip.attackChar'],
+
+    ['.knob-control[data-param="attack_time"]',      'tip.attack'],
+    ['.knob-control[data-param="release_time"]',     'tip.release'],
+
+    ['.knob-control[data-param="voice_count"]',      'tip.voices'],
+    ['.knob-control[data-param="output_gain"]',      'tip.output'],
+
+    ['#gear-btn',                                    'tip.gearBtn'],
+    ['#lang-select',                                 'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// that the canon block is byte-identical to the other forty-two copies and
-// Stage M can add bodies to I18N without touching this file's shape.
+// LIVE as of v1.2.0: applyI18n() calls it once per TIP_BINDINGS entry, twelve
+// times per language switch. Its shape is unchanged from v1.1.0 — it was
+// exported verbatim while the loop was empty precisely so that adding bodies
+// would need no edit here, and it needed none.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }

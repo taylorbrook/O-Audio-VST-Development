@@ -11,7 +11,7 @@ juce_add_plugin(O-Bassoon
     PLUGIN_CODE OBsn
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bassoon${OUARICON_DEV_SUFFIX}"
-    VERSION "1.1.0"
+    VERSION "1.2.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -115,3 +115,16 @@ target_compile_definitions(O-Bassoon
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Bassoon test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # Runtime parameter inventory (scripts/param-dump). A regex over
+    # createParameterLayout() is not authoritative: IDs can be concatenated and
+    # parameters can come from a factory lambda. Only a walk of
+    # AudioProcessor::getParameters() on a constructed processor sees the real set.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_param_dump(O-Bassoon ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+endif()
