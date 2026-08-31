@@ -43,7 +43,7 @@
       T4  colon          no U+00A0 before :               (Plage : −6 à +6 dB)
       T5  ; ! ?          no U+00A0 before ; ! ?           (Confirmer ?)
       T6  minus          -digit after a space/paren → U+2212 (−40 à +40 dB)
-      T7  unit           number<space>unit with a plain space → U+00A0
+      T7  unit           number and unit with a plain space or none → U+00A0
       G1  glossary       a LABEL or tooltip TITLE whose English is in
                          scripts/i18n-fr-glossary.js TERMS renders as one of
                          its accepted French forms (casing ignored)
@@ -96,7 +96,10 @@ const ROOT = path.resolve(__dirname, '..');
 const UI_ROOTS = ['Source/ui/public/js/i18n.js', 'Resources/ui/js/i18n.js'];
 
 const NBSP = ' ';
-const UNIT_RE = new RegExp(`\\d (${G.UNITS.map((u) => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![A-Za-zÀ-ÿ])`);
+// `\d ?unit`: a MISSING space is as wrong as a plain one (O-Comp pilot: the
+// first draft required exactly one ASCII space and let `440Hz` through). `%`
+// is T3's and is filtered out here so `50 %` does not report twice.
+const UNIT_RE = new RegExp(`\\d ?(${G.UNITS.filter((u) => u !== '%').map((u) => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![A-Za-zÀ-ÿ])`);
 
 // The lint's normalisation, mirrored in the glossary header. Change both.
 function norm(s) {
