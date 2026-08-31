@@ -5462,3 +5462,141 @@ is.
   four (O-Prism 123.9 → 139.3 px), so a wider face shows there first.
 - **O-Prism's 65 mod-matrix parameters have no hover-help** and will not until
   decision items 18 and 19 are answered.
+
+---
+
+# DECISION ITEMS 17 AND 18 — the two `scripts/`-owned fixes M3 surfaced, both closed
+
+Taken up directly after Stage M closed, as orchestrator work. Two commits, no
+plugin version bumps, no DAW test needed — neither change is user-observable.
+
+| | |
+|---|---|
+| Item 17 | `56cdbb37` — `scripts/boot-all-uis.js`, 1 file |
+| Item 18 | `cec3f857` — `scripts/i18n-canon.js` + 43 plugin files, +57 / −28 |
+| `check-i18n --strict-v2` | **43/43 canon v2, ALL CHECKS PASS** |
+| `boot-all-uis` | **43/43 clean**, census byte-identical across the change |
+| New signal | **1 DEAD tip binding repo-wide, 19 late** — the first time either number has existed |
+
+## ITEM 17 — the gate can see a dangling binding now, and it found one on the first run
+
+The M brief's claim that `boot-all-uis` sees a swallowed binding failure was
+false in both halves, and the fix is one ordering change: read the canon's WARN
+diagnostics **before** the `type() !== 'error'` filter rather than after it.
+
+**The part that makes the census worth reading is the second step, not the
+first.** A captured warning alone would have reported O-Bells' two
+lazily-mounted tuning-panel anchors as defects, and O-IntonationPad's
+seventeen — nineteen false positives, on a page where every one of them binds
+correctly a moment later. So each missed selector is **re-queried after the
+settle**: resolves now → LATE, still missing → DEAD.
+
+Reported as its own verdict block, deliberately not folded into `clean: 43/43`.
+The boot verdict answers *does the page load*, and a dead binding loads fine;
+one number meaning both is the conflation that hid this for the whole stage.
+
+`--strict-tips` opts into exit 2 on a DEAD binding. The default stays exit-0 —
+this file reports, and the repo already knows what a permanently-red gate does
+to the habit of reading gates.
+
+### The census, first run, 43 plugins
+
+**1 DEAD.** `O-simpleSampler/js/i18n.js:748` binds
+`.tour-btn[data-preset="Filtered &amp; Enveloped"]`. `index.html:51` writes that
+entity, so the HTML parser decodes it and the **DOM attribute value is
+`Filtered & Enveloped`** — the JS selector carries `&amp;` literally and matches
+nothing. Six of the seven tour buttons have hover-help; the seventh never has,
+and nothing in the repo could say so. **Not fixed here — it is plugin-owned and
+does not belong in a `scripts/` commit.** New decision item 26.
+
+**19 late**, all correct: O-Bells 2, O-IntonationPad 17.
+
+### The control that caught the fix being decoration
+
+The first draft of the capture regex was `/^i18n: (tip target not found|missing
+label key) /` — a space where the canon writes a colon. It matched nothing and
+reported **0 for O-Bells**, a page documented to warn exactly twice. Running the
+known-positive case first is the only reason that was caught rather than
+committed as a green vacuous census.
+
+Four controls in total: O-Bells → 2 late / 0 dead; a planted
+`#planted-selector-that-does-not-exist` on that same page → 1 DEAD **and still 2
+late**, which is the discriminator working on one page; `--strict-tips` → exit 2
+on the dead plugin, exit 0 on late-only O-Bells.
+
+## ITEM 18 — three authors reached around the same gate, so the canon took it
+
+`grep -rl __reapplyI18n` returns **three** plugins, not the one M3 reported:
+O-Bells (`index.html:1992`), **O-Marimba** and **O-IntonationPad**
+(`js/app.js`), the latter two from Stage J. M3's "1 plugin in 43" was measured
+over a narrower set of roots.
+
+That correction is the whole argument for the item. Each of the three declared
+the line **outside** the byte-compared region, and each left a comment saying
+the region *"may not gain a line."* Three independent authors hitting the same
+wall and working around it the same way is the canon's job, not theirs.
+
+So the line moved into the canon beside the `window.__setLanguage` /
+`window.__setLabel` it belongs with, all 43 copies synced, and the three
+out-of-canon declarations deleted along with their now-false comments. Call
+sites untouched — they keep their plugin-specific rationale.
+
+**No call sites were invented.** Which panels should re-sweep is per-plugin
+work, and O-Prism needs more than this line regardless: its 64 mod-matrix rows
+carry no per-parameter id even once they mount (item 19, still open).
+
+### The vacuous probe, and the rerun that wasn't
+
+`__reapplyI18n` present and callable on 43/43 — necessary, not sufficient. The
+second arm asked whether a re-sweep **preserves the language**, which is the
+property the naive `applyI18n('en')` implementation fails, and the first draft
+sampled an **English** page, where `before === after` is true no matter what the
+function does.
+
+Rerun on a page switched to French: **43/43 held French.** Substituting the
+naive `window.__setLanguage('en')` into the same probe: **0/43**, reporting each
+reset by name (`O-AnalogEQ: "SAUVER" → "SAVE"`). The probe can fail, so its pass
+means something.
+
+### Why the 43-file sync is not 43 version bumps
+
+Nothing user-observable changed on any plugin: the boot census is byte-identical
+across the change, the French totals are unchanged at 3751, and 43/43 pages
+render the same. The sync is *forced by the drift gate* rather than chosen per
+plugin — leaving 42 plugins off-canon was never an option. Precedent is thin:
+`96b5f2eb` (retire canon v1) is the only prior canon change and it was
+gate-side only, touching no plugin file.
+
+### The control that proves 43/43 is not vacuous
+
+Deleting the line from **O-Chorus alone** turns assertion 6 red by name —
+`"[6] the applyI18n/initI18n region matches scripts/i18n-canon.js — does NOT
+match"`, `OFF CANON 1 O-Chorus`. Restored, tree clean, 43/43 green again.
+
+The runtime control is the sharper one: because the three old declarations were
+**deleted**, a broken sync would have turned O-Bells' 2 and O-IntonationPad's 17
+late bindings into DEAD. They are still late. That is what proves the canon copy
+is the one now in use, rather than a leftover.
+
+## Decision items
+
+- **17 — CLOSED** (`56cdbb37`).
+- **18 — CLOSED** as a mechanism (`cec3f857`). The *rollout* question it
+  superseded from item 14 is now genuinely open and per-plugin: O-Reed's
+  `referencePitch`, O-Formant's tuning panel and O-Wind's panel each need a call
+  site, and each is an `/improve` with a version bump.
+- **19 — unchanged.** O-Prism's mod matrix still needs addressable row nodes.
+- **26 — NEW.** O-simpleSampler's seventh tour button has never had hover-help;
+  an HTML entity leaked into a CSS attribute selector. One-line fix, plugin-owned.
+
+## Not verified
+
+- **Checkpoint 5 still outstanding on all 43** — 3751 French entries, unchanged
+  by either commit, none read by a native speaker.
+- **No DAW test**, and none warranted: neither change is user-observable.
+- **Headless Chromium only**, never a real WKWebView — so "43/43 present and
+  callable" is a Chromium claim.
+- **The 21 plugins with no `ui_tip_render_check.js`** are now covered for the
+  dangling-binding question by `boot-all-uis`, and by nothing else.
+- **`--strict-tips` is not wired into any CI or script.** It exists; nothing
+  calls it. It will report red on O-simpleSampler until item 26 is fixed.
