@@ -1,5 +1,46 @@
 # O-Chorus Changelog
 
+## [1.4.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **19 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, taking O-Chorus from 43 lint
+  findings to 0. Six terminology moves, ten casing, eight typography, four
+  grammar and register. The visible ones:
+  - **DOSAGE → MIX** and **ÉCART → ÉTAL.** on the knob captions. *Mix* is what
+    French DAWs show; *Dosage* was elegant French nobody else in the suite used.
+    *Écart* was doing double duty for both Detune and Spread across 43 plugins,
+    and the glossary gives it to Detune — Spread is *Étalement*, abbreviated
+    here because the full word would widen the knob cell.
+  - **SAUVER → ENREG.** on the Save button. *Sauver* is a calque; the French for
+    saving a preset is *Enregistrer*, which needs a 78.52 px button against a
+    62 px one, so the caption carries the standard abbreviation and the
+    accessible name carries the full *Enregistrer le préréglage*.
+  - **Typographic spacing throughout the tooltips** — a no-break space before
+    every `%` and `;` and `:`, and between every number and its unit, so
+    *0 à 100 %*, *10 ms* and *2 kHz* can no longer break across a line.
+  - Four sentences repaired: *Plus de voix épaissit* → *épaississent*
+    (agreement), *changée en jouant* → *changé pendant le jeu* (a gerund whose
+    subject was the wrong noun), two verbs given the object French requires, and
+    Drive's advice put back into the imperative the rest of the page uses.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Notes
+
+- `reviewed: false` still stands on all 28 entries. That flag means *a native
+  speaker read this*, and none has; this pass is a second machine reading
+  against a glossary and a lint, recorded in the `i18n.js` header instead.
+- Nothing moved by a pixel. Every caption node on this page carries
+  `text-transform: uppercase`, so lower-casing the table is invisible on screen
+  — *VITESSE* and *Vitesse* both render and measure at 41.61 px — and the two
+  abbreviations were chosen against the same measured cliffs the captions were.
+  `check-ui-labels` reports the same zero moved elements as v1.4.0.
+
 ## v1.4.0 (2026-08-30)
 
 ### Added
