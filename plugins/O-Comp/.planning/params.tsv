@@ -1,0 +1,11 @@
+# plugin	O-Comp
+# params	7
+# note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
+#id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
+threshold	Threshold	dB	2147483647	-60.0	0.0	0.666667	-20.0	automatable
+ratio	Ratio	:1	2147483647	1.0	20.0	0.052632	2.0	automatable
+attack_time	Attack	ms	2147483647	0.1	100.0	0.099099	10.0	automatable
+release_time	Release	ms	2147483647	10	1000	0.090909	100	automatable
+knee	Knee	dB	2147483647	0.0	20.0	0.300000	6.0	automatable
+output_gain	Output Gain	dB	2147483647	-12.0	24.0	0.333333	0.0	automatable
+auto_gain	Auto Gain		2	Off	On	0.000000	Off	automatable,discrete,boolean

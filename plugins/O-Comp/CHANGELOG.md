@@ -2,6 +2,75 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.7.0] - 2026-08-30
+
+Hover-help, in both languages. Stage M batch M1 of the repo-wide i18n rollout.
+
+### Added
+
+- **Nine tooltips, English and French** — one for each of the seven APVTS parameters plus
+  the settings gear and the language selector. The dump and the page reconcile exactly:
+  `.planning/params.tsv` lists seven parameters and every one of them has a control here,
+  so nothing is host-reachable but page-unreachable and nothing on the page is unbacked.
+  Bound through `TIP_BINDINGS`, which walks `closest('.control-group')` so the hover area
+  is the whole knob-plus-caption-plus-readout column rather than the 52px vine face.
+- **A renderer, because the page had no way to show one.** Canon v2's `applyI18n()` writes
+  `data-tip-title` and `data-tip` onto the anchors and stops; at v1.6.0 there was no
+  `#tooltip` element, no `.tooltip` rule and no hover handler on this page. Authoring the
+  copy alone would have shipped nine invisible strings past three green gates —
+  `check-i18n` only counts bindings, `check-ui-labels` has no tooltip awareness at all, and
+  `boot-all-uis` counts `aria-label` and `title` and never `data-tip`. `setupTooltips()` is
+  ported from O-simpleFM's delegated cursor-following renderer and styled in this page's own
+  paper plate: `#F5E6D3`, a 1px `#8B7355` rule and `.settings-popover`'s 2/2/6 shadow.
+- **`tests/ui_tip_render_check.js`** — 156 assertions against the real page at the shipping
+  620 x 360, in English and again in French and back. Every binding resolves; every anchor
+  SHOWS a tip; the rendered title and body are BYTE-EQUAL to the table (not "contains" — a
+  `.tip-title` that kept the previous anchor's text passes a contains check); every tip
+  rectangle is inside all four frame edges. `TIP_BINDINGS`, the `max-width` cap, the clamp
+  margin and `setSize` are all PARSED out of the shipped files, never retyped.
+
+### Changed
+
+- **The focus arm is latched to the keyboard.** The reference renderer opens a tip on any
+  `focusin`, and a mouse click on a `<button>` focuses it — so the tip `pointerdown` had
+  just hidden reopened on top of whatever the click opened. Measured here with the latch
+  removed: clicking `#gear-btn` pins a 250 x 115 tip at (236, 37) covering the settings
+  popover it had just opened by **3800 px²**. `:focus-visible` is deliberately not the
+  discriminator — Chromium reports it false for a programmatic `.focus()` after a click, so
+  a gate driving focus directly would measure "no tip" and record that as correct. An
+  explicit `lastInputWasPointer` latch, cleared by any keydown, is the same rule and is
+  drivable with real events.
+- The console banner and the `i18n.js` header now say v1.7.0, and the settings-popover
+  comment no longer claims this plugin has no hover-help.
+
+### Notes
+
+- **All nine French bodies are machine drafts, `reviewed: false`.** The native-speaker
+  worklist for this plugin is now 34 entries (9 tooltip bodies + 3 canvas captions + 22
+  labels). No native speaker has read any of it.
+- **Ranges keep the readout's decimal point, not French convention.** The bodies say
+  "0.1 à 100 ms", not "0,1", because `.value-display` formats "0.1 ms" and "4.0:1" with a
+  point in both languages and a tip that spells a number differently from the readout beside
+  it describes a control the page does not have. Flagged in `i18n.js` so a reviewer changes
+  both or neither.
+- **`auto_gain` names its two faces in French inside the body** (ARRÊT / MARCHE). That is not
+  a D-01 arm-1 problem: arm 1 exempts an `AudioParameterChoice` OPTION so the page and the
+  host automation lane agree, and this plugin has no choice parameter at all — six floats and
+  one bool. ARRÊT and MARCHE are the button's own French faces.
+- **The three `canvas.*` entries keep their empty bodies and stay unbound.** They are
+  `fillText` strings painted into `#envelopeCanvas`; they are captions with nowhere to live,
+  not tips. The render gate asserts no empty-body entry is bound.
+- No hover-help on/off toggle (an M1-wide decision), and no tips on the preset bar (out of
+  M1 scope — those four controls took accessible names from their deleted `title=` at
+  v1.6.0). No `tabindex` was added to `.control-group`: these knobs are mouse-drag,
+  wheel and double-click-reset only, so a tab stop would add tab-order noise for a control
+  the keyboard still could not turn.
+- Geometry: **nothing moved.** `check-ui-labels --plugin O-Comp` is BYTE-IDENTICAL to the
+  v1.6.0 baseline across all three driven states, `moved=0` before and after, and the `[8b]`
+  inert-element count stays at 1. `boot-all-uis` counts are identical measured against HEAD
+  and the working tree: text 25, aria-label 8, title 0, `[data-i18n]` 13. No pin was added,
+  so none is claimed and none is owed a negative control.
+
 ## [1.6.0] - 2026-08-29
 
 The page speaks French. Stage K batch K3 of the repo-wide i18n rollout, canon v2.

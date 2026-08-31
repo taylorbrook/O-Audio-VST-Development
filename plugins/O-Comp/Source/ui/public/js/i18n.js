@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Comp page labels, English + French (v1.6.0)
+// i18n.js — O-Comp page labels and hover-help, English + French (v1.7.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,15 +32,33 @@
 // reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens). One
 // combined file for both languages sidesteps the question.
 //
-// ── THIS PLUGIN HAS NO HOVER-HELP, AND THIS COMMIT DOES NOT GIVE IT ANY ─────
+// ── v1.7.0: HOVER-HELP ARRIVES, COPY AND RENDERER TOGETHER ──────────────────
 //
-// v1.5.0 carried no data-tip and no data-tooltip anywhere — only five native
-// title= attributes on the preset bar, which contract section 4 DELETES rather
-// than localizes. Their text moved to data-i18n-aria; nothing was invented.
-// Authoring hover-help prose is Stage M's job. TIP_BINDINGS is therefore empty,
-// which is this plugin's correct state rather than a gap: check-i18n assertion
-// 2 reports it as "0 tip(s) bound", and the emptiness is admissible only
-// BECAUSE no I18N entry carries a non-empty body.
+// v1.6.0 shipped TIP_BINDINGS: [] and said so in as many words — that was this
+// plugin's correct state, not a gap. v1.7.0 authors the nine tooltips below:
+// one for each of the SEVEN APVTS parameters (all seven have a control on this
+// page — the dump and the markup reconcile exactly) plus #gear-btn and
+// #lang-select.
+//
+// THE COPY ALONE WOULD HAVE SHIPPED NINE INVISIBLE STRINGS. Canon v2's
+// applyI18n() writes data-tip-title and data-tip onto the anchors named below
+// and stops; the thing that paints a surface is per-plugin code, and at v1.6.0
+// this page had no #tooltip element, no `.tooltip` rule and no hover handler.
+// Nothing would have caught it: check-i18n assertion 2 only counts bindings,
+// check-ui-labels has no tooltip awareness at all, and boot-all-uis counts
+// aria-label and title and never data-tip. So index.html gains setupTooltips()
+// and its CSS in the same commit, ported from O-simpleFM's delegated
+// cursor-following renderer and styled in this page's own paper-and-brown-ink
+// vocabulary.
+//
+// NUMBERS IN A BODY KEEP THE READOUT'S OWN SPELLING. D-03 exempts the readout
+// NODE, not a number written into prose, so "-60 to 0 dB" localizes to
+// "-60 à 0 dB". The DECIMAL SEPARATOR deliberately does not follow French
+// convention: the ranges below name values the user reads back in
+// .value-display, which formats "0.1 ms" and "4.0:1" with a point in both
+// languages, and a tip saying "0,1" beside a readout saying "0.1" describes a
+// control the page does not have. Flagged here so a reviewer changes both or
+// neither.
 //
 // ── I18N IS NOT EMPTY HERE, AND THE REASON IS THE CANVAS ────────────────────
 //
@@ -78,12 +96,148 @@ export const LANGUAGES = ['en', 'fr'];
 // ============================================================================
 // I18N — hover-help copy, plus the three CANVAS-PAINTED strings.
 //
-// Every entry below carries an EMPTY body. A body is what makes an entry a
-// TOOLTIP and what makes assertion 2 demand a TIP_BINDINGS row for it; these
-// three are captions with nowhere to live, not tips.
+// TWO KINDS OF ENTRY LIVE HERE AND THE BODY IS WHAT TELLS THEM APART. An entry
+// with a non-empty `b` is a TOOLTIP, and assertion 2 demands a TIP_BINDINGS row
+// for it — an authored body nothing binds is an ORPHAN and fails. An entry with
+// an EMPTY `b` is a homeless composed string (the shape O-Polystutter v1.14.0
+// established), and correctly demands no binding.
+//
+// The nine tips come first, in the page's own left-to-right order. The three
+// canvas captions keep their empty bodies at the foot: they are painted with
+// fillText into #envelopeCanvas, they have no element, and they are NOT tips.
+// Do not give them bodies and do not bind them.
+//
+// TITLE = THE CAPTION THE USER IS READING, not the automation lane's name.
+// `output_gain` is named "Output Gain" in the APVTS and captioned "Output" on
+// the page, so the tip is titled Output / Sortie. Same rule for the French
+// terms inside the bodies: they reuse this page's own captions (Seuil, Ratio,
+// Genou, Sortie, Gain auto, ARRÊT / MARCHE) so a user can match a sentence to a
+// control by eye.
+//
+// EACH BODY ENDS WITH THE RANGE AND THE UNIT, and every unit came from the
+// dump's own `label` column (.planning/params.tsv: dB, :1, ms, ms, dB, dB) —
+// NOT recovered from a formatter. Confirmed independently against the page's
+// own `params` table in index.html, which appends ' dB', ':1' and ' ms' to the
+// same six knobs. auto_gain is an AudioParameterBool: its range is its two
+// faces, not a number.
 // ============================================================================
 
 export const I18N = Object.freeze({
+
+    // ── The seven parameters, left to right across the knob row ─────────────
+
+    // threshold — AudioParameterFloat, -60..0 dB, step 0.1, default -20.
+    // The detector is PEAK and stereo-LINKED (processBlock takes the max of the
+    // channels), which is the one thing a user cannot learn by turning it.
+    'tip.threshold': {
+        en: { t: "Threshold",
+              b: "The level the detector has to cross before compression starts. Detection is peak and stereo-linked — the louder channel decides, so both sides duck together and the image stays put. -60 to 0 dB." },
+        fr: { t: "Seuil",
+              b: "Le niveau que le détecteur doit franchir pour que la compression commence. La détection se fait sur la crête et en liaison stéréo : le canal le plus fort décide, les deux côtés baissent ensemble et l'image reste en place. -60 à 0 dB.",
+              reviewed: false },
+    },
+
+    // ratio — AudioParameterFloat, 1..20 :1, default 2. The French TITLE is
+    // byte-identical to the English and needs no sameAsEn flag: assertion 4
+    // fires only when t AND b both match, and the bodies differ. It matches the
+    // page caption, which LABELS already declares sameAsEn with its reasons.
+    'tip.ratio': {
+        en: { t: "Ratio",
+              b: "How much of each decibel above the threshold survives: at 4:1 an overshoot of 4 dB leaves as 1 dB. At 1:1 nothing is compressed however far the signal goes over, and past roughly 10:1 the behaviour is limiting rather than compression. 1:1 to 20:1." },
+        fr: { t: "Ratio",
+              b: "La part de chaque décibel au-dessus du seuil qui subsiste : à 4:1 un dépassement de 4 dB ressort à 1 dB. À 1:1 rien n'est comprimé, quelle que soit l'ampleur du dépassement, et au-delà d'environ 10:1 le comportement devient celui d'un limiteur. 1:1 à 20:1.",
+              reviewed: false },
+    },
+
+    // attack_time — AudioParameterFloat, 0.1..100 ms, default 10. The value is
+    // a one-pole TIME CONSTANT (updateCoefficients: 1 - exp(-1/(t*fs/1000))),
+    // so the envelope is most of the way there rather than exactly there.
+    'tip.attack': {
+        en: { t: "Attack",
+              b: "How quickly the detector rises once the signal is over the threshold. Short times catch the transient and flatten the front of a drum; long times let the stick through and start compressing behind it. 0.1 to 100 ms." },
+        fr: { t: "Attaque",
+              b: "La vitesse à laquelle le détecteur monte une fois le signal au-dessus du seuil. Les temps courts saisissent la transitoire et aplatissent le début d'une frappe ; les temps longs laissent passer l'attaque et compriment derrière elle. 0.1 à 100 ms.",
+              reviewed: false },
+    },
+
+    // release_time — AudioParameterFloat, 10..1000 ms, step 1, default 100.
+    'tip.release': {
+        en: { t: "Release",
+              b: "How quickly the gain comes back once the signal drops under the threshold again. Short times sound lively and can pump audibly on sustained material; long times hold the reduction steady between hits. 10 to 1000 ms." },
+        fr: { t: "Relâche",
+              b: "La vitesse à laquelle le gain revient une fois le signal repassé sous le seuil. Les temps courts sonnent vifs et peuvent pomper de façon audible sur une matière tenue ; les temps longs maintiennent la réduction stable entre les frappes. 10 à 1000 ms.",
+              reviewed: false },
+    },
+
+    // knee — AudioParameterFloat, 0..20 dB, default 6. calculateGainReduction()
+    // opens the soft region at threshold - knee/2, so the band is CENTRED on
+    // the threshold and half of it lies below. At 0 the soft branch is skipped
+    // outright (it would divide by zero) and the curve corners.
+    'tip.knee': {
+        en: { t: "Knee",
+              b: "The width of the band around the threshold where the ratio arrives gradually instead of all at once. It is centred on the threshold, so half of it sits below and compression begins before the reading reaches the setting. At 0 the knee is hard and the transfer curve corners. 0 to 20 dB." },
+        fr: { t: "Genou",
+              b: "La largeur de la bande autour du seuil où le ratio s'installe progressivement au lieu d'un seul coup. Elle est centrée sur le seuil : la moitié se trouve en dessous, et la compression commence avant que la lecture n'atteigne le réglage. À 0 le genou est dur et la courbe de transfert forme un angle. 0 à 20 dB.",
+              reviewed: false },
+    },
+
+    // output_gain — AudioParameterFloat, -12..+24 dB, default 0. Titled from
+    // the PAGE CAPTION ("Output"), not the parameter name ("Output Gain").
+    // computeMakeupGainLinear() ADDS it to the auto-gain figure, and
+    // prepareToPlay smooths the sum over 20 ms.
+    'tip.output': {
+        en: { t: "Output",
+              b: "Makeup gain applied after the compressor, to bring the level back to where it started. It is added to whatever Auto-Gain is contributing rather than replacing it, and the sum is smoothed over 20 ms so an automation move cannot zipper. -12 to +24 dB." },
+        fr: { t: "Sortie",
+              b: "Gain de compensation appliqué après le compresseur, pour ramener le niveau là où il était. Il s'ajoute à ce qu'apporte le Gain auto au lieu de le remplacer, et la somme est lissée sur 20 ms pour qu'un mouvement d'automation ne crépite pas. -12 à +24 dB.",
+              reviewed: false },
+    },
+
+    // auto_gain — AudioParameterBool, default off. Its two faces are named in
+    // the BODY in the language of the page, and that is not a D-01 arm 1
+    // problem: arm 1 exempts an AudioParameterChoice OPTION, so that the page
+    // and the host automation lane read the same word. There is no choice
+    // parameter anywhere on this plugin — six floats and one bool — so there is
+    // no option string to contradict. ARRÊT and MARCHE are the button's own
+    // French faces (LABELS label.autoGainOff / label.autoGainOn), which is what
+    // a user actually sees on the control this sentence describes.
+    'tip.autoGain': {
+        en: { t: "Auto-Gain",
+              b: "Adds makeup gain worked out from the current Threshold and Ratio — half the theoretical amount, so it compensates without overshooting — and follows both as you move them. It stacks with the Output knob rather than replacing it. Two settings: OFF and ON." },
+        fr: { t: "Gain auto",
+              b: "Ajoute un gain de compensation calculé à partir du Seuil et du Ratio courants — la moitié de la valeur théorique, pour compenser sans dépasser — et suit les deux quand vous les déplacez. Il s'ajoute au réglage Sortie au lieu de le remplacer. Deux positions : ARRÊT et MARCHE.",
+              reviewed: false },
+    },
+
+    // ── The two chrome controls ─────────────────────────────────────────────
+    //
+    // The gear tip is what tells a user hover-help exists at all, so its body
+    // describes ONLY what this popover actually holds. O-Comp has no hover-help
+    // on/off toggle — not in C++, not in localStorage — and O-Tapestop's wording
+    // promises one. A tip that lies is worse than no tip.
+    'tip.gearBtn': {
+        en: { t: "Settings",
+              b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
+        fr: { t: "Réglages",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d'autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
+              reviewed: false },
+    },
+
+    // The value readouts named here are the six .value-display nodes, which
+    // stay English by D-03. The two canvas captions below DO follow the
+    // selector, which is why this body says "under the knobs" rather than
+    // "every reading on the page".
+    'tip.langSelect': {
+        en: { t: "Language",
+              b: "The language of the labels on this page and of this hover help. English and French are available. The value readings under the knobs and the preset names stay in English, so the page and the host agree on what a setting is called." },
+        fr: { t: "Langue",
+              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles. Les valeurs affichées sous les boutons et les noms de préréglages restent en anglais, pour que la page et l'hôte s'accordent sur le nom d'un réglage.",
+              reviewed: false },
+    },
+
+    // ── The three CANVAS-PAINTED strings — NOT tooltips ─────────────────────
+    //
+    // Empty bodies, deliberately and permanently. See the block comment above.
 
     // Painted at 9px into #envelopeCanvas by startRenderLoop(). The canvas is
     // 308px wide and both strings are drawn at x = 10, so length is free:
@@ -326,25 +480,51 @@ export const I18N_EXEMPT = [
 ];
 
 // ============================================================================
-// TIP_BINDINGS — EMPTY. See the header: this plugin has no hover-help.
+// TIP_BINDINGS — [selector, key, wrapper]
 //
-// Exported because the canonical import line names it and applyI18n() iterates
-// it. A zero-length loop is the correct no-op; omitting the export and editing
-// the canon block to match would put this plugin's copy of the runtime out of
-// step with the other forty-plus, which is the drift the canon gate exists to
-// prevent.
+// applyI18n() runs document.querySelector(selector), walks closest(wrapper)
+// when a wrapper is given, and writes data-tip-title + data-tip onto whatever
+// that lands on. The renderer in index.html then reads them via
+// closest('[data-tip]') from whatever the pointer is over.
+//
+// THE WRAPPER IS THE POINT. Each of the six knobs has an id, so T17's "bind to
+// the ids the UI already uses" is true here for the SELECTOR — but #x-knob is
+// only the 52px vine face, and a tip that opens on the face alone is a tip that
+// closes every time the pointer drifts onto the caption or the reading two
+// pixels below it. The wrapper walks up to .control-group, the absolutely
+// positioned column that holds knob + caption + readout, so the whole cell is
+// the hover area. The auto-gain toggle is bound the same way for the same
+// reason: #auto-gain-toggle is the 70x40 button, .control-group also carries
+// its "Auto-Gain" caption.
+//
+// The two chrome anchors are bound BARE. #gear-btn must NOT walk up to
+// .settings-cluster: that wrapper also contains .settings-popover, so hovering
+// anywhere in the open panel — including over #lang-select and its own tip —
+// would resolve to the gear's. They are separate anchors with separate tips and
+// the DOM nesting is exactly what keeps them apart.
 // ============================================================================
 
-export const TIP_BINDINGS = [];
+export const TIP_BINDINGS = [
+    ['#threshold-knob',    'tip.threshold', '.control-group'],
+    ['#ratio-knob',        'tip.ratio',     '.control-group'],
+    ['#attack-knob',       'tip.attack',    '.control-group'],
+    ['#release-knob',      'tip.release',   '.control-group'],
+    ['#knee-knob',         'tip.knee',      '.control-group'],
+    ['#output-knob',       'tip.output',    '.control-group'],
+    ['#auto-gain-toggle',  'tip.autoGain',  '.control-group'],
+
+    ['#gear-btn',          'tip.gearBtn'],
+    ['#lang-select',       'tip.langSelect'],
+];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
 // console.warn saying so, because a silently-missing tip renders as an empty
 // surface that looks like a positioning bug rather than a missing entry.
 //
-// Unreferenced at runtime today: applyI18n() calls it only from the
-// TIP_BINDINGS loop, which is empty. It is exported verbatim all the same, so
-// the canon block is byte-identical to every other copy and Stage M can add
-// bodies to I18N without touching this file's shape.
+// LIVE as of v1.7.0: applyI18n() calls it once per TIP_BINDINGS row, so every
+// hover on this page reads its result. It was exported verbatim while the list
+// was empty precisely so that adding the bodies above needed no change to this
+// file's shape or to the canon block.
 export function tr(key, lang, vars) {
     const entry = I18N[key];
     if (!entry) { console.warn(`i18n: missing key ${key}`); return { t: key, b: '' }; }
