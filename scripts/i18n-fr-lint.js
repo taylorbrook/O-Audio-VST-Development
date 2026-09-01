@@ -116,6 +116,10 @@ const hasLower  = (s) => /[a-zà-ÿœ]/.test(letters(s));
 
 function typography(fr, en) {
     const out = [];
+    // Text inside « » is quoted SCREEN text - a readout the sentence cites
+    // verbatim (D-03 keeps readouts English-formatted). It takes no decimal
+    // comma, % space or unit space (O-Prism tip.language: « 375ms », « 1.2kHz »).
+    const unq = fr.replace(/«[^»]*»/g, '«»');
     if (/[A-Za-zÀ-ÿ]'[A-Za-zÀ-ÿŒœ]/.test(fr))            out.push('T1');
     // An IDENTIFIER keeps its point; a NUMBER takes a comma. Identifiers are:
     // a surround-format name (Logic's "7.1", O-Octagon N4), any token with two
@@ -124,18 +128,18 @@ function typography(fr, en) {
     // format and "1,10" is not a version. NOT "any token the English also
     // carries": the English writes real decimals with a point too, so that
     // rule exempted exactly the defect T2 exists for (it zeroed the column).
-    const frStripped = fr
+    const frStripped = unq
         .replace(/\b(?:5\.1|7\.1|9\.1|5\.1\.2|5\.1\.4|7\.1\.2|7\.1\.4|9\.1\.4|9\.1\.6)\b/g, '')
         .replace(/\d+(?:\.\d+){2,}/g, '')
         .replace(/(\b(?:v|ver\.?|version|pre-|antérieure? à la version)\s*)\d+(?:\.\d+)+/gi, '$1');
     if (/\d\.\d/.test(frStripped))                        out.push('T2');
-    if (/\d ?%/.test(fr))                                 out.push('T3');
+    if (/\d ?%/.test(unq))                                out.push('T3');
     if (/(^|[^ ]):(?=\s|$)/.test(fr) && !/https?:/.test(fr)) out.push('T4');
     if (/(^|[^ ])[;!?]/.test(fr))                     out.push('T5');
     if (/(^|[\s(«])-\d/.test(fr))                         out.push('T6');
     // A decade name (60s, 70s, 80s — O-Detune's wobble_era faces) is not a
     // number missing its space before "seconds". Same family as T2's list.
-    if (UNIT_RE.test(fr.replace(/\b[5-9]0s\b/g, '')))    out.push('T7');
+    if (UNIT_RE.test(unq.replace(/\b[5-9]0s\b/g, '')))   out.push('T7');
     return out;
 }
 
