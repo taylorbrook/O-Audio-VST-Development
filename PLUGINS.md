@@ -29,18 +29,18 @@ Ouaricon Plugins:
 | O-Bells | 📦 Installed | 4.3.0 | Synth (Physical Modeling Bells) | 2026-08-31 |
 | O-Tremolo | 📦 Installed | 1.8.1 | Audio Effect (Tremolo) | 2026-08-31 |
 | O-AnalogSaturation | 📦 Installed | 1.3.1 | Audio Effect (Saturation) | 2026-08-31 |
-| O-Marimba | 📦 Installed | 1.13.0 | Synth (Physical Model) | 2026-08-28 |
+| O-Marimba | 📦 Installed | 1.13.1 | Synth (Physical Model) | 2026-08-31 |
 | O-Comp | 📦 Installed | 1.7.1 | Audio Effect (Compressor) | 2026-08-31 |
 | O-AnalogEQ | 📦 Installed | 1.3.1 | Audio Effect (EQ) | 2026-08-31 |
-| O-DigiDelay | 📦 Installed | 1.4.0 | Audio Effect (Delay) | 2026-08-30 |
-| O-SimpleReverb | 📦 Installed | 1.7.0 | Audio Effect (Reverb) | 2026-08-30 |
+| O-DigiDelay | 📦 Installed | 1.4.1 | Audio Effect (Delay) | 2026-08-31 |
+| O-SimpleReverb | 📦 Installed | 1.7.1 | Audio Effect (Reverb) | 2026-08-31 |
 | O-Polystutter | 📦 Installed | 1.14.1 | Audio Effect (Beat Repeater) | 2026-08-31 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
-| O-Lyrica | 📦 Installed | 2.4.1 | Synth (Physical Modeling Harp) | 2026-08-29 |
+| O-Lyrica | 📦 Installed | 2.4.2 | Synth (Physical Modeling Harp) | 2026-08-31 |
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.5.1 | Audio Effect (Bass Enhancer) | 2026-08-31 |
 | O-IntonationPad | 📦 Installed | 2.9.0 | Synth (Wavetable Pad) | 2026-08-28 |
 | O-Detune | 📦 Installed | 1.7.0 | Audio Effect (Detuning) | 2026-08-30 |
-| O-Freeze | 📦 Installed | 2.2.0 | Audio Effect (Granular Freeze) | 2026-08-30 |
+| O-Freeze | 📦 Installed | 2.2.1 | Audio Effect (Granular Freeze) | 2026-08-31 |
 | O-FreqPulse | 📦 Installed | 1.18.1 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
 | O-SpectralShaper | 📦 Installed | 1.7.1 | Audio Effect (Spectral Transient Shaper) | 2026-08-31 |
 | O-GrainScatter | 📦 Installed | 2.6.0 | Audio Effect (Granular Stutter Engine) | 2026-08-30 |
@@ -66,7 +66,7 @@ Ouaricon Plugins:
 | O-simplePhysicalModelSynth | 📦 Installed | 1.2.0 | Synth (Pedagogical Physical Modeling) | 2026-08-28 |
 | O-ReverseDelay | 📦 Installed | 1.10.1 | Audio Effect (Granular Reverse Delay) | 2026-08-31 |
 | O-Octagon | 📦 Installed | 1.11.1-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-31 |
-| O-Bitrot | 📦 Installed | 1.15.0 | Audio Effect (Broken-Media Degradation) | 2026-08-27 |
+| O-Bitrot | 📦 Installed | 1.15.1 | Audio Effect (Broken-Media Degradation) | 2026-08-31 |
 | O-Tapestop | 📦 Installed | 1.6.1 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-08-31 |
 | O-Emulator | 📦 Installed | 1.2.1 | Audio Effect (Retro Console Emulation) | 2026-08-31 |
 
