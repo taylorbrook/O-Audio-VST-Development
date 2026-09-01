@@ -6034,3 +6034,70 @@ deux*. Correction 34: a capitalised face is named as the user sees it.
 
 No native speaker; no DAW; Chromium only; Standalone stale; 3 more without a committed
 render gate (O-Octagon, MBC, O-Orbit — item 31 now 8 of 21). Repo lint total **1447**.
+
+# STAGE N — BATCH N5 COMPLETE, 6 of 6 — 27 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-Marimba | 1.13.1 | `2240a80f` (+`2cbd1879`) | 31 → 0 | 22 of 69 | 0 → 0, byte-identical | probe 18/18 ×2, heights identical |
+| O-Freeze | 2.2.1 | `3bd6b5e8` (+`f67268b1`) | 38 → 0 | 23 of 31 | 0 → 0 | 311/311 |
+| O-SimpleReverb | 1.7.1 | `dd1b58e6` (+`db78b6b6`) | 35 → 0 | 14 of 29 | 0 → 0, byte-identical | 169/169, all ten heights identical |
+| O-DigiDelay | 1.4.1 | `c4a7eac9` (+`65f0c40f`) | 40 → 0 | 20 of 31 | 0 → 0 | 216/216 |
+| O-Bitrot | 1.15.1 | `143f75c7` (+`9ba02746`) | 44 → 0* | 49 of 117 | 1 → 1 (standing baseline) | clamp 55/16/13 fr, unchanged |
+| O-Lyrica | 2.4.2 | `d80b0bed` (+`2a66842c`) | 42 → 0 | 37 of 167 | 0 → 0 | probe 46/46 ×2 |
+
+\* closed by `dfdc9732` with no plugin change. Installed plists verified on all six
+(correction 31); `boot-all-uis` 43/43 / 0 DEAD; `auval` PASS ×5 — O-Lyrica's `auval` fails
+on a documented pre-existing "Free Glissando" mutual-exclusion check.
+
+## THE HEADLINE: a rule that zeroes a column has not fixed the column
+
+O-Bitrot's version identifier (`pre-1.10`) drew T2 and it proposed the elegant rule — a
+digit.digit token that appears verbatim in the English is an identifier. Applied, the T2
+column went to **0** across 43 plugins. That was the tell: the English writes real decimals
+with a point too, so the rule exempted the defect T2 exists for. Reverted within the same
+hour for an explicit identifier set (format names, multi-dot tokens, version words); the
+genuine decimal on O-Prism fires again. [[pattern_new_lint_zero_must_agree_with_independent_scan]],
+second instance in one stage.
+
+## Two glossary terms were wrong, both caught by a reader who knew the instrument
+
+*mailloche* is a bass-drum beater; a marimba's is a *maillet* — O-Marimba's own bodies had
+said so since v1.12.1. And `load .scl` had no abbreviation where `save .scl` did, on the same
+7 px button row. Both fixed `be3ce2c7`. Running score: **2 settled terms wrong out of ~240,
+after 27 plugins.**
+
+## Header defences: 12 of 27 wrong about the string, still 0 wrong about a number
+
+O-Marimba's header put 118.9 px on AMORTISSEMENT (97.41), credited 108.6 to the long
+*Intervalles de la gamme* and shipped the short one (107.88 — the long form is 121.61 and
+fits). O-DigiDelay's TEMPS defence was on *meaning* ("a duration rather than a position") and
+the control is a duration. O-SimpleReverb's twelve strings all held to the hundredth.
+
+## Meaning column, N5
+
+*chœur* (a choir) for a chorus effect; *nappe* covering both *pad* and *bed*; *Seuil* over a
+knob captioned THRESHOLD; a tuning called a *tempérament* on a page where that word is
+spoken for; *En mode CUSTOM* on a page whose button reads PERSO; *matière* for a material;
+*lit de bruit* (a calque) four times; a dropped *at all*; a dropped *individual*.
+
+## Defects found by reading French (items 47–52)
+
+47. **O-SimpleReverb hard-codes `v1.5.5`** in the footer wordmark and console banner — four
+    versions stale, inside a text-matched `I18N_EXEMPT` entry.
+48. **O-Freeze DETUNE's "cents" are ~1.44× off in the DSP**: `playbackRate = 1 + r·(detune/1200)`
+    where cents are `2^(c/1200)`. Knob 50 → ±70.67 ct actual. Host-visible unit.
+49. **O-Bitrot `settings` tip says the gear chooses "the language of this hover help"** — it
+    sets the whole page's language since v1.15.0; stale in both languages.
+50. **O-Lyrica's footer (`position: absolute; z-index: 10`) paints over `#sympatheticAmount`
+    and `#sympatheticQ`** — only a 6 px caption strip is reachable; the sliders lose their
+    drag surface and their hover-help. Every rect-comparing assertion is green on it.
+51. O-Lyrica `technique` body says *Harmonics*; the Choice face is *Harmonic*. O-Freeze's
+    *Alé → Random* is a wider gap than English's *Rnd → Random* (faces are exempt by design).
+52. C1's two arms are asymmetric: a 2–3 letter French all-caps over a mixed-case English
+    (`Mix` → `MIX`) is invisible to the shouting arm. Observed, not changed.
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; Standalone stale; O-Marimba and O-Lyrica have no
+committed render gate (item 31: 10 of 27). Repo lint total **1215** (from 2145).
