@@ -109,7 +109,7 @@ const TERMS = {
     'input':                    ['entrée'],
     'output':                   ['sortie'],
     'level':                    ['niveau', 'niv'],
-    'master':                   ['général'],
+    'master':                   ['général', 'gén'],   // O-Prism: Général 46.61 px in a 44.01 px footer cell
     'main':                     ['principal'],
     'mix':                      ['mix'],
     'blend':                    ['mix'],
@@ -180,8 +180,8 @@ const TERMS = {
     'waveform':                 ['forme d\'onde', 'onde'],
     'waveform ·':               ['forme d\'onde ·'],
     'phase':                    ['phase'],
-    'glide':                    ['portamento'],
-    'glide mode':               ['mode de portamento'],
+    'glide':                    ['portamento', 'porta'],   // O-Prism: Portamento 71.52 px in a 52 px knob container
+    'glide mode':               ['mode de portamento', 'mode porta'],
     'detune':                   ['désaccord', 'désacc'],
     'coarse':                   ['grossier', 'gross'],
     'fine':                     ['fin', 'affinage'],   // affinage where an End control already reads Fin (O-simpleSampler N6, 51.78 px in a 54 px cell)
@@ -213,7 +213,7 @@ const TERMS = {
     'low cut':                  ['coupe-bas', 'coupe-b'],
     'high cut':                 ['coupe-haut', 'coupe-h'],
     'lp filter':                ['filtre passe-bas', 'filtre pb'],
-    'mid freq':                 ['fréq. médium', 'fréq. méd'],
+    'mid freq':                 ['fréq. médium', 'fréq. méd', 'fq. méd'],   // O-Prism: 60.28 px in a 52 px knob
     'eq bypass':                ['contournement de l\'égaliseur', 'contournement de l\'eq'],
     'eq low gain':              ['gain grave de l\'égaliseur', 'gain grave de l\'eq', 'gain des graves'],
     'eq mid gain':              ['gain médium de l\'égaliseur', 'gain médium de l\'eq', 'gain des médiums'],
@@ -256,7 +256,7 @@ const TERMS = {
     'pre-delay':                ['pré-délai', 'pré-dél'],
     'pre-dly':                  ['pré-délai', 'pré-dél'],
     'damping':                  ['amortissement', 'amort'],
-    'damp':                     ['amortissement', 'amort'],
+    'damp':                     ['amortissement', 'amort', 'amor'],   // O-Prism: Amort. crosses a neighbour's rotated svg box
     'diffusion':                ['diffusion'],
     'air absorption':           ['absorption de l\'air', 'absorption air'],
     'chorus mix':               ['mix du chorus'],
