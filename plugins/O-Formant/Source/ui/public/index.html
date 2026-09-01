@@ -482,14 +482,21 @@ html, body {
   cursor: pointer;
   letter-spacing: 1px;
   text-transform: uppercase;
-  /* GEOMETRY PIN (v1.26.0). .preset-bar is justify-content: center, so this
-     button's width sets where the whole cluster sits. "SAVE" is 46.8 px and
-     "SAUVER" is 61.2 px, which re-centred #preset-category, #preset-prev,
-     #preset-name and #preset-next by -7.6 px in French. The pin sizes the box
-     to the FRENCH caption so both languages render the identical box; the
-     price is that the English cluster sits 7.6 px further left than it did in
-     v1.25.4, which is the only direction available when the French string is
-     the longer one. Negative-controlled: removing this line alone re-fails
+  /* GEOMETRY PIN (v1.26.0, re-measured at v1.27.1). .preset-bar is
+     justify-content: center, so this button's width sets where the whole
+     cluster sits. Without the pin the intrinsic border-box widths are SAVE
+     46.83 px and — as v1.26.0 shipped it — SAUVER 64.02 px, which re-centred
+     #preset-category, #preset-prev, #preset-name and #preset-next in French.
+     The pin renders the identical 65 px box in both languages; the price is
+     that the English cluster sits further left than it did in v1.25.4.
+
+     THE PIN IS STILL LOAD-BEARING, but it is no longer the FRENCH caption it
+     is sized to. Stage N's glossary pass replaced SAUVER with ENREG., whose
+     intrinsic border-box is 59.84 px — 4.18 px NARROWER than the word it
+     replaces and still 13.01 px wider than SAVE, so removing this line would
+     re-fail assertion 7 exactly as before. Only "Enregistrer" (96.78) would
+     break the pin, which is why the abbreviation is what ships.
+     Negative-controlled at v1.26.0: removing this line alone re-fails
      assertion 7 on all four elements. */
   min-width: 65px;
 }
