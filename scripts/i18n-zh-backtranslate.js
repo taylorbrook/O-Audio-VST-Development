@@ -126,15 +126,28 @@ async function collect() {
     return { plugins, results: out };
 }
 
-// Coarse lexical overlap, en vs en'. A sort key, not a verdict — the developer
-// reads the triple. Task 2 replaces this stub with the real scorer.
+// Coarse lexical overlap, en vs en-prime, on the unit interval. This is a SORT
+// KEY, not a verdict: it exists so the worst drift floats to the top of a 3789
+// row report. The verdict is the developer reading the triple. A high score is
+// not a pass — a back-translation can be lexically identical and still describe
+// a different control, which is exactly why the triple is printed in full.
+const STOP = new Set(['the', 'a', 'an', 'of', 'to', 'and', 'or', 'in', 'on', 'for', 'is', 'are', 'be', 'this', 'that', 'it', 'its', 'with', 'as', 'at', 'by']);
+function tokens(s) {
+    return (String(s).toLowerCase().match(/[a-z0-9]+/g) || [])
+        .map((w) => w.replace(/(?:ies)$/, 'y').replace(/(?:es|s)$/, ''))
+        .filter((w) => w && !STOP.has(w));
+}
 function score(a, b) {
-    const tok = (s) => String(s).toLowerCase().match(/[a-z0-9]+/g) || [];
-    const A = new Set(tok(a)), B = new Set(tok(b));
+    const A = new Set(tokens(a)), B = new Set(tokens(b));
     if (!A.size && !B.size) return 1;
+    if (!A.size || !B.size) return 0;
     let inter = 0;
     for (const w of A) if (B.has(w)) inter++;
-    return inter / (A.size + B.size - inter || 1);
+    const jaccard = inter / (A.size + B.size - inter);
+    // Containment rescues a correct back-translation that is merely wordier
+    // than the caption it came from ("Mix" -> "wet/dry mix amount").
+    const containment = inter / Math.min(A.size, B.size);
+    return (2 * jaccard + containment) / 3;
 }
 
 function emit() {
@@ -165,11 +178,76 @@ function emit() {
     });
 }
 
-// Task 2 completes the provenance refusal and the ranked triple report.
+function refuse(why) {
+    console.log(`REFUSED: back-translation provenance is missing or identical to the forward pass — this triple proves nothing`);
+    console.log(`  ${why}`);
+    console.log(`  Re-run with --provenance "<what produced the en-prime, and when>", naming a pass that`);
+    console.log(`  is NOT the one that produced the Chinese. A reverse pass that can see the source — or`);
+    console.log(`  that IS the source — round-trips its own vocabulary and reads clean while the Chinese`);
+    console.log(`  is wrong. That is the failure this refusal exists to prevent.`);
+    console.log(`\nREPORT ONLY — exit 0. A refusal is a reported result, not a crash.`);
+}
+
 async function ingest() {
     const file = val('--ingest');
-    console.log(`ingest: ${file}`);
-    console.log('(round trip wired; the provenance refusal and the ranked triple report land in Task 2)');
+    const provenance = val('--provenance');
+
+    // The refusal is checked BEFORE the file is read. A triple whose reverse
+    // pass is unrecorded proves nothing, so there is nothing to gain by
+    // parsing it first.
+    if (!provenance || !String(provenance).trim())
+        return refuse('no --provenance was given.');
+
+    const manifestPath = val('--manifest') || `${file}.manifest.json`;
+    let manifest = null;
+    if (fs.existsSync(manifestPath)) {
+        try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch { manifest = null; }
+    }
+    const fwd = manifest && manifest.forwardProvenance;
+    if (fwd && String(fwd).trim().toLowerCase() === String(provenance).trim().toLowerCase())
+        return refuse(`--provenance is byte-identical to the forward pass recorded at emit time (${JSON.stringify(fwd)}).`);
+
+    if (!file || !fs.existsSync(file)) { console.log(`ingest: no such file: ${file}`); console.log('\nREPORT ONLY — exit 0.'); return; }
+    const returned = new Map();
+    for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+        if (!line.trim() || line.startsWith('#')) continue;
+        const [id, ...rest] = line.split('\t');
+        if (id && rest.length) returned.set(id.trim(), rest.join(' ').trim());
+    }
+    if (!returned.size) {
+        console.log(`ingest: ${file} carries no "id <TAB> en-prime" row.`);
+        console.log(`  provenance recorded: ${JSON.stringify(provenance)}`);
+        console.log('\nREPORT ONLY — exit 0.');
+        return;
+    }
+
+    const { results } = await collect();
+    const byId = new Map(results.flatMap((r) => r.rows).map((r) => [r.id, r]));
+
+    const triples = [];
+    const orphans = [];
+    for (const [id, enPrime] of returned) {
+        const row = byId.get(id);
+        if (!row) { orphans.push(id); continue; }
+        triples.push({ ...row, enPrime, s: score(row.en, enPrime) });
+    }
+    triples.sort((a, b) => a.s - b.s);   // worst drift first
+
+    console.log('i18n-zh-backtranslate --ingest — en -> zh -> en\' triples, worst drift first');
+    console.log(`  provenance (reverse pass): ${JSON.stringify(provenance)}`);
+    console.log(`  forward pass recorded at emit: ${fwd ? JSON.stringify(fwd) : '(none recorded — the manifest was not found beside the batch)'}`);
+    console.log(`  joined: ${triples.length}${orphans.length ? `   unjoinable ids: ${orphans.length}` : ''}\n`);
+    for (const t of triples.slice(0, MAX_SHOWN)) {
+        console.log(`  ${t.s.toFixed(2)}  ${t.id}`);
+        console.log(`        en   ${t.en}`);
+        console.log(`        zh   ${t.zh}`);
+        console.log(`        en'  ${t.enPrime}`);
+    }
+    if (triples.length > MAX_SHOWN) console.log(`  … ${triples.length - MAX_SHOWN} more (--verbose)`);
+    for (const id of orphans.slice(0, 5)) console.log(`  UNJOINABLE ${id} — no such row in the live corpus`);
+    console.log(`\n  The score is a SORT KEY, not a verdict. A high score is not a pass: a`);
+    console.log(`  back-translation can be lexically identical and still name a different control.`);
+    console.log(`\nREPORT ONLY — exit 0. This becomes a gate (exit 2) once the O-Chorus pilot is at zero findings.`);
 }
 
 async function report() {

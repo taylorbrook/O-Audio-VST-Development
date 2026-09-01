@@ -147,10 +147,55 @@ const SAME_AS_EN = ['LFO', 'MIDI', 'dB', 'Hz', 'kHz', 'ms', 'BPM'];
 
 // ── Renderings that are wrong wherever they appear. ─────────────────────────
 // Same mechanism as the French glossary: a wrong rendering mapping to what
-// should have been written instead. Empty in Task 1; filled in Task 2 with
-// the content the corpus warrants.
-const FORBIDDEN_IN_LABELS = {};
-const FORBIDDEN_IN_PROSE = {};
+// should have been written instead. The content is different in one structural
+// way — Chinese has no word delimiter, so the lint tests CONTAINMENT, not a
+// stem with a word-boundary lookahead. Two consequences the next editor must
+// keep in mind:
+//
+//   1. A forbidden rendering that is a SUBSTRING of a correct one will fire on
+//      the correct one. 混音 is forbidden for a wet/dry Mix knob and is also the
+//      first half of 混音器, the correct rendering of "Mixer". That case is
+//      covered because F1 never fires on a rendering the glossary ACCEPTS for
+//      the same English — so 'mixer' MUST carry 混音器 in TERMS. Check for this
+//      before adding an entry.
+//   2. A word that is genuinely correct somewhere in the suite does not belong
+//      here at all. 轨道 ("orbit / track") was considered and REJECTED: it is
+//      the wrong sense of "Track" but the right word for O-Orbit. A termNote
+//      would be needed on every O-Orbit entry to buy one catch elsewhere, which
+//      is a bad trade. 发布 stays out of the PROSE table for the same reason —
+//      "v1.2 发布" is a correct sentence about a software release.
+//
+// Every entry below is a machine-translation TELL: the general-purpose sense of
+// an English homograph, rendered into Chinese with no audio context.
+const FORBIDDEN_IN_LABELS = {
+    '\u6df7\u97f3':    '\u6df7\u5408 (\u6216 \u5e72\u6e7f) — \u6df7\u97f3 is the mixing PROCESS, not a wet/dry blend',
+    '\u653b\u51fb':    '\u8d77\u97f3 — \u653b\u51fb is a military attack',
+    '\u53d1\u5e03':    '\u91ca\u97f3 (\u91ca\u653e) — \u53d1\u5e03 is publishing a product',
+    '\u8870\u53d8':    '\u8870\u51cf — \u8870\u53d8 is radioactive decay',
+    '\u83b7\u5f97':    '\u589e\u76ca — \u83b7\u5f97 is to obtain something',
+    '\u8282\u7701':    '\u4fdd\u5b58 — \u8282\u7701 is to economise',
+    '\u94a5\u5319':    '\u8c03 — \u94a5\u5319 is a door key',
+    '\u5e73\u5e95\u9505': '\u58f0\u50cf — a pan pot, not a frying pan',
+    '\u7b14\u8bb0':    '\u97f3\u7b26 — \u7b14\u8bb0 is a written note',
+    '\u89c4\u6a21':    '\u97f3\u9636 — \u89c4\u6a21 is scale in the sense of magnitude',
+    '\u7403\u573a':    '\u97f3\u9ad8 — \u7403\u573a is a sports pitch',
+    '\u9152\u5427':    '\u5c0f\u8282 — \u9152\u5427 is a drinking bar',
+    '\u626c\u673a':    '\u89e6\u53d1 — \u626c\u673a is a gun trigger',
+    '\u9a7e\u9a76':    '\u9a71\u52a8 (\u8fc7\u8f7d) — \u9a7e\u9a76 is to drive a vehicle',
+    '\u8fc7\u6ee4\u5668': '\u6ee4\u6ce2\u5668 — \u8fc7\u6ee4\u5668 is a water or air filter',
+    '\u6837\u54c1':    '\u6837\u672c (\u91c7\u6837) — \u6837\u54c1 is a merchandise sample',
+};
+
+// Renderings that are wrong in tooltip PROSE too — the small, unambiguous set.
+// Deliberately shorter than the label table: prose has room for a word that
+// would be wrong as a caption, so only the unarguable tells are listed.
+const FORBIDDEN_IN_PROSE = {
+    '\u63d2\u5934':    '\u63d2\u4ef6 — \u63d2\u5934 is an electrical plug',
+    '\u8fc7\u6ee4\u5668': '\u6ee4\u6ce2\u5668',
+    '\u6837\u54c1':    '\u6837\u672c / \u91c7\u6837',
+    '\u653b\u51fb':    '\u8d77\u97f3',
+    '\u5e73\u5e95\u9505': '\u58f0\u50cf',
+};
 
 // Code-point iteration, NOT `.length`. CJK extension characters live above the
 // BMP and are surrogate pairs, so `.length` double-counts them — a 3-character
