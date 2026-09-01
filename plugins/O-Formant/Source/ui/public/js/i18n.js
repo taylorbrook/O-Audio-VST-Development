@@ -18,7 +18,16 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Formant on-page copy, English + French (v1.27.1, canon v2)
+// i18n.js — O-Formant on-page copy, English + French (v1.27.2, canon v2)
+//
+// ── v1.27.2: ENGLISH DEFECT FOUND BY THE FRENCH (Stage O, 2026-08-31) ───────
+// tip.formantSpread said the formants scale "around the first one". Both banks
+// (dsp/FormantFilterBank.h:98-107, dsp/CascadeFormantBank.h:106-116) and the
+// pad overlay (main.js applyShiftSpread) scale each formant's distance from the
+// MEAN of the five shifted frequencies — centerOfMass = sum/5 — so F1 moves too.
+// Both bodies now say "their average frequency"; the title and the range
+// sentence are unchanged. French rewritten for meaning -> reviewed: false (1).
+// Height 94.6 px in both languages before; measured again after (see CHANGELOG).
 //
 // ── v1.27.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -428,13 +437,13 @@ export const I18N = Object.freeze({
     },
     'tip.formantSpread': {
         en: { t: 'Formant Spread',
-              b: 'Multiplies the spacing between the formants around the first one. Below 1 crowds '
-               + 'them together and thickens the vowel; above 1 opens them out. '
+              b: 'Scales how far each of the five formants sits from their average frequency. '
+               + 'Below 1 crowds them together and thickens the vowel; above 1 opens them out. '
                + 'Range 0.50 to 2.00.' },
         fr: { t: 'Étalement des formants',
-              b: 'Multiplie l’espacement entre les formants autour du premier. En dessous de 1 ils se '
-               + 'resserrent et la voyelle s’épaissit ; au-dessus de 1 ils s’écartent. '
-               + 'Plage 0,50 à 2,00.', reviewed: true },
+              b: 'Multiplie la distance de chacun des cinq formants à leur fréquence moyenne. '
+               + 'En dessous de 1 ils se resserrent et la voyelle s’épaissit ; au-dessus de 1 '
+               + 'ils s’écartent. Plage 0,50 à 2,00.', reviewed: false },
     },
     'tip.pitchGlide': {
         en: { t: 'Pitch Glide',

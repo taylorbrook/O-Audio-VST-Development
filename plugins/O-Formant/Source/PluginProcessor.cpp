@@ -937,6 +937,14 @@ void OFormantAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     tuningState.setProperty ("tonic", tuningEngine.getTonicNote(), nullptr);
     tuningState.setProperty ("preset", static_cast<int> (tuningEngine.getBuiltInPreset()), nullptr);
 
+    // v1.27.2: the tuning panel's A4 REF and Stretch knobs write the engine
+    // directly (PluginEditor.cpp setMasterTune / setOctaveStretch) and never the
+    // tuning_masterTune / tuning_octaveStretch parameters, so a session saved at
+    // A4 = 442 Hz reopened at 440 (Stage M3 finding 7). Save what the engine
+    // actually holds, beside the intervals this child already carries.
+    tuningState.setProperty ("masterTune",    tuningEngine.getMasterTune(), nullptr);
+    tuningState.setProperty ("octaveStretch", static_cast<double> (tuningEngine.getOctaveStretch()), nullptr);
+
     // Save lyrics engine state
     auto lyricsState = state.getOrCreateChildWithName ("lyricsEngine", nullptr);
     lyricsState.setProperty ("text", lyricsEngine.getLyricsText(), nullptr);
@@ -1011,6 +1019,21 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
 
             int tonic = tuningState.getProperty ("tonic", 0);
             tuningEngine.setTonicNote (tonic);
+
+            // v1.27.2: restore the engine's own A4 / octave stretch AFTER the
+            // parameter push above, so the value the knob actually wrote wins
+            // over the never-updated parameter. isVoid() is the guard and
+            // getDoubleValue() the read: a non-parameter number on this tree
+            // comes back from XML as a STRING var
+            // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.27.2
+            // session carries neither property and keeps the parameter path.
+            const juce::var savedA4 = tuningState.getProperty ("masterTune");
+            if (! savedA4.isVoid())
+                tuningEngine.setMasterTune (savedA4.toString().getDoubleValue());
+
+            const juce::var savedStretch = tuningState.getProperty ("octaveStretch");
+            if (! savedStretch.isVoid())
+                tuningEngine.setOctaveStretch (static_cast<float> (savedStretch.toString().getDoubleValue()));
         }
 
         // Restore lyrics engine state
