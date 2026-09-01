@@ -600,7 +600,7 @@ function initI18n() {
 
     if (getUiLanguageNative) {
         getUiLanguageNative()
-            .then((code) => applyI18n(code === 'fr' ? 'fr' : 'en'))
+            .then((code) => applyI18n(code))
             .catch((e) => console.warn('Could not read language preference:', e));
     }
 
