@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| O-Bells | 📦 Installed | 4.3.1 | Synth (Physical Modeling Bells) | 2026-08-31 |
+| O-Bells | 📦 Installed | 4.3.2 | Synth (Physical Modeling Bells) | 2026-08-31 |
 | O-Tremolo | 📦 Installed | 1.8.2 | Audio Effect (Tremolo) | 2026-08-31 |
 | O-AnalogSaturation | 📦 Installed | 1.3.1 | Audio Effect (Saturation) | 2026-08-31 |
 | O-Marimba | 📦 Installed | 1.13.1 | Synth (Physical Model) | 2026-08-31 |
@@ -35,7 +35,7 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.4.1 | Audio Effect (Delay) | 2026-08-31 |
 | O-SimpleReverb | 📦 Installed | 1.7.1 | Audio Effect (Reverb) | 2026-08-31 |
 | O-Polystutter | 📦 Installed | 1.14.2 | Audio Effect (Beat Repeater) | 2026-08-31 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
-| O-Lyrica | 📦 Installed | 2.4.2 | Synth (Physical Modeling Harp) | 2026-08-31 |
+| O-Lyrica | 📦 Installed | 2.4.3 | Synth (Physical Modeling Harp) | 2026-08-31 |
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.5.1 | Audio Effect (Bass Enhancer) | 2026-08-31 |
 | O-IntonationPad | 📦 Installed | 2.9.1 | Synth (Wavetable Pad) | 2026-08-31 |
@@ -49,9 +49,9 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.2.1 | Instrument (Concatenative Synth) | 2026-08-31 |
 | O-Texture | 📦 Installed | 0.3.1 | Instrument/Effect (Neural Texture Synth) | 2026-08-31 |
 | O-Prism | 📦 Installed | 1.22.1 | Synth (Microtonal Wavetable) | 2026-08-31 |
-| O-Gain | 📦 Installed | 1.3.1 | Audio Effect (Gain Staging Utility) | 2026-08-31 |
-| O-Formant | 📦 Installed | 1.27.1 | Synth (Physical Model Vocal) | 2026-08-31 |
-| O-Bowed | 📦 Installed | 1.6.1 | Synth (Physical Model Bowed String) | 2026-08-31 |
+| O-Gain | 📦 Installed | 1.3.2 | Audio Effect (Gain Staging Utility) | 2026-08-31 |
+| O-Formant | 📦 Installed | 1.27.2 | Synth (Physical Model Vocal) | 2026-08-31 |
+| O-Bowed | 📦 Installed | 1.6.2 | Synth (Physical Model Bowed String) | 2026-08-31 |
 | O-Reed | 📦 Installed | 1.3.1 | Synth (Physical Modeling Reed Wind) | 2026-08-31 |
 | O-Wind | 📦 Installed | 1.18.1 | Synth (Physical Model Flute) | 2026-08-31 |
 | O-Contrabass | 📦 Installed | 1.8.1 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
