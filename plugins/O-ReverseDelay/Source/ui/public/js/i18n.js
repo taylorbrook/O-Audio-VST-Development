@@ -18,6 +18,46 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
+// ── v1.10.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 24 of 69 entries (7 terminology, 17 typography, of which 2 also
+// carried a grammar/register fix and 4 also a meaning fix). Straight copies
+// (fr === en): 6, all covered — 2 carry `sameAsEn: true` (Grain, Mono) and 4
+// are titles over a translated body (Division, Source, Diffusion, and Mix as
+// of this release), which take NO flag because check-i18n reads the flag
+// entry-scoped. None translated. termNote exemptions: 1 (listed below).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker.
+//
+// Lint: 29 findings (6 T4, 13 T5, 1 T7, 7 G1, 2 F1) -> 0, --strict exit 0.
+//
+// Decisions the next reader needs:
+//  · label.tilt takes the glossary ROOT *Inclinaison* (71.13 px in a 66 px
+//    cell). v1.10.0's overlap was real but belonged to the PAIR, not to Tilt:
+//    Inclinaison|Adoucissement intersect by 1.53 px, Inclinaison|Biseau clear
+//    by 24.58. Taper carries the cost because Taper is not a glossary term.
+//  · knob-tukeyTaper's TITLE moved Adoucissement -> *Biseau* so the control has
+//    ONE French name; the body now says "biseautée" where the English says
+//    "tapered", and envelopeCell's body names the three real captions.
+//  · label.depth takes the ROOT *Profondeur* (72.36 px, 27.67 px clear of
+//    VITESSE) rather than the glossary's listed abbreviation *Prof.* —
+//    v1.10.0's "0.4 px over, which is a clip" was a recomputation; .knob-label
+//    is shrink-to-fit with overflow: visible, so its box IS its text.
+//  · label.overlap KEEPS the abbreviation *Recouvr.* (54.98 px): the root
+//    *Recouvrement* measures 88.92 px in a 92 px .meter-row that must also
+//    hold the × readout.
+//  · Duck is the loanword *Ducking* in BOTH the caption and the tip title.
+//  · syncSegments' and combo-noteDivision's bodies name *Libre* / *Synchro* —
+//    the page's own segment captions — where the drafts had kept Free / Sync.
+//  · Register: bodies address the user as *vous*, instructions imperative.
+//  · WCAG 2.5.3 label-in-name: every control on this page whose accessible
+//    name differs from its visible caption still CONTAINS it in French —
+//    Langue ⊂ Langue de l’interface, Division ⊂ Division de note, Forme ⊂
+//    Forme de grain, Source ⊂ Mode de source, Synchro ⊂ Mode de synchro
+//    (the last one only because the title shortened this release; "Mode de
+//    synchronisation" contained it too). The preset bar's three abbreviated
+//    captions carry no aria-label, so the caption IS the accessible name and
+//    the rule does not reach them. No caption was invented to close anything.
+//
 // i18n.js — O-ReverseDelay hover-help copy, English + French (v1.9.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
@@ -79,7 +119,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this hover help. The choice is remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette aide au survol. Le choix est conservé avec la session.',
+              b: 'Choisissez la langue de cette aide au survol. Le choix est conservé avec la session.',
               reviewed: false },
     },
     // v1.10.0: through v1.9.0 this entry told the user, in both languages, that
@@ -92,7 +132,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
 
@@ -100,22 +140,22 @@ export const I18N = Object.freeze({
     'syncSegments': {
         en: { t: 'Sync Mode',
               b: 'Free reads the delay in milliseconds; Sync locks it to the host\'s tempo grid.' },
-        fr: { t: 'Mode de synchronisation',
-              b: 'Free lit le délai en millisecondes ; Sync le verrouille sur la grille de tempo de l’hôte.',
+        fr: { t: 'Mode de synchro',
+              b: 'Libre lit le délai en millisecondes ; Synchro le verrouille sur la grille de tempo de l’hôte.',
               reviewed: false },
     },
     'knob-delayTime': {
         en: { t: 'Delay',
               b: 'How far back the grains reach. Long settings read as separate reversed phrases; short ones fuse into a smear.' },
         fr: { t: 'Délai',
-              b: 'Jusqu’où les grains remontent dans le temps. Les réglages longs s’entendent comme des phrases inversées distinctes ; les courts fusionnent en une traînée.',
+              b: 'Jusqu’où les grains remontent dans le temps. Les réglages longs s’entendent comme des phrases inversées distinctes ; les courts fusionnent en une traînée.',
               reviewed: false },
     },
     'combo-noteDivision': {
         en: { t: 'Division',
               b: 'The note value the delay follows while Sync is lit — dotted (D) and triplet (T) included.' },
         fr: { t: 'Division',
-              b: 'La valeur de note que suit le délai lorsque Sync est actif — pointées (D) et triolets (T) compris.',
+              b: 'La valeur de note que suit le délai lorsque Synchro est actif — pointées (D) et triolets (T) compris.',
               reviewed: false },
     },
 
@@ -124,14 +164,14 @@ export const I18N = Object.freeze({
         en: { t: 'Grain Size',
               b: 'Length of each reversed fragment. Long grains bloom and swell; short grains chatter.' },
         fr: { t: 'Taille de grain',
-              b: 'Longueur de chaque fragment inversé. Les grains longs s’épanouissent et enflent ; les grains courts crépitent.',
+              b: 'Longueur de chaque fragment inversé. Les grains longs s’épanouissent et enflent ; les grains courts crépitent.',
               reviewed: false },
     },
     'knob-density': {
         en: { t: 'Density',
               b: 'How many grains overlap at once. Sparse settings stutter; dense settings pour.' },
         fr: { t: 'Densité',
-              b: 'Nombre de grains qui se superposent à la fois. Les réglages clairsemés bégaient ; les réglages denses ruissellent.',
+              b: 'Nombre de grains qui se superposent à la fois. Les réglages clairsemés bégaient ; les réglages denses ruissellent.',
               reviewed: false },
     },
 
@@ -169,7 +209,7 @@ export const I18N = Object.freeze({
     'knob-mix': {
         en: { t: 'Mix',
               b: 'Balance of dry input against the reversed wash. Equal-power, so the total stays level.' },
-        fr: { t: 'Mixage',
+        fr: { t: 'Mix',
               b: 'Équilibre entre le signal direct et la nappe inversée. À puissance constante, le niveau total reste stable.',
               reviewed: false },
     },
@@ -179,7 +219,7 @@ export const I18N = Object.freeze({
         en: { t: 'Jitter',
               b: 'Scatters the timing of each new grain. At zero the grains arrive on a strict grid, which combs sustained material; raise it and the wash loosens into a cloud.' },
         fr: { t: 'Gigue',
-              b: 'Disperse le déclenchement de chaque nouveau grain. À zéro, les grains arrivent sur une grille stricte, ce qui filtre en peigne les sons tenus ; en montant, la nappe se relâche en nuage.',
+              b: 'Disperse le déclenchement de chaque nouveau grain. À zéro, les grains arrivent sur une grille stricte, ce qui filtre en peigne les sons tenus ; en montant, la nappe se relâche en nuage.',
               reviewed: false },
     },
     'knob-delayScatter': {
@@ -193,7 +233,7 @@ export const I18N = Object.freeze({
         en: { t: 'Size Random',
               b: 'Varies the length of each grain. Jitter alone leaves every grain the same shape; this removes the last of the regularity.' },
         fr: { t: 'Aléa de taille',
-              b: 'Fait varier la longueur de chaque grain. La gigue seule laisse à tous les grains la même forme ; ceci en supprime la dernière régularité.',
+              b: 'Fait varier la longueur de chaque grain. La gigue seule laisse à tous les grains la même forme ; ceci en supprime la dernière régularité.',
               reviewed: false },
     },
     'knob-gainRandom': {
@@ -209,7 +249,7 @@ export const I18N = Object.freeze({
         en: { t: 'Shape',
               b: 'The envelope each grain is played through. Hann is the shipped bell; Tukey holds its level and sounds more open; Expo-Decay plucks. Level is matched across all five, so this changes colour and not loudness.' },
         fr: { t: 'Forme',
-              b: 'L’enveloppe à travers laquelle chaque grain est joué. Hann est la cloche d’origine ; Tukey tient son niveau et sonne plus ouvert ; Expo-Decay pince. Le niveau est apparié sur les cinq formes : ceci change la couleur, pas le volume.',
+              b: 'L’enveloppe à travers laquelle chaque grain est joué. Hann est la cloche d’origine ; Tukey tient son niveau et sonne plus ouvert ; Expo-Decay pince. Le niveau est apparié sur les cinq formes : ceci change la couleur, pas le volume.',
               reviewed: false },
     },
     'knob-grainTilt': {
@@ -222,15 +262,15 @@ export const I18N = Object.freeze({
     'knob-tukeyTaper': {
         en: { t: 'Taper',
               b: 'How much of the Tukey grain is tapered. Low is nearly rectangular — a fast edge, open and gated. 1.00 is the full raised cosine, which is exactly the Hann window. Level is matched across the whole range, so this changes character and not loudness. Applies to the Tukey shape only.' },
-        fr: { t: 'Adoucissement',
-              b: 'Quelle part du grain Tukey est adoucie. En bas, la fenêtre est presque rectangulaire — une attaque franche, ouverte et abrupte. À 1,00, c’est le cosinus surélevé complet, c’est-à-dire exactement la fenêtre de Hann. Le niveau est apparié sur toute la plage : ceci change le caractère, pas le volume. Ne s’applique qu’à la forme Tukey.',
+        fr: { t: 'Biseau',
+              b: 'Quelle part du grain Tukey est biseautée. En bas, la fenêtre est presque rectangulaire — une attaque franche, ouverte et abrupte. À 1,00, c’est le cosinus surélevé complet, c’est-à-dire exactement la fenêtre de Hann. Le niveau est apparié sur toute la plage : ceci change le caractère, pas le volume. Ne s’applique qu’à la forme Tukey.',
               reviewed: false },
     },
     'envelopeCell': {
         en: { t: 'Envelope',
               b: 'The amplitude envelope applied to every grain, as Shape, Tilt and Taper currently set it. Time runs left to right across one grain; the dotted line is the halfway point.' },
         fr: { t: 'Enveloppe',
-              b: 'L’enveloppe d’amplitude appliquée à chaque grain, telle que Forme, Inclinaison et Adoucissement la règlent actuellement. Le temps se lit de gauche à droite sur un grain ; la ligne pointillée en marque le milieu.',
+              b: 'L’enveloppe d’amplitude appliquée à chaque grain, telle que Forme, Inclinaison et Biseau la règlent actuellement. Le temps se lit de gauche à droite sur un grain ; la ligne pointillée en marque le milieu.',
               reviewed: false },
     },
 
@@ -239,7 +279,7 @@ export const I18N = Object.freeze({
         en: { t: 'Grain Count',
               b: 'The most grains allowed to overlap at once, which Density then scales into. Raise it for a denser, smoother, more reverb-like wash; the shipped setting is 8. Density at zero always gives two overlapping grains whatever this is set to.' },
         fr: { t: 'Nombre de grains',
-              b: 'Le nombre maximal de grains autorisés à se superposer, dans lequel Densité vient ensuite se répartir. Montez-le pour une nappe plus dense, plus lisse, plus proche d’une réverbération ; le réglage d’origine est 8. À Densité zéro, il y a toujours deux grains superposés, quelle que soit cette valeur.',
+              b: 'Le nombre maximal de grains autorisés à se superposer, dans lequel Densité vient ensuite se répartir. Montez-le pour une nappe plus dense, plus lisse, plus proche d’une réverbération ; le réglage d’origine est 8. À Densité zéro, il y a toujours deux grains superposés, quelle que soit cette valeur.',
               reviewed: false },
     },
     'grainMeter': {
@@ -261,7 +301,7 @@ export const I18N = Object.freeze({
     'knob-direction': {
         en: { t: 'Direction',
               b: 'How many grains play forwards instead of backwards. At zero every grain is reversed. Turn it up and forward grains blend in as a clean delay tap — add Scatter to break them apart into a forward cloud. Level is matched across the whole range.' },
-        fr: { t: 'Direction',
+        fr: { t: 'Sens',
               b: 'Combien de grains sont lus à l’endroit plutôt qu’à l’envers. À zéro, tous les grains sont inversés. En montant, les grains à l’endroit se fondent en une répétition nette — ajoutez de la Dispersion pour les éclater en un nuage à l’endroit. Le niveau est apparié sur toute la plage.',
               reviewed: false },
     },
@@ -269,7 +309,7 @@ export const I18N = Object.freeze({
         en: { t: 'Regen',
               b: 'Extra gain inside the feedback loop. The topology loses about 7 dB each time round, so at zero even Feedback 100 eventually fades; raise this to reach true endless wash and, past it, self-oscillation into the loop\'s soft clip.' },
         fr: { t: 'Regain',
-              b: 'Gain supplémentaire à l’intérieur de la boucle de réinjection. La topologie perd environ 7 dB à chaque tour : à zéro, même une Réinjection à 100 finit par s’éteindre. Montez ce réglage pour atteindre la nappe véritablement infinie et, au-delà, l’auto-oscillation jusqu’à l’écrêtage doux de la boucle.',
+              b: 'Gain supplémentaire à l’intérieur de la boucle de réinjection. La topologie perd environ 7 dB à chaque tour : à zéro, même une Réinjection à 100 finit par s’éteindre. Montez ce réglage pour atteindre la nappe véritablement infinie et, au-delà, l’auto-oscillation jusqu’à l’écrêtage doux de la boucle.',
               reviewed: false },
     },
 
@@ -278,28 +318,28 @@ export const I18N = Object.freeze({
         en: { t: 'Source',
               b: 'What each grain reads. Mono sums the input before granulating, so Width spreads copies of one signal. Stereo reads left or right per grain, following that grain\'s position, so a wide source keeps its image through the wash.' },
         fr: { t: 'Source',
-              b: 'Ce que lit chaque grain. Mono somme l’entrée avant la granulation : Largeur répartit alors des copies d’un même signal. Stéréo lit à gauche ou à droite selon la position de chaque grain, si bien qu’une source large conserve son image à travers la nappe.',
+              b: 'Ce que lit chaque grain. Mono somme l’entrée avant la granulation : Largeur répartit alors des copies d’un même signal. Stéréo lit à gauche ou à droite selon la position de chaque grain, si bien qu’une source large conserve son image à travers la nappe.',
               reviewed: false },
     },
     'knob-duck': {
         en: { t: 'Duck',
               b: 'Pulls the wash down while the dry signal is playing and lets it swell back in the gaps. At zero the wet is untouched. It never changes how long the tail lasts — only when you hear it.' },
-        fr: { t: 'Atténuation dynamique',
-              b: 'Abaisse la nappe pendant que le signal direct joue et la laisse remonter dans les silences. À zéro, le signal traité reste intact. Ceci ne change jamais la durée de la queue — seulement le moment où on l’entend.',
+        fr: { t: 'Ducking',
+              b: 'Abaisse la nappe pendant que le signal direct joue et la laisse remonter dans les silences. À zéro, le signal traité reste intact. Ceci ne change jamais la durée de la queue — seulement le moment où vous l’entendez.',
               reviewed: false },
     },
     'knob-driftRate': {
         en: { t: 'Drift Rate',
               b: 'How fast the delay time wanders. Slow settings read as tape wow under a long wash; fast ones as vibrato on the tail. Has no effect until Depth is raised.' },
         fr: { t: 'Vitesse de dérive',
-              b: 'À quelle vitesse le temps de délai vagabonde. Les réglages lents s’entendent comme le pleurage d’une bande sous une longue nappe ; les rapides, comme un vibrato sur la queue. Sans effet tant que la Profondeur reste à zéro.',
+              b: 'À quelle vitesse le temps de délai vagabonde. Les réglages lents s’entendent comme le pleurage d’une bande sous une longue nappe ; les rapides, comme un vibrato sur la queue. Sans effet tant que la Profondeur reste à zéro.',
               reviewed: false },
     },
     'knob-driftDepth': {
         en: { t: 'Drift Depth',
               b: 'How far the delay time wanders, as a share of whatever the delay is set to. Each grain is fixed at the moment it starts, so this smears and detunes the tail without ever clicking.' },
         fr: { t: 'Profondeur de dérive',
-              b: 'Jusqu’où le temps de délai vagabonde, en proportion du délai réglé. Chaque grain est figé à l’instant où il démarre : ceci étale et désaccorde la queue sans jamais produire de clic.',
+              b: 'Jusqu’où le temps de délai vagabonde, en proportion du délai réglé. Chaque grain est figé à l’instant où il démarre : ceci étale et désaccorde la queue sans jamais produire de clic.',
               reviewed: false },
     },
 
@@ -315,7 +355,7 @@ export const I18N = Object.freeze({
         en: { t: 'Drive',
               b: 'Saturates the feedback loop at a matched level, so it changes the tail\'s colour rather than its length. Loud repeats compress and dull while quiet ones stay clean, which makes the tail bloom as it decays. Regen Makeup sets how long the tail lasts; this sets what it sounds like.' },
         fr: { t: 'Saturation',
-              b: 'Sature la boucle de réinjection à niveau apparié : ceci change la couleur de la queue plutôt que sa durée. Les répétitions fortes se compriment et s’assombrissent tandis que les faibles restent nettes, ce qui fait s’épanouir la queue à mesure qu’elle décroît. Regain règle la durée de la queue ; ceci règle son timbre.',
+              b: 'Sature la boucle de réinjection à niveau apparié : ceci change la couleur de la queue plutôt que sa durée. Les répétitions fortes se compriment et s’assombrissent tandis que les faibles restent nettes, ce qui fait s’épanouir la queue à mesure qu’elle décroît. Regain règle la durée de la queue ; ceci règle son timbre.',
               reviewed: false },
     },
 });
@@ -337,14 +377,19 @@ export const I18N = Object.freeze({
 // ── THE REUSE RULE ─────────────────────────────────────────────────────────
 // trLabel() falls back to I18N when a key is absent here, so a control whose
 // tooltip TITLE already IS its caption carries ONE key. This page reuses more
-// than any other in the suite — SIXTEEN keys — because its tooltip titles were
-// authored as the captions they sit under: knob-delayTime (Delay / Délai),
-// combo-noteDivision, knob-density, knob-lowCut, knob-highCut, knob-width,
-// knob-mix, knob-jitter, knob-delayScatter, combo-grainShape, knob-grainTilt,
-// knob-tukeyTaper, knob-direction, knob-regenMakeup, knob-diffusion,
-// knob-drive, plus freezeSegments, sourceSegments, syncSegments, knob-feedback
-// and settings for the group labels and accessible names that match exactly.
+// than any other in the suite — SEVENTEEN keys as rendered text — because its
+// tooltip titles were authored as the captions they sit under: knob-delayTime
+// (Delay / Délai), combo-noteDivision, knob-density, knob-feedback,
+// knob-lowCut, knob-highCut, knob-width, knob-mix, knob-jitter,
+// knob-delayScatter, combo-grainShape, knob-direction, knob-regenMakeup,
+// knob-diffusion, knob-drive, freezeSegments and sourceSegments, plus
+// syncSegments and settings for the accessible names that match exactly.
 // None of those appears below.
+//
+// (v1.10.1 corrects that list. Through v1.10.0 it read "SIXTEEN" and named
+// knob-grainTilt and knob-tukeyTaper among the reused keys — index.html has
+// always bound those two cells to label.tilt and label.taper, twelve lines
+// below, so the two it named are the two that are NOT reused.)
 //
 // It is deliberately NOT used where only the English matches, and this page has
 // six such cases: knob-grainSize's title is "Grain Size" under a caption
@@ -353,9 +398,14 @@ export const I18N = Object.freeze({
 // same shape. Reusing there would make the next tooltip copy edit a silent
 // change to a control.
 //
-// knob-duck is the case worth naming: its title is "Atténuation dynamique",
-// which is the right phrase for a sentence and 20 characters too many for a
-// 9.5 px knob caption in a 190 px column.
+// And it is not used where the English matches but the FRENCH cannot fit the
+// cell: label.tilt and label.taper are that case, and the block above them
+// carries the measurement. v1.10.0's third case — knob-duck's title
+// "Atténuation dynamique", 179.95 px of caption for a 72 px cell — is gone:
+// the glossary settles Duck as the loanword *Ducking* in both places, so the
+// title and the caption are now the same word for the same control and the
+// separate label.duck key survives only because the page also uses it as a
+// group heading.
 //
 // ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
 // Every en below is what index.html carried through v1.9.0, taken from
@@ -390,10 +440,15 @@ export const LABELS = Object.freeze({
     // answer while the page was English-only and the wrong one the moment it
     // had two languages: an attribute holds ONE string, so a language switch
     // mid-arm would have restored the ENGLISH armed face.
-    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: false } },
+    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: false } },
 
     // ── Group headings and captions ─────────────────────────────────────────
-    'label.time':      { en: { t: 'Time' },     fr: { t: 'Temps',     reviewed: false } },
+    // v1.10.1: the glossary settles "Time" as Durée, for a control that IS a
+    // duration. This is the row-1 PANEL HEADING over a sync-mode switch, a
+    // delay knob and a note-division select — only one of the three is a
+    // duration, and "DURÉE" over a mode switch names the wrong thing.
+    'label.time':      { en: { t: 'Time' },     fr: { t: 'Temps',     reviewed: false,
+                                                     termNote: 'panel heading for the time-domain group (sync mode, delay, division), not a duration parameter — Durée names only one of the three controls under it' } },
     'label.free':      { en: { t: 'Free' },     fr: { t: 'Libre',     reviewed: false } },
     'label.sync':      { en: { t: 'Sync' },     fr: { t: 'Synchro',   reviewed: false } },
     'label.grain':     { en: { t: 'Grain' },    fr: { t: 'Grain',     reviewed: false, sameAsEn: true } },
@@ -406,31 +461,54 @@ export const LABELS = Object.freeze({
     'label.window':    { en: { t: 'Window' },   fr: { t: 'Fenêtre',   reviewed: false } },
     // These two do NOT reuse knob-grainTilt / knob-tukeyTaper, and the reason is
     // measured: the WINDOW group's cells are 66 px (every other knob cell on the
-    // page is 72), and "Inclinaison" is 71.1 px and "Adoucissement" 91.9. The
+    // page is 72), and "Inclinaison" is 71.13 px and "Adoucissement" 91.94. The
     // label gate caught them as an OVERLAP between the two captions, assertion 8
     // — the clip check never saw it, because .knob-label is a shrink-to-fit flex
     // item whose box is always exactly its text. The group's 190 px column is
     // part of the pinned 190|190|276|190 width contract the three specimen rows
-    // share, so the cells cannot grow; the words do the work instead. Both are
-    // ordinary French for what the control does to a window's shape.
-    'label.tilt':      { en: { t: 'Tilt' },     fr: { t: 'Pente',     reviewed: false } },
+    // share, so the cells cannot grow; the words do the work instead.
+    //
+    // v1.10.1 RE-MEASURED the pair rather than inheriting the verdict, and the
+    // verdict was about the PAIR, not about Tilt. Both at their roots
+    // (Inclinaison | Adoucissement) intersect by 1.53 px, which is the overlap
+    // v1.10.0 saw. Inclinaison | Biseau clears by 24.58 px, and Inclinaison
+    // still sits 19.44 px inside the panel's left edge. So the glossary ROOT
+    // fits for Tilt as long as Taper stays short — and Tilt is the one of the
+    // two the glossary settles ("Pente" is its rendering of ROLLOFF, a
+    // different control). Tilt takes the root; Taper carries the whole cost.
+    //
+    // "Taper" is not a glossary term, so it is the reviewer's call, and the
+    // call is that ONE control gets ONE French name: the tooltip title was
+    // "Adoucissement" over a caption reading "Biseau" — the two-names-for-one-
+    // control defect. Biseau wins because it is the name that can be rendered
+    // in the cell, and the body now says "biseautée" where the English says
+    // "tapered".
+    'label.tilt':      { en: { t: 'Tilt' },     fr: { t: 'Inclinaison', reviewed: false } },
     'label.taper':     { en: { t: 'Taper' },    fr: { t: 'Biseau',    reviewed: false } },
     'label.count':     { en: { t: 'Count' },    fr: { t: 'Nombre',    reviewed: false } },
     'label.motion':    { en: { t: 'Motion' },   fr: { t: 'Mouvement', reviewed: false } },
     'label.off':       { en: { t: 'Off' },      fr: { t: 'Arrêt',     reviewed: false } },
     'label.mono':      { en: { t: 'Mono' },     fr: { t: 'Mono',      reviewed: false, sameAsEn: true } },
     'label.stereo':    { en: { t: 'Stereo' },   fr: { t: 'Stéréo',    reviewed: false } },
-    // The loanword, and the one entry here chosen against a translation that
-    // exists. knob-duck's tip says "Atténuation dynamique" and explains what the
-    // control does; the caption is the word this technique is called by in a
-    // French control room.
+    // The loanword — the word this technique is called by in a French control
+    // room, and what the glossary settles for "Duck" suite-wide. v1.10.0
+    // shipped it as the caption while knob-duck's TIP said "Atténuation
+    // dynamique"; v1.10.1 put the tip on the same word, so the control has one
+    // French name and the tip's body does the explaining instead.
     'label.duck':      { en: { t: 'Duck' },     fr: { t: 'Ducking',   reviewed: false } },
     'label.drift':     { en: { t: 'Drift' },    fr: { t: 'Dérive',    reviewed: false } },
     'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Vitesse',   reviewed: false } },
-    // "Profondeur" is 72.4 px in a 72 px cell — 0.4 px over, which is a clip
-    // rather than a near miss. "Ampleur" is the same idea for the amount of a
-    // modulation and is what the tip's fuller phrase can afford to spell out.
-    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Ampleur',   reviewed: false } },
+    // v1.10.1: v1.10.0 read "Profondeur is 72.4 px in a 72 px cell — 0.4 px
+    // over, which is a clip rather than a near miss" and shipped Ampleur.
+    // Re-measured, the number was right (72.36 px) and the conclusion was
+    // wrong: .knob-label is a shrink-to-fit flex item with overflow: visible,
+    // so its box IS its text and there is nothing to clip against. In the
+    // 276 px DRIFT panel the caption clears VITESSE by 27.67 px and the
+    // panel's own right edge by 58.81 px. The root term goes back in — which
+    // also puts the caption, knob-driftDepth's title ("Profondeur de dérive")
+    // and knob-driftRate's body ("tant que la Profondeur reste à zéro") on one
+    // word. "Ampleur" is forbidden for Depth suite-wide (lint F1).
+    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Profondeur', reviewed: false } },
     'label.colour':    { en: { t: 'Colour' },   fr: { t: 'Couleur',   reviewed: false } },
 
     // ── The grain meter's two captions ──────────────────────────────────────
