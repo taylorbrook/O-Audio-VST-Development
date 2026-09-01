@@ -2,6 +2,55 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.15.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+**No parameter, preset, state, DSP or layout change.** Every knob, range,
+default and all 28 factory presets are bitwise what v1.15.0 shipped, and the
+geometry gate reports the same single moved element it did before this pass.
+
+### Changed
+
+- **49 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint (`scripts/i18n-fr-lint.js`): 22
+  terminology, 17 typography, 5 grammar/agreement, 5 meaning. The visible ones:
+  *Dosage* → **Mix** on the Blend caption, the Codec blend tip and the global
+  Mix; *Germe* → **Graine** on the Seed readout and its tip, with the Reseed
+  tip title *Retirer un germe* (which reads "remove a seed") becoming
+  **Nouvelle graine**; *Voile* → **Déform.** on the Warp caption and
+  **Déformation** in its tip; *Ampleur* → **Prof.**; *Masquage* → **Dissim.**;
+  *Fondu* → **Déclin** in the concealment list; *Dithering* → **Dither**; the
+  AGC tip title *Gain automatique* → **AGC**, so the caption and the tip name
+  the control the same thing. Typography: no-break spaces before `%`, `:`, `;`
+  and `?` and between every number and its unit (*20 ms*, *500 Hz*, *20 kHz*,
+  *10–400 ms*).
+- **Four grammar fixes** the drafts carried: *sont asservis* → *sont asservies*
+  (Vinyl Speed), *est jamais touché* → *est touché* (Flip severity), the bare
+  *Si … ou* fragment on the Clock tip, and the missing elision in the Splices
+  marginal note (*lorsque allumé* → *lorsqu'allumé*).
+- **Five bodies now say what the English says**: the concealment tip names the
+  four faces the user can see (Silence / Répéter / Déclin / Substituer), the
+  Mains tip names its own caption (*Bruit*, not *Bruit de ligne*), and the four
+  noise-bed tips say *nappe* rather than the calque *lit*.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Measured
+
+| Caption | Glossary root | Measured | Box | Shipped |
+|---|---|---|---|---|
+| Depth | Profondeur | 75.36 px | 76 px `.mix-text` | **Prof.** (31.39) — 0.64 px is not a fit |
+| Conceal | Dissimulation | 88.97 px | 82 px `.ctl` | **Dissim.** (42.98) |
+| Warp | Déformation | 81.30 px | 64 px `.ctl` | **Déform.** (50.38) |
+| Rate | Vitesse | 46.41 px (fits) | 64 px `.ctl` | **Fréq.** — kept on MEANING, not width: the control is a sample rate in Hz (`termNote`) |
+| Pop | — | *Craquements* 84.47 px | 64 px `.ctl` | **Clics**; the tip title is now *Clics et craquements* |
+| Splices note | — | *lorsqu'il est allumé* 117.95 px but two lines | 132 px `.annot` | **lorsqu'allumé** (124.80, one line) |
+
+`reviewed: false` stays on all 117 entries — this was a second machine reading
+against a glossary and a lint, not a native-speaker review.
+
 ## [1.15.0] — 2026-08-27 — the PAGE speaks French, not only the hover help
 
 **No parameter, preset, state or DSP change.** Every knob, every range, every

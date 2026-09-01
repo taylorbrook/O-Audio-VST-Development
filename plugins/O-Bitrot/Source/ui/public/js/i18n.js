@@ -18,7 +18,74 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bitrot hover-help copy, English + French (v1.14.0)
+// i18n.js — O-Bitrot hover-help copy, English + French (v1.15.1)
+//
+// ── v1.15.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 49 entries (22 terminology, 17 typography, 5 grammar/agreement,
+// 5 meaning). sameAsEn: kept 8, translated 0. termNote exemptions: 1 (listed
+// below). Left as drafted: the rest. reviewed: false throughout — no native
+// speaker has read this file yet, and that flag records the human, not a lint.
+// (The banner above said v1.14.0 through v1.15.0; corrected here.)
+//
+// The lint went 44 findings -> 1. THE ONE THAT STAYS is ROT_ENABLE's body:
+// `--strict` reports T2 (decimal point) on the version token "1.10". A version
+// identifier is not a decimal number — the English body carries the SAME token
+// ("a pre-1.10 session"), which is the discriminator T2 already applies to
+// surround-format names. Dropping the version would lose a clause the English
+// has. Reported to the orchestrator, not worked around with a termNote (a
+// termNote exempts G1/F1 only, and would have been the wrong instrument).
+//
+// ── The decisions a later reader needs ─────────────────────────────────────
+//
+// MEASURED, with the gate's own method (Range.selectNodeContents on the
+// shipping node at 900 x 740). Three of this file's captions could not take
+// their glossary ROOT term:
+//   * label.depth -> `Prof.`, not `Profondeur`. Profondeur measures 75.36 px
+//     against .mix-text's 76 px pin — 0.64 px of margin, which no other font
+//     face survives. Prof. is 31.39.
+//   * label.conceal -> `Dissim.`, not `Dissimulation` (88.97 px, one
+//     unbreakable word, in an 82 px .ctl). Dissim. is 42.98 and shares its
+//     stem with the tip title, which `Masquage` did not.
+//   * label.pop stays `Clics`: `Craquements` is 84.47 px in a 64 px cell. The
+//     VINYL_POP tip title is now "Clics et craquements" so the caption's own
+//     word appears in the tip that explains it.
+// label.warp DID take the abbreviation: `Déform.` is 50.38 px in 64, so
+// `Voile` was never a width defence. The tip title is the root `Déformation`;
+// `voile` survives in the BODIES (`un disque voilé`, `l'ondulation du
+// voilage`), which is where the idiom for a warped LP belongs.
+//
+// TERMINOLOGY SETTLED ON THE PAGE, not only against the list:
+//   * AGC had two French faces on one page — the caption said AGC, the tip
+//     title said "Gain automatique". The title is now AGC, and both bodies say
+//     AGC, expanded once as `commande automatique de gain (AGC)`.
+//   * Germe -> Graine everywhere. diceBtn's title read `Retirer un germe`,
+//     which says REMOVE a seed; it is now `Nouvelle graine`.
+//   * `lit de souffle` / `lit de bruit` -> `nappe de …` on four bodies. `lit`
+//     is a calque of "bed"; French audio says `nappe`.
+//   * CODEC_MAINS's body named `Bruit de ligne`; the caption on the page is
+//     `Bruit`, and the English body names its caption too. Now `Bruit`.
+//   * PACKET_CONCEAL's body now names the four French faces the user can see
+//     (Silence / Répéter / Déclin / Substituer), as the English body names its
+//     own. label.decay went `Fondu` -> `Déclin` for the same reason: fondu
+//     alone is a fade. The <select> is fixed-width and did not move.
+//
+// GEOMETRY. label.annotSplices was `fondus contournés lorsque allumé` — a
+// missing elision. The correct `lorsqu'il est allumé` measured 117.95 px but
+// WRAPPED to two lines in the 132 px .annot box and moved 164 non-label
+// elements. `lorsqu'allumé` is 124.8 px, one line, elision correct, and the
+// geometry diff is back to its baseline of exactly one element (the #viewSync
+// <select>, dw=7.0, unchanged since before this pass).
+//
+// LABEL-IN-NAME (WCAG 2.5.3) holds by STEM on the three abbreviations that
+// have a tip title to hold to: Déform. ⊂ Déformation, Dissim. ⊂ Dissimulation,
+// Fréq. ⊂ Fréquence d'échantillonnage. `Prof.` has no stem in its own tip
+// title (`Gravité d'inversion`) — the ENGLISH pair disagrees the same way
+// (Depth / Flip severity), so the French mirrors it rather than inventing one.
+//
+// label.prob (`Prob.`) and label.env (`Env.`) now carry sameAsEn: true. They
+// are the same abbreviation in both languages, differing only by the French
+// period, and the flag is the existing declaration that a human looked.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -78,7 +145,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
 
@@ -102,7 +169,7 @@ export const I18N = Object.freeze({
         en: { t: 'Preset',
               b: 'The preset currently loaded — click to browse all of them by category. The 28 factory presets are read-only; saving under the same name writes a user copy instead.' },
         fr: { t: 'Préréglage',
-              b: 'Le préréglage actuellement chargé — cliquer pour les parcourir tous par catégorie. Les 28 préréglages d’usine sont en lecture seule ; enregistrer sous le même nom crée une copie utilisateur à la place.',
+              b: 'Le préréglage actuellement chargé — cliquer pour les parcourir tous par catégorie. Les 28 préréglages d’usine sont en lecture seule ; enregistrer sous le même nom crée une copie utilisateur à la place.',
               reviewed: false },
     },
 
@@ -166,7 +233,7 @@ export const I18N = Object.freeze({
         en: { t: 'Dropout share',
               b: 'The share of tape events that become an oxide dropout — a dip to 10–70% of level with a filter blended in. Real dropouts almost never mute; a full mute reads as an edit.' },
         fr: { t: 'Part de pertes',
-              b: 'La part des événements de bande qui deviennent une perte d’oxyde — une chute à 10–70 % du niveau avec un filtre mélangé. Les vraies pertes ne coupent presque jamais ; une coupure franche s’entend comme un montage.',
+              b: 'La part des événements de bande qui deviennent une perte d’oxyde — une chute à 10–70 % du niveau avec un filtre mêlé. Les vraies pertes ne coupent presque jamais ; une coupure franche s’entend comme un montage.',
               reviewed: false },
     },
 
@@ -174,7 +241,7 @@ export const I18N = Object.freeze({
         en: { t: 'Wow & flutter',
               b: 'Depth of the slow speed drift and its faster flutter. This modulates the read rate, so its slope is pitch.' },
         fr: { t: 'Pleurage et scintillement',
-              b: 'Profondeur de la dérive lente de vitesse et de son scintillement plus rapide. Ceci module la vitesse de lecture : sa pente est donc une hauteur.',
+              b: 'Profondeur de la dérive lente de vitesse et de son scintillement plus rapide. Ceci module la vitesse de lecture : sa pente est donc une variation de hauteur.',
               reviewed: false },
     },
 
@@ -182,7 +249,7 @@ export const I18N = Object.freeze({
         en: { t: 'Hiss',
               b: 'Level of the tape hiss bed. Runs whenever the family is enabled, independent of events.' },
         fr: { t: 'Souffle',
-              b: 'Niveau du lit de souffle de bande. Il joue dès que la famille est activée, indépendamment des événements.',
+              b: 'Niveau de la nappe de souffle de bande. Il joue dès que la famille est activée, indépendamment des événements.',
               reviewed: false },
     },
 
@@ -190,7 +257,7 @@ export const I18N = Object.freeze({
         en: { t: 'Stop ramp',
               b: 'How long a stop gesture takes to spin down and back up again. 20–500 ms.' },
         fr: { t: 'Rampe d’arrêt',
-              b: 'Le temps que met un arrêt à ralentir puis à repartir. 20–500 ms.',
+              b: 'Le temps que met un arrêt à ralentir puis à repartir. 20–500 ms.',
               reviewed: false },
     },
 
@@ -198,7 +265,7 @@ export const I18N = Object.freeze({
         en: { t: 'CD Skip',
               b: 'Enable the CD family — anti-shock loop stutters, sector-quantised buzz, and servo seeks.' },
         fr: { t: 'Saut de CD',
-              b: 'Active la famille CD — bégaiements de boucle anti-choc, bourdonnement quantifié au secteur, et recherches de servo.',
+              b: 'Active la famille CD — bégaiements de boucle anti-choc, bourdonnement quantifié au secteur et recherches de servo.',
               reviewed: false },
     },
 
@@ -214,7 +281,7 @@ export const I18N = Object.freeze({
         en: { t: 'Severity',
               b: 'How broken the disc is. Past the upper thresholds, loop windows quantise to the sector quantum — the 75 Hz-family buzz of a real anti-shock loop — and releases go through a servo seek instead of recovering instantly.' },
         fr: { t: 'Gravité',
-              b: 'À quel point le disque est abîmé. Au-delà des seuils hauts, les fenêtres de boucle se quantifient sur le pas de secteur — le bourdonnement de la famille des 75 Hz d’une vraie boucle anti-choc — et les relâchements passent par une recherche de servo au lieu de se rétablir instantanément.',
+              b: 'À quel point le disque est abîmé. Au-delà des seuils hauts, les fenêtres de boucle se quantifient sur le pas de secteur — le bourdonnement de la famille des 75 Hz d’une vraie boucle anti-choc — et les relâchements passent par une recherche de servo au lieu de se rétablir instantanément.',
               reviewed: false },
     },
 
@@ -222,7 +289,7 @@ export const I18N = Object.freeze({
         en: { t: 'Loop length',
               b: 'Length of the segment an anti-shock stutter repeats. 10–400 ms.' },
         fr: { t: 'Longueur de boucle',
-              b: 'Longueur du segment que répète un bégaiement anti-choc. 10–400 ms.',
+              b: 'Longueur du segment que répète un bégaiement anti-choc. 10–400 ms.',
               reviewed: false },
     },
 
@@ -230,7 +297,7 @@ export const I18N = Object.freeze({
         en: { t: 'Vinyl',
               b: 'Enable the vinyl family — groove jumps and locked grooves, surface pops, wear and warp.' },
         fr: { t: 'Vinyle',
-              b: 'Active la famille vinyle — sauts de sillon et sillons fermés, craquements de surface, usure et voile.',
+              b: 'Active la famille vinyle — sauts de sillon et sillons fermés, craquements de surface, usure et déformation.',
               reviewed: false },
     },
 
@@ -246,14 +313,14 @@ export const I18N = Object.freeze({
         en: { t: 'Speed',
               b: 'Disc speed. Sets the revolution period, which both the groove-jump distance and the warp wobble are locked to.' },
         fr: { t: 'Vitesse',
-              b: 'Vitesse du disque. Fixe la période de révolution, à laquelle sont asservis la distance du saut de sillon et l’ondulation du voile.',
+              b: 'Vitesse du disque. Fixe la période de révolution, à laquelle sont asservies la distance du saut de sillon et l’ondulation du voilage.',
               reviewed: false },
     },
 
     'VINYL_POP': {
         en: { t: 'Pops',
               b: 'Density of surface crackle and pops. Runs whenever the family is enabled, independent of events.' },
-        fr: { t: 'Craquements',
+        fr: { t: 'Clics et craquements',
               b: 'Densité des craquements et crépitements de surface. Ils jouent dès que la famille est activée, indépendamment des événements.',
               reviewed: false },
     },
@@ -262,15 +329,15 @@ export const I18N = Object.freeze({
         en: { t: 'Wear',
               b: 'Level of the worn-groove noise bed — the dull roar under a played-out record.' },
         fr: { t: 'Usure',
-              b: 'Niveau du lit de bruit de sillon usé — le grondement sourd sous un disque trop joué.',
+              b: 'Niveau de la nappe de bruit de sillon usé — le grondement sourd sous un disque trop joué.',
               reviewed: false },
     },
 
     'VINYL_WARP': {
         en: { t: 'Warp',
               b: 'Depth of the once-per-revolution pitch wobble of a warped disc. At 100% the read rate deviates 0.6%, which is the far end of what a visibly warped LP does.' },
-        fr: { t: 'Voile',
-              b: 'Profondeur de l’ondulation de hauteur d’un disque voilé, une fois par tour. À 100 % la vitesse de lecture dévie de 0,6 %, ce qui correspond à l’extrême d’un microsillon visiblement voilé.',
+        fr: { t: 'Déformation',
+              b: 'Profondeur de l’ondulation de hauteur d’un disque voilé, une fois par tour. À 100 %, la vitesse de lecture dévie de 0,6 %, ce qui correspond à l’extrême d’un microsillon visiblement voilé.',
               reviewed: false },
     },
 
@@ -278,7 +345,7 @@ export const I18N = Object.freeze({
         en: { t: 'Packet',
               b: 'Enable the packet family — dropped 20 ms packets in bursts, with a concealment strategy.' },
         fr: { t: 'Paquets',
-              b: 'Active la famille paquets — pertes de paquets de 20 ms en rafales, avec une stratégie de dissimulation.',
+              b: 'Active la famille paquets — pertes de paquets de 20 ms en rafales, avec une stratégie de dissimulation.',
               reviewed: false },
     },
 
@@ -286,15 +353,15 @@ export const I18N = Object.freeze({
         en: { t: 'Loss rate',
               b: 'Share of 20 ms packets that fail to arrive.' },
         fr: { t: 'Taux de perte',
-              b: 'Part des paquets de 20 ms qui n’arrivent pas.',
+              b: 'Part des paquets de 20 ms qui n’arrivent pas.',
               reviewed: false },
     },
 
     'PACKET_BURST': {
         en: { t: 'Burstiness',
               b: 'How much losses clump. At 0 they are independent; higher values hold the chain in its bad state, so packets drop in runs rather than singly.' },
-        fr: { t: 'Groupement',
-              b: 'À quel point les pertes se groupent. À 0 elles sont indépendantes ; plus haut, la chaîne reste dans son mauvais état et les paquets tombent par séries plutôt qu’un par un.',
+        fr: { t: 'Groupement en rafales',
+              b: 'À quel point les pertes se groupent. À 0 elles sont indépendantes ; plus haut, la chaîne reste dans son mauvais état et les paquets tombent par séries plutôt qu’un par un.',
               reviewed: false },
     },
 
@@ -302,7 +369,7 @@ export const I18N = Object.freeze({
         en: { t: 'Concealment',
               b: 'What the decoder does with a missing packet — go Silent, Repeat the last one, let it Decay, or Substitute new material.' },
         fr: { t: 'Dissimulation',
-              b: 'Ce que fait le décodeur d’un paquet manquant — se taire, répéter le précédent, le laisser décroître, ou lui substituer de la matière nouvelle.',
+              b: 'Ce que fait le décodeur d’un paquet manquant — Silence, Répéter le précédent, le laisser en Déclin ou Substituer de la matière nouvelle.',
               reviewed: false },
     },
 
@@ -318,7 +385,7 @@ export const I18N = Object.freeze({
         en: { t: 'Codec',
               b: 'Enable the codec family — a telephone chain: band-limit, μ-law or GSM coding, AGC and line noise.' },
         fr: { t: 'Codec',
-              b: 'Active la famille codec — une chaîne téléphonique : limitation de bande, codage μ-law ou GSM, correction automatique de gain et bruit de ligne.',
+              b: 'Active la famille codec — une chaîne téléphonique : limitation de bande, codage μ-law ou GSM, AGC et bruit de ligne.',
               reviewed: false },
     },
 
@@ -326,14 +393,14 @@ export const I18N = Object.freeze({
         en: { t: 'Line coding',
               b: 'μ-law companding or GSM full-rate. GSM adds frame structure, so a lost packet takes its whole frame with it.' },
         fr: { t: 'Codage de ligne',
-              b: 'Compression μ-law ou GSM plein débit. Le GSM ajoute une structure de trames : un paquet perdu emporte donc toute sa trame.',
+              b: 'Compression μ-law ou GSM plein débit. Le GSM ajoute une structure de trames : un paquet perdu emporte donc toute sa trame.',
               reviewed: false },
     },
 
     'CODEC_MIX': {
         en: { t: 'Blend',
               b: 'How much of the coded signal replaces the dry one through this stage.' },
-        fr: { t: 'Dosage',
+        fr: { t: 'Mix',
               b: 'Quelle part du signal codé remplace le signal direct à travers cet étage.',
               reviewed: false },
     },
@@ -341,8 +408,8 @@ export const I18N = Object.freeze({
     'CODEC_AGC': {
         en: { t: 'AGC',
               b: 'Depth of the fast automatic gain control after the codec — a large part of why a phone sounds like a phone. At 0 the gain is exactly unity.' },
-        fr: { t: 'Gain automatique',
-              b: 'Profondeur de la correction automatique de gain rapide après le codec — une grande part de ce qui fait qu’un téléphone sonne comme un téléphone. À 0 le gain est exactement unitaire.',
+        fr: { t: 'AGC',
+              b: 'Profondeur de la commande automatique de gain (AGC) rapide après le codec — une grande part de ce qui fait qu’un téléphone sonne comme un téléphone. À 0 le gain est exactement unitaire.',
               reviewed: false },
     },
 
@@ -350,7 +417,7 @@ export const I18N = Object.freeze({
         en: { t: 'Mains',
               b: 'Hum frequency and its harmonics in the line-noise bed. Inert while Noise is 0.' },
         fr: { t: 'Secteur',
-              b: 'Fréquence du ronflement secteur et de ses harmoniques dans le lit de bruit de ligne. Sans effet tant que Bruit de ligne est à 0.',
+              b: 'Fréquence du ronflement secteur et de ses harmoniques dans la nappe de bruit de ligne. Sans effet tant que Bruit est à 0.',
               reviewed: false },
     },
 
@@ -358,7 +425,7 @@ export const I18N = Object.freeze({
         en: { t: 'Line noise',
               b: 'Level of the line-noise bed — mains hum plus the hiss of a bad connection.' },
         fr: { t: 'Bruit de ligne',
-              b: 'Niveau du lit de bruit de ligne — ronflement secteur et souffle d’une mauvaise connexion.',
+              b: 'Niveau de la nappe de bruit de ligne — ronflement secteur et souffle d’une mauvaise connexion.',
               reviewed: false },
     },
 
@@ -366,7 +433,7 @@ export const I18N = Object.freeze({
         en: { t: 'Crush',
               b: 'Enable the crush family — bit-depth reduction, sample-rate decimation with jitter, and dither.' },
         fr: { t: 'Écrasement',
-              b: 'Active la famille écrasement — réduction de résolution, décimation de fréquence d’échantillonnage avec gigue, et dithering.',
+              b: 'Active la famille écrasement — réduction de résolution, décimation de fréquence d’échantillonnage avec gigue et dither.',
               reviewed: false },
     },
 
@@ -382,7 +449,7 @@ export const I18N = Object.freeze({
         en: { t: 'Sample rate',
               b: 'Decimation rate — the grid the signal is re-sampled onto. 500 Hz to 20 kHz.' },
         fr: { t: 'Fréquence d’échantillonnage',
-              b: 'Fréquence de décimation — la grille sur laquelle le signal est ré-échantillonné. De 500 Hz à 20 kHz.',
+              b: 'Fréquence de décimation — la grille sur laquelle le signal est ré-échantillonné. De 500 Hz à 20 kHz.',
               reviewed: false },
     },
 
@@ -390,7 +457,7 @@ export const I18N = Object.freeze({
         en: { t: 'Jitter',
               b: 'Random timing error on the decimation grid, so crossings land off the clock.' },
         fr: { t: 'Gigue',
-              b: 'Erreur temporelle aléatoire sur la grille de décimation, si bien que les passages tombent à côté de l’horloge.',
+              b: 'Erreur temporelle aléatoire sur la grille de décimation, si bien que les instants d’échantillonnage tombent à côté de l’horloge.',
               reviewed: false },
     },
 
@@ -398,14 +465,14 @@ export const I18N = Object.freeze({
         en: { t: 'Envelope',
               b: 'Bipolar: how much the input envelope pushes bit depth around. Positive cleans up loud passages, negative dirties them.' },
         fr: { t: 'Enveloppe',
-              b: 'Bipolaire : dans quelle mesure l’enveloppe d’entrée fait varier la résolution. En positif, les passages forts se nettoient ; en négatif, ils se salissent.',
+              b: 'Bipolaire : dans quelle mesure l’enveloppe d’entrée fait varier la résolution. En positif, les passages forts se nettoient ; en négatif, ils se salissent.',
               reviewed: false },
     },
 
     'CRUSH_DITHER': {
         en: { t: 'Dither',
               b: 'Noise added before quantisation, in LSBs — trades quantisation distortion for a steady noise floor.' },
-        fr: { t: 'Dithering',
+        fr: { t: 'Dither',
               b: 'Bruit ajouté avant la quantification, en LSB — il échange la distorsion de quantification contre un plancher de bruit stable.',
               reviewed: false },
     },
@@ -414,7 +481,7 @@ export const I18N = Object.freeze({
         en: { t: 'Rot',
               b: 'Enable the rot family — bit flips, sticky decode holds, and wrong-decode garble stretches. While off it takes no random draws at all, so a pre-1.10 session renders bit-identically.' },
         fr: { t: 'Corruption',
-              b: 'Active la famille corruption — inversions de bits, blocages de décodage, et plages de décodage erroné. Désactivée, elle ne tire aucun nombre aléatoire : une session antérieure à la 1.10 rend donc un résultat identique au bit près.',
+              b: 'Active la famille corruption — inversions de bits, blocages de décodage et plages de décodage erroné. Désactivée, elle ne tire aucun nombre aléatoire : une session antérieure à la version 1.10 rend donc un résultat identique au bit près.',
               reviewed: false },
     },
 
@@ -430,7 +497,7 @@ export const I18N = Object.freeze({
         en: { t: 'Flip severity',
               b: 'Sweeps the bit-flip rate from an occasional tick to a dense digital hash, and opens the reachable bit field from bit 3 up to bit 14. At most one sample in four is ever touched.' },
         fr: { t: 'Gravité d’inversion',
-              b: 'Fait passer le taux d’inversion de bits d’un tic occasionnel à un hachis numérique dense, et ouvre le champ de bits atteignable du bit 3 jusqu’au bit 14. Au plus un échantillon sur quatre est jamais touché.',
+              b: 'Fait passer le taux d’inversion de bits d’un tic occasionnel à un hachis numérique dense et ouvre le champ de bits atteignable du bit 3 jusqu’au bit 14. Au plus un échantillon sur quatre est touché.',
               reviewed: false },
     },
 
@@ -454,7 +521,7 @@ export const I18N = Object.freeze({
         en: { t: 'Clock',
               b: 'Whether events are scheduled against the host tempo or a free-running rate.' },
         fr: { t: 'Horloge',
-              b: 'Si les événements sont cadencés sur le tempo de l’hôte ou sur une fréquence libre.',
+              b: 'Détermine si les événements sont cadencés sur le tempo de l’hôte ou sur une fréquence libre.',
               reviewed: false },
     },
 
@@ -470,23 +537,23 @@ export const I18N = Object.freeze({
         en: { t: 'Free rate',
               b: 'Free-running event clock rate, 0.1–20 Hz. Ignores host tempo.' },
         fr: { t: 'Fréquence libre',
-              b: 'Fréquence de l’horloge d’événements en marche libre, 0,1–20 Hz. Ignore le tempo de l’hôte.',
+              b: 'Fréquence de l’horloge d’événements en marche libre, 0,1–20 Hz. Ignore le tempo de l’hôte.',
               reviewed: false },
     },
 
     'seedRo': {
         en: { t: 'Seed',
               b: 'The seed every random stream is derived from. The same seed at the same transport position gives the same events on every render.' },
-        fr: { t: 'Germe',
-              b: 'Le germe dont dérive chaque flux aléatoire. Le même germe à la même position de transport donne les mêmes événements à chaque rendu.',
+        fr: { t: 'Graine',
+              b: 'La graine dont dérive chaque flux aléatoire. La même graine à la même position de transport donne les mêmes événements à chaque rendu.',
               reviewed: false },
     },
 
     'diceBtn': {
         en: { t: 'Reseed',
               b: 'Draw a new seed. Everything stochastic re-rolls, so the take becomes a different one.' },
-        fr: { t: 'Retirer un germe',
-              b: 'Tirer un nouveau germe. Tout ce qui est stochastique est relancé : la prise devient donc une autre prise.',
+        fr: { t: 'Nouvelle graine',
+              b: 'Tirer une nouvelle graine. Tout ce qui est stochastique est relancé : la prise devient donc une autre prise.',
               reviewed: false },
     },
 
@@ -501,7 +568,7 @@ export const I18N = Object.freeze({
     'MIX': {
         en: { t: 'Mix',
               b: 'Dry/wet blend of the whole processed chain.' },
-        fr: { t: 'Dosage',
+        fr: { t: 'Mix',
               b: 'Équilibre direct/traité de toute la chaîne de traitement.',
               reviewed: false },
     },
@@ -576,7 +643,7 @@ export const LABELS = Object.freeze({
     // answer while the page was English-only and the wrong one the moment it
     // had two languages: an attribute holds ONE string, so switching to French
     // mid-session restored an English "On".
-    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: false } },
+    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: false } },
     // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the seven panel
     // buttons are 34 px, and this is the vocabulary a piece of hardware uses,
     // which is the register this whole catalogue is written in.
@@ -602,7 +669,7 @@ export const LABELS = Object.freeze({
     // ── Knob and control captions ───────────────────────────────────────────
     // "Prob" is already the abbreviation of "Probability" in English; "Prob."
     // is the same abbreviation in French and is what fits the same cell.
-    'label.prob':      { en: { t: 'Prob' },     fr: { t: 'Prob.',      reviewed: false } },
+    'label.prob':      { en: { t: 'Prob' },     fr: { t: 'Prob.',      reviewed: false, sameAsEn: true } },
     'label.stop':      { en: { t: 'Stop' },     fr: { t: 'Arrêt',      reviewed: false } },
     'label.drop':      { en: { t: 'Drop' },     fr: { t: 'Pertes',     reviewed: false } },
     'label.wow':       { en: { t: 'Wow' },      fr: { t: 'Pleurage',   reviewed: false } },
@@ -616,31 +683,32 @@ export const LABELS = Object.freeze({
     // is called in the shorter register a caption is written in.
     'label.pop':       { en: { t: 'Pop' },      fr: { t: 'Clics',      reviewed: false } },
     'label.wear':      { en: { t: 'Wear' },     fr: { t: 'Usure',      reviewed: false } },
-    'label.warp':      { en: { t: 'Warp' },     fr: { t: 'Voile',      reviewed: false } },
+    'label.warp':      { en: { t: 'Warp' },     fr: { t: 'Déform.',    reviewed: false } },
     'label.loss':      { en: { t: 'Loss' },     fr: { t: 'Pertes',     reviewed: false } },
     'label.burst':     { en: { t: 'Burst' },    fr: { t: 'Rafales',    reviewed: false } },
-    'label.conceal':   { en: { t: 'Conceal' },  fr: { t: 'Masquage',   reviewed: false } },
+    'label.conceal':   { en: { t: 'Conceal' },  fr: { t: 'Dissim.',    reviewed: false } },
     'label.comfort':   { en: { t: 'Comfort' },  fr: { t: 'Confort',    reviewed: false } },
     'label.line':      { en: { t: 'Line' },     fr: { t: 'Ligne',      reviewed: false } },
-    'label.blend':     { en: { t: 'Blend' },    fr: { t: 'Dosage',     reviewed: false } },
+    'label.blend':     { en: { t: 'Blend' },    fr: { t: 'Mix',        reviewed: false } },
     'label.agc':       { en: { t: 'AGC' },      fr: { t: 'AGC',        reviewed: false, sameAsEn: true } },
     'label.mains':     { en: { t: 'Mains' },    fr: { t: 'Secteur',    reviewed: false } },
     'label.noise':     { en: { t: 'Noise' },    fr: { t: 'Bruit',      reviewed: false } },
     'label.bits':      { en: { t: 'Bits' },     fr: { t: 'Bits',       reviewed: false, sameAsEn: true } },
-    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Fréq.',      reviewed: false } },
+    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Fréq.',      reviewed: false,
+                                                     termNote: 'the control IS a frequency in Hz — CRUSH_RATE is the decimation grid, 500 Hz to 20 kHz, and its own tip title is « Fréquence d’échantillonnage ». Vitesse would rename a sample rate after a speed. Not width: Vitesse measures 46.41 px in the 64 px .ctl and would fit.' } },
     'label.jitter':    { en: { t: 'Jitter' },   fr: { t: 'Gigue',      reviewed: false } },
-    'label.env':       { en: { t: 'Env' },      fr: { t: 'Env.',       reviewed: false } },
+    'label.env':       { en: { t: 'Env' },      fr: { t: 'Env.',       reviewed: false, sameAsEn: true } },
     // The loanword. French audio work says "dithering"; the tip spells it out,
     // the caption keeps the four-letter form the English caption uses.
     'label.dither':    { en: { t: 'Dither' },   fr: { t: 'Dither',     reviewed: false, sameAsEn: true } },
-    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Ampleur',    reviewed: false } },
+    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: false } },
     'label.sticky':    { en: { t: 'Sticky' },   fr: { t: 'Blocages',   reviewed: false } },
     'label.garble':    { en: { t: 'Garble' },   fr: { t: 'Brouillage', reviewed: false } },
 
     // ── Choices inside two <select>s and two segmented controls ─────────────
     'label.silence':   { en: { t: 'Silence' },    fr: { t: 'Silence',    reviewed: false, sameAsEn: true } },
     'label.repeat':    { en: { t: 'Repeat' },     fr: { t: 'Répéter',    reviewed: false } },
-    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Fondu',      reviewed: false } },
+    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Déclin',     reviewed: false } },
     'label.substitute':{ en: { t: 'Substitute' }, fr: { t: 'Substituer', reviewed: false } },
     'label.sync':      { en: { t: 'Sync' },       fr: { t: 'Synchro',    reviewed: false } },
     'label.free':      { en: { t: 'Free' },       fr: { t: 'Libre',      reviewed: false } },
@@ -655,11 +723,11 @@ export const LABELS = Object.freeze({
     'label.annotRevQuantum': { en: { t: 'rev. quantum' },
                                fr: { t: 'quantum de tour', reviewed: false } },
     'label.annotPackets':    { en: { t: '20 ms packets' },
-                               fr: { t: 'paquets de 20 ms', reviewed: false } },
+                               fr: { t: 'paquets de 20 ms', reviewed: false } },
     'label.annotHum':        { en: { t: 'hum + harmonics' },
                                fr: { t: 'ronflement + harmoniques', reviewed: false } },
     'label.annotSplices':    { en: { t: 'crossfades bypassed when lit' },
-                               fr: { t: 'fondus contournés lorsque allumé', reviewed: false } },
+                               fr: { t: 'fondus contournés lorsqu’allumé', reviewed: false } },
     'label.annotRot':        { en: { t: 'bit flips · sticky decode · wrong-decode stretches' },
                                fr: { t: 'inversions de bits · décodage bloqué · plages mal décodées', reviewed: false } },
 
