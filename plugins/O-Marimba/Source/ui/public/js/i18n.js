@@ -202,21 +202,21 @@ export const I18N = Object.freeze({
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
               b: 'Choisissez la langue de cette interface et si l’aide au survol s’affiche. Les deux choix sont conservés avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note names, tuning names and preset names stay in English.' },
         fr: { t: 'Langue',
               b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes, les noms de gammes et les noms de préréglages restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
         fr: { t: 'Aide au survol',
               b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── SOUND tab. All fifteen below SPLIT CLEANLY on the single ": ". ──────
@@ -225,77 +225,77 @@ export const I18N = Object.freeze({
               b: 'Controls the hardness of the virtual mallet. Soft mallets (0%) produce warm, mellow tones; hard mallets (100%) create bright, articulate attacks.' },
         fr: { t: 'Dureté du maillet',
               b: 'Règle la dureté du maillet virtuel. Les maillets doux (0 %) donnent un son chaud et moelleux ; les maillets durs (100 %) créent des attaques claires et articulées.',
-              reviewed: false },
+              reviewed: true },
     },
     'material': {
         en: { t: 'Material Hardness',
               b: 'Simulates the bar material density. Lower values emulate softer rosewood; higher values emulate denser synthetic materials with more sustain.' },
         fr: { t: 'Dureté du matériau',
               b: 'Simule la densité du matériau des lames. Les valeurs basses imitent un palissandre plus tendre ; les valeurs hautes imitent des matériaux synthétiques plus denses, avec plus de tenue.',
-              reviewed: false },
+              reviewed: true },
     },
     'resonance': {
         en: { t: 'Resonance',
               b: 'Controls the resonator tube coupling. Higher values increase sustain and add the characteristic \'bloom\' of marimba resonators.' },
         fr: { t: 'Résonance',
               b: 'Règle le couplage des tubes résonateurs. Les valeurs hautes allongent la tenue et ajoutent l’épanouissement caractéristique des résonateurs de marimba.',
-              reviewed: false },
+              reviewed: true },
     },
     'strike': {
         en: { t: 'Strike Position',
               b: 'Where the mallet strikes the bar. Center (0%) emphasizes the fundamental; edge (100%) brings out higher partials and overtones.' },
         fr: { t: 'Point de frappe',
               b: 'Endroit où le maillet frappe la lame. Le centre (0 %) met en avant le fondamental ; le bord (100 %) fait ressortir les partiels aigus et les harmoniques.',
-              reviewed: false },
+              reviewed: true },
     },
     'damping': {
         en: { t: 'Overtone Damping',
               b: 'Controls how quickly upper harmonics decay. Lower values preserve bright overtones; higher values create a purer, more fundamental tone.' },
         fr: { t: 'Amortissement des harmoniques',
               b: 'Règle la vitesse d’extinction des harmoniques aiguës. Les valeurs basses conservent des harmoniques brillantes ; les valeurs hautes donnent un son plus pur, centré sur le fondamental.',
-              reviewed: false },
+              reviewed: true },
     },
     'tone': {
         en: { t: 'Tone',
               b: 'Overall brightness control. Acts as a gentle low-pass filter. Lower values produce darker tones; higher values retain more high-frequency content.' },
         fr: { t: 'Timbre',
               b: 'Réglage général de brillance. Agit comme un filtre passe-bas doux. Les valeurs basses donnent un son plus sombre ; les valeurs hautes conservent plus d’aigus.',
-              reviewed: false },
+              reviewed: true },
     },
     'waveform': {
         en: { t: 'Waveform',
               b: 'Real-time visualization of the marimba\'s sound wave. Shows how the timbre controls affect the harmonic content of each note.' },
         fr: { t: 'Forme d’onde',
               b: 'Visualisation en temps réel de l’onde sonore du marimba. Montre comment les réglages de timbre agissent sur le contenu harmonique de chaque note.',
-              reviewed: false },
+              reviewed: true },
     },
     'velocity': {
         en: { t: 'Velocity Curve',
               b: 'Shapes how MIDI velocity affects volume. Low values create a compressed, even response; high values create dynamic, expressive playing with more contrast.' },
         fr: { t: 'Courbe de vélocité',
               b: 'Détermine l’effet de la vélocité MIDI sur le volume. Les valeurs basses donnent une réponse compressée et régulière ; les valeurs hautes donnent un jeu dynamique et expressif, plus contrasté.',
-              reviewed: false },
+              reviewed: true },
     },
     'response': {
         en: { t: 'Response Graph',
               b: 'Visual representation of the velocity curve. X-axis is input velocity; Y-axis is output volume. Steeper curves = more dynamic range.' },
         fr: { t: 'Graphique de réponse',
               b: 'Représentation visuelle de la courbe de vélocité. L’axe X est la vélocité d’entrée ; l’axe Y le volume de sortie. Plus la courbe est raide, plus la dynamique est large.',
-              reviewed: false },
+              reviewed: true },
     },
     'output': {
         en: { t: 'Output Level',
               b: 'Master volume control in decibels (dB). 0 dB is unity gain. Use to match levels with other instruments in your mix.' },
         fr: { t: 'Niveau de sortie',
               b: 'Réglage de volume général en décibels (dB). 0 dB correspond au gain unitaire. Sert à ajuster le niveau par rapport aux autres instruments du mixage.',
-              reviewed: false },
+              reviewed: true },
     },
     'level-meter': {
         en: { t: 'Level Meter',
               b: 'Shows the current output level. Keep peaks below 0 dB to avoid clipping. The needle responds to audio dynamics in real-time.' },
         fr: { t: 'Vumètre',
               b: 'Affiche le niveau de sortie courant. Gardez les crêtes sous 0 dB pour éviter l’écrêtage. L’aiguille suit la dynamique audio en temps réel.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── TUNING tab ──────────────────────────────────────────────────────────
@@ -304,28 +304,28 @@ export const I18N = Object.freeze({
               b: 'Shows the cents offset for each scale degree. 100 cents = 1 semitone. In CUSTOM mode, these can be edited for microtonal scales.' },
         fr: { t: 'Liste des intervalles',
               b: 'Affiche l’écart en cents de chaque degré de la gamme. 100 cents = 1 demi-ton. En mode PERSO, ces valeurs sont modifiables pour des gammes microtonales.',
-              reviewed: false },
+              reviewed: true },
     },
     'pitch-circle': {
         en: { t: 'Scale Circle',
               b: 'Visual representation of the scale intervals around the octave. Lines show where each note falls relative to equal temperament.' },
         fr: { t: 'Cercle de gamme',
               b: 'Représentation visuelle des intervalles de la gamme sur l’octave. Les traits montrent la position de chaque note par rapport au tempérament égal.',
-              reviewed: false },
+              reviewed: true },
     },
     'tuning-mode': {
         en: { t: 'Tuning Mode',
               b: '12-TET uses standard equal temperament; CUSTOM enables Scala file loading for microtonal scales; MTS-ESP connects to external tuning masters.' },
         fr: { t: 'Mode d’accord',
               b: '12-TET utilise le tempérament égal standard ; PERSO active le chargement de fichiers Scala pour les gammes microtonales ; MTS-ESP se connecte à une source d’accord externe.',
-              reviewed: false },
+              reviewed: true },
     },
     'a4-ref': {
         en: { t: 'A4 Reference',
               b: 'The concert pitch for A4. Standard is 440 Hz. Historical tunings may use 415 Hz (Baroque) or 432 Hz. Adjustable from 400-480 Hz.' },
         fr: { t: 'Référence A4',
               b: 'Le diapason de A4. La norme est 440 Hz. Les accordages historiques utilisent parfois 415 Hz (baroque) ou 432 Hz. Réglable de 400 à 480 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -394,132 +394,132 @@ export const LABELS = Object.freeze({
     // ── Header: preset bar ──────────────────────────────────────────────────
     // The preset NAME is not keyed: the name IS the JSON filename
     // (OuariconPresetManager.h:283-285), so translating it breaks recall.
-    'label.load':  { en: { t: 'LOAD' }, fr: { t: 'CHARG.', reviewed: false } },
-    'label.save':  { en: { t: 'SAVE' }, fr: { t: 'ENREG.', reviewed: false } },
+    'label.load':  { en: { t: 'LOAD' }, fr: { t: 'CHARG.', reviewed: true } },
+    'label.save':  { en: { t: 'SAVE' }, fr: { t: 'ENREG.', reviewed: true } },
 
     // ── Tab row ─────────────────────────────────────────────────────────────
-    'label.tabSound':   { en: { t: 'SOUND' },   fr: { t: 'SON',    reviewed: false } },
-    'label.tabTuning':  { en: { t: 'TUNING' },  fr: { t: 'ACCORD', reviewed: false } },
-    'label.tabEffects': { en: { t: 'EFFECTS' }, fr: { t: 'EFFETS', reviewed: false } },
+    'label.tabSound':   { en: { t: 'SOUND' },   fr: { t: 'SON',    reviewed: true } },
+    'label.tabTuning':  { en: { t: 'TUNING' },  fr: { t: 'ACCORD', reviewed: true } },
+    'label.tabEffects': { en: { t: 'EFFECTS' }, fr: { t: 'EFFETS', reviewed: true } },
 
     // ── SOUND tab: the six knob captions. The four two-line ones are FRAGMENT
     //    pairs — see the block comment above before reading a row alone.
-    'label.malletL1':   { en: { t: 'MALLET' },   fr: { t: 'DURETÉ',    reviewed: false,
+    'label.malletL1':   { en: { t: 'MALLET' },   fr: { t: 'DURETÉ',    reviewed: true,
                                                    termNote: 'line 1 of the two-line caption DURETÉ / MAILLET. French inverts head and modifier, so line 1 carries the head noun (hardness) and line 2 the modifier (mallet) — the caption is the pair, not the row' } },
-    'label.malletL2':   { en: { t: 'HARDNESS' }, fr: { t: 'MAILLET',   reviewed: false,
+    'label.malletL2':   { en: { t: 'HARDNESS' }, fr: { t: 'MAILLET',   reviewed: true,
                                                    termNote: 'line 2 of DURETÉ / MAILLET — the inverted pair, as above. Also NOT the glossary\'s mailloche: a mailloche is a bass-drum beater; keyboard-percussion mallets are maillets, and MAILLOCHE measures 67.89 px in the 61.00 px .knob-label besides' } },
-    'label.materialL1': { en: { t: 'MATERIAL' }, fr: { t: 'DURETÉ',    reviewed: false,
+    'label.materialL1': { en: { t: 'MATERIAL' }, fr: { t: 'DURETÉ',    reviewed: true,
                                                    termNote: 'line 1 of the two-line caption DURETÉ / MATÉRIAU — the same head-and-modifier inversion as the mallet pair' } },
-    'label.materialL2': { en: { t: 'HARDNESS' }, fr: { t: 'MATÉRIAU',  reviewed: false,
+    'label.materialL2': { en: { t: 'HARDNESS' }, fr: { t: 'MATÉRIAU',  reviewed: true,
                                                    termNote: 'line 2 of DURETÉ / MATÉRIAU — the inverted pair. MATÉRIAU is the glossary root for material and measures 59.67 px inside the 61.00 px .knob-label, so the column does not widen' } },
-    'label.resonance':  { en: { t: 'RESONANCE' }, fr: { t: 'RÉSONANCE', reviewed: false } },
-    'label.strikeL1':   { en: { t: 'STRIKE' },   fr: { t: 'POINT',     reviewed: false,
+    'label.resonance':  { en: { t: 'RESONANCE' }, fr: { t: 'RÉSONANCE', reviewed: true } },
+    'label.strikeL1':   { en: { t: 'STRIKE' },   fr: { t: 'POINT',     reviewed: true,
                                                    termNote: 'line 1 of the two-line caption POINT / FRAPPE — the pair reads "point de frappe" and carries the glossary root frappe on line 2' } },
     // "DE FRAPPE" measured 61.52 px against the 55 px knob column and widened
     // it, dragging the knob 3.3 px sideways. French routinely drops the
     // preposition in a stacked caption, so the line is "FRAPPE" (44 px) and the
     // caption reads POINT / FRAPPE.
-    'label.strikeL2':   { en: { t: 'POSITION' }, fr: { t: 'FRAPPE',    reviewed: false,
+    'label.strikeL2':   { en: { t: 'POSITION' }, fr: { t: 'FRAPPE',    reviewed: true,
                                                    termNote: 'line 2 of POINT / FRAPPE — the inverted pair. POSITION on this line would read "point de position"' } },
-    'label.dampingL1':  { en: { t: 'OVERTONE' }, fr: { t: 'AMORT.',    reviewed: false } },
-    'label.dampingL2':  { en: { t: 'DAMPING' },  fr: { t: 'HARMON.',   reviewed: false,
+    'label.dampingL1':  { en: { t: 'OVERTONE' }, fr: { t: 'AMORT.',    reviewed: true } },
+    'label.dampingL2':  { en: { t: 'DAMPING' },  fr: { t: 'HARMON.',   reviewed: true,
                                                    termNote: 'line 2 of AMORT. / HARMON. — the glossary root amortissement is on line 1; this line carries the modifier. HARMONIQUES measures 84.91 px against the 62.00 px .knob-label' } },
-    'label.tone':       { en: { t: 'TONE' },     fr: { t: 'TIMBRE',    reviewed: false } },
+    'label.tone':       { en: { t: 'TONE' },     fr: { t: 'TIMBRE',    reviewed: true } },
 
     // ── SOUND tab: velocity section ─────────────────────────────────────────
-    'label.velocity': { en: { t: 'VELOCITY' }, fr: { t: 'VÉLOCITÉ', reviewed: false } },
-    'label.response': { en: { t: 'RESPONSE' }, fr: { t: 'RÉPONSE',  reviewed: false } },
+    'label.velocity': { en: { t: 'VELOCITY' }, fr: { t: 'VÉLOCITÉ', reviewed: true } },
+    'label.response': { en: { t: 'RESPONSE' }, fr: { t: 'RÉPONSE',  reviewed: true } },
     // The two axis captions are 6 px absolute-positioned marks INSIDE a 105 px
     // curve box, 2 px from its edges. "Sortie"/"Entrée" render 17.7 px and
     // 18.5 px against "Out" 10.1 px and "In" 6.4 px, which pushes the x mark
     // over the curve. Abbreviated to the same three-glyph budget the English
     // uses; measured, not guessed.
-    'label.axisOut':  { en: { t: 'Out' },      fr: { t: 'Sort',     reviewed: false } },
-    'label.axisIn':   { en: { t: 'In' },       fr: { t: 'Entr',     reviewed: false } },
+    'label.axisOut':  { en: { t: 'Out' },      fr: { t: 'Sort',     reviewed: true } },
+    'label.axisIn':   { en: { t: 'In' },       fr: { t: 'Entr',     reviewed: true } },
 
     // ── SOUND tab: output section ───────────────────────────────────────────
-    'label.output': { en: { t: 'OUTPUT' }, fr: { t: 'SORTIE', reviewed: false } },
-    'label.level':  { en: { t: 'Level' },  fr: { t: 'Niveau', reviewed: false } },
+    'label.output': { en: { t: 'OUTPUT' }, fr: { t: 'SORTIE', reviewed: true } },
+    'label.level':  { en: { t: 'Level' },  fr: { t: 'Niveau', reviewed: true } },
 
     // ── TUNING tab ──────────────────────────────────────────────────────────
     // The static header index.html authors, and the one updateIntervalListUI()
     // injects with the count. Two keys because they are two different strings
     // in the same slot: the static one renders only in the instant before the
     // first updateIntervalListUI() pass.
-    'label.intervals': { en: { t: 'Intervals' }, fr: { t: 'Intervalles', reviewed: false } },
+    'label.intervals': { en: { t: 'Intervals' }, fr: { t: 'Intervalles', reviewed: true } },
     'label.intervalHeader': {
         en: { t: 'Intervals: {n}' },
-        fr: { t: 'Intervalles : {n}', reviewed: false },
+        fr: { t: 'Intervalles : {n}', reviewed: true },
     },
-    'label.tonic': { en: { t: 'Tonic:' }, fr: { t: 'Tonique :', reviewed: false } },
+    'label.tonic': { en: { t: 'Tonic:' }, fr: { t: 'Tonique :', reviewed: true } },
     // The circle's own caption. "Intervalles de la gamme" is 108.6 px under a
     // 150 px circle whose caption cell is 150 px, so the full form fits; it is
     // used rather than abbreviated.
     'label.scaleIntervals': {
         en: { t: 'Scale Intervals' },
-        fr: { t: 'Intervalles de la gamme', reviewed: false },
+        fr: { t: 'Intervalles de la gamme', reviewed: true },
     },
     // Only the middle button of the three-way tuning-mode control is keyed.
     // 12-TET and MTS-ESP are the AudioParameterChoice option strings verbatim
     // and are I18N_EXEMPT under D-01; CUSTOM is not (the option is "Scala"),
     // so it is a plain caption and localizes. See the I18N_EXEMPT note.
-    'label.custom': { en: { t: 'CUSTOM' }, fr: { t: 'PERSO', reviewed: false } },
+    'label.custom': { en: { t: 'CUSTOM' }, fr: { t: 'PERSO', reviewed: true } },
     // "A4" is kept: it is the pitch identifier the 440 Hz readout beside it
     // refers to, not a word. French note naming would make it "La3", which
     // would disagree with every tuning reference the user reads elsewhere.
-    'label.a4ref': { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: false } },
+    'label.a4ref': { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true } },
 
     // The four Scala file buttons are .btn-small at 7 px. "CHARG." and "ENREG."
     // are the same abbreviations the preset bar uses, so the page abbreviates
     // one way rather than two.
     'label.loadScl': { en: { t: 'LOAD .SCL' },
-                   fr: { t: 'CHARG. .SCL', reviewed: false,
+                   fr: { t: 'CHARG. .SCL', reviewed: true,
                          termNote: 'width, measured on this page: the glossary lists charger .scl | ouvrir .scl and no abbreviation, although it does list enreg. .scl for the SAME row of .btn-small buttons. CHARGER .SCL grows #scala-buttons from 200.00 px to 215.91 px inside a 200.00 px .tuning-status-section; OUVRIR .SCL grows it 1.06 px and moves five non-label elements. CHARG. is the form the glossary accepts for bare load and the one the preset bar uses' } },
     'label.loadKbm': { en: { t: 'LOAD .KBM' },
-                   fr: { t: 'CHARG. .KBM', reviewed: false,
+                   fr: { t: 'CHARG. .KBM', reviewed: true,
                          termNote: 'width — same measurement and same row as label.loadScl' } },
-    'label.saveScl': { en: { t: 'SAVE .SCL' }, fr: { t: 'ENREG. .SCL', reviewed: false } },
-    'label.saveKbm': { en: { t: 'SAVE .KBM' }, fr: { t: 'ENREG. .KBM', reviewed: false } },
+    'label.saveScl': { en: { t: 'SAVE .SCL' }, fr: { t: 'ENREG. .SCL', reviewed: true } },
+    'label.saveKbm': { en: { t: 'SAVE .KBM' }, fr: { t: 'ENREG. .KBM', reviewed: true } },
 
     // The MTS-ESP status line is one .mts-label holding a prefix and a status
     // span. The prefix is keyed on its own fragment so applyLabel's textContent
     // write cannot delete the status span beside it. The protocol name is not
     // translated; the French colon takes its narrow no-break space.
-    'label.mtsPrefix':   { en: { t: 'MTS-ESP:' },     fr: { t: 'MTS-ESP :',   reviewed: false } },
-    'label.disconnected': { en: { t: 'Disconnected' }, fr: { t: 'Déconnecté', reviewed: false } },
+    'label.mtsPrefix':   { en: { t: 'MTS-ESP:' },     fr: { t: 'MTS-ESP :',   reviewed: true } },
+    'label.disconnected': { en: { t: 'Disconnected' }, fr: { t: 'Déconnecté', reviewed: true } },
 
-    'label.clickToPlay': { en: { t: 'Click to play' }, fr: { t: 'Cliquer pour jouer', reviewed: false } },
+    'label.clickToPlay': { en: { t: 'Click to play' }, fr: { t: 'Cliquer pour jouer', reviewed: true } },
 
     // ── The preset dropdown's two group headings ────────────────────────────
     // Chrome, not data: these are section captions the page invents, and unlike
     // the preset NAMES beneath them they never reach C++ and never become a
     // filename. Same call O-Lyrica made for Factory / Custom.
-    'label.presetFactory': { en: { t: 'Factory' }, fr: { t: 'Usine',       reviewed: false } },
-    'label.presetUser':    { en: { t: 'User' },    fr: { t: 'Utilisateur', reviewed: false } },
+    'label.presetFactory': { en: { t: 'Factory' }, fr: { t: 'Usine',       reviewed: true } },
+    'label.presetUser':    { en: { t: 'User' },    fr: { t: 'Utilisateur', reviewed: true } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: false } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche',        reviewed: false } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',         reviewed: false } },
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche',        reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',         reviewed: true } },
 
     // ── Accessible names. Keyed through data-i18n-aria, which resolves through
     //    the same sweep with setAttribute. Every one of these replaces a native
     //    title= that contract §4 deletes: a native title renders a second,
     //    untranslated OS tooltip competing with the measure-then-pin renderer.
-    'aria.settings':    { en: { t: 'Settings' },              fr: { t: 'Réglages',                  reviewed: false } },
-    'aria.langSelect':  { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',     reviewed: false } },
-    'aria.helpToggle':  { en: { t: 'Toggle hover help' },      fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
-    'aria.prevPreset':  { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',      reviewed: false } },
-    'aria.nextPreset':  { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',        reviewed: false } },
-    'aria.loadPreset':  { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: false } },
-    'aria.savePreset':  { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage', reviewed: false } },
-    'aria.botanical':   { en: { t: 'Botanical illustration' }, fr: { t: 'Illustration botanique',    reviewed: false } },
+    'aria.settings':    { en: { t: 'Settings' },              fr: { t: 'Réglages',                  reviewed: true } },
+    'aria.langSelect':  { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',     reviewed: true } },
+    'aria.helpToggle':  { en: { t: 'Toggle hover help' },      fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.prevPreset':  { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',      reviewed: true } },
+    'aria.nextPreset':  { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',        reviewed: true } },
+    'aria.loadPreset':  { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } },
+    'aria.savePreset':  { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage', reviewed: true } },
+    'aria.botanical':   { en: { t: 'Botanical illustration' }, fr: { t: 'Illustration botanique',    reviewed: true } },
     // The three injected by updateIntervalListUI()'s tonic selector.
     'aria.tonicSelector': { en: { t: 'Change tonic note (transposes instrument)' },
-                            fr: { t: 'Changer la tonique (transpose l’instrument)', reviewed: false } },
-    'aria.tonicPrev':     { en: { t: 'Previous note' }, fr: { t: 'Note précédente', reviewed: false } },
-    'aria.tonicNext':     { en: { t: 'Next note' },     fr: { t: 'Note suivante',   reviewed: false } },
+                            fr: { t: 'Changer la tonique (transpose l’instrument)', reviewed: true } },
+    'aria.tonicPrev':     { en: { t: 'Previous note' }, fr: { t: 'Note précédente', reviewed: true } },
+    'aria.tonicNext':     { en: { t: 'Next note' },     fr: { t: 'Note suivante',   reviewed: true } },
 });
 
 // ============================================================================

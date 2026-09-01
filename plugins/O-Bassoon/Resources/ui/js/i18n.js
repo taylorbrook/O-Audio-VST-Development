@@ -204,7 +204,7 @@ export const I18N = Object.freeze({
               b: 'Speed of the pitch vibrato, a sine oscillator per voice that bends the whole mode bank up and down. Each note starts it at a random phase, so at 0 Hz the vibrato freezes into a small fixed detune rather than switching off — Depth at 0 is what silences it. 0 to 10 Hz.' },
         fr: { t: 'Vitesse',
               b: 'Vitesse du vibrato de hauteur, un oscillateur sinusoïdal par voix qui fait monter et descendre tout le banc de modes. Chaque note le démarre à une phase aléatoire : à 0 Hz le vibrato se fige en un léger désaccord constant au lieu de s’arrêter — c’est Profondeur à 0 qui le fait taire. 0 à 10 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.depth': {
@@ -212,7 +212,7 @@ export const I18N = Object.freeze({
               b: 'How far the vibrato bends the pitch either side of the note, in cents — 100 cents is one semitone. A bassoonist’s vibrato lives in the bottom fifth of this range; everything above that is a deliberate effect. 0 to 100 cents.' },
         fr: { t: 'Profondeur',
               b: 'De combien le vibrato écarte la hauteur de part et d’autre de la note, en cents — 100 cents font un demi-ton. Le vibrato d’un bassoniste se tient dans le premier cinquième de la course ; au-dessus, c’est un effet délibéré. 0 à 100 cents.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.onset': {
@@ -220,7 +220,7 @@ export const I18N = Object.freeze({
               b: 'The wait before the vibrato reaches full depth. Every note-on restarts the fade from nothing and ramps it in evenly over this time, which is the straight-then-warming entry a wind player makes. 0 to 2000 ms.' },
         fr: { t: 'Délai',
               b: 'L’attente avant que le vibrato atteigne sa pleine profondeur. Chaque note relance le fondu depuis zéro et le fait monter régulièrement sur cette durée : c’est l’entrée droite puis chaleureuse d’un instrumentiste à vent. 0 à 2000 ms.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Expression ──────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ export const I18N = Object.freeze({
               b: 'How hard the instrument is blown. It scales the filtered noise that keeps the modes ringing, so it sets loudness and the amount of audible breath together rather than one after the other. A MIDI breath controller (CC2) takes over while it is moving and hands control back half a second after it stops. 0 to 1.' },
         fr: { t: 'Souffle',
               b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) prend le relais tant qu’il bouge et rend la main une demi-seconde après son arrêt. 0 à 1.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.tone': {
@@ -238,7 +238,7 @@ export const I18N = Object.freeze({
               b: 'How long the upper partials keep ringing: partials 6 to 16 get a decay between 0.3× and 1.5× their nominal length, while the first five are left untouched. Low is a dark, quickly damped reed; high keeps the buzz of the high modes alive under the note. 0 to 1.' },
         fr: { t: 'Timbre',
               b: 'La durée de résonance des partiels supérieurs : les partiels 6 à 16 reçoivent une décroissance de 0,3× à 1,5× leur longueur nominale, les cinq premiers restent intacts. En bas, une anche sombre et vite amortie ; en haut, le grain des modes aigus reste vivant sous la note. 0 à 1.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.attackChar': {
@@ -246,7 +246,7 @@ export const I18N = Object.freeze({
               b: 'Morphs the start of the note between two excitation shapes: at 0 a soft 30 ms low-passed swell, at 1 a sharp 7.5 ms noise burst — a tongued articulation. Note velocity shifts the value by up to 0.15 either way, and the result is frozen at note-on, so automating it during a note does nothing. 0 to 1, Soft to Tongued.' },
         fr: { t: 'Caractère',
               b: 'Fait passer le début de la note d’une forme d’excitation à l’autre : à 0 une montée douce de 30 ms filtrée en passe-bas, à 1 une brève salve de bruit de 7,5 ms — un coup de langue. La vélocité décale la valeur de 0,15 au plus dans un sens ou l’autre, et le résultat est figé au début de la note : l’automatiser en cours de note ne change rien. 0 à 1, de Doux à Détaché.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Envelope ────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ export const I18N = Object.freeze({
               b: 'How long the amplitude envelope takes to climb to full level once a note starts. There is no decay and no sustain stage — the envelope simply holds until the key is released — so this and Release are the whole shape. 0 to 2000 ms.' },
         fr: { t: 'Attaque',
               b: 'Le temps que met l’enveloppe d’amplitude à monter au niveau plein dès le début de la note. Il n’y a ni étage de déclin ni étage de maintien : l’enveloppe se tient simplement au niveau plein jusqu’au relâchement de la touche, si bien que ce réglage et Relâchement en constituent toute la forme. 0 à 2000 ms.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.release': {
@@ -264,7 +264,7 @@ export const I18N = Object.freeze({
               b: 'How long the note takes to fade once the key is lifted. It shapes the amplitude only: the mode bank carries its own resonance tail of up to 2.5 seconds underneath, so a short setting cuts that tail off rather than making it decay faster. 0 to 3000 ms.' },
         fr: { t: 'Relâchement',
               b: 'Le temps de disparition de la note une fois la touche relâchée. Il ne façonne que l’amplitude : le banc de modes garde en dessous sa propre traîne de résonance pouvant aller jusqu’à 2,5 secondes, qu’un réglage court coupe net au lieu d’en accélérer la décroissance. 0 à 3000 ms.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Voicing & Output ────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ export const I18N = Object.freeze({
               b: 'The most notes that may sound at once. The limit is checked at each note-on: past it a voice is taken back, preferring one already in its release tail and otherwise the oldest note. Lowering the limit never cuts a note that is already sounding. 1 to 16 voices.' },
         fr: { t: 'Voix',
               b: 'Le nombre maximal de notes pouvant sonner en même temps. La limite est vérifiée à chaque nouvelle note : au-delà, une voix est reprise, de préférence une déjà en fin de relâchement, sinon la plus ancienne. Baisser la limite ne coupe jamais une note en cours. 1 à 16 voix.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.output': {
@@ -282,7 +282,7 @@ export const I18N = Object.freeze({
               b: 'The final level applied to the summed voices, ramped across each block so a move never clicks. Sixteen voices together are a great deal louder than one, so this is where a dense passage gets pulled back. −24 to +6 dB.' },
         fr: { t: 'Sortie',
               b: 'Le niveau final appliqué à la somme des voix, lissé sur chaque bloc pour qu’un mouvement ne claque jamais. Seize voix ensemble sont bien plus fortes qu’une seule : c’est ici qu’on rattrape un passage dense. −24 à +6 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -299,7 +299,7 @@ export const I18N = Object.freeze({
               b: 'Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help change with it, and the choice is kept with the session, so a project reopens in the language it was saved in.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The last sentence is a statement of fact recorded in I18N_EXEMPT below:
@@ -312,7 +312,7 @@ export const I18N = Object.freeze({
               b: 'The language of the captions on this page and of this hover help. English and French are available. Value readouts stay as numbers and units in both, and the Tuning tab stays in English — its panel comes from a shared module that is not part of this plugin.' },
         fr: { t: 'Langue',
               b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées restent des nombres et des unités dans les deux langues, et l’onglet Accord demeure en anglais : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -380,15 +380,15 @@ export const LABELS = Object.freeze({
     // free — French is 6.7 px wider and nothing else in the bar moves.
     'label.subtitle': {
         en: { t: 'Ouaricon · Modal Synthesis Bassoon' },
-        fr: { t: 'Ouaricon · Basson à synthèse modale', reviewed: false },
+        fr: { t: 'Ouaricon · Basson à synthèse modale', reviewed: true },
     },
 
     // ── Tab bar ─────────────────────────────────────────────────────────────
     // Three `flex: 1` buttons, 300 px each, centred text. The widest French
     // caption is 72.5 px, so the row cannot be pushed by any of them.
-    'label.tab.sound':  { en: { t: 'Sound' },  fr: { t: 'Son',      reviewed: false } },
-    'label.tab.tuning': { en: { t: 'Tuning' }, fr: { t: 'Accord',   reviewed: false } },
-    'label.tab.about':  { en: { t: 'About' },  fr: { t: 'À propos', reviewed: false } },
+    'label.tab.sound':  { en: { t: 'Sound' },  fr: { t: 'Son',      reviewed: true } },
+    'label.tab.tuning': { en: { t: 'Tuning' }, fr: { t: 'Accord',   reviewed: true } },
+    'label.tab.about':  { en: { t: 'About' },  fr: { t: 'À propos', reviewed: true } },
 
     // ── Section headings ────────────────────────────────────────────────────
     // `sameAsEn: true` is an ASSERTION, not a shrug: "Vibrato" and "Expression"
@@ -397,35 +397,35 @@ export const LABELS = Object.freeze({
     // cannot tell a deliberate cognate from a forgotten entry.
     'label.section.vibrato': {
         en: { t: 'Vibrato' },
-        fr: { t: 'Vibrato', reviewed: false, sameAsEn: true },
+        fr: { t: 'Vibrato', reviewed: true, sameAsEn: true },
     },
     'label.section.expression': {
         en: { t: 'Expression' },
-        fr: { t: 'Expression', reviewed: false, sameAsEn: true },
+        fr: { t: 'Expression', reviewed: true, sameAsEn: true },
     },
     'label.section.envelope': {
         en: { t: 'Envelope' },
-        fr: { t: 'Enveloppe', reviewed: false },
+        fr: { t: 'Enveloppe', reviewed: true },
     },
     'label.section.voicing': {
         en: { t: 'Voicing & Output' },
-        fr: { t: 'Voix et sortie', reviewed: false },
+        fr: { t: 'Voix et sortie', reviewed: true },
     },
 
     // ── Knob captions ───────────────────────────────────────────────────────
     // Captions under the knob, never the value beside them: the .knob-value
     // sibling is a separate node and stays untouched (contract §5 — the split
     // this page already had).
-    'label.knob.rate':   { en: { t: 'Rate' },   fr: { t: 'Vitesse',    reviewed: false } },
-    'label.knob.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: false } },
+    'label.knob.rate':   { en: { t: 'Rate' },   fr: { t: 'Vitesse',    reviewed: true } },
+    'label.knob.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: true } },
 
     // vibrato_onset is the DELAY before the vibrato speaks, 0-2000 ms
     // (PluginProcessor.cpp, "Vibrato Onset"). "Délai" is the French term for
     // that delay; "Début" would name the moment rather than the wait.
-    'label.knob.onset':  { en: { t: 'Onset' },  fr: { t: 'Délai',      reviewed: false } },
+    'label.knob.onset':  { en: { t: 'Onset' },  fr: { t: 'Délai',      reviewed: true } },
 
-    'label.knob.breath': { en: { t: 'Breath' }, fr: { t: 'Souffle',    reviewed: false } },
-    'label.knob.tone':   { en: { t: 'Tone' },   fr: { t: 'Timbre',     reviewed: false } },
+    'label.knob.breath': { en: { t: 'Breath' }, fr: { t: 'Souffle',    reviewed: true } },
+    'label.knob.tone':   { en: { t: 'Tone' },   fr: { t: 'Timbre',     reviewed: true } },
 
     // attack_character, whose English caption is ALREADY an abbreviation of the
     // parameter's display name "Attack Character" and already runs to 73.0 px of
@@ -438,20 +438,20 @@ export const LABELS = Object.freeze({
     // under it (DOUX ↔ DÉTACHÉ) name the two ends of the attack it shapes.
     'label.knob.attackChar': {
         en: { t: 'Attack Char' },
-        fr: { t: 'Caractère', reviewed: false },
+        fr: { t: 'Caractère', reviewed: true },
     },
 
-    'label.knob.attack':  { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false } },
-    'label.knob.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
-    'label.knob.voices':  { en: { t: 'Voices' },  fr: { t: 'Voix',    reviewed: false } },
-    'label.knob.output':  { en: { t: 'Output' },  fr: { t: 'Sortie',  reviewed: false } },
+    'label.knob.attack':  { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true } },
+    'label.knob.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } },
+    'label.knob.voices':  { en: { t: 'Voices' },  fr: { t: 'Voix',    reviewed: true } },
+    'label.knob.output':  { en: { t: 'Output' },  fr: { t: 'Sortie',  reviewed: true } },
 
     // ── The attack_character end-label pair ─────────────────────────────────
     // "Détaché" is the bassoon articulation term a French player would use for a
     // tongued note; "Coup de langue" is the literal phrase and is twice as wide
     // in a 78 px row that already carries two captions.
-    'label.end.soft':    { en: { t: 'Soft' },    fr: { t: 'Doux',    reviewed: false } },
-    'label.end.tongued': { en: { t: 'Tongued' }, fr: { t: 'Détaché', reviewed: false } },
+    'label.end.soft':    { en: { t: 'Soft' },    fr: { t: 'Doux',    reviewed: true } },
+    'label.end.tongued': { en: { t: 'Tongued' }, fr: { t: 'Détaché', reviewed: true } },
 
     // ── About card ──────────────────────────────────────────────────────────
     // "Version" is the same word in French, hence the flag. The NUMBER beside it
@@ -460,11 +460,11 @@ export const LABELS = Object.freeze({
     // the shipping version behind a translation nobody re-checks (contract §5).
     'label.about.version': {
         en: { t: 'Version' },
-        fr: { t: 'Version', reviewed: false, sameAsEn: true },
+        fr: { t: 'Version', reviewed: true, sameAsEn: true },
     },
     'label.about.tagline': {
         en: { t: 'Modal-synthesis bassoon for sustained microtonal long tones.' },
-        fr: { t: 'Basson à synthèse modale pour de longues tenues microtonales.', reviewed: false },
+        fr: { t: 'Basson à synthèse modale pour de longues tenues microtonales.', reviewed: true },
     },
 
     // AUTHORED TO THE ENGLISH LINE COUNT, not merely translated. The card is
@@ -480,11 +480,11 @@ export const LABELS = Object.freeze({
     // on three lines and a 242.1px card in both languages.
     'label.about.blurb': {
         en: { t: 'Polyphonic 1–16 voices, VST3 Note Expression + MPE for Dorico microtonal playback, breath/CC2 expression, vibrato, and the Ouaricon tuning-system family. Built on JUCE 8.' },
-        fr: { t: 'Polyphonie de 1 à 16 voix, VST3 Note Expression + MPE pour la lecture microtonale dans Dorico, expression au souffle/CC2, vibrato et la famille de systèmes d’accord Ouaricon. Conçu avec JUCE 8.', reviewed: false },
+        fr: { t: 'Polyphonie de 1 à 16 voix, VST3 Note Expression + MPE pour la lecture microtonale dans Dorico, expression au souffle/CC2, vibrato et la famille de systèmes d’accord Ouaricon. Conçu avec JUCE 8.', reviewed: true },
     },
     'label.about.madeBy': {
         en: { t: 'Made by' },
-        fr: { t: 'Réalisé par', reviewed: false },
+        fr: { t: 'Réalisé par', reviewed: true },
     },
 
     // ── The company name, KEYED rather than exempt, and why ─────────────────
@@ -508,11 +508,11 @@ export const LABELS = Object.freeze({
     // layout to satisfy a gate, which is the shape of a decorative fix.
     'label.about.company': {
         en: { t: 'Ouaricon' },
-        fr: { t: 'Ouaricon', reviewed: false, sameAsEn: true },
+        fr: { t: 'Ouaricon', reviewed: true, sameAsEn: true },
     },
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── The one JS-written string on this page ──────────────────────────────
     // The tuning panel is lazy-mounted on the first Tuning-tab activation and
@@ -522,7 +522,7 @@ export const LABELS = Object.freeze({
     // in the previous language is exactly the bug contract §3 exists to prevent.
     'label.tuningLoadFailed': {
         en: { t: 'Tuning panel failed to load.' },
-        fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: false },
+        fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -537,24 +537,24 @@ export const LABELS = Object.freeze({
     // always meant.
     'aria.vibratoDot': {
         en: { t: 'Vibrato envelope' },
-        fr: { t: 'Enveloppe du vibrato', reviewed: false },
+        fr: { t: 'Enveloppe du vibrato', reviewed: true },
     },
     'aria.breathMeter': {
         en: { t: 'Effective breath (UI breath × CC2)' },
-        fr: { t: 'Souffle effectif (souffle de l’interface × CC2)', reviewed: false },
+        fr: { t: 'Souffle effectif (souffle de l’interface × CC2)', reviewed: true },
     },
     'aria.voiceDots': {
         en: { t: 'Live active voice count' },
-        fr: { t: 'Nombre de voix actives en temps réel', reviewed: false },
+        fr: { t: 'Nombre de voix actives en temps réel', reviewed: true },
     },
 
     'aria.settings': {
         en: { t: 'Settings' },
-        fr: { t: 'Réglages', reviewed: false },
+        fr: { t: 'Réglages', reviewed: true },
     },
     'aria.langSelect': {
         en: { t: 'Interface language' },
-        fr: { t: 'Langue de l’interface', reviewed: false },
+        fr: { t: 'Langue de l’interface', reviewed: true },
     },
 });
 

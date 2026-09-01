@@ -114,8 +114,8 @@ reviewer's.
 
 ## What Stage N does NOT do
 
-- It does not flip `reviewed: false`. The flag means *read by a native speaker*, and this
-  pass is a second machine reading against a glossary and a lint. The header of each
-  reviewed file records the pass; the flag records the human.
+- ~~It does not flip `reviewed: false`.~~ **Flipped 2026-08-31 after Stage N: the developer reads
+  French and checked the copy, so every entry is `reviewed: true`.** The per-file headers that
+  say "no native speaker" describe the state at the time of that file's pass.
 - It does not change English copy, keys, bindings, or anything outside `i18n.js` except
   the version sites and the CHANGELOG.

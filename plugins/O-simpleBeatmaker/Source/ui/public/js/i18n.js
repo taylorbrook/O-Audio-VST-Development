@@ -155,14 +155,14 @@ export const I18N = Object.freeze({
               b: "Choose the language of the interface. The choice is remembered with the session, so a project reopens in the language you left it in." },
         fr: { t: "Réglages",
               b: "Choisir la langue de l’interface. Le choix est conservé avec la session : un projet se rouvre dans la langue où vous l’avez laissé.",
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the six lesson-preset names and the MIDI note numbers stay in English." },
         fr: { t: "Langue",
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The three visualization panels ──────────────────────────────────────
@@ -171,28 +171,28 @@ export const I18N = Object.freeze({
               b: "Each row is a drum voice, each column a sixteenth-note step. Click a cell to light a step; click again to cycle normal → accent → ghost (cell height = velocity); right-click to clear. The amber bar sweeping across is the playhead — when it crosses a lit cell, that voice fires." },
         fr: { t: "La grille de pas",
               b: "Chaque ligne est une voix de batterie, chaque colonne un pas de double croche. Cliquez sur une case pour allumer un pas ; cliquez à nouveau pour parcourir normal → accent → fantôme (la hauteur de la case = la vélocité) ; clic droit pour effacer. La barre ambre qui balaie est la tête de lecture — quand elle croise une case allumée, cette voix se déclenche.",
-              reviewed: false },
+              reviewed: true },
     },
     lane: {
         en: { t: "Timing / Groove Lane",
               b: "The standout view: each dot is a hit, placed at its actual moment relative to its grid line. A line to the left of the tick = early, right = late. This is the exact Δt applied to the audio — turn Swing and watch off-beats drift right together; Humanize scatters them; Quantize pulls the scatter back toward the grid while leaving swing." },
         fr: { t: "Voie de placement / groove",
               b: "La vue phare : chaque point est une frappe, placée à son moment réel par rapport à sa ligne de grille. Un trait à gauche du repère = en avance, à droite = en retard. C’est le Δt exact appliqué à l’audio — tournez Swing et regardez les contretemps glisser ensemble vers la droite ; Humaniser les disperse ; Quantifier resserre la dispersion tout en laissant le swing.",
-              reviewed: false },
+              reviewed: true },
     },
     midi: {
         en: { t: "Live MIDI Readout",
               b: "Every note-on as it fires, from the sequencer (SEQ) and from notes you play in (MIDI). The grid and this list are two views of one MIDI stream — the sequencer literally emits these messages into the same buffer your playing does." },
         fr: { t: "Lecture MIDI en direct",
               b: "Chaque note-on au moment où elle part, depuis le séquenceur (SÉQ) et depuis les notes que vous jouez (MIDI). La grille et cette liste sont deux vues d’un même flux MIDI — le séquenceur émet littéralement ces messages dans le même tampon que votre jeu.",
-              reviewed: false },
+              reviewed: true },
     },
     clearGrid: {
         en: { t: "Clear All",
               b: "Erases every step in the pattern across all six voices — a blank grid to start a fresh beat from." },
         fr: { t: "Tout effacer",
               b: "Efface tous les pas du motif sur les six voix — une grille vierge pour repartir sur un nouveau rythme.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Global timing-feel parameters ───────────────────────────────────────
@@ -201,42 +201,42 @@ export const I18N = Object.freeze({
               b: "Delays every off-beat sixteenth, turning a stiff grid into a shuffle. 0% is dead-straight; 75% is the maximum MPC-style swing. Crucially, swing is not removed by Quantize — it is a deliberate, musical lateness, not an error." },
         fr: { t: "Swing",
               b: "Retarde chaque double croche à contretemps, ce qui transforme une grille rigide en shuffle. 0 % est parfaitement droit ; 75 % est le swing maximal à la manière des MPC. Point clé : le swing n’est pas retiré par la quantification — c’est un retard musical voulu, pas une erreur.",
-              reviewed: false },
+              reviewed: true },
     },
     humanize: {
         en: { t: "Humanize",
               b: "Adds a small random timing and velocity wobble to every hit, like a human drummer who never lands exactly on the grid. A little brings a flat pattern to life; too much sounds sloppy. Watch the lane scatter as you raise it." },
         fr: { t: "Humaniser",
               b: "Ajoute à chaque frappe une petite instabilité aléatoire de placement et de vélocité, comme un batteur humain qui ne tombe jamais exactement sur la grille. Une petite dose réveille un motif plat ; l’excès le rend brouillon. Regardez la voie se disperser à mesure que vous montez le bouton.",
-              reviewed: false },
+              reviewed: true },
     },
     quantizeStrength: {
         en: { t: "Quantize Strength",
               b: "How hard hits are pulled back onto the grid. At 100% the random humanize is fully removed (dead tight); at 0% the full wobble is kept. The exact tradeoff the craft names: quantize enough that the part is solid, without over-quantizing the life out of it. Swing survives quantize — only the random part is pulled in." },
         fr: { t: "Force de quantification",
               b: "À quel point les frappes sont ramenées sur la grille. À 100 % l’humanisation aléatoire est entièrement retirée (parfaitement serré) ; à 0 % toute l’instabilité est gardée. C’est exactement le compromis dont parle le métier : quantifier assez pour que la partie tienne, sans quantifier au point de lui retirer sa vie. Le swing survit à la quantification — seule la part aléatoire est ramenée.",
-              reviewed: false },
+              reviewed: true },
     },
     tempo: {
         en: { t: "Tempo",
               b: "Playback speed in beats per minute — used when there is no host transport (the standalone app, or a stopped DAW). When a DAW is playing, the grid locks to the host's tempo instead." },
         fr: { t: "Tempo",
               b: "Vitesse de lecture en battements par minute — utilisée quand il n’y a pas de transport hôte (l’application autonome, ou une STAN à l’arrêt). Quand une STAN joue, la grille se cale sur le tempo de l’hôte à la place.",
-              reviewed: false },
+              reviewed: true },
     },
     patternLength: {
         en: { t: "Pattern Length",
               b: "How many steps the loop is before it repeats: 8, 16, or 32. Shrinking then re-growing keeps the cells you drew — they are remembered, just not played while the loop is short." },
         fr: { t: "Longueur du motif",
               b: "Combien de pas dure la boucle avant de se répéter : 8, 16 ou 32. Raccourcir puis rallonger conserve les cases que vous avez dessinées — elles sont mémorisées, simplement pas jouées tant que la boucle est courte.",
-              reviewed: false },
+              reviewed: true },
     },
     outputLevel: {
         en: { t: "Output Level",
               b: "Master output trim in decibels. −60 dB is silence." },
         fr: { t: "Niveau de sortie",
               b: "Ajustement du niveau général en décibels. −60 dB, c’est le silence.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Per-voice parameters ────────────────────────────────────────────────
@@ -250,42 +250,42 @@ export const I18N = Object.freeze({
               b: "Shifts this voice's pitch up or down by up to an octave (±12 semitones). Tune the kick down for weight, the toms across a fill." },
         fr: { t: "Accord",
               b: "Décale la hauteur de cette voix vers le haut ou le bas, jusqu’à une octave (±12 demi-tons). Accordez la grosse caisse vers le bas pour du poids, les toms en escalier sur un fill.",
-              reviewed: false },
+              reviewed: true },
     },
     voiceDecay: {
         en: { t: "Decay",
               b: "How long the voice rings out. Short snaps it into a tight tick; long lets it boom or sizzle. The musical range differs per voice (a kick boom vs. a closed-hat tick)." },
         fr: { t: "Déclin",
               b: "Combien de temps la voix résonne. Court la réduit à un tic serré ; long la laisse gronder ou grésiller. La plage musicale diffère selon la voix (le grondement d’une grosse caisse contre le tic d’un charley fermé).",
-              reviewed: false },
+              reviewed: true },
     },
     voiceTone: {
         en: { t: "Tone",
               b: "The voice's character knob — snap/brightness/body-vs-noise, depending on the drum. Sweep it to hear the timbre shift from dark to bright (or body to noise)." },
         fr: { t: "Timbre",
               b: "Le bouton de caractère de la voix — claquant, brillance, corps contre bruit, selon l’instrument. Balayez-le pour entendre le timbre passer du sombre au brillant (ou du corps au bruit).",
-              reviewed: false },
+              reviewed: true },
     },
     voiceLevel: {
         en: { t: "Level",
               b: "This voice's volume in the mix, in decibels. −60 dB silences it." },
         fr: { t: "Niveau",
               b: "Le volume de cette voix dans le mixage, en décibels. −60 dB la rend muette.",
-              reviewed: false },
+              reviewed: true },
     },
     voiceMute: {
         en: { t: "Mute",
               b: "Silences this voice without erasing its pattern — solo a part by muting the rest, or drop a voice out and back in." },
         fr: { t: "Muet",
               b: "Rend cette voix silencieuse sans effacer son motif — isolez une partie en rendant les autres muettes, ou faites sortir puis revenir une voix.",
-              reviewed: false },
+              reviewed: true },
     },
     voiceSolo: {
         en: { t: "Solo",
               b: "Plays only the soloed voice(s), muting everything else. Great for hearing exactly what one drum is doing in the groove." },
         fr: { t: "Solo",
               b: "Ne joue que la ou les voix isolées et rend tout le reste muet. Idéal pour entendre exactement ce que fait un seul instrument dans le groove.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The lesson tour ─────────────────────────────────────────────────────
@@ -302,49 +302,49 @@ export const I18N = Object.freeze({
               b: "A guided tour where each preset isolates one idea — straight vs. swung, accents, ghost notes, humanize, quantize. Click one to load it, then tweak a knob to hear the concept." },
         fr: { t: "Préréglages de leçon",
               b: "Une visite guidée où chaque préréglage isole une seule idée — droit contre swingué, accents, notes fantômes, humanisation, quantification. Cliquez-en un pour le charger, puis tournez un bouton pour entendre le concept.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonStraight: {
         en: { t: "Straight",
               b: "A flat, no-feel pattern — every hit dead on the grid at one velocity. The baseline that everything else departs from." },
         fr: { t: "Straight",
               b: "Un motif plat, sans feeling — chaque frappe exactement sur la grille, à une seule vélocité. La référence dont tout le reste s’écarte.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonAccents: {
         en: { t: "Backbeat + Accents",
               b: "Snare on 2 and 4 with hard accents, quieter hits between — how velocity alone turns a march into a groove." },
         fr: { t: "Backbeat + Accents",
               b: "Caisse claire sur 2 et 4 avec des accents marqués, des frappes plus douces entre — comment la vélocité seule transforme une marche en groove.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonGhost: {
         en: { t: "Ghost Notes",
               b: "Quiet snare hits tucked between the backbeats — the secret to a pattern that breathes." },
         fr: { t: "Ghost Notes",
               b: "Des frappes de caisse claire discrètes glissées entre celles du backbeat — le secret d’un motif qui respire.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonSwing: {
         en: { t: "Triplet Swing",
               b: "The same pattern with swing pushed up — feel the off-beats slide late into a shuffle." },
         fr: { t: "Triplet Swing",
               b: "Le même motif avec le swing poussé — sentez les contretemps glisser en retard vers le shuffle.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonHumanized: {
         en: { t: "Humanized",
               b: "A tight pattern loosened with humanize — watch the lane scatter off the grid lines." },
         fr: { t: "Humanized",
               b: "Un motif serré assoupli par l’humanisation — regardez la voie se disperser hors des lignes de grille.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonQuantize: {
         en: { t: "Quantize Demo",
               b: "Humanize up, then sweep quantize strength to pull the scatter back — the tradeoff made audible and visible." },
         fr: { t: "Quantize Demo",
               b: "Montez l’humanisation, puis balayez la force de quantification pour resserrer la dispersion — le compromis rendu audible et visible.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Step-cell accessible names (NOT hover help — see the header note) ────
@@ -353,19 +353,19 @@ export const I18N = Object.freeze({
     // numbers and substitute verbatim (D-03).
     'aria.cellOff': {
         en: { t: "{voice} step {step}: off", b: '' },
-        fr: { t: "{voice} pas {step} : éteint", b: '', reviewed: false },
+        fr: { t: "{voice} pas {step} : éteint", b: '', reviewed: true },
     },
     'aria.cellNormal': {
         en: { t: "{voice} step {step}: normal (velocity {vel})", b: '' },
-        fr: { t: "{voice} pas {step} : normal (vélocité {vel})", b: '', reviewed: false },
+        fr: { t: "{voice} pas {step} : normal (vélocité {vel})", b: '', reviewed: true },
     },
     'aria.cellAccent': {
         en: { t: "{voice} step {step}: accent (velocity {vel})", b: '' },
-        fr: { t: "{voice} pas {step} : accent (vélocité {vel})", b: '', reviewed: false },
+        fr: { t: "{voice} pas {step} : accent (vélocité {vel})", b: '', reviewed: true },
     },
     'aria.cellGhost': {
         en: { t: "{voice} step {step}: ghost (velocity {vel})", b: '' },
-        fr: { t: "{voice} pas {step} : fantôme (vélocité {vel})", b: '', reviewed: false },
+        fr: { t: "{voice} pas {step} : fantôme (vélocité {vel})", b: '', reviewed: true },
     },
 });
 
@@ -387,22 +387,22 @@ export const LABELS = Object.freeze({
         // phrases are dropped and the object moves to the end of the clause; the
         // sentence still names the machine, all four timing controls and the
         // series. 690.0px, 16.4px of clearance.
-        fr: { t: "Boîte à rythmes pas à pas · programmez, puis voyez vélocité, swing, quantification et humanisation remodeler le rythme · guide de terrain", reviewed: false },
+        fr: { t: "Boîte à rythmes pas à pas · programmez, puis voyez vélocité, swing, quantification et humanisation remodeler le rythme · guide de terrain", reviewed: true },
     },
 
     // The transport strip. The NUMBERS beside these three are readouts and are
     // never keyed (D-03); "BPM" is a unit symbol and is language-neutral.
     'label.trTempo': {
         en: { t: "tempo" },
-        fr: { t: "tempo", sameAsEn: true, reviewed: false },
+        fr: { t: "tempo", sameAsEn: true, reviewed: true },
     },
     'label.trLength': {
         en: { t: "length" },
-        fr: { t: "longueur", reviewed: false },
+        fr: { t: "longueur", reviewed: true },
     },
     'label.trSteps': {
         en: { t: "steps" },
-        fr: { t: "pas", reviewed: false },
+        fr: { t: "pas", reviewed: true },
     },
     // The two faces of the transport state line. It is NOT a parameter mirror:
     // there is no sync parameter in the APVTS — frame.sync is host transport
@@ -411,11 +411,11 @@ export const LABELS = Object.freeze({
     // faces, so the glyph never has to be re-attached by the writer.
     'label.freeRun': {
         en: { t: "● free-run" },
-        fr: { t: "● libre", reviewed: false },
+        fr: { t: "● libre", reviewed: true },
     },
     'label.synced': {
         en: { t: "● synced" },
-        fr: { t: "● synchro", reviewed: false },
+        fr: { t: "● synchro", reviewed: true },
     },
 
     // ── Step grid ───────────────────────────────────────────────────────────
@@ -425,7 +425,7 @@ export const LABELS = Object.freeze({
     // the case where it does NOT and is therefore one flat string.
     'label.gridCaption': {
         en: { t: "Step Grid ·" },
-        fr: { t: "Grille de pas ·", reviewed: false },
+        fr: { t: "Grille de pas ·", reviewed: true },
     },
     'label.gridHintA': {
         en: { t: "click a cell to light a step; click again to cycle" },
@@ -448,11 +448,11 @@ export const LABELS = Object.freeze({
         // The shipped line leaves 7.17px inside the 1035px content edge, down
         // from 17.56px. The last candidate is the reversal if a Windows pass
         // ever needs the margin back; it costs naming the step.
-        fr: { t: "cliquez sur une case pour allumer un pas ; cliquez encore pour parcourir", reviewed: false },
+        fr: { t: "cliquez sur une case pour allumer un pas ; cliquez encore pour parcourir", reviewed: true },
     },
     'label.gridHintEm': {
         en: { t: "normal → accent → ghost" },
-        fr: { t: "normal → accent → fantôme", reviewed: false },
+        fr: { t: "normal → accent → fantôme", reviewed: true },
     },
     'label.gridHintB': {
         en: { t: "; right-click (or" },
@@ -461,14 +461,14 @@ export const LABELS = Object.freeze({
         // against "ghost" / "fantôme". That is correct English and wrong French,
         // which spaces before a semicolon — and the space must be no-break, or a
         // line could start with the ';'. +3.05px on the hint row.
-        fr: { t: " ; clic droit (ou", reviewed: false },
+        fr: { t: " ; clic droit (ou", reviewed: true },
     },
     // The keycap. French keyboards print "Suppr" on the key English keyboards
     // print "Del" on, so this is the one string on the page whose translation is
     // decided by hardware rather than by language.
     'label.gridHintKbd': {
         en: { t: "Del" },
-        fr: { t: "Suppr", reviewed: false },
+        fr: { t: "Suppr", reviewed: true },
     },
     'label.gridHintC': {
         en: { t: ") to clear · the bar sweeping across is the playhead" },
@@ -487,47 +487,47 @@ export const LABELS = Object.freeze({
         // · la barre qui balaie …" would now OVERFLOW the row rather than leave
         // 2.0px. This string is unchanged and the trade it records is now worth
         // more, not less.
-        fr: { t: ") pour effacer · la barre mobile est la tête de lecture", reviewed: false },
+        fr: { t: ") pour effacer · la barre mobile est la tête de lecture", reviewed: true },
     },
     'label.clearAll': {
         en: { t: "Clear all" },
-        fr: { t: "Tout effacer", reviewed: false },
+        fr: { t: "Tout effacer", reviewed: true },
     },
 
     // ── Timing / groove lane ────────────────────────────────────────────────
     'label.laneCaption': {
         en: { t: "Timing / Groove Lane ·" },
-        fr: { t: "Voie de placement / groove ·", reviewed: false },
+        fr: { t: "Voie de placement / groove ·", reviewed: true },
     },
     'label.laneHint': {
         en: { t: "each hit's actual offset from its grid line — left of the line = early, right = late. This is the Δt baked into the audio, not a guess." },
-        fr: { t: "le décalage réel de chaque frappe par rapport à sa ligne de grille — à gauche de la ligne = en avance, à droite = en retard. C’est le Δt inscrit dans l’audio, pas une estimation.", reviewed: false },
+        fr: { t: "le décalage réel de chaque frappe par rapport à sa ligne de grille — à gauche de la ligne = en avance, à droite = en retard. C’est le Δt inscrit dans l’audio, pas une estimation.", reviewed: true },
     },
     'label.lkGrid': {
         en: { t: "│ grid line (nominal step)" },
-        fr: { t: "│ ligne de grille (pas nominal)", reviewed: false },
+        fr: { t: "│ ligne de grille (pas nominal)", reviewed: true },
     },
     'label.lkSwing': {
         en: { t: "swing → steady lateness on off-beats" },
-        fr: { t: "swing → retard régulier sur les contretemps", reviewed: false },
+        fr: { t: "swing → retard régulier sur les contretemps", reviewed: true },
     },
     'label.lkHuman': {
         en: { t: "humanize → random scatter" },
-        fr: { t: "humaniser → dispersion aléatoire", reviewed: false },
+        fr: { t: "humaniser → dispersion aléatoire", reviewed: true },
     },
     'label.lkQuant': {
         en: { t: "quantize → pulls scatter back" },
-        fr: { t: "quantifier → resserre la dispersion", reviewed: false },
+        fr: { t: "quantifier → resserre la dispersion", reviewed: true },
     },
 
     // ── Live MIDI readout ───────────────────────────────────────────────────
     'label.midiCaption': {
         en: { t: "Live MIDI Readout ·" },
-        fr: { t: "Lecture MIDI en direct ·", reviewed: false },
+        fr: { t: "Lecture MIDI en direct ·", reviewed: true },
     },
     'label.midiHint': {
         en: { t: "note-on messages as steps fire — the grid and this list are two views of one MIDI stream" },
-        fr: { t: "les messages note-on au déclenchement de chaque pas — la grille et cette liste sont deux vues d’un même flux MIDI", reviewed: false },
+        fr: { t: "les messages note-on au déclenchement de chaque pas — la grille et cette liste sont deux vues d’un même flux MIDI", reviewed: true },
     },
     // The two source tags and the two field names of a readout ROW. The numbers
     // they carry are readouts and substitute verbatim (D-03); the words around
@@ -535,61 +535,61 @@ export const LABELS = Object.freeze({
     // "MIDI" is a protocol name and does not.
     'label.srcSeq': {
         en: { t: "SEQ" },
-        fr: { t: "SÉQ", reviewed: false },
+        fr: { t: "SÉQ", reviewed: true },
     },
     'label.srcMidi': {
         en: { t: "MIDI" },
-        fr: { t: "MIDI", sameAsEn: true, reviewed: false },
+        fr: { t: "MIDI", sameAsEn: true, reviewed: true },
     },
     'label.midiNote': {
         en: { t: "note {n}" },
-        fr: { t: "note {n}", sameAsEn: true, reviewed: false },
+        fr: { t: "note {n}", sameAsEn: true, reviewed: true },
     },
     'label.midiVel': {
         en: { t: "vel {v}" },
-        fr: { t: "vél {v}", reviewed: false },
+        fr: { t: "vél {v}", reviewed: true },
     },
 
     // ── Control groups ──────────────────────────────────────────────────────
     'label.groupTiming': {
         en: { t: "Timing Feel" },
-        fr: { t: "Placement rythmique", reviewed: false },
+        fr: { t: "Placement rythmique", reviewed: true },
     },
     'label.knobSwing': {
         en: { t: "Swing" },
-        fr: { t: "Swing", sameAsEn: true, reviewed: false },
+        fr: { t: "Swing", sameAsEn: true, reviewed: true },
     },
     'label.knobHumanize': {
         en: { t: "Humanize" },
-        fr: { t: "Humaniser", reviewed: false },
+        fr: { t: "Humaniser", reviewed: true },
     },
     'label.knobQuantize': {
         en: { t: "Quantize" },
-        fr: { t: "Quantifier", reviewed: false },
+        fr: { t: "Quantifier", reviewed: true },
     },
     'label.knobTempo': {
         en: { t: "Tempo" },
-        fr: { t: "Tempo", sameAsEn: true, reviewed: false },
+        fr: { t: "Tempo", sameAsEn: true, reviewed: true },
     },
     'label.knobPatternLength': {
         en: { t: "Pattern Length" },
-        fr: { t: "Longueur du motif", reviewed: false },
+        fr: { t: "Longueur du motif", reviewed: true },
     },
     'label.groupVoices': {
         en: { t: "Drum Voices" },
-        fr: { t: "Voix de batterie", reviewed: false },
+        fr: { t: "Voix de batterie", reviewed: true },
     },
     'label.groupRoute': {
         en: { t: "tune · decay · tone · level · mute / solo" },
-        fr: { t: "accord · déclin · timbre · niveau · muet / solo", reviewed: false },
+        fr: { t: "accord · déclin · timbre · niveau · muet / solo", reviewed: true },
     },
     'label.groupMaster': {
         en: { t: "Master" },
-        fr: { t: "Général", reviewed: false },
+        fr: { t: "Général", reviewed: true },
     },
     'label.knobOutput': {
         en: { t: "Output" },
-        fr: { t: "Sortie", reviewed: false },
+        fr: { t: "Sortie", reviewed: true },
     },
 
     // ── The six voice names ─────────────────────────────────────────────────
@@ -599,27 +599,27 @@ export const LABELS = Object.freeze({
     // step-cell accessible names.
     'label.voiceKick': {
         en: { t: "Kick" },
-        fr: { t: "Grosse caisse", reviewed: false },
+        fr: { t: "Grosse caisse", reviewed: true },
     },
     'label.voiceSnare': {
         en: { t: "Snare" },
-        fr: { t: "Caisse claire", reviewed: false },
+        fr: { t: "Caisse claire", reviewed: true },
     },
     'label.voiceClap': {
         en: { t: "Clap" },
-        fr: { t: "Clap", sameAsEn: true, reviewed: false },
+        fr: { t: "Clap", sameAsEn: true, reviewed: true },
     },
     'label.voiceClosedHat': {
         en: { t: "Closed Hat" },
-        fr: { t: "Charley fermé", reviewed: false },
+        fr: { t: "Charley fermé", reviewed: true },
     },
     'label.voiceOpenHat': {
         en: { t: "Open Hat" },
-        fr: { t: "Charley ouvert", reviewed: false },
+        fr: { t: "Charley ouvert", reviewed: true },
     },
     'label.voiceTom': {
         en: { t: "Tom" },
-        fr: { t: "Tom", sameAsEn: true, reviewed: false },
+        fr: { t: "Tom", sameAsEn: true, reviewed: true },
     },
 
     // ── The four repeating voice-knob captions and the two toggles ──────────
@@ -629,27 +629,27 @@ export const LABELS = Object.freeze({
     // the same words today and are deliberately still separate entries.
     'label.knobTune': {
         en: { t: "Tune" },
-        fr: { t: "Accord", reviewed: false },
+        fr: { t: "Accord", reviewed: true },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
-        fr: { t: "Déclin", reviewed: false },
+        fr: { t: "Déclin", reviewed: true },
     },
     'label.knobTone': {
         en: { t: "Tone" },
-        fr: { t: "Timbre", reviewed: false },
+        fr: { t: "Timbre", reviewed: true },
     },
     'label.knobLevel': {
         en: { t: "Level" },
-        fr: { t: "Niveau", reviewed: false },
+        fr: { t: "Niveau", reviewed: true },
     },
     'label.mute': {
         en: { t: "Mute" },
-        fr: { t: "Muet", reviewed: false },
+        fr: { t: "Muet", reviewed: true },
     },
     'label.solo': {
         en: { t: "Solo" },
-        fr: { t: "Solo", sameAsEn: true, reviewed: false },
+        fr: { t: "Solo", sameAsEn: true, reviewed: true },
     },
 
     // ── Lesson tour ─────────────────────────────────────────────────────────
@@ -657,21 +657,21 @@ export const LABELS = Object.freeze({
     // I18N_EXEMPT under D-02, for the reason recorded on the lesson tips above.
     'label.tourHeading': {
         en: { t: "Lesson Presets" },
-        fr: { t: "Préréglages de leçon", reviewed: false },
+        fr: { t: "Préréglages de leçon", reviewed: true },
     },
     'label.tourSoon': {
         en: { t: "(click one — each isolates a single idea)" },
-        fr: { t: "(cliquez-en un — chacun isole une seule idée)", reviewed: false },
+        fr: { t: "(cliquez-en un — chacun isole une seule idée)", reviewed: true },
     },
     'label.tourCaption': {
         en: { t: "Hover any control for a plain-language explanation · click a lesson preset to load it, then tweak a knob." },
-        fr: { t: "Survolez une commande pour une explication en langage clair · cliquez sur un préréglage de leçon pour le charger, puis tournez un bouton.", reviewed: false },
+        fr: { t: "Survolez une commande pour une explication en langage clair · cliquez sur un préréglage de leçon pour le charger, puis tournez un bouton.", reviewed: true },
     },
     // {name} is the preset name the button carries and substitutes VERBATIM: it
     // is the name the lesson row shows and the name C++ knows (D-02).
     'label.tourLoaded': {
         en: { t: "“{name}” loaded — tweak a knob to hear the concept." },
-        fr: { t: "« {name} » chargé — tournez un bouton pour entendre le concept.", reviewed: false },
+        fr: { t: "« {name} » chargé — tournez un bouton pour entendre le concept.", reviewed: true },
     },
 
     // ── The settings popover ────────────────────────────────────────────────
@@ -681,7 +681,7 @@ export const LABELS = Object.freeze({
     // word by construction.
     'aria.langSelect': {
         en: { t: "Interface language" },
-        fr: { t: "Langue de l’interface", reviewed: false },
+        fr: { t: "Langue de l’interface", reviewed: true },
     },
 });
 

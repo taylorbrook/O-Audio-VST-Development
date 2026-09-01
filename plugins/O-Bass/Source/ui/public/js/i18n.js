@@ -204,7 +204,7 @@ export const I18N = Object.freeze({
                + 'que ce plugin renforce et les aigus qu’il laisse intacts. Descendez-le pour '
                + 'ne renforcer que le sub, montez-le pour épaissir aussi le bas-médium. '
                + '40 à 200 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── enhance — AudioParameterFloat, 0..100 %, default 50 ────────────────
@@ -221,7 +221,7 @@ export const I18N = Object.freeze({
               b: 'Règle la quantité de renfort ajoutée à la bande située sous le point de '
                + 'coupure. Un léger renfort soude le mixage ; un renfort marqué reconstruit un '
                + 'grave qu’une petite enceinte laisse encore entendre. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── output — AudioParameterFloat, −18..+18 dB, default 0 ───────────────
@@ -242,7 +242,7 @@ export const I18N = Object.freeze({
                + 'signal d’origine. Le vumètre en dessous affiche le résultat, et le témoin à '
                + 'côté s’allume tant que le limiteur interne retient les crêtes. '
                + '−18 à +18 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── #gear-btn — chrome, not a parameter ────────────────────────
@@ -263,7 +263,7 @@ export const I18N = Object.freeze({
               b: 'Ouvre un petit panneau contenant un seul réglage : la langue de cette '
                + 'interface. Rien n’y modifie le son ni le préréglage en cours. Échap ou un clic '
                + 'ailleurs le referme.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── #lang-select — chrome, not a parameter ─────────────────────
@@ -289,7 +289,7 @@ export const I18N = Object.freeze({
                + 'page entre l’anglais et le français. Les valeurs des paramètres, les unités '
                + 'et les noms de préréglages restent inchangés. Le choix est enregistré avec le plugin et revient avec la '
                + 'session.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -401,9 +401,9 @@ export const LABELS = Object.freeze({
     // are under that floor, so the container is 65.00 px in either language.
     // A `width` here would have a negative control that PASSES, which by the
     // batch rule is decoration.
-    'label.frequency': { en: { t: 'Frequency' }, fr: { t: 'Fréquence', reviewed: false } },
-    'label.enhance':   { en: { t: 'Enhance' },   fr: { t: 'Renfort',   reviewed: false } },
-    'label.output':    { en: { t: 'Output' },    fr: { t: 'Sortie',    reviewed: false } },
+    'label.frequency': { en: { t: 'Frequency' }, fr: { t: 'Fréquence', reviewed: true } },
+    'label.enhance':   { en: { t: 'Enhance' },   fr: { t: 'Renfort',   reviewed: true } },
+    'label.output':    { en: { t: 'Output' },    fr: { t: 'Sortie',    reviewed: true } },
 
     // ── The limiter indicator caption ───────────────────────────────────────
     //
@@ -417,7 +417,7 @@ export const LABELS = Object.freeze({
     // LIMITE (43.27) is the word and it does not fit: it is 7.72 px wider than
     // the English, and cliff B has 0.00 px to give. ECRET. (42.77, écrêtage)
     // is wider still. LIM. is the abbreviation French-market limiters carry.
-    'label.limit': { en: { t: 'Limit' }, fr: { t: 'Lim.', reviewed: false } },
+    'label.limit': { en: { t: 'Limit' }, fr: { t: 'Lim.', reviewed: true } },
 
     // ── The output-meter caption ────────────────────────────────────────────
     //
@@ -449,7 +449,7 @@ export const LABELS = Object.freeze({
     // SORTIE, because its container has 14 px of slack and this one has none.
     // The same English word gets two different answers on one page, decided by
     // geometry. That is a legitimate thing to disagree with.
-    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: false } },
+    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: true } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -484,9 +484,9 @@ export const LABELS = Object.freeze({
     // broken on O-DigiDelay's CHARGER/Ouvrir pair.
     //
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: false } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: true } },
     'label.save': { en: { t: 'Save' },
-                    fr: { t: 'Enr', reviewed: false,
+                    fr: { t: 'Enr', reviewed: true,
                           termNote: 'the 46 px .preset-save-btn pin is a 28 px content box and '
                                   + 'the glossary lists no form that fits it: Enregistrer measures '
                                   + '73.28 px and Enreg. 38.84 px, both past it, and widening the pin '
@@ -511,11 +511,11 @@ export const LABELS = Object.freeze({
     // table. The dropdown is `left: 0; right: 0` of the 280.61 px preset bar,
     // so both have ~240 px of content box and neither is anywhere near a cliff.
     'label.noPresets': { en: { t: 'No presets available' },
-                         fr: { t: 'Aucun préréglage disponible', reviewed: false } },
-    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: false } },
+                         fr: { t: 'Aucun préréglage disponible', reviewed: true } },
+    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true } },
 
     // ── The settings popover (v1.4.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -527,8 +527,8 @@ export const LABELS = Object.freeze({
     // that has nothing to do with localization, so the strings are translated
     // and left in place. The keys and the French are byte-identical to
     // O-IntonationPad's, which carries the identical two images.
-    'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: false } },
-    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: false } },
+    'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } },
+    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -561,18 +561,18 @@ export const LABELS = Object.freeze({
     // O-AnalogEQ, O-Detune, O-DigiDelay, O-FreqPulse and O-Lyrica for the
     // identical control.
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: false } },
+                         fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: false } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Enregistrer les réglages actuels', reviewed: false } },
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

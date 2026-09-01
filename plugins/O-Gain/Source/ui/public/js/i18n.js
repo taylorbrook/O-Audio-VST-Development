@@ -197,21 +197,21 @@ export const I18N = Object.freeze({
               b: 'Choose the language of this interface and whether hover help appears. The language is remembered with the session; the hover-help switch is not.' },
         fr: { t: 'Réglages',
               b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. La langue est conservée avec la session ; l’interrupteur d’aide au survol ne l’est pas.',
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, meter-mode names and unit symbols stay in English.' },
         fr: { t: 'Langue',
               b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
         fr: { t: 'Aide au survol',
               b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et cet interrupteur continuent de s’expliquer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The twenty-three ported tips. NONE split on a ": ". Every title is
@@ -221,161 +221,161 @@ export const I18N = Object.freeze({
               b: 'Input level after channel utilities, before gain is applied' },
         fr: { t: 'Entrée',
               b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain',
-              reviewed: false },
+              reviewed: true },
     },
     'output-meter': {
         en: { t: 'Output',
               b: 'Output level after gain is applied' },
         fr: { t: 'Sortie',
               b: 'Niveau de sortie après application du gain',
-              reviewed: false },
+              reviewed: true },
     },
     'gain-display': {
         en: { t: 'Gain Offset',
               b: 'Main gain offset. Set by Learn or adjust manually. Range: -40 to +40 dB' },
         fr: { t: 'Décalage de gain',
               b: 'Décalage de gain principal. Défini par la mesure ou réglé à la main. Plage : −40 à +40 dB',
-              reviewed: false },
+              reviewed: true },
     },
     'gain-knob': {
         en: { t: 'Gain',
               b: 'Drag to set gain. Double-click to reset. Hold Shift for fine control' },
         fr: { t: 'Gain',
               b: 'Glisser pour régler le gain. Double-cliquer pour réinitialiser. Maintenir Maj pour un réglage fin',
-              reviewed: false },
+              reviewed: true },
     },
     'trim-knob': {
         en: { t: 'Trim',
               b: 'Fine adjustment after Learn mode. Range: -6 to +6 dB. Double-click to reset' },
         fr: { t: 'Ajust.',
               b: 'Réglage fin après une mesure. Plage : −6 à +6 dB. Double-cliquer pour réinitialiser',
-              reviewed: false },
+              reviewed: true },
     },
     'learn-btn': {
         en: { t: 'Learn',
               b: 'Click to start measuring. Play audio for 10-30s, then click again. Gain is set automatically' },
         fr: { t: 'Mesurer',
               b: 'Cliquer pour lancer la mesure. Jouer 10 à 30 s d’audio, puis cliquer de nouveau. Le gain est réglé automatiquement',
-              reviewed: false },
+              reviewed: true },
     },
     'target-group': {
         en: { t: 'Target',
               b: 'Target loudness for Learn. -18 dB = 0 VU (standard), -14 LUFS = Spotify, -23 LUFS = EBU R128' },
         fr: { t: 'Cible',
               b: 'Sonie visée par la mesure. −18 dB = 0 VU (norme), −14 LUFS = Spotify, −23 LUFS = EBU R128',
-              reviewed: false },
+              reviewed: true },
     },
     'target-knob': {
         en: { t: 'Target Level',
               b: 'Desired output loudness. Drag knob or double-click to reset to -18 dB' },
         fr: { t: 'Niveau cible',
               b: 'Sonie de sortie souhaitée. Glisser le bouton ou double-cliquer pour revenir à −18 dB',
-              reviewed: false },
+              reviewed: true },
     },
     'measure-mode': {
         en: { t: 'Measure',
               b: 'Algorithm used by Learn. LUFS = K-weighted loudness (recommended, industry standard). RMS = simple average level' },
         fr: { t: 'Mesure',
               b: 'Algorithme utilisé par la mesure. LUFS = sonie pondérée K (recommandée, norme de l’industrie). RMS = niveau moyen simple',
-              reviewed: false },
+              reviewed: true },
     },
     'meter-mode': {
         en: { t: 'Meter',
               b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = K-weighted momentary loudness (shown while Learn runs; falls back to RMS otherwise)' },
         fr: { t: 'Vumètre',
               b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (affichée pendant la mesure ; sinon retour au RMS)',
-              reviewed: false },
+              reviewed: true },
     },
     'info-momentary': {
         en: { t: 'Momentary',
               b: 'Loudness of the last 400ms window' },
         fr: { t: 'Momentané',
               b: 'Sonie de la fenêtre des 400 dernières ms',
-              reviewed: false },
+              reviewed: true },
     },
     'info-short-term': {
         en: { t: 'Short-term',
               b: 'Loudness averaged over the last 3 seconds' },
         fr: { t: 'Court terme',
               b: 'Sonie moyennée sur les 3 dernières secondes',
-              reviewed: false },
+              reviewed: true },
     },
     'info-integrated': {
         en: { t: 'Integrated',
               b: 'Overall loudness since Learn started (gated, used for gain calculation)' },
         fr: { t: 'Intégré',
               b: 'Sonie globale depuis le début de la mesure (avec seuillage, utilisée pour le calcul du gain)',
-              reviewed: false },
+              reviewed: true },
     },
     'info-sample-peak': {
         en: { t: 'Sample Peak',
               b: 'Highest digital sample peak (not oversampled, so inter-sample peaks are not measured). Learn leaves ~3 dB of extra headroom below -1 dBFS to cover them.' },
         fr: { t: 'Crête éch.',
               b: 'Crête numérique la plus haute (sans suréchantillonnage, donc les crêtes inter-échantillons ne sont pas mesurées). La mesure laisse environ 3 dB de marge supplémentaire sous −1 dBFS pour les couvrir.',
-              reviewed: false },
+              reviewed: true },
     },
     'info-elapsed': {
         en: { t: 'Elapsed',
               b: 'How long Learn has been running. 10-30 seconds recommended' },
         fr: { t: 'Écoulé',
               b: 'Durée de la mesure en cours. 10 à 30 secondes recommandées',
-              reviewed: false },
+              reviewed: true },
     },
     'info-confidence': {
         en: { t: 'Confidence',
               b: 'Measurement quality. Low = under 5s. Medium = 5-15s. High = over 15s with stable signal' },
         fr: { t: 'Confiance',
               b: 'Qualité de la mesure. Faible = moins de 5 s. Moyen = 5 à 15 s. Élevé = plus de 15 s avec un signal stable',
-              reviewed: false },
+              reviewed: true },
     },
     'phase-l': {
         en: { t: 'PH L',
               b: 'Flip left channel polarity (180 degree phase inversion)' },
         fr: { t: 'PH G',
               b: 'Inverse la polarité du canal gauche (inversion de phase de 180 degrés)',
-              reviewed: false },
+              reviewed: true },
     },
     'phase-r': {
         en: { t: 'PH R',
               b: 'Flip right channel polarity (180 degree phase inversion)' },
         fr: { t: 'PH D',
               b: 'Inverse la polarité du canal droit (inversion de phase de 180 degrés)',
-              reviewed: false },
+              reviewed: true },
     },
     'swap': {
         en: { t: 'SWAP',
               b: 'Swap left and right channels' },
         fr: { t: 'PERM',
               b: 'Permute les canaux gauche et droit',
-              reviewed: false },
+              reviewed: true },
     },
     'mono': {
         en: { t: 'MONO',
               b: 'Sum to mono: (L+R)/2 on both channels' },
         fr: { t: 'MONO',
               b: 'Somme en mono : (G+D)/2 sur les deux canaux',
-              reviewed: false },
+              reviewed: true },
     },
     'ms-off': {
         en: { t: 'M/S OFF',
               b: 'Mid-Side processing off (normal stereo)' },
         fr: { t: 'M/S ARR',
               b: 'Traitement Mid-Side désactivé (stéréo normale)',
-              reviewed: false },
+              reviewed: true },
     },
     'ms-enc': {
         en: { t: 'ENC',
               b: 'Encode L/R to Mid/Side. Use with a second O-Gain set to DEC after processing' },
         fr: { t: 'ENC',
               b: 'Encode G/D en Mid/Side. À utiliser avec un second O-Gain réglé sur DÉC après le traitement',
-              reviewed: false },
+              reviewed: true },
     },
     'ms-dec': {
         en: { t: 'DEC',
               b: 'Decode Mid/Side back to L/R. Place after M/S processing chain. Note: decoding a normal (un-encoded) L/R signal raises level by +6 dB — the inverse gain of ENC — so use ENC->DEC as a matched pair.' },
         fr: { t: 'DÉC',
               b: 'Décode le Mid/Side vers G/D. À placer après la chaîne de traitement M/S. Remarque : décoder un signal G/D normal (non encodé) élève le niveau de +6 dB — le gain inverse d’ENC — donc utiliser ENC->DÉC par paire.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -431,12 +431,12 @@ export const I18N = Object.freeze({
 export const LABELS = Object.freeze({
 
     // ── Meter columns ───────────────────────────────────────────────────────
-    'label.input':  { en: { t: 'Input' },  fr: { t: 'Entrée', reviewed: false } },
-    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: false } },
+    'label.input':  { en: { t: 'Input' },  fr: { t: 'Entrée', reviewed: true } },
+    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true } },
 
     // ── The big gain readout's caption. The readout itself and its "dB" unit
     //    are NOT keyed — contract §5, D-03.
-    'label.gainOffset': { en: { t: 'Gain Offset' }, fr: { t: 'Décalage de gain', reviewed: false } },
+    'label.gainOffset': { en: { t: 'Gain Offset' }, fr: { t: 'Décalage de gain', reviewed: true } },
 
     // ── Knob captions ───────────────────────────────────────────────────────
     // GAIN is spelled identically in French and is KEYED rather than exempted:
@@ -445,25 +445,25 @@ export const LABELS = Object.freeze({
     // translates to itself". sameAsEn: true is what says the second thing out
     // loud — assertion 4 rejects a silent fr === en passthrough, because that
     // is indistinguishable from a translation somebody forgot to write.
-    'label.gain':        { en: { t: 'Gain' },         fr: { t: 'Gain', reviewed: false, sameAsEn: true } },
-    'label.trim':        { en: { t: 'Trim' },         fr: { t: 'Ajust.',       reviewed: false } },
-    'label.targetLevel': { en: { t: 'Target Level' }, fr: { t: 'Niveau cible', reviewed: false } },
-    'label.target':      { en: { t: 'Target' },       fr: { t: 'Cible',        reviewed: false } },
+    'label.gain':        { en: { t: 'Gain' },         fr: { t: 'Gain', reviewed: true, sameAsEn: true } },
+    'label.trim':        { en: { t: 'Trim' },         fr: { t: 'Ajust.',       reviewed: true } },
+    'label.targetLevel': { en: { t: 'Target Level' }, fr: { t: 'Niveau cible', reviewed: true } },
+    'label.target':      { en: { t: 'Target' },       fr: { t: 'Cible',        reviewed: true } },
 
     // ── Mode-selector captions. The OPTION captions beside them (LUFS, RMS,
     //    Peak, VU) are the AudioParameterChoice option strings verbatim and are
     //    I18N_EXEMPT under D-01 — see the note there.
-    'label.measure': { en: { t: 'Measure' }, fr: { t: 'Mesure',  reviewed: false } },
-    'label.meter':   { en: { t: 'Meter' },   fr: { t: 'Vumètre', reviewed: false } },
+    'label.measure': { en: { t: 'Measure' }, fr: { t: 'Mesure',  reviewed: true } },
+    'label.meter':   { en: { t: 'Meter' },   fr: { t: 'Vumètre', reviewed: true } },
 
     // ── The Learn panel ─────────────────────────────────────────────────────
-    'label.learnAnalysis': { en: { t: 'Learn Analysis' }, fr: { t: 'Analyse de mesure', reviewed: false } },
-    'label.momentary':     { en: { t: 'Momentary' },      fr: { t: 'Momentané',   reviewed: false } },
-    'label.shortTerm':     { en: { t: 'Short-term' },     fr: { t: 'Court terme',  reviewed: false } },
-    'label.integrated':    { en: { t: 'Integrated' },     fr: { t: 'Intégré',      reviewed: false } },
-    'label.samplePeak':    { en: { t: 'Sample Peak' },    fr: { t: 'Crête éch.',   reviewed: false } },
-    'label.elapsed':       { en: { t: 'Elapsed' },        fr: { t: 'Écoulé',       reviewed: false } },
-    'label.confidence':    { en: { t: 'Confidence' },     fr: { t: 'Confiance',    reviewed: false } },
+    'label.learnAnalysis': { en: { t: 'Learn Analysis' }, fr: { t: 'Analyse de mesure', reviewed: true } },
+    'label.momentary':     { en: { t: 'Momentary' },      fr: { t: 'Momentané',   reviewed: true } },
+    'label.shortTerm':     { en: { t: 'Short-term' },     fr: { t: 'Court terme',  reviewed: true } },
+    'label.integrated':    { en: { t: 'Integrated' },     fr: { t: 'Intégré',      reviewed: true } },
+    'label.samplePeak':    { en: { t: 'Sample Peak' },    fr: { t: 'Crête éch.',   reviewed: true } },
+    'label.elapsed':       { en: { t: 'Elapsed' },        fr: { t: 'Écoulé',       reviewed: true } },
+    'label.confidence':    { en: { t: 'Confidence' },     fr: { t: 'Confiance',    reviewed: true } },
 
     // ── The utility row. See the min-content note in the block comment above:
     //    every French caption's widest WORD matches its English counterpart's,
@@ -471,53 +471,53 @@ export const LABELS = Object.freeze({
     //
     //    PH is an abbreviation of "phase", which is the same word in French, so
     //    only the channel letter moves: L/R -> G/D (gauche / droite).
-    'label.phaseL': { en: { t: 'PH L' },    fr: { t: 'PH G',    reviewed: false } },
-    'label.phaseR': { en: { t: 'PH R' },    fr: { t: 'PH D',    reviewed: false } },
-    'label.swap':   { en: { t: 'SWAP' },    fr: { t: 'PERM',    reviewed: false } },
+    'label.phaseL': { en: { t: 'PH L' },    fr: { t: 'PH G',    reviewed: true } },
+    'label.phaseR': { en: { t: 'PH R' },    fr: { t: 'PH D',    reviewed: true } },
+    'label.swap':   { en: { t: 'SWAP' },    fr: { t: 'PERM',    reviewed: true } },
     // MONO and ENC are spelled identically in French — "mono" is the same word
     // and "ENC" the same abbreviation of encoder/encode. Declared, not silent.
-    'label.mono':   { en: { t: 'MONO' },    fr: { t: 'MONO', reviewed: false, sameAsEn: true } },
+    'label.mono':   { en: { t: 'MONO' },    fr: { t: 'MONO', reviewed: true, sameAsEn: true } },
     // The three M/S captions are NOT the ms_mode option strings — those are
     // "Off", "Encode", "Decode" (PluginProcessor.cpp:238-243) and none of these
     // three matches one byte for byte. They are plain captions, so they
     // localize. ARR is "arrêt", the same abbreviation the hover-help switch
     // uses for Off.
-    'label.msOff':  { en: { t: 'M/S OFF' }, fr: { t: 'M/S ARR', reviewed: false } },
-    'label.msEnc':  { en: { t: 'ENC' },     fr: { t: 'ENC',  reviewed: false, sameAsEn: true } },
-    'label.msDec':  { en: { t: 'DEC' },     fr: { t: 'DÉC',     reviewed: false } },
+    'label.msOff':  { en: { t: 'M/S OFF' }, fr: { t: 'M/S ARR', reviewed: true } },
+    'label.msEnc':  { en: { t: 'ENC' },     fr: { t: 'ENC',  reviewed: true, sameAsEn: true } },
+    'label.msDec':  { en: { t: 'DEC' },     fr: { t: 'DÉC',     reviewed: true } },
 
     // ── The Learn button's four faces, written from script by setLabel() ────
     // ui.learn is also the caption authored in index.html, so the button is a
     // [data-i18n] element from first paint rather than from the first meter
     // tick. The other three replace v1.2.1's raw textContent literals.
-    'ui.learn':    { en: { t: 'LEARN' },       fr: { t: 'MESURER',   reviewed: false } },
-    'ui.learning': { en: { t: 'LEARNING...' }, fr: { t: 'MESURE...', reviewed: false } },
-    'ui.done':     { en: { t: 'DONE' },        fr: { t: 'TERMINÉ',   reviewed: false } },
-    'ui.tooQuiet': { en: { t: 'TOO QUIET' },   fr: { t: 'TROP BAS',  reviewed: false } },
+    'ui.learn':    { en: { t: 'LEARN' },       fr: { t: 'MESURER',   reviewed: true } },
+    'ui.learning': { en: { t: 'LEARNING...' }, fr: { t: 'MESURE...', reviewed: true } },
+    'ui.done':     { en: { t: 'DONE' },        fr: { t: 'TERMINÉ',   reviewed: true } },
+    'ui.tooQuiet': { en: { t: 'TOO QUIET' },   fr: { t: 'TROP BAS',  reviewed: true } },
 
     // ── The confidence verdict. See the I18N_EXEMPT note for why these three
     //    are COPY and not a readout, which is the opposite call from the six
     //    timbre words on O-Marimba.
-    'ui.confLow':  { en: { t: 'LOW' },  fr: { t: 'FAIBLE', reviewed: false,
+    'ui.confLow':  { en: { t: 'LOW' },  fr: { t: 'FAIBLE', reviewed: true,
                        termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — the glossary\'s Grave/Aigu name EQ registers, and "Confiance : Grave" would read as a filter setting' } },
-    'ui.confMed':  { en: { t: 'MED' },  fr: { t: 'MOYEN',  reviewed: false } },
-    'ui.confHigh': { en: { t: 'HIGH' }, fr: { t: 'ÉLEVÉ',  reviewed: false,
+    'ui.confMed':  { en: { t: 'MED' },  fr: { t: 'MOYEN',  reviewed: true } },
+    'ui.confHigh': { en: { t: 'HIGH' }, fr: { t: 'ÉLEVÉ',  reviewed: true,
                        termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — see ui.confLow' } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: false } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: false } },
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
     // ── Accessible names. Keyed through data-i18n-aria, which resolves through
     //    the same sweep with setAttribute. aria.helpToggle replaces the ONE
     //    native title= this page carried (#help-btn "Toggle tooltips"), which
     //    contract §4 deletes: a native title renders a second, untranslated OS
     //    tooltip competing with the measure-then-pin renderer.
-    'aria.settings':   { en: { t: 'Settings' },             fr: { t: 'Réglages',                 reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',    reviewed: false } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },             fr: { t: 'Réglages',                 reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',    reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
 });
 
 // ============================================================================

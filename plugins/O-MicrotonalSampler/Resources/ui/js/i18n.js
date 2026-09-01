@@ -237,122 +237,122 @@ export const I18N = Object.freeze({
     // ── toasts ────────────────────────────────────────────────────────────
     'toast.filesSkipped': {
         en: { t: 'Files skipped: {n}', b: '' },
-        fr: { t: 'Fichiers ignorés : {n}', b: '', reviewed: false } },
+        fr: { t: 'Fichiers ignorés : {n}', b: '', reviewed: true } },
     'toast.nothingToDelete': {
         en: { t: 'Nothing to delete on that cell.', b: '' },
-        fr: { t: 'Rien à supprimer dans cette case.', b: '', reviewed: false } },
+        fr: { t: 'Rien à supprimer dans cette case.', b: '', reviewed: true } },
     'toast.layerCleared': {
         en: { t: 'Layer {mark} · samples removed: {n}', b: '' },
-        fr: { t: 'Couche {mark} · échantillons supprimés : {n}', b: '', reviewed: false } },
+        fr: { t: 'Couche {mark} · échantillons supprimés : {n}', b: '', reviewed: true } },
     'toast.layerAlreadyEmpty': {
         en: { t: 'Layer {mark} was already empty.', b: '' },
-        fr: { t: 'La couche {mark} était déjà vide.', b: '', reviewed: false } },
+        fr: { t: 'La couche {mark} était déjà vide.', b: '', reviewed: true } },
     'toast.loopPointsApplied': {
         en: { t: 'Loop points applied · samples updated: {n}', b: '' },
-        fr: { t: 'Points de boucle appliqués · échantillons mis à jour : {n}', b: '', reviewed: false } },
+        fr: { t: 'Points de boucle appliqués · échantillons mis à jour : {n}', b: '', reviewed: true } },
     'toast.noLoopableSamples': {
         en: { t: 'No loopable samples to update.', b: '' },
-        fr: { t: 'Aucun échantillon bouclable à mettre à jour.', b: '', reviewed: false } },
+        fr: { t: 'Aucun échantillon bouclable à mettre à jour.', b: '', reviewed: true } },
     'toast.loopApplyNote': {
         en: { t: 'New loop points apply to next note-on.', b: '' },
-        fr: { t: 'Les nouveaux points de boucle prennent effet à la prochaine note.', b: '', reviewed: false } },
+        fr: { t: 'Les nouveaux points de boucle prennent effet à la prochaine note.', b: '', reviewed: true } },
     'toast.resizeWider': {
         en: { t: 'Resize wider to use the loop editor.', b: '' },
-        fr: { t: 'Élargissez la fenêtre pour utiliser l’éditeur de boucle.', b: '', reviewed: false } },
+        fr: { t: 'Élargissez la fenêtre pour utiliser l’éditeur de boucle.', b: '', reviewed: true } },
     'toast.folderLoadFailed': {
         en: { t: 'Folder load failed', b: '' },
-        fr: { t: 'Échec du chargement du dossier', b: '', reviewed: false } },
+        fr: { t: 'Échec du chargement du dossier', b: '', reviewed: true } },
     'toast.waveformUnavailable': {
         en: { t: 'Unable to load waveform for this cell.', b: '' },
-        fr: { t: 'Impossible de charger la forme d’onde de cette case.', b: '', reviewed: false } },
+        fr: { t: 'Impossible de charger la forme d’onde de cette case.', b: '', reviewed: true } },
     'toast.presetSaved': {
         en: { t: 'Preset saved', b: '' },
-        fr: { t: 'Préréglage enregistré', b: '', reviewed: false } },
+        fr: { t: 'Préréglage enregistré', b: '', reviewed: true } },
     'toast.presetSaveFailed': {
         en: { t: 'Save preset failed', b: '' },
-        fr: { t: 'Échec de l’enregistrement du préréglage', b: '', reviewed: false } },
+        fr: { t: 'Échec de l’enregistrement du préréglage', b: '', reviewed: true } },
     'toast.presetLoaded': {
         en: { t: 'Preset loaded', b: '' },
-        fr: { t: 'Préréglage chargé', b: '', reviewed: false } },
+        fr: { t: 'Préréglage chargé', b: '', reviewed: true } },
     'toast.presetLoadFailed': {
         en: { t: 'Load preset failed', b: '' },
-        fr: { t: 'Échec du chargement du préréglage', b: '', reviewed: false } },
+        fr: { t: 'Échec du chargement du préréglage', b: '', reviewed: true } },
     'toast.folderLocated': {
         en: { t: 'Folder located — loading…', b: '' },
-        fr: { t: 'Dossier localisé — chargement…', b: '', reviewed: false } },
+        fr: { t: 'Dossier localisé — chargement…', b: '', reviewed: true } },
     'toast.locateFolderFailed': {
         en: { t: 'Locate folder failed', b: '' },
-        fr: { t: 'Échec de la localisation du dossier', b: '', reviewed: false } },
+        fr: { t: 'Échec de la localisation du dossier', b: '', reviewed: true } },
     'toast.embedDialogMissing': {
         en: { t: 'Internal UI error: confirmation dialog unavailable — embed cancelled.', b: '' },
-        fr: { t: 'Erreur interne : boîte de confirmation indisponible — intégration annulée.', b: '', reviewed: false } },
+        fr: { t: 'Erreur interne : boîte de confirmation indisponible — intégration annulée.', b: '', reviewed: true } },
     'toast.rrDialogMissing': {
         en: { t: 'Internal UI error: round-robin confirmation dialog unavailable — load cancelled.', b: '' },
-        fr: { t: 'Erreur interne : boîte de confirmation round-robin indisponible — chargement annulé.', b: '', reviewed: false } },
+        fr: { t: 'Erreur interne : boîte de confirmation round-robin indisponible — chargement annulé.', b: '', reviewed: true } },
     'toast.techniquePresetApplied': {
         en: { t: 'Applied {family} technique names', b: '' },
-        fr: { t: 'Noms de techniques « {family} » appliqués', b: '', reviewed: false } },
+        fr: { t: 'Noms de techniques « {family} » appliqués', b: '', reviewed: true } },
 
     // ── confirmation-dialog arguments ─────────────────────────────────────
     // showConfirmDialog() takes finished strings, not keys, so these resolve
     // through trLabel() at the call site.
     'msg.deleteSampleTitle': {
         en: { t: 'Delete this sample?', b: '' },
-        fr: { t: 'Supprimer cet échantillon ?', b: '', reviewed: false } },
+        fr: { t: 'Supprimer cet échantillon ?', b: '', reviewed: true } },
     'msg.deleteSampleBody': {
         en: { t: 'Remove the sample on {note}, velocity layer {mark}{tech}.', b: '' },
-        fr: { t: 'Retirer l’échantillon sur {note}, couche de vélocité {mark}{tech}.', b: '', reviewed: false } },
+        fr: { t: 'Retirer l’échantillon sur {note}, couche de vélocité {mark}{tech}.', b: '', reviewed: true } },
     'msg.deleteBtn': {
         en: { t: 'Delete', b: '' },
-        fr: { t: 'Supprimer', b: '', reviewed: false } },
+        fr: { t: 'Supprimer', b: '', reviewed: true } },
     'msg.clearLayerTitle': {
         en: { t: 'Clear velocity layer {mark}?', b: '' },
-        fr: { t: 'Effacer la couche de vélocité {mark} ?', b: '', reviewed: false } },
+        fr: { t: 'Effacer la couche de vélocité {mark} ?', b: '', reviewed: true } },
     'msg.clearLayerBody': {
         en: { t: 'Remove every sample in velocity layer {mark}, across all techniques. This cannot be undone.', b: '' },
-        fr: { t: 'Retirer tous les échantillons de la couche de vélocité {mark}, pour toutes les techniques. Action irréversible.', b: '', reviewed: false } },
+        fr: { t: 'Retirer tous les échantillons de la couche de vélocité {mark}, pour toutes les techniques. Action irréversible.', b: '', reviewed: true } },
     'msg.clearLayerBtn': {
         en: { t: 'Clear layer', b: '' },
-        fr: { t: 'Effacer la couche', b: '', reviewed: false } },
+        fr: { t: 'Effacer la couche', b: '', reviewed: true } },
     'msg.clearAllTitle': {
         en: { t: 'Clear all samples?', b: '' },
-        fr: { t: 'Effacer tous les échantillons ?', b: '', reviewed: false } },
+        fr: { t: 'Effacer tous les échantillons ?', b: '', reviewed: true } },
     'msg.clearAllBody': {
         en: { t: 'All loaded samples will be removed from the sample map. Active notes will finish playing, but new note-ons will produce silence until samples are loaded again. This cannot be undone.', b: '' },
-        fr: { t: 'Tous les échantillons chargés seront retirés de la carte d’échantillons. Les notes en cours iront à leur terme, mais les nouvelles notes resteront silencieuses jusqu’au prochain chargement. Action irréversible.', b: '', reviewed: false } },
+        fr: { t: 'Tous les échantillons chargés seront retirés de la carte d’échantillons. Les notes en cours iront à leur terme, mais les nouvelles notes resteront silencieuses jusqu’au prochain chargement. Action irréversible.', b: '', reviewed: true } },
     'msg.clearBtn': {
         en: { t: 'Clear', b: '' },
-        fr: { t: 'Effacer', b: '', reviewed: false } },
+        fr: { t: 'Effacer', b: '', reviewed: true } },
 
     // The folder-load explain line: EIGHT keyed faces, not four ternaries.
     // The key is the branch, so nothing inflects inside a string.
     'msg.floAppendForced': {
         en: { t: 'Add samples to {layer}, ignoring filename velocity tokens.', b: '' },
-        fr: { t: 'Ajouter les échantillons à {layer}, en ignorant les jetons de vélocité du nom de fichier.', b: '', reviewed: false } },
+        fr: { t: 'Ajouter les échantillons à {layer}, en ignorant les jetons de vélocité du nom de fichier.', b: '', reviewed: true } },
     'msg.floAppendTokens': {
         en: { t: 'Add samples; filename tokens (v1–v4, p/mp/mf/f) decide layer.', b: '' },
-        fr: { t: 'Ajouter les échantillons ; les jetons du nom de fichier (v1–v4, p/mp/mf/f) décident de la couche.', b: '', reviewed: false } },
+        fr: { t: 'Ajouter les échantillons ; les jetons du nom de fichier (v1–v4, p/mp/mf/f) décident de la couche.', b: '', reviewed: true } },
     'msg.floReplaceLayerForced': {
         en: { t: 'Clear {layer} and add the new samples there.', b: '' },
-        fr: { t: 'Effacer {layer} et y ajouter les nouveaux échantillons.', b: '', reviewed: false } },
+        fr: { t: 'Effacer {layer} et y ajouter les nouveaux échantillons.', b: '', reviewed: true } },
     'msg.floReplaceLayerTokens': {
         en: { t: 'Clear {layer}; filename tokens decide where new samples land.', b: '' },
-        fr: { t: 'Effacer {layer} ; les jetons du nom de fichier décident où atterrissent les nouveaux échantillons.', b: '', reviewed: false } },
+        fr: { t: 'Effacer {layer} ; les jetons du nom de fichier décident où atterrissent les nouveaux échantillons.', b: '', reviewed: true } },
     'msg.floReplaceAllForced': {
         en: { t: 'Replace existing samples; new ones land on {layer}.', b: '' },
-        fr: { t: 'Remplacer les échantillons existants ; les nouveaux atterrissent sur {layer}.', b: '', reviewed: false } },
+        fr: { t: 'Remplacer les échantillons existants ; les nouveaux atterrissent sur {layer}.', b: '', reviewed: true } },
     'msg.floReplaceAllTokens': {
         en: { t: 'Replace existing samples; filename tokens decide layer.', b: '' },
-        fr: { t: 'Remplacer les échantillons existants ; les jetons du nom de fichier décident de la couche.', b: '', reviewed: false } },
+        fr: { t: 'Remplacer les échantillons existants ; les jetons du nom de fichier décident de la couche.', b: '', reviewed: true } },
     'msg.floMergeRrForced': {
         en: { t: 'Layer onto {layer}: collisions become round-robin variants (cap 64 per cell).', b: '' },
-        fr: { t: 'Superposer sur {layer} : les collisions deviennent des variantes round-robin (max. 64 par case).', b: '', reviewed: false } },
+        fr: { t: 'Superposer sur {layer} : les collisions deviennent des variantes round-robin (max. 64 par case).', b: '', reviewed: true } },
     'msg.floMergeRrTokens': {
         en: { t: 'Layer existing notes: collisions become round-robin variants. Filename tokens decide layer.', b: '' },
-        fr: { t: 'Superposer les notes existantes : les collisions deviennent des variantes round-robin. Les jetons du nom de fichier décident de la couche.', b: '', reviewed: false } },
+        fr: { t: 'Superposer les notes existantes : les collisions deviennent des variantes round-robin. Les jetons du nom de fichier décident de la couche.', b: '', reviewed: true } },
     'msg.floTechniqueForced': {
         en: { t: 'Technique forced to "{name}".', b: '' },
-        fr: { t: 'Technique forcée sur « {name} ».', b: '', reviewed: false } },
+        fr: { t: 'Technique forcée sur « {name} ».', b: '', reviewed: true } },
 
     // ── composed ACCESSIBLE NAMES ─────────────────────────────────────────
     //
@@ -364,46 +364,46 @@ export const I18N = Object.freeze({
     // is the single re-render path §3 asks for.
     'aria.cellVel': {
         en: { t: 'Vel {mark} ({range})', b: '' },
-        fr: { t: 'Vél. {mark} ({range})', b: '', reviewed: false } },
+        fr: { t: 'Vél. {mark} ({range})', b: '', reviewed: true } },
     'aria.cellTech': {
         en: { t: 'tech: {name}', b: '' },
-        fr: { t: 'technique : {name}', b: '', reviewed: false } },
+        fr: { t: 'technique : {name}', b: '', reviewed: true } },
     'aria.cellVariants': {
         en: { t: 'variants: {n}', b: '' },
-        fr: { t: 'variantes : {n}', b: '', reviewed: false } },
+        fr: { t: 'variantes : {n}', b: '', reviewed: true } },
     'aria.velLabel': {
         en: { t: 'Dynamic {mark} (layer {layer}): MIDI velocity {range} — right-click to clear this layer', b: '' },
-        fr: { t: 'Nuance {mark} (couche {layer}) : vélocité MIDI {range} — clic droit pour effacer cette couche', b: '', reviewed: false } },
+        fr: { t: 'Nuance {mark} (couche {layer}) : vélocité MIDI {range} — clic droit pour effacer cette couche', b: '', reviewed: true } },
     'aria.switchToVariant': {
         en: { t: 'Switch to variant {n}', b: '' },
-        fr: { t: 'Passer à la variante {n}', b: '', reviewed: false } },
+        fr: { t: 'Passer à la variante {n}', b: '', reviewed: true } },
     'aria.techTabLoaded': {
         en: { t: 'Technique {i}: {name} — cells loaded: {n}  (right-click to rename)', b: '' },
-        fr: { t: 'Technique {i} : {name} — cases chargées : {n}  (clic droit pour renommer)', b: '', reviewed: false } },
+        fr: { t: 'Technique {i} : {name} — cases chargées : {n}  (clic droit pour renommer)', b: '', reviewed: true } },
     'aria.techTabEmpty': {
         en: { t: 'Technique {i}: {name} — empty  (right-click to rename)', b: '' },
-        fr: { t: 'Technique {i} : {name} — vide  (clic droit pour renommer)', b: '', reviewed: false } },
+        fr: { t: 'Technique {i} : {name} — vide  (clic droit pour renommer)', b: '', reviewed: true } },
     'aria.trimWholeTechnique': {
         en: { t: 'Trim the whole "{name}" technique (all layers)', b: '' },
-        fr: { t: 'Ajuster toute la technique « {name} » (toutes les couches)', b: '', reviewed: false } },
+        fr: { t: 'Ajuster toute la technique « {name} » (toutes les couches)', b: '', reviewed: true } },
     'aria.slotN': {
         en: { t: 'slot {n}', b: '' },
-        fr: { t: 'emplacement {n}', b: '', reviewed: false } },
+        fr: { t: 'emplacement {n}', b: '', reviewed: true } },
     'aria.midiN': {
         en: { t: 'MIDI {n}', b: '' },
-        fr: { t: 'MIDI {n}', b: '', reviewed: false, sameAsEn: true } },
+        fr: { t: 'MIDI {n}', b: '', reviewed: true, sameAsEn: true } },
     'aria.loaded': {
         en: { t: 'Loaded', b: '' },
-        fr: { t: 'Chargé', b: '', reviewed: false } },
+        fr: { t: 'Chargé', b: '', reviewed: true } },
     'aria.unnamed': {
         en: { t: '(unnamed)', b: '' },
-        fr: { t: '(sans nom)', b: '', reviewed: false } },
+        fr: { t: '(sans nom)', b: '', reviewed: true } },
     'aria.unknown': {
         en: { t: '(unknown)', b: '' },
-        fr: { t: '(inconnu)', b: '', reviewed: false } },
+        fr: { t: '(inconnu)', b: '', reviewed: true } },
     'aria.emptyPath': {
         en: { t: '(empty path)', b: '' },
-        fr: { t: '(chemin vide)', b: '', reviewed: false } },
+        fr: { t: '(chemin vide)', b: '', reviewed: true } },
 
     // ── HOVER-HELP, v1.25.0 (Stage M) — THE ONLY BODIED ENTRIES IN THIS FILE ──
     //
@@ -467,109 +467,109 @@ export const I18N = Object.freeze({
               b: 'Fade-in time from note-on to full level. Raise it to soften a percussive sample onset; leave it near zero to keep the recording’s own transient. 0 to 10 s.' },
         fr: { t: 'Attaque',
               b: 'Temps de montée entre l’enfoncement de la note et le niveau maximal. Augmentez-le pour adoucir l’attaque percussive d’un échantillon ; laissez-le près de zéro pour conserver le transitoire de l’enregistrement. 0 à 10 s.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.decay': {
         en: { t: 'Decay',
               b: 'Time to fall from the peak to the sustain level, once the attack has finished. It only bites when Sustain sits below 1.00. 0 to 10 s.' },
         fr: { t: 'Déclin',
               b: 'Temps de descente du sommet vers le niveau de maintien, une fois l’attaque terminée. Il n’agit que si le maintien est inférieur à 1,00. 0 à 10 s.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.sustain': {
         en: { t: 'Sustain',
               b: 'Level a held note settles at after the decay, as a fraction of the sample’s own level. At 1.00 the sample plays untouched and Decay does nothing. 0.00 to 1.00.' },
         fr: { t: 'Maintien',
               b: 'Niveau auquel se stabilise une note tenue après le déclin, en fraction du niveau propre de l’échantillon. À 1,00 l’échantillon est joué tel quel et le déclin n’a aucun effet. 0,00 à 1,00.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.release': {
         en: { t: 'Release',
               b: 'Fade-out time after note-off. A long value lets a hall tail ring on; a short one cuts the note clean. 0 to 10 s.' },
         fr: { t: 'Relâchement',
               b: 'Temps de descente après le relâchement de la note. Une valeur longue laisse la queue de salle résonner ; une valeur courte coupe la note net. 0 à 10 s.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.polyphony': {
         en: { t: 'Polyphony',
               b: 'Greatest number of notes that may sound at once. Lower it to cap CPU on a large library; past the limit the oldest voice is stolen. 1 to 16 voices.' },
         fr: { t: 'Polyphonie',
               b: 'Nombre maximal de notes pouvant sonner en même temps. Abaissez-le pour limiter le processeur sur une grande banque ; au-delà de la limite, la voix la plus ancienne est remplacée. 1 à 16 voix.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.velocityCrossfade': {
         en: { t: 'Velocity Crossfade',
               b: 'How far neighbouring velocity layers blend into one another instead of switching abruptly. At 0.00 each layer starts exactly where the one below it stops. 0.00 to 1.00.' },
         fr: { t: 'Fondu de vélocité',
               b: 'Degré de fondu entre couches de vélocité voisines, au lieu d’un basculement net. À 0,00 chaque couche commence exactement là où s’arrête la précédente. 0,00 à 1,00.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.expression': {
         en: { t: 'Expression',
               b: 'Overall playing level, driven live by MIDI CC 11. What it does depends on the Dynamics mode: a post-mix volume trim under Velocity, a layer morph under CC Crossfade. 0 to 100 %.' },
         fr: { t: 'Expression',
               b: 'Niveau de jeu global, piloté en direct par le CC MIDI 11. Son effet dépend du mode de dynamique : un simple réglage de volume après mixage en Velocity, un fondu entre couches en CC Crossfade. 0 à 100 %.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.dynamicsMode': {
         en: { t: 'Dynamics Mode',
               b: 'Chooses what MIDI CC 11 controls. Velocity: note-on velocity picks the layer and CC 11 is only a volume trim. CC Crossfade: CC 11 morphs across every velocity layer mid-note, changing timbre as well as loudness.' },
         fr: { t: 'Mode de dynamique',
               b: 'Détermine ce que pilote le CC MIDI 11. Velocity : la vélocité choisit la couche et le CC 11 n’est qu’un réglage de volume. CC Crossfade : le CC 11 fond toutes les couches de vélocité en cours de note, changeant le timbre autant que l’intensité.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.dynamicRange': {
         en: { t: 'Dynamic Range',
               b: 'How much quieter the softest layer sits below the loudest under CC Crossfade. Widen it for an exposed orchestral line, narrow it for a mix that must stay present throughout. 0.0 to 40.0 dB.' },
         fr: { t: 'Plage dynamique',
               b: 'Différence de niveau entre la couche la plus douce et la plus forte, en mode CC Crossfade. Élargissez-la pour une ligne orchestrale exposée, resserrez-la pour un mixage qui doit rester présent de bout en bout. 0,0 à 40,0 dB.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.outputGain': {
         en: { t: 'Output Gain',
               b: 'Final level of the whole instrument, applied after every technique and layer trim. Use it to seat this instance against the rest of the mix. −24 to +24 dB.' },
         fr: { t: 'Gain de sortie',
               b: 'Niveau final de tout l’instrument, appliqué après chaque ajustement de technique et de couche. Utilisez-le pour caler cette instance sur le reste du mixage. −24 à +24 dB.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.techniqueCount': {
         en: { t: 'Technique Count',
               b: 'How many playing-technique slots this instrument exposes. Add one for each articulation you have samples for; removing a slot hides its cells rather than deleting them. 1 to 8 slots.' },
         fr: { t: 'Nombre de techniques',
               b: 'Nombre d’emplacements de technique de jeu proposés par l’instrument. Ajoutez-en un par articulation dont vous avez des échantillons ; en retirer un masque ses cases sans les supprimer. 1 à 8 emplacements.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.techniqueSelect': {
         en: { t: 'Technique Select',
               b: 'The technique slot currently sounding, and the one the sample map and the trims are editing. Click a tab to switch, right-click a tab to rename it. Slots 1 to 8.' },
         fr: { t: 'Technique active',
               b: 'L’emplacement de technique en cours de lecture, celui que la carte d’échantillons et les ajustements modifient. Cliquez sur un onglet pour changer, clic droit pour le renommer. Emplacements 1 à 8.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.ksEnabled': {
         en: { t: 'Keyswitch Enabled',
               b: 'Turns keyswitching on: a note-on inside the range beside it selects a technique instead of sounding. It is off by default, so no note is ever swallowed until you ask for it. Off or On.' },
         fr: { t: 'Commutation par touche',
               b: 'Active la commutation par touche : une note jouée dans la plage voisine choisit une technique au lieu de sonner. Elle est désactivée par défaut, afin qu’aucune note ne soit absorbée sans votre accord. Arrêt ou Marche.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.ksLowNote': {
         en: { t: 'Keyswitch Low Note',
               b: 'Bottom of the keyswitch range, as a MIDI note number. Keep it below the register you actually play — the default, MIDI 0, is well out of the way. 0 to 127.' },
         fr: { t: 'Note basse de commutation',
               b: 'Limite inférieure de la plage de commutation, en numéro de note MIDI. Gardez-la sous le registre que vous jouez réellement ; la valeur par défaut, MIDI 0, est largement à l’écart. 0 à 127.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.ksHighNote': {
         en: { t: 'Keyswitch High Note',
               b: 'Top of the keyswitch range. Leave one semitone per slot above the low note, or two keys collapse onto the same technique. 0 to 127.' },
         fr: { t: 'Note haute de commutation',
               b: 'Limite supérieure de la plage de commutation. Laissez un demi-ton par emplacement au-dessus de la note basse, sans quoi deux touches visent la même technique. 0 à 127.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.ccSelectEnabled': {
         en: { t: 'CC Select Enabled',
               b: 'Lets a MIDI controller choose the technique from its value, through the table below. Keyswitching still takes precedence wherever both are active. Off or On.' },
         fr: { t: 'Sélection par CC',
               b: 'Permet à un contrôleur MIDI de choisir la technique selon sa valeur, d’après le tableau ci-dessous. La commutation par touche reste prioritaire là où les deux sont actives. Arrêt ou Marche.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.ccNumber': {
         en: { t: 'CC Number',
               b: 'Which MIDI controller drives technique selection. CC 32 is the default; avoid CC 11, which Expression already listens to. 0 to 119.' },
         fr: { t: 'Numéro de CC',
               b: 'Contrôleur MIDI qui pilote la sélection de technique. Le CC 32 est la valeur par défaut ; évitez le CC 11, déjà écouté par Expression. 0 à 119.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.pcEnabled': {
         en: { t: 'Program Change Enabled',
               b: 'Lets a MIDI program change select the technique, through the table below. It comes last in precedence, after keyswitching and CC. Off or On.' },
         fr: { t: 'Changement de programme',
               b: 'Permet à un changement de programme MIDI de choisir la technique, d’après le tableau ci-dessous. Il vient en dernier, après la commutation par touche et le CC. Arrêt ou Marche.',
-              reviewed: false } },
+              reviewed: true } },
 
     // ── the two chrome tips ────────────────────────────────────────────────
     // The gear tip is what tells a user hover-help exists at all, so it must
@@ -582,13 +582,13 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel. It holds the interface language and nothing else. Hover any control on this page for the same kind of help you are reading now.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages. Il contient la langue de l’interface, et rien d’autre. Survolez n’importe quelle commande de cette page pour obtenir la même aide que celle-ci.',
-              reviewed: false } },
+              reviewed: true } },
     'tip.langSelect': {
         en: { t: 'Language',
               b: 'Switches every caption, button and hover-help on this page between English and French. Value readouts, tuning names, note names and preset filenames stay exactly as they are.' },
         fr: { t: 'Langue',
               b: 'Bascule toutes les légendes, tous les boutons et toute l’aide au survol de cette page entre l’anglais et le français. Les valeurs affichées, les noms de systèmes d’accord, les noms de notes et les noms de fichiers de préréglages restent inchangés.',
-              reviewed: false } },
+              reviewed: true } },
 });
 
 // ── LABELS — one string, no body ───────────────────────────────────────────
@@ -598,228 +598,228 @@ export const LABELS = Object.freeze({
     // The <h1> is NOT keyed: "O-MicrotonalSampler" is the product name and is
     // I18N_EXEMPT below. #tuning-readout holds the active tuning's name, which
     // is data from the C++ engine.
-    'label.tabSampleMap':  { en: { t: 'Sample Map' },   fr: { t: 'Échantillons',  reviewed: false } },
-    'label.tabTuning':     { en: { t: 'Tuning' },       fr: { t: 'Accord',         reviewed: false } },
-    'label.tabAbout':      { en: { t: 'About' },        fr: { t: 'À propos',      reviewed: false } },
-    'label.savePreset':    { en: { t: 'Save Preset…' }, fr: { t: 'Enreg. prér.…', reviewed: false } },
-    'label.loadPreset':    { en: { t: 'Load Preset…' }, fr: { t: 'Ouvrir prér.…', reviewed: false } },
-    'label.language':      { en: { t: 'Language' },     fr: { t: 'Langue',        reviewed: false } },
+    'label.tabSampleMap':  { en: { t: 'Sample Map' },   fr: { t: 'Échantillons',  reviewed: true } },
+    'label.tabTuning':     { en: { t: 'Tuning' },       fr: { t: 'Accord',         reviewed: true } },
+    'label.tabAbout':      { en: { t: 'About' },        fr: { t: 'À propos',      reviewed: true } },
+    'label.savePreset':    { en: { t: 'Save Preset…' }, fr: { t: 'Enreg. prér.…', reviewed: true } },
+    'label.loadPreset':    { en: { t: 'Load Preset…' }, fr: { t: 'Ouvrir prér.…', reviewed: true } },
+    'label.language':      { en: { t: 'Language' },     fr: { t: 'Langue',        reviewed: true } },
 
     // ── Folder drop zone ──────────────────────────────────────────────────
-    'label.dropFolderHere': { en: { t: 'Drop folder here' }, fr: { t: 'Déposer un dossier ici', reviewed: false } },
-    'label.or':             { en: { t: 'or' },              fr: { t: 'ou',                     reviewed: false } },
-    'label.loadFolder':     { en: { t: 'Load Folder…' },    fr: { t: 'Charger dossier…',       reviewed: false } },
-    'label.batchLoop':      { en: { t: 'Batch loop…' },     fr: { t: 'Boucles en lot…',        reviewed: false } },
-    'label.clearSamples':   { en: { t: 'Clear samples' },   fr: { t: 'Effacer',                  reviewed: false } },
+    'label.dropFolderHere': { en: { t: 'Drop folder here' }, fr: { t: 'Déposer un dossier ici', reviewed: true } },
+    'label.or':             { en: { t: 'or' },              fr: { t: 'ou',                     reviewed: true } },
+    'label.loadFolder':     { en: { t: 'Load Folder…' },    fr: { t: 'Charger dossier…',       reviewed: true } },
+    'label.batchLoop':      { en: { t: 'Batch loop…' },     fr: { t: 'Boucles en lot…',        reviewed: true } },
+    'label.clearSamples':   { en: { t: 'Clear samples' },   fr: { t: 'Effacer',                  reviewed: true } },
 
     // ── Technique preset row ──────────────────────────────────────────────
     // The four family names are CAPTIONS: the <option> VALUES the code keys on
     // are 'strings' … 'generic' and are untouched, and none of the four is an
     // AudioParameterChoice option or a JSON preset filename. The toast that
     // reports the change reads these same four keys, so the two cannot drift.
-    'label.techniquePreset': { en: { t: 'Technique preset' }, fr: { t: 'Préréglage de techniques', reviewed: false } },
-    'label.chooseFamily':    { en: { t: 'Choose family…' },   fr: { t: 'Choisir une famille…',    reviewed: false } },
-    'label.familyStrings':   { en: { t: 'Strings' },          fr: { t: 'Cordes',                  reviewed: false } },
-    'label.familyWinds':     { en: { t: 'Winds' },            fr: { t: 'Bois',                    reviewed: false } },
-    'label.familyBrass':     { en: { t: 'Brass' },            fr: { t: 'Cuivres',                 reviewed: false } },
-    'label.familyGeneric':   { en: { t: 'Generic' },          fr: { t: 'Générique',               reviewed: false } },
+    'label.techniquePreset': { en: { t: 'Technique preset' }, fr: { t: 'Préréglage de techniques', reviewed: true } },
+    'label.chooseFamily':    { en: { t: 'Choose family…' },   fr: { t: 'Choisir une famille…',    reviewed: true } },
+    'label.familyStrings':   { en: { t: 'Strings' },          fr: { t: 'Cordes',                  reviewed: true } },
+    'label.familyWinds':     { en: { t: 'Winds' },            fr: { t: 'Bois',                    reviewed: true } },
+    'label.familyBrass':     { en: { t: 'Brass' },            fr: { t: 'Cuivres',                 reviewed: true } },
+    'label.familyGeneric':   { en: { t: 'Generic' },          fr: { t: 'Générique',               reviewed: true } },
 
     // ── Keyswitch controls ────────────────────────────────────────────────
     // KS is the standard abbreviation for a keyswitch in both languages, and
     // Dorico's own French UI keeps it; sameAsEn is a decision, not a gap.
-    'label.ks':     { en: { t: 'KS' },   fr: { t: 'KS',   reviewed: false, sameAsEn: true } },
-    'label.ksLow':  { en: { t: 'low' },  fr: { t: 'min',  reviewed: false,
+    'label.ks':     { en: { t: 'KS' },   fr: { t: 'KS',   reviewed: true, sameAsEn: true } },
+    'label.ksLow':  { en: { t: 'low' },  fr: { t: 'min',  reviewed: true,
                                                 termNote: 'the two BOUNDS of a MIDI note-number range, read off the pair of number fields beside them — Grave/Aigu name a timbral register, not a range end. Width says the same: Grave is 30.00 px in a 26.00 px box whose only clearance is the 4.00 px gap to its own input' } },
-    'label.ksHigh': { en: { t: 'high' }, fr: { t: 'max',  reviewed: false,
+    'label.ksHigh': { en: { t: 'high' }, fr: { t: 'max',  reviewed: true,
                                                 termNote: 'the two BOUNDS of a MIDI note-number range, read off the pair of number fields beside them — Grave/Aigu name a timbral register, not a range end. Width says the same: Grave is 30.00 px in a 26.00 px box whose only clearance is the 4.00 px gap to its own input' } },
 
     // ── Trigger panel ─────────────────────────────────────────────────────
-    'label.triggersHeading':   { en: { t: 'Triggers (CC + PC)' },            fr: { t: 'Déclencheurs (CC + PC)',        reviewed: false } },
-    'label.triggerPrecedence': { en: { t: 'KS > CC > PC > history' },        fr: { t: 'KS > CC > PC > historique',     reviewed: false } },
-    'label.ccTrigger':         { en: { t: 'CC trigger' },                    fr: { t: 'Déclencheur CC',                reviewed: false } },
-    'label.ccNumber':          { en: { t: 'CC#' },                           fr: { t: 'CC N°',                         reviewed: false } },
-    'label.ccHint':            { en: { t: 'value 0–127 → technique slot' },  fr: { t: 'valeur 0–127 → emplacement',    reviewed: false } },
-    'label.pcTrigger':         { en: { t: 'PC trigger' },                    fr: { t: 'Déclencheur PC',                reviewed: false } },
-    'label.pcHint':            { en: { t: 'program # → technique slot' },    fr: { t: 'n° de programme → emplacement', reviewed: false } },
+    'label.triggersHeading':   { en: { t: 'Triggers (CC + PC)' },            fr: { t: 'Déclencheurs (CC + PC)',        reviewed: true } },
+    'label.triggerPrecedence': { en: { t: 'KS > CC > PC > history' },        fr: { t: 'KS > CC > PC > historique',     reviewed: true } },
+    'label.ccTrigger':         { en: { t: 'CC trigger' },                    fr: { t: 'Déclencheur CC',                reviewed: true } },
+    'label.ccNumber':          { en: { t: 'CC#' },                           fr: { t: 'CC N°',                         reviewed: true } },
+    'label.ccHint':            { en: { t: 'value 0–127 → technique slot' },  fr: { t: 'valeur 0–127 → emplacement',    reviewed: true } },
+    'label.pcTrigger':         { en: { t: 'PC trigger' },                    fr: { t: 'Déclencheur PC',                reviewed: true } },
+    'label.pcHint':            { en: { t: 'program # → technique slot' },    fr: { t: 'n° de programme → emplacement', reviewed: true } },
     // The two tables have IDENTICAL headers, and a key is owned by ONE
     // element: two <th>slot</th> nodes need two keys or the second is never
     // swept. Hence the `2` suffixes rather than a shared key.
-    'label.thSlot':  { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: false } },
-    'label.thLow':   { en: { t: 'low' },  fr: { t: 'min',   reviewed: false,
+    'label.thSlot':  { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: true } },
+    'label.thLow':   { en: { t: 'low' },  fr: { t: 'min',   reviewed: true,
                                                  termNote: 'in the CC-trigger table, low/high are controller VALUES 0-127, not pitches; Grave/Aigu would name a register this column never holds (it fits at 33.13 px in a 104.66 px th, so this is meaning, not width)' } },
-    'label.thHigh':  { en: { t: 'high' }, fr: { t: 'max',   reviewed: false,
+    'label.thHigh':  { en: { t: 'high' }, fr: { t: 'max',   reviewed: true,
                                                  termNote: 'in the CC-trigger table, low/high are controller VALUES 0-127, not pitches; Grave/Aigu would name a register this column never holds (it fits at 33.13 px in a 104.66 px th, so this is meaning, not width)' } },
-    'label.thTech':  { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: false, sameAsEn: true } },
-    'label.thSlot2': { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: false } },
-    'label.thPc':    { en: { t: 'PC#' },  fr: { t: 'PC N°', reviewed: false } },
-    'label.thTech2': { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: false, sameAsEn: true } },
-    'label.resetDefaults': { en: { t: 'Reset to defaults' }, fr: { t: 'Valeurs par défaut', reviewed: false } },
+    'label.thTech':  { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: true, sameAsEn: true } },
+    'label.thSlot2': { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: true } },
+    'label.thPc':    { en: { t: 'PC#' },  fr: { t: 'PC N°', reviewed: true } },
+    'label.thTech2': { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: true, sameAsEn: true } },
+    'label.resetDefaults': { en: { t: 'Reset to defaults' }, fr: { t: 'Valeurs par défaut', reviewed: true } },
 
     // ── Trim panel ────────────────────────────────────────────────────────
     // #trim-active-tech is NOT keyed: it holds a technique NAME the user can
     // rename, so it is a readout node (D-01 arm 3) and its placeholder "ord" is
     // I18N_EXEMPT. The four layer captions p / mp / mf / f are dynamic markings
     // — Italian musical notation, not English — and are exempt too.
-    'label.trimsHeading':   { en: { t: 'Trims (loudness)' },                       fr: { t: 'Ajustements (niveau)',                       reviewed: false } },
-    'label.trimTechnique':  { en: { t: 'Technique' },                              fr: { t: 'Technique',                                  reviewed: false, sameAsEn: true } },
-    'label.trimHint':       { en: { t: 'Double-click a slider to reset to 0 dB' }, fr: { t: 'Double-clic sur un curseur → 0 dB', reviewed: false } },
-    'label.resetAllTrims':  { en: { t: 'Reset all trims' },                        fr: { t: 'Tout réinitialiser',                         reviewed: false } },
+    'label.trimsHeading':   { en: { t: 'Trims (loudness)' },                       fr: { t: 'Ajustements (niveau)',                       reviewed: true } },
+    'label.trimTechnique':  { en: { t: 'Technique' },                              fr: { t: 'Technique',                                  reviewed: true, sameAsEn: true } },
+    'label.trimHint':       { en: { t: 'Double-click a slider to reset to 0 dB' }, fr: { t: 'Double-clic sur un curseur → 0 dB', reviewed: true } },
+    'label.resetAllTrims':  { en: { t: 'Reset all trims' },                        fr: { t: 'Tout réinitialiser',                         reviewed: true } },
 
     // ── Grid context menu + issues ────────────────────────────────────────
-    'label.ctxReplace':        { en: { t: 'Replace…' },         fr: { t: 'Remplacer…',             reviewed: false } },
-    'label.ctxOpenLoopEditor': { en: { t: 'Open Loop Editor' }, fr: { t: 'Ouvrir l’éditeur de boucle', reviewed: false } },
-    'label.ctxDeleteSample':   { en: { t: 'Delete sample' },    fr: { t: 'Supprimer l’échantillon', reviewed: false } },
-    'label.issues':            { en: { t: 'Issues' },           fr: { t: 'Problèmes',              reviewed: false } },
+    'label.ctxReplace':        { en: { t: 'Replace…' },         fr: { t: 'Remplacer…',             reviewed: true } },
+    'label.ctxOpenLoopEditor': { en: { t: 'Open Loop Editor' }, fr: { t: 'Ouvrir l’éditeur de boucle', reviewed: true } },
+    'label.ctxDeleteSample':   { en: { t: 'Delete sample' },    fr: { t: 'Supprimer l’échantillon', reviewed: true } },
+    'label.issues':            { en: { t: 'Issues' },           fr: { t: 'Problèmes',              reviewed: true } },
     // §6 — the count sits after a colon beside an invariant plural noun
     // phrase, so nothing inflects at 0, 1 or n in either language.
     'label.issuesSummary':     { en: { t: 'Issues · files skipped: {n}' },
-                                 fr: { t: 'Problèmes · fichiers ignorés : {n}', reviewed: false } },
+                                 fr: { t: 'Problèmes · fichiers ignorés : {n}', reviewed: true } },
 
     // ── Loop editor ───────────────────────────────────────────────────────
     'label.loopPlaceholder': { en: { t: 'Select a loaded sample slot to edit loop points' },
-                               fr: { t: 'Sélectionnez une case chargée pour modifier ses points de boucle', reviewed: false } },
-    'label.loopStartCap':    { en: { t: 'Loop start:' },          fr: { t: 'Début de boucle :',   reviewed: false } },
-    'label.loopEndCap':      { en: { t: 'Loop end:' },            fr: { t: 'Fin de boucle :',     reviewed: false } },
-    'label.loopModeCap':     { en: { t: 'Mode:' },                fr: { t: 'Mode :',              reviewed: false } },
-    'label.loopReset':       { en: { t: 'Reset to auto-detect' }, fr: { t: 'Détection auto',      reviewed: false } },
-    'label.loopCancel':      { en: { t: 'Cancel' },               fr: { t: 'Annuler',             reviewed: false } },
-    'label.loopApply':       { en: { t: 'Apply' },                fr: { t: 'Appliquer',           reviewed: false } },
-    'label.variantOf':       { en: { t: 'Variant {i} of {n}' },   fr: { t: 'Variante {i} sur {n}', reviewed: false } },
+                               fr: { t: 'Sélectionnez une case chargée pour modifier ses points de boucle', reviewed: true } },
+    'label.loopStartCap':    { en: { t: 'Loop start:' },          fr: { t: 'Début de boucle :',   reviewed: true } },
+    'label.loopEndCap':      { en: { t: 'Loop end:' },            fr: { t: 'Fin de boucle :',     reviewed: true } },
+    'label.loopModeCap':     { en: { t: 'Mode:' },                fr: { t: 'Mode :',              reviewed: true } },
+    'label.loopReset':       { en: { t: 'Reset to auto-detect' }, fr: { t: 'Détection auto',      reviewed: true } },
+    'label.loopCancel':      { en: { t: 'Cancel' },               fr: { t: 'Annuler',             reviewed: true } },
+    'label.loopApply':       { en: { t: 'Apply' },                fr: { t: 'Appliquer',           reviewed: true } },
+    'label.variantOf':       { en: { t: 'Variant {i} of {n}' },   fr: { t: 'Variante {i} sur {n}', reviewed: true } },
 
     // ── Generic confirmation dialog ───────────────────────────────────────
     // EVERY dialog's Cancel button carries its OWN key. A key is owned by one
     // element (contract §1) and applyI18n sweeps per element, so seven dialogs
     // sharing one 'label.cancel' would leave six of them unswept.
-    'label.areYouSure': { en: { t: 'Are you sure?' }, fr: { t: 'Êtes-vous sûr ?', reviewed: false } },
-    'label.cancel':     { en: { t: 'Cancel' },        fr: { t: 'Annuler',         reviewed: false } },
-    'label.confirm':    { en: { t: 'Confirm' },       fr: { t: 'Confirmer',       reviewed: false } },
+    'label.areYouSure': { en: { t: 'Are you sure?' }, fr: { t: 'Êtes-vous sûr ?', reviewed: true } },
+    'label.cancel':     { en: { t: 'Cancel' },        fr: { t: 'Annuler',         reviewed: true } },
+    'label.confirm':    { en: { t: 'Confirm' },       fr: { t: 'Confirmer',       reviewed: true } },
 
     // ── Batch loop dialog ─────────────────────────────────────────────────
-    'label.batchLoopTitle':  { en: { t: 'Batch loop points' }, fr: { t: 'Points de boucle en lot', reviewed: false } },
+    'label.batchLoopTitle':  { en: { t: 'Batch loop points' }, fr: { t: 'Points de boucle en lot', reviewed: true } },
     'label.batchLoopBlurb':  { en: { t: 'Apply one loop region to every loaded sample at once. One-shot samples (too short to loop) are left untouched.' },
-                               fr: { t: 'Applique une même région de boucle à tous les échantillons chargés. Les one-shot (trop courts pour boucler) restent intacts.', reviewed: false } },
-    'label.blUnits':         { en: { t: 'Units' },             fr: { t: 'Unités',           reviewed: false } },
-    'label.blProportional':  { en: { t: 'Proportional (%)' },  fr: { t: 'Proportionnel (%)', reviewed: false } },
-    'label.blMilliseconds':  { en: { t: 'Milliseconds' },      fr: { t: 'Millisecondes',    reviewed: false } },
-    'label.blLoopStart':     { en: { t: 'Loop start' },        fr: { t: 'Début de boucle',  reviewed: false } },
-    'label.blLoopEnd':       { en: { t: 'Loop end' },          fr: { t: 'Fin de boucle',    reviewed: false } },
-    'label.cancelBl':        { en: { t: 'Cancel' },            fr: { t: 'Annuler',          reviewed: false } },
-    'label.blApplyAll':      { en: { t: 'Apply to all' },      fr: { t: 'Tout appliquer',   reviewed: false } },
+                               fr: { t: 'Applique une même région de boucle à tous les échantillons chargés. Les one-shot (trop courts pour boucler) restent intacts.', reviewed: true } },
+    'label.blUnits':         { en: { t: 'Units' },             fr: { t: 'Unités',           reviewed: true } },
+    'label.blProportional':  { en: { t: 'Proportional (%)' },  fr: { t: 'Proportionnel (%)', reviewed: true } },
+    'label.blMilliseconds':  { en: { t: 'Milliseconds' },      fr: { t: 'Millisecondes',    reviewed: true } },
+    'label.blLoopStart':     { en: { t: 'Loop start' },        fr: { t: 'Début de boucle',  reviewed: true } },
+    'label.blLoopEnd':       { en: { t: 'Loop end' },          fr: { t: 'Fin de boucle',    reviewed: true } },
+    'label.cancelBl':        { en: { t: 'Cancel' },            fr: { t: 'Annuler',          reviewed: true } },
+    'label.blApplyAll':      { en: { t: 'Apply to all' },      fr: { t: 'Tout appliquer',   reviewed: true } },
     'label.blErrPercent':    { en: { t: 'Start and end must be 0–100 %, with end greater than start.' },
-                               fr: { t: 'Début et fin doivent être entre 0 et 100 %, la fin après le début.', reviewed: false } },
+                               fr: { t: 'Début et fin doivent être entre 0 et 100 %, la fin après le début.', reviewed: true } },
     'label.blErrMs':         { en: { t: 'Start and end must be in ms, with end greater than start.' },
-                               fr: { t: 'Début et fin doivent être en ms, la fin après le début.', reviewed: false } },
+                               fr: { t: 'Début et fin doivent être en ms, la fin après le début.', reviewed: true } },
 
     // ── Diagnostic dialog ─────────────────────────────────────────────────
-    'label.diagnostic':      { en: { t: 'Diagnostic' },  fr: { t: 'Diagnostic', reviewed: false, sameAsEn: true } },
+    'label.diagnostic':      { en: { t: 'Diagnostic' },  fr: { t: 'Diagnostic', reviewed: true, sameAsEn: true } },
     'label.diagnosticHint':  { en: { t: 'Auto-copied to clipboard. Select the text below and ⌘C if it wasn\'t.' },
-                               fr: { t: 'Copié automatiquement dans le presse-papiers. Sinon, sélectionnez le texte ci-dessous puis ⌘C.', reviewed: false } },
+                               fr: { t: 'Copié automatiquement dans le presse-papiers. Sinon, sélectionnez le texte ci-dessous puis ⌘C.', reviewed: true } },
     'label.diagCopied':      { en: { t: 'Auto-copied to clipboard. (Select below + ⌘C if you need it again.)' },
-                               fr: { t: 'Copié automatiquement dans le presse-papiers. (Sélectionnez ci-dessous + ⌘C si besoin.)', reviewed: false } },
+                               fr: { t: 'Copié automatiquement dans le presse-papiers. (Sélectionnez ci-dessous + ⌘C si besoin.)', reviewed: true } },
     'label.diagCopyBlocked': { en: { t: 'Clipboard write blocked — select the text below and ⌘C to copy.' },
-                               fr: { t: 'Écriture dans le presse-papiers bloquée — sélectionnez le texte ci-dessous puis ⌘C.', reviewed: false } },
-    'label.copyAgain':       { en: { t: 'Copy again' },  fr: { t: 'Copier à nouveau', reviewed: false } },
-    'label.copied':          { en: { t: 'Copied ✓' },    fr: { t: 'Copié ✓',          reviewed: false } },
-    'label.copyFailed':      { en: { t: 'Copy failed' }, fr: { t: 'Échec de la copie', reviewed: false } },
-    'label.close':           { en: { t: 'Close' },       fr: { t: 'Fermer',           reviewed: false } },
+                               fr: { t: 'Écriture dans le presse-papiers bloquée — sélectionnez le texte ci-dessous puis ⌘C.', reviewed: true } },
+    'label.copyAgain':       { en: { t: 'Copy again' },  fr: { t: 'Copier à nouveau', reviewed: true } },
+    'label.copied':          { en: { t: 'Copied ✓' },    fr: { t: 'Copié ✓',          reviewed: true } },
+    'label.copyFailed':      { en: { t: 'Copy failed' }, fr: { t: 'Échec de la copie', reviewed: true } },
+    'label.close':           { en: { t: 'Close' },       fr: { t: 'Fermer',           reviewed: true } },
 
     // ── Missing-folder dialog ─────────────────────────────────────────────
     // The highest-value strings on this page: they are what a French user reads
     // when a reopened session cannot find its samples. Each face is keyed
     // separately rather than interpolated, so neither reads as a sentence with
     // a hole in it.
-    'label.folderNotFound':            { en: { t: 'Sample folder not found' }, fr: { t: 'Dossier d’échantillons introuvable', reviewed: false } },
+    'label.folderNotFound':            { en: { t: 'Sample folder not found' }, fr: { t: 'Dossier d’échantillons introuvable', reviewed: true } },
     'label.folderNotFoundMsgNamed':    { en: { t: 'The sample folder "{name}" was not found at its saved location. Locate it now, or skip and load samples manually.' },
-                                         fr: { t: 'Le dossier d’échantillons « {name} » est introuvable à son emplacement enregistré. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: false } },
+                                         fr: { t: 'Le dossier d’échantillons « {name} » est introuvable à son emplacement enregistré. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: true } },
     'label.folderNotFoundMsgUnnamed':  { en: { t: 'The saved sample folder was not found. Locate it now, or skip and load samples manually.' },
-                                         fr: { t: 'Le dossier d’échantillons enregistré est introuvable. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: false } },
-    'label.dragDropNotEmbedded':       { en: { t: 'Drag-dropped samples not embedded' }, fr: { t: 'Échantillons déposés non intégrés', reviewed: false } },
+                                         fr: { t: 'Le dossier d’échantillons enregistré est introuvable. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: true } },
+    'label.dragDropNotEmbedded':       { en: { t: 'Drag-dropped samples not embedded' }, fr: { t: 'Échantillons déposés non intégrés', reviewed: true } },
     'label.dragDropMsgNamed':          { en: { t: 'Samples were drag-dropped from "{name}" without "Embed audio" enabled, so they could not be re-loaded automatically. Re-drag the folder onto the plugin, or browse to its current location.' },
-                                         fr: { t: 'Les échantillons ont été déposés depuis « {name} » sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: false } },
+                                         fr: { t: 'Les échantillons ont été déposés depuis « {name} » sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: true } },
     'label.dragDropMsgUnnamed':        { en: { t: 'Samples were drag-dropped without "Embed audio" enabled, so they could not be re-loaded automatically. Re-drag the folder onto the plugin, or browse to its current location.' },
-                                         fr: { t: 'Les échantillons ont été déposés sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: false } },
-    'label.skip':                      { en: { t: 'Skip' },              fr: { t: 'Passer',             reviewed: false } },
-    'label.locateFolder':              { en: { t: 'Locate folder…' },    fr: { t: 'Localiser le dossier…', reviewed: false } },
-    'label.browseForFolder':           { en: { t: 'Browse for folder…' }, fr: { t: 'Parcourir…',        reviewed: false } },
+                                         fr: { t: 'Les échantillons ont été déposés sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: true } },
+    'label.skip':                      { en: { t: 'Skip' },              fr: { t: 'Passer',             reviewed: true } },
+    'label.locateFolder':              { en: { t: 'Locate folder…' },    fr: { t: 'Localiser le dossier…', reviewed: true } },
+    'label.browseForFolder':           { en: { t: 'Browse for folder…' }, fr: { t: 'Parcourir…',        reviewed: true } },
 
     // ── Round-robin confirmation ──────────────────────────────────────────
     // SPLIT per §5: the paragraph wraps three <code> filename tokens, which are
     // literals the C++ FilenameParser matches and must not be translated.
-    'label.rrTitle':      { en: { t: 'Multiple samples for the same note' }, fr: { t: 'Plusieurs échantillons pour la même note', reviewed: false } },
+    'label.rrTitle':      { en: { t: 'Multiple samples for the same note' }, fr: { t: 'Plusieurs échantillons pour la même note', reviewed: true } },
     'label.rrBodyBefore': { en: { t: 'The folder contains more than one sample for the same note and velocity layer, without explicit' },
-                            fr: { t: 'Le dossier contient plusieurs échantillons pour la même note et la même couche de vélocité, sans jetons', reviewed: false } },
+                            fr: { t: 'Le dossier contient plusieurs échantillons pour la même note et la même couche de vélocité, sans jetons', reviewed: true } },
     'label.rrBodyAfter':  { en: { t: 'tokens in the filenames. Treat them as round-robin variants?' },
-                            fr: { t: 'dans les noms. Les traiter comme des variantes round-robin ?', reviewed: false } },
-    'label.rrCancel':     { en: { t: 'Cancel load' },       fr: { t: 'Annuler le chargement', reviewed: false } },
-    'label.rrAccept':     { en: { t: 'Treat as variants' }, fr: { t: 'Traiter en variantes',  reviewed: false } },
-    'label.rrCellHead':   { en: { t: 'MIDI {n} · {mark}' }, fr: { t: 'MIDI {n} · {mark}',     reviewed: false, sameAsEn: true } },
+                            fr: { t: 'dans les noms. Les traiter comme des variantes round-robin ?', reviewed: true } },
+    'label.rrCancel':     { en: { t: 'Cancel load' },       fr: { t: 'Annuler le chargement', reviewed: true } },
+    'label.rrAccept':     { en: { t: 'Treat as variants' }, fr: { t: 'Traiter en variantes',  reviewed: true } },
+    'label.rrCellHead':   { en: { t: 'MIDI {n} · {mark}' }, fr: { t: 'MIDI {n} · {mark}',     reviewed: true, sameAsEn: true } },
 
     // ── Folder-load options dialog ────────────────────────────────────────
-    'label.floTitle':            { en: { t: 'Load samples' },          fr: { t: 'Charger des échantillons', reviewed: false } },
-    'label.floLayer':            { en: { t: 'Layer' },                 fr: { t: 'Couche',                   reviewed: false } },
-    'label.floTechnique':        { en: { t: 'Technique' },             fr: { t: 'Technique', reviewed: false, sameAsEn: true } },
-    'label.floWhenLoading':      { en: { t: 'When loading' },          fr: { t: 'Au chargement',            reviewed: false } },
-    'label.floAddToLayer':       { en: { t: 'Add to layer' },          fr: { t: 'Ajouter à la couche',      reviewed: false } },
-    'label.floReplaceLayer':     { en: { t: 'Replace this layer' },    fr: { t: 'Remplacer cette couche',   reviewed: false } },
-    'label.floReplaceAll':       { en: { t: 'Replace all samples' },   fr: { t: 'Remplacer tout',           reviewed: false } },
-    'label.floMergeRr':          { en: { t: 'Layer as round-robin' },  fr: { t: 'Superposer en round-robin', reviewed: false } },
-    'label.floForceLayer':       { en: { t: 'Force all samples onto this layer' },     fr: { t: 'Forcer tous les échantillons sur cette couche',    reviewed: false } },
-    'label.floForceTechnique':   { en: { t: 'Force all samples onto this technique' }, fr: { t: 'Forcer tous les échantillons sur cette technique', reviewed: false } },
+    'label.floTitle':            { en: { t: 'Load samples' },          fr: { t: 'Charger des échantillons', reviewed: true } },
+    'label.floLayer':            { en: { t: 'Layer' },                 fr: { t: 'Couche',                   reviewed: true } },
+    'label.floTechnique':        { en: { t: 'Technique' },             fr: { t: 'Technique', reviewed: true, sameAsEn: true } },
+    'label.floWhenLoading':      { en: { t: 'When loading' },          fr: { t: 'Au chargement',            reviewed: true } },
+    'label.floAddToLayer':       { en: { t: 'Add to layer' },          fr: { t: 'Ajouter à la couche',      reviewed: true } },
+    'label.floReplaceLayer':     { en: { t: 'Replace this layer' },    fr: { t: 'Remplacer cette couche',   reviewed: true } },
+    'label.floReplaceAll':       { en: { t: 'Replace all samples' },   fr: { t: 'Remplacer tout',           reviewed: true } },
+    'label.floMergeRr':          { en: { t: 'Layer as round-robin' },  fr: { t: 'Superposer en round-robin', reviewed: true } },
+    'label.floForceLayer':       { en: { t: 'Force all samples onto this layer' },     fr: { t: 'Forcer tous les échantillons sur cette couche',    reviewed: true } },
+    'label.floForceTechnique':   { en: { t: 'Force all samples onto this technique' }, fr: { t: 'Forcer tous les échantillons sur cette technique', reviewed: true } },
     // SPLIT per §5 around the <code> filename tokens. Two keys per half,
     // because the same English opens both lines and each <span> is its own
     // element with its own key.
-    'label.floTokensBefore':     { en: { t: 'Otherwise filename tokens (' }, fr: { t: 'Sinon les jetons du fichier (', reviewed: false } },
-    'label.floTokensBefore2':    { en: { t: 'Otherwise filename tokens (' }, fr: { t: 'Sinon les jetons du fichier (', reviewed: false } },
-    'label.floTokensAfterLayer': { en: { t: ', etc.) decide the layer' },     fr: { t: ', etc.) décident de la couche',        reviewed: false } },
-    'label.floTokensAfterTech':  { en: { t: ', etc.) decide the technique' }, fr: { t: ', etc.) décident de la technique',     reviewed: false } },
-    'label.floEmbed':            { en: { t: 'Embed audio in project state' }, fr: { t: 'Intégrer l’audio dans le projet', reviewed: false } },
+    'label.floTokensBefore':     { en: { t: 'Otherwise filename tokens (' }, fr: { t: 'Sinon les jetons du fichier (', reviewed: true } },
+    'label.floTokensBefore2':    { en: { t: 'Otherwise filename tokens (' }, fr: { t: 'Sinon les jetons du fichier (', reviewed: true } },
+    'label.floTokensAfterLayer': { en: { t: ', etc.) decide the layer' },     fr: { t: ', etc.) décident de la couche',        reviewed: true } },
+    'label.floTokensAfterTech':  { en: { t: ', etc.) decide the technique' }, fr: { t: ', etc.) décident de la technique',     reviewed: true } },
+    'label.floEmbed':            { en: { t: 'Embed audio in project state' }, fr: { t: 'Intégrer l’audio dans le projet', reviewed: true } },
     'label.floEmbedSize':        { en: { t: 'Project state will grow by ~{size}.' },
-                                   fr: { t: 'L’état du projet augmentera d’environ {size}.', reviewed: false } },
+                                   fr: { t: 'L’état du projet augmentera d’environ {size}.', reviewed: true } },
     'label.floEmbedSizePending': { en: { t: 'Size will be confirmed after folder selection.' },
-                                   fr: { t: 'La taille sera confirmée après le choix du dossier.', reviewed: false } },
-    'label.cancelFlo':           { en: { t: 'Cancel' }, fr: { t: 'Annuler', reviewed: false } },
-    'label.floLoad':             { en: { t: 'Load…' },  fr: { t: 'Charger…', reviewed: false } },
+                                   fr: { t: 'La taille sera confirmée après le choix du dossier.', reviewed: true } },
+    'label.cancelFlo':           { en: { t: 'Cancel' }, fr: { t: 'Annuler', reviewed: true } },
+    'label.floLoad':             { en: { t: 'Load…' },  fr: { t: 'Charger…', reviewed: true } },
 
     // ── Embed-size confirmation ───────────────────────────────────────────
-    'label.embedTitle':      { en: { t: 'Embed audio in project?' }, fr: { t: 'Intégrer l’audio au projet ?', reviewed: false } },
+    'label.embedTitle':      { en: { t: 'Embed audio in project?' }, fr: { t: 'Intégrer l’audio au projet ?', reviewed: true } },
     'label.embedDetail':     { en: { t: 'The audio data will be written into your DAW project file. Project saves and reopens will be slower for large libraries, but the samples will travel with the project across folders and machines.' },
-                               fr: { t: 'Les données audio seront écrites dans le fichier de projet de votre STAN. Les enregistrements et réouvertures seront plus lents pour les grandes bibliothèques, mais les échantillons suivront le projet d’un dossier ou d’une machine à l’autre.', reviewed: false } },
+                               fr: { t: 'Les données audio seront écrites dans le fichier de projet de votre STAN. Les enregistrements et réouvertures seront plus lents pour les grandes bibliothèques, mais les échantillons suivront le projet d’un dossier ou d’une machine à l’autre.', reviewed: true } },
     'label.embedMsgNamed':   { en: { t: 'Embedding folder "{name}" will add ~{size} to your project state.' },
-                               fr: { t: 'Intégrer le dossier « {name} » ajoutera environ {size} à l’état du projet.', reviewed: false } },
+                               fr: { t: 'Intégrer le dossier « {name} » ajoutera environ {size} à l’état du projet.', reviewed: true } },
     'label.embedMsgUnnamed': { en: { t: 'Embedding this folder will add ~{size} to your project state.' },
-                               fr: { t: 'Intégrer ce dossier ajoutera environ {size} à l’état du projet.', reviewed: false } },
-    'label.cancelEmbed':     { en: { t: 'Cancel' },         fr: { t: 'Annuler',           reviewed: false } },
-    'label.embedAndLoad':    { en: { t: 'Embed and load' }, fr: { t: 'Intégrer et charger', reviewed: false } },
+                               fr: { t: 'Intégrer ce dossier ajoutera environ {size} à l’état du projet.', reviewed: true } },
+    'label.cancelEmbed':     { en: { t: 'Cancel' },         fr: { t: 'Annuler',           reviewed: true } },
+    'label.embedAndLoad':    { en: { t: 'Embed and load' }, fr: { t: 'Intégrer et charger', reviewed: true } },
 
     // ── Per-cell merge dialog ─────────────────────────────────────────────
     // §6: v1.23.10 built `1 variant` / `${n} variants` with a ternary and then
     // interpolated it mid-sentence. Both faces now carry the count after a
     // colon instead, so neither inflects.
-    'label.mergeTitle':        { en: { t: 'Cell already has samples' }, fr: { t: 'La case contient déjà des échantillons', reviewed: false } },
+    'label.mergeTitle':        { en: { t: 'Cell already has samples' }, fr: { t: 'La case contient déjà des échantillons', reviewed: true } },
     'label.mergeMsgCapped':    { en: { t: '{note} layer {mark} is at the maximum · variants held: {n}. Replace the cell, or cancel.' },
-                                 fr: { t: '{note} couche {mark} est au maximum · variantes présentes : {n}. Remplacez la case, ou annulez.', reviewed: false } },
+                                 fr: { t: '{note} couche {mark} est au maximum · variantes présentes : {n}. Remplacez la case, ou annulez.', reviewed: true } },
     'label.mergeMsgAdd':       { en: { t: '{note} layer {mark} · variants held: {n}. Add this sample as round-robin variant {next}, or replace the cell?' },
-                                 fr: { t: '{note} couche {mark} · variantes présentes : {n}. Ajouter cet échantillon comme variante round-robin {next}, ou remplacer la case ?', reviewed: false } },
-    'label.cancelMerge':       { en: { t: 'Cancel' },             fr: { t: 'Annuler',            reviewed: false } },
-    'label.mergeReplaceCell':  { en: { t: 'Replace cell' },       fr: { t: 'Remplacer la case',  reviewed: false } },
-    'label.mergeAddRr':        { en: { t: 'Add as round-robin' }, fr: { t: 'Ajouter en round-robin', reviewed: false } },
+                                 fr: { t: '{note} couche {mark} · variantes présentes : {n}. Ajouter cet échantillon comme variante round-robin {next}, ou remplacer la case ?', reviewed: true } },
+    'label.cancelMerge':       { en: { t: 'Cancel' },             fr: { t: 'Annuler',            reviewed: true } },
+    'label.mergeReplaceCell':  { en: { t: 'Replace cell' },       fr: { t: 'Remplacer la case',  reviewed: true } },
+    'label.mergeAddRr':        { en: { t: 'Add as round-robin' }, fr: { t: 'Ajouter en round-robin', reviewed: true } },
 
     // ── Technique rename dialog ───────────────────────────────────────────
     // SPLIT per §5: the paragraph wraps the live slot number.
-    'label.renameTitle':  { en: { t: 'Rename technique' }, fr: { t: 'Renommer la technique', reviewed: false } },
-    'label.renameSlot':   { en: { t: 'Slot' },             fr: { t: 'Empl.',                 reviewed: false } },
+    'label.renameTitle':  { en: { t: 'Rename technique' }, fr: { t: 'Renommer la technique', reviewed: true } },
+    'label.renameSlot':   { en: { t: 'Slot' },             fr: { t: 'Empl.',                 reviewed: true } },
     'label.renameBody':   { en: { t: ': enter a new name. Names appear in the tab strip and Dorico expression maps.' },
-                            fr: { t: ' : saisissez un nouveau nom. Il apparaît dans la barre d’onglets et les cartes d’expression Dorico.', reviewed: false } },
-    'label.cancelRename': { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: false } },
-    'label.renameSave':   { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: false } },
+                            fr: { t: ' : saisissez un nouveau nom. Il apparaît dans la barre d’onglets et les cartes d’expression Dorico.', reviewed: true } },
+    'label.cancelRename': { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: true } },
+    'label.renameSave':   { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: true } },
 
     // ── About ─────────────────────────────────────────────────────────────
     // The two headings are the product name and the company name — exempt.
     'label.aboutTagline': { en: { t: 'Microtonal sample engine for Dorico microtonal playback.' },
-                            fr: { t: 'Moteur d’échantillonnage microtonal pour la lecture microtonale de Dorico.', reviewed: false } },
+                            fr: { t: 'Moteur d’échantillonnage microtonal pour la lecture microtonale de Dorico.', reviewed: true } },
     'label.aboutBlurb':   { en: { t: 'Per-key, per-velocity-layer sample mapping with offline loop auto-detection, manual loop editing, and the Ouaricon tuning-system family. Built on JUCE 8.' },
-                            fr: { t: 'Mappage par touche et par couche de vélocité, détection automatique des boucles, édition manuelle, et les systèmes d’accord Ouaricon. Bâti sur JUCE 8.', reviewed: false } },   // 2 lines, measured; the fuller draft was 3 and grew the About card 20.14px
-    'label.madeBy':       { en: { t: 'Made by' }, fr: { t: 'Réalisé par', reviewed: false } },
+                            fr: { t: 'Mappage par touche et par couche de vélocité, détection automatique des boucles, édition manuelle, et les systèmes d’accord Ouaricon. Bâti sur JUCE 8.', reviewed: true } },   // 2 lines, measured; the fuller draft was 3 and grew the About card 20.14px
+    'label.madeBy':       { en: { t: 'Made by' }, fr: { t: 'Réalisé par', reviewed: true } },
 
     // ── Control strip ─────────────────────────────────────────────────────
     // The nine captions live in SLIDER_BINDINGS and are interpolated into an
@@ -837,71 +837,71 @@ export const LABELS = Object.freeze({
     // They were re-drafted to Vél-XF (39.97), Ét. dyn. (48.34) and Sortie
     // (41.22), each measured IN this element so letter-spacing and the real
     // font are in play. Maintien is the tightest survivor at 55.69px.
-    'label.knobAttack':   { en: { t: 'Attack' },   fr: { t: 'Attaque',  reviewed: false } },
-    'label.knobDecay':    { en: { t: 'Decay' },    fr: { t: 'Déclin',    reviewed: false } },
-    'label.knobSustain':  { en: { t: 'Sustain' },  fr: { t: 'Maintien', reviewed: false } },
-    'label.knobRelease':  { en: { t: 'Release' },  fr: { t: 'Relâch.',  reviewed: false } },
-    'label.knobPoly':     { en: { t: 'Poly' },     fr: { t: 'Polyph.',  reviewed: false } },
-    'label.knobVelXf':    { en: { t: 'Vel-XF' },   fr: { t: 'Vél-XF',   reviewed: false } },
-    'label.knobExpr':     { en: { t: 'Expr' },     fr: { t: 'Expr.',    reviewed: false, sameAsEn: true } },
-    'label.knobDynRng':   { en: { t: 'Dyn Rng' },  fr: { t: 'Pl. dyn.', reviewed: false } },
-    'label.knobOutGain':  { en: { t: 'Out Gain' }, fr: { t: 'Sortie',   reviewed: false } },
-    'label.dynamics':     { en: { t: 'Dynamics' }, fr: { t: 'Dynamique', reviewed: false } },
+    'label.knobAttack':   { en: { t: 'Attack' },   fr: { t: 'Attaque',  reviewed: true } },
+    'label.knobDecay':    { en: { t: 'Decay' },    fr: { t: 'Déclin',    reviewed: true } },
+    'label.knobSustain':  { en: { t: 'Sustain' },  fr: { t: 'Maintien', reviewed: true } },
+    'label.knobRelease':  { en: { t: 'Release' },  fr: { t: 'Relâch.',  reviewed: true } },
+    'label.knobPoly':     { en: { t: 'Poly' },     fr: { t: 'Polyph.',  reviewed: true } },
+    'label.knobVelXf':    { en: { t: 'Vel-XF' },   fr: { t: 'Vél-XF',   reviewed: true } },
+    'label.knobExpr':     { en: { t: 'Expr' },     fr: { t: 'Expr.',    reviewed: true, sameAsEn: true } },
+    'label.knobDynRng':   { en: { t: 'Dyn Rng' },  fr: { t: 'Pl. dyn.', reviewed: true } },
+    'label.knobOutGain':  { en: { t: 'Out Gain' }, fr: { t: 'Sortie',   reviewed: true } },
+    'label.dynamics':     { en: { t: 'Dynamics' }, fr: { t: 'Dynamique', reviewed: true } },
 
     // ── Tuning panel (js/tuning-panel.js) ─────────────────────────────────
     // Plugin-owned copy, in scope, keyed by hand. The twelve note names, the
     // interval-quality abbreviations and the generated scale names are NOT
     // keyed — see the note above I18N_EXEMPT.
-    'label.vizCircle':      { en: { t: 'Circle' },     fr: { t: 'Cercle',   reviewed: false } },
-    'label.vizPolar':       { en: { t: 'Polar' },      fr: { t: 'Polaire',  reviewed: false } },
-    'label.vizMatrix':      { en: { t: 'Matrix' },     fr: { t: 'Matrice',  reviewed: false } },
-    'label.vizTrueKeys':    { en: { t: 'True Keys' },  fr: { t: 'Touches',  reviewed: false } },
-    'label.vizRotation':    { en: { t: 'Rotation' },   fr: { t: 'Rotation', reviewed: false, sameAsEn: true } },
-    'label.scaleIntervals': { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: false } },
-    'label.tkHint':         { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: false } },
-    'label.totalSpan':      { en: { t: 'Total span' }, fr: { t: 'Étendue',        reviewed: false } },
-    'label.rotationMode':   { en: { t: 'Mode' },       fr: { t: 'Mode', reviewed: false, sameAsEn: true } },
+    'label.vizCircle':      { en: { t: 'Circle' },     fr: { t: 'Cercle',   reviewed: true } },
+    'label.vizPolar':       { en: { t: 'Polar' },      fr: { t: 'Polaire',  reviewed: true } },
+    'label.vizMatrix':      { en: { t: 'Matrix' },     fr: { t: 'Matrice',  reviewed: true } },
+    'label.vizTrueKeys':    { en: { t: 'True Keys' },  fr: { t: 'Touches',  reviewed: true } },
+    'label.vizRotation':    { en: { t: 'Rotation' },   fr: { t: 'Rotation', reviewed: true, sameAsEn: true } },
+    'label.scaleIntervals': { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true } },
+    'label.tkHint':         { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true } },
+    'label.totalSpan':      { en: { t: 'Total span' }, fr: { t: 'Étendue',        reviewed: true } },
+    'label.rotationMode':   { en: { t: 'Mode' },       fr: { t: 'Mode', reviewed: true, sameAsEn: true } },
     'label.intervalsCount': { en: { t: 'Intervals · notes: {n}' },
-                              fr: { t: 'Interv. · notes : {n}', reviewed: false } },   // 114.45px in a
+                              fr: { t: 'Interv. · notes : {n}', reviewed: true } },   // 114.45px in a
                               // 142px column, measured. The fuller 'Intervalles · notes : {n}'
                               // is 2 lines and pushes the whole interval list down 14px; the
                               // one-line alternative 'Intervalles · {n} notes' fits at 138.44
                               // but inflects wrongly at n=1, so per contract §6 the count stays
                               // after the colon beside an invariant noun instead.
-    'label.tonic':          { en: { t: 'Tonic' },      fr: { t: 'Tonique',  reviewed: false } },
-    'label.tuningLibrary':  { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: false } },
-    'label.catAll':         { en: { t: 'All Categories' },  fr: { t: 'Toutes catégories', reviewed: false } },
-    'label.catHistorical':  { en: { t: 'Historical' },      fr: { t: 'Historiques',       reviewed: false } },
-    'label.catJust':        { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste',  reviewed: false } },
-    'label.catEdo':         { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales',  reviewed: false } },
-    'label.catNonOctave':   { en: { t: 'Non-Octave' },      fr: { t: 'Non octaviantes',   reviewed: false } },
-    'label.catWorld':       { en: { t: 'World' },           fr: { t: 'Du monde',          reviewed: false } },
-    'label.noteCount':      { en: { t: 'notes: {n}' },      fr: { t: 'notes : {n}',       reviewed: false } },
+    'label.tonic':          { en: { t: 'Tonic' },      fr: { t: 'Tonique',  reviewed: true } },
+    'label.tuningLibrary':  { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: true } },
+    'label.catAll':         { en: { t: 'All Categories' },  fr: { t: 'Toutes catégories', reviewed: true } },
+    'label.catHistorical':  { en: { t: 'Historical' },      fr: { t: 'Historiques',       reviewed: true } },
+    'label.catJust':        { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste',  reviewed: true } },
+    'label.catEdo':         { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales',  reviewed: true } },
+    'label.catNonOctave':   { en: { t: 'Non-Octave' },      fr: { t: 'Non octaviantes',   reviewed: true } },
+    'label.catWorld':       { en: { t: 'World' },           fr: { t: 'Du monde',          reviewed: true } },
+    'label.noteCount':      { en: { t: 'notes: {n}' },      fr: { t: 'notes : {n}',       reviewed: true } },
     // A4 stays A4: it is letter pitch notation, which the C++ TuningEngine and
     // the .scl/.kbm formats also speak. Only REF is a word.
-    'label.a4Ref':          { en: { t: 'A4 REF' },  fr: { t: 'RÉF. A4',    reviewed: false } },
-    'label.stretch':        { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: false } },
-    'label.loadScl':        { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL',   reviewed: false } },
-    'label.loadKbm':        { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM',   reviewed: false } },
-    'label.saveScl':        { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL',   reviewed: false } },
-    'label.saveKbm':        { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM',   reviewed: false } },
-    'label.exportHtml':     { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: false } },
-    'label.generateScale':  { en: { t: 'Generate Scale' },      fr: { t: 'Générer une gamme', reviewed: false } },
-    'label.genEdo':         { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: false } },
-    'label.genHarmonic':    { en: { t: 'Harmonic Series' },      fr: { t: 'Série harmonique',     reviewed: false } },
-    'label.genRank2':       { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: false } },
+    'label.a4Ref':          { en: { t: 'A4 REF' },  fr: { t: 'RÉF. A4',    reviewed: true } },
+    'label.stretch':        { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: true } },
+    'label.loadScl':        { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL',   reviewed: true } },
+    'label.loadKbm':        { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM',   reviewed: true } },
+    'label.saveScl':        { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL',   reviewed: true } },
+    'label.saveKbm':        { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM',   reviewed: true } },
+    'label.exportHtml':     { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } },
+    'label.generateScale':  { en: { t: 'Generate Scale' },      fr: { t: 'Générer une gamme', reviewed: true } },
+    'label.genEdo':         { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } },
+    'label.genHarmonic':    { en: { t: 'Harmonic Series' },      fr: { t: 'Série harmonique',     reviewed: true } },
+    'label.genRank2':       { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: true } },
     // Two Period (c) labels: one in the EDO row, one in the Rank-2 row. Each
     // <label> is its own element and so needs its own key.
-    'label.genDivisions':     { en: { t: 'Divisions' },      fr: { t: 'Divisions', reviewed: false, sameAsEn: true } },
-    'label.genPeriod':        { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: false } },
-    'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: false } },
-    'label.genEndHarmonic':   { en: { t: 'End Harmonic' },   fr: { t: 'Harm. de fin',         reviewed: false } },
-    'label.genGenerator':     { en: { t: 'Generator (c)' },  fr: { t: 'Génér. (c)',           reviewed: false } },
-    'label.genR2Period':      { en: { t: 'Period (c)' },     fr: { t: 'Période (c)',          reviewed: false } },
-    'label.genNotes':         { en: { t: 'Notes' },          fr: { t: 'Notes', reviewed: false, sameAsEn: true } },
-    'label.generate':         { en: { t: 'Generate' },       fr: { t: 'Générer', reviewed: false } },
+    'label.genDivisions':     { en: { t: 'Divisions' },      fr: { t: 'Divisions', reviewed: true, sameAsEn: true } },
+    'label.genPeriod':        { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: true } },
+    'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } },
+    'label.genEndHarmonic':   { en: { t: 'End Harmonic' },   fr: { t: 'Harm. de fin',         reviewed: true } },
+    'label.genGenerator':     { en: { t: 'Generator (c)' },  fr: { t: 'Génér. (c)',           reviewed: true } },
+    'label.genR2Period':      { en: { t: 'Period (c)' },     fr: { t: 'Période (c)',          reviewed: true } },
+    'label.genNotes':         { en: { t: 'Notes' },          fr: { t: 'Notes', reviewed: true, sameAsEn: true } },
+    'label.generate':         { en: { t: 'Generate' },       fr: { t: 'Générer', reviewed: true } },
     'label.tuningPanelUnavailable': { en: { t: 'Tuning panel unavailable.' },
-                                      fr: { t: 'Panneau d’accord indisponible.', reviewed: false } },
+                                      fr: { t: 'Panneau d’accord indisponible.', reviewed: true } },
 
     // ── ACCESSIBLE NAMES declared in markup or by a literal dataset write ──
     //
@@ -909,34 +909,34 @@ export const LABELS = Object.freeze({
     // native title= attributes and THREE of the JS-written ones, moved here
     // per contract §4 with their own v1.23.10 wording, VERBATIM. No new prose
     // is invented: Stage M authors hover-help, this rule does not.
-    'aria.savePreset':       { en: { t: 'Save plugin state to .omspreset' },   fr: { t: 'Enregistrer l’état du plugin dans un .omspreset', reviewed: false } },
-    'aria.loadPreset':       { en: { t: 'Load plugin state from .omspreset' }, fr: { t: 'Charger l’état du plugin depuis un .omspreset',  reviewed: false } },
-    'aria.settings':         { en: { t: 'Settings' },           fr: { t: 'Réglages',            reviewed: false } },
-    'aria.langSelect':       { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.savePreset':       { en: { t: 'Save plugin state to .omspreset' },   fr: { t: 'Enregistrer l’état du plugin dans un .omspreset', reviewed: true } },
+    'aria.loadPreset':       { en: { t: 'Load plugin state from .omspreset' }, fr: { t: 'Charger l’état du plugin depuis un .omspreset',  reviewed: true } },
+    'aria.settings':         { en: { t: 'Settings' },           fr: { t: 'Réglages',            reviewed: true } },
+    'aria.langSelect':       { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.techniquePreset':  { en: { t: 'Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)' },
-                               fr: { t: 'Renommer tous les emplacements de technique selon une famille d’instruments Dorico (l’ordre des emplacements suit celui des commutations par touche dans les cartes d’expression O-MicrotonalSampler)', reviewed: false } },
-    'aria.playingTechniques': { en: { t: 'Playing techniques' },     fr: { t: 'Techniques de jeu',          reviewed: false } },
-    'aria.addTechnique':      { en: { t: 'Add technique slot' },     fr: { t: 'Ajouter un emplacement de technique', reviewed: false } },
-    'aria.removeTechnique':   { en: { t: 'Remove last technique slot' }, fr: { t: 'Retirer le dernier emplacement de technique', reviewed: false } },
-    'aria.trimTech':          { en: { t: 'Technique master trim (dB)' }, fr: { t: 'Ajustement général de la technique (dB)', reviewed: false } },
-    'aria.trimLayer0':        { en: { t: 'Layer p trim (dB)' },  fr: { t: 'Ajustement de la couche p (dB)',  reviewed: false } },
-    'aria.trimLayer1':        { en: { t: 'Layer mp trim (dB)' }, fr: { t: 'Ajustement de la couche mp (dB)', reviewed: false } },
-    'aria.trimLayer2':        { en: { t: 'Layer mf trim (dB)' }, fr: { t: 'Ajustement de la couche mf (dB)', reviewed: false } },
-    'aria.trimLayer3':        { en: { t: 'Layer f trim (dB)' },  fr: { t: 'Ajustement de la couche f (dB)',  reviewed: false } },
-    'aria.closeLoopEditor':   { en: { t: 'Close loop editor' },  fr: { t: 'Fermer l’éditeur de boucle', reviewed: false } },
-    'aria.floLayer':          { en: { t: 'Target velocity layer' }, fr: { t: 'Couche de vélocité cible',   reviewed: false } },
-    'aria.floTechnique':      { en: { t: 'Target technique slot' }, fr: { t: 'Emplacement de technique cible', reviewed: false } },
-    'aria.renameInput':       { en: { t: 'New technique name' },    fr: { t: 'Nouveau nom de technique',   reviewed: false } },
+                               fr: { t: 'Renommer tous les emplacements de technique selon une famille d’instruments Dorico (l’ordre des emplacements suit celui des commutations par touche dans les cartes d’expression O-MicrotonalSampler)', reviewed: true } },
+    'aria.playingTechniques': { en: { t: 'Playing techniques' },     fr: { t: 'Techniques de jeu',          reviewed: true } },
+    'aria.addTechnique':      { en: { t: 'Add technique slot' },     fr: { t: 'Ajouter un emplacement de technique', reviewed: true } },
+    'aria.removeTechnique':   { en: { t: 'Remove last technique slot' }, fr: { t: 'Retirer le dernier emplacement de technique', reviewed: true } },
+    'aria.trimTech':          { en: { t: 'Technique master trim (dB)' }, fr: { t: 'Ajustement général de la technique (dB)', reviewed: true } },
+    'aria.trimLayer0':        { en: { t: 'Layer p trim (dB)' },  fr: { t: 'Ajustement de la couche p (dB)',  reviewed: true } },
+    'aria.trimLayer1':        { en: { t: 'Layer mp trim (dB)' }, fr: { t: 'Ajustement de la couche mp (dB)', reviewed: true } },
+    'aria.trimLayer2':        { en: { t: 'Layer mf trim (dB)' }, fr: { t: 'Ajustement de la couche mf (dB)', reviewed: true } },
+    'aria.trimLayer3':        { en: { t: 'Layer f trim (dB)' },  fr: { t: 'Ajustement de la couche f (dB)',  reviewed: true } },
+    'aria.closeLoopEditor':   { en: { t: 'Close loop editor' },  fr: { t: 'Fermer l’éditeur de boucle', reviewed: true } },
+    'aria.floLayer':          { en: { t: 'Target velocity layer' }, fr: { t: 'Couche de vélocité cible',   reviewed: true } },
+    'aria.floTechnique':      { en: { t: 'Target technique slot' }, fr: { t: 'Emplacement de technique cible', reviewed: true } },
+    'aria.renameInput':       { en: { t: 'New technique name' },    fr: { t: 'Nouveau nom de technique',   reviewed: true } },
     'aria.dynamicsMode':      { en: { t: 'Dynamics Mode — how MIDI CC 11 shapes dynamics. Velocity: note-on velocity picks the layer, CC 11 is a post-mix volume trim (v1.20 behaviour). CC Crossfade: CC 11 morphs across all velocity layers mid-note (timbre + loudness, like pro sustain patches).' },
-                                fr: { t: 'Mode de dynamique — comment le CC MIDI 11 façonne la dynamique. Velocity : la vélocité de la note choisit la couche, le CC 11 sert d’ajustement de volume après mixage (comportement v1.20). CC Crossfade : le CC 11 fond toutes les couches de vélocité au cours de la note (timbre + niveau, comme les patches professionnels de notes tenues).', reviewed: false,
+                                fr: { t: 'Mode de dynamique — comment le CC MIDI 11 façonne la dynamique. Velocity : la vélocité de la note choisit la couche, le CC 11 sert d’ajustement de volume après mixage (comportement v1.20). CC Crossfade : le CC 11 fond toutes les couches de vélocité au cours de la note (timbre + niveau, comme les patches professionnels de notes tenues).', reviewed: true,
                                   termNote: '« après mixage » is the mixing PROCESS the layers are summed by — the post-mix trim of the English — not the Mix control the forbidden entry targets. There is no Mix control on this page' } },
-    'aria.dynamicsModeShort': { en: { t: 'Dynamics Mode' }, fr: { t: 'Mode de dynamique', reviewed: false } },
+    'aria.dynamicsModeShort': { en: { t: 'Dynamics Mode' }, fr: { t: 'Mode de dynamique', reviewed: true } },
     'aria.knobExpr':          { en: { t: 'Expression (MIDI CC 11) — dynamics control, independent of velocity layer' },
-                                fr: { t: 'Expression (CC MIDI 11) — contrôle de la dynamique, indépendant de la couche de vélocité', reviewed: false } },
+                                fr: { t: 'Expression (CC MIDI 11) — contrôle de la dynamique, indépendant de la couche de vélocité', reviewed: true } },
     'aria.knobDynRng':        { en: { t: 'Dynamic Range (CC Crossfade only) — dB span between pp and ff. 0 dB = flat; higher = louder ff / quieter pp. Fixes "forte too soft, piano too loud" in Dorico.' },
-                                fr: { t: 'Plage dynamique (CC Crossfade uniquement) — différence en dB entre pp et ff. 0 dB = plat ; plus haut = ff plus fort / pp plus doux. Corrige le « forte trop faible, piano trop fort » dans Dorico.', reviewed: false } },
+                                fr: { t: 'Plage dynamique (CC Crossfade uniquement) — différence en dB entre pp et ff. 0 dB = plat ; plus haut = ff plus fort / pp plus doux. Corrige le « forte trop faible, piano trop fort » dans Dorico.', reviewed: true } },
     'aria.loopResetOneShot':  { en: { t: 'Sample is one-shot — no loop region detected.' },
-                                fr: { t: 'Échantillon one-shot — aucune région de boucle détectée.', reviewed: false } },
+                                fr: { t: 'Échantillon one-shot — aucune région de boucle détectée.', reviewed: true } },
 });
 
 // ============================================================================

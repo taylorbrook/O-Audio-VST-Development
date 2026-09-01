@@ -121,7 +121,7 @@ export const I18N = Object.freeze({
               b: 'Choose the language of this plugin, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
               b: 'Choisir la langue de ce plugin et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // v1.6.0: this entry told the user, in both languages, that the labels on
@@ -133,7 +133,7 @@ export const I18N = Object.freeze({
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts stay in English.' },
         fr: { t: 'Langue',
               b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'help-toggle': {
@@ -141,7 +141,7 @@ export const I18N = Object.freeze({
               b: 'Turns the hover descriptions on and off for every control on this page. The setting is saved with the session.' },
         fr: { t: 'Aide au survol',
               b: 'Active ou désactive les descriptions au survol pour toutes les commandes de cette page. Le réglage est conservé avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-prev': {
@@ -149,7 +149,7 @@ export const I18N = Object.freeze({
               b: 'Steps back one entry through the preset list, factory and user alike.' },
         fr: { t: 'Précédent',
               b: 'Recule d’une entrée dans la liste des préréglages, d’usine comme utilisateur.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-next': {
@@ -157,7 +157,7 @@ export const I18N = Object.freeze({
               b: 'Steps forward one entry through the preset list, factory and user alike.' },
         fr: { t: 'Suivant',
               b: 'Avance d’une entrée dans la liste des préréglages, d’usine comme utilisateur.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-name': {
@@ -165,7 +165,7 @@ export const I18N = Object.freeze({
               b: 'The loaded preset. Click to open the list, grouped into Tape Stops, Scratch, Wobble & Warp, and Glitch & Chaos.' },
         fr: { t: 'Préréglage',
               b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Tape Stops, Scratch, Wobble & Warp, et Glitch & Chaos.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-save': {
@@ -173,7 +173,7 @@ export const I18N = Object.freeze({
               b: 'Writes every control, including the drawn scratch envelope, to a user preset.' },
         fr: { t: 'Enregistrer',
               b: 'Écrit toutes les commandes, y compris l’enveloppe de scratch dessinée, dans un préréglage utilisateur.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-load': {
@@ -181,7 +181,7 @@ export const I18N = Object.freeze({
               b: 'Opens a preset file from disk rather than from the list above.' },
         fr: { t: 'Charger',
               b: 'Ouvre un fichier de préréglage sur le disque plutôt que depuis la liste ci-dessus.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-delete': {
@@ -189,7 +189,7 @@ export const I18N = Object.freeze({
               b: 'Removes the loaded user preset. Click once to arm, again to confirm. Factory presets are protected.' },
         fr: { t: 'Supprimer',
               b: 'Supprime le préréglage utilisateur chargé. Un premier clic arme, un second confirme. Les préréglages d’usine sont protégés.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'engage-btn': {
@@ -197,7 +197,7 @@ export const I18N = Object.freeze({
               b: 'The performance control. It latches: pressing it starts the gesture the current Mode describes, releasing it hands the transport back. Automate or MIDI-map this and leave the rest of the page alone.' },
         fr: { t: 'Enclencher',
               b: 'La commande de jeu. Elle se maintient : l’enfoncer démarre le geste que décrit le Mode courant, la relâcher rend la main au transport. L’automatiser ou l’assigner en MIDI, et laisser le reste de la page tranquille.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-mode-stop': {
@@ -205,7 +205,7 @@ export const I18N = Object.freeze({
               b: 'The reel losing power. Engage spins the tape down to a halt; releasing spins it back up to speed. Spin Down and Spin Up shape each half separately.' },
         fr: { t: 'Mode arrêt',
               b: 'La bobine qui perd son alimentation. Enclencher fait ralentir la bande jusqu’à l’arrêt ; relâcher la fait remonter à sa vitesse. Ralentissement et Redémarrage façonnent chaque moitié séparément.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-mode-scratch': {
@@ -213,7 +213,7 @@ export const I18N = Object.freeze({
               b: 'A hand on the platter. Engage plays one pass of the drawn speed curve, reverse included, then returns to normal speed.' },
         fr: { t: 'Mode scratch',
               b: 'Une main sur le plateau. Enclencher joue un passage de la courbe de vitesse dessinée, marche arrière comprise, puis revient à la vitesse normale.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-mode-cont': {
@@ -221,7 +221,7 @@ export const I18N = Object.freeze({
               b: 'Worn tape that never settles. Engage holds the speed in continuous modulation for as long as it stays lit — wobble, lurch or stutter, depending on Character.' },
         fr: { t: 'Mode mouvement',
               b: 'Une bande usée qui ne se stabilise jamais. Enclencher maintient la vitesse en modulation continue tant que le bouton reste allumé — pleurage, embardée ou bégaiement, selon le Caractère.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-sync-sync': {
@@ -229,7 +229,7 @@ export const I18N = Object.freeze({
               b: 'Every duration on this page locks to the host\'s tempo grid and is chosen as a note division. Switches all three panels at once.' },
         fr: { t: 'Synchro',
               b: 'Toutes les durées de cette page s’asservissent à la grille de tempo de l’hôte et se choisissent en divisions de note. Bascule les trois panneaux à la fois.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-sync-free': {
@@ -237,7 +237,7 @@ export const I18N = Object.freeze({
               b: 'Every duration is set in milliseconds (or hertz, for Motion) and ignores the host tempo. Switches all three panels at once.' },
         fr: { t: 'Libre',
               b: 'Toutes les durées se règlent en millisecondes (ou en hertz, pour le Mouvement) et ignorent le tempo de l’hôte. Bascule les trois panneaux à la fois.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'ratio-fill': {
@@ -245,7 +245,7 @@ export const I18N = Object.freeze({
               b: 'Live readout of the transport\'s speed. 1× is normal, 0 is a dead stop, and anything left of zero is running backwards.' },
         fr: { t: 'Vitesse de lecture',
               b: 'Affichage en direct de la vitesse du transport. 1× est la vitesse normale, 0 l’arrêt complet, et tout ce qui est à gauche de zéro défile à l’envers.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'combo-STOP_SYNC_DIV': {
@@ -253,7 +253,7 @@ export const I18N = Object.freeze({
               b: 'How long the reel takes to reach a standstill, as a note division of the host tempo. Latched the moment Engage is pressed — moving it mid-gesture is inert.' },
         fr: { t: 'Durée de ralentissement',
               b: 'Le temps que met la bobine à atteindre l’arrêt complet, en division de note du tempo de l’hôte. Verrouillé à l’instant où Enclencher est pressé — le modifier en cours de geste est sans effet.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-STOP_FREE_MS': {
@@ -261,7 +261,7 @@ export const I18N = Object.freeze({
               b: 'How long the reel takes to reach a standstill, in milliseconds. Latched the moment Engage is pressed.' },
         fr: { t: 'Durée de ralentissement',
               b: 'Le temps que met la bobine à atteindre l’arrêt complet, en millisecondes. Verrouillé à l’instant où Enclencher est pressé.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-STOP_CURVE': {
@@ -269,7 +269,7 @@ export const I18N = Object.freeze({
               b: 'Shapes the fall. At 0 the speed drops in a straight line; at 100 it plunges away at once and then crawls the last stretch. 50 is turntable physics.' },
         fr: { t: 'Courbe de ralentissement',
               b: 'Façonne la chute. À 0 la vitesse descend en ligne droite ; à 100 elle s’effondre d’un coup puis rampe sur la dernière portion. 50 correspond à la physique d’une platine.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'combo-START_SYNC_DIV': {
@@ -277,7 +277,7 @@ export const I18N = Object.freeze({
               b: 'How long the reel takes to regain full speed once Engage is released, as a note division of the host tempo.' },
         fr: { t: 'Durée de redémarrage',
               b: 'Le temps que met la bobine à retrouver sa pleine vitesse une fois Enclencher relâché, en division de note du tempo de l’hôte.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-START_FREE_MS': {
@@ -285,7 +285,7 @@ export const I18N = Object.freeze({
               b: 'How long the reel takes to regain full speed once Engage is released, in milliseconds.' },
         fr: { t: 'Durée de redémarrage',
               b: 'Le temps que met la bobine à retrouver sa pleine vitesse une fois Enclencher relâché, en millisecondes.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-START_CURVE': {
@@ -293,7 +293,7 @@ export const I18N = Object.freeze({
               b: 'Shapes the return. At 0 the speed rises in a straight line; at 100 it hangs near a standstill and then rushes back at the end. 50 is turntable physics.' },
         fr: { t: 'Courbe de redémarrage',
               b: 'Façonne le retour. À 0 la vitesse monte en ligne droite ; à 100 elle traîne près de l’arrêt puis se précipite à la fin. 50 correspond à la physique d’une platine.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'envCanvas': {
@@ -301,7 +301,7 @@ export const I18N = Object.freeze({
               b: 'Speed across one pass. The 1× line is normal speed, 0 is a standstill, and everything below the 0 line plays backwards — down to −2×. Drag the points to reshape it.' },
         fr: { t: 'Enveloppe de scratch',
               b: 'La vitesse tout au long d’un passage. La ligne 1× est la vitesse normale, 0 l’immobilité, et tout ce qui passe sous la ligne 0 se lit à l’envers — jusqu’à −2×. Glisser les points pour la remodeler.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'combo-ENV_SYNC_DIV': {
@@ -309,7 +309,7 @@ export const I18N = Object.freeze({
               b: 'How long one trip through the drawn envelope takes, as a note division of the host tempo.' },
         fr: { t: 'Durée du passage',
               b: 'Le temps que dure un parcours complet de l’enveloppe dessinée, en division de note du tempo de l’hôte.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-ENV_FREE_MS': {
@@ -317,7 +317,7 @@ export const I18N = Object.freeze({
               b: 'How long one trip through the drawn envelope takes, in milliseconds.' },
         fr: { t: 'Durée du passage',
               b: 'Le temps que dure un parcours complet de l’enveloppe dessinée, en millisecondes.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-char-wobble': {
@@ -325,7 +325,7 @@ export const I18N = Object.freeze({
               b: 'Deterministic wow and flutter — a steady sine with a three-harmonic flutter band above it. The seasick end of worn tape.' },
         fr: { t: 'Pleurage',
               b: 'Pleurage et scintillement déterministes — une sinusoïde régulière surmontée d’une bande de scintillement à trois harmoniques. Le versant nauséeux de la bande usée.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-char-random': {
@@ -333,7 +333,7 @@ export const I18N = Object.freeze({
               b: 'A drifting random walk across three time-scales at once. It never repeats and never quite settles.' },
         fr: { t: 'Aléatoire',
               b: 'Une marche aléatoire qui dérive sur trois échelles de temps à la fois. Elle ne se répète jamais et ne se pose jamais tout à fait.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'seg-char-glitch': {
@@ -341,7 +341,7 @@ export const I18N = Object.freeze({
               b: 'A grid scheduler firing discrete speed events — dips, half-speed stalls, reverse stabs. Chaos decides how many fire and how short they get.' },
         fr: { t: 'Glitch',
               b: 'Un séquenceur sur grille qui déclenche des événements de vitesse discrets — creux, blocages à mi-vitesse, coups en marche arrière. Le Chaos décide combien se déclenchent et à quel point ils raccourcissent.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'combo-CONT_RATE_SYNC_DIV': {
@@ -349,7 +349,7 @@ export const I18N = Object.freeze({
               b: 'How fast the motion cycles, as a note division of the host tempo.' },
         fr: { t: 'Vitesse du mouvement',
               b: 'À quelle vitesse le mouvement se répète, en division de note du tempo de l’hôte.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-CONT_RATE_HZ': {
@@ -357,7 +357,7 @@ export const I18N = Object.freeze({
               b: 'How fast the motion cycles, in hertz. 0.05 Hz is one slow sweep every twenty seconds; 20 Hz is a buzz.' },
         fr: { t: 'Vitesse du mouvement',
               b: 'À quelle vitesse le mouvement se répète, en hertz. 0,05 Hz correspond à un balayage lent toutes les vingt secondes ; 20 Hz à un bourdonnement.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-CONT_DEPTH': {
@@ -365,7 +365,7 @@ export const I18N = Object.freeze({
               b: 'Peak speed deviation, scaled by ear rather than linearly: 0 is barely two cents of drift, 50 is about one percent, 100 reaches roughly two semitones.' },
         fr: { t: 'Profondeur du mouvement',
               b: 'Écart de vitesse maximal, dosé à l’oreille plutôt que linéairement : 0 représente à peine deux centièmes de demi-ton de dérive, 50 environ un pour cent, et 100 atteint près de deux demi-tons.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-CONT_CHAOS': {
@@ -373,7 +373,7 @@ export const I18N = Object.freeze({
               b: 'How irregular the motion is. At 0 each Character runs its tamest, most repeatable shape; raising it jitters Wobble, widens Random\'s drift, and unlocks faster, shorter Glitch events.' },
         fr: { t: 'Chaos',
               b: 'À quel point le mouvement est irrégulier. À 0, chaque Caractère joue sa forme la plus sage et la plus reproductible ; en montant, le Pleurage se met à trembler, la dérive de l’Aléatoire s’élargit, et les événements de Glitch deviennent plus rapides et plus courts.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-TONE_TRACK': {
@@ -381,7 +381,7 @@ export const I18N = Object.freeze({
               b: 'Darkens the varispeed path as the tape slows, the way tape and vinyl lose their highs off-speed. At 0 nothing is filtered; at 100 a full standstill reaches down to 150 Hz. Full speed is always open.' },
         fr: { t: 'Suivi de timbre',
               b: 'Assombrit le trajet en vitesse variable à mesure que la bande ralentit, comme la bande et le vinyle perdent leurs aigus hors vitesse. À 0 rien n’est filtré ; à 100 l’arrêt complet descend jusqu’à 150 Hz. À pleine vitesse le trajet reste toujours ouvert.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-MIX': {
@@ -389,7 +389,7 @@ export const I18N = Object.freeze({
               b: 'Balance of the dry input against the varispeed path — a straight crossfade, so it doubles as a parallel blend. Applies to the engaged chain only; disengaged output is bit-for-bit dry.' },
         fr: { t: 'Mix',
               b: 'Équilibre entre le signal direct et le trajet en vitesse variable — un simple fondu croisé, qui sert donc aussi de mélange parallèle. Ne s’applique qu’à la chaîne enclenchée ; hors enclenchement la sortie est le signal direct au bit près.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'knob-OUTPUT_GAIN': {
@@ -397,7 +397,7 @@ export const I18N = Object.freeze({
               b: 'Final trim, −24 to +12 dB. Like Mix, it rides the engaged chain only and glides back to unity across the resync fade.' },
         fr: { t: 'Gain de sortie',
               b: 'Ajustement final, de −24 à +12 dB. Comme le Mix, il ne porte que sur la chaîne enclenchée et revient progressivement à l’unité pendant le fondu de resynchronisation.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -455,7 +455,7 @@ export const LABELS = Object.freeze({
     // Not 'help-toggle': that tip's title is "Hover Help", this caption is
     // "Hover help". The reuse rule wants both languages identical, and these
     // differ in English before French is even considered.
-    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Aide au survol', reviewed: false } },
+    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Aide au survol', reviewed: true } },
 
     // The hover-help toggle's two faces, and the delete button's armed face.
     // These are the only three strings on this page written from script. They
@@ -467,54 +467,54 @@ export const LABELS = Object.freeze({
     // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the toggle face is
     // 44 px, and this is the vocabulary a piece of hardware uses, which is the
     // register the whole panel is written in.
-    'ui.on':             { en: { t: 'On' },          fr: { t: 'Marche',        reviewed: false } },
-    'ui.off':            { en: { t: 'Off' },         fr: { t: 'Arrêt',         reviewed: false } },
-    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: false } },
+    'ui.on':             { en: { t: 'On' },          fr: { t: 'Marche',        reviewed: true } },
+    'ui.off':            { en: { t: 'Off' },         fr: { t: 'Arrêt',         reviewed: true } },
+    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: true } },
 
     // ── Header ──────────────────────────────────────────────────────────────
     'label.subtitle':    { en: { t: 'Varispeed Transport · A Field Guide' },
-                           fr: { t: 'Transport à vitesse variable · Guide de terrain', reviewed: false } },
+                           fr: { t: 'Transport à vitesse variable · Guide de terrain', reviewed: true } },
 
     // ── TRIGGER panel ───────────────────────────────────────────────────────
-    'label.trigger':     { en: { t: 'Trigger' },     fr: { t: 'Déclenchement', reviewed: false } },
-    'label.mode':        { en: { t: 'Mode' },        fr: { t: 'Mode',          reviewed: false, sameAsEn: true } },
-    'label.modeStop':    { en: { t: 'Stop' },        fr: { t: 'Arrêt',         reviewed: false } },
-    'label.modeScratch': { en: { t: 'Scratch' },     fr: { t: 'Scratch',       reviewed: false, sameAsEn: true } },
+    'label.trigger':     { en: { t: 'Trigger' },     fr: { t: 'Déclenchement', reviewed: true } },
+    'label.mode':        { en: { t: 'Mode' },        fr: { t: 'Mode',          reviewed: true, sameAsEn: true } },
+    'label.modeStop':    { en: { t: 'Stop' },        fr: { t: 'Arrêt',         reviewed: true } },
+    'label.modeScratch': { en: { t: 'Scratch' },     fr: { t: 'Scratch',       reviewed: true, sameAsEn: true } },
     // Shared by the MODE segment, the CHARACTER pane's Motion caption and
     // #modeSegments' aria-label: one concept, one string, one key.
-    'label.motion':      { en: { t: 'Motion' },      fr: { t: 'Mouvement',     reviewed: false } },
+    'label.motion':      { en: { t: 'Motion' },      fr: { t: 'Mouvement',     reviewed: true } },
     'label.timing':      { en: { t: 'Timing' },
-                           fr: { t: 'Cadence', reviewed: false,
+                           fr: { t: 'Cadence', reviewed: true,
                                  termNote: 'the caption heads the SYNC/FREE pair — it names the time BASE, '
                                          + 'not the rhythmic offset the glossary term "décalage" means; '
                                          + 'this page carries no nudge control' } },
-    'label.sync':        { en: { t: 'Sync' },        fr: { t: 'Synchro',       reviewed: false } },
-    'label.playback':    { en: { t: 'Playback' },    fr: { t: 'Lecture',       reviewed: false } },
+    'label.sync':        { en: { t: 'Sync' },        fr: { t: 'Synchro',       reviewed: true } },
+    'label.playback':    { en: { t: 'Playback' },    fr: { t: 'Lecture',       reviewed: true } },
 
     // ── CENTER panel ────────────────────────────────────────────────────────
-    'label.transport':   { en: { t: 'Transport' },   fr: { t: 'Transport',     reviewed: false, sameAsEn: true } },
-    'label.spinDown':    { en: { t: 'Spin Down' },   fr: { t: 'Ralentissement', reviewed: false } },
-    'label.spinUp':      { en: { t: 'Spin Up' },     fr: { t: 'Redémarrage',   reviewed: false } },
-    'label.division':    { en: { t: 'Division' },    fr: { t: 'Division',      reviewed: false, sameAsEn: true } },
-    'label.time':        { en: { t: 'Time' },        fr: { t: 'Durée',         reviewed: false } },
-    'label.curve':       { en: { t: 'Curve' },       fr: { t: 'Courbe',        reviewed: false } },
-    'label.passLength':  { en: { t: 'Pass Length' }, fr: { t: 'Passage',       reviewed: false } },
+    'label.transport':   { en: { t: 'Transport' },   fr: { t: 'Transport',     reviewed: true, sameAsEn: true } },
+    'label.spinDown':    { en: { t: 'Spin Down' },   fr: { t: 'Ralentissement', reviewed: true } },
+    'label.spinUp':      { en: { t: 'Spin Up' },     fr: { t: 'Redémarrage',   reviewed: true } },
+    'label.division':    { en: { t: 'Division' },    fr: { t: 'Division',      reviewed: true, sameAsEn: true } },
+    'label.time':        { en: { t: 'Time' },        fr: { t: 'Durée',         reviewed: true } },
+    'label.curve':       { en: { t: 'Curve' },       fr: { t: 'Courbe',        reviewed: true } },
+    'label.passLength':  { en: { t: 'Pass Length' }, fr: { t: 'Passage',       reviewed: true } },
 
     // The envelope hint is TWO text nodes around a <br> in one .env-hint div.
     // Keyed as two spans rather than one key with a \n: applyLabel writes
     // textContent, which would delete the <br> and collapse the two lines into
     // one, and the second line is what tells the user how to REMOVE a point.
     'label.envHint1':    { en: { t: 'Drag points · double-click to add' },
-                           fr: { t: 'Glisser les points · double-clic pour ajouter', reviewed: false } },
+                           fr: { t: 'Glisser les points · double-clic pour ajouter', reviewed: true } },
     'label.envHint2':    { en: { t: 'alt-click removes · drag a diamond to bend' },
-                           fr: { t: 'alt-clic pour retirer · glisser un losange pour infléchir', reviewed: false } },
+                           fr: { t: 'alt-clic pour retirer · glisser un losange pour infléchir', reviewed: true } },
 
-    'label.character':   { en: { t: 'Character' },   fr: { t: 'Caractère',     reviewed: false } },
-    'label.rate':        { en: { t: 'Rate' },        fr: { t: 'Vitesse',       reviewed: false } },
-    'label.depth':       { en: { t: 'Depth' },       fr: { t: 'Profondeur',    reviewed: false } },
+    'label.character':   { en: { t: 'Character' },   fr: { t: 'Caractère',     reviewed: true } },
+    'label.rate':        { en: { t: 'Rate' },        fr: { t: 'Vitesse',       reviewed: true } },
+    'label.depth':       { en: { t: 'Depth' },       fr: { t: 'Profondeur',    reviewed: true } },
 
     // ── OUTPUT panel ────────────────────────────────────────────────────────
-    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',        reviewed: false } },
+    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',        reviewed: true } },
     // v1.6.1: this key and the knob-TONE_TRACK tip title now carry the SAME
     // French, the glossary root "Suivi de timbre". v1.6.0 shipped the shorter
     // "Suivi tonal" here and defended it at "97 px in an 88 px knob cell";
@@ -524,13 +524,13 @@ export const LABELS = Object.freeze({
     // box [671, 819], 28.02 px clear on each side. The keys still stay separate
     // (the reuse rule is an allowance, not an obligation): one is a 9.5 px
     // caption in a fixed column, the other is prose in a 230 px tip.
-    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi de timbre', reviewed: false } },
+    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi de timbre', reviewed: true } },
     // NOT knob-OUTPUT_GAIN, whose title is "Output Gain": this caption is the
     // bare word, under an OUTPUT group heading that already says the rest.
-    'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: false, sameAsEn: true } },
+    'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: true, sameAsEn: true } },
 
     'label.footer':      { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
-                           fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: false } },
+                           fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -538,18 +538,18 @@ export const LABELS = Object.freeze({
     // name is the same failure as a French page with an English caption. These
     // have no rendered box, so none of them is a geometry risk.
     'aria.langSelect':   { en: { t: 'Interface language' },
-                           fr: { t: 'Langue de l’interface', reviewed: false } },
+                           fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
-    'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: false } },
-    'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: false } },
-    'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: false } },
-    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchro', reviewed: false } },
-    'aria.stopTime':     { en: { t: 'Stop Time' },        fr: { t: 'Durée d’arrêt',        reviewed: false } },
-    'aria.startTime':    { en: { t: 'Start Time' },       fr: { t: 'Durée de démarrage',   reviewed: false } },
+                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true } },
+    'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true } },
+    'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: true } },
+    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchro', reviewed: true } },
+    'aria.stopTime':     { en: { t: 'Stop Time' },        fr: { t: 'Durée d’arrêt',        reviewed: true } },
+    'aria.startTime':    { en: { t: 'Start Time' },       fr: { t: 'Durée de démarrage',   reviewed: true } },
     'aria.envCanvas':    { en: { t: 'Scratch speed envelope' },
-                           fr: { t: 'Enveloppe de vitesse du scratch', reviewed: false } },
-    'aria.envLength':    { en: { t: 'Env Length' },       fr: { t: 'Durée d’enveloppe',    reviewed: false } },
+                           fr: { t: 'Enveloppe de vitesse du scratch', reviewed: true } },
+    'aria.envLength':    { en: { t: 'Env Length' },       fr: { t: 'Durée d’enveloppe',    reviewed: true } },
 });
 
 // ============================================================================

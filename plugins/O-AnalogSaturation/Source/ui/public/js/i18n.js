@@ -153,7 +153,7 @@ export const I18N = Object.freeze({
               b: 'Opens the panel holding the interface language. That is all it holds here — there is no hover-help switch and no other preference. The choice is saved with the session, so a project reopens in the language it was saved in.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau qui contient la langue de l’interface. C’est tout ce qu’il contient ici : ni interrupteur d’aide au survol, ni autre préférence. Le choix est enregistré avec la session, donc un projet se rouvre dans la langue où il a été enregistré.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The last sentence is not decoration: it is the page telling the user why
@@ -164,7 +164,7 @@ export const I18N = Object.freeze({
               b: 'The language of this page’s labels and of this hover help. English and French are available. The model and quality buttons keep their English names on purpose, so the page and the host’s automation lane name the same setting the same way.' },
         fr: { t: 'Langue',
               b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les boutons de modèle et de qualité gardent leur nom anglais à dessein, afin que la page et la voie d’automation de l’hôte désignent le même réglage de la même façon.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The four parameters ─────────────────────────────────────────────────
@@ -180,7 +180,7 @@ export const I18N = Object.freeze({
               b: 'Sets the input drive into the selected model and, with it, how much of the saturated signal is mixed back over the clean one. Low values add a gentle harmonic warmth; high values round the peaks and thicken the tone. 0 to 100 %.' },
         fr: { t: 'Intensité',
               b: 'Règle le gain d’entrée dans le modèle choisi et, du même geste, la proportion de signal saturé remélangée au signal direct. Les valeurs basses ajoutent une chaleur harmonique discrète ; les valeurs hautes arrondissent les crêtes et épaississent le timbre. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // MODEL — AudioParameterChoice, 4 options (PluginProcessor.cpp:50).
@@ -196,7 +196,7 @@ export const I18N = Object.freeze({
               b: 'Chooses the saturation circuit. MAGNETIC models tape hysteresis, with a low head bump and softened highs; TUBE clips asymmetrically for even harmonics and a presence lift; TRANSFORMER is a soft tanh curve with low-end weight and top-end sheen; DIODE clips symmetrically for a harder, odd-harmonic edge. Four settings: MAGNETIC, TUBE, TRANSFORMER, DIODE.' },
         fr: { t: 'Modèle',
               b: 'Choisit le circuit de saturation. MAGNETIC modélise l’hystérésis de la bande, avec une bosse dans le grave et des aigus adoucis ; TUBE écrête de façon asymétrique, pour des harmoniques paires et un relèvement de présence ; TRANSFORMER est une courbe tanh douce, avec du poids dans le grave et de l’éclat dans l’aigu ; DIODE écrête symétriquement, pour un mordant plus dur, riche en harmoniques impaires. Quatre réglages : MAGNETIC, TUBE, TRANSFORMER, DIODE.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // QUALITY — AudioParameterChoice, 3 options (PluginProcessor.cpp:58).
@@ -210,7 +210,7 @@ export const I18N = Object.freeze({
               b: 'Sets the internal oversampling that keeps the saturation from folding aliasing back down into the audible band. LOW runs at the host’s own rate and adds no latency; MID oversamples 2x and HIGH 4x, each reporting its filter latency to the host for compensation. LOW, MID or HIGH.' },
         fr: { t: 'Qualité',
               b: 'Règle le suréchantillonnage interne qui empêche la saturation de rabattre du repliement de spectre dans la bande audible. LOW travaille à la fréquence d’échantillonnage de l’hôte et n’ajoute aucune latence ; MID suréchantillonne 2x et HIGH 4x, chacun signalant sa latence de filtre à l’hôte pour compensation. LOW, MID ou HIGH.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // AUTOGAIN — AudioParameterBool, default false (PluginProcessor.cpp:63-67).
@@ -223,7 +223,7 @@ export const I18N = Object.freeze({
               b: 'Matches the output level back to the input level, so a change of intensity or of model is judged on tone rather than on loudness. It follows the signal’s RMS on a smoothed ramp and is bounded to a factor of 0.1 to 10, so it lifts a quiet passage without running away. Off or On.' },
         fr: { t: 'Gain auto',
               b: 'Ramène le niveau de sortie au niveau d’entrée, pour qu’un changement d’intensité ou de modèle se juge au timbre plutôt qu’au volume. Il suit la valeur efficace du signal sur une rampe lissée et reste borné à un facteur de 0,1 à 10, de sorte qu’il relève un passage de faible niveau sans s’emballer. Désactivé ou activé.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -273,22 +273,22 @@ export const LABELS = Object.freeze({
     // Full words rather than the ENT/SORT abbreviations: .vu-label is centred
     // by transform inside a 90 px face with nothing beside it, so the extra
     // characters cost nothing and the meaning is not left to be guessed.
-    'label.in':  { en: { t: 'IN' },  fr: { t: 'ENTRÉE', reviewed: false } },
-    'label.out': { en: { t: 'OUT' }, fr: { t: 'SORTIE', reviewed: false } },
+    'label.in':  { en: { t: 'IN' },  fr: { t: 'ENTRÉE', reviewed: true } },
+    'label.out': { en: { t: 'OUT' }, fr: { t: 'SORTIE', reviewed: true } },
 
     // ── The intensity knob ──────────────────────────────────────────────────
     // The caption under the knob, NOT a readout: this node never holds a
     // number. The knob has no numeric readout at all on this page — the value
     // is shown by the indicator dot and by the snake's opacity — so there is no
     // readout/label node to split (contract §5).
-    'label.intensity': { en: { t: 'INTENSITY' }, fr: { t: 'INTENSITÉ', reviewed: false } },
+    'label.intensity': { en: { t: 'INTENSITY' }, fr: { t: 'INTENSITÉ', reviewed: true } },
 
     // ── The quality section heading ─────────────────────────────────────────
     // The heading localizes; the three BUTTONS under it do not. The heading is
     // this page's own caption for the group, and "Quality" is the
     // AudioParameterChoice's DISPLAY NAME rather than one of its option
     // strings, so nothing in the host automation lane is spelled "QUALITY".
-    'label.quality': { en: { t: 'QUALITY' }, fr: { t: 'QUALITÉ', reviewed: false } },
+    'label.quality': { en: { t: 'QUALITY' }, fr: { t: 'QUALITÉ', reviewed: true } },
 
     // ── The auto-gain toggle ────────────────────────────────────────────────
     // AUTOGAIN is the APVTS parameter ID, not a choice option — the parameter
@@ -296,22 +296,22 @@ export const LABELS = Object.freeze({
     // (PluginProcessor.cpp:63-67). A bool has no option strings, so there is no
     // automation-lane string for a French caption to disagree with, and arm 1
     // of D-01 does not apply. GAIN AUTO is the standard French word order.
-    'label.autogain': { en: { t: 'AUTOGAIN' }, fr: { t: 'GAIN AUTO', reviewed: false } },
+    'label.autogain': { en: { t: 'AUTOGAIN' }, fr: { t: 'GAIN AUTO', reviewed: true } },
 
     // ── The settings popover (v1.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria / data-i18n-alt, so a
     // screen reader hears the same language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 
     // The decorative plate behind the knob. Its alt text was the page's only
     // prose-bearing attribute at v1.1.6 and was unkeyed; it is keyed here
     // rather than emptied, because the illustration changes with the model and
     // a blind user is entitled to know something is there.
-    'alt.snake': { en: { t: 'Snake illustration' }, fr: { t: 'Illustration de serpent', reviewed: false } },
+    'alt.snake': { en: { t: 'Snake illustration' }, fr: { t: 'Illustration de serpent', reviewed: true } },
 });
 
 // ============================================================================

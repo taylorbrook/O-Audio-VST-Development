@@ -199,7 +199,7 @@ export const I18N = Object.freeze({
               b: "Generate synthesises texture from the model alone, with no audio input at all. Transform will reshape incoming audio through the same model and is not implemented yet, which is why its button is disabled. Generate or Transform." },
         fr: { t: "Mode",
               b: "Generate synthétise la texture à partir du seul modèle, sans aucune entrée audio. Transform remodèlera l’audio entrant par le même modèle mais n’est pas encore implémenté, d’où son bouton désactivé. Generate ou Transform.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The XY pad: TWO parameters, ONE control ─────────────────────────────
@@ -221,7 +221,7 @@ export const I18N = Object.freeze({
               b: "Drag the dot to move through the model's latent space: left to right is X, bottom to top is Y. They are the two most active dimensions the training run found, so this is where the texture changes most, and X also carries the stereo spread between the two channels. Neither axis is a named control — what you hear is whatever the model learned there — and both run 0.000 to 1.000." },
         fr: { t: "Pad XY",
               b: "Faites glisser le point pour parcourir l’espace latent du modèle : de gauche à droite pour X, de bas en haut pour Y. Ce sont les deux dimensions les plus actives trouvées à l’entraînement, donc c’est là que la texture change le plus, et X porte aussi l’étalement stéréo entre les deux canaux. Aucun des deux axes n’est un réglage nommé — ce que vous entendez est ce que le modèle a appris à cet endroit — et tous deux vont de 0,000 à 1,000.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The three vertical sliders ──────────────────────────────────────────
@@ -233,7 +233,7 @@ export const I18N = Object.freeze({
               b: "The third dimension of the latent space, kept off the pad so that a texture found there can be varied without moving off it. It carries less of the model's variance than X or Y, so the same travel is a smaller change than either. 0.00 to 1.00." },
         fr: { t: "Caractère A",
               b: "La troisième dimension de l’espace latent, tenue à l’écart du pad pour qu’une texture trouvée dessus puisse varier sans quitter sa position. Elle porte moins de variance du modèle que X ou Y : la même course produit donc un changement plus fin que sur l’un ou l’autre. De 0,00 à 1,00.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // CHARACTER_B is dimension 3, variance 0.7 — the least active of the four.
@@ -242,7 +242,7 @@ export const I18N = Object.freeze({
               b: "The fourth latent dimension, and the least active of the four this plugin exposes. Reach for it last, once the pad and Character A have found the texture, when the move you want is the smallest of the four. 0.00 to 1.00." },
         fr: { t: "Caractère B",
               b: "La quatrième dimension latente, et la moins active des quatre dimensions proposées ici. Utilisez-la en dernier, une fois la texture trouvée avec le pad et Caractère A, quand le déplacement voulu est le plus fin des quatre. De 0,00 à 1,00. De 0,00 à 1,00.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // EVOLVE drives a 1-D Perlin walk over the eight REMAINING active latent
@@ -256,7 +256,7 @@ export const I18N = Object.freeze({
               b: "How fast the texture drifts on its own: a smooth random walk across eight further latent dimensions, taking one step per 2048-sample block. The response is squared, so all of the slow, usable movement sits in the lower half of the range. 0.00, which is perfectly still, to 1.00." },
         fr: { t: "Évolution",
               b: "La vitesse à laquelle la texture dérive d’elle-même : une marche aléatoire lissée sur huit autres dimensions latentes, à raison d’un pas par bloc de 2048 échantillons. La réponse est mise au carré, donc tout le mouvement lent et utilisable se trouve dans la moitié basse de la course. De 0,00, parfaitement immobile, à 1,00.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The source row ──────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ export const I18N = Object.freeze({
               b: "Chooses which trained texture model the generator decodes from. Only Rain has a model today — the other five buttons stay disabled until theirs are trained, and pressing one does nothing. Rain, Metal, Wind, Crowd, Synth, Organic." },
         fr: { t: "Source",
               b: "Choisit le modèle de texture entraîné dont le générateur décode le son. Seul Rain dispose d’un modèle aujourd’hui : les cinq autres boutons restent désactivés tant que le leur n’est pas entraîné, et les presser ne fait rien. Rain, Metal, Wind, Crowd, Synth, Organic.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The bottom strip ────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ export const I18N = Object.freeze({
               b: "A tilt filter pivoting at 800 Hz, applied after the decoder: turn it up and the top of the spectrum lifts while the bottom drops away, turn it down and the two swap places. It is the only tone control in the plugin, and at 0.00 it is bypassed outright rather than merely flat. −1.00 to +1.00." },
         fr: { t: "Brillance",
               b: "Un filtre en bascule pivotant à 800 Hz, appliqué après le décodeur : vers le haut, les aigus montent pendant que les graves reculent ; vers le bas, les deux s’inversent. C’est la seule correction tonale du plugin, et à 0,00 elle est réellement contournée et pas seulement plate. De −1,00 à +1,00.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // MIX is a LEVEL, not a blend, and the tooltip says so. processBlock ends
@@ -300,7 +300,7 @@ export const I18N = Object.freeze({
               b: "The output level of the generated texture. Generate mode has no input signal to balance against, so this is a straight fade from silence up to full rather than a dry/wet control. 0.00 to 1.00." },
         fr: { t: "Mix",
               b: "Le niveau de sortie de la texture générée. Le mode Generate n’a aucun signal d’entrée à doser, il s’agit donc d’un simple fondu du silence au plein niveau et non d’un équilibre entre son direct et son traité. De 0,00 à 1,00.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // FREEZE — AudioParameterBool. PerlinNoise1D::advance returns immediately
@@ -313,7 +313,7 @@ export const I18N = Object.freeze({
               b: "Holds the Evolve walk exactly where it stands, so the texture stops drifting and stays as it is. Everything else still responds while it is on — the pad, both Character sliders, Brightness and Mix all keep working. Off or On." },
         fr: { t: "Gel",
               b: "Fige la marche d’Évolution exactement où elle en est : la texture cesse de dériver et reste telle quelle. Tout le reste répond encore tant que le gel est actif — le pad, les deux curseurs de Caractère, Brillance et Mix continuent de fonctionner. Désactivé ou activé.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -334,14 +334,14 @@ export const I18N = Object.freeze({
               b: "Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help switch with it, and the choice is saved with the project, so a session reopens in the language it was saved in." },
         fr: { t: "Réglages",
               b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est enregistré avec le projet — une session se rouvre donc dans la langue enregistrée.",
-              reviewed: false },
+              reviewed: true },
     },
     'tip.langSelect': {
         en: { t: "Language",
               b: "The language of the captions on this page and of this hover help. English and French are available. The value readouts, the six source names and the two mode names stay in English so that the page and the host's automation lane agree about the same setting." },
         fr: { t: "Langue",
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées, les six noms de sources et les deux noms de modes restent en anglais pour que la page et la voie d’automation de l’hôte s’accordent sur un même réglage.",
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -422,20 +422,20 @@ export const LABELS = Object.freeze({
     // of margin — thinner than any margin this rollout has accepted, and the
     // Windows/WebView2 font metrics that would decide it are the named
     // hardware-blocked deferral. "Car. A" is 33.4 px with 16.6 px to spare.
-    'label.charA':  { en: { t: 'Char A' }, fr: { t: 'Car. A', reviewed: false } },
-    'label.charB':  { en: { t: 'Char B' }, fr: { t: 'Car. B', reviewed: false } },
+    'label.charA':  { en: { t: 'Char A' }, fr: { t: 'Car. A', reviewed: true } },
+    'label.charB':  { en: { t: 'Char B' }, fr: { t: 'Car. B', reviewed: true } },
 
     // Same 50 px budget, and the single-word case. MEASURED: "Évolution" is
     // 52.5 px and is ONE WORD, so it cannot wrap — it overhangs the 50 px
     // column into the 8 px gap beside it. "Évolue" fits at 36.7 px but is a
     // conjugated verb where the two neighbours are noun abbreviations.
     // "Évol." is 27.5 px and matches their shape.
-    'label.evolve': { en: { t: 'Evolve' }, fr: { t: 'Évol.', reviewed: false } },
+    'label.evolve': { en: { t: 'Evolve' }, fr: { t: 'Évol.', reviewed: true } },
 
     // ── The two knobs ───────────────────────────────────────────────────────
     // Captions, NOT readouts: .knob-value is a separate sibling node and is the
     // only thing that ever holds a number here (D-01 arm 3, contract 5).
-    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: false } },
+    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true } },
 
     // MIX is the APVTS parameter ID and "Mix" its display name, not a choice
     // option — an AudioParameterFloat has no option strings for a French
@@ -447,22 +447,22 @@ export const LABELS = Object.freeze({
     // straight copy is deliberate, so it carries sameAsEn: true for
     // check-i18n assertion 4; it is also the only French caption on this page
     // that now agrees byte-for-byte with the host's automation lane.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: false, sameAsEn: true } },
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
 
     // FREEZE is an AudioParameterBool. Same reasoning as MIX: no option
     // strings, so nothing in the host is spelled "Freeze" for this to contradict.
     // .freeze-label is text-transform: uppercase, so the table holds the
     // authored case and the page renders GEL.
-    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Gel', reviewed: false } },
+    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Gel', reviewed: true } },
 
     // ── The settings popover (v0.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the same language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 
     // ── The six not-yet-implemented controls ────────────────────────────────
     //
@@ -477,12 +477,12 @@ export const LABELS = Object.freeze({
     // The identifier half stays byte-identical in French for the same reason
     // the visible caption does — it is a SOURCE / MODE choice option (D-01
     // arm 1). Only the status half is translated.
-    'aria.soon.transform': { en: { t: 'Transform — coming soon' }, fr: { t: 'Transform — bientôt disponible', reviewed: false } },
-    'aria.soon.metal':     { en: { t: 'Metal — coming soon' },     fr: { t: 'Metal — bientôt disponible',     reviewed: false } },
-    'aria.soon.wind':      { en: { t: 'Wind — coming soon' },      fr: { t: 'Wind — bientôt disponible',      reviewed: false } },
-    'aria.soon.crowd':     { en: { t: 'Crowd — coming soon' },     fr: { t: 'Crowd — bientôt disponible',     reviewed: false } },
-    'aria.soon.synth':     { en: { t: 'Synth — coming soon' },     fr: { t: 'Synth — bientôt disponible',     reviewed: false } },
-    'aria.soon.organic':   { en: { t: 'Organic — coming soon' },   fr: { t: 'Organic — bientôt disponible',   reviewed: false } },
+    'aria.soon.transform': { en: { t: 'Transform — coming soon' }, fr: { t: 'Transform — bientôt disponible', reviewed: true } },
+    'aria.soon.metal':     { en: { t: 'Metal — coming soon' },     fr: { t: 'Metal — bientôt disponible',     reviewed: true } },
+    'aria.soon.wind':      { en: { t: 'Wind — coming soon' },      fr: { t: 'Wind — bientôt disponible',      reviewed: true } },
+    'aria.soon.crowd':     { en: { t: 'Crowd — coming soon' },     fr: { t: 'Crowd — bientôt disponible',     reviewed: true } },
+    'aria.soon.synth':     { en: { t: 'Synth — coming soon' },     fr: { t: 'Synth — bientôt disponible',     reviewed: true } },
+    'aria.soon.organic':   { en: { t: 'Organic — coming soon' },   fr: { t: 'Organic — bientôt disponible',   reviewed: true } },
 });
 
 // ============================================================================

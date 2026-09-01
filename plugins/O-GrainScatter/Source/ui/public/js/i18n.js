@@ -231,7 +231,7 @@ export const I18N = Object.freeze({
               b: 'Règle la longueur de chaque grain lu par le moteur. Les grains courts donnent '
                + 'une texture ou un bourdonnement ; les longs conservent assez de la source pour '
                + 'rester reconnaissables. Plage de 10 à 500 ms.',
-              reviewed: false,
+              reviewed: true,
               termNote: 'width, measured on this page at the shipping 900x800 frame: the glossary '
                          + 'roots taille de grain (76.94 px nowrap) and taille grain (62.28 px) '
                          + 'BOTH wrap to two 8.80 px lines inside .knob-name’s 18.00 px content '
@@ -252,7 +252,7 @@ export const I18N = Object.freeze({
                + 'selon une courbe exponentielle : 1 % donne environ un grain par seconde, 50 % '
                + 'environ dix, 100 % environ cent. Les valeurs élevées épaississent le nuage '
                + 'jusqu’au son continu. Plage de 1 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.scan': {
@@ -266,7 +266,7 @@ export const I18N = Object.freeze({
                + 'd’audio conservées en mémoire : les grains sont alors prélevés plus en arrière '
                + 'plutôt que sur l’entrée la plus récente. C’est la commande à utiliser une '
                + 'fois Geler activé. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.spread': {
@@ -278,7 +278,7 @@ export const I18N = Object.freeze({
               b: 'Disperse la position de lecture de chaque grain autour du point de balayage, '
                + 'jusqu’à une longueur de grain au maximum. Une faible valeur estompe '
                + 'l’attaque ; une valeur élevée dissout la source en nuage. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.reverse': {
@@ -290,7 +290,7 @@ export const I18N = Object.freeze({
               b: 'Détermine la probabilité qu’un grain donné soit lu à l’envers. C’est une '
                + 'probabilité et non un commutateur : les réglages intermédiaires mêlent des '
                + 'grains à l’endroit et à l’envers dans le même nuage. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.feedback': {
@@ -303,7 +303,7 @@ export const I18N = Object.freeze({
                + 'grains se regranulent alors en traînes plus longues. Le trajet est saturé par '
                + 'tanh et limité en gain : il réchauffe donc au lieu de s’emballer. Plage de 0 à '
                + '100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.dryWet': {
@@ -313,7 +313,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Sec/Effet',
               b: 'Équilibre l’entrée non traitée et la sortie granulée. À 0 % seul le signal sec '
                + 'passe ; à 100 % on n’entend que les grains. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.sizeRnd': {
@@ -325,7 +325,7 @@ export const I18N = Object.freeze({
               b: 'L’aléa de taille fait varier la longueur de chaque grain, jusqu’au double de '
                + 'la valeur de Taille au réglage maximal. Cela casse la hauteur métallique '
                + 'qu’engendre une longueur de grain constante. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.ampRnd': {
@@ -337,7 +337,7 @@ export const I18N = Object.freeze({
               b: 'L’aléa d’amplitude fait varier le niveau de chaque grain, jusqu’à l’atténuer '
                + 'complètement. De faibles valeurs font respirer un nuage mécanique ; de fortes '
                + 'valeurs l’éclaircissent. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.shape': {
@@ -353,7 +353,7 @@ export const I18N = Object.freeze({
                + 'douces, Trapezoid garde un plateau et Exp Decay donne à chaque grain une '
                + 'attaque pincée. Six formes : Hann, Triangle, Trapezoid, Tukey, Blackman, '
                + 'Exp Decay.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Pitch & Scale ───────────────────────────────────────────────────────
@@ -369,7 +369,7 @@ export const I18N = Object.freeze({
                + 'grain par rapport à la hauteur d’origine, quantifiée sur Gamme et '
                + 'Fondamentale. À 0 % la fonction est inactive et les commandes Gamme, '
                + 'Fondamentale et Mode hauteur sont estompées avec elle. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.panRnd': {
@@ -381,7 +381,7 @@ export const I18N = Object.freeze({
               b: 'L’aléa de panoramique disperse chaque grain dans l’image stéréo au lieu de '
                + 'laisser tout le nuage au centre. Ne s’applique qu’au trajet stéréo et reste '
                + 'sans effet lorsque l’Audio spatial est engagé. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.scale': {
@@ -394,7 +394,7 @@ export const I18N = Object.freeze({
                + 'dispersé reste alors dans la tonalité au lieu de dériver. Sans effet tant que '
                + 'le réglage Alé. haut. reste à zéro. Cinq gammes : Chromatic, Major, Minor, '
                + 'Pentatonic, Whole Tone.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.rootNote': {
@@ -406,7 +406,7 @@ export const I18N = Object.freeze({
               b: 'Définit la tonique sur laquelle la Gamme choisie est construite, afin que les '
                + 'grains quantifiés tombent dans la tonalité du morceau. Sans effet tant que le '
                + 'réglage Alé. haut. reste à zéro. Douze demi-tons, de C à B.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.pitchMode': {
@@ -421,7 +421,7 @@ export const I18N = Object.freeze({
                + 'en faisant l’aller-retour entre les deux. Ladder et Pendulum donnent un arpège '
                + 'là où Random donne un nuage. Quatre modes : Random, Ladder Up, Ladder Down, '
                + 'Pendulum.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Beat Sync ───────────────────────────────────────────────────────────
@@ -437,7 +437,7 @@ export const I18N = Object.freeze({
                + 'sur le tempo de l’hôte selon une division musicale. Probabilité, Répét., '
                + 'Porte bég. et tout le groupe Rythme euclidien ne s’appliquent qu’une fois la '
                + 'division choisie. Sept réglages : Free, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.probability': {
@@ -449,7 +449,7 @@ export const I18N = Object.freeze({
               b: 'Détermine la probabilité qu’un déclenchement prévu produise réellement un '
                + 'grain, ce qui éclaircit un motif régulier en motif irrégulier. À 100 % chaque '
                + 'déclenchement se produit. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.repeats': {
@@ -462,7 +462,7 @@ export const I18N = Object.freeze({
                + 'déclenchement, espacés d’une subdivision, ce qui transforme une frappe en '
                + 'bégaiement. Ne s’applique qu’aux modes synchronisés au tempo. '
                + 'Plage de 1 à 16 grains.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.stutterGate': {
@@ -475,7 +475,7 @@ export const I18N = Object.freeze({
                + 'de répétitions : le bégaiement remplace alors la source au lieu de s’y '
                + 'superposer. Nécessite un Mode synchro verrouillé au tempo et un réglage '
                + 'Répét. supérieur à un. Désactivé ou activé.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Freeze ──────────────────────────────────────────────────────────────
@@ -489,7 +489,7 @@ export const I18N = Object.freeze({
               b: 'Capture les deux dernières secondes d’entrée et les maintient : le moteur '
                + 'continue de granuler cet instantané pendant que l’audio en direct défile. '
                + 'Utiliser Balayage pour parcourir ce qui a été capturé. Désactivé ou activé.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Euclidean Rhythm ────────────────────────────────────────────────────
@@ -504,7 +504,7 @@ export const I18N = Object.freeze({
                + 'régulièrement que possible sur ses pas. Peu d’impulsions dans beaucoup de pas '
                + 'donnent les figures clairsemées et décalées propres à cet algorithme. '
                + 'Plage de 1 à 16 impulsions.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.steps': {
@@ -517,7 +517,7 @@ export const I18N = Object.freeze({
                + 'lequel les impulsions sont réparties. C’est lorsque le nombre de pas n’est pas '
                + 'un multiple du nombre d’impulsions que les motifs deviennent intéressants. '
                + 'Plage de 2 à 16 pas.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.rotation': {
@@ -529,7 +529,7 @@ export const I18N = Object.freeze({
               b: 'Fait tourner le motif euclidien sur lui-même : la première impulsion change de '
                + 'place sans que les impulsions elles-mêmes changent. C’est le moyen le plus '
                + 'rapide de décaler une figure hors du temps fort. Plage de 0 à 15 pas.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The 50-75 % range is not a coincidence of the readout: swingRatio is
@@ -543,7 +543,7 @@ export const I18N = Object.freeze({
               b: 'Retarde chaque division à contretemps, ce qui fait tomber le motif en shuffle '
                + 'plutôt qu’en binaire. 50 % est binaire et 75 % repousse le contretemps d’une '
                + 'demi-subdivision complète. Plage de 50 à 75 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Spatial Audio ───────────────────────────────────────────────────────
@@ -560,7 +560,7 @@ export const I18N = Object.freeze({
                + 'l’intérieur de l’étalement ; Trajectory les déplace plutôt le long d’un '
                + 'parcours, ce qui donne vie aux quatre dernières commandes de cette rangée. '
                + 'Trois modes : Off, Scatter, Trajectory.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.azimuth': {
@@ -572,7 +572,7 @@ export const I18N = Object.freeze({
               b: 'Définit la direction horizontale autour de laquelle le nuage de grains est '
                + 'centré, mesurée dans le sens horaire autour de l’auditeur. Étal. az. disperse '
                + 'ensuite les grains de part et d’autre. Plage de 0 à 360°.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.elevation': {
@@ -584,7 +584,7 @@ export const I18N = Object.freeze({
               b: 'Définit la hauteur autour de laquelle le nuage de grains est centré, de la '
                + 'verticale sous l’auditeur à la verticale au-dessus. Étal. él. disperse '
                + 'ensuite les grains de part et d’autre. Plage de −90 à +90°.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.azSpread': {
@@ -597,7 +597,7 @@ export const I18N = Object.freeze({
                + 'sont dispersés horizontalement, autour du centre défini par Azimut. Largeur '
                + 'met cet étalement et l’étalement vertical à l’échelle ensemble. Plage de 0 à '
                + '360°.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.elSpread': {
@@ -610,7 +610,7 @@ export const I18N = Object.freeze({
                + 'sont dispersés verticalement, autour du centre défini par Élévation. Largeur '
                + 'met cet étalement et l’étalement horizontal à l’échelle ensemble. Plage de 0 '
                + 'à 180°.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.distance': {
@@ -622,7 +622,7 @@ export const I18N = Object.freeze({
               b: 'Place le nuage de grains plus près ou plus loin de l’auditeur. À utiliser pour '
                + 'reculer une texture derrière le mixage plutôt que d’en baisser le niveau ; avec '
                + 'PB dist. relevé, elle s’assombrit aussi en s’éloignant. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.width': {
@@ -634,7 +634,7 @@ export const I18N = Object.freeze({
               b: 'La largeur spatiale met les deux arcs d’étalement à l’échelle en même temps : '
                + 'à 0 % le nuage se referme sur le centre défini par Azimut et Élévation, '
                + 'à 100 % il s’ouvre à l’étalement complet. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.trajectory': {
@@ -646,7 +646,7 @@ export const I18N = Object.freeze({
               b: 'Choisit le parcours suivi par les grains pendant qu’ils sonnent, une fois Mode '
                + 'réglé sur Trajectory. Orbital tourne autour de l’auditeur, Spiral monte en '
                + 'tournant et Random dérive. Quatre parcours : Static, Orbital, Spiral, Random.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.trajSpeed': {
@@ -658,7 +658,7 @@ export const I18N = Object.freeze({
               b: 'La vitesse de trajectoire met à l’échelle la rapidité de déplacement des '
                + 'grains le long du parcours choisi, de l’immobilité à quatre fois la vitesse de '
                + 'base. À monter avec Doppler pour un passage audible. Plage de 0 à 400 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // 20 kHz down to 5 kHz is the actual coefficient, from
@@ -672,7 +672,7 @@ export const I18N = Object.freeze({
               b: 'Le passe-bas de distance détermine dans quelle mesure Distance assombrit le '
                + 'nuage, en dosant un filtre qui se referme de 20 kHz à 5 kHz à distance '
                + 'maximale. À 0 % un nuage éloigné reste brillant. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.doppler': {
@@ -685,7 +685,7 @@ export const I18N = Object.freeze({
                + 'sirène qui passe, dont le son monte puis redescend. Ne se manifeste que si '
                + 'les grains bougent réellement : il faut donc une Trajectoire et un peu de Vit. '
                + 'traj. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.smoothing': {
@@ -700,7 +700,7 @@ export const I18N = Object.freeze({
                + 'lieu de les faire sauter. Les valeurs courtes suivent une trajectoire rapide ; '
                + 'les longues suppriment le crépitement d’un saut de position. '
                + 'Plage de 1 à 200 ms.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
@@ -715,7 +715,7 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel. It holds the interface language and nothing else.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages. Il ne contient que la langue de l’interface.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The endonyms are quoted as the selector spells them — a language name is
@@ -729,7 +729,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la langue du texte de l’interface et de cette aide contextuelle. Les '
                + 'noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
                + 'affichées restent en anglais. English ou Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -744,7 +744,7 @@ export const LABELS = Object.freeze({
     // ── Header ──────────────────────────────────────────────────────────────
     // The <h1> is the product name and is NOT keyed — see I18N_EXEMPT.
     'label.tagline':       { en: { t: 'Harmonic Stutter Engine' },
-                             fr: { t: 'Moteur de bégaiement harmonique', reviewed: false } },
+                             fr: { t: 'Moteur de bégaiement harmonique', reviewed: true } },
 
     // ── Visualisation panel captions ────────────────────────────────────────
     // Both are position:absolute inside their .viz-panel, so neither can push
@@ -752,29 +752,29 @@ export const LABELS = Object.freeze({
     // NOT the product name: "O-GrainScatter" is one token and is exempt, while
     // this is a description of what the panel draws.
     'label.vizGrain':      { en: { t: 'Grain Scatter' },
-                             fr: { t: 'Dispersion de grains', reviewed: false } },   // 84.67 -> 126.45
+                             fr: { t: 'Dispersion de grains', reviewed: true } },   // 84.67 -> 126.45
     'label.vizEuclidean':  { en: { t: 'Euclidean' },
-                             fr: { t: 'Euclidien', reviewed: false } },              // 61.97 -> 59.44  SHRANK
+                             fr: { t: 'Euclidien', reviewed: true } },              // 61.97 -> 59.44  SHRANK
 
     // ── Freeze toggle ───────────────────────────────────────────────────────
     // Alone in a full-width, centre-justified .freeze-bar, so its own box is
     // the only thing that changes and it is a [data-i18n] element. No pin.
     'label.freeze':        { en: { t: 'Freeze' },
-                             fr: { t: 'Geler', reviewed: false } },                  // 71.67 -> 66.72 border box  SHRANK
+                             fr: { t: 'Geler', reviewed: true } },                  // 71.67 -> 66.72 border box  SHRANK
 
     // ── Group headings ──────────────────────────────────────────────────────
     // Every .group-label is a full-width block, so its rectangle is
     // language-invariant by construction and none of these can move anything.
     'label.coreEngine':      { en: { t: 'Core Engine' },
-                               fr: { t: 'Moteur principal', reviewed: false } },
+                               fr: { t: 'Moteur principal', reviewed: true } },
     'label.pitchScale':      { en: { t: 'Pitch & Scale' },
-                               fr: { t: 'Hauteur et gamme', reviewed: false } },
+                               fr: { t: 'Hauteur et gamme', reviewed: true } },
     'label.beatSync':        { en: { t: 'Beat Sync' },
-                               fr: { t: 'Synchro rythmique', reviewed: false } },
+                               fr: { t: 'Synchro rythmique', reviewed: true } },
     'label.euclideanRhythm': { en: { t: 'Euclidean Rhythm' },
-                               fr: { t: 'Rythme euclidien', reviewed: false } },
+                               fr: { t: 'Rythme euclidien', reviewed: true } },
     'label.spatialAudio':    { en: { t: 'Spatial Audio' },
-                               fr: { t: 'Audio spatial', reviewed: false } },
+                               fr: { t: 'Audio spatial', reviewed: true } },
 
     // ── Core Engine ─────────────────────────────────────────────────────────
     // "Taille" rather than the glossary's "Taille de grain" / "Taille grain",
@@ -786,7 +786,7 @@ export const LABELS = Object.freeze({
     // caption is already the bare word "Shape". Carried as the termNote on the
     // entry, with the numbers, so the glossary can grow an abbreviation.
     'label.grainSize':     { en: { t: 'Grain Size' },
-                             fr: { t: 'Taille', reviewed: false,
+                             fr: { t: 'Taille', reviewed: true,
                                    termNote: 'width, measured on this page at the shipping '
                                             + '900x800 frame: the glossary roots taille de grain '
                                             + '(76.94 px nowrap) and taille grain (62.28 px) BOTH '
@@ -797,13 +797,13 @@ export const LABELS = Object.freeze({
                                             + 'Taille is 31.33 px on one line and the tip body '
                                             + 'names the control in full.' } },   // 50.61 -> 31.33  SHRANK
     'label.density':       { en: { t: 'Density' },
-                             fr: { t: 'Densité', reviewed: false } },                // 38.34 -> 38.64
+                             fr: { t: 'Densité', reviewed: true } },                // 38.34 -> 38.64
     'label.scan':          { en: { t: 'Scan' },
-                             fr: { t: 'Balayage', reviewed: false } },               // 23.14 -> 46.11
+                             fr: { t: 'Balayage', reviewed: true } },               // 23.14 -> 46.11
     'label.spread':        { en: { t: 'Spread' },
-                             fr: { t: 'Étalement', reviewed: false } },              // 34.58 -> 53.83, 8.17 under the 62 px cap
+                             fr: { t: 'Étalement', reviewed: true } },              // 34.58 -> 53.83, 8.17 under the 62 px cap
     'label.reverse':       { en: { t: 'Reverse' },
-                             fr: { t: 'Inversion', reviewed: false } },              // 40.23 -> 49.63, 12.37 under the cap
+                             fr: { t: 'Inversion', reviewed: true } },              // 40.23 -> 49.63, 12.37 under the cap
     // v2.6.1: the glossary's listed abbreviation, re-measured on this page.
     // "Réinjection" is 60.27 px in the 62.00 px .knob-container — the v2.6.0
     // pin holds — and "Réinj." is 29.39. The old note offered "Retour" as the
@@ -811,27 +811,27 @@ export const LABELS = Object.freeze({
     // The tip body opens "La réinjection renvoie…", so the root is one hover
     // away from the caption that abbreviates it.
     'label.feedback':      { en: { t: 'Feedback' },
-                             fr: { t: 'Réinj.', reviewed: false } },                 // 46.53 -> 29.39  SHRANK
+                             fr: { t: 'Réinj.', reviewed: true } },                 // 46.53 -> 29.39  SHRANK
     'label.dryWet':        { en: { t: 'Dry/Wet' },
-                             fr: { t: 'Sec/Effet', reviewed: false } },              // 41.77 -> 48.09
+                             fr: { t: 'Sec/Effet', reviewed: true } },              // 41.77 -> 48.09
     'label.sizeRnd':       { en: { t: 'Size Rnd' },
-                             fr: { t: 'Alé. taille', reviewed: false } },            // 41.33 -> 53.33
+                             fr: { t: 'Alé. taille', reviewed: true } },            // 41.33 -> 53.33
     'label.ampRnd':        { en: { t: 'Amp Rnd' },
-                             fr: { t: 'Alé. ampl.', reviewed: false } },             // 40.84 -> 49.16
+                             fr: { t: 'Alé. ampl.', reviewed: true } },             // 40.84 -> 49.16
     'label.shape':         { en: { t: 'Shape' },
-                             fr: { t: 'Forme', reviewed: false } },                  // 28.98 -> 31.52
+                             fr: { t: 'Forme', reviewed: true } },                  // 28.98 -> 31.52
 
     // ── Pitch & Scale ───────────────────────────────────────────────────────
     'label.pitchRnd':      { en: { t: 'Pitch Rnd' },
-                             fr: { t: 'Alé. haut.', reviewed: false } },             // 48.78 -> 49.56
+                             fr: { t: 'Alé. haut.', reviewed: true } },             // 48.78 -> 49.56
     'label.panRnd':        { en: { t: 'Pan Rnd' },
-                             fr: { t: 'Alé. pan', reviewed: false } },               // 39.56 -> 39.89
+                             fr: { t: 'Alé. pan', reviewed: true } },               // 39.56 -> 39.89
     'label.scale':         { en: { t: 'Scale' },
-                             fr: { t: 'Gamme', reviewed: false } },                  // 27.55 -> 33.73
+                             fr: { t: 'Gamme', reviewed: true } },                  // 27.55 -> 33.73
     'label.rootNote':      { en: { t: 'Root Note' },
-                             fr: { t: 'Fondamentale', reviewed: false } },           // 51.17 -> 73.41, 6.59 under the 80 px cap
+                             fr: { t: 'Fondamentale', reviewed: true } },           // 51.17 -> 73.41, 6.59 under the 80 px cap
     'label.pitchMode':     { en: { t: 'Pitch Mode' },
-                             fr: { t: 'Mode hauteur', reviewed: false } },           // 56.13 -> 72.30
+                             fr: { t: 'Mode hauteur', reviewed: true } },           // 56.13 -> 72.30
     // The hint NAMES a control whose caption this table also owns, so it takes
     // the caption as a {n} token rather than a second copy of the same words.
     // trLabel() resolves a token that is itself a LABELS key, so a reviewer who
@@ -839,42 +839,42 @@ export const LABELS = Object.freeze({
     // the two to drift. The markup keeps the fully-written English as its
     // render-if-applyI18n-never-runs fallback.
     'label.pitchHint':     { en: { t: 'Increase {n} to activate' },
-                             fr: { t: 'Augmenter {n} pour activer', reviewed: false } },
+                             fr: { t: 'Augmenter {n} pour activer', reviewed: true } },
 
     // ── Beat Sync ───────────────────────────────────────────────────────────
     'label.syncMode':      { en: { t: 'Sync Mode' },
-                             fr: { t: 'Mode synchro', reviewed: false } },           // 51.70 -> 71.30
+                             fr: { t: 'Mode synchro', reviewed: true } },           // 51.70 -> 71.30
     // The TIGHTEST caption on the page: 2.98 px under the 62 px cap. Kept as
     // the whole word because the ENGLISH is the same long word at 58.72 — the
     // French is 0.30 px wider than what already ships, so an abbreviation here
     // would buy nothing English does not already spend. "Probab." (37.94) is
     // the reviewer's lever if a Windows metric ever proves it necessary.
     'label.probability':   { en: { t: 'Probability' },
-                             fr: { t: 'Probabilité', reviewed: false } },            // 58.72 -> 59.02  TIGHTEST
+                             fr: { t: 'Probabilité', reviewed: true } },            // 58.72 -> 59.02  TIGHTEST
     // "Répétitions" (59.16) clears the cap by 2.84 px. Unlike PROBABILITÉ there
     // is no English precedent for spending that: "Repeats" is 39.25. The page's
     // own register already abbreviates (Size Rnd, Amp Rnd, Dist LPF, Traj Speed).
     'label.repeats':       { en: { t: 'Repeats' },
-                             fr: { t: 'Répét.', reviewed: false } },                 // 39.25 -> 31.06  SHRANK
+                             fr: { t: 'Répét.', reviewed: true } },                 // 39.25 -> 31.06  SHRANK
     // Pinned to 110px in index.html. "Porte bégaiement" (138.58 border box) is
     // 28.58 px past that pin and would have to move the pin, which would move
     // ENGLISH. "Bégaiement" (102.00) fits and is the reviewer's lever; it drops
     // the gate half of the name, which is why it is not the shipped choice.
     'label.stutterGate':   { en: { t: 'Stutter Gate' },
-                             fr: { t: 'Porte bég.', reviewed: false } },             // 109.95 -> 93.08 border box  SHRANK
+                             fr: { t: 'Porte bég.', reviewed: true } },             // 109.95 -> 93.08 border box  SHRANK
 
     // ── Euclidean Rhythm ────────────────────────────────────────────────────
     'label.pulses':        { en: { t: 'Pulses' },
-                             fr: { t: 'Impulsions', reviewed: false } },             // 32.97 -> 55.48, 6.52 under the cap
+                             fr: { t: 'Impulsions', reviewed: true } },             // 32.97 -> 55.48, 6.52 under the cap
     'label.steps':         { en: { t: 'Steps' },
-                             fr: { t: 'Pas', reviewed: false } },                    // 26.53 -> 16.23  SHRANK
+                             fr: { t: 'Pas', reviewed: true } },                    // 26.53 -> 16.23  SHRANK
     'label.rotation':      { en: { t: 'Rotation' },
-                             fr: { t: 'Rotation', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Rotation', reviewed: true, sameAsEn: true } },
     // The musical term is used untranslated in French practice, and there is no
     // French word for it that is not a paraphrase ("balancement" is 66.53 and
     // 4.53 px OVER the cap in its own right).
     'label.swing':         { en: { t: 'Swing' },
-                             fr: { t: 'Swing', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Swing', reviewed: true, sameAsEn: true } },
 
     // ── Spatial Audio ───────────────────────────────────────────────────────
     // This is the ZERO-SLACK row: its twelve controls sum to exactly 846.00 px
@@ -883,32 +883,32 @@ export const LABELS = Object.freeze({
     // not wraps SMOOTHING onto a second row, grows #spatial-group by 87 px and
     // pushes the page past its own 800 px frame.
     'label.mode':          { en: { t: 'Mode' },
-                             fr: { t: 'Mode', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Mode', reviewed: true, sameAsEn: true } },
     'label.azimuth':       { en: { t: 'Azimuth' },
-                             fr: { t: 'Azimut', reviewed: false } },                 // 41.73 -> 34.72  SHRANK
+                             fr: { t: 'Azimut', reviewed: true } },                 // 41.73 -> 34.72  SHRANK
     'label.elevation':     { en: { t: 'Elevation' },
-                             fr: { t: 'Élévation', reviewed: false } },              // 50.64 -> 50.64  IDENTICAL WIDTH
+                             fr: { t: 'Élévation', reviewed: true } },              // 50.64 -> 50.64  IDENTICAL WIDTH
     'label.azSpread':      { en: { t: 'Az Spread' },
-                             fr: { t: 'Étal. az.', reviewed: false } },              // 48.19 -> 41.30  SHRANK
+                             fr: { t: 'Étal. az.', reviewed: true } },              // 48.19 -> 41.30  SHRANK
     'label.elSpread':      { en: { t: 'El Spread' },
-                             fr: { t: 'Étal. él.', reviewed: false } },              // 48.06 -> 41.17  SHRANK
+                             fr: { t: 'Étal. él.', reviewed: true } },              // 48.06 -> 41.17  SHRANK
     'label.distance':      { en: { t: 'Distance' },
-                             fr: { t: 'Distance', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Distance', reviewed: true, sameAsEn: true } },
     'label.width':         { en: { t: 'Width' },
-                             fr: { t: 'Largeur', reviewed: false } },                // 30.89 -> 42.00
+                             fr: { t: 'Largeur', reviewed: true } },                // 30.89 -> 42.00
     // KEYED, while the spatial_mode OPTION spelled the same way is EXEMPT.
     // That is the one state assertion 14 demands a scope for, and the exempt
     // entry below carries `option`.
     'label.trajectory':    { en: { t: 'Trajectory' },
-                             fr: { t: 'Trajectoire', reviewed: false } },            // 56.88 -> 60.80
+                             fr: { t: 'Trajectoire', reviewed: true } },            // 56.88 -> 60.80
     'label.trajSpeed':     { en: { t: 'Traj Speed' },
-                             fr: { t: 'Vit. traj.', reviewed: false } },             // 52.81 -> 44.72  SHRANK
+                             fr: { t: 'Vit. traj.', reviewed: true } },             // 52.81 -> 44.72  SHRANK
     'label.distLpf':       { en: { t: 'Dist LPF' },
-                             fr: { t: 'PB dist.', reviewed: false } },               // 38.98 -> 36.75  SHRANK
+                             fr: { t: 'PB dist.', reviewed: true } },               // 38.98 -> 36.75  SHRANK
     'label.doppler':       { en: { t: 'Doppler' },
-                             fr: { t: 'Doppler', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Doppler', reviewed: true, sameAsEn: true } },
     'label.smoothing':     { en: { t: 'Smoothing' },
-                             fr: { t: 'Lissage', reviewed: false } },                // 54.84 -> 36.83  SHRANK
+                             fr: { t: 'Lissage', reviewed: true } },                // 54.84 -> 36.83  SHRANK
     // "Scatter" and "Trajectory" stay ENGLISH inside the French sentence on
     // purpose: they are the two spatial_mode option strings the user has to
     // find in the dropdown beside it, and those are exempt under D-01 arm 1.
@@ -916,11 +916,11 @@ export const LABELS = Object.freeze({
     // instruction that cannot be followed.
     'label.spatialHint':   { en: { t: 'Set Mode to Scatter or Trajectory to enable' },
                              fr: { t: 'Régler Mode sur Scatter ou Trajectory pour activer',
-                                   reviewed: false } },                              // 154.25 -> 184.22, in an 846 px block
+                                   reviewed: true } },                              // 154.25 -> 184.22, in an 846 px block
 
     // ── Settings popover (new in v2.5.0) ────────────────────────────────────
     'label.language':      { en: { t: 'Language' },
-                             fr: { t: 'Langue', reviewed: false } },
+                             fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -933,9 +933,9 @@ export const LABELS = Object.freeze({
     // no title= to move under contract §4, and inventing hover-help prose for
     // the other 46 captions is Stage M.
     'aria.settings':       { en: { t: 'Settings' },
-                             fr: { t: 'Réglages', reviewed: false } },
+                             fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect':     { en: { t: 'Interface language' },
-                             fr: { t: 'Langue de l’interface', reviewed: false } },
+                             fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

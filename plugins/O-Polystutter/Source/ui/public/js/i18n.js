@@ -156,21 +156,21 @@ export const I18N = Object.freeze({
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
               b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note divisions and preset names stay in English.' },
         fr: { t: 'Langue',
               b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
         fr: { t: 'Aide au survol',
               b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
@@ -179,35 +179,35 @@ export const I18N = Object.freeze({
               b: 'Navigate to the previous preset in the list.' },
         fr: { t: 'Précédent',
               b: 'Aller au préréglage précédent dans la liste.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-dropdown': {
         en: { t: 'Preset',
               b: 'Click to browse and select presets. Factory presets are protected; user presets can be deleted.' },
         fr: { t: 'Préréglage',
               b: 'Cliquer pour parcourir et choisir un préréglage. Les préréglages d’usine sont protégés ; ceux de l’utilisateur peuvent être supprimés.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-next': {
         en: { t: 'Next',
               b: 'Navigate to the next preset in the list.' },
         fr: { t: 'Suivant',
               b: 'Aller au préréglage suivant dans la liste.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-save': {
         en: { t: 'Save',
               b: 'Save current settings as a new user preset.' },
         fr: { t: 'Enregistrer',
               b: 'Enregistrer les réglages actuels comme nouveau préréglage utilisateur.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-load': {
         en: { t: 'Load',
               b: 'Import a preset from an external file.' },
         fr: { t: 'Ouvrir',
               b: 'Importer un préréglage depuis un fichier externe.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The four stutter lanes ──────────────────────────────────────────────
@@ -219,7 +219,7 @@ export const I18N = Object.freeze({
               b: 'Enable or disable this stutter lane. When off, this lane won\'t process audio.' },
         fr: { t: 'Piste de bégaiement',
               b: 'Activer ou désactiver cette piste de bégaiement. Désactivée, elle ne traite aucun signal.',
-              reviewed: false },
+              reviewed: true },
     },
     // THE SECOND HAND-SPLIT, for the same reason.
     'progress': {
@@ -227,119 +227,119 @@ export const I18N = Object.freeze({
               b: 'Shows playback position within the current repeat cycle.' },
         fr: { t: 'Progression de la répétition',
               b: 'Indique la position de lecture dans le cycle de répétition en cours.',
-              reviewed: false },
+              reviewed: true },
     },
     'subdiv': {
         en: { t: 'Subdivision',
               b: 'Sets the rhythmic length of each stutter slice, synced to host tempo.' },
         fr: { t: 'Subdivision',
               b: 'Fixe la durée rythmique de chaque tranche de bégaiement, synchronisée au tempo de l’hôte.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'repeats': {
         en: { t: 'Repeats',
               b: 'Number of times the captured audio slice plays back (1-16).' },
         fr: { t: 'Répétitions',
               b: 'Nombre de lectures de la tranche audio capturée (1-16).',
-              reviewed: false },
+              reviewed: true },
     },
     'decay': {
         en: { t: 'Decay',
               b: 'Volume reduction applied to each successive repeat. Lower values create fading echoes.' },
         fr: { t: 'Déclin',
               b: 'Baisse de volume appliquée à chaque répétition successive. Des valeurs basses créent des échos qui s’effacent.',
-              reviewed: false },
+              reviewed: true },
     },
     'filter': {
         en: { t: 'Filter',
               b: 'Applies low-pass (negative) or high-pass (positive) filtering to repeats.' },
         fr: { t: 'Filtre',
               b: 'Applique aux répétitions un filtrage passe-bas (valeur négative) ou passe-haut (valeur positive).',
-              reviewed: false },
+              reviewed: true },
     },
     'probability': {
         en: { t: 'Probability',
               b: 'Chance that this lane triggers on each beat. 100% = always, 50% = half the time.' },
         fr: { t: 'Probabilité',
               b: 'Chance que cette piste se déclenche à chaque temps. 100 % = toujours, 50 % = une fois sur deux.',
-              reviewed: false },
+              reviewed: true },
     },
     'volume': {
         en: { t: 'Volume',
               b: 'Output level of this lane\'s stutters in the mix.' },
         fr: { t: 'Volume',
               b: 'Niveau de sortie des bégaiements de cette piste dans le mixage.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'pan': {
         en: { t: 'Pan',
               b: 'Stereo position of the stutters. -100 = full left, +100 = full right.' },
         fr: { t: 'Panoramique',
               b: 'Position stéréo des bégaiements. −100 = tout à gauche, +100 = tout à droite.',
-              reviewed: false },
+              reviewed: true },
     },
     'swing': {
         en: { t: 'Swing',
               b: 'Adds rhythmic shuffle to repeat timing. Higher values create more groove.' },
         fr: { t: 'Swing',
               b: 'Décale le rythme des répétitions. Des valeurs élevées accentuent le groove.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'pitch': {
         en: { t: 'Pitch',
               b: 'Transpose the stutters up or down in semitones (-12 to +12).' },
         fr: { t: 'Hauteur',
               b: 'Transposer les bégaiements vers le haut ou vers le bas, en demi-tons (−12 à +12).',
-              reviewed: false },
+              reviewed: true },
     },
     'pitch-rand': {
         en: { t: 'Random',
               b: 'Enable random pitch variation on each repeat within the MIN/MAX range.' },
         fr: { t: 'Aléatoire',
               b: 'Activer une variation de hauteur aléatoire à chaque répétition, dans la plage MIN/MAX.',
-              reviewed: false },
+              reviewed: true },
     },
     'pitch-rand-min': {
         en: { t: 'Min',
               b: 'Minimum pitch offset for randomization (added to base pitch).' },
         fr: { t: 'Min',
               b: 'Écart de hauteur minimal pour le tirage aléatoire (ajouté à la hauteur de base).',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'pitch-rand-max': {
         en: { t: 'Max',
               b: 'Maximum pitch offset for randomization (added to base pitch).' },
         fr: { t: 'Max',
               b: 'Écart de hauteur maximal pour le tirage aléatoire (ajouté à la hauteur de base).',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'pitch-quantize': {
         en: { t: 'Semitone',
               b: 'When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.' },
         fr: { t: 'Demi-ton',
               b: 'Activé, le tirage de hauteur se cale sur des demi-tons entiers. Désactivé, il autorise des intervalles microtonaux.',
-              reviewed: false },
+              reviewed: true },
     },
     'pingpong': {
         en: { t: 'Ping-Pong',
               b: 'Alternates playback direction between forward and reverse on each repeat.' },
         fr: { t: 'Ping-pong',
               b: 'Alterne le sens de lecture entre avant et arrière à chaque répétition.',
-              reviewed: false },
+              reviewed: true },
     },
     'reverse': {
         en: { t: 'Reverse',
               b: 'Plays all repeats backwards.' },
         fr: { t: 'Inversion',
               b: 'Lit toutes les répétitions à l’envers.',
-              reviewed: false },
+              reviewed: true },
     },
     'manual': {
         en: { t: 'Manual',
               b: 'Ignores beat-sync timing. Use with TRIG button for one-shot stutters.' },
         fr: { t: 'Manuel',
               b: 'Ignore la synchronisation au temps. À utiliser avec le bouton DÉCL pour des bégaiements ponctuels.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The pattern sequencer ───────────────────────────────────────────────
@@ -348,35 +348,35 @@ export const I18N = Object.freeze({
               b: 'When ON, the 16-step pattern controls when each lane can trigger. When OFF, lanes trigger on every beat.' },
         fr: { t: 'Séquenceur',
               b: 'Activé, le motif de 16 pas décide quand chaque piste peut se déclencher. Désactivé, les pistes se déclenchent à chaque temps.',
-              reviewed: false },
+              reviewed: true },
     },
     'sequencer': {
         en: { t: 'Pattern Sequencer',
               b: 'Click steps to enable (green) or disable (dim). Each row controls one lane. Active steps allow stutter triggers on that beat.' },
         fr: { t: 'Séquenceur de motif',
               b: 'Cliquer sur les pas pour les activer (vert) ou les désactiver (atténué). Chaque ligne pilote une piste. Les pas actifs autorisent un déclenchement sur ce temps.',
-              reviewed: false },
+              reviewed: true },
     },
     'euclidean': {
         en: { t: 'Euclidean',
               b: 'Replace manual step pattern with auto-generated Euclidean rhythm.' },
         fr: { t: 'Euclidien',
               b: 'Remplace le motif de pas manuel par un rythme euclidien généré automatiquement.',
-              reviewed: false },
+              reviewed: true },
     },
     'euc-pulses': {
         en: { t: 'Pulses',
               b: 'Number of active hits (1-16).' },
         fr: { t: 'Impulsions',
               b: 'Nombre de frappes actives (1-16).',
-              reviewed: false },
+              reviewed: true },
     },
     'euc-steps': {
         en: { t: 'Steps',
               b: 'Total steps in pattern (2-16).' },
         fr: { t: 'Pas',
               b: 'Nombre total de pas dans le motif (2-16).',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Tape degradation, dry/wet and the trigger toggles ───────────────────
@@ -385,42 +385,42 @@ export const I18N = Object.freeze({
               b: 'Skip all tape degradation processing for a clean signal comparison.' },
         fr: { t: 'Contournement',
               b: 'Ignorer tout le traitement de dégradation de bande pour comparer avec le signal propre.',
-              reviewed: false },
+              reviewed: true },
     },
     'saturation': {
         en: { t: 'Saturation',
               b: 'Adds warm tape-style harmonic distortion. Higher values = more grit.' },
         fr: { t: 'Saturation',
               b: 'Ajoute une distorsion harmonique chaude, à la manière d’une bande. Plus la valeur est haute, plus le grain est rugueux.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'wow': {
         en: { t: 'Wow',
               b: 'Slow pitch modulation that simulates tape speed variations. Creates a warbly, lo-fi feel.' },
         fr: { t: 'Pleurage',
               b: 'Modulation lente de la hauteur qui imite les variations de vitesse d’une bande. Donne un caractère ondulant et lo-fi.',
-              reviewed: false },
+              reviewed: true },
     },
     'flutter': {
         en: { t: 'Flutter',
               b: 'Fast pitch modulation for tape-like wobble. Adds instability and character.' },
         fr: { t: 'Scintillement',
               b: 'Modulation rapide de la hauteur, pour un tremblement de bande. Ajoute de l’instabilité et du caractère.',
-              reviewed: false },
+              reviewed: true },
     },
     'hiss': {
         en: { t: 'Hiss',
               b: 'Adds subtle tape noise for vintage character. Keep low for realistic results.' },
         fr: { t: 'Souffle',
               b: 'Ajoute un léger bruit de bande pour un caractère vintage. À garder discret pour rester réaliste.',
-              reviewed: false },
+              reviewed: true },
     },
     'rolloff': {
         en: { t: 'Rolloff',
               b: 'High-frequency attenuation mimicking tape head wear. Higher = darker, more muffled.' },
         fr: { t: 'Coupure',
               b: 'Atténuation des aigus imitant l’usure des têtes de lecture. Plus la valeur est haute, plus le son est sombre et étouffé.',
-              reviewed: false,
+              reviewed: true,
               termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' },
     },
     'dropout': {
@@ -428,35 +428,35 @@ export const I18N = Object.freeze({
               b: 'Random momentary signal dropouts simulating worn tape. Use sparingly for subtle effect.' },
         fr: { t: 'Chutes de signal',
               b: 'Coupures brèves et aléatoires du signal, comme sur une bande usée. À doser avec parcimonie pour rester subtil.',
-              reviewed: false },
+              reviewed: true },
     },
     'dry': {
         en: { t: 'Dry',
               b: 'Level of the original unprocessed signal. Set to 0% for 100% wet stutters only.' },
         fr: { t: 'Signal direct',
               b: 'Niveau du signal d’origine, non traité. Régler sur 0 % pour n’entendre que les bégaiements.',
-              reviewed: false },
+              reviewed: true },
     },
     'wet': {
         en: { t: 'Wet',
               b: 'Level of the stutter effect. Controls how loud the repeats are in the mix.' },
         fr: { t: 'Signal traité',
               b: 'Niveau de l’effet de bégaiement. Règle le volume des répétitions dans le mixage.',
-              reviewed: false },
+              reviewed: true },
     },
     'midi': {
         en: { t: 'MIDI',
               b: 'Enable MIDI note triggering. Notes C1-B1 trigger lanes 1-4, any other note triggers all enabled lanes.' },
         fr: { t: 'MIDI',
               b: 'Activer le déclenchement par notes MIDI. Les notes C1 à B1 déclenchent les pistes 1 à 4 ; toute autre note déclenche toutes les pistes actives.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'trig': {
         en: { t: 'Trigger',
               b: 'Manually trigger all enabled lanes instantly. Use with MAN mode for one-shot effects.' },
         fr: { t: 'Déclenchement',
               b: 'Déclencher manuellement et immédiatement toutes les pistes actives. À utiliser avec le mode MAN pour des effets ponctuels.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── A sentence shape with NO tooltip and NO element (carried item 10) ────
@@ -475,7 +475,7 @@ export const I18N = Object.freeze({
     // reads correctly in both languages whatever the name is.
     'msg-delete-preset': {
         en: { t: 'Delete preset {name}?', b: '' },
-        fr: { t: 'Supprimer le préréglage {name} ?', b: '', reviewed: false },
+        fr: { t: 'Supprimer le préréglage {name} ?', b: '', reviewed: true },
     },
 });
 
@@ -523,24 +523,24 @@ export const LABELS = Object.freeze({
     // ── Preset bar ──────────────────────────────────────────────────────────
     // .preset-action-btn is text-transform: uppercase, so these render SAVE and
     // LOAD; the authored case is v1.13.0's and is left alone.
-    'label.save':      { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
-    'label.load':      { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: false } },
+    'label.save':      { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
+    'label.load':      { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } },
     // Written by setLabel() from buildPresetDropdown(), which through v1.13.0
     // built each row with innerHTML and a markup fragment. It is createElement +
     // setLabel now: assertion 12 reports a raw prose write inside a template
     // string, and no I18N_EXEMPT entry could cover it, because an exemption
     // lives in this file where assertion 9 forbids the opening angle bracket.
-    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: false } },
+    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },  // 71.77
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },  // 71.77
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
     // keys, never a ternary inside the call — check-i18n assertion 13.
-    'ui.on':           { en: { t: 'On' },  fr: { t: 'Activé',    reviewed: false } },   // button 47.33
-    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Désactivé', reviewed: false } },   // button 61.38
+    'ui.on':           { en: { t: 'On' },  fr: { t: 'Activé',    reviewed: true } },   // button 47.33
+    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Désactivé', reviewed: true } },   // button 61.38
 
     // ── The four lane headers ───────────────────────────────────────────────
     // ONE key with a {n} token, not four keys differing by a digit. The number
@@ -548,59 +548,59 @@ export const LABELS = Object.freeze({
     // and a digit can never be translated. trLabel()'s var resolver looks the
     // VALUE up as a key first and falls through to the literal, which is what
     // makes "1" arrive as "1".
-    'label.lane':      { en: { t: 'LANE {n}' }, fr: { t: 'PISTE {n}', reviewed: false } },
+    'label.lane':      { en: { t: 'LANE {n}' }, fr: { t: 'PISTE {n}', reviewed: true } },
 
     // ── Lane knob captions — 42 px columns, 9 px uppercase ──────────────────
     // Rendered widths in parentheses; the column is 42 px wide, pinned by the
     // 42 px knob and the min-width: 42px value readout under it.
-    'label.subdiv':    { en: { t: 'SUBDIV' }, fr: { t: 'SUBDIV', reviewed: false, sameAsEn: true } },  // 38.3
-    'label.reps':      { en: { t: 'REPS' },   fr: { t: 'RÉPÉT',  reviewed: false } },                  // 31.5
-    'label.decay':     { en: { t: 'DECAY' },  fr: { t: 'DÉCLIN', reviewed: false } },                  // 37.8
-    'label.filtr':     { en: { t: 'FILTR' },  fr: { t: 'FILTRE', reviewed: false } },                  // 34.5
-    'label.prob':      { en: { t: 'PROB' },   fr: { t: 'PROBA',  reviewed: false } },                  // 34.0
-    'label.vol':       { en: { t: 'VOL' },    fr: { t: 'VOL',    reviewed: false, sameAsEn: true } },
-    'label.pan':       { en: { t: 'PAN' },    fr: { t: 'PAN',    reviewed: false, sameAsEn: true } },
-    'label.swing':     { en: { t: 'SWING' },  fr: { t: 'SWING',  reviewed: false, sameAsEn: true } },
+    'label.subdiv':    { en: { t: 'SUBDIV' }, fr: { t: 'SUBDIV', reviewed: true, sameAsEn: true } },  // 38.3
+    'label.reps':      { en: { t: 'REPS' },   fr: { t: 'RÉPÉT',  reviewed: true } },                  // 31.5
+    'label.decay':     { en: { t: 'DECAY' },  fr: { t: 'DÉCLIN', reviewed: true } },                  // 37.8
+    'label.filtr':     { en: { t: 'FILTR' },  fr: { t: 'FILTRE', reviewed: true } },                  // 34.5
+    'label.prob':      { en: { t: 'PROB' },   fr: { t: 'PROBA',  reviewed: true } },                  // 34.0
+    'label.vol':       { en: { t: 'VOL' },    fr: { t: 'VOL',    reviewed: true, sameAsEn: true } },
+    'label.pan':       { en: { t: 'PAN' },    fr: { t: 'PAN',    reviewed: true, sameAsEn: true } },
+    'label.swing':     { en: { t: 'SWING' },  fr: { t: 'SWING',  reviewed: true, sameAsEn: true } },
     // HAUT., not HAUTEUR: the full word measures 48.6 px in a 42 px column.
-    'label.pitch':     { en: { t: 'PITCH' },  fr: { t: 'HAUT.',  reviewed: false } },                  // 30.6
+    'label.pitch':     { en: { t: 'PITCH' },  fr: { t: 'HAUT.',  reviewed: true } },                  // 30.6
     // The mini-knob column is 40 px, set by .mini-knob; both fit at 7 px.
-    'label.min':       { en: { t: 'MIN' },    fr: { t: 'MIN',    reviewed: false, sameAsEn: true } },
-    'label.max':       { en: { t: 'MAX' },    fr: { t: 'MAX',    reviewed: false, sameAsEn: true } },
+    'label.min':       { en: { t: 'MIN' },    fr: { t: 'MIN',    reviewed: true, sameAsEn: true } },
+    'label.max':       { en: { t: 'MAX' },    fr: { t: 'MAX',    reviewed: true, sameAsEn: true } },
 
     // ── Lane toggle chips — 40 px and 32 px, 8 px type ──────────────────────
-    'label.rnd':       { en: { t: 'RND' },  fr: { t: 'ALÉA', reviewed: false } },   // 23.3 in a 32 px chip
-    'label.st':        { en: { t: 'ST' },   fr: { t: 'DT',   reviewed: false } },   // demi-ton
-    'label.ping':      { en: { t: 'PING' }, fr: { t: 'PING', reviewed: false, sameAsEn: true } },
-    'label.rev':       { en: { t: 'REV' },  fr: { t: 'INV',  reviewed: false } },
-    'label.man':       { en: { t: 'MAN' },  fr: { t: 'MAN',  reviewed: false, sameAsEn: true } },
+    'label.rnd':       { en: { t: 'RND' },  fr: { t: 'ALÉA', reviewed: true } },   // 23.3 in a 32 px chip
+    'label.st':        { en: { t: 'ST' },   fr: { t: 'DT',   reviewed: true } },   // demi-ton
+    'label.ping':      { en: { t: 'PING' }, fr: { t: 'PING', reviewed: true, sameAsEn: true } },
+    'label.rev':       { en: { t: 'REV' },  fr: { t: 'INV',  reviewed: true } },
+    'label.man':       { en: { t: 'MAN' },  fr: { t: 'MAN',  reviewed: true, sameAsEn: true } },
 
     // ── Sequencer ───────────────────────────────────────────────────────────
-    'label.euc':       { en: { t: 'EUC' },    fr: { t: 'EUC',   reviewed: false, sameAsEn: true } },
+    'label.euc':       { en: { t: 'EUC' },    fr: { t: 'EUC',   reviewed: true, sameAsEn: true } },
     // 36 px column headers. IMPUL, not IMPULSIONS and not IMPULS: the six-letter
     // form measures 34.1 px against a 36 px box and leaves 1.9 px, which is
     // inside the Windows/WebView2 font-metric margin this repo cannot measure.
-    'label.pulses':    { en: { t: 'PULSES' }, fr: { t: 'IMPUL', reviewed: false } },  // 29.2
-    'label.steps':     { en: { t: 'STEPS' },  fr: { t: 'PAS',   reviewed: false } },  // 16.0
-    'label.seq':       { en: { t: 'SEQ' },    fr: { t: 'SÉQ',   reviewed: false } },
+    'label.pulses':    { en: { t: 'PULSES' }, fr: { t: 'IMPUL', reviewed: true } },  // 29.2
+    'label.steps':     { en: { t: 'STEPS' },  fr: { t: 'PAS',   reviewed: true } },  // 16.0
+    'label.seq':       { en: { t: 'SEQ' },    fr: { t: 'SÉQ',   reviewed: true } },
 
     // ── Tape section — the 75 px .tape-knob-container columns ───────────────
     'label.tapeDegradation': { en: { t: 'TAPE DEGRADATION' },
-                               fr: { t: 'DÉGRADATION BANDE', reviewed: false } },     // 145.0, ends 10 px clear of BYPASS
-    'label.bypass':    { en: { t: 'BYPASS' },  fr: { t: 'CONTOUR', reviewed: false } },  // 53.8 in a 60 px chip
-    'label.sat':       { en: { t: 'SAT' },     fr: { t: 'SAT',     reviewed: false, sameAsEn: true } },
+                               fr: { t: 'DÉGRADATION BANDE', reviewed: true } },     // 145.0, ends 10 px clear of BYPASS
+    'label.bypass':    { en: { t: 'BYPASS' },  fr: { t: 'CONTOUR', reviewed: true } },  // 53.8 in a 60 px chip
+    'label.sat':       { en: { t: 'SAT' },     fr: { t: 'SAT',     reviewed: true, sameAsEn: true } },
     // Pleurage and scintillement are the French audio terms for wow and flutter;
     // neither is a transliteration of the English.
-    'label.wow':       { en: { t: 'WOW' },     fr: { t: 'PLEUR',   reviewed: false } },  // 32.5
-    'label.flutter':   { en: { t: 'FLUTTER' }, fr: { t: 'SCINT.',  reviewed: false } },  // 32.4
-    'label.hiss':      { en: { t: 'HISS' },    fr: { t: 'SOUFFLE', reviewed: false } },  // 44.6
+    'label.wow':       { en: { t: 'WOW' },     fr: { t: 'PLEUR',   reviewed: true } },  // 32.5
+    'label.flutter':   { en: { t: 'FLUTTER' }, fr: { t: 'SCINT.',  reviewed: true } },  // 32.4
+    'label.hiss':      { en: { t: 'HISS' },    fr: { t: 'SOUFFLE', reviewed: true } },  // 44.6
     'label.rolloff':   { en: { t: 'ROLLOFF' },
-                         fr: { t: 'COUPURE', reviewed: false,
+                         fr: { t: 'COUPURE', reviewed: true,
                                termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' } },                            // 47.6
-    'label.dropout':   { en: { t: 'DROPOUT' }, fr: { t: 'CHUTES',  reviewed: false } },  // 39.8
-    'label.dry':       { en: { t: 'DRY' },     fr: { t: 'DIRECT',  reviewed: false } },  // 37.3
-    'label.wet':       { en: { t: 'WET' },     fr: { t: 'TRAITÉ',  reviewed: false } },  // 36.8
-    'label.midi':      { en: { t: 'MIDI' },    fr: { t: 'MIDI',    reviewed: false, sameAsEn: true } },
-    'label.trig':      { en: { t: 'TRIG' },    fr: { t: 'DÉCL',    reviewed: false } },  // 29.3 in a 60 px chip
+    'label.dropout':   { en: { t: 'DROPOUT' }, fr: { t: 'CHUTES',  reviewed: true } },  // 39.8
+    'label.dry':       { en: { t: 'DRY' },     fr: { t: 'DIRECT',  reviewed: true } },  // 37.3
+    'label.wet':       { en: { t: 'WET' },     fr: { t: 'TRAITÉ',  reviewed: true } },  // 36.8
+    'label.midi':      { en: { t: 'MIDI' },    fr: { t: 'MIDI',    reviewed: true, sameAsEn: true } },
+    'label.trig':      { en: { t: 'TRIG' },    fr: { t: 'DÉCL',    reviewed: true } },  // 29.3 in a 60 px chip
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -613,21 +613,21 @@ export const LABELS = Object.freeze({
     // has a data-tip it renders a second, untranslated OS tooltip competing with
     // the measure-then-pin renderer, and check-i18n assertion 11 now fails on
     // any that survive.
-    'aria.presetPrev': { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: false } },
-    'aria.presetNext': { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: false } },
-    'aria.presetSave': { en: { t: 'Save preset' },      fr: { t: 'Enregistrer le préréglage', reviewed: false } },
+    'aria.presetPrev': { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true } },
+    'aria.presetNext': { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true } },
+    'aria.presetSave': { en: { t: 'Save preset' },      fr: { t: 'Enregistrer le préréglage', reviewed: true } },
     'aria.presetLoad': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle': { en: { t: 'Toggle hover help' },
-                         fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+                         fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
     // Bound by assigning dataset.i18nAria with a plain string literal in
     // buildPresetDropdown, which check-i18n assertion 15 counts as a reference
     // for exactly this case: an element the controller creates cannot carry the
     // attribute in the markup, and setLabel() writes textContent and so cannot
     // key an ATTRIBUTE.
-    'aria.deletePreset': { en: { t: 'Delete preset' }, fr: { t: 'Supprimer le préréglage', reviewed: false } },
-    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: false } },
+    'aria.deletePreset': { en: { t: 'Delete preset' }, fr: { t: 'Supprimer le préréglage', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
 });
 
 // ============================================================================

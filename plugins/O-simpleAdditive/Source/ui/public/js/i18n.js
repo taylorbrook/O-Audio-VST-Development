@@ -155,7 +155,7 @@ export const I18N = Object.freeze({
               b: 'Choose the language of the interface. The choice is remembered with the session.' },
         fr: { t: 'Réglages',
               b: "Choisissez la langue de l’interface. Le choix est conservé avec la session.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // Written to say what is TRUE of canon v2, in both languages: the labels DO
@@ -168,7 +168,7 @@ export const I18N = Object.freeze({
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English.' },
         fr: { t: 'Langue',
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées et les deux menus déroulants restent en anglais.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The drawbar bay ─────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ export const I18N = Object.freeze({
               b: "Each bar sets one overtone's level — together they ARE the additive spectrum. The brass shows what you set; the green glow shows what's actually sounding (after morph & spectral decay)." },
         fr: { t: 'Tirettes harmoniques',
               b: "Chaque tirette règle le niveau d’un harmonique — ensemble, elles SONT le spectre additif. Le laiton montre ce que vous réglez ; la lueur verte montre ce qui sonne réellement (après morphage et décroissance spectrale).",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Morph · Wavetable ───────────────────────────────────────────────────
@@ -186,35 +186,35 @@ export const I18N = Object.freeze({
               b: 'The target spectrum the Scan morphs toward (Sine, Saw, Square, or Odd). Scan at 0% = your drawbars; 100% = this shape.' },
         fr: { t: 'Source de la trame B',
               b: "Le spectre cible vers lequel le balayage morphe (Sine, Saw, Square ou Odd). Balayage à 0 % = vos tirettes ; à 100 % = cette forme.",
-              reviewed: false },
+              reviewed: true },
     },
     scanPosition: {
         en: { t: 'Scan',
               b: 'Morphs the spectrum from your drawbars (0%) toward Frame B (100%). Watch the waveform change shape as you scan.' },
         fr: { t: 'Balayage',
               b: "Morphe le spectre depuis vos tirettes (0 %) vers la trame B (100 %). Regardez la forme d’onde changer pendant le balayage.",
-              reviewed: false },
+              reviewed: true },
     },
     scanLfoRate: {
         en: { t: 'Scan LFO Rate',
               b: 'Speed of the sine LFO that sweeps Scan automatically. One global LFO — all held notes morph together, in phase.' },
         fr: { t: 'Vitesse du LFO de balayage',
               b: 'Vitesse du LFO sinusoïdal qui fait varier automatiquement le balayage. Un seul LFO global — toutes les notes tenues morphent ensemble, en phase.',
-              reviewed: false },
+              reviewed: true },
     },
     scanLfoDepth: {
         en: { t: 'Scan LFO Depth',
               b: 'How far the LFO sweeps Scan around its set position. 0% = no automatic morph.' },
         fr: { t: 'Profondeur du LFO de balayage',
               b: "De combien le LFO fait varier le balayage autour de la position réglée. 0 % = aucun morphage automatique.",
-              reviewed: false },
+              reviewed: true },
     },
     scanEnvAmount: {
         en: { t: 'Env → Scan',
               b: 'How much the Modulation Envelope pushes Scan over each note (bipolar −/+). Makes the timbre evolve after the key is struck.' },
         fr: { t: 'Env → Balayage',
               b: "De combien l’enveloppe de modulation pousse le balayage sur chaque note (bipolaire −/+). Fait évoluer le timbre après la frappe.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Spectral shaping ────────────────────────────────────────────────────
@@ -223,45 +223,45 @@ export const I18N = Object.freeze({
               b: 'Over each note, makes higher partials fade faster than lower ones — the tone darkens as it rings, like a plucked string. 0% = steady balance.' },
         fr: { t: 'Décroissance spectrale',
               b: "Sur chaque note, fait décroître les partiels aigus plus vite que les graves — le timbre s’assombrit en résonnant, comme une corde pincée. 0 % = équilibre stable.",
-              reviewed: false },
+              reviewed: true },
     },
     bitDepth: {
         en: { t: 'Bit Depth',
               b: "Quantizes the output to N bits of amplitude resolution for early-digital grit. 'Off' = clean; fewer bits = more crunch." },
         fr: { t: 'Résolution',
               b: "Quantifie la sortie sur N bits de résolution d’amplitude, pour un grain numérique d’époque. « Off » = propre ; moins de bits = plus de grain.",
-              reviewed: false },
+              reviewed: true },
     },
     velToDecay: {
         en: { t: 'Velocity → Decay',
               b: 'Lets how hard you play add to Spectral Decay. (Velocity always sets loudness; this adds timbral response — harder = darker decay.)' },
         fr: { t: 'Vélocité → Décroissance',
               b: "Laisse la force de jeu s’ajouter à la décroissance spectrale. (La vélocité règle toujours le volume ; ceci ajoute une réponse de timbre — plus fort = décroissance plus sombre.)",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
     ampAttack: {
         en: { t: 'Amp Attack',  b: 'Time for loudness to rise after note-on.' },
         fr: { t: 'Attaque d’amplitude', b: "Temps de montée du volume après l’enfoncement de la touche.",
-              reviewed: false },
+              reviewed: true },
     },
     ampDecay: {
         en: { t: 'Amp Decay',  b: 'Time for loudness to fall from peak to the sustain level.' },
         fr: { t: 'Déclin d’amplitude', b: 'Temps de chute du volume, du sommet vers le niveau de maintien.',
-              reviewed: false },
+              reviewed: true },
     },
     ampSustain: {
         en: { t: 'Amp Sustain',  b: 'Held loudness while the key stays down.' },
         fr: { t: 'Maintien d’amplitude', b: 'Volume tenu tant que la touche reste enfoncée.',
-              reviewed: false },
+              reviewed: true },
     },
     ampRelease: {
         en: { t: 'Amp Release',
               b: 'Time for loudness to fade after the key is released — also how long the voice rings out.' },
         fr: { t: 'Relâchement d’amplitude',
               b: 'Temps de disparition du volume après le relâchement de la touche — et donc durée de résonance de la voix.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Modulation envelope ─────────────────────────────────────────────────
@@ -270,29 +270,29 @@ export const I18N = Object.freeze({
               b: 'Attack of the modulation envelope, which drives Scan via Env → Scan.' },
         fr: { t: 'Attaque mod.',
               b: "Attaque de l’enveloppe de modulation, qui pilote le balayage via Env → Balayage.",
-              reviewed: false },
+              reviewed: true },
     },
     modDecay: {
         en: { t: 'Mod Decay',  b: 'Decay of the modulation envelope toward its sustain level.' },
         fr: { t: 'Déclin mod.', b: "Déclin de l’enveloppe de modulation vers son niveau de maintien.",
-              reviewed: false },
+              reviewed: true },
     },
     modSustain: {
         en: { t: 'Mod Sustain',  b: 'Held level of the modulation envelope while the key is down.' },
         fr: { t: 'Maintien mod.', b: "Niveau tenu de l’enveloppe de modulation tant que la touche est enfoncée.",
-              reviewed: false },
+              reviewed: true },
     },
     modRelease: {
         en: { t: 'Mod Release',  b: 'Release of the modulation envelope after key-up.' },
         fr: { t: 'Relâchement mod.', b: "Relâchement de l’enveloppe de modulation après le relâchement de la touche.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
     outputLevel: {
         en: { t: 'Output Level',  b: 'Master output trim in decibels.' },
         fr: { t: 'Niveau de sortie', b: 'Réglage général de la sortie, en décibels.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Lesson-preset tooltips ──────────────────────────────────────────────
@@ -306,42 +306,42 @@ export const I18N = Object.freeze({
               b: 'only the fundamental (H1). One drawbar, one sine: the atom of additive synthesis.' },
         fr: { t: 'Sinus pur',
               b: "seulement la fondamentale (H1). Une tirette, un sinus : l’atome de la synthèse additive.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonSaw: {
         en: { t: 'Sawtooth',
               b: 'every harmonic at 1/k. All overtones falling by 1/k → a bright, buzzy ramp.' },
         fr: { t: 'Dent de scie',
               b: 'tous les harmoniques à 1/k. Tous les partiels décroissant en 1/k → une rampe brillante et bourdonnante.',
-              reviewed: false },
+              reviewed: true },
     },
     lessonSquare: {
         en: { t: 'Square',
               b: 'odd harmonics only, at 1/k. Dropping the even partials gives the hollow, reedy tone.' },
         fr: { t: 'Carrée',
               b: 'harmoniques impairs seulement, à 1/k. Retirer les partiels pairs donne le timbre creux et anché.',
-              reviewed: false },
+              reviewed: true },
     },
     lessonOrgan: {
         en: { t: 'Organ',
               b: 'a Hammond-style drawbar registration: a few low harmonics, instant attack, full sustain.' },
         fr: { t: 'Orgue',
               b: "un registre de tirettes à la Hammond : quelques harmoniques graves, attaque immédiate, maintien plein.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonMorph: {
         en: { t: 'Morph Pad',
               b: 'the scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe.' },
         fr: { t: 'Nappe morphée',
               b: 'le LFO de balayage morphe lentement vos tirettes vers une carrée ; de longues enveloppes la font respirer.',
-              reviewed: false },
+              reviewed: true },
     },
     lessonLofi: {
         en: { t: 'Lo-Fi Bells',
               b: 'a spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit.' },
         fr: { t: 'Cloches lo-fi',
               b: 'un spectre de cloche étalé + une pente de décroissance spectrale + une quantification 8 bits pour le grain numérique.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The sixteen partials ────────────────────────────────────────────────
@@ -362,112 +362,112 @@ export const I18N = Object.freeze({
               b: "The fundamental — the pitch you hear. On its own it's a pure sine; it's the 1st harmonic of the overtone series." },
         fr: { t: 'Partiel 1 · Fondamentale',
               b: "La fondamentale — la hauteur que vous entendez. Seule, c’est un sinus pur ; c’est le premier harmonique de la série.",
-              reviewed: false },
+              reviewed: true },
     },
     partial2: {
         en: { t: 'Partial 2 · even harmonic',
               b: 'The 2nd harmonic — 2× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 2 · harmonique pair',
               b: "L’harmonique de rang 2 — 2× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial3: {
         en: { t: 'Partial 3 · odd harmonic',
               b: 'The 3rd harmonic — 3× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 3 · harmonique impair',
               b: "L’harmonique de rang 3 — 3× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial4: {
         en: { t: 'Partial 4 · even harmonic',
               b: 'The 4th harmonic — 4× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 4 · harmonique pair',
               b: "L’harmonique de rang 4 — 4× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial5: {
         en: { t: 'Partial 5 · odd harmonic',
               b: 'The 5th harmonic — 5× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 5 · harmonique impair',
               b: "L’harmonique de rang 5 — 5× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial6: {
         en: { t: 'Partial 6 · even harmonic',
               b: 'The 6th harmonic — 6× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 6 · harmonique pair',
               b: "L’harmonique de rang 6 — 6× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial7: {
         en: { t: 'Partial 7 · odd harmonic',
               b: 'The 7th harmonic — 7× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 7 · harmonique impair',
               b: "L’harmonique de rang 7 — 7× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial8: {
         en: { t: 'Partial 8 · even harmonic',
               b: 'The 8th harmonic — 8× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 8 · harmonique pair',
               b: "L’harmonique de rang 8 — 8× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial9: {
         en: { t: 'Partial 9 · odd harmonic',
               b: 'The 9th harmonic — 9× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 9 · harmonique impair',
               b: "L’harmonique de rang 9 — 9× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial10: {
         en: { t: 'Partial 10 · even harmonic',
               b: 'The 10th harmonic — 10× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 10 · harmonique pair',
               b: "L’harmonique de rang 10 — 10× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial11: {
         en: { t: 'Partial 11 · odd harmonic',
               b: 'The 11th harmonic — 11× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 11 · harmonique impair',
               b: "L’harmonique de rang 11 — 11× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial12: {
         en: { t: 'Partial 12 · even harmonic',
               b: 'The 12th harmonic — 12× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 12 · harmonique pair',
               b: "L’harmonique de rang 12 — 12× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial13: {
         en: { t: 'Partial 13 · odd harmonic',
               b: 'The 13th harmonic — 13× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 13 · harmonique impair',
               b: "L’harmonique de rang 13 — 13× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial14: {
         en: { t: 'Partial 14 · even harmonic',
               b: 'The 14th harmonic — 14× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 14 · harmonique pair',
               b: "L’harmonique de rang 14 — 14× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
     partial15: {
         en: { t: 'Partial 15 · odd harmonic',
               b: 'The 15th harmonic — 15× the fundamental frequency. Odd harmonics give hollow, reedy color — a square wave is built from these alone.' },
         fr: { t: 'Partiel 15 · harmonique impair',
               b: "L’harmonique de rang 15 — 15× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
-              reviewed: false },
+              reviewed: true },
     },
     partial16: {
         en: { t: 'Partial 16 · even harmonic',
               b: 'The 16th harmonic — 16× the fundamental frequency. Even harmonics reinforce octave-ish color and add body/warmth.' },
         fr: { t: 'Partiel 16 · harmonique pair',
               b: "L’harmonique de rang 16 — 16× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -497,18 +497,18 @@ export const LABELS = Object.freeze({
     'label.subtitle': {
         en: { t: 'Additive · Wavetable-Scan Synthesizer · A Field Guide' },
         fr: { t: 'Synthétiseur additif · balayage de table d’ondes · un guide de terrain',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Drawbar bay ─────────────────────────────────────────────────────────
     'label.drawbarTitle': {
         en: { t: 'Harmonic Drawbars' },
-        fr: { t: 'Tirettes harmoniques', reviewed: false },
+        fr: { t: 'Tirettes harmoniques', reviewed: true },
     },
     'label.drawbarHint': {
         en: { t: "each bar is one overtone · the row reads as the live spectrum (glow = what's sounding)" },
         fr: { t: 'chaque tirette est un harmonique · la rangée se lit comme le spectre en direct (la lueur = ce qui sonne)',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Oscilloscope ────────────────────────────────────────────────────────
@@ -517,33 +517,33 @@ export const LABELS = Object.freeze({
     // the two boxes meet.
     'label.waveform': {
         en: { t: 'Waveform ·' },
-        fr: { t: 'Forme d’onde ·', reviewed: false },
+        fr: { t: 'Forme d’onde ·', reviewed: true },
     },
     'label.waveformHint': {
         en: { t: 'the summed single-cycle shape (morphs as you scan)' },
-        fr: { t: 'la forme sommée d’un seul cycle (elle morphe pendant le balayage)', reviewed: false },
+        fr: { t: 'la forme sommée d’un seul cycle (elle morphe pendant le balayage)', reviewed: true },
     },
 
     // ── Group headings ──────────────────────────────────────────────────────
     'label.groupMorph': {
         en: { t: 'Morph · Wavetable' },
-        fr: { t: 'Morphage · table d’ondes', reviewed: false },
+        fr: { t: 'Morphage · table d’ondes', reviewed: true },
     },
     'label.groupSpectral': {
         en: { t: 'Spectral Shaping' },
-        fr: { t: 'Façonnage spectral', reviewed: false },
+        fr: { t: 'Façonnage spectral', reviewed: true },
     },
     'label.groupAmpEnv': {
         en: { t: 'Amplitude Envelope' },
-        fr: { t: 'Enveloppe d’amplitude', reviewed: false },
+        fr: { t: 'Enveloppe d’amplitude', reviewed: true },
     },
     'label.groupModEnv': {
         en: { t: 'Modulation Envelope · → Scan' },
-        fr: { t: 'Enveloppe de modulation · → Balayage', reviewed: false },
+        fr: { t: 'Enveloppe de modulation · → Balayage', reviewed: true },
     },
     'label.groupOutput': {
         en: { t: 'Output' },
-        fr: { t: 'Sortie', reviewed: false },
+        fr: { t: 'Sortie', reviewed: true },
     },
 
     // ── Knob and combo captions ─────────────────────────────────────────────
@@ -562,49 +562,49 @@ export const LABELS = Object.freeze({
     // root is 79.00px, 21px wider, beside a VÉL→DÉCROISS. cell that already
     // overhangs 13px a side — and the glossary accepts the abbreviation.
     'label.frameB': {
-        en: { t: 'Frame B' },  fr: { t: 'Trame B', reviewed: false },
+        en: { t: 'Frame B' },  fr: { t: 'Trame B', reviewed: true },
     },
     'label.scan': {
-        en: { t: 'Scan' },     fr: { t: 'Balayage', reviewed: false },
+        en: { t: 'Scan' },     fr: { t: 'Balayage', reviewed: true },
     },
     'label.lfoRate': {
-        en: { t: 'LFO Rate' }, fr: { t: 'Vitesse du LFO', reviewed: false },
+        en: { t: 'LFO Rate' }, fr: { t: 'Vitesse du LFO', reviewed: true },
     },
     'label.lfoDepth': {
-        en: { t: 'LFO Depth' }, fr: { t: 'Profondeur du LFO', reviewed: false },
+        en: { t: 'LFO Depth' }, fr: { t: 'Profondeur du LFO', reviewed: true },
     },
     // The arrow is a glyph, not copy, and it is kept on both sides so the two
     // strings have the same shape.
     'label.envScan': {
-        en: { t: 'Env→Scan' }, fr: { t: 'Env→Balay.', reviewed: false },
+        en: { t: 'Env→Scan' }, fr: { t: 'Env→Balay.', reviewed: true },
     },
     'label.spectralDecay': {
-        en: { t: 'Spectral Decay' }, fr: { t: 'Décroiss. spectrale', reviewed: false },
+        en: { t: 'Spectral Decay' }, fr: { t: 'Décroiss. spectrale', reviewed: true },
     },
     'label.bitDepth': {
-        en: { t: 'Bit Depth' }, fr: { t: 'Résolution', reviewed: false },
+        en: { t: 'Bit Depth' }, fr: { t: 'Résolution', reviewed: true },
     },
     'label.velDecay': {
-        en: { t: 'Vel→Decay' }, fr: { t: 'Vél→Décroiss.', reviewed: false },
+        en: { t: 'Vel→Decay' }, fr: { t: 'Vél→Décroiss.', reviewed: true },
     },
     // The four ADSR captions are used TWICE each — once in the amplitude
     // envelope group and once in the modulation envelope group. One key, two
     // elements: querySelectorAll drives the sweep, so a repeated key is normal
     // and two keys holding the same word would be two places for it to drift.
     'label.attack': {
-        en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false },
+        en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true },
     },
     'label.decay': {
-        en: { t: 'Decay' },   fr: { t: 'Déclin', reviewed: false },
+        en: { t: 'Decay' },   fr: { t: 'Déclin', reviewed: true },
     },
     'label.sustain': {
-        en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: false },
+        en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: true },
     },
     'label.release': {
-        en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: false },
+        en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: true },
     },
     'label.level': {
-        en: { t: 'Level' },   fr: { t: 'Niveau', reviewed: false },
+        en: { t: 'Level' },   fr: { t: 'Niveau', reviewed: true },
     },
 
     // ── Lesson preset tour ──────────────────────────────────────────────────
@@ -624,7 +624,7 @@ export const LABELS = Object.freeze({
     // The dropped "lesson" still survives in every button's own hover help.
     'label.tourLabel': {
         en: { t: 'Lesson Presets' },
-        fr: { t: 'Leçons', reviewed: false },
+        fr: { t: 'Leçons', reviewed: true },
     },
 
     // The six button captions. These are NOT exempt under D-02: D-02 protects a
@@ -632,12 +632,12 @@ export const LABELS = Object.freeze({
     // snapshots applied by name through applyFactoryPreset. The English name
     // travels in the button's own data-preset attribute, which is never
     // localized, so the caption is free to be a caption.
-    'label.lessonSine':   { en: { t: 'Pure Sine' },   fr: { t: 'Sinus pur', reviewed: false } },
-    'label.lessonSaw':    { en: { t: 'Sawtooth' },    fr: { t: 'Dent de scie', reviewed: false } },
-    'label.lessonSquare': { en: { t: 'Square' },      fr: { t: 'Carrée', reviewed: false } },
-    'label.lessonOrgan':  { en: { t: 'Organ' },       fr: { t: 'Orgue', reviewed: false } },
-    'label.lessonMorph':  { en: { t: 'Morph Pad' },   fr: { t: 'Nappe morphée', reviewed: false } },
-    'label.lessonLofi':   { en: { t: 'Lo-Fi Bells' }, fr: { t: 'Cloches lo-fi', reviewed: false } },
+    'label.lessonSine':   { en: { t: 'Pure Sine' },   fr: { t: 'Sinus pur', reviewed: true } },
+    'label.lessonSaw':    { en: { t: 'Sawtooth' },    fr: { t: 'Dent de scie', reviewed: true } },
+    'label.lessonSquare': { en: { t: 'Square' },      fr: { t: 'Carrée', reviewed: true } },
+    'label.lessonOrgan':  { en: { t: 'Organ' },       fr: { t: 'Orgue', reviewed: true } },
+    'label.lessonMorph':  { en: { t: 'Morph Pad' },   fr: { t: 'Nappe morphée', reviewed: true } },
+    'label.lessonLofi':   { en: { t: 'Lo-Fi Bells' }, fr: { t: 'Cloches lo-fi', reviewed: true } },
 
     // The tour caption, written from script through setLabel() on every lesson
     // click — so the element becomes a [data-i18n] element and the language
@@ -647,43 +647,43 @@ export const LABELS = Object.freeze({
     'label.captionDefault': {
         en: { t: 'Hover any control for an explanation · pick a lesson to hear a concept.' },
         fr: { t: 'Survolez un réglage pour une explication · choisissez une leçon pour entendre une notion.',
-              reviewed: false },
+              reviewed: true },
     },
     'label.captionSine': {
         en: { t: 'Pure Sine — only the fundamental (H1). One drawbar, one sine: the atom of additive synthesis.' },
         fr: { t: "Sinus pur — seulement la fondamentale (H1). Une tirette, un sinus : l’atome de la synthèse additive.",
-              reviewed: false },
+              reviewed: true },
     },
     'label.captionSaw': {
         en: { t: 'Sawtooth — every harmonic at 1/k. All overtones falling by 1/k → a bright, buzzy ramp.' },
         fr: { t: 'Dent de scie — tous les harmoniques à 1/k. Tous les partiels décroissant en 1/k → une rampe brillante et bourdonnante.',
-              reviewed: false },
+              reviewed: true },
     },
     'label.captionSquare': {
         en: { t: 'Square — odd harmonics only, at 1/k. Dropping the even partials gives the hollow, reedy tone.' },
         fr: { t: 'Carrée — harmoniques impairs seulement, à 1/k. Retirer les partiels pairs donne le timbre creux et anché.',
-              reviewed: false },
+              reviewed: true },
     },
     'label.captionOrgan': {
         en: { t: 'Organ — a Hammond-style drawbar registration: a few low harmonics, instant attack, full sustain.' },
         fr: { t: 'Orgue — un registre de tirettes à la Hammond : quelques harmoniques graves, attaque immédiate, maintien plein.',
-              reviewed: false },
+              reviewed: true },
     },
     'label.captionMorph': {
         en: { t: 'Morph Pad — the scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe.' },
         fr: { t: 'Nappe morphée — le LFO de balayage morphe lentement vos tirettes vers une carrée ; de longues enveloppes la font respirer.',
-              reviewed: false },
+              reviewed: true },
     },
     'label.captionLofi': {
         en: { t: 'Lo-Fi Bells — a spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit.' },
         fr: { t: 'Cloches lo-fi — un spectre de cloche étalé + une pente de décroissance spectrale + une quantification 8 bits pour le grain numérique.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
     'label.play': {
         en: { t: 'Play ·' },
-        fr: { t: 'Jouer ·', reviewed: false },
+        fr: { t: 'Jouer ·', reviewed: true },
     },
     // The letter run is the QWERTY key map, not prose: it names physical keys
     // and stays exactly as it is in both languages. Only the sentence around it
@@ -696,7 +696,7 @@ export const LABELS = Object.freeze({
         // change to the shipped English nobody asked for.
         en: { t: 'click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)' },
         fr: { t: 'cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -704,13 +704,13 @@ export const LABELS = Object.freeze({
     // accessible name is their tooltip title, reached through trLabel's I18N
     // fallback, which is the one place on this page reuse is deliberate.
     'aria.settings': {
-        en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: false },
+        en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true },
     },
     'aria.langSelect': {
-        en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false },
+        en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
     },
     'aria.keyboard': {
-        en: { t: 'On-screen keyboard' }, fr: { t: 'Clavier à l’écran', reviewed: false },
+        en: { t: 'On-screen keyboard' }, fr: { t: 'Clavier à l’écran', reviewed: true },
     },
 });
 

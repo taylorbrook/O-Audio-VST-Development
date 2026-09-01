@@ -148,21 +148,21 @@ export const I18N = Object.freeze({
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
               b: 'Choisissez la langue de cette interface et l’affichage ou non de l’aide au survol. Les deux choix sont conservés avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note divisions and preset names stay in English.' },
         fr: { t: 'Langue',
               b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
         fr: { t: 'Aide au survol',
               b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The grid ────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ export const I18N = Object.freeze({
               b: 'Step sequencer grid. Each row is a frequency band; click cells to toggle steps on/off. Active steps highlight green during playback.' },
         fr: { t: 'Grille de pas',
               b: 'Grille du séquenceur à pas. Chaque ligne est une bande de fréquences ; cliquez sur les cases pour activer ou désactiver les pas. Les pas actifs s’allument en vert pendant la lecture.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Band controls panel ─────────────────────────────────────────────────
@@ -183,35 +183,35 @@ export const I18N = Object.freeze({
               b: 'The total length of the Euclidean pattern. Steps beyond this wrap around.' },
         fr: { t: 'Pas euclidiens',
               b: 'La longueur totale du motif euclidien. Les pas au-delà repartent au début.',
-              reviewed: false },
+              reviewed: true },
     },
     'euc-pulses': {
         en: { t: 'Euclidean Pulses',
               b: 'The number of active beats distributed as evenly as possible across the pattern length.' },
         fr: { t: 'Impulsions euclidiennes',
               b: 'Le nombre de temps actifs répartis aussi régulièrement que possible sur la longueur du motif.',
-              reviewed: false },
+              reviewed: true },
     },
     'euc-offset': {
         en: { t: 'Euclidean Offset',
               b: 'Rotates the generated pattern by this many steps, shifting where the rhythm starts.' },
         fr: { t: 'Décalage euclidien',
               b: 'Fait tourner le motif généré de ce nombre de pas, déplaçant l’endroit où le rythme commence.',
-              reviewed: false },
+              reviewed: true },
     },
     'euc-phase': {
         en: { t: 'Phase',
               b: 'Shifts this band\'s pattern read position by N steps. Creates phase-shifted polyrhythmic patterns between bands. Works in both Manual and Euclidean modes.' },
         fr: { t: 'Phase',
               b: 'Décale de N pas la position de lecture du motif de cette bande. Crée des motifs polyrythmiques déphasés entre les bandes. Fonctionne aussi bien en mode Manuel qu’Euclidien.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'euc-band-steps': {
         en: { t: 'Band Steps',
               b: 'Override the global step count for this band (0 = follow global). Creates polymetric loops when bands have different step counts.' },
         fr: { t: 'Pas de la bande',
               b: 'Remplace le nombre de pas global pour cette bande (0 = suivre le réglage global). Crée des boucles polymétriques lorsque les bandes ont des nombres de pas différents.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Footer: the global controls ─────────────────────────────────────────
@@ -220,42 +220,42 @@ export const I18N = Object.freeze({
               b: 'Blends between the dry (unprocessed) and wet (gated) signal. At 0% you hear only dry; at 100% only the gated output.' },
         fr: { t: 'Mix',
               b: 'Fait le fondu entre le signal direct (non traité) et le signal traité (découpé). À 0 %, on n’entend que le direct ; à 100 %, uniquement la sortie découpée.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'steps': {
         en: { t: 'Steps',
               b: 'Sets the number of active steps in the sequence (2-32). Higher values create longer, more complex patterns.' },
         fr: { t: 'Pas',
               b: 'Règle le nombre de pas actifs dans la séquence (2-32). Les valeurs élevées donnent des motifs plus longs et plus complexes.',
-              reviewed: false },
+              reviewed: true },
     },
     'rate': {
         en: { t: 'Rate',
               b: 'Sets the tempo-synced note division for each step. Smaller values (1/32) create faster patterns; larger values (1/1) create slower ones. T = triplet, D = dotted.' },
         fr: { t: 'Vitesse',
               b: 'Règle la division rythmique synchronisée au tempo pour chaque pas. Les petites valeurs (1/32) donnent des motifs rapides ; les grandes (1/1), des motifs lents. T = triolet, D = pointée.',
-              reviewed: false },
+              reviewed: true },
     },
     'swing': {
         en: { t: 'Swing',
               b: 'Delays every other step to create a shuffle/groove feel. At 0% timing is straight; higher values push odd steps later.' },
         fr: { t: 'Swing',
               b: 'Retarde un pas sur deux pour donner un balancement de type shuffle. À 0 %, la mise en place est droite ; les valeurs élevées repoussent les pas impairs.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'attack': {
         en: { t: 'Attack',
               b: 'Fade-in time when a step turns ON (0-500ms). Lower values create sharper onsets; higher values create gentle swells.' },
         fr: { t: 'Attaque',
               b: 'Durée du fondu d’entrée quand un pas s’active (0-500 ms). Les valeurs basses donnent des attaques franches ; les valeurs hautes, des montées douces.',
-              reviewed: false },
+              reviewed: true },
     },
     'release': {
         en: { t: 'Release',
               b: 'Fade-out time when a step turns OFF (0-500ms). Lower values create sharp cuts; higher values create gentle tails.' },
         fr: { t: 'Relâchement',
               b: 'Durée du fondu de sortie quand un pas se désactive (0-500 ms). Les valeurs basses donnent des coupures nettes ; les valeurs hautes, des extinctions douces.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Band display names ──────────────────────────────────────────────────
@@ -270,10 +270,10 @@ export const I18N = Object.freeze({
     // would pin every band tip to whichever language loaded the module.
     //
     // SUB is `sameAsEn` on purpose: it is the word a French control room uses.
-    'bandName.sub':  { en: { t: 'SUB',  b: '' }, fr: { t: 'SUB',    b: '', reviewed: false, sameAsEn: true } },
-    'bandName.low':  { en: { t: 'LOW',  b: '' }, fr: { t: 'GRAVE',  b: '', reviewed: false } },
-    'bandName.mid':  { en: { t: 'MID',  b: '' }, fr: { t: 'MÉDIUM', b: '', reviewed: false } },
-    'bandName.high': { en: { t: 'HIGH', b: '' }, fr: { t: 'AIGU',   b: '', reviewed: false } },
+    'bandName.sub':  { en: { t: 'SUB',  b: '' }, fr: { t: 'SUB',    b: '', reviewed: true, sameAsEn: true } },
+    'bandName.low':  { en: { t: 'LOW',  b: '' }, fr: { t: 'GRAVE',  b: '', reviewed: true } },
+    'bandName.mid':  { en: { t: 'MID',  b: '' }, fr: { t: 'MÉDIUM', b: '', reviewed: true } },
+    'bandName.high': { en: { t: 'HIGH', b: '' }, fr: { t: 'AIGU',   b: '', reviewed: true } },
 
     // ── Per-band controls ───────────────────────────────────────────────────
     // Identical in all four bands, so the wording lives here once and the band
@@ -285,63 +285,63 @@ export const I18N = Object.freeze({
               b: 'Shows the frequency range for this band. Frequencies are set by the crossover sliders between bands.' },
         fr: { t: 'Bande {band}',
               b: 'Affiche la plage de fréquences de cette bande. Les fréquences sont fixées par les curseurs de coupure entre les bandes.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.mute': {
         en: { t: 'Mute',
               b: 'Bypass the {band} band sequencer (pass audio through unaffected).' },
         fr: { t: 'Muet',
               b: 'Contourne le séquenceur de la bande {band} (le signal passe sans être traité).',
-              reviewed: false },
+              reviewed: true },
     },
     'band.solo': {
         en: { t: 'Solo',
               b: 'Mute all other bands so only {band} is sequenced. Click again to unsolo.' },
         fr: { t: 'Solo',
               b: 'Rend muettes toutes les autres bandes pour ne séquencer que {band}. Cliquez à nouveau pour annuler.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'band.clear': {
         en: { t: 'Clear',
               b: 'Resets all steps in this band to OFF.' },
         fr: { t: 'Effacer',
               b: 'Remet tous les pas de cette bande à l’arrêt.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.random': {
         en: { t: 'Random',
               b: 'Fills steps with a random pattern (50% probability per step).' },
         fr: { t: 'Aléatoire',
               b: 'Remplit les pas avec un motif aléatoire (50 % de probabilité par pas).',
-              reviewed: false },
+              reviewed: true },
     },
     'band.rate': {
         en: { t: '{band} Rate',
               b: 'Override the global rate for this band. "Global" follows the main Rate knob. Set a specific division for polymetric sequencing.' },
         fr: { t: 'Vitesse {band}',
               b: 'Remplace la vitesse globale pour cette bande. « Global » suit le réglage Vitesse principal. Choisissez une division précise pour un séquençage polymétrique.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.mix': {
         en: { t: '{band} Mix',
               b: 'Controls how much the volume drops on OFF steps. At 100%, OFF steps are fully silent. At 0%, no gating occurs.' },
         fr: { t: 'Mix {band}',
               b: 'Détermine de combien le volume baisse sur les pas inactifs. À 100 %, les pas inactifs sont totalement silencieux. À 0 %, aucun découpage n’a lieu.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.mode': {
         en: { t: 'Mode',
               b: 'Click to toggle between Manual (draw your own pattern) and Euclidean (algorithmically generated rhythm).' },
         fr: { t: 'Mode',
               b: 'Cliquez pour basculer entre Manuel (vous dessinez le motif) et Euclidien (rythme généré par algorithme).',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'band.expand': {
         en: { t: 'Expand',
               b: 'Opens the band controls panel (Phase, Steps, and Euclidean settings).' },
         fr: { t: 'Déplier',
               b: 'Ouvre le panneau de réglages de la bande (Phase, Pas et réglages euclidiens).',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The crossover and boundary sliders ──────────────────────────────────
@@ -350,35 +350,35 @@ export const I18N = Object.freeze({
               b: 'Sets the lowest frequency included in processing. Frequencies below this are unaffected.' },
         fr: { t: 'Limite grave',
               b: 'Fixe la fréquence la plus basse incluse dans le traitement. Les fréquences en dessous ne sont pas affectées.',
-              reviewed: false },
+              reviewed: true },
     },
     'crossover-1': {
         en: { t: 'Crossover 1',
               b: 'Split point between Sub and Low bands. Drag to adjust where sub frequencies end and low frequencies begin.' },
         fr: { t: 'Coupure 1',
               b: 'Point de séparation entre les bandes Sub et Grave. Faites glisser pour ajuster où finissent les subgraves et où commencent les graves.',
-              reviewed: false },
+              reviewed: true },
     },
     'crossover-2': {
         en: { t: 'Crossover 2',
               b: 'Split point between Low and Mid bands. Drag to adjust the frequency boundary.' },
         fr: { t: 'Coupure 2',
               b: 'Point de séparation entre les bandes Grave et Médium. Faites glisser pour ajuster la limite de fréquence.',
-              reviewed: false },
+              reviewed: true },
     },
     'crossover-3': {
         en: { t: 'Crossover 3',
               b: 'Split point between Mid and High bands. Drag to adjust where mid frequencies end and highs begin.' },
         fr: { t: 'Coupure 3',
               b: 'Point de séparation entre les bandes Médium et Aigu. Faites glisser pour ajuster où finissent les médiums et où commencent les aigus.',
-              reviewed: false },
+              reviewed: true },
     },
     'freq-high': {
         en: { t: 'High Boundary',
               b: 'Sets the highest frequency included in processing. Frequencies above this are unaffected.' },
         fr: { t: 'Limite aiguë',
               b: 'Fixe la fréquence la plus haute incluse dans le traitement. Les fréquences au-dessus ne sont pas affectées.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -421,27 +421,27 @@ export const LABELS = Object.freeze({
 
     // ── Header ──────────────────────────────────────────────────────────────
     'label.tagline':      { en: { t: 'Frequency Band Step Sequencer' },
-                            fr: { t: 'Séquenceur à pas par bandes de fréquences', reviewed: false } },
+                            fr: { t: 'Séquenceur à pas par bandes de fréquences', reviewed: true } },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
-    'label.load':         { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: false } },
-    'label.save':         { en: { t: 'Save' }, fr: { t: 'Enreg',  reviewed: false } },
+    'label.load':         { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } },
+    'label.save':         { en: { t: 'Save' }, fr: { t: 'Enreg',  reviewed: true } },
     // Written by setLabel() from showPresetDropdown(), which through v1.17.0
     // built this row with innerHTML and a markup fragment. It is createElement +
     // setLabel now: assertion 12 reports a raw prose write inside a template
     // string, and no I18N_EXEMPT entry could cover it, because an exemption
     // lives in this file where assertion 9 forbids that character.
-    'label.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: false } },
+    'label.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':     { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: false } },
-    'label.hoverHelp':    { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
+    'label.language':     { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } },
+    'label.hoverHelp':    { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
     // keys, never a ternary inside the call — check-i18n assertion 13.
-    'ui.on':              { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },
-    'ui.off':             { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: false } },
+    'ui.on':              { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
+    'ui.off':             { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } },
 
     // ── Band controls panel ─────────────────────────────────────────────────
     // ONE key with a {token}, not two. The panel is display:none at rest, and
@@ -450,26 +450,26 @@ export const LABELS = Object.freeze({
     // data-i18n-vars only ever paints the never-seen resting state, and is
     // present so the resting markup carries no surviving {band} placeholder.
     'label.bandControls': { en: { t: '{band} Band Controls' },
-                            fr: { t: 'Réglages de la bande {band}', reviewed: false } },
-    'label.pulses':       { en: { t: 'Pulses' }, fr: { t: 'Impulsions', reviewed: false } },
-    'label.offset':       { en: { t: 'Offset' }, fr: { t: 'Décalage',   reviewed: false } },
-    'label.phase':        { en: { t: 'Phase' },  fr: { t: 'Phase',      reviewed: false, sameAsEn: true } },
+                            fr: { t: 'Réglages de la bande {band}', reviewed: true } },
+    'label.pulses':       { en: { t: 'Pulses' }, fr: { t: 'Impulsions', reviewed: true } },
+    'label.offset':       { en: { t: 'Offset' }, fr: { t: 'Décalage',   reviewed: true } },
+    'label.phase':        { en: { t: 'Phase' },  fr: { t: 'Phase',      reviewed: true, sameAsEn: true } },
 
     // ── Captions shared by the footer row and the panel ─────────────────────
     // `label.steps` is used FIVE times: the footer caption, the panel's
     // Euclidean-length caption and the panel's band-step caption. Same English
     // word, same French word, one key — not three copies that could drift.
-    'label.steps':        { en: { t: 'Steps' },   fr: { t: 'Pas',     reviewed: false } },
-    'label.mix':          { en: { t: 'Mix' },     fr: { t: 'Mix',     reviewed: false, sameAsEn: true } },
-    'label.rate':         { en: { t: 'Rate' },    fr: { t: 'Vitesse', reviewed: false } },
-    'label.swing':        { en: { t: 'Swing' },   fr: { t: 'Swing',   reviewed: false, sameAsEn: true } },
-    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false } },
+    'label.steps':        { en: { t: 'Steps' },   fr: { t: 'Pas',     reviewed: true } },
+    'label.mix':          { en: { t: 'Mix' },     fr: { t: 'Mix',     reviewed: true, sameAsEn: true } },
+    'label.rate':         { en: { t: 'Rate' },    fr: { t: 'Vitesse', reviewed: true } },
+    'label.swing':        { en: { t: 'Swing' },   fr: { t: 'Swing',   reviewed: true, sameAsEn: true } },
+    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true } },
     // The full word, not an abbreviation: .control is `flex: 1`, i.e. flex-basis
     // ZERO, so all six footer cells are 121.7px wide whatever their caption says
     // and the caption cannot move its neighbours. Measured, not assumed — the
     // trap in the other direction (a flex:1 1 auto row where the basis IS the
     // content) is what makes a "fixed" diff come back byte-identical.
-    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: false } },
+    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: true } },
 
     // ── The band mode caption ───────────────────────────────────────────────
     // Both faces of a clickable caption a state updater rewrites, which is
@@ -477,8 +477,8 @@ export const LABELS = Object.freeze({
     // mirrors under D-01: the per-band euclidean switch is an
     // AudioParameterBool, so no automation lane ever shows either of these two
     // words, and translating them cannot make the page and the host disagree.
-    'label.manual':       { en: { t: 'Manual' },    fr: { t: 'Manuel',    reviewed: false } },
-    'label.euclidean':    { en: { t: 'Euclidean' }, fr: { t: 'Euclidien', reviewed: false } },
+    'label.manual':       { en: { t: 'Manual' },    fr: { t: 'Manuel',    reviewed: true } },
+    'label.euclidean':    { en: { t: 'Euclidean' }, fr: { t: 'Euclidien', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -491,15 +491,15 @@ export const LABELS = Object.freeze({
     // has a data-tip it renders a second, untranslated OS tooltip competing with
     // the measure-then-pin renderer, and check-i18n assertion 11 now fails on
     // any that survive.
-    'aria.presetPrev':    { en: { t: 'Previous preset' },       fr: { t: 'Préréglage précédent',          reviewed: false } },
-    'aria.presetNext':    { en: { t: 'Next preset' },           fr: { t: 'Préréglage suivant',            reviewed: false } },
+    'aria.presetPrev':    { en: { t: 'Previous preset' },       fr: { t: 'Préréglage précédent',          reviewed: true } },
+    'aria.presetNext':    { en: { t: 'Next preset' },           fr: { t: 'Préréglage suivant',            reviewed: true } },
     'aria.presetName':    { en: { t: 'Click to see all presets' },
-                            fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
-    'aria.presetLoad':    { en: { t: 'Load preset from file' }, fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
-    'aria.presetSave':    { en: { t: 'Save current settings' }, fr: { t: 'Enregistrer les réglages actuels',       reviewed: false } },
-    'aria.langSelect':    { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',         reviewed: false } },
-    'aria.helpToggle':    { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
-    'aria.closePanel':    { en: { t: 'Close band controls' },   fr: { t: 'Fermer les réglages de la bande', reviewed: false } },
+                            fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } },
+    'aria.presetLoad':    { en: { t: 'Load preset from file' }, fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
+    'aria.presetSave':    { en: { t: 'Save current settings' }, fr: { t: 'Enregistrer les réglages actuels',       reviewed: true } },
+    'aria.langSelect':    { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',         reviewed: true } },
+    'aria.helpToggle':    { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.closePanel':    { en: { t: 'Close band controls' },   fr: { t: 'Fermer les réglages de la bande', reviewed: true } },
     // The five accessible names on runtime-built controls whose only visible
     // text is a glyph — M, S, the empty-set sign, the die face and the
     // disclosure triangle. Bound by assigning dataset.i18nAria with a plain
@@ -511,12 +511,12 @@ export const LABELS = Object.freeze({
     // They carry no {band}: applyI18nAttributes() resolves with vars = null by
     // design, so a token here would render literally. The band name is the
     // adjacent caption in the same cell and the tip says it in full.
-    'aria.mute':          { en: { t: 'Mute this band' },        fr: { t: 'Rendre cette bande muette',     reviewed: false } },
-    'aria.solo':          { en: { t: 'Solo this band' },        fr: { t: 'Mettre cette bande en solo',    reviewed: false } },
-    'aria.clear':         { en: { t: 'Clear this band' },       fr: { t: 'Effacer cette bande',           reviewed: false } },
-    'aria.random':        { en: { t: 'Randomize this band' },   fr: { t: 'Rendre cette bande aléatoire',  reviewed: false } },
-    'aria.expand':        { en: { t: 'Open band controls' },    fr: { t: 'Ouvrir les réglages de la bande', reviewed: false } },
-    'aria.bandRate':      { en: { t: 'Band rate override' },    fr: { t: 'Vitesse propre à la bande',     reviewed: false } },
+    'aria.mute':          { en: { t: 'Mute this band' },        fr: { t: 'Rendre cette bande muette',     reviewed: true } },
+    'aria.solo':          { en: { t: 'Solo this band' },        fr: { t: 'Mettre cette bande en solo',    reviewed: true } },
+    'aria.clear':         { en: { t: 'Clear this band' },       fr: { t: 'Effacer cette bande',           reviewed: true } },
+    'aria.random':        { en: { t: 'Randomize this band' },   fr: { t: 'Rendre cette bande aléatoire',  reviewed: true } },
+    'aria.expand':        { en: { t: 'Open band controls' },    fr: { t: 'Ouvrir les réglages de la bande', reviewed: true } },
+    'aria.bandRate':      { en: { t: 'Band rate override' },    fr: { t: 'Vitesse propre à la bande',     reviewed: true } },
 });
 
 // ============================================================================

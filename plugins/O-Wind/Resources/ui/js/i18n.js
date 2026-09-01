@@ -322,21 +322,21 @@ export const I18N = Object.freeze({
               b: 'How hard the player blows across the embouchure hole. Low values give a soft, breathy tone that barely speaks; high values push the jet into a loud, harmonically rich regime. Range 0.00 to 1.00.' },
         fr: { t: 'Pression du souffle',
               b: 'Force avec laquelle le souffle passe sur le biseau. Les valeurs basses donnent un son doux et soufflé qui parle à peine ; les valeurs hautes poussent le jet vers un régime fort et riche en harmoniques. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.embouchure': {
         en: { t: 'Embouchure',
               b: 'Shapes the air jet against the edge of the embouchure hole — the ratio of jet width to bore. Lower values darken and steady the tone; higher values brighten it and make the octave break easier. Range 0.00 to 1.00.' },
         fr: { t: 'Embouchure',
               b: 'Règle la forme du jet d’air sur le biseau — le rapport entre la largeur du jet et la perce. Les valeurs basses assombrissent et stabilisent le son ; les hautes l’éclaircissent et facilitent le passage à l’octave. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.breathNoise': {
         en: { t: 'Breath Noise',
               b: 'Turbulence mixed into the air jet. A little keeps the tone alive; too much buries the pitch under wind. Range 0.00 to 1.00.' },
         fr: { t: 'Bruit de souffle',
               b: 'Turbulence mêlée au jet d’air. Un peu garde le son vivant ; trop enterre la hauteur sous le vent. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Resonator ───────────────────────────────────────────────────────────
@@ -345,35 +345,35 @@ export const I18N = Object.freeze({
               b: 'A timbral macro across the bore material: 0.00 is dark wood or bamboo, 1.00 is bright metal. Reach for it first when an instrument sounds right but the wrong colour. Range 0.00 to 1.00.' },
         fr: { t: 'Matériau',
               b: 'Macro de timbre sur la matière de la perce : 0,00 pour un bois ou un bambou sombre, 1,00 pour un métal brillant. À utiliser en premier quand un instrument sonne juste mais dans la mauvaise couleur. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.toneColor': {
         en: { t: 'Tone Color',
               b: 'Tilts the spectrum, trading weight in the fundamental against harmonic brightness. It works after Material rather than instead of it. Range 0.00 to 1.00.' },
         fr: { t: 'Timbre',
               b: 'Incline le spectre, échangeant le poids du fondamental contre la brillance harmonique. Il agit après Matériau plutôt qu’à sa place. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.airColumn': {
         en: { t: 'Air Column',
               b: 'Scales the effective bore length, which sets where the resonances sit against the played pitch. Low values feel short and piercing like a piccolo; high values long and hollow. Range 0.00 to 1.00.' },
         fr: { t: 'Colonne d’air',
               b: 'Met à l’échelle la longueur utile de la perce, qui fixe la position des résonances par rapport à la note jouée. Les valeurs basses donnent un tube court et perçant façon piccolo ; les hautes, un tube long et creux. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.jetReflection': {
         en: { t: 'Jet Reflection',
               b: 'Reflection coefficient at the junction between jet and bore. Negative values invert the returning wave and thin the tone; positive values reinforce it. Range −1.00 to 1.00.' },
         fr: { t: 'Réflexion du jet',
               b: 'Coefficient de réflexion à la jonction entre le jet et la perce. Les valeurs négatives inversent l’onde de retour et amincissent le son ; les positives le renforcent. Plage −1,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.endReflection': {
         en: { t: 'End Reflection',
               b: 'Reflection coefficient at the open end of the bore. It sets how much energy returns instead of radiating away, so low values leak and high values ring. Range −1.00 to 1.00.' },
         fr: { t: 'Réflexion de l’extrémité',
               b: 'Coefficient de réflexion à l’extrémité ouverte de la perce. Il fixe l’énergie qui revient au lieu de rayonner : les valeurs basses fuient, les hautes font sonner. Plage −1,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── ADSR envelope ───────────────────────────────────────────────────────
@@ -386,35 +386,35 @@ export const I18N = Object.freeze({
               b: 'Switches the amplitude envelope on. With it off a note follows breath pressure alone, which is how a wind instrument normally behaves, and the four knobs beside it do nothing. The automation lane names it ADSR Enabled; it reads Off or On.' },
         fr: { t: 'Enveloppe ADSR',
               b: 'Active l’enveloppe d’amplitude. Désactivée, une note ne suit que la pression du souffle, ce qui est le comportement normal d’un instrument à vent, et les quatre potentiomètres voisins n’ont aucun effet. La ligne d’automation la nomme ADSR Enabled ; elle affiche Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.adsrAttack': {
         en: { t: 'ADSR Attack',
               b: 'Time the envelope takes to reach full level after a note starts. Only active while the ADSR envelope is switched on. Range 1 ms to 5 s, shown in milliseconds below one second.' },
         fr: { t: 'Attaque ADSR',
               b: 'Temps que met l’enveloppe pour atteindre son niveau maximal après le début d’une note. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 5 s, affichée en millisecondes sous une seconde.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.adsrDecay': {
         en: { t: 'ADSR Decay',
               b: 'Time to fall from the attack peak down to the sustain level. Only active while the ADSR envelope is switched on. Range 1 ms to 5 s, shown in milliseconds below one second.' },
         fr: { t: 'Déclin ADSR',
               b: 'Temps de descente du sommet de l’attaque jusqu’au niveau de maintien. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 5 s, affichée en millisecondes sous une seconde.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.adsrSustain': {
         en: { t: 'ADSR Sustain',
               b: 'Level the note holds once the decay has finished, as a fraction of the attack peak. Only active while the ADSR envelope is switched on. Range 0.00 to 1.00.' },
         fr: { t: 'Maintien ADSR',
               b: 'Niveau auquel la note se tient une fois le déclin terminé, en fraction du sommet de l’attaque. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.adsrRelease': {
         en: { t: 'ADSR Release',
               b: 'Time the note takes to fade out after the key is let go. Only active while the ADSR envelope is switched on. Range 1 ms to 10 s, shown in milliseconds below one second.' },
         fr: { t: 'Relâchement ADSR',
               b: 'Temps que met la note à s’éteindre après le relâchement de la touche. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 10 s, affichée en millisecondes sous une seconde.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Expression ──────────────────────────────────────────────────────────
@@ -423,56 +423,56 @@ export const I18N = Object.freeze({
               b: 'Speed of the pitch vibrato. Around 5 Hz is the orchestral norm; slower reads as a swell, faster as a nervous shake. Range 2.0 to 8.0 Hz.' },
         fr: { t: 'Vitesse du vibrato',
               b: 'Vitesse du vibrato de hauteur. Environ 5 Hz est la norme orchestrale ; plus lent donne une houle, plus rapide un tremblement nerveux. Plage 2,0 à 8,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.vibratoDepth': {
         en: { t: 'Vibrato Pitch',
               b: 'How far the vibrato bends the pitch. At 0.00 the vibrato is silent no matter what Vibrato Rate is doing. Range 0.00 to 1.00.' },
         fr: { t: 'Hauteur du vibrato',
               b: 'Amplitude de la déviation de hauteur du vibrato. À 0,00 le vibrato est muet quoi que fasse la vitesse du vibrato. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.vibratoTremolo': {
         en: { t: 'Vibrato Tremolo',
               b: 'Adds amplitude modulation locked to the vibrato’s own phase, so the note breathes in level as well as in pitch. Range 0.00 to 1.00.' },
         fr: { t: 'Trémolo du vibrato',
               b: 'Ajoute une modulation d’amplitude verrouillée sur la phase du vibrato, de sorte que la note respire en niveau autant qu’en hauteur. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.vibratoDriftDepth': {
         en: { t: 'Vibrato Drift Depth',
               b: 'How far the vibrato’s rate and depth wander on their own. A small amount stops a machine-steady vibrato from sounding synthetic. Range 0.00 to 1.00.' },
         fr: { t: 'Profondeur de la dérive du vibrato',
               b: 'Amplitude de l’errance spontanée de la vitesse et de la profondeur du vibrato. Un peu suffit pour qu’un vibrato d’une régularité mécanique cesse de sonner synthétique. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.vibratoDriftSpeed': {
         en: { t: 'Vibrato Drift Speed',
               b: 'How fast that wandering evolves. It does nothing while Vibrato Drift Depth sits at zero. Range 0.10 to 2.00 Hz.' },
         fr: { t: 'Vitesse de la dérive du vibrato',
               b: 'Vitesse d’évolution de cette errance. Sans effet tant que la profondeur de la dérive reste à zéro. Plage 0,10 à 2,00 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.flutterTongue': {
         en: { t: 'Flutter Tongue',
               b: 'Depth of the flutter-tongue amplitude modulation — the rolled-r a player makes with the tongue while blowing. Range 0.00 to 1.00.' },
         fr: { t: 'Flatterzunge',
               b: 'Profondeur de la modulation d’amplitude du flatterzunge — le r roulé que le joueur produit avec la langue en soufflant. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.flutterRate': {
         en: { t: 'Flutter Rate',
               b: 'Speed of the flutter-tongue modulation. It does nothing while Flutter Tongue sits at zero. Range 15.0 to 30.0 Hz.' },
         fr: { t: 'Vitesse du Flatterzunge',
               b: 'Vitesse de la modulation du flatterzunge. Sans effet tant que le flatterzunge reste à zéro. Plage 15,0 à 30,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.growl': {
         en: { t: 'Growl',
               b: 'A second oscillator modulating the bore feedback, standing in for the vocal-fold coupling a player gets by humming while blowing. It roughens the tone rather than sweetening it. Range 0.00 to 1.00.' },
         fr: { t: 'Growl',
               b: 'Un second oscillateur qui module la réinjection de la perce, à la place du couplage des cordes vocales qu’un joueur obtient en fredonnant tout en soufflant. Il rend le son plus rugueux au lieu de l’adoucir. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -481,21 +481,21 @@ export const I18N = Object.freeze({
               b: 'Stereo spread of the output. 0.00 is mono, 1.00 is the natural width and 2.00 pushes past it. Range 0.00 to 2.00.' },
         fr: { t: 'Largeur',
               b: 'Étalement stéréo de la sortie. 0,00 donne du mono, 1,00 la largeur naturelle, et 2,00 va au-delà. Plage 0,00 à 2,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.formant': {
         en: { t: 'Formant',
               b: 'Prominence of the headjoint formant resonance — a fixed peak that colours every note the same way. It adds up to 6 dB of gain at the peak. Range 0.00 to 1.00.' },
         fr: { t: 'Formant',
               b: 'Importance de la résonance de formant de la tête — un pic fixe qui colore toutes les notes de la même façon. Il ajoute jusqu’à 6 dB de gain au sommet. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.outputLevel': {
         en: { t: 'Output Level',
               b: 'Master gain on the way out, applied after the effects chain. Range −60.0 to +12.0 dB.' },
         fr: { t: 'Niveau de sortie',
               b: 'Gain général en sortie, appliqué après la chaîne d’effets. Plage −60,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Impossible physics ──────────────────────────────────────────────────
@@ -504,21 +504,21 @@ export const I18N = Object.freeze({
               b: 'Removes damping from the bore so the note keeps ringing after the breath stops. At 1.00 it barely decays at all. Range 0.00 to 1.00.' },
         fr: { t: 'Maintien infini',
               b: 'Retire l’amortissement de la perce pour que la note continue de sonner une fois le souffle arrêté. À 1,00 elle ne décroît presque plus. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reversedJet': {
         en: { t: 'Reversed Jet',
               b: 'Inverts the direction of the jet delay, which no real flute can do. It hollows the tone and moves where the octave breaks. Range 0.00 to 1.00.' },
         fr: { t: 'Jet inversé',
               b: 'Inverse le sens du retard du jet, ce qu’aucune flûte réelle ne peut faire. Cela creuse le son et déplace le point de passage à l’octave. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.subHarmonics': {
         en: { t: 'Sub-Harmonics',
               b: 'Adds sub-octave content through nonlinear feedback in the bore. Small amounts thicken the low register; large amounts growl. Range 0.00 to 1.00.' },
         fr: { t: 'Sous-harmoniques',
               b: 'Ajoute du contenu à l’octave inférieure par réinjection non linéaire dans la perce. En petite dose cela épaissit le grave ; en grande dose cela gronde. Plage 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Instrument strip ────────────────────────────────────────────────────
@@ -535,14 +535,14 @@ export const I18N = Object.freeze({
               b: 'This switch currently does nothing you can hear. The tone-hole scattering was never implemented and its scaffolding was removed in v1.16.2; the parameter is kept registered only so that existing sessions and automation stay valid. It reads Off or On.' },
         fr: { t: 'Trous de jeu',
               b: 'Cet interrupteur n’a pour l’instant aucun effet audible. La diffusion par les trous de jeu n’a jamais été implémentée et son échafaudage a été retiré en v1.16.2 ; le paramètre reste déclaré uniquement pour que les sessions et les automations existantes restent valides. Il affiche Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.instrumentPreset': {
         en: { t: 'Instrument Preset',
               b: 'Picks one of eight bore and jet configurations, from Concert Flute to Ocarina. It rewrites the physical model rather than the knob positions, so the change is heard at once and nothing on this page moves. Eight choices, numbered 0 to 7 in the automation lane.' },
         fr: { t: 'Préréglage d’instrument',
               b: 'Choisit une des huit configurations de perce et de jet, de Concert Flute à Ocarina. Il réécrit le modèle physique et non la position des potentiomètres : le changement s’entend aussitôt et rien ne bouge sur cette page. Huit choix, numérotés de 0 à 7 dans la ligne d’automation.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: chorus ─────────────────────────────────────────────────────
@@ -564,28 +564,28 @@ export const I18N = Object.freeze({
               b: 'Takes the chorus in and out of the signal path. The button reads On while the effect is running, which is the automation parameter Chorus Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement du chorus',
               b: 'Insère ou retire le chorus du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation Chorus Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.chorusRate': {
         en: { t: 'Chorus Rate',
               b: 'Speed of the chorus oscillator. Slow settings widen and drift; fast settings shimmer. Range 0.10 to 10.00 Hz.' },
         fr: { t: 'Vitesse du chorus',
               b: 'Vitesse de l’oscillateur du chorus. Les réglages lents élargissent et font dériver ; les rapides font miroiter. Plage 0,10 à 10,00 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.chorusDepth': {
         en: { t: 'Chorus Depth',
               b: 'How far the chorus oscillator sweeps its delay line. Range 0 to 100 %.' },
         fr: { t: 'Profondeur du chorus',
               b: 'Amplitude du balayage de la ligne à retard par l’oscillateur du chorus. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.chorusMix': {
         en: { t: 'Chorus Mix',
               b: 'Balance between the dry signal and the chorused one. It ships at 0 %, so the chorus is inaudible until this is raised. Range 0 to 100 %.' },
         fr: { t: 'Mix du chorus',
               b: 'Équilibre entre le signal direct et le signal traité par le chorus. Il est livré à 0 %, donc le chorus reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: delay ──────────────────────────────────────────────────────
@@ -594,21 +594,21 @@ export const I18N = Object.freeze({
               b: 'Takes the delay in and out of the signal path. The button reads On while the effect is running, which is the automation parameter Delay Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement du délai',
               b: 'Insère ou retire le délai du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation Delay Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayTime': {
         en: { t: 'Delay Time',
               b: 'Time between repeats. The readout is in milliseconds even though the host automation lane reports the same parameter in seconds. Range 1 to 2000 ms.' },
         fr: { t: 'Durée du délai',
               b: 'Temps entre les répétitions. L’affichage est en millisecondes alors que la ligne d’automation de l’hôte donne le même paramètre en secondes. Plage 1 à 2000 ms.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayFeedback': {
         en: { t: 'Delay Feedback',
               b: 'How much of each repeat is fed back into the line. It stops short of unity so the delay cannot run away. Range 0 to 95 %.' },
         fr: { t: 'Réinjection du délai',
               b: 'Proportion de chaque répétition renvoyée dans la ligne. Elle s’arrête avant l’unité pour que le délai ne s’emballe pas. Plage 0 à 95 %.',
-              reviewed: false },
+              reviewed: true },
     },
     // The two option words stay English on the page — they are the delayMode
     // AudioParameterChoice options verbatim, so the page and the host lane must
@@ -621,14 +621,14 @@ export const I18N = Object.freeze({
               b: 'Normal repeats on both channels together; PingPong alternates them left and right through cross-feedback. Both option words stay English because the host automation lane names them that way. Normal or PingPong.' },
         fr: { t: 'Mode de délai',
               b: 'Normal répète sur les deux canaux ensemble ; PingPong les fait alterner à gauche et à droite par réinjection croisée. Les deux mots restent en anglais parce que la ligne d’automation de l’hôte les nomme ainsi. Normal ou PingPong.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayMix': {
         en: { t: 'Delay Mix',
               b: 'Balance between the dry signal and the delayed one. It ships at 0 %, so the delay is inaudible until this is raised. Range 0 to 100 %.' },
         fr: { t: 'Mix du délai',
               b: 'Équilibre entre le signal direct et le signal retardé. Il est livré à 0 %, donc le délai reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: EQ ─────────────────────────────────────────────────────────
@@ -637,35 +637,35 @@ export const I18N = Object.freeze({
               b: 'Takes the equaliser in and out of the signal path. The button reads On while the effect is running, which is the automation parameter EQ Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement de l’EQ',
               b: 'Insère ou retire l’égaliseur du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation EQ Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqLowGain': {
         en: { t: 'EQ Low Gain',
               b: 'Shelving cut or boost on the low band. Range −12.0 to +12.0 dB.' },
         fr: { t: 'Gain des graves',
               b: 'Atténuation ou accentuation en plateau sur la bande grave. Plage −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqMidGain': {
         en: { t: 'EQ Mid Gain',
               b: 'Peaking cut or boost on the mid band, centred wherever EQ Mid Freq is set. Range −12.0 to +12.0 dB.' },
         fr: { t: 'Gain des médiums',
               b: 'Atténuation ou accentuation en cloche sur la bande médium, centrée là où est réglée la fréquence des médiums. Plage −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqMidFreq': {
         en: { t: 'EQ Mid Freq',
               b: 'Centre frequency of the mid band. It changes nothing while EQ Mid Gain sits at 0 dB. Range 200 to 8000 Hz.' },
         fr: { t: 'Fréquence des médiums',
               b: 'Fréquence centrale de la bande médium. Sans effet tant que le gain des médiums reste à 0 dB. Plage 200 à 8000 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqHighGain': {
         en: { t: 'EQ High Gain',
               b: 'Shelving cut or boost on the high band. Range −12.0 to +12.0 dB.' },
         fr: { t: 'Gain des aigus',
               b: 'Atténuation ou accentuation en plateau sur la bande aiguë. Plage −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: reverb ─────────────────────────────────────────────────────
@@ -674,49 +674,49 @@ export const I18N = Object.freeze({
               b: 'Takes the reverb in and out of the signal path. The button reads On while the effect is running, which is the automation parameter Reverb Bypass sitting at Off — the two are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement de la réverbération',
               b: 'Insère ou retire la réverbération du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation Reverb Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbSize': {
         en: { t: 'Reverb Size',
               b: 'Size of the simulated room, which sets how long the tail runs. Range 0 to 100 %.' },
         fr: { t: 'Taille de la réverbération',
               b: 'Taille de la salle simulée, qui fixe la longueur de la traîne. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbDamp': {
         en: { t: 'Reverb Damping',
               b: 'How fast the high frequencies die away inside the tail. More damping reads as soft furnishings; less as bare stone. Range 0 to 100 %.' },
         fr: { t: 'Amortissement de la réverbération',
               b: 'Vitesse à laquelle les aigus s’éteignent dans la traîne. Beaucoup d’amortissement évoque une salle meublée ; peu, la pierre nue. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbPredelay': {
         en: { t: 'Reverb Pre-delay',
               b: 'Gap between the dry note and the first reflections. A little keeps the attack clear of the tail. Range 0 to 200 ms.' },
         fr: { t: 'Pré-délai de la réverbération',
               b: 'Écart entre la note directe et les premières réflexions. Un peu suffit pour dégager l’attaque de la traîne. Plage 0 à 200 ms.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbMod': {
         en: { t: 'Reverb Mod',
               b: 'Modulates the reverb’s delay lines so the tail moves instead of ringing on one pitch. Range 0 to 100 %.' },
         fr: { t: 'Modulation de la réverbération',
               b: 'Module les lignes à retard de la réverbération pour que la traîne bouge au lieu de sonner sur une seule hauteur. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbShimmer': {
         en: { t: 'Reverb Shimmer',
               b: 'Feeds an octave-up copy of the tail back into the reverb, so the sound rises as it decays. Range 0 to 100 %.' },
         fr: { t: 'Shimmer de la réverbération',
               b: 'Réinjecte dans la réverbération une copie de la traîne transposée à l’octave supérieure, si bien que le son monte en décroissant. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbMix': {
         en: { t: 'Reverb Mix',
               b: 'Balance between the dry signal and the reverberated one. It ships at 0 %, so the reverb is inaudible until this is raised. Range 0 to 100 %.' },
         fr: { t: 'Mix de la réverbération',
               b: 'Équilibre entre le signal direct et le signal réverbéré. Il est livré à 0 %, donc la réverbération reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
@@ -731,7 +731,7 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel just below this button. It holds the interface language, and nothing else.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages juste sous ce bouton. Il ne contient que la langue de l’interface.',
-              reviewed: false },
+              reviewed: true },
     },
     // The third sentence is a scope statement, not a boast. O-Wind consumes the
     // tuning panel from the SHARED module by reference (CMakeLists.txt:97-98),
@@ -743,7 +743,7 @@ export const I18N = Object.freeze({
               b: 'Switches every caption and every hover-help sentence between English and French. Number readouts keep their English format, and the Tuning tab stays English in both languages.' },
         fr: { t: 'Langue de l’interface',
               b: 'Bascule chaque légende et chaque phrase d’aide au survol entre l’anglais et le français. Les valeurs numériques gardent leur format anglais, et l’onglet Accord reste en anglais dans les deux langues.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -780,15 +780,15 @@ export const LABELS = Object.freeze({
     // "Enreg." is the abbreviation a transport bar uses, and it is what keeps
     // the bar's geometry language-invariant without pinning a width on a button
     // whose neighbour is the elastic one.
-    'label.presetSave': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
+    'label.presetSave': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
 
     'aria.presetPrev': {
         en: { t: 'Previous Preset' },
-        fr: { t: 'Préréglage précédent', reviewed: false },
+        fr: { t: 'Préréglage précédent', reviewed: true },
     },
     'aria.presetNext': {
         en: { t: 'Next Preset' },
-        fr: { t: 'Préréglage suivant', reviewed: false },
+        fr: { t: 'Préréglage suivant', reviewed: true },
     },
     // MOVED, NOT AUTHORED. This is the v1.16.3 native title= on
     // #preset-name, verbatim. Contract section 4 deletes a native title rather
@@ -800,75 +800,75 @@ export const LABELS = Object.freeze({
     // would delete the entire dropdown on the first language sweep.
     'aria.presetName': {
         en: { t: 'Click to browse presets' },
-        fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false },
+        fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true },
     },
 
     // ── Tab bar ─────────────────────────────────────────────────────────────
     // `.tab-btn` is `flex: 1` in a 900 px bar, so each is exactly 300 px wide
     // and centred whatever it says. Nothing here can push anything.
-    'label.tab.sound':   { en: { t: 'Sound' },   fr: { t: 'Son',     reviewed: false } },
-    'label.tab.tuning':  { en: { t: 'Tuning' },  fr: { t: 'Accord',  reviewed: false } },
-    'label.tab.effects': { en: { t: 'Effects' }, fr: { t: 'Effets',  reviewed: false } },
+    'label.tab.sound':   { en: { t: 'Sound' },   fr: { t: 'Son',     reviewed: true } },
+    'label.tab.tuning':  { en: { t: 'Tuning' },  fr: { t: 'Accord',  reviewed: true } },
+    'label.tab.effects': { en: { t: 'Effects' }, fr: { t: 'Effets',  reviewed: true } },
 
     // ── Settings popover (v1.17.0) ──────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
-    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: false } },
+    'label.language':  { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect': {
         en: { t: 'Interface language' },
-        fr: { t: 'Langue de l’interface', reviewed: false },
+        fr: { t: 'Langue de l’interface', reviewed: true },
     },
 
     // ── Instrument strip ────────────────────────────────────────────────────
-    'label.instrument': { en: { t: 'Instrument' }, fr: { t: 'Instrument', reviewed: false, sameAsEn: true } },
+    'label.instrument': { en: { t: 'Instrument' }, fr: { t: 'Instrument', reviewed: true, sameAsEn: true } },
     // The flute term is "trous de jeu". At 11 px uppercase that is ~90 px
     // against "Tone Holes"' 75.42, and .toggle-control is a flex item in the
     // instrument strip, so the widening would push the preset selector beside
     // it. .toggle-label is pinned to a box that holds BOTH — see index.html.
-    'label.toneHoles':  { en: { t: 'Tone Holes' }, fr: { t: 'Trous de jeu', reviewed: false } },
-    'label.preset':     { en: { t: 'Preset' },     fr: { t: 'Préréglage',   reviewed: false } },
+    'label.toneHoles':  { en: { t: 'Tone Holes' }, fr: { t: 'Trous de jeu', reviewed: true } },
+    'label.preset':     { en: { t: 'Preset' },     fr: { t: 'Préréglage',   reviewed: true } },
 
     // ── Excitation ──────────────────────────────────────────────────────────
-    'label.excitation': { en: { t: 'Excitation' }, fr: { t: 'Excitation', reviewed: false, sameAsEn: true } },
-    'label.breath':     { en: { t: 'Breath' },     fr: { t: 'Souffle',    reviewed: false } },
+    'label.excitation': { en: { t: 'Excitation' }, fr: { t: 'Excitation', reviewed: true, sameAsEn: true } },
+    'label.breath':     { en: { t: 'Breath' },     fr: { t: 'Souffle',    reviewed: true } },
     // Identical in French. sameAsEn is an ASSERTION, not a shrug: it is what
     // stops assertion 4 reading an identical string as an untranslated one.
-    'label.embouchure': { en: { t: 'Embouchure' }, fr: { t: 'Embouchure', reviewed: false, sameAsEn: true } },
-    'label.noise':      { en: { t: 'Noise' },      fr: { t: 'Bruit',      reviewed: false } },
+    'label.embouchure': { en: { t: 'Embouchure' }, fr: { t: 'Embouchure', reviewed: true, sameAsEn: true } },
+    'label.noise':      { en: { t: 'Noise' },      fr: { t: 'Bruit',      reviewed: true } },
 
     // ── Resonator ───────────────────────────────────────────────────────────
-    'label.resonator': { en: { t: 'Resonator' },  fr: { t: 'Résonateur', reviewed: false } },
-    'label.material':  { en: { t: 'Material' },   fr: { t: 'Matériau',   reviewed: false } },
-    'label.toneColor': { en: { t: 'Tone Color' }, fr: { t: 'Timbre',     reviewed: false } },
+    'label.resonator': { en: { t: 'Resonator' },  fr: { t: 'Résonateur', reviewed: true } },
+    'label.material':  { en: { t: 'Material' },   fr: { t: 'Matériau',   reviewed: true } },
+    'label.toneColor': { en: { t: 'Tone Color' }, fr: { t: 'Timbre',     reviewed: true } },
     // "Colonne d'air" is 13 characters — ~80 px in the 72 px box, an ellipsis.
     // "Colonne" is unambiguous under a knob in the RESONATOR section.
-    'label.airColumn': { en: { t: 'Air Column' }, fr: { t: 'Colonne',    reviewed: false } },
-    'label.jetRefl':   { en: { t: 'Jet Refl.' },  fr: { t: 'Réfl. jet',  reviewed: false } },
+    'label.airColumn': { en: { t: 'Air Column' }, fr: { t: 'Colonne',    reviewed: true } },
+    'label.jetRefl':   { en: { t: 'Jet Refl.' },  fr: { t: 'Réfl. jet',  reviewed: true } },
         // "bout" is colloquial for a bore's open end and the tip body already says
     // "l'extrémité ouverte de la perce" — the caption and its own body were
     // naming one thing two ways. 59.70 px against the 72.00 px cap.
-    'label.endRefl':   { en: { t: 'End Refl.' },  fr: { t: 'Réfl. extr.', reviewed: false } },
+    'label.endRefl':   { en: { t: 'End Refl.' },  fr: { t: 'Réfl. extr.', reviewed: true } },
 
     // ── ADSR envelope ───────────────────────────────────────────────────────
     // The caption was SPLIT out of `.section-label` into its own <span>
     // (contract section 5): the div also holds the #adsr-toggle as an element
     // child, and applyLabel() writes textContent, which would have deleted the
     // toggle on the first language sweep.
-    'label.adsrEnvelope': { en: { t: 'ADSR Envelope' }, fr: { t: 'Enveloppe ADSR', reviewed: false } },
-    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque',  reviewed: false } },
-    'label.decay':        { en: { t: 'Decay' },   fr: { t: 'Déclin',   reviewed: false } },
-    'label.sustain':      { en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: false } },
-    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâch.',  reviewed: false } },
+    'label.adsrEnvelope': { en: { t: 'ADSR Envelope' }, fr: { t: 'Enveloppe ADSR', reviewed: true } },
+    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque',  reviewed: true } },
+    'label.decay':        { en: { t: 'Decay' },   fr: { t: 'Déclin',   reviewed: true } },
+    'label.sustain':      { en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: true } },
+    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâch.',  reviewed: true } },
 
     // ── Expression ──────────────────────────────────────────────────────────
-    'label.expression':  { en: { t: 'Expression' },  fr: { t: 'Expression', reviewed: false, sameAsEn: true } },
-    'label.vibRate':     { en: { t: 'Vib Rate' },    fr: { t: 'Vit. vibr.', reviewed: false } },
-    'label.vibPitch':    { en: { t: 'Vib Pitch' },   fr: { t: 'Haut. vibr.', reviewed: false } },
+    'label.expression':  { en: { t: 'Expression' },  fr: { t: 'Expression', reviewed: true, sameAsEn: true } },
+    'label.vibRate':     { en: { t: 'Vib Rate' },    fr: { t: 'Vit. vibr.', reviewed: true } },
+    'label.vibPitch':    { en: { t: 'Vib Pitch' },   fr: { t: 'Haut. vibr.', reviewed: true } },
     // "Trémolo vibr." would be 13 characters in a 72 px box. The knob sits
     // between Vib Pitch and Drift Depth in the EXPRESSION section, so the
     // vibrato is already named by its neighbours.
-    'label.vibTremolo':  { en: { t: 'Vib Tremolo' }, fr: { t: 'Trémolo',    reviewed: false } },
-    'label.driftDepth':  { en: { t: 'Drift Depth' }, fr: { t: 'Prof. dérive', reviewed: false } },
-    'label.driftSpeed':  { en: { t: 'Drift Speed' }, fr: { t: 'Vit. dérive', reviewed: false } },
+    'label.vibTremolo':  { en: { t: 'Vib Tremolo' }, fr: { t: 'Trémolo',    reviewed: true } },
+    'label.driftDepth':  { en: { t: 'Drift Depth' }, fr: { t: 'Prof. dérive', reviewed: true } },
+    'label.driftSpeed':  { en: { t: 'Drift Speed' }, fr: { t: 'Vit. dérive', reviewed: true } },
     // MEANING BEFORE WIDTH (v1.18.1). The parameter is flutterTongue — the wind
     // technique — so the glossary row that applies is `flutter tongue ->
     // Flatterzunge`, not `flutter -> Scintillement`, which names tape
@@ -876,81 +876,81 @@ export const LABELS = Object.freeze({
     // itself measures 77.73 px against the 72.00 px .knob-label cap and
     // TRUNCATES to an ellipsis; "Flatt." is the abbreviation French scores
     // print and is what a French wind player reads. The tip title spells it out.
-    'label.flutter':     { en: { t: 'Flutter' },     fr: { t: 'Flatt.',     reviewed: false,
+    'label.flutter':     { en: { t: 'Flutter' },     fr: { t: 'Flatt.',     reviewed: true,
         termNote: 'MEANING, then width. flutterTongue is the wind technique, so the row is `flutter tongue -> Flatterzunge`, not `flutter -> Scintillement` (tape wow-and-flutter — wrong on a flute). Flatterzunge measures 77.73 px against the 72.00 px .knob-label cap and truncates to an ellipsis; Flatt. is the abbreviation French orchestral scores print, and tip.flutterTongue spells Flatterzunge out in full' } },
     // The matched half. "Vit. frul." would leave the same technique named two
     // ways on two adjacent captions (55.59 px, 16.41 px of the cap).
-    'label.flutRate':    { en: { t: 'Flut Rate' },   fr: { t: 'Vit. flatt.', reviewed: false,
+    'label.flutRate':    { en: { t: 'Flut Rate' },   fr: { t: 'Vit. flatt.', reviewed: true,
         termNote: 'the matched half of label.flutter — same meaning exemption (flutterTongue, not tape flutter), same abbreviation. "Vit. frul." would leave one technique named two ways on two adjacent captions. 55.59 px against the 72.00 px .knob-label cap' } },
     // A loanword in French jazz vocabulary, spelled identically.
-    'label.growl':       { en: { t: 'Growl' },       fr: { t: 'Growl',      reviewed: false, sameAsEn: true } },
+    'label.growl':       { en: { t: 'Growl' },       fr: { t: 'Growl',      reviewed: true, sameAsEn: true } },
 
     // ── Output ──────────────────────────────────────────────────────────────
     // ONE key on TWO elements: the OUTPUT section legend and the outputLevel
     // knob caption. One concept, one string — two entries would be two copies
     // of the same word in one table, drifting apart on the first edit.
-    'label.output':   { en: { t: 'Output' },   fr: { t: 'Sortie',  reviewed: false } },
-    'label.width':    { en: { t: 'Width' },    fr: { t: 'Largeur', reviewed: false } },
-    'label.formant':  { en: { t: 'Formant' },  fr: { t: 'Formant', reviewed: false, sameAsEn: true } },
+    'label.output':   { en: { t: 'Output' },   fr: { t: 'Sortie',  reviewed: true } },
+    'label.width':    { en: { t: 'Width' },    fr: { t: 'Largeur', reviewed: true } },
+    'label.formant':  { en: { t: 'Formant' },  fr: { t: 'Formant', reviewed: true, sameAsEn: true } },
 
     // ── Impossible physics ──────────────────────────────────────────────────
     'label.impossiblePhysics': {
         en: { t: 'Impossible Physics' },
-        fr: { t: 'Physique impossible', reviewed: false },
+        fr: { t: 'Physique impossible', reviewed: true },
     },
     // "Maint." and not "Tenue": this page HAS an ADSR whose Sustain caption is
     // "Maintien", and two French words for one English one inside a 900 x 600
     // frame is the defect. "Maintien inf." is 73.56 px against the 72.00 px cap
     // and truncates; "Maint. inf." is 58.69 px. (O-Bowed keeps Tenue because it
     // has no ADSR at all — the exemption there does not reach here.)
-    'label.infSustain': { en: { t: 'Inf. Sustain' }, fr: { t: 'Maint. inf.', reviewed: false } },
-    'label.revJet':     { en: { t: 'Rev. Jet' },     fr: { t: 'Jet inv.',   reviewed: false } },
-    'label.subHarm':    { en: { t: 'Sub Harm.' },    fr: { t: 'Sous-harm.', reviewed: false } },
+    'label.infSustain': { en: { t: 'Inf. Sustain' }, fr: { t: 'Maint. inf.', reviewed: true } },
+    'label.revJet':     { en: { t: 'Rev. Jet' },     fr: { t: 'Jet inv.',   reviewed: true } },
+    'label.subHarm':    { en: { t: 'Sub Harm.' },    fr: { t: 'Sous-harm.', reviewed: true } },
 
     // ── Effects tab: section titles and bypass faces ────────────────────────
-    'label.fx.chorus': { en: { t: 'Chorus' }, fr: { t: 'Chorus',   reviewed: false, sameAsEn: true } },
-    'label.fx.delay':  { en: { t: 'Delay' },  fr: { t: 'Délai',    reviewed: false } },
-    'label.fx.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb.',  reviewed: false } },
+    'label.fx.chorus': { en: { t: 'Chorus' }, fr: { t: 'Chorus',   reviewed: true, sameAsEn: true } },
+    'label.fx.delay':  { en: { t: 'Delay' },  fr: { t: 'Délai',    reviewed: true } },
+    'label.fx.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb.',  reviewed: true } },
     // The three-letter abbreviation French audio uses too. Not "Égaliseur":
     // .fx-title is `margin-right: auto` in a flex row whose knobs follow it,
     // and a 9-character legend would move all four EQ knobs.
-    'label.fx.eq':     { en: { t: 'EQ' },     fr: { t: 'EQ',       reviewed: false, sameAsEn: true } },
+    'label.fx.eq':     { en: { t: 'EQ' },     fr: { t: 'EQ',       reviewed: true, sameAsEn: true } },
 
     // The bypass button's two faces. Written through setLabel() from two
     // LITERAL call sites rather than one ternary — contract section 6, and
     // assertion 13 rejects a ternary inside a setLabel argument. "Marche" /
     // "Arrêt" rather than "Activé" / "Désactivé": the button is 9 px in a
     // 2px-8px pad, and this is the vocabulary a piece of hardware uses.
-    'label.fx.on':  { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },
-    'label.fx.off': { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: false } },
+    'label.fx.on':  { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
+    'label.fx.off': { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } },
 
     // ── Effects tab: the sixteen script-written knob captions ───────────────
     // Each is written by ONE literal setLabel() call at its own site. See the
     // header for why a data-driven key would have been invisible to the gates.
-    'label.fx.rate':     { en: { t: 'Rate' },     fr: { t: 'Vitesse',    reviewed: false } },
-    'label.fx.depth':    { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: false } },
-    'label.fx.mix':      { en: { t: 'Mix' },      fr: { t: 'Mix',        reviewed: false, sameAsEn: true } },
-    'label.fx.time':     { en: { t: 'Time' },     fr: { t: 'Durée',      reviewed: false } },
-    'label.fx.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',     reviewed: false } },
-    'label.fx.mode':     { en: { t: 'Mode' },     fr: { t: 'Mode',       reviewed: false, sameAsEn: true } },
-    'label.fx.low':      { en: { t: 'Low' },      fr: { t: 'Grave',      reviewed: false } },
-    'label.fx.mid':      { en: { t: 'Mid' },      fr: { t: 'Médium',     reviewed: false } },
-    'label.fx.midFreq':  { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: false } },
-    'label.fx.high':     { en: { t: 'High' },     fr: { t: 'Aigu',       reviewed: false } },
-    'label.fx.size':     { en: { t: 'Size' },     fr: { t: 'Taille',     reviewed: false } },
-    'label.fx.damp':     { en: { t: 'Damp' },     fr: { t: 'Amort.',     reviewed: false } },
-    'label.fx.predelay': { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.',   reviewed: false } },
-    'label.fx.mod':      { en: { t: 'Mod' },      fr: { t: 'Mod',        reviewed: false, sameAsEn: true } },
+    'label.fx.rate':     { en: { t: 'Rate' },     fr: { t: 'Vitesse',    reviewed: true } },
+    'label.fx.depth':    { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: true } },
+    'label.fx.mix':      { en: { t: 'Mix' },      fr: { t: 'Mix',        reviewed: true, sameAsEn: true } },
+    'label.fx.time':     { en: { t: 'Time' },     fr: { t: 'Durée',      reviewed: true } },
+    'label.fx.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',     reviewed: true } },
+    'label.fx.mode':     { en: { t: 'Mode' },     fr: { t: 'Mode',       reviewed: true, sameAsEn: true } },
+    'label.fx.low':      { en: { t: 'Low' },      fr: { t: 'Grave',      reviewed: true } },
+    'label.fx.mid':      { en: { t: 'Mid' },      fr: { t: 'Médium',     reviewed: true } },
+    'label.fx.midFreq':  { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: true } },
+    'label.fx.high':     { en: { t: 'High' },     fr: { t: 'Aigu',       reviewed: true } },
+    'label.fx.size':     { en: { t: 'Size' },     fr: { t: 'Taille',     reviewed: true } },
+    'label.fx.damp':     { en: { t: 'Damp' },     fr: { t: 'Amort.',     reviewed: true } },
+    'label.fx.predelay': { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.',   reviewed: true } },
+    'label.fx.mod':      { en: { t: 'Mod' },      fr: { t: 'Mod',        reviewed: true, sameAsEn: true } },
     // "Chatoiement" is 11 characters and the accurate word; the knob caption
     // box is 72 px and this is a reverb parameter every French-language DAW
     // ships as "Shimmer".
-    'label.fx.shimmer':  { en: { t: 'Shimmer' },  fr: { t: 'Shimmer',    reviewed: false, sameAsEn: true } },
+    'label.fx.shimmer':  { en: { t: 'Shimmer' },  fr: { t: 'Shimmer',    reviewed: true, sameAsEn: true } },
 
     // The accessible name that REPLACES the native title= setupFxKnob() used to
     // write onto all sixteen FX readouts. Moved verbatim, not authored.
     'aria.fxValueEdit': {
         en: { t: 'Double-click to edit' },
-        fr: { t: 'Double-cliquer pour modifier', reviewed: false },
+        fr: { t: 'Double-cliquer pour modifier', reviewed: true },
     },
 
     // ── The tuning panel's load-failure notice ──────────────────────────────
@@ -960,7 +960,7 @@ export const LABELS = Object.freeze({
     // never open a markup path (assertion 9).
     'label.tuningFailed': {
         en: { t: 'Tuning panel failed to load.' },
-        fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: false },
+        fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
     },
 });
 
