@@ -201,18 +201,29 @@
             cursor: pointer;
             text-transform: uppercase;
             /* v2.1.0 GEOMETRY PIN — pinned to the ENGLISH box, not above it.
-               INVERSE renders 2.17 px NARROWER than REVERSE, and this pill
+               The French caption renders NARROWER than REVERSE, and this pill
                shrink-wraps inside #reverse-container, which is centred by
-               translateX(-50%). A narrower pill therefore moves the CONTAINER
-               (dx +1.09, dw -2.17) and #reverse-container is a non-label
-               element, so check-ui-labels assertion 7 reports it. 95.5 px is
-               the measured English border-box (57.50 text + 18 + 18 padding +
-               1 + 1 border) rounded to nothing at all: English is already
-               exactly 95.5, so the pin costs it zero movement, and French is
-               held at the same box. text-align is a no-op in English for the
-               same reason and centres the shorter French caption.
-               Negative control: removing this pin re-breaks assertion 7 with
-               #reverse-container dx=1.09 dw=-2.17. */
+               translateX(-50%). A narrower pill therefore moves the CONTAINER,
+               and #reverse-container is a non-label element, so
+               check-ui-labels assertion 7 reports it. 95.5 px is the measured
+               English border-box (57.50 text + 18 + 18 padding + 1 + 1 border)
+               rounded to nothing at all: English is already exactly 95.5, so
+               the pin costs it zero movement, and French is held at the same
+               box. text-align is a no-op in English for the same reason and
+               centres the shorter French caption.
+
+               v2.2.1 UPDATE — the caption changed and the pin got MORE load,
+               not less. The suite glossary settles "reverse" on Inversion
+               (abbreviated Invers.); v2.1.0's INVERSE was 55.33 px and 2.17 px
+               under the English, Invers. is 51.11 and 6.39 px under it.
+               Inversion itself does not fit at all: 71.05 px of text pushes
+               the border-box to 109.05, past this pin, and moves the toggle
+               AND the container.
+               Negative control, re-measured at v2.2.1 rather than recomputed
+               (min-width neutralised in the live CSSOM, this file untouched):
+               with the pin PRESENT #reverse-container is [227.25, 95.5] in
+               both languages, dx 0 dw 0. With it REMOVED, French becomes
+               [230.45, 89.11] — dx +3.20, dw -6.39, and assertion 7 fails. */
             min-width: 95.5px;
             text-align: center;
             border: 1px solid rgba(139, 115, 85, 0.4);
