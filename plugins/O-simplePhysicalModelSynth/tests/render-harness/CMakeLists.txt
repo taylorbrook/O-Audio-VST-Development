@@ -64,7 +64,7 @@ target_compile_definitions(O-simplePhysicalModelSynth-render-test PRIVATE
     # factory-preset directory with the wrong version stamp. Through v1.1.0 this
     # said "1.0.0" while the plugin shipped 1.1.0 — a live, pre-existing drift.
     JucePlugin_VersionString="${OSIMPLEPHYSICALMODELSYNTH_VERSION}"
-    JucePlugin_VersionCode=0x10200
+    JucePlugin_VersionCode=0x10201
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
     JucePlugin_ProducesMidiOutput=0
