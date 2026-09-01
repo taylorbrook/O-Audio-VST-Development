@@ -6163,3 +6163,66 @@ the drafts were sound where they were plain.
 
 No native speaker; no DAW; Chromium only; Standalone stale; none of the six has a
 committed render gate (item 31: 16 of 33). Repo lint total **833** (from 2145).
+
+# STAGE N — BATCH N7 COMPLETE, 5 of 5 — 38 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-Reed | 1.3.1 | `a382dae4` | 53 → 0 | 42 of 90 | 0 → 0, byte-identical | 523/523 |
+| O-Contrabass | 1.8.1 | `33cecfe5` (+`50048559`) | 70 → 0 | 47 of 103 | 0 → 0 | probe 46/46 ×2; `ui_frontend_check` byte-identical |
+| O-GrainScatter | 2.6.1 | `f438d23e` | 52 → 0 | 43 of 87 | 0 → 0 | 796/796 |
+| O-Detune | 1.7.1 | `29152c60` (+`c81504c7`) | 65 → 0* | 26 of 47 | 0 → 0 | 393/393 |
+| O-MicrotonalSampler | 1.25.1 | `2dadaeeb` | 74 → 0* | 73 of 290 values | 0 → 0 | 349/349, heights identical |
+
+\* closed by a lint/glossary change with no plugin change. Installed plists verified on all
+five; `boot-all-uis` 43/43 / 0 DEAD; `auval` PASS ×5.
+
+## THE HEADLINE: the lint's prose scan missed prose that lives in LABELS
+
+Four *plugiciel* on O-MicrotonalSampler — two multi-sentence dialog messages and two
+preset accessible names, all in `LABELS`/`aria.*` — drew zero F1 because
+`FORBIDDEN_IN_PROSE` ran on `body` rows only. Correction 27 had predicted "will meet it as
+F1"; the executor met it by grep. Fixed: a prose-forbidden word is forbidden on every row.
+The second lint hole this batch: the one TERMS key ending in a period was unreachable from
+a lookup that strips trailing periods (O-Contrabass scanned all ~240 keys to find it).
+
+## The glossary at 38 plugins
+
+Rows added from measurements this batch: `az/el spread`, `anche dble`, `prof. vib`,
+`écart tot`/`étendue`, `body` (Corps vs Caisse — the two bowed-string plugins disagree
+and both are right; item 60). T7 learned decade names; T2's identifier rule stands.
+**Settled terms wrong so far: 2 of ~250** (*mailloche*, and `load .scl` lacking its twin's
+abbreviation). Contextual exemptions on meaning this batch: 13, none on width.
+
+## Header defences: three more backwards on O-Detune, all of O-Reed's held
+
+O-Detune's header defended SAUVER (ENREG. is 2.15 px narrower), measured the wrong box for
+AMPLEUR (the caption is shrink-to-fit in a 91 px cell, not a 52 px face — PROFONDEUR fits
+with 19.75 to spare), and put 61 px on PRÉ-DÉLAI (55.86). O-Reed's held to the hundredth,
+and O-Contrabass PROVED *Enreg.* by planting the root (12 elements move). Score: 15 of 38
+headers wrong about the string they defended; still 0 wrong about a number they recorded —
+though O-MicrotonalSampler found one stale number under a sound conclusion.
+
+## Meaning column, N7
+
+"Fond enchaîné" (a *background*) for a crossfade — a one-letter typo that changed the noun;
+*le défilement* (scrolling) for the host transport; *plus de poitrine* for "more chest";
+a dangling *Trop légère, le son glisse*; `tip.scan` had dropped the control's own name;
+O-GrainScatter's Doppler body was a garden path (*qui passe monte*).
+
+## Defects found by reading French (items 59–61)
+
+59. **Guillemet spacing has no rule and no lint code**: 43 plugins ship `« … »` with plain
+    spaces (O-Reed counted 21 pairs on one page); French wants U+00A0 inside both. Adding it
+    mid-stage would red every shipped plugin and add unbreakable runs to the tightest tips.
+60. **Two bowed-string plugins name the soundbox differently** — O-Bowed *Caisse*, O-Contrabass
+    *Corps*, five places each. Both correct; a reader's call, not a lint's.
+61. O-Contrabass's `note-expression-toggle` tip title is sentence-cased "Note expression"
+    against a caption and a VST3 feature named "Note Expression"; two stale AU registrations
+    (`OCb5`, `OCbP`) still sit on this machine beside the live `OCbs`.
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; Standalone stale; O-Contrabass has no committed
+render gate (item 31: 17 of 38). Repo lint total **after N7: see the N8 log** — the remaining
+five plugins carry it all.
