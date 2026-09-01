@@ -1669,4 +1669,4 @@ initializeSettingsPopover();
 initializeTooltips();
 initI18n();
 
-console.log("O-Marimba UI initialized (v1.13.0 — EN/FR, measure-then-pin tooltips)");
+console.log("O-Marimba UI initialized (v1.13.1 — EN/FR, measure-then-pin tooltips)");

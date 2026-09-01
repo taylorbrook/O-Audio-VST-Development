@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout: every French entry
+read against its English and against the suite glossary
+(`scripts/i18n-fr-glossary.js`) and the French lint
+(`scripts/i18n-fr-lint.js`). PATCH: no parameter, no DSP, no layout and no CSS
+rule changed — 24 French strings, a header comment and two version sites.
+
+### Changed
+- **24 French entries revised** against the suite glossary and lint — 9
+  terminology, 12 typography, 2 meaning, 1 register — taking the lint from 31
+  findings to 0 (`--strict` exit 0). The visible ones: the TUNING tab reads
+  **ACCORD** rather than GAMME, so it agrees with its own tooltip "Mode
+  d'accord"; the material knob reads **DURETÉ / MATÉRIAU** rather than DURETÉ /
+  MATIÈRE, with the tooltip following it; the hover-help row in the settings
+  popover reads **Aide au survol** rather than "Aide"; the scale circle reads
+  **Intervalles de la gamme**, the settled suite form, rather than "Intervalles
+  de gamme"; and straight spaces before `%`, `:` and `;` and between a number
+  and its unit became **no-break spaces**, so "0 %", "440 Hz" and "Tonique :"
+  can no longer break across a line.
+- **Two French tooltips named a button that does not exist in French.** The
+  interval-list and tuning-mode bodies said "En mode CUSTOM"; the button is
+  captioned **PERSO** in French. 12-TET and MTS-ESP are unchanged — those two
+  are the parameter's own option strings and stay English in both languages.
+- **The A4 tooltip said *accords historiques***, which reads as historical
+  *chords* in a sentence about 415 Hz and 432 Hz. It now says *accordages
+  historiques*.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Notes
+- `reviewed: false` is unchanged on all 69 entries. That flag records a native
+  speaker's reading; this pass is a second machine reading against a glossary
+  and a lint, and it is recorded in the `i18n.js` header instead.
+- Nine entries carry a new `termNote` — a reasoned glossary exemption. Seven of
+  them are the four two-line knob captions, where French inverts head and
+  modifier so the caption is the PAIR and not the row; two are the .SCL/.KBM
+  load buttons, where the glossary's `charger .scl` overflows the button row by
+  15.91 px and `ouvrir .scl` moves five elements on the page.
+
 ## [1.13.0] - 2026-08-28
 
 The page speaks French, not only the hover help — and the tooltip renderer is
