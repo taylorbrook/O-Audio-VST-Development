@@ -13,7 +13,7 @@ juce_add_plugin(O-Detune
     PLUGIN_CODE OuDt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Detune${OUARICON_DEV_SUFFIX}"
-    VERSION 1.7.0
+    VERSION 1.7.1
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
