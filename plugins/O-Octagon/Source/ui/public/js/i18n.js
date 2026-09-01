@@ -18,6 +18,71 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
+// ── v1.11.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 40 entries (29 terminology, 8 typography, 1 grammar/agreement,
+// 2 meaning). sameAsEn: kept 14, translated 0, added 1 (label.group.ping, which
+// the glossary's settled "ping" makes a straight copy). termNote exemptions: 4
+// (listed below). Left as drafted: the rest. reviewed: false throughout — no
+// native speaker yet. Lint 30 -> 1; the 1 is reported, not fixed, below.
+//
+// THE DECISIONS A NEXT READER NEEDS, each measured with the check-ui-labels
+// method (Range.selectNodeContents on the real node at the shipping 1100x720):
+//
+//  - Décroissance (rolloff) is 81.59 px in an 88 px content box. THE v1.9.0
+//    HEADER BELOW WAS WRONG about this: it defended "Décroiss." on "a 72 px
+//    cell that holds 9", and the cell is 88. The root term fits, so the caption,
+//    the tip title and the aria-label are now ONE string — they were two
+//    ("Décroiss." on screen, "Atténuation" in the accessible name), which is a
+//    WCAG 2.5.3 label-in-name miss as well as two French names for one control.
+//  - Trajectoire (motionPath) is 66.73 px in a 52 px box and does NOT fit, so
+//    the caption stays "Tracé" — and the TIP TITLE moved to "Tracé" to meet it,
+//    rather than leaving the aria-label saying "Trajectoire" over a caption
+//    saying "Tracé". "Trajectoire" stays in the prose bodies, where it is the
+//    right word and costs no geometry. The glossary accepts both for `path`.
+//  - Enregistrer 72.83 px and Charger 46.34 px both fit the 121 px content box
+//    of the .vbtn pairs, so label.save / label.load carry the ROOT terms rather
+//    than "Enreg." / "Ouvrir". The v1.9.0 comment below defended the two
+//    abbreviations on a 168 px rail; the buttons measure 121 px of content each
+//    and 133 px border-box, two of them inside a 278 px row. Three sibling
+//    plugins still ship "Enreg." — that is now a suite question, recorded in
+//    the Stage N report, not a reason to keep a form that does not fit anything.
+//  - "H.-parleur" KEPT: "Haut-parleur" wraps inside the 74 px popover box (both
+//    measure 61.92 px because both wrap), and a wrapped caption fails gate [4].
+//  - "Att. env." KEPT: it is the glossary's listed abbreviation for `hull atten`
+//    and the root "Atténuation hors enveloppe" is far past the same 88 px box.
+//  - THE SIX MOTION PATH FACES AND THE SYNC DIVISIONS ARE ENGLISH ON SCREEN in
+//    both languages: they come from juce::StringArray literals in
+//    PluginProcessor.cpp:200-204 (a host automation lane must read "Figure-8"),
+//    and <option>s are built from those choices. So the French bodies now name
+//    Orbit / Figure-8 / Sweep / Drift / Pendulum / Spiral and Free / 1 Bar
+//    exactly as the English bodies do, instead of Orbite / Huit / Balayage /
+//    Dérive / Pendule / Spirale, which the user cannot find in the dropdown.
+//    The mirror rule is the English author's own: a CAPITALISED name is a face
+//    and stays English; a lower-case "une orbite", "un huit" is generic prose
+//    and is translated.
+//  - FOUR CAPTIONS THAT *ARE* LOCALIZED were still named in English inside
+//    French bodies, and are now named in French: « Derive » -> « Calculer »,
+//    « Ear » -> « Oreille », "la colonne Delay" -> "la colonne Retard", and
+//    "Armez d'abord STORE" -> "Armez d'abord MÉM.". The comment at scene-slot
+//    that justified the last one has been corrected: it predates the LABELS
+//    table and page chrome IS localized now.
+//  - termNote x4: rolloff and label.rolloff (a DBAP dB-per-doubling distance
+//    law, not the glossary's filter `pente` — and this page HAS a filter, Air),
+//    label.delay and label.vcol.delay (the alignment delay the glossary names
+//    this plugin for).
+//  - REPORTED, NOT FIXED — the lint's one remaining finding is a FALSE
+//    POSITIVE: T2 reads every `\d.\d` in French prose as a decimal needing a
+//    comma, and safe-banner's "Stereo -> 7.1" is Logic's surround-format
+//    identifier and the literal menu entry the user has to find. "7,1" is not a
+//    channel format in any DAW. The glossary already exempts readout values and
+//    identifiers; the lint has no exemption for one, and termNote covers G1/F1
+//    only.
+//  - NO ENGLISH DEFECT FOUND. The three claims worth checking against the
+//    processor all hold: motionRate's "centred on 0.3" is rateRange's skew
+//    centre (PluginProcessor.cpp:188-189), srcZ's "−2 to 8 m" is its range
+//    (:120), and motionSize's "a 6 m orbit" is the 0-24 m range's default (:206).
+// ============================================================================
 // i18n.js — O-Octagon hover help AND page labels, English + French (v1.9.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
@@ -70,14 +135,14 @@ export const I18N = Object.freeze({
         en: { t: 'Room',
               b: 'The performance view — plan, puck, weights, scenes, meters and the DBAP field.' },
         fr: { t: 'Salle',
-              b: 'La vue de jeu — le plan, le curseur, les poids, les scènes, les indicateurs et le champ DBAP.',
+              b: 'La vue de jeu — le plan, le repère de source, les poids, les scènes, les indicateurs de niveau et le champ DBAP.',
               reviewed: false },
     },
     'tab-venue': {
         en: { t: 'Venue',
               b: 'The 42 measured values that define the room — positions, trims, rake — plus venue files, presets, output order and the verify ping.' },
         fr: { t: 'Lieu',
-              b: 'Les 42 valeurs mesurées qui définissent la salle — positions, corrections, inclinaison des gradins — ainsi que les fichiers de lieu, les préréglages, l’ordre des sorties et le bip de vérification.',
+              b: 'Les 42 valeurs mesurées qui définissent la salle — positions, corrections, inclinaison des gradins — ainsi que les fichiers de lieu, les préréglages, l’ordre des sorties et le ping de vérification.',
               reviewed: false },
     },
 
@@ -95,7 +160,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language this hover help is written in. English and French are available; the labels on the page change with it, but numbers and unit symbols stay as they are.' },
         fr: { t: 'Langue',
-              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page changent avec elle, mais les nombres et les symboles d’unité restent inchangés.',
+              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page changent avec elle, mais les nombres et les symboles d’unité restent inchangés.',
               reviewed: false },
     },
     // ONE key covering both states, never a state-swapped pair. applyI18n()
@@ -139,8 +204,8 @@ export const I18N = Object.freeze({
     'monitor-toggle': {
         en: { t: 'Monitor on headphones',
               b: 'Fold the eight speaker feeds to a stereo pair so the piece can be heard away from the venue. Position, distance and inter-aural delay come from the measured venue geometry. On the 8‑channel rig this is a listening aid that cannot reach an offline render; on a stereo bus it is on by default, is remembered with the session, and is what the bus outputs.' },
-        fr: { t: 'Écoute au casque',
-              b: 'Replie les huit sorties haut-parleurs en une paire stéréo pour écouter la pièce hors du lieu. La position, la distance et le retard interaural proviennent de la géométrie mesurée du lieu. Sur le dispositif à 8‑canaux, c’est une aide à l’écoute qui ne peut pas atteindre un export hors ligne ; sur un bus stéréo, elle est active par défaut, conservée avec la session, et constitue la sortie du bus.',
+        fr: { t: 'Contrôle au casque',
+              b: 'Replie les huit sorties haut-parleur en une paire stéréo pour écouter la pièce hors du lieu. La position, la distance et le retard interaural proviennent de la géométrie mesurée du lieu. Sur le dispositif à 8 canaux, c’est une aide à l’écoute qui ne peut pas atteindre un export hors ligne ; sur un bus stéréo, le repli est actif par défaut, conservé avec la session, et constitue la sortie du bus.',
               reviewed: false },
     },
 
@@ -160,7 +225,7 @@ export const I18N = Object.freeze({
         en: { t: 'Weight {n}',
               b: 'Speaker {n}’s share of the DBAP solve, 0–1. Double-click the glyph to reassign its physical output; double-click the slider to reset.' },
         fr: { t: 'Poids {n}',
-              b: 'Part du haut-parleur {n} dans la résolution DBAP, de 0 à 1. Double-cliquez sur le glyphe pour réaffecter sa sortie physique ; double-cliquez sur le curseur pour réinitialiser.',
+              b: 'Part du haut-parleur {n} dans la résolution DBAP, de 0 à 1. Double-cliquez sur le glyphe pour réaffecter sa sortie physique ; double-cliquez sur le curseur pour réinitialiser.',
               reviewed: false },
     },
 
@@ -183,14 +248,14 @@ export const I18N = Object.freeze({
         en: { t: 'Source Z',
               b: 'Source height, −2 to 8 m. Rising toward the speaker plane gets louder and sharper; flying above the array recedes (±6 dB proximity cue). The elevation strip shows it against the rake and the speaker heights — the marker clamps, the numbers never do.' },
         fr: { t: 'Source Z',
-              b: 'Hauteur de la source, de −2 à 8 m. En montant vers le plan des haut-parleurs, le son gagne en niveau et en netteté ; en s’élevant au-dessus du dispositif, il s’éloigne (indice de proximité de ±6 dB). La bande d’élévation la situe par rapport à l’inclinaison des gradins et aux hauteurs des haut-parleurs — le repère est borné, jamais les valeurs.',
+              b: 'Hauteur de la source, de −2 à 8 m. En montant vers le plan des haut-parleurs, le son gagne en niveau et en netteté ; en s’élevant au-dessus du dispositif, il s’éloigne (indice de proximité de ±6 dB). La bande d’élévation la situe par rapport à l’inclinaison des gradins et aux hauteurs des haut-parleurs — le repère est borné, jamais les valeurs.',
               reviewed: false },
     },
     'width': {
         en: { t: 'Width',
               b: 'Spreads the source into sub-points around its position, up to 12 m apart — wider reads as a broader image across the rig. On stereo material it pulls the L and R feeds to different parts of the room; on mono material, reach for Decorrelate below.' },
         fr: { t: 'Largeur',
-              b: 'Répartit la source en points secondaires autour de sa position, jusqu’à 12 m d’écart — plus la valeur est élevée, plus l’image s’élargit sur le dispositif. Sur du matériel stéréo, les voies G et D sont envoyées vers des zones différentes de la salle ; sur du mono, utilisez Décorréler ci-dessous.',
+              b: 'Répartit la source en points secondaires autour de sa position, jusqu’à 12 m d’écart — plus la valeur est élevée, plus l’image s’élargit sur le dispositif. Sur du matériel stéréo, les voies G et D sont envoyées vers des zones différentes de la salle ; sur du mono, utilisez Décorréler ci-dessous.',
               reviewed: false },
     },
     // ── v1.8.0 — the motion engine ──
@@ -198,7 +263,7 @@ export const I18N = Object.freeze({
         en: { t: 'Position',
               b: 'The anchor: where the source sits, its height and its width. With motion running the anchor is the hollow ghost on the map and the path travels with it.' },
         fr: { t: 'Position',
-              b: 'L’ancrage : la position de la source, sa hauteur et sa largeur. Quand le mouvement tourne, l’ancrage est le fantôme creux sur le plan et la trajectoire se déplace avec lui.',
+              b: 'L’ancrage : la position de la source, sa hauteur et sa largeur. Quand le mouvement tourne, l’ancrage est le fantôme creux sur le plan et la trajectoire se déplace avec lui.',
               reviewed: false },
     },
     'gtab-motion': {
@@ -212,77 +277,77 @@ export const I18N = Object.freeze({
         en: { t: 'Run',
               b: 'Starts the trajectory. Off, the plugin renders exactly as it did before motion existed — bit for bit — and the three position lanes are never written either way: motion is an offset added downstream of them.' },
         fr: { t: 'Marche',
-              b: 'Lance la trajectoire. Désactivé, le plugin rend exactement ce qu’il rendait avant l’existence du mouvement — bit pour bit — et les trois pistes de position ne sont jamais écrites dans un cas comme dans l’autre : le mouvement est un décalage ajouté en aval.',
+              b: 'Lance la trajectoire. Désactivé, le plugin rend exactement ce qu’il rendait avant l’existence du mouvement — bit pour bit — et les trois pistes de position ne sont jamais écrites dans un cas comme dans l’autre : le mouvement est un décalage ajouté en aval.',
               reviewed: false },
     },
     'motionPath': {
         en: { t: 'Path',
               b: 'Orbit (ellipse, Ratio sets the minor axis), Figure-8 (a 1:2 Lissajous), Sweep (a line with a ping-pong fold), Drift (a seeded Perlin walk — no trace, a tail), Pendulum (a single-axis swing) and Spiral (winds in over the first half-cycle, out over the second).' },
-        fr: { t: 'Trajectoire',
-              b: 'Orbite (ellipse, Rapport règle le petit axe), Huit (Lissajous 1:2), Balayage (une ligne avec repli aller-retour), Dérive (marche de Perlin à graine — pas de trace, une traîne), Pendule (balancement sur un axe) et Spirale (s’enroule sur la première moitié du cycle, se déroule sur la seconde).',
+        fr: { t: 'Tracé',
+              b: 'Orbit (ellipse, Ratio règle le petit axe), Figure-8 (Lissajous 1:2), Sweep (une ligne avec repli aller-retour), Drift (marche de Perlin à graine — pas de trace, une traîne), Pendulum (balancement sur un axe) et Spiral (s’enroule sur la première moitié du cycle, se déroule sur la seconde).',
               reviewed: false },
     },
     'motionSync': {
         en: { t: 'Sync',
               b: 'Free runs at the Rate in Hz. A division locks one cycle to the host clock — 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed) — so a bounce is downbeat-aligned and repeatable; with the transport stopped the source rests where playback will resume.' },
         fr: { t: 'Synchro',
-              b: 'Libre suit la Vitesse en Hz. Une division cale un cycle sur l’horloge de l’hôte — 1/4 fait un cycle par temps, 1 mesure un cycle par quatre temps (4/4 supposé) — de sorte qu’un export soit aligné sur le temps fort et reproductible ; transport arrêté, la source se pose là où la lecture reprendra.',
+              b: 'Le mode Free suit la Vitesse en Hz. Une division cale un cycle sur l’horloge de l’hôte — 1/4 fait un cycle par temps, 1 Bar un cycle par quatre temps (4/4 supposé) — de sorte qu’un export soit aligné sur le temps fort et reproductible ; transport arrêté, la source se pose là où la lecture reprendra.',
               reviewed: false },
     },
     'motionRate': {
         en: { t: 'Rate',
               b: 'Cycles per second in Free mode, 0.01 to 4 Hz, centred on 0.3. Ignored while Sync is a tempo division.' },
         fr: { t: 'Vitesse',
-              b: 'Cycles par seconde en mode Libre, de 0,01 à 4 Hz, centré sur 0,3. Ignoré tant que Synchro est une division du tempo.',
+              b: 'Cycles par seconde en mode Free, de 0,01 à 4 Hz, centré sur 0,3. Ignoré tant que Synchro est une division du tempo.',
               reviewed: false },
     },
     'motionSize': {
         en: { t: 'Size',
               b: 'The path’s extent in venue metres — a 6 m orbit is 6 m across in any hall. It may leave the speaker rig: the hull trim and the rolloff model that honestly, and it is the one gesture no host automation can draw.' },
         fr: { t: 'Taille',
-              b: 'L’étendue de la trajectoire en mètres de salle — une orbite de 6 m mesure 6 m de large dans n’importe quelle salle. Elle peut sortir du dispositif de haut-parleurs : l’atténuation de coque et la décroissance le modélisent honnêtement, et c’est le geste qu’aucune automation d’hôte ne peut dessiner.',
+              b: 'L’étendue de la trajectoire en mètres de salle — une orbite de 6 m mesure 6 m de large dans n’importe quelle salle. Elle peut sortir du dispositif de haut-parleurs : l’atténuation hors enveloppe et la décroissance le modélisent honnêtement, et c’est le geste qu’aucune automation d’hôte ne peut dessiner.',
               reviewed: false },
     },
     'motionRatio': {
         en: { t: 'Ratio',
               b: 'Minor axis over major, 0 to 1. 1 is a circle; 0 collapses Orbit and Figure-8 onto a line.' },
-        fr: { t: 'Rapport',
-              b: 'Petit axe sur grand axe, de 0 à 1. 1 donne un cercle ; 0 aplatit l’Orbite et le Huit sur une ligne.',
+        fr: { t: 'Ratio',
+              b: 'Petit axe sur grand axe, de 0 à 1. 1 donne un cercle ; 0 aplatit Orbit et Figure-8 sur une ligne.',
               reviewed: false },
     },
     'motionAngle': {
         en: { t: 'Angle',
               b: 'Rotates the path about the anchor, so a Sweep or a Pendulum can run front-to-back in a portrait room.' },
         fr: { t: 'Angle',
-              b: 'Fait pivoter la trajectoire autour de l’ancrage, pour qu’un Balayage ou un Pendule puisse aller d’avant en arrière dans une salle en longueur.',
+              b: 'Fait pivoter la trajectoire autour de l’ancrage, pour qu’un Sweep ou un Pendulum puisse aller d’avant en arrière dans une salle en longueur.',
               reviewed: false },
     },
     'motionHeight': {
         en: { t: 'Height',
               b: 'Vertical amplitude in metres, coupled to the same phase: an orbit tilts into a ring, a figure-8 becomes a lobe. Added to Source Z; the elevation strip shows the live height.' },
         fr: { t: 'Hauteur',
-              b: 'Amplitude verticale en mètres, couplée à la même phase : une orbite s’incline en anneau, un huit devient un lobe. Ajoutée à Source Z ; la bande d’élévation montre la hauteur en temps réel.',
+              b: 'Amplitude verticale en mètres, couplée à la même phase : une orbite s’incline en anneau, un huit devient un lobe. Ajoutée à Source Z ; la bande d’élévation montre la hauteur en temps réel.',
               reviewed: false },
     },
     'motionPhase': {
         en: { t: 'Phase',
               b: 'Where on the path the cycle starts, in degrees. Offset two instances to stagger them against one beat.' },
         fr: { t: 'Phase',
-              b: 'Point de départ du cycle sur la trajectoire, en degrés. Décalez deux instances pour les échelonner sur une même pulsation.',
+              b: 'Point de départ du cycle sur la trajectoire, en degrés. Décalez deux instances pour les échelonner sur un même temps.',
               reviewed: false },
     },
     'motionSeed': {
         en: { t: 'Seed',
               b: 'Drift only. Picks the wander — shop for a shape, and the preset keeps it. Two bounces of one session are identical.' },
         fr: { t: 'Graine',
-              b: 'Dérive seulement. Choisit l’errance — cherchez une forme, le preset la conserve. Deux exports d’une même session sont identiques.',
+              b: 'Drift uniquement. Choisit l’errance — cherchez une forme, le préréglage la conserve. Deux exports d’une même session sont identiques.',
               reviewed: false },
     },
     'decorr': {
         en: { t: 'Decorrelate',
               b: 'Makes Width audible on mono material. Width alone moves two IDENTICAL copies of the signal apart in the room, and two identical copies comb rather than widen; this gives each copy its own all-pass network so they share a spectrum but not a phase. Off by default, and inert at Width 0 — where the two feeds land on the same speakers, decorrelating them would only cost you the coherent sum. Expect up to 3 dB less level where the two feeds overlap: that is the combing going away.' },
         fr: { t: 'Décorréler',
-              b: 'Rend la Largeur audible sur du matériel mono. La Largeur seule éloigne deux copies IDENTIQUES du signal dans la salle, et deux copies identiques produisent un filtrage en peigne au lieu d’élargir ; ici, chaque copie reçoit son propre réseau passe-tout, de sorte qu’elles partagent le spectre mais pas la phase. Désactivé par défaut, et sans effet à Largeur 0 — là où les deux voies aboutissent aux mêmes haut-parleurs, les décorréler ne ferait que vous coûter la somme cohérente. Attendez-vous à jusqu’à 3 dB de niveau en moins là où les deux voies se recouvrent : c’est le filtrage en peigne qui disparaît.',
+              b: 'Rend la Largeur audible sur du matériel mono. La Largeur seule éloigne deux copies IDENTIQUES du signal dans la salle, et deux copies identiques produisent un filtrage en peigne au lieu d’élargir ; ici, chaque copie reçoit son propre réseau passe-tout, de sorte qu’elles partagent le spectre mais pas la phase. Désactivé par défaut, et sans effet à Largeur 0 — là où les deux voies aboutissent aux mêmes haut-parleurs, les décorréler ne ferait que vous coûter la somme cohérente. Attendez-vous à jusqu’à 3 dB de niveau en moins là où les deux voies se recouvrent : c’est le filtrage en peigne qui disparaît.',
               reviewed: false },
     },
 
@@ -290,8 +355,9 @@ export const I18N = Object.freeze({
     'rolloff': {
         en: { t: 'Rolloff',
               b: 'DBAP distance rolloff, 3–12 dB per distance doubling. Higher concentrates energy hard into the nearest speakers; lower spreads it across the whole array.' },
-        fr: { t: 'Atténuation',
-              b: 'Atténuation DBAP avec la distance, de 3 à 12 dB par doublement de distance. Une valeur élevée concentre fortement l’énergie sur les haut-parleurs les plus proches ; une valeur faible la répartit sur tout le dispositif.',
+        fr: { t: 'Décroissance',
+              termNote: 'DBAP distance rolloff — a dB-per-doubling attenuation law, not a filter slope; this page has a real filter (Air) and Pente would name that instead',
+              b: 'Décroissance DBAP avec la distance, de 3 à 12 dB par doublement de distance. Une valeur élevée concentre fortement l’énergie sur les haut-parleurs les plus proches ; une valeur faible la répartit sur tout le dispositif.',
               reviewed: false },
     },
     'blur': {
@@ -307,7 +373,7 @@ export const I18N = Object.freeze({
         en: { t: 'Hull attenuation',
               b: 'How strongly the source fades as it crosses outside the speaker hull.' },
         fr: { t: 'Atténuation hors enveloppe',
-              b: 'Détermine la vitesse à laquelle la source s’efface lorsqu’elle sort de l’enveloppe des haut-parleurs.',
+              b: 'Détermine l’intensité avec laquelle la source s’efface lorsqu’elle sort de l’enveloppe des haut-parleurs.',
               reviewed: false },
     },
     'airAmount': {
@@ -377,14 +443,16 @@ export const I18N = Object.freeze({
               b: 'Les haut-parleurs latéraux uniquement, déduits de la géométrie mesurée.',
               reviewed: false },
     },
-    // {n} is a slot number, substituted literally. STORE is the on-screen
-    // caption of a control, which stays English like every other label on the
-    // page — CONTEXT.md scopes this work to hover help, not to page chrome.
+    // {n} is a slot number, substituted literally. The body names the STORE
+    // button by the face the reader can actually see, which since the LABELS
+    // table landed (canon v2, v1.9.0) is "MÉM." in French — the sentence here
+    // said "STORE" until Stage N, from a v1.2.0 comment written when page
+    // chrome was still English everywhere.
     'scene-slot': {
         en: { t: 'User scene {n}',
               b: 'Click to recall this stored weight scene. Arm STORE first to capture the current weights into it.' },
         fr: { t: 'Scène utilisateur {n}',
-              b: 'Cliquez pour rappeler cette scène de poids enregistrée. Armez d’abord STORE pour y enregistrer les poids actuels.',
+              b: 'Cliquez pour rappeler cette scène de poids enregistrée. Armez d’abord MÉM. pour y enregistrer les poids actuels.',
               reviewed: false },
     },
 
@@ -393,7 +461,7 @@ export const I18N = Object.freeze({
         en: { t: 'Elevation',
               b: 'The room side-on — rake line, speaker heights and the source marker. Ear is the listener height under the source; Source is its absolute height.' },
         fr: { t: 'Élévation',
-              b: 'La salle vue de côté — ligne d’inclinaison des gradins, hauteurs des haut-parleurs et repère de la source. « Ear » est la hauteur d’oreille sous la source ; « Source » est sa hauteur absolue.',
+              b: 'La salle vue de côté — ligne d’inclinaison des gradins, hauteurs des haut-parleurs et repère de la source. « Oreille » est la hauteur d’écoute sous la source ; « Source » est sa hauteur absolue.',
               reviewed: false },
     },
 
@@ -409,14 +477,14 @@ export const I18N = Object.freeze({
         en: { t: 'Alignment delay',
               b: 'Per-speaker delay that time-aligns arrivals at one seat. Derive fills all eight from the measured distances; every value stays editable afterwards.' },
         fr: { t: 'Retard d’alignement',
-              b: 'Retard par haut-parleur qui aligne temporellement les arrivées à une place donnée. « Derive » remplit les huit valeurs à partir des distances mesurées ; chaque valeur reste modifiable ensuite.',
+              b: 'Retard par haut-parleur qui aligne temporellement les arrivées à une place donnée. « Calculer » remplit les huit valeurs à partir des distances mesurées ; chaque valeur reste modifiable ensuite.',
               reviewed: false },
     },
     'delay-unit': {
         en: { t: 'Delay unit',
               b: 'Show the Delay column in milliseconds or in metres of path difference. Values are stored as milliseconds either way.' },
         fr: { t: 'Unité de retard',
-              b: 'Affiche la colonne Delay en millisecondes ou en mètres de différence de trajet. Les valeurs sont enregistrées en millisecondes dans les deux cas.',
+              b: 'Affiche la colonne Retard en millisecondes ou en mètres de différence de trajet. Les valeurs sont enregistrées en millisecondes dans les deux cas.',
               reviewed: false },
     },
     'delay-derive': {
@@ -464,7 +532,7 @@ export const I18N = Object.freeze({
     'preset-load': {
         en: { t: 'Load preset',
               b: 'Load the selected preset. The venue is untouched.' },
-        fr: { t: 'Charger le préréglage',
+        fr: { t: 'Charger un préréglage',
               b: 'Charge le préréglage sélectionné. Le lieu n’est pas modifié.',
               reviewed: false },
     },
@@ -485,22 +553,22 @@ export const I18N = Object.freeze({
     'ping-grid': {
         en: { t: 'Verify ping',
               b: 'Sound a confirmation ping from one speaker. The lit number is what the plugin reports playing — never a timer.' },
-        fr: { t: 'Bip de vérification',
-              b: 'Émet un bip de confirmation depuis un haut-parleur. Le numéro allumé est celui que le plugin déclare en train de jouer — jamais une minuterie.',
+        fr: { t: 'Ping de vérification',
+              b: 'Émet un ping de confirmation depuis un haut-parleur. Le numéro allumé est celui que le plugin déclare en train de jouer — jamais une minuterie.',
               reviewed: false },
     },
     'ping-auto': {
         en: { t: 'Auto ping',
               b: 'Step the ping around all eight speakers in order.' },
-        fr: { t: 'Bip automatique',
-              b: 'Fait passer le bip successivement sur les huit haut-parleurs, dans l’ordre.',
+        fr: { t: 'Ping automatique',
+              b: 'Fait passer le ping successivement sur les huit haut-parleurs, dans l’ordre.',
               reviewed: false },
     },
     'ping-stop': {
         en: { t: 'Stop',
               b: 'Stop the ping.' },
         fr: { t: 'Arrêter',
-              b: 'Arrête le bip.',
+              b: 'Arrête le ping.',
               reviewed: false },
     },
 
@@ -545,10 +613,14 @@ export const I18N = Object.freeze({
 // label carries ONE key rather than two copies of the same string in two tables
 // drifting apart. THE REUSE RULE, settled in Stage F and applied here: a label
 // reuses a tooltip key only where the string is right in BOTH languages. An
-// English-only match is not enough — #ctl-rolloff's tip title is
-// "Atténuation" (11 chars) where the 72 px cell needs "Décroiss.", so it gets
-// its own entry rather than a reused one. Reusing there would make every future
-// tooltip copy edit a silent geometry change to a control.
+// English-only match is not enough. #ctl-rolloff was the worked example here
+// through v1.11.0, and Stage N retired it: the cell measures 88 px, not the 72
+// this paragraph claimed, so the root "Décroissance" (81.59 px) fits and the
+// separate label.rolloff entry now carries the SAME string as the tip title.
+// The entry is kept rather than folded into the reuse, because the reason to
+// keep it is unchanged — a future tooltip edit must not silently resize a cell.
+// #ctl-motionPath is the live example: "Trajectoire" is 66.73 px in a 52 px
+// box, so label.motionPath keeps its own, shorter caption.
 //
 // ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
 // speaker has read one. Entries whose French was chosen with WIDTH as a
@@ -681,7 +753,7 @@ export const LABELS = Object.freeze({
     // "Haut-parleur" is the correct full form and is used everywhere it fits.
     'label.to-output':   { en: { t: '→ output' }, fr: { t: '→ sortie', reviewed: false } },
     'label.out-pop-note':{ en: { t: 'CoreAudio order · confirm with ping' },
-                           fr: { t: 'Ordre CoreAudio · à confirmer par le bip', reviewed: false } },
+                           fr: { t: 'Ordre CoreAudio · à confirmer par le ping', reviewed: false } },
 
     // The plan caption. "Plan" is the same word in both languages.
     'label.plan':        { en: { t: 'Plan' },  fr: { t: 'Plan', sameAsEn: true, reviewed: false } },
@@ -698,11 +770,20 @@ export const LABELS = Object.freeze({
     // fits its cell.
     //
     // These do NOT reuse, and each says why.
-    // WIDTH: "Atténuation" is 11 characters in a 72 px cell that holds 9.
-    'label.rolloff':     { en: { t: 'Rolloff' },    fr: { t: 'Décroiss.', reviewed: false } },
-    // THE REUSE RULE, applied. The tip title for motionPath is "Trajectoire",
-    // which is right for a sentence and 66.7 px in a caption track that reaches
-    // 52 even after this version widened it. "Tracé" is the better caption in
+    // MEASURED, not inherited (Stage N): the cell's content box is 88 px, and
+    // "Décroissance" is 81.59 px in it — 6.41 px of clearance, nowrap,
+    // overflow: visible. It carries the same string as the tip title so the
+    // caption and the aria-label (which reads that title) are one name; the
+    // entry stays separate only so a tooltip edit cannot resize the cell.
+    'label.rolloff':     { en: { t: 'Rolloff' },
+                           fr: { t: 'Décroissance', reviewed: false,
+                                 termNote: 'DBAP distance rolloff — a dB-per-doubling attenuation law, not a filter slope; this page has a real filter (Air) and Pente would name that instead' } },
+    // THE REUSE RULE, applied. "Trajectoire" is right for a sentence and
+    // measures 66.73 px in a caption track that reaches 52 even after v1.8.0
+    // widened it (Stage N re-measured: 66.73, not the 66.7 recorded here —
+    // the number held). Stage N moved the TIP TITLE to "Tracé" to match this
+    // caption, because the select's aria-label reads that title and a caption
+    // the accessible name does not contain is a WCAG 2.5.3 miss. "Tracé" is the better caption in
     // its own right — the plugin's own English internals call this the TRACE
     // (refreshTrace, TRACE_SHAPE_IDS) — so this is a case where the width
     // constraint and the better French agree, which is the only kind of
@@ -748,7 +829,9 @@ export const LABELS = Object.freeze({
     // #vcol-delay-unit value span, so the caption needed its own leaf: a keyed
     // element with element children would have its siblings deleted by
     // applyLabel's textContent write. §6 of ui_frontend_check asserts the split.
-    'label.vcol.delay':  { en: { t: 'Delay' },   fr: { t: 'Retard', reviewed: false } },
+    'label.vcol.delay':  { en: { t: 'Delay' },
+                           fr: { t: 'Retard', reviewed: false,
+                                 termNote: 'loudspeaker alignment delay, not the effect — the glossary names this plugin as the case' } },
     'label.vcol.class':  { en: { t: 'Class' },   fr: { t: 'Classe', reviewed: false } },
 
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
@@ -776,7 +859,9 @@ export const LABELS = Object.freeze({
     'label.rake-front':  { en: { t: 'Front' }, fr: { t: 'Avant',   reviewed: false } },
     'label.rake-rear':   { en: { t: 'Rear' },  fr: { t: 'Arrière', reviewed: false } },
     // The tip title is the full "Alignment delay"; the rail caption is short.
-    'label.delay':       { en: { t: 'Delay' },  fr: { t: 'Retard', reviewed: false } },
+    'label.delay':       { en: { t: 'Delay' },
+                           fr: { t: 'Retard', reviewed: false,
+                                 termNote: 'loudspeaker alignment delay, not the effect — the glossary names this plugin as the case' } },
     'label.derive':      { en: { t: 'Derive' }, fr: { t: 'Calculer', reviewed: false } },
     // The tip title is "Output set"; the caption is the one word.
     'label.set':         { en: { t: 'Set' },    fr: { t: 'Jeu', reviewed: false } },
@@ -786,16 +871,20 @@ export const LABELS = Object.freeze({
     'label.group.preset':       { en: { t: 'Preset' },  fr: { t: 'Préréglage', reviewed: false } },
     'label.group.output-order': { en: { t: 'Output order' },
                                   fr: { t: 'Ordre des sorties', reviewed: false } },
-    'label.group.ping':         { en: { t: 'Ping' },    fr: { t: 'Bip', reviewed: false } },
+    'label.group.ping':         { en: { t: 'Ping' },
+                                  fr: { t: 'Ping', sameAsEn: true, reviewed: false } },
     'label.group.monitor':      { en: { t: 'Monitor' }, fr: { t: 'Contrôle', reviewed: false } },
 
-    // WIDTH, on all three buttons: the venue and preset rows put two buttons
-    // side by side in a 168 px rail. "Enregistrer" measures 90.1 px against
-    // Save's 40.6 — the same growth Stage H sized on three other plugins, and
-    // the same two abbreviations were chosen, deliberately, so the suite reads
-    // consistently. A reviewer who dislikes them should change all four plugins.
-    'label.save':        { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: false } },
-    'label.load':        { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: false } },
+    // RE-MEASURED at Stage N, and the v1.9.0 defence above it did not hold. The
+    // venue and preset rows are 278 px, each .vbtn is 133 px border-box with a
+    // 121 px content box, and "Enregistrer" is 72.83 px in it — 48 px clear.
+    // "Charger" is 46.34. Both ROOT terms fit, so both are used: the caption is
+    // now literally contained in its own tip title ("Enregistrer le lieu",
+    // "Charger un préréglage"), which "Enreg." and "Ouvrir" were not.
+    // Three sibling plugins still ship the abbreviations; converging them is a
+    // suite decision, recorded in the Stage N report rather than taken here.
+    'label.save':        { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: false } },
+    'label.load':        { en: { t: 'Load' },   fr: { t: 'Charger', reviewed: false } },
     'label.auto':        { en: { t: 'Auto' },   fr: { t: 'Auto', sameAsEn: true, reviewed: false } },
     'label.headphones':  { en: { t: 'Headphones' }, fr: { t: 'Casque', reviewed: false } },
 
