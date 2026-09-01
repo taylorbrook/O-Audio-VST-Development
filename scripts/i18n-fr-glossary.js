@@ -184,7 +184,9 @@ const TERMS = {
     'glide mode':               ['mode de portamento'],
     'detune':                   ['désaccord', 'désacc'],
     'coarse':                   ['grossier', 'gross'],
-    'fine':                     ['fin'],
+    'fine':                     ['fin', 'affinage'],   // affinage where an End control already reads Fin (O-simpleSampler N6, 51.78 px in a 54 px cell)
+    'end':                      ['fin'],
+    'loop crossfade':           ['fondu de boucle'],
     'spread':                   ['étalement', 'étal'],
     'scatter':                  ['dispersion', 'disp'],
     'scatter x':                ['dispersion x', 'disp. x'],   // O-TextureForge: Dispersion X 65.14 px wraps a 72 px box
