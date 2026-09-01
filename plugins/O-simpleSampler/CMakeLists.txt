@@ -17,7 +17,7 @@ juce_add_plugin(O-simpleSampler
     PLUGIN_CODE OsSm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleSampler${OUARICON_DEV_SUFFIX}"
-    VERSION "1.4.1"
+    VERSION "1.4.2"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

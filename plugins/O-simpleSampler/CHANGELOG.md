@@ -3,6 +3,98 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.2] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **68 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint: 20 terminology, 31 typography,
+  7 grammar and register, 10 meaning. The lint went **71 findings → 0**, and
+  `--strict` exits 0.
+
+  The visible ones: `Relâche` → **`Relâch`** (a theatre closure became the
+  textbook ADSR term); `Inverse` → **`Invers`** on the toggle with
+  **`Inversion`** in its tooltip; `Oui`/`Non` → **`Activée`/`Désactivée`** on
+  the hover-help switch; `Affinage` kept over the glossary's `Fin` because the
+  End knob is already `Fin` two groups away; `Note de réf.` → **`Note de réf`**
+  and `Début boucle`/`Fin boucle`/`Fondu boucle`/`Mode boucle`/`Mode hauteur`
+  → the full **`… de boucle`** / **`Mode de hauteur`** forms, so every knob's
+  caption is now a substring of the tooltip title that `data-i18n-aria` makes
+  its accessible name; straight `'` apostrophes → typographic `’` throughout;
+  no-break spaces before `; :` and between a number and its unit.
+
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Not changed
+
+- **No English copy, no key, no `TIP_BINDINGS` row, no selector, no CSS rule
+  and no `I18N_EXEMPT` entry.** A control imported both revisions of
+  `js/i18n.js` and compared every `en` value, the key sets and their order,
+  `TIP_BINDINGS`, `I18N_EXEMPT` and `LANGUAGES`: **0 leaks**, 68 `fr` values
+  moved.
+- `reviewed: false` stays `false` on all 109 entries. That flag means a native
+  speaker read the string; this pass is a second machine reading against a
+  glossary and a lint, and the file header records it instead.
+- No DSP, parameter, APVTS or state-format change. Presets and sessions are
+  unaffected.
+
+### Terms measured and NOT applied
+
+Each was measured on its real node at the shipping 980×720 frame with
+`Range.selectNodeContents`, not inherited from the previous header:
+
+| Glossary root | Measured | Pinned box | Kept |
+|---|---|---|---|
+| `Relâchement` | 77.33 px | 54 px `.knob-cell`; gap to `Vél→Ampli` −2.14 px | `Relâch` |
+| `Inversion` (caption) | grows `#toggle-reverse` 87.00 → 97.09 px | `min-width: 87px` | `Invers` |
+| `Note de référence` | 59.77 px | 54 px `.knob-cell` | `Note de réf` |
+| `Nappe bouclée` | takes the chip row 441.91 → 477.83 px | `min-width: 478px` | `Nappe` |
+| `Fin` (for Fine) | 17.11 px — fits | not width: `label.end` is already `Fin` | `Affinage` |
+
+The last row and its tooltip twin are the file's two `termNote` exemptions.
+
+### Testing
+
+- `node scripts/i18n-fr-lint.js --plugin O-simpleSampler --verbose` — **71 → 0**
+  (41 T1, 12 T5, 8 G1, 6 T4, 2 T7, 2 F1 all closed); `--strict` exit **0**, with
+  both `termNote` exemptions printed with their reason.
+- `node scripts/check-ui-labels.js --plugin O-simpleSampler` — ALL CHECKS
+  PASSED. **`[7]` 0 non-label elements moved between English and French**, the
+  same 0 as before the pass; the `[8b]` decoration counts hold at 30 and 32;
+  the `[2]` vacuity guard still measures 43/47 labels differing.
+  **Negative control:** with `Relâchement` planted in place of `Relâch`, `[8]`
+  fails on `label.release x label.velToAmp` — the gate targets the branch this
+  change turns on, rather than passing either way.
+- **Scratchpad hover-help probe** (this plugin has no committed
+  `tests/ui_tip_render_check.js`; the gap is reported, not filled in Stage N):
+  all **37 `TIP_BINDINGS` anchors** driven in **both languages** — every one
+  opens, every tip lands inside the 980×720 frame, and every French BODY
+  differs from its English. That includes all seven tour buttons, the seventh
+  (`Filtered & Enveloped`, fixed at 1.4.1) among them, and the two anchors
+  inside the gear popover, reached through the gear rather than by stripping
+  its `hidden`. Tip heights read before and after: one moved,
+  `ampRelease` 84.41 → 100.59 px, with 94.80 px of bottom clearance left.
+  **Negative control:** with the English body planted on the Reverse tip the
+  probe fails on `#toggle-reverse`; restored from a namespaced copy, the file
+  is byte-identical (`sha256 8f098f05…`).
+- `node scripts/check-i18n.js --strict-v2 --plugin O-simpleSampler` — ALL
+  CHECKS PASS, canon v2.
+- `node scripts/boot-all-uis.js --strict-tips` — **43/43 clean**, 0 warn,
+  0 failed, **DEAD bindings 0**; this plugin's late-binding count stays 0.
+- Content height is unchanged at **821.83 px** in both languages against the
+  714 px viewport (`.frame` scrollHeight 835). The on-screen keyboard is still
+  below the fold at y 721.83 — the standing open item from Stage I is neither
+  fixed nor worsened here.
+
+### Scope
+
+`Source/ui/public/js/i18n.js` (French values, the header comment) and
+`CMakeLists.txt`. Nothing else.
+
 ## [1.4.1] — 2026-08-31
 
 **The seventh tour button gets its hover-help, which it has never had.** One
