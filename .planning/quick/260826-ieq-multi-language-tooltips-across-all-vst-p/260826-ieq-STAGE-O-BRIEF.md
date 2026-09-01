@@ -205,3 +205,19 @@ Where this section disagrees with anything above, THIS section wins.
     margin over a footer/position change.
 13. **`auval` can FAIL for a pre-existing reason** (O-Lyrica, Free Glissando state). Run it 2×,
     show the failing ParameterID, confirm it is identical at the parent commit, ship, report.
+
+# CARRIED FROM O3 (O-Tapestop `0ddf4ac3`, O-simpleGrain `90607db7`, O-simpleSampler `e5908c55`, O-simpleAdditive `71c2a63a`, O-Orbit `30e94100`)
+
+14. **Item 58 is three defects; count the paths before you port.** No `focusin` (Tab opens
+    nothing) / `focusin` without a latch (click re-opens) / HOVER re-open when a control grows
+    under the pointer on press (drawbars, sliders, anything whose fill changes on `pointerdown`).
+    Probe every anchor, classify each re-open by tip-y, and report N/M before → 0/M after.
+15. **A Stage N width in a brief may be a WRAPPED measurement.** Re-measure NOWRAP on the live
+    node at the shipping frame (correction 43) before you size a fix; 838 was 997.
+16. **A new driven state must go RED on the old code before you fix** — report the count.
+17. **A harness with a time-seeded `juce::Random` cannot prove "unchanged"** — say so and pin
+    the DSP sources by sha256 instead (O-simpleSampler's shape); do not fake a digest.
+18. **`aria.helpToggle` English is "Toggle hover help"** (O-simplePhysicalModelSynth, item 54);
+    French *Activer ou désactiver l’aide au survol* already says it — `reviewed: true` stays.
+19. **A guessed `auval` subtype inside the lock costs everyone a minute** — read `PLUGIN_CODE`
+    from CMakeLists (the VALUE, not the line) before you take it.
