@@ -535,10 +535,25 @@
        WIDTH IS PINNED, not min-width. .settings-popover is not a [data-i18n]
        element, so check-ui-labels assertion 7 measures its box in both
        languages and any language-driven resize is a reported failure. A hard
-       width makes the panel's rect language-invariant by construction. 176 px
-       holds the widest English row (Hover help + the On/Off pill) and the
-       widest French one (Langue + the Français option) with 12 px to spare,
-       measured as rendered. */
+       width makes the panel's rect language-invariant by construction.
+
+       RE-MEASURED AT v1.3.1, and the v1.3.0 note above it was wrong twice.
+       176 px is a 154 px content box; each row is space-between with a 10 px
+       gap, and the select is a language-invariant 68 px (its width comes from
+       the endonym "Français", which is the same string in both languages).
+       The four rows, as rendered:
+
+         en  Language 46.8 + select 68        = 124.8   slack 29.2   <- widest en
+         en  Hover help 54.08 + pill 52       = 116.08  slack 37.92
+         fr  Langue 35.67 + select 68         = 113.67  slack 40.33
+         fr  Aide au survol 70.22 + pill 52   = 132.22  slack 21.78  <- widest fr
+
+       So the widest English row is the LANGUAGE row, not the hover-help one;
+       and the widest French row became the hover-help row at v1.3.1, when the
+       caption took the glossary's root term "Aide au survol" in place of the
+       abbreviated "Aide" (22.22 px). The tightest fit on this panel is 21.78 px,
+       not the 12 px the old note claimed — that figure matches no row in either
+       language. Comment only; no rule here changed. */
     .settings-popover {
       position: absolute;
       top: calc(100% + 6px);
