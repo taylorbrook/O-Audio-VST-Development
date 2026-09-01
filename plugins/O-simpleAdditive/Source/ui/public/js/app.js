@@ -585,9 +585,43 @@ function setupTooltips() {
   // because — unlike pointerenter/pointerleave and focus/blur — they bubble.
   const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
 
+  // v1.1.2 — FOCUS LATCH (Stage O item 58, the O-Comp v1.7.0 shape). Through
+  // v1.1.1 the focusin handler below opened the tip for ANY focus, so a pointer
+  // click on the gear, the language selector, either combo or a lesson button
+  // (ten anchors the browser focuses on click) showed hover help the user had
+  // just dismissed with the very pointerdown that hides it. Keyboard focus is
+  // the accessibility half of this feature and must still open the tip, so the
+  // discriminator is the last input device: pointerdown latches, any keydown
+  // releases, focusin opens only while released.
+  //
+  // :focus-visible is deliberately NOT the discriminator. Chromium reports it
+  // false for a programmatic .focus() following a click, so a gate driving
+  // focus directly would measure "no tip" and record that as correct — a false
+  // pass built into the fix. An explicit latch on the last input device is the
+  // same rule and is drivable with real events.
+  //
+  // The one programmatic .focus() on this page is setupSettingsPopover's
+  // Escape → gearBtn.focus(). Its keydown listener is registered before this
+  // one (boot order), so the gear's focusin runs while the latch still holds
+  // whatever opened the popover: a click leaves it latched (no tip), a key had
+  // released it (tip opens) — and this listener's Escape then hides either way.
+  //
+  // The knobs never reached focusin from a click at all: their pointerdown
+  // calls preventDefault, which suppresses the focus change.
+  let lastInputWasPointer = false;
+
+  // SECOND MECHANISM, found by counting (the sixteen drawbars). A press on a
+  // drawbar hides the tip, then setFromY grows #fill-partialN under the pointer,
+  // and the child boundary fires pointerout/pointerover with active === null —
+  // so the hover path re-opened the tip on the anchor the pointer had just
+  // pressed. Remember the pressed anchor and refuse to re-open on it until the
+  // pointer has LEFT it; a knob already behaved this way by accident (its
+  // stem is pointer-events: none, so nothing changes under the pointer).
+  let pressedAnchor = null;
+
   document.addEventListener("pointerover", (e) => {
     const el = anchorOf(e.target);
-    if (!el || el === active) return;
+    if (!el || el === active || el === pressedAnchor) return;
     active = el;
     show(el, e.clientX, e.clientY);
   });
@@ -595,15 +629,22 @@ function setupTooltips() {
     if (active && anchorOf(e.target) === active) position(e.clientX, e.clientY);
   });
   document.addEventListener("pointerout", (e) => {
+    const to = anchorOf(e.relatedTarget);
+    if (pressedAnchor && to !== pressedAnchor) pressedAnchor = null;
     if (!active) return;
     // Ignore a move between two descendants of the SAME anchor: pointerout
     // fires on every child boundary and would flicker the tip off and on.
-    if (anchorOf(e.relatedTarget) === active) return;
+    if (to === active) return;
     hide();
   });
-  document.addEventListener("pointerdown", hide);
+  document.addEventListener("pointerdown", (e) => {
+    lastInputWasPointer = true;
+    pressedAnchor = anchorOf(e.target);
+    hide();
+  });
 
   document.addEventListener("focusin", (e) => {
+    if (lastInputWasPointer) return;
     const el = anchorOf(e.target);
     if (!el) return;
     active = el;
@@ -612,7 +653,14 @@ function setupTooltips() {
   });
   document.addEventListener("focusout", hide);
 
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+  // One keydown listener, two jobs: any key at all means the keyboard is
+  // driving again, which releases the latch above; Escape additionally hides.
+  // Registered separately from setupSettingsPopover's own Escape handler,
+  // which closes the popover — both run, and they are independent.
+  document.addEventListener("keydown", (e) => {
+    lastInputWasPointer = false;
+    if (e.key === "Escape") hide();
+  });
 }
 
 // ── Lesson preset tour ──────────────────────────────────────────────────────

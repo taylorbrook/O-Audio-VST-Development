@@ -3,6 +3,33 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.2] — 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide
+i18n rollout.
+
+### Fixed
+- **item 58 — hover help opened on a pointer click:** `setupTooltips()`
+  (`js/app.js`) opened the tip on *any* `focusin`, so clicking the gear, the
+  language selector, either combo or a lesson button — the ten anchors the
+  browser focuses on click — showed the help the same press had just hidden.
+  The Stage M focus latch is ported from O-Comp v1.7.0: `pointerdown` latches,
+  any `keydown` releases, `focusin` opens only while released, `focusout` and
+  Escape hide. Keyboard focus (Tab / Shift+Tab) still opens the tip, in both
+  languages, with the anchor's own body. The one programmatic `.focus()` on
+  the page (popover Escape → gear) is covered by the same rule.
+- **item 58, second mechanism — the sixteen drawbars re-opened their tip on a
+  press:** the press hid the tip, then `setFromY` grew `#fill-partialN` under
+  the pointer and the child boundary's `pointerover` re-opened it through the
+  hover path. The pressed anchor is now remembered and not re-opened until the
+  pointer has left it — the behaviour the knobs already had (their stem is
+  `pointer-events: none`, so nothing changed under the pointer).
+  Measured with a scratchpad Playwright probe over every focusable `[data-tip]`
+  anchor: click opens a tip on 26 of 41 before (10 focus, 16 hover) → 0 after;
+  Tab into Scan LFO Rate opens its tip inside the frame with the matching body
+  before and after; Escape hides. No copy, CSS or DSP change (render-harness
+  golden byte-identical).
+
 ## [1.1.1] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
