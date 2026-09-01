@@ -126,7 +126,12 @@ function forbidden(fr, table) {
     const hits = [];
     const low = norm(fr);
     for (const w of Object.keys(table)) {
-        const re = new RegExp(`(^|[^a-zà-ÿœ])${w.replace(/\./g, '\\.')}(?![a-zà-ÿœ])`);
+        // norm() drops a TRAILING period from the value, so a key that ends in
+        // one ('dériv.', 'fréq.', 'flatt.') could never match the caption it was
+        // written for (O-MultiBandCompressor N4: "Dériv." drew G1 and not F1).
+        // Match the stem; the lookahead already refuses a longer word.
+        const stem = w.replace(/\.$/, '');
+        const re = new RegExp(`(^|[^a-zà-ÿœ])${stem.replace(/\./g, '\\.')}(?![a-zà-ÿœ])`);
         if (re.test(low)) hits.push(w);
     }
     return hits;
