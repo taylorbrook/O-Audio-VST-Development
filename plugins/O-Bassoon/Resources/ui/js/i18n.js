@@ -18,7 +18,68 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bassoon page labels and hover-help, English + French (v1.2.0)
+// i18n.js — O-Bassoon page labels and hover-help, English + French (v1.2.1)
+//
+// ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 16 entries (5 terminology, 6 typography, 4 grammar/idiom,
+// 1 meaning). sameAsEn: kept 4, translated 0. termNote exemptions: 0.
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+// i18n-fr-lint --plugin O-Bassoon: 26 findings (11 T4, 9 T7, 2 T5, 2 G1, 2 F1)
+// -> 0, --strict exit 0.
+//
+// The decisions the next reader needs:
+//
+//   RELÂCHE -> RELÂCH.  The glossary settles Release as Relâchement (Relâch.),
+//     and the root term does NOT fit here: measured with Range.selectNodeContents
+//     on the real .knob-label at the shipping 900 x 600 frame, RELÂCHEMENT is
+//     79.81 px against this box's 78 px max-width — it ellipsises, silently, the
+//     half a spill check cannot see. RELÂCH. is 45.59 px, which is 3.64 px
+//     NARROWER than the old RELÂCHE (49.23) and 1.35 px narrower than English
+//     RELEASE (46.94). Six of the ten captions now shrink into French rather
+//     than five. No CSS was touched; Stage N touches none.
+//   Relâchement in the TIP TITLE, Relâch. in the caption. The header rule above
+//     ("the title is the page's caption") holds for a caption that DISAGREES
+//     with the parameter name. This caption is the same word with letters
+//     missing, and a 260 px tooltip is where the full term belongs (Stage M2
+//     correction 9). Relâch ⊂ Relâchement, so the pair holds by stem. There is
+//     no aria-label on any knob here, so WCAG 2.5.3 label-in-name has no
+//     accessible name to compare against and does not decide the period.
+//   CARACTÈRE stays. The head-noun choice recorded below was re-measured, not
+//     inherited: 61.97 px against a 78 px cap, ATTACK CHAR 72.98 px. The
+//     v1.2.0 header's whole width table reproduced to the hundredth.
+//   ADSR stage names in tip.attack. "ni décroissance ni palier" became "ni
+//     étage de déclin ni étage de maintien" — the glossary's textbook ADSR
+//     (Déclin / Maintien), and BassoonVoice.cpp:101 really is {attack, 0, 1,
+//     release}. tip.release keeps "décroissance" deliberately: there the word
+//     names the modal resonance tail's decay, not an envelope stage.
+//   "filtrée dans le grave" -> "filtrée en passe-bas" in tip.attackChar. The
+//     English says low-passed and Exciter.cpp:50 is a 1-pole LP at 600 Hz;
+//     passe-bas is the French term for it.
+//   tip.depth had DROPPED the English's "bends the pitch" (Stage N2 correction
+//     19). "L'amplitude du vibrato de part et d'autre de la note" became "De
+//     combien le vibrato écarte la hauteur de part et d'autre de la note".
+//   Bodies are not matched against the glossary TERMS table, and two loanword-
+//     free renderings were kept on purpose: "le grain des modes aigus" for the
+//     reed buzz in tip.tone, and "traîne de résonance" for the modal tail in
+//     tip.release. Both read as French audio prose; neither is a caption.
+//   26 U+00A0 landed, all inside fr string VALUES: 12 before a colon, 2 before
+//     a semicolon, 12 between a number and its unit. Applied by a state machine
+//     over the fr: { } blocks, never a regex over the file — ' , % and every
+//     unit appear in the English bodies and in this header. Audited afterwards:
+//     grep for U+00A0 outside a t:/b: line returns 0, and importing both
+//     revisions and comparing shows 0 en values, 0 keys, 0 TIP_BINDINGS rows,
+//     0 I18N_EXEMPT rows and 0 reviewed/sameAsEn flags changed.
+//   The one U+00A0 that could have moved geometry is in label.about.blurb
+//     ("16 voix"), which makes that pair unbreakable inside a card the header
+//     below pins at three line boxes. Measured after: 3 lines and a 242.13 px
+//     card in BOTH languages, unchanged. check-ui-labels' output is
+//     byte-identical to its pre-change baseline, 0 non-label elements moved.
+//   Tip clearance, measured before and after through the committed render gate:
+//     three French bodies gained one 16.7 px line box (tip.depth, tip.attack,
+//     tip.release). The tightest French bottom clearance went 97.1 -> 80.4 px
+//     and the tightest right clearance is unchanged at 29.0 px. 198 PASS,
+//     0 FAIL, all three negative controls firing, before and after.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -142,7 +203,7 @@ export const I18N = Object.freeze({
         en: { t: 'Rate',
               b: 'Speed of the pitch vibrato, a sine oscillator per voice that bends the whole mode bank up and down. Each note starts it at a random phase, so at 0 Hz the vibrato freezes into a small fixed detune rather than switching off — Depth at 0 is what silences it. 0 to 10 Hz.' },
         fr: { t: 'Vitesse',
-              b: 'Vitesse du vibrato de hauteur, un oscillateur sinusoïdal par voix qui fait monter et descendre tout le banc de modes. Chaque note le démarre à une phase aléatoire : à 0 Hz le vibrato se fige en un léger désaccord constant au lieu de s’arrêter — c’est Profondeur à 0 qui le fait taire. 0 à 10 Hz.',
+              b: 'Vitesse du vibrato de hauteur, un oscillateur sinusoïdal par voix qui fait monter et descendre tout le banc de modes. Chaque note le démarre à une phase aléatoire : à 0 Hz le vibrato se fige en un léger désaccord constant au lieu de s’arrêter — c’est Profondeur à 0 qui le fait taire. 0 à 10 Hz.',
               reviewed: false },
     },
 
@@ -150,7 +211,7 @@ export const I18N = Object.freeze({
         en: { t: 'Depth',
               b: 'How far the vibrato bends the pitch either side of the note, in cents — 100 cents is one semitone. A bassoonist’s vibrato lives in the bottom fifth of this range; everything above that is a deliberate effect. 0 to 100 cents.' },
         fr: { t: 'Profondeur',
-              b: 'L’amplitude du vibrato de part et d’autre de la note, en cents — 100 cents font un demi-ton. Le vibrato d’un bassoniste se tient dans le premier cinquième de la course ; au-dessus, c’est un effet délibéré. 0 à 100 cents.',
+              b: 'De combien le vibrato écarte la hauteur de part et d’autre de la note, en cents — 100 cents font un demi-ton. Le vibrato d’un bassoniste se tient dans le premier cinquième de la course ; au-dessus, c’est un effet délibéré. 0 à 100 cents.',
               reviewed: false },
     },
 
@@ -158,7 +219,7 @@ export const I18N = Object.freeze({
         en: { t: 'Onset',
               b: 'The wait before the vibrato reaches full depth. Every note-on restarts the fade from nothing and ramps it in evenly over this time, which is the straight-then-warming entry a wind player makes. 0 to 2000 ms.' },
         fr: { t: 'Délai',
-              b: 'L’attente avant que le vibrato atteigne sa pleine amplitude. Chaque note relance le fondu depuis zéro et le fait monter régulièrement sur cette durée : c’est l’entrée droite puis chaleureuse d’un instrumentiste à vent. 0 à 2000 ms.',
+              b: 'L’attente avant que le vibrato atteigne sa pleine profondeur. Chaque note relance le fondu depuis zéro et le fait monter régulièrement sur cette durée : c’est l’entrée droite puis chaleureuse d’un instrumentiste à vent. 0 à 2000 ms.',
               reviewed: false },
     },
 
@@ -168,7 +229,7 @@ export const I18N = Object.freeze({
         en: { t: 'Breath',
               b: 'How hard the instrument is blown. It scales the filtered noise that keeps the modes ringing, so it sets loudness and the amount of audible breath together rather than one after the other. A MIDI breath controller (CC2) takes over while it is moving and hands control back half a second after it stops. 0 to 1.' },
         fr: { t: 'Souffle',
-              b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) prend le relais tant qu’il bouge et rend la main une demi-seconde après son arrêt. 0 à 1.',
+              b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) prend le relais tant qu’il bouge et rend la main une demi-seconde après son arrêt. 0 à 1.',
               reviewed: false },
     },
 
@@ -176,7 +237,7 @@ export const I18N = Object.freeze({
         en: { t: 'Tone',
               b: 'How long the upper partials keep ringing: partials 6 to 16 get a decay between 0.3× and 1.5× their nominal length, while the first five are left untouched. Low is a dark, quickly damped reed; high keeps the buzz of the high modes alive under the note. 0 to 1.' },
         fr: { t: 'Timbre',
-              b: 'La durée de résonance des partiels supérieurs : les partiels 6 à 16 reçoivent une décroissance de 0,3× à 1,5× leur longueur nominale, les cinq premiers restent intacts. En bas, une anche sombre et vite amortie ; en haut, le grain des modes aigus reste vivant sous la note. 0 à 1.',
+              b: 'La durée de résonance des partiels supérieurs : les partiels 6 à 16 reçoivent une décroissance de 0,3× à 1,5× leur longueur nominale, les cinq premiers restent intacts. En bas, une anche sombre et vite amortie ; en haut, le grain des modes aigus reste vivant sous la note. 0 à 1.',
               reviewed: false },
     },
 
@@ -184,7 +245,7 @@ export const I18N = Object.freeze({
         en: { t: 'Attack Char',
               b: 'Morphs the start of the note between two excitation shapes: at 0 a soft 30 ms low-passed swell, at 1 a sharp 7.5 ms noise burst — a tongued articulation. Note velocity shifts the value by up to 0.15 either way, and the result is frozen at note-on, so automating it during a note does nothing. 0 to 1, Soft to Tongued.' },
         fr: { t: 'Caractère',
-              b: 'Fait passer le début de la note d’une forme d’excitation à l’autre : à 0 une montée douce de 30 ms filtrée dans le grave, à 1 une brève salve de bruit de 7,5 ms — un coup de langue. La vélocité décale la valeur de 0,15 au plus dans un sens ou l’autre, et le résultat est figé au début de la note : l’automatiser en cours de note ne change rien. 0 à 1, de Doux à Détaché.',
+              b: 'Fait passer le début de la note d’une forme d’excitation à l’autre : à 0 une montée douce de 30 ms filtrée en passe-bas, à 1 une brève salve de bruit de 7,5 ms — un coup de langue. La vélocité décale la valeur de 0,15 au plus dans un sens ou l’autre, et le résultat est figé au début de la note : l’automatiser en cours de note ne change rien. 0 à 1, de Doux à Détaché.',
               reviewed: false },
     },
 
@@ -194,15 +255,15 @@ export const I18N = Object.freeze({
         en: { t: 'Attack',
               b: 'How long the amplitude envelope takes to climb to full level once a note starts. There is no decay and no sustain stage — the envelope simply holds until the key is released — so this and Release are the whole shape. 0 to 2000 ms.' },
         fr: { t: 'Attaque',
-              b: 'Le temps que met l’enveloppe d’amplitude à monter au niveau plein dès le début de la note. Il n’y a ni décroissance ni palier : l’enveloppe se maintient jusqu’au relâchement de la touche, si bien que ce réglage et Relâche forment toute la forme. 0 à 2000 ms.',
+              b: 'Le temps que met l’enveloppe d’amplitude à monter au niveau plein dès le début de la note. Il n’y a ni étage de déclin ni étage de maintien : l’enveloppe se tient simplement au niveau plein jusqu’au relâchement de la touche, si bien que ce réglage et Relâchement en constituent toute la forme. 0 à 2000 ms.',
               reviewed: false },
     },
 
     'tip.release': {
         en: { t: 'Release',
               b: 'How long the note takes to fade once the key is lifted. It shapes the amplitude only: the mode bank carries its own resonance tail of up to 2.5 seconds underneath, so a short setting cuts that tail off rather than making it decay faster. 0 to 3000 ms.' },
-        fr: { t: 'Relâche',
-              b: 'Le temps de disparition de la note une fois la touche relâchée. Il ne façonne que l’amplitude : le banc de modes garde en dessous sa propre traîne de résonance pouvant aller jusqu’à 2,5 secondes, qu’un réglage court coupe net au lieu de l’accélérer. 0 à 3000 ms.',
+        fr: { t: 'Relâchement',
+              b: 'Le temps de disparition de la note une fois la touche relâchée. Il ne façonne que l’amplitude : le banc de modes garde en dessous sa propre traîne de résonance pouvant aller jusqu’à 2,5 secondes, qu’un réglage court coupe net au lieu d’en accélérer la décroissance. 0 à 3000 ms.',
               reviewed: false },
     },
 
@@ -212,7 +273,7 @@ export const I18N = Object.freeze({
         en: { t: 'Voices',
               b: 'The most notes that may sound at once. The limit is checked at each note-on: past it a voice is taken back, preferring one already in its release tail and otherwise the oldest note. Lowering the limit never cuts a note that is already sounding. 1 to 16 voices.' },
         fr: { t: 'Voix',
-              b: 'Le nombre maximal de notes pouvant sonner en même temps. La limite est vérifiée à chaque nouvelle note : au-delà, une voix est reprise, de préférence une déjà en fin de relâchement, sinon la plus ancienne. Baisser la limite ne coupe jamais une note en cours. De 1 à 16 voix.',
+              b: 'Le nombre maximal de notes pouvant sonner en même temps. La limite est vérifiée à chaque nouvelle note : au-delà, une voix est reprise, de préférence une déjà en fin de relâchement, sinon la plus ancienne. Baisser la limite ne coupe jamais une note en cours. 1 à 16 voix.',
               reviewed: false },
     },
 
@@ -220,7 +281,7 @@ export const I18N = Object.freeze({
         en: { t: 'Output',
               b: 'The final level applied to the summed voices, ramped across each block so a move never clicks. Sixteen voices together are a great deal louder than one, so this is where a dense passage gets pulled back. −24 to +6 dB.' },
         fr: { t: 'Sortie',
-              b: 'Le niveau final appliqué à la somme des voix, lissé sur chaque bloc pour qu’un mouvement ne claque jamais. Seize voix ensemble sont bien plus fortes qu’une seule : c’est ici qu’on rattrape un passage dense. −24 à +6 dB.',
+              b: 'Le niveau final appliqué à la somme des voix, lissé sur chaque bloc pour qu’un mouvement ne claque jamais. Seize voix ensemble sont bien plus fortes qu’une seule : c’est ici qu’on rattrape un passage dense. −24 à +6 dB.',
               reviewed: false },
     },
 
@@ -237,7 +298,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help change with it, and the choice is kept with the session, so a project reopens in the language it was saved in.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
+              b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
               reviewed: false },
     },
 
@@ -250,7 +311,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the captions on this page and of this hover help. English and French are available. Value readouts stay as numbers and units in both, and the Tuning tab stays in English — its panel comes from a shared module that is not part of this plugin.' },
         fr: { t: 'Langue',
-              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées restent des nombres et des unités dans les deux langues, et l’onglet Accord demeure en anglais : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
+              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées restent des nombres et des unités dans les deux langues, et l’onglet Accord demeure en anglais : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
               reviewed: false },
     },
 });
@@ -288,11 +349,16 @@ export const I18N = Object.freeze({
 //     TONE        28.8 -> TIMBRE      41.1
 //     ATTACK CHAR 73.0 -> CARACTÈRE   62.0    SHRANK  (see the note on the key)
 //     ATTACK      40.8 -> ATTAQUE     49.2
-//     RELEASE     46.9 -> RELÂCHE     49.2
+//     RELEASE     46.9 -> RELÂCH.     45.6    SHRANK  (v1.2.1; was RELÂCHE 49.2)
 //     VOICES      38.3 -> VOIX        26.3    SHRANK
 //     OUTPUT      42.6 -> SORTIE      38.5    SHRANK
 //
-// Five of the ten SHRINK. That is the half of the risk a clip check is blind to
+// Re-measured at v1.2.1 with the same method: every row above reproduced to the
+// hundredth, so this table was honest. RELEASE is the one that moved, because
+// Stage N applied the glossary's Relâch. — RELÂCHEMENT is 79.81 px and would
+// have ellipsised against the 78 px cap.
+//
+// Six of the ten SHRINK. That is the half of the risk a clip check is blind to
 // and the half Stage J found four times in twelve, and it is the reason the
 // before/after diff is run in both directions rather than only looking for
 // growth.
@@ -376,7 +442,7 @@ export const LABELS = Object.freeze({
     },
 
     'label.knob.attack':  { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false } },
-    'label.knob.release': { en: { t: 'Release' }, fr: { t: 'Relâche', reviewed: false } },
+    'label.knob.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
     'label.knob.voices':  { en: { t: 'Voices' },  fr: { t: 'Voix',    reviewed: false } },
     'label.knob.output':  { en: { t: 'Output' },  fr: { t: 'Sortie',  reviewed: false } },
 
@@ -414,7 +480,7 @@ export const LABELS = Object.freeze({
     // on three lines and a 242.1px card in both languages.
     'label.about.blurb': {
         en: { t: 'Polyphonic 1–16 voices, VST3 Note Expression + MPE for Dorico microtonal playback, breath/CC2 expression, vibrato, and the Ouaricon tuning-system family. Built on JUCE 8.' },
-        fr: { t: 'Polyphonie de 1 à 16 voix, VST3 Note Expression + MPE pour la lecture microtonale dans Dorico, expression au souffle/CC2, vibrato, et la famille de systèmes d’accord Ouaricon. Conçu avec JUCE 8.', reviewed: false },
+        fr: { t: 'Polyphonie de 1 à 16 voix, VST3 Note Expression + MPE pour la lecture microtonale dans Dorico, expression au souffle/CC2, vibrato et la famille de systèmes d’accord Ouaricon. Conçu avec JUCE 8.', reviewed: false },
     },
     'label.about.madeBy': {
         en: { t: 'Made by' },
@@ -475,11 +541,11 @@ export const LABELS = Object.freeze({
     },
     'aria.breathMeter': {
         en: { t: 'Effective breath (UI breath × CC2)' },
-        fr: { t: 'Souffle effectif (souffle interface × CC2)', reviewed: false },
+        fr: { t: 'Souffle effectif (souffle de l’interface × CC2)', reviewed: false },
     },
     'aria.voiceDots': {
         en: { t: 'Live active voice count' },
-        fr: { t: 'Nombre de voix actives en direct', reviewed: false },
+        fr: { t: 'Nombre de voix actives en temps réel', reviewed: false },
     },
 
     'aria.settings': {
