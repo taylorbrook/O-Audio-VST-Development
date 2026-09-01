@@ -4,6 +4,24 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.8.2] — 2026-08-31 — Note Expression tip title matches the caption
+
+Defects found by reading the French against the code. Stage O of the repo-wide
+i18n rollout (quick task 260826-ieq, batch O4).
+
+### Fixed
+
+- **item 61 — `note-expression-toggle` hover-help title:** the tip opened as
+  "Note expression" while the caption under the toggle (`label.noteExpression`),
+  the host-visible parameter name (`PluginProcessor.cpp` `"Note Expression"`)
+  and the VST3 feature itself are "Note Expression" — one control, two
+  renderings. The title is now "Note Expression" (`i18n.js`,
+  `'note-expression-toggle'.en.t`). The French title and caption already agreed
+  with each other (both "Note Expression"), so no French byte changed and
+  `reviewed: true` stands. English copy changed: 1 title. No DSP, CSS, key,
+  binding or parameter changed — the 21 render-harness goldens reproduce
+  byte-identical.
+
 ## [1.8.1] — 2026-08-31 — French copy revised
 
 French copy revised. Stage N of the repo-wide i18n rollout (quick task

@@ -18,7 +18,20 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Contrabass interface copy, English + French (v1.8.1)
+// i18n.js — O-Contrabass interface copy, English + French (v1.8.2)
+//
+// ── v1.8.2: ENGLISH DEFECT FROM THE FRENCH READING (Stage O, 2026-08-31) ────
+//
+// Item 61: the note-expression-toggle tip TITLE read "Note expression" while
+// the caption (label.noteExpression), the VST3 parameter name
+// (PluginProcessor.cpp "Note Expression") and NOTES.md all say "Note
+// Expression" — the feature is a proper noun in the VST3 SDK. Title
+// capitalised. The French title and caption already agreed (both "Note
+// Expression"), so the French is byte-untouched and reviewed: true stands.
+// The en title now equals the fr title over a translated body: NO sameAsEn
+// flag (Stage N correction 26 — the lint counts it as covered). No aria.*
+// entry names this control (the toggle is a div with no aria-label; reported,
+// not in scope). English changed: 1 entry. French changed: 0.
 //
 // ── v1.8.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 //
@@ -455,7 +468,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     },
     'note-expression-toggle': {
-        en: { t: 'Note expression',
+        en: { t: 'Note Expression',
               b: 'Per-note VST3 pitch (Note Expression) for hosts like Cubase and Dorico — microtonal scores play in tune.' },
         fr: { t: 'Note Expression',
               b: "Hauteur VST3 par note (Note Expression) pour les hôtes comme Cubase et Dorico — les partitions microtonales sonnent juste.",
