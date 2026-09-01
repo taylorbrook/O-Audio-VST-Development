@@ -3,6 +3,35 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.2] — 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n
+rollout. No parameter, preset-format or audio change; the render harness is
+byte-for-byte the same on every check.
+
+### Fixed
+- **item 53 — String Model dropdown:** the `stringModel` parameter is never
+  `load()`ed anywhere in `Source/` — `StringResonator.h:33` is a single-rail
+  Karplus-Strong loop and the "dual-rail Waveguide deferred to v1.1" it names was
+  never written — so the dropdown moved an automation lane and nothing else, while
+  its tooltip promised the Waveguide "arrives in v1.1" on a 1.2.x plugin. The
+  control is now HIDDEN (`hidden` on its `.select-cell`, `index.html:232`; new
+  `.select-cell[hidden] { display: none }` in `styles.css`). The parameter, its
+  ID, choice list, relay and tooltip binding all stay so existing sessions and
+  automation load unchanged; the tooltip body (both languages) now says the
+  control is reserved. The Waveguide was not implemented: there is no DSP behind
+  the deferred `load()`, so wiring it was not "a few lines" — it is a new engine.
+- **item 54 — hover-help switch `aria-label`:** "Toggle tooltips" → **"Toggle hover
+  help"**, the family's settled name (the tip title already read "Hover help";
+  O-simpleGrain shipped the same fix in batch O3). The French already said
+  *Activer ou désactiver l’aide au survol* and is unchanged.
+
+### Changed
+- Hiding the String Model cell reflows column 2 of the rack: Inharmonicity and
+  Mode Bright move up one row. Identical in both languages — `check-ui-labels`
+  still reports 0 non-label elements moved between English and French.
+- The render-harness `JucePlugin_VersionCode` literal tracks the bump (`0x10202`).
+
 ## [1.2.1] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout — the second reading of

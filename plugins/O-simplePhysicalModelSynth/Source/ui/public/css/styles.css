@@ -538,6 +538,9 @@ body {
 
 /* ── Select / combo box ──────────────────────────────────────────────────── */
 .select-cell { display: flex; flex-direction: column; align-items: center; width: 92px; }
+/* v1.2.2: the author display:flex above beats the UA [hidden]{display:none}, so
+   a hidden select-cell (stringModel, Stage O item 53) needs its own rule. */
+.select-cell[hidden] { display: none; }
 .combo {
   font-family: inherit;
   font-size: 11.5px;

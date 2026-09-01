@@ -18,7 +18,20 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simplePhysicalModelSynth interface copy, English + French (v1.2.1)
+// i18n.js — O-simplePhysicalModelSynth interface copy, English + French (v1.2.2)
+//
+// ── v1.2.2: STAGE O (2026-08-31) — the English defects Stage N found ────────
+// item 53: the stringModel dropdown is HIDDEN (index.html `hidden` on its
+//   .select-cell; styles.css `.select-cell[hidden]`). The parameter is never
+//   load()ed — StringResonator.h is a single-rail Karplus-Strong loop and the
+//   "dual-rail Waveguide deferred to v1.1" it names was never written — so the
+//   control moved an automation lane and nothing else. Parameter ID, choice
+//   list, COMBO_IDS relay and the TIP_BINDINGS row all stay: sessions load, the
+//   selector resolves (boot-all-uis: no DEAD, late count unchanged). Both
+//   bodies now say the control is reserved; fr reviewed: false (meaning change).
+// item 54: aria.helpToggle en "Toggle tooltips" → "Toggle hover help", the
+//   family's settled name (O-simpleGrain shipped it in O3). The fr already read
+//   "Activer ou désactiver l’aide au survol"; reviewed: true stays.
 //
 // ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -67,11 +80,11 @@
 //     "Supprimer le préréglage utilisateur actuel". Not invented captions.
 //
 // Two ENGLISH defects were found by reading the French and deliberately NOT
-// fixed here (Stage N does not change English): the stringModel tip promises
-// the Waveguide "arrives in v1.1" while the plugin ships 1.2.1 and the
-// parameter is never load()ed anywhere in Source/ — the dropdown moves the
-// automation lane and nothing else; and aria.helpToggle's English reads
-// "Toggle tooltips" where the same control's tip title reads "Hover help".
+// fixed in v1.2.1 (Stage N does not change English) — both closed in v1.2.2,
+// see the Stage O block above: the stringModel tip promised a Waveguide for
+// v1.1 while the plugin shipped 1.2.1 and the parameter is never
+// load()ed anywhere in Source/; and aria.helpToggle's English read "Toggle
+// tooltips" where the same control's tip title reads "Hover help".
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin. This
 // file is a SOURCES entry in juce_add_binary_data(O-simplePhysicalModelSynth_UIResources)
@@ -203,11 +216,14 @@ export const I18N = Object.freeze({
               reviewed: true },
     },
     stringModel: {
+        // v1.2.2 (Stage O item 53): the control is hidden — this entry stays
+        // because the anchor and its TIP_BINDINGS row stay (session and gate
+        // continuity), and it says so rather than promising a v1.1 Waveguide.
         en: { t: "String Model",
-              b: "Karplus-Strong is the v1.0 engine. The two-delay Waveguide (which makes excitation position physical) arrives in v1.1." },
+              b: "Reserved. Karplus-Strong is the only engine; the Waveguide choice is not implemented and the control is hidden. The parameter stays so existing sessions and automation still load." },
         fr: { t: "Modèle de corde",
-              b: "Karplus-Strong est le moteur de la v1.0. Le Waveguide à deux lignes à retard (qui rend physique la position d’excitation) arrive en v1.1.",
-              reviewed: true },
+              b: "Réservé. Karplus-Strong est le seul moteur ; le choix Waveguide n’est pas implémenté et la commande est masquée. Le paramètre reste pour que les sessions et l’automation existantes se chargent encore.",
+              reviewed: false },
     },
     inharmonicity: {
         en: { t: "Inharmonicity",
@@ -595,7 +611,7 @@ export const LABELS = Object.freeze({
         fr: { t: "Langue de l’interface", reviewed: true },
     },
     'aria.helpToggle': {
-        en: { t: "Toggle tooltips" },
+        en: { t: "Toggle hover help" },
         fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
     },
 
