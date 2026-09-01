@@ -787,19 +787,19 @@ export const I18N = Object.freeze({
               b: 'When one note slides into the next. Off never glides, Legato glides only between '
                + 'overlapping notes, and Always glides on every note. Glide sets how long the slide '
                + 'takes. Range: Off, Legato, Always.' },
-        fr: { t: 'Mode glissé',
+        fr: { t: 'Mode porta',
               b: 'Détermine quand une note glisse vers la suivante. Off ne glisse jamais, Legato '
                + 'glisse seulement entre notes qui se chevauchent, Always glisse à chaque note. '
-               + 'Glissé en fixe la durée. Plage : Off, Legato, Always.',
+               + 'Porta en fixe la durée. Plage : Off, Legato, Always.',
               reviewed: false },
     },
     'tip.glideTime': {
         en: { t: 'Glide Time',
               b: 'How long a note takes to slide to the next pitch. It does nothing while Glide Mode '
                + 'is Off. Range 1 ms to 5 s.' },
-        fr: { t: 'Durée du glissé',
+        fr: { t: 'Durée du portamento',
               b: 'Temps que met une note à glisser vers la hauteur suivante. Sans effet tant que Mode '
-               + 'glissé est sur Off. Plage de 1 ms à 5 s.',
+               + 'porta est sur Off. Plage de 1 ms à 5 s.',
               reviewed: false },
     },
 
@@ -1426,8 +1426,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Langue',
               b: 'Bascule d’un coup toutes les légendes, tous les titres de section et toute l’aide '
                + 'contextuelle de cette page entre l’anglais et le français, sans rouvrir le '
-               + 'plugin. Les relevés de valeur restent en anglais : une indication comme 375ms ou '
-               + '1.2kHz est identique dans les deux langues. Plage : English, Français.',
+               + 'plugin. Les relevés de valeur restent en anglais : une indication comme « 375ms » ou '
+               + '« 1.2kHz » est identique dans les deux langues. Plage : English, Français.',
               reviewed: false },
     },
 });
@@ -1673,7 +1673,7 @@ export const LABELS = Object.freeze({
     'label.octave':          { en: { t: 'Octave' },        fr: { t: 'Octave',        reviewed: false, sameAsEn: true } },
     'label.routing':         { en: { t: 'Routing' },       fr: { t: 'Routage',       reviewed: false } },
     'label.type':            { en: { t: 'Type' },          fr: { t: 'Type',          reviewed: false, sameAsEn: true } },
-    'label.glideMode':       { en: { t: 'Glide Mode' },    fr: { t: 'Mode glissé',   reviewed: false } },
+    'label.glideMode':       { en: { t: 'Glide Mode' },    fr: { t: 'Mode porta',   reviewed: false } },
     'label.filterRouting':   { en: { t: 'Filter Routing' }, fr: { t: 'Routage filt.', reviewed: false } },
     'label.division':        { en: { t: 'Division' },      fr: { t: 'Division',      reviewed: false, sameAsEn: true } },
     'label.mode':            { en: { t: 'Mode' },          fr: { t: 'Mode',          reviewed: false, sameAsEn: true } },
@@ -1697,7 +1697,7 @@ export const LABELS = Object.freeze({
     'label.width':           { en: { t: 'Width' },         fr: { t: 'Larg.',         reviewed: false } },
     'label.warpAmt':         { en: { t: 'Warp Amt' },      fr: { t: 'Qté déf.',      reviewed: false } },
     'label.pbRange':         { en: { t: 'PB Range' },      fr: { t: 'Plage PB',      reviewed: false } },
-    'label.glide':           { en: { t: 'Glide' },         fr: { t: 'Glissé',        reviewed: false } },
+    'label.glide':           { en: { t: 'Glide' },         fr: { t: 'Porta',        reviewed: false } },
     'label.cutoff':          { en: { t: 'Cutoff' },        fr: { t: 'Coupure',       reviewed: false } },
     'label.reso':            { en: { t: 'Reso' },          fr: { t: 'Réso',          reviewed: false } },
     'label.drive':           { en: { t: 'Drive' },         fr: { t: 'Satur.',        reviewed: false } },
@@ -1851,7 +1851,7 @@ export const LABELS = Object.freeze({
                                fr: { t: 'Rétablir (Ctrl+Maj+Z)', reviewed: false } },
 
     // ── Footer ──────────────────────────────────────────────────────────────
-    'label.master':          { en: { t: 'Master' },        fr: { t: 'Maître',        reviewed: false } },
+    'label.master':          { en: { t: 'Master' },        fr: { t: 'Gén.',        reviewed: false } },
     'label.oscMix':          { en: { t: 'Osc Mix' },       fr: { t: 'Mix osc',       reviewed: false } },
 
     // ── State faces written from script ─────────────────────────────────────
