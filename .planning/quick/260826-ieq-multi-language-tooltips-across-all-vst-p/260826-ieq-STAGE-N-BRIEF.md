@@ -518,3 +518,9 @@ numbers in the batch table are pre-fix.**
 55. **The commit-message trap:** O-Formant wrote "all four DSP claims verified" before
     running the check, committed, then found one wrong. Run the check first; a claim in a
     commit body cannot be amended in this checkout.
+
+## STAGE N COMPLETE — 43 of 43 (N9: O-Bells `33a24c58`, O-Prism `c704cabb`)
+
+Repo-wide `node scripts/i18n-fr-lint.js --strict` exits 0 on 43/43. This brief is closed;
+the corrections above are the record of what the glossary and the lint learned from the
+executors. Nothing calls `--strict` yet (decision item 29).
