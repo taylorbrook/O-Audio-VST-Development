@@ -18,7 +18,28 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simpleGrain interface copy, English + French (v1.4.1)
+// i18n.js — O-simpleGrain interface copy, English + French (v1.4.2)
+//
+// ── v1.4.2: ENGLISH / TEST-DATA DEFECTS (Stage O, 2026-08-31) ─────────────
+// Stage N read the French against the code and found these; Stage O fixes them.
+//  * item 54 — aria.helpToggle en "Toggle tooltips" -> "Toggle hover help": the
+//    switch's own tip title is "Hover help" and the French already said
+//    "l'aide au survol" (one name per control; fr unchanged, reviewed: true kept).
+//  * item 57 — label.captionPitchedBuzz was the caption that wrapped, not
+//    captionAsyncCloud. MEASURED NOWRAP on the live #tourCaption at 900x760:
+//    fr 997.22 px natural in the 846 px box (the 838.58 the Stage N report
+//    carried was the wrapped Range box — the widest LINE, correction 43), en
+//    693.00. Wrapped, the header grew 80.38 -> 93.56 and the .workspace rack
+//    moved y 109.38 -> 122.56 (13.19 px, one caption line) in French only; no
+//    gate drove that state, so check-ui-labels reported 0 moved. The state is
+//    now in tests/i18n-states.json (with it, the OLD caption fails assertion 7
+//    with 159 moved — the proof the state is driven). Reworded shorter, same
+//    claim, both languages: fr "grains minuscules, déclenchés vite et en
+//    phase. Leur cadence devient une hauteur audible (un peigne) : le
+//    granulaire peut faire du timbre, pas que de la texture" — the tip BODY
+//    (lessonPitchedBuzz) keeps the full wording, a tip has no line budget.
+//    Widths after: see CHANGELOG 1.4.2. fr reviewed: false (meaning reworded).
+//  * item 58 — the focus latch lives in js/app.js setupTooltips, not here.
 //
 // ── v1.4.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -542,7 +563,7 @@ export const LABELS = Object.freeze({
         fr: { t: "Langue de l’interface", reviewed: true },
     },
     'aria.helpToggle': {
-        en: { t: "Toggle tooltips" },
+        en: { t: "Toggle hover help" },
         fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
     },
     'ui.on': {
@@ -798,8 +819,8 @@ export const LABELS = Object.freeze({
         fr: { t: "Grain unique — un seul grain long déclenché lentement. La densité au plancher garde les grains séparés\u00a0: écoutez une tranche seule, l’atome de la synthèse granulaire.", reviewed: true },
     },
     'label.captionPitchedBuzz': {
-        en: { t: "Pitched Buzz — tiny grains fired fast and perfectly in sync. The grain rate itself becomes an audible pitch (a comb). Granular can make tone, not just texture." },
-        fr: { t: "Bourdon harmonique — de minuscules grains déclenchés vite et parfaitement en phase. La cadence des grains devient elle-même une hauteur audible (un peigne). Le granulaire peut faire du timbre, pas seulement de la texture.", reviewed: true },
+        en: { t: "Pitched Buzz — tiny grains fired fast and in sync. Their rate becomes an audible pitch (a comb): granular can make tone, not just texture." },
+        fr: { t: "Bourdon harmonique — grains minuscules, déclenchés vite et en phase. Leur cadence devient une hauteur audible (un peigne)\u00a0: le granulaire peut faire du timbre, pas que de la texture.", reviewed: false },
     },
     'label.captionFragments': {
         en: { t: "Fragments — medium grains, sparse. You still recognise chunks of the source: the middle ground between one grain and a smooth cloud." },

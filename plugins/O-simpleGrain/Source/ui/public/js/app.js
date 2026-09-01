@@ -1112,9 +1112,28 @@ function setupTooltips() {
     if (anchorOf(e.relatedTarget) === active) return;
     hide();
   });
-  document.addEventListener("pointerdown", hide);
+  // v1.4.2 (Stage O item 58) — the focus latch, ported from O-Comp v1.7.0
+  // setupTooltips. Before it, a pointer click on any anchor that TAKES focus
+  // (the eight .tour-btn lesson buttons, #gear-btn, #lang-select) hid the
+  // hover tip on pointerdown and then re-opened it from focusin — the tip
+  // came back under the pointer the instant the click landed. A latch on the
+  // last input device is the rule: pointerdown latches, ANY keydown releases,
+  // focusin opens only while released (keyboard focus still gets its tip —
+  // the accessibility half of the feature), focusout hides, Escape hides.
+  // :focus-visible is deliberately NOT the discriminator: Chromium reports it
+  // false for a programmatic .focus() after a click, so a gate driving focus
+  // directly would measure "no tip" and record a false pass. The one
+  // programmatic .focus() on this page (initializeSettingsPopover: Escape ->
+  // gearBtn.focus()) follows a KEYDOWN, so the latch is already released and
+  // the gear's tip opens — keyboard-driven, correct. Knobs take no focus from
+  // a click at all (bindKnob preventDefaults its pointerdown), so they were
+  // never on this path.
+  let lastInputWasPointer = false;
+
+  document.addEventListener("pointerdown", () => { lastInputWasPointer = true; hide(); });
 
   document.addEventListener("focusin", (e) => {
+    if (lastInputWasPointer) return;
     const el = anchorOf(e.target);
     if (!el) return;
     active = el;
@@ -1123,7 +1142,13 @@ function setupTooltips() {
   });
   document.addEventListener("focusout", hide);
 
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+  // One keydown listener, two jobs: any key at all means the keyboard is
+  // driving again, which releases the latch above; Escape additionally hides.
+  // Independent of initializeSettingsPopover()'s own Escape handler — both run.
+  document.addEventListener("keydown", (e) => {
+    lastInputWasPointer = false;
+    if (e.key === "Escape") hide();
+  });
 }
 
 // ── Settings popover (v1.3.0) ───────────────────────────────────────────────
