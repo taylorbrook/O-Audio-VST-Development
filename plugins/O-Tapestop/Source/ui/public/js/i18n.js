@@ -120,7 +120,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this plugin, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de ce plugiciel et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de ce plugin et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.',
               reviewed: false },
     },
 
