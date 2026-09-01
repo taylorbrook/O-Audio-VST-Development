@@ -396,7 +396,7 @@ function showTooltip(target) {
     // these two lines, re-hover all 184 tips this page renders across four tabs
     // and two languages, and two of them leave the 500 px frame:
     //
-    //     [fr] #tuning-container  "Gamme"        53 px below the bottom edge
+    //     [fr] #tuning-container  "Accord"       53 px below the bottom edge
     //     [fr] #interval-list     "Intervalles"  67 px below the bottom edge
     //
     // Both are tall tuning-tab anchors — a full-height tab pane and the interval
