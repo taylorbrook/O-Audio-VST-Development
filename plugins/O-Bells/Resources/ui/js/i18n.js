@@ -18,7 +18,27 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bells UI copy, English + French (v4.3.1, canon v2)
+// i18n.js — O-Bells UI copy, English + French (v4.3.2, canon v2)
+//
+// ── v4.3.2: ENGLISH READ AGAINST THE DSP (Stage O, 2026-08-31) ────────────
+// Two bodies said more than the code does, in both languages (item 66):
+//  - tip.partialTuning claimed "the upper partials". BellVoice.cpp
+//    calculatePartialFrequency() scales ONE ratio, partialIndex == 2 — the
+//    tierce, 2.4x in bellRatios — by 2^(cents/1200). Hum (0.5x), prime (1x)
+//    and partials 3-7 never move. The body now names the third partial.
+//  - tip.damping claimed "the bell's partials". The live reach of `damping`
+//    is updateMultiStageCoefficients() (hum-stage coefficients of partials
+//    0-1 only, x3 at 0 -> x1.4 at 1) and stopNote()'s release
+//    (jmap(damping, 3.0 s, 0.5 s)). Strike/body-stage decay of every partial
+//    and hum-stage decay of partials 2-7 come from the stage times, Material
+//    and Acoustic Brightness. The body now says exactly that, with the two
+//    release endpoints.
+// Both French bodies rewritten for the meaning change: reviewed: false on
+// those two entries; the other 184 keep the developer's reviewed: true.
+// Heights at the 260 px cap, en/fr: damping 103.2/103.2 -> 153.2/186.5
+// (bottom clearance 289.6 -> 239.6/206.3); partialTuning 103.2/103.2 ->
+// 153.2/153.2 (bottom clearance 96.6 -> 46.6). Measured by
+// tests/ui_tip_render_check.js, both languages, every tab.
 //
 // ── v4.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -207,10 +227,10 @@ export const I18N = Object.freeze({
     // ── Instrument tab: Synthesis ───────────────────────────────────────────
     'tip.damping': {
         en: { t: 'Damping',
-              b: 'Sets how quickly the bell’s partials give up their energy. Low values ring on for a long time; high values shorten the tail and thin the sustain. 0 to 100 %.' },
+              b: 'Sets how quickly the hum and the prime — the two lowest partials — give up their energy once the strike and body stages have passed, and how fast the bell fades after the key is released: a 3 s release at 0 %, 0.5 s at 100 %. The higher partials are not touched; the stage times, Material and Acoustic Brightness set their decay. 0 to 100 %.' },
         fr: { t: 'Amortissement',
-              b: 'Règle la vitesse à laquelle les partiels de la cloche perdent leur énergie. Une valeur basse laisse sonner longtemps ; une valeur haute raccourcit la queue et affaiblit le maintien. 0 à 100 %.',
-              reviewed: true },
+              b: 'Règle la vitesse à laquelle le bourdon et la prime — les deux partiels les plus graves — perdent leur énergie une fois les étapes de frappe et de corps passées, et la vitesse à laquelle la cloche s’éteint après le relâchement de la touche : relâchement de 3 s à 0 %, de 0,5 s à 100 %. Les partiels aigus ne sont pas touchés ; les durées d’étape, le matériau et la brillance acoustique règlent leur déclin. 0 à 100 %.',
+              reviewed: false },
     },
     'tip.overtoneBrightness': {
         en: { t: 'Overtone Brightness',
@@ -414,10 +434,10 @@ export const I18N = Object.freeze({
     // ── Instrument tab: Advanced ────────────────────────────────────────────
     'tip.partialTuning': {
         en: { t: 'Partial Tune',
-              b: 'Detunes the upper partials against the fundamental without moving the perceived pitch. It is the shortest road from a tuned bell to a clangorous one. −100 to +100 cents.' },
+              b: 'Shifts the third partial alone — the tierce, the partial that carries a church bell’s minor third — against the fundamental without moving the perceived pitch. The hum, the prime and the higher partials stay where they are. It is the shortest road from a tuned bell to a clangorous one. −100 to +100 cents.' },
         fr: { t: 'Accord des partiels',
-              b: 'Désaccorde les partiels aigus par rapport au fondamental sans déplacer la hauteur perçue. C’est le chemin le plus court d’une cloche juste à une cloche au timbre discordant. −100 à +100 cents.',
-              reviewed: true },
+              b: 'Ne décale que le troisième partiel — la tierce, le partiel qui porte la tierce mineure de la cloche d’église — par rapport au fondamental, sans déplacer la hauteur perçue. Le bourdon, la prime et les partiels aigus restent en place. C’est le chemin le plus court d’une cloche juste à une cloche au timbre discordant. −100 à +100 cents.',
+              reviewed: false },
     },
     'tip.pitchEnvelope': {
         en: { t: 'Pitch Envelope',

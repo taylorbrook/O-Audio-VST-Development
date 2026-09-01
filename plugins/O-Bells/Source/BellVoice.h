@@ -116,7 +116,6 @@ private:
         float amplitude = 0.0f;
         float targetAmplitude = 0.0f;
         float frequency = 0.0f;
-        float decayRate = 0.0f;
         bool active = false;
 
         // Bloom state (v1.2.0)

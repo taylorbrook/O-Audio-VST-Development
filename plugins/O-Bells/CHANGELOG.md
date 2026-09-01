@@ -2,6 +2,47 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.3.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 66 — Partial Tune tooltip:** the body said the control "detunes the
+  upper partials". `BellVoice.cpp` `calculatePartialFrequency()` scales exactly
+  one ratio — `partialIndex == 2`, the tierce (2.4× in `bellRatios`) — by
+  `2^(cents/1200)`; the hum (0.5×), the prime (1×) and partials 3–7 never move.
+  The body now names the third partial and says the others stay put, in both
+  languages. Tip height at the 260 px cap: 103.2 → 153.2 px (en), 103.2 →
+  153.2 px (fr); bottom clearance 96.6 → 46.6 px, still inside the frame.
+- **item 66 — Damping tooltip:** the body said damping sets "how quickly the
+  bell's partials give up their energy". The live reach of `damping` is two
+  places: `updateMultiStageCoefficients()` — the hum-stage coefficients of
+  partials 0–1 only (`humDecayTime *= 1 + (1 − 0.8·d)·2`, ×3 at 0 → ×1.4 at 1)
+  — and `stopNote()`'s release (`jmap(damping, 3.0 s, 0.5 s)`). Strike- and
+  body-stage decay of every partial, and hum-stage decay of partials 2–7, come
+  from Strike Time, Body Time, Hum Sustain, Material and Acoustic Brightness.
+  The body now says exactly that and names the two release endpoints, in both
+  languages. Tip height: 103.2 → 153.2 px (en), 103.2 → 186.5 px (fr); bottom
+  clearance 289.6 → 239.6 / 206.3 px.
+- **`ModalPartial::decayRate` removed** (`BellVoice.h`, the write in
+  `BellVoice.cpp` `startNote()`): computed from
+  `jmap(damping, 0.5 s, 5.0 s) × DECAY_MULTIPLIERS × material × acoustic
+  brightness × noteVariationDecay` and never read anywhere — the live decay is
+  the three-stage coefficient table. Its damping mapping was the inverse of
+  both live paths (higher damping = longer decay), a trap for the next reader.
+  DSP-neutral by construction and proven: a scratchpad offline render of 75
+  cases (notes 48/60/72 × damping 0/0.25/0.5/0.75/1 × Partial Tune
+  −100/−30/0/+30/+100 ct, 4.5 s each at 48 kHz, RNG seed pinned) hashes to the
+  same SHA-256 before and after (`55a76506…d7fe` over 129 600 000 bytes; a
+  different seed gives a different digest, so the probe can fail).
+  `noteVariationDecay` is still drawn in `startNote()` so the per-voice RNG
+  sequence is unchanged; it now feeds nothing.
+- Console banner read `v4.2.0` since 4.2.0; it now reads the shipped version.
+
+The two rewritten French bodies are `reviewed: false` again for the developer
+to re-read; the other 184 entries keep `reviewed: true`.
+
 ## [4.3.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
