@@ -18,7 +18,84 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Lyrica UI copy, English + French (v2.4.0, canon v2)
+// i18n.js — O-Lyrica UI copy, English + French (v2.4.2, canon v2)
+//
+// ── v2.4.2: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 37 entries of 167 (21 terminology, 14 typography, 2 meaning; the
+// terminology count carries one gender-agreement repair). sameAsEn: kept 14,
+// translated 0, added 1. termNote exemptions: 0. Lint 42 -> 0, --strict exit 0.
+// Left as drafted: the other 130. reviewed: false throughout — no native
+// speaker yet.
+//
+// THE DECISIONS THE NEXT READER NEEDS, each measured on THIS page at 700 x 450
+// with Range.selectNodeContents on the real node, never inherited from a header:
+//
+//   ON/OFF, four faces, TWO forms of one term. .gliss-toggle is float: right in
+//   a 654 px .section-header with nothing pinned, so the ROOT fits: ACTIVÉ
+//   49.14 px, DÉSACTIVÉ 65.16 px (was OUI 33.13 / NON 36.23 — Oui/Non are
+//   answers, not states). .fx-bypass-btn and .settings-toggle are pinned by the
+//   min-widths GEOMETRY RULE 9 and the .settings-toggle comment document, so
+//   they take the glossary's listed abbreviation: Marche measures 45.48 and
+//   Arrêt 37.00 against the 34 px pin and move the auto-margin-centred knob row
+//   5.73 px and 1.50 px; Act. is 34.00 (row unmoved, identical to English) and
+//   Dés. 34.25 (row 0.12 px, an order of magnitude under check-ui-labels' 0.5 px
+//   tolerance). Stage N takes no CSS decision — see item 40's family.
+//
+//   Réverbe was not a word (glossary F1). The ROOT does not fit: Réverbération
+//   measures 109.38 px and grows .fx-title past its 61 px min-width to 109.11,
+//   which moves the knob row. Réverb 51.84 px is the listed abbreviation — and
+//   it is 8.35 px NARROWER than the RÉVERBE 60.19 that GEOMETRY RULE 10 in
+//   index.html sized the 61 px min-width against. That comment is now stale by
+//   7.94 px; it is a comment, so it moves in its own docs commit, not here.
+//
+//   Amortissement 87.20 px would grow the nowrap shrink-to-fit .knob-label from
+//   48.95 to 87.20. Amort. 38.77 px is the listed abbreviation and is 10.18 px
+//   narrower than the Amortis. it replaces.
+//
+//   Aide au survol (the glossary root) APPLIED at 65.89 px: .settings-row is
+//   space-between over 154 px of content, so 65.89 + 12 gap + the 40 px toggle
+//   leaves 36 px of slack, the popover stays 178 px and the toggle's left edge
+//   does not move. The v2.4.0 draft's four-letter Aide was not forced by width.
+//
+//   Brill. chevalet replaces Chevalet: the caption had dropped what English's
+//   own abbreviation keeps ("Bridge Bright" is bridge AND brightness). 84.34 px
+//   in a fixed 118.8 px .slider-label, one line, .slider-group height and top
+//   unchanged. The unabbreviated Brillance chevalet also fits at 108.09 px but
+//   leaves 10.71 px, so the abbreviation is used — English abbreviates the same
+//   caption for the same reason.
+//
+//   Touches KEPT for "True Keys" and reported rather than fixed: Touches réelles
+//   measures 77.47 px and grows the .viz-btn from 65 to 95.47 px and the
+//   five-button row from 302 to 332.47 px. The caption stays short.
+//
+//   Demi-tons libres now titles BOTH Custom Semitones tips. The two English
+//   titles are byte-identical and the BODIES do the distinguishing; the draft's
+//   Free/Scale split was a distinction French made and English did not.
+//
+//   "Tuning" is a gamme, never a tempérament. Three bodies moved (lang-select,
+//   glissandoScale, ref-pitch-knob): tempérament is reserved for temperament —
+//   "Tempérament de rang 2", "tempérament égal" — and the tuning panel is
+//   already "Bibliothèque de gammes". aria.deviation takes Déviation for the
+//   same reason: Écart total is the settled span term on that same page.
+//
+//   Le matériau, masculine, carried its three adjectives with it: "Gut est
+//   chaud et doux ; Wire est brillant" where the draft agreed with la matière.
+//
+//   FIVE tip titles equal their English over a translated body (timbre,
+//   stringTension, technique, freeTempoSync, scaleTempoSync). They take NO
+//   sameAsEn — check-i18n reads the flag entry-scoped, so flagging them would
+//   disarm assertion 4 for their bodies. label.knMix DID gain the flag: the
+//   glossary root for "Mix" is Mix, which makes the French a straight copy.
+//
+//   Bodies address the user as vous; instructions are infinitive throughout
+//   ("Cliquer pour jouer", "Tenir 2 notes ou plus", "Double-cliquer pour
+//   modifier"), which is the register the draft already used.
+//
+//   The typography pass ran a scanner that skips comments and rewrites only the
+//   STRING VALUE of a t:/b: pair inside an fr: { } block; its scope-leak control
+//   re-scanned the output and proved 0 of 213 en string values changed.
+//   22 U+00A0 in the file, none outside a t:/b: line.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -105,7 +182,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, dropdown choices, tuning names and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les choix des menus, les noms de tempéraments et les noms de préréglages restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les choix des menus, les noms de gammes et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
     'tips-toggle': {
@@ -128,7 +205,7 @@ export const I18N = Object.freeze({
         en: { t: 'Timbre',
               b: 'Adjusts the tonal warmth of the string. Lower values produce darker, warmer tones; higher values add brightness.' },
         fr: { t: 'Timbre',
-              b: 'Ajuste la chaleur du timbre de la corde. Les valeurs basses donnent des sons plus sombres et plus chauds ; les valeurs hautes ajoutent de la brillance.',
+              b: 'Ajuste la chaleur du timbre de la corde. Les valeurs basses donnent des sons plus sombres et plus chauds ; les valeurs hautes ajoutent de la brillance.',
               reviewed: false },
     },
     'decayTime': {
@@ -157,8 +234,8 @@ export const I18N = Object.freeze({
     'stringMaterial': {
         en: { t: 'Material',
               b: 'The string material affects tone, brightness, and sustain. Gut is warm and mellow; Wire is bright; Crystal has bell-like qualities.' },
-        fr: { t: 'Matière',
-              b: 'La matière de la corde influe sur le timbre, la brillance et la tenue. Gut est chaude et douce ; Wire est brillante ; Crystal évoque la cloche.',
+        fr: { t: 'Matériau',
+              b: 'Le matériau de la corde influe sur le timbre, la brillance et la tenue. Gut est chaud et doux ; Wire est brillant ; Crystal évoque la cloche.',
               reviewed: false },
     },
     'stringTension': {
@@ -172,14 +249,14 @@ export const I18N = Object.freeze({
         en: { t: 'Gauge',
               b: 'String thickness affects damping. Thinner strings are brighter with quick decay; thicker strings are darker with more body.' },
         fr: { t: 'Calibre',
-              b: 'L’épaisseur de la corde influe sur l’amortissement. Les cordes fines sont plus claires et s’éteignent vite ; les cordes épaisses sont plus sombres et plus corsées.',
+              b: 'L’épaisseur de la corde influe sur l’amortissement. Les cordes fines sont plus claires et s’éteignent vite ; les cordes épaisses sont plus sombres et plus corsées.',
               reviewed: false },
     },
     'stringLength': {
         en: { t: 'Length',
               b: 'Virtual string length affects decay character. Shorter strings have punchy decay; longer strings sustain with diffuse tails.' },
         fr: { t: 'Longueur',
-              b: 'La longueur virtuelle de la corde influe sur le caractère du déclin. Les cordes courtes s’éteignent sèchement ; les cordes longues tiennent avec des queues diffuses.',
+              b: 'La longueur virtuelle de la corde influe sur le caractère du déclin. Les cordes courtes s’éteignent sèchement ; les cordes longues tiennent avec des queues diffuses.',
               reviewed: false },
     },
     'stringStiffness': {
@@ -209,7 +286,7 @@ export const I18N = Object.freeze({
         en: { t: 'Wood Type',
               b: 'Soundboard wood affects tonal character. Spruce is balanced; Maple is bright; Exotic woods have unique timbres.' },
         fr: { t: 'Essence de bois',
-              b: 'Le bois de la table influe sur le caractère du timbre. Spruce est équilibré ; Maple est brillant ; Exotic offre des timbres singuliers.',
+              b: 'Le bois de la table influe sur le caractère du timbre. Spruce est équilibré ; Maple est brillant ; Exotic offre des timbres singuliers.',
               reviewed: false },
     },
     'bodyModeSpread': {
@@ -232,21 +309,21 @@ export const I18N = Object.freeze({
         en: { t: 'Pluck Position',
               b: 'Where the string is plucked. Near the soundhole (0%) has more bass; near the bridge (100%) has more brilliance.' },
         fr: { t: 'Point de pincement',
-              b: 'Endroit où la corde est pincée. Près de la rosace (0 %), plus de grave ; près du chevalet (100 %), plus de brillance.',
+              b: 'Endroit où la corde est pincée. Près de la rosace (0 %), plus de grave ; près du chevalet (100 %), plus de brillance.',
               reviewed: false },
     },
     'fingerHardness': {
         en: { t: 'Finger Hardness',
               b: 'How firm the plucking finger is. Soft fingertips (0%) sound mellow; hard fingernails (100%) sound sharp.' },
         fr: { t: 'Dureté du doigt',
-              b: 'Fermeté du doigt qui pince. La pulpe souple (0 %) sonne douce ; l’ongle dur (100 %) sonne mordant.',
+              b: 'Fermeté du doigt qui pince. La pulpe souple (0 %) sonne douce ; l’ongle dur (100 %) sonne mordant.',
               reviewed: false },
     },
     'technique': {
         en: { t: 'Technique',
               b: 'Playing technique changes the excitation character. Harmonics produce bell-like tones; Muted creates percussive plucks.' },
         fr: { t: 'Technique',
-              b: 'La technique de jeu change le caractère de l’excitation. Harmonic donne des sons de cloche ; Muted donne des pincements percussifs.',
+              b: 'La technique de jeu change le caractère de l’excitation. Harmonic donne des sons de cloche ; Muted donne des pincements percussifs.',
               reviewed: false },
     },
 
@@ -255,7 +332,7 @@ export const I18N = Object.freeze({
         en: { t: 'Amount',
               b: 'Sympathetic resonance intensity. How much unplayed strings vibrate in response to played notes. Creates richness.' },
         fr: { t: 'Quantité',
-              b: 'Intensité de la résonance sympathique : à quel point les cordes non jouées vibrent en réponse aux notes jouées. Enrichit le son.',
+              b: 'Intensité de la résonance sympathique : à quel point les cordes non jouées vibrent en réponse aux notes jouées. Enrichit le son.',
               reviewed: false },
     },
     'sympatheticQ': {
@@ -297,13 +374,13 @@ export const I18N = Object.freeze({
         en: { t: 'Time',
               b: 'How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.' },
         fr: { t: 'Durée',
-              b: 'Durée du balayage de hauteur en mode libre. 10 ms donne un saut quasi instantané ; 50 ms (défaut) un glissando fluide ; 200-500 ms un portamento lent et expressif.',
+              b: 'Durée du balayage de hauteur en mode libre. 10 ms donne un saut quasi instantané ; 50 ms (défaut) un glissando fluide ; 200-500 ms un portamento lent et expressif.',
               reviewed: false },
     },
     'freeShape': {
         en: { t: 'Shape',
               b: 'Acceleration curve for the free glissando sweep.' },
-        fr: { t: 'Courbe',
+        fr: { t: 'Forme',
               b: 'Courbe d’accélération du balayage du glissando libre.',
               reviewed: false },
     },
@@ -334,7 +411,7 @@ export const I18N = Object.freeze({
         en: { t: 'Scale',
               b: 'The scale used for scale-locked glissandos. Major/Minor/Pentatonic are 12-note patterns; Custom uses toggle buttons to select individual degrees. Major/Minor/Pentatonic are disabled for non-12-note tunings.' },
         fr: { t: 'Gamme',
-              b: 'La gamme utilisée par le glissando sur gamme. Major/Minor/Pentatonic sont des motifs de 12 notes ; Custom permet de choisir chaque degré par des boutons. Major/Minor/Pentatonic sont désactivés pour les tempéraments qui ne comptent pas 12 notes.',
+              b: 'La gamme utilisée par le glissando sur gamme. Major/Minor/Pentatonic sont des motifs de 12 notes ; Custom permet de choisir chaque degré par des boutons. Major/Minor/Pentatonic sont désactivés pour les gammes qui ne comptent pas 12 notes.',
               reviewed: false },
     },
     'glissandoTonic': {
@@ -355,13 +432,13 @@ export const I18N = Object.freeze({
         en: { t: 'Speed',
               b: 'How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.' },
         fr: { t: 'Vitesse',
-              b: 'Rapidité du balayage du glissando à travers les notes de la gamme. 8 n/s est lent et expressif ; 21 n/s donne un balayage hollywoodien rapide.',
+              b: 'Rapidité du balayage du glissando à travers les notes de la gamme. 8 n/s est lent et expressif ; 21 n/s donne un balayage hollywoodien rapide.',
               reviewed: false },
     },
     'glissandoShape': {
         en: { t: 'Shape',
               b: 'Acceleration curve for the scale-locked glissando sweep.' },
-        fr: { t: 'Courbe',
+        fr: { t: 'Forme',
               b: 'Courbe d’accélération du balayage du glissando sur gamme.',
               reviewed: false },
     },
@@ -382,7 +459,7 @@ export const I18N = Object.freeze({
     'glissandoCustomSemitones': {
         en: { t: 'Custom Semitones',
               b: 'Exact semitone count (1-48) for the scale-locked glissando sweep distance.' },
-        fr: { t: 'Demi-tons gamme',
+        fr: { t: 'Demi-tons libres',
               b: 'Nombre exact de demi-tons (1-48) pour l’amplitude du balayage du glissando sur gamme.',
               reviewed: false },
     },
@@ -390,7 +467,7 @@ export const I18N = Object.freeze({
         en: { t: 'Gliss Softness',
               b: 'How much the excitation changes during glissando. 0% is a full deliberate pluck; 60% (default) is a realistic brush; 100% is a very light ethereal sweep.' },
         fr: { t: 'Douceur du glissando',
-              b: 'Ampleur du changement d’excitation pendant le glissando. 0 % donne un pincement franc et appuyé ; 60 % (défaut) un effleurement réaliste ; 100 % un balayage très léger et aérien.',
+              b: 'Ampleur du changement d’excitation pendant le glissando. 0 % donne un pincement franc et appuyé ; 60 % (défaut) un effleurement réaliste ; 100 % un balayage très léger et aérien.',
               reviewed: false },
     },
     'glissandoHumanize': {
@@ -404,14 +481,14 @@ export const I18N = Object.freeze({
         en: { t: 'Dynamics Start',
               b: 'Velocity at the beginning of the glissando sweep. Lower values mean softer attack and more damping. Default 50% gives a subtle lead-in.' },
         fr: { t: 'Dynamique au départ',
-              b: 'Vélocité au début du balayage du glissando. Les valeurs basses donnent une attaque plus douce et plus d’amortissement. Le défaut de 50 % donne une entrée discrète.',
+              b: 'Vélocité au début du balayage du glissando. Les valeurs basses donnent une attaque plus douce et plus d’amortissement. Le défaut de 50 % donne une entrée discrète.',
               reviewed: false },
     },
     'glissandoVelEnd': {
         en: { t: 'Dynamics End',
               b: 'Velocity at the end of the glissando sweep. Higher values mean brighter sustain. Default 70% gives a natural ascending crescendo.' },
         fr: { t: 'Dynamique à la fin',
-              b: 'Vélocité à la fin du balayage du glissando. Les valeurs élevées donnent une tenue plus brillante. Le défaut de 70 % donne un crescendo ascendant naturel.',
+              b: 'Vélocité à la fin du balayage du glissando. Les valeurs élevées donnent une tenue plus brillante. Le défaut de 70 % donne un crescendo ascendant naturel.',
               reviewed: false },
     },
 
@@ -420,7 +497,7 @@ export const I18N = Object.freeze({
         en: { t: 'A4 Reference',
               b: 'The concert pitch for A4. Standard is 440 Hz. Historical tunings may use 415 Hz (Baroque) or 432 Hz.' },
         fr: { t: 'Référence A4',
-              b: 'Le diapason pour le A4. La norme est 440 Hz. Les tempéraments historiques utilisent parfois 415 Hz (baroque) ou 432 Hz.',
+              b: 'Le diapason pour le A4. La norme est 440 Hz. Les gammes historiques utilisent parfois 415 Hz (baroque) ou 432 Hz.',
               reviewed: false },
     },
     'octave-stretch': {
@@ -436,13 +513,13 @@ export const I18N = Object.freeze({
         en: { t: 'Master Volume',
               b: 'The final output level of the instrument. Shown in dB. 0 dB is unity gain (no change).' },
         fr: { t: 'Volume général',
-              b: 'Le niveau de sortie final de l’instrument. Affiché en dB. 0 dB correspond au gain unitaire (aucun changement).',
+              b: 'Le niveau de sortie final de l’instrument. Affiché en dB. 0 dB correspond au gain unitaire (aucun changement).',
               reviewed: false },
     },
 });
 
 // ============================================================================
-// LABELS — the on-page text (v2.4.0, canon v2)
+// LABELS — the on-page text (v2.4.2, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
@@ -504,11 +581,11 @@ export const LABELS = Object.freeze({
     'label.tabEffects':    { en: { t: 'EFFECTS' },    fr: { t: 'EFFETS',     reviewed: false } },
 
     // ── SOUND tab — section headers ─────────────────────────────────────────
-    'label.secMain':        { en: { t: 'Main' },        fr: { t: 'Général',     reviewed: false } },
+    'label.secMain':        { en: { t: 'Main' },        fr: { t: 'Principal',   reviewed: false } },
     'label.secString':      { en: { t: 'String' },      fr: { t: 'Corde',       reviewed: false } },
     'label.secBody':        { en: { t: 'Body' },        fr: { t: 'Caisse',      reviewed: false } },
     'label.secExcitation':  { en: { t: 'Excitation' },  fr: { t: 'Excitation',  reviewed: false, sameAsEn: true } },
-    'label.secSympathetic': { en: { t: 'Sympathetic' }, fr: { t: 'Sympathique', reviewed: false } },
+    'label.secSympathetic': { en: { t: 'Sympathetic' }, fr: { t: 'Sympathiques', reviewed: false } },
 
     // ── SOUND tab — captions ────────────────────────────────────────────────
     // Every one of these sits in a 100-140 px `flex: 1 1 0` cell at 9 px
@@ -521,7 +598,7 @@ export const LABELS = Object.freeze({
     'label.decayTime':      { en: { t: 'Decay Time' },      fr: { t: 'Déclin',          reviewed: false } },
     'label.attackNoise':    { en: { t: 'Attack Noise' },    fr: { t: 'Bruit d’attaque', reviewed: false } },
     'label.humanize':       { en: { t: 'Humanize' },        fr: { t: 'Humaniser',       reviewed: false } },
-    'label.material':       { en: { t: 'Material' },        fr: { t: 'Matière',         reviewed: false } },
+    'label.material':       { en: { t: 'Material' },        fr: { t: 'Matériau',        reviewed: false } },
     'label.tension':        { en: { t: 'Tension' },         fr: { t: 'Tension',         reviewed: false, sameAsEn: true } },
     'label.gauge':          { en: { t: 'Gauge' },           fr: { t: 'Calibre',         reviewed: false } },
     'label.length':         { en: { t: 'Length' },          fr: { t: 'Longueur',        reviewed: false } },
@@ -530,7 +607,7 @@ export const LABELS = Object.freeze({
     'label.resonance':      { en: { t: 'Resonance' },       fr: { t: 'Résonance',       reviewed: false } },
     'label.woodType':       { en: { t: 'Wood Type' },       fr: { t: 'Bois',            reviewed: false } },
     'label.modeSpread':     { en: { t: 'Mode Spread' },     fr: { t: 'Étalement',       reviewed: false } },
-    'label.bridgeBright':   { en: { t: 'Bridge Bright' },   fr: { t: 'Chevalet',        reviewed: false } },
+    'label.bridgeBright':   { en: { t: 'Bridge Bright' },   fr: { t: 'Brill. chevalet', reviewed: false } },
     'label.pluckPosition':  { en: { t: 'Pluck Position' },  fr: { t: 'Pincement',       reviewed: false } },
     'label.fingerHardness': { en: { t: 'Finger Hardness' }, fr: { t: 'Dureté du doigt', reviewed: false } },
     'label.technique':      { en: { t: 'Technique' },       fr: { t: 'Technique',       reviewed: false, sameAsEn: true } },
@@ -541,14 +618,14 @@ export const LABELS = Object.freeze({
     // The two glissando section headings each share their row with a toggle
     // button, so the caption moved into its own span rather than sitting as a
     // bare text node beside an element child.
-    'label.secKeyswitch':   { en: { t: 'Keyswitch Settings' },      fr: { t: 'Notes de commande',    reviewed: false } },
+    'label.secKeyswitch':   { en: { t: 'Keyswitch Settings' },      fr: { t: 'Réglages des notes de commande', reviewed: false } },
     'label.freeKS':         { en: { t: 'Free KS' },                 fr: { t: 'Cmde libre',           reviewed: false } },
     'label.scaleKS':        { en: { t: 'Scale KS' },                fr: { t: 'Cmde gamme',           reviewed: false } },
     'label.secFreeGliss':   { en: { t: 'Free Glissando' },          fr: { t: 'Glissando libre',      reviewed: false } },
     'label.secScaleGliss':  { en: { t: 'Scale-Locked Glissando' },  fr: { t: 'Glissando sur gamme',  reviewed: false } },
     'label.sync':           { en: { t: 'Sync' },                    fr: { t: 'Sync',                 reviewed: false, sameAsEn: true } },
     'label.time':           { en: { t: 'Time' },                    fr: { t: 'Durée',                reviewed: false } },
-    'label.shape':          { en: { t: 'Shape' },                   fr: { t: 'Courbe',               reviewed: false } },
+    'label.shape':          { en: { t: 'Shape' },                   fr: { t: 'Forme',                reviewed: false } },
     'label.interval':       { en: { t: 'Interval' },                fr: { t: 'Intervalle',           reviewed: false } },
     'label.direction':      { en: { t: 'Direction' },               fr: { t: 'Sens',                 reviewed: false } },
     'label.semitones':      { en: { t: 'Semitones' },               fr: { t: 'Demi-tons',            reviewed: false } },
@@ -619,7 +696,7 @@ export const LABELS = Object.freeze({
     // ── EFFECTS tab ─────────────────────────────────────────────────────────
     'label.fxChorus':       { en: { t: 'Chorus' },  fr: { t: 'Chorus',  reviewed: false, sameAsEn: true } },
     'label.fxDelay':        { en: { t: 'Delay' },   fr: { t: 'Délai',   reviewed: false } },
-    'label.fxReverb':       { en: { t: 'Reverb' },  fr: { t: 'Réverbe', reviewed: false } },
+    'label.fxReverb':       { en: { t: 'Reverb' },  fr: { t: 'Réverb',  reviewed: false } },
     'label.fxEq':           { en: { t: 'EQ' },      fr: { t: 'EQ',      reviewed: false, sameAsEn: true } },
     // The sixteen knob captions, written by makeFxKnob. Through v2.3.3 that
     // function built the whole knob with innerHTML and the caption was a raw
@@ -627,7 +704,7 @@ export const LABELS = Object.freeze({
     // list carries KEYS rather than English.
     'label.knRate':         { en: { t: 'Rate' },     fr: { t: 'Vitesse',     reviewed: false } },
     'label.knDepth':        { en: { t: 'Depth' },    fr: { t: 'Profondeur',  reviewed: false } },
-    'label.knMix':          { en: { t: 'Mix' },      fr: { t: 'Mixage',      reviewed: false } },
+    'label.knMix':          { en: { t: 'Mix' },      fr: { t: 'Mix',         reviewed: false, sameAsEn: true } },
     'label.knFeedback':     { en: { t: 'Feedback' }, fr: { t: 'Réinjection', reviewed: false } },
     'label.knLow':          { en: { t: 'Low' },      fr: { t: 'Grave',       reviewed: false } },
     'label.knMid':          { en: { t: 'Mid' },      fr: { t: 'Médium',      reviewed: false } },
@@ -639,7 +716,7 @@ export const LABELS = Object.freeze({
     // runtime.
     'label.knMidFreq':      { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: false } },
     'label.knHigh':         { en: { t: 'High' },     fr: { t: 'Aigu',        reviewed: false } },
-    'label.knDamp':         { en: { t: 'Damp' },     fr: { t: 'Amortis.',    reviewed: false } },
+    'label.knDamp':         { en: { t: 'Damp' },     fr: { t: 'Amort.',      reviewed: false } },
     'label.knPredelay':     { en: { t: 'Pre-dly' },  fr: { t: 'Pré-délai',   reviewed: false } },
     'label.knMod':          { en: { t: 'Mod' },      fr: { t: 'Mod',         reviewed: false, sameAsEn: true } },
     'label.knShimmer':      { en: { t: 'Shimmer' },  fr: { t: 'Shimmer',     reviewed: false, sameAsEn: true } },
@@ -650,7 +727,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':       { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
-    'label.hoverHelp':      { en: { t: 'Hover help' }, fr: { t: 'Aide',   reviewed: false } },
+    'label.hoverHelp':      { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
 
     // ── Button faces, both of them keyed ────────────────────────────────────
     // FOUR faces, not two, because this page has two casings and they are two
@@ -666,10 +743,10 @@ export const LABELS = Object.freeze({
     // either word and translating them cannot make the page and the host
     // disagree. That is carried item 8's discriminator — does it track a
     // PARAMETER's choice STRING — and the answer here is no.
-    'ui.onCaps':            { en: { t: 'ON' },  fr: { t: 'OUI', reviewed: false } },
-    'ui.offCaps':           { en: { t: 'OFF' }, fr: { t: 'NON', reviewed: false } },
-    'ui.on':                { en: { t: 'On' },  fr: { t: 'Oui', reviewed: false } },
-    'ui.off':               { en: { t: 'Off' }, fr: { t: 'Non', reviewed: false } },
+    'ui.onCaps':            { en: { t: 'ON' },  fr: { t: 'ACTIVÉ',    reviewed: false } },
+    'ui.offCaps':           { en: { t: 'OFF' }, fr: { t: 'DÉSACTIVÉ', reviewed: false } },
+    'ui.on':                { en: { t: 'On' },  fr: { t: 'Act.',      reviewed: false } },
+    'ui.off':               { en: { t: 'Off' }, fr: { t: 'Dés.',      reviewed: false } },
 
     // ── The preset dropdown ─────────────────────────────────────────────────
     // "Factory" is the GROUP HEADING above the preset list — chrome, and it
@@ -714,13 +791,13 @@ export const LABELS = Object.freeze({
     // The two faces of the tonic selector's own accessible name. Chosen by an
     // if/else over two literal keys in updateIntervalListUI, never a ternary.
     'aria.tonicSelector12': { en: { t: 'Change tonic note (transposes instrument)' },
-                              fr: { t: 'Changer la note tonique (transpose l’instrument)', reviewed: false } },
+                              fr: { t: 'Changer la tonique (transpose l’instrument)', reviewed: false } },
     'aria.tonicSelectorN':  { en: { t: 'Transpose by semitones (shifts scale anchor point)' },
                               fr: { t: 'Transposer en demi-tons (déplace le point d’ancrage de la gamme)', reviewed: false } },
     'aria.tonicPrev':       { en: { t: 'Previous note' },     fr: { t: 'Note précédente',        reviewed: false } },
     'aria.tonicNext':       { en: { t: 'Next note' },         fr: { t: 'Note suivante',          reviewed: false } },
     'aria.deviation':       { en: { t: 'Deviation from equal temperament' },
-                              fr: { t: 'Écart par rapport au tempérament égal', reviewed: false } },
+                              fr: { t: 'Déviation par rapport au tempérament égal', reviewed: false } },
     'aria.libraryToggle':   { en: { t: 'Show or hide the tuning library' },
                               fr: { t: 'Afficher ou masquer la bibliothèque de gammes', reviewed: false } },
     'aria.generatorToggle': { en: { t: 'Show or hide the scale generator' },
