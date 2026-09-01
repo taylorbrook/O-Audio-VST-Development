@@ -2,6 +2,42 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.2.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **23 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, which went from 38 findings to
+  0 under `--strict`. Four captions took the settled suite term — *DOSAGE →
+  Mix*, *ÉCART → Désacc.*, *INVERSE → Invers.*, *LFO DÉRIVE → LFO de dérive* —
+  and their tooltips now carry the root word in full (*Inversion*,
+  *Désaccord*, *Profondeur*) where the caption is an abbreviation forced by a
+  60 px knob cell. Eleven captions dropped their shouted all-caps to follow
+  the English caption's casing, which is invisible on screen (every caption
+  element here is `text-transform: uppercase`, measured to the hundredth) but
+  visible to assistive technology. Eleven tooltip bodies gained French
+  typography: no-break spaces before `;` and `%` and between a number and its
+  unit (*0 dB*, *1000 ms*, *10 Hz*, *50 cents*, *100 %*).
+- **Two tooltip bodies say something they did not.** Detune's now spreads the
+  pitch of *each* grain rather than "of grains", matching the English, and
+  thickens the freeze into an *effet de chorus* rather than an *effet de
+  chœur* — a chorus is the effect, a chœur is a choir. Drift's now smears the
+  texture into *un nuage* rather than *une nappe*, which the Grains tooltip
+  already uses for a pad.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Notes
+- No English copy, key, tip binding, selector, CSS rule or `I18N_EXEMPT` entry
+  changed. `reviewed: false` stays on all 31 French entries: it records that a
+  native speaker has read them, and none has.
+- Threshold's tooltip keeps its English title, now under a `termNote` giving
+  the reason: the knob's own caption is static English because "Threshold" is a
+  MODE `AudioParameterChoice` option string byte for byte, so a tip headed
+  *Seuil* over a knob captioned THRESHOLD would name one control twice.
+
 ## [2.2.0] - 2026-08-30
 
 Hover-help, in both languages. Stage M batch M2 of the repo-wide i18n rollout.

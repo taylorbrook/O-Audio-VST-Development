@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Freeze page labels and hover-help, English + French (v2.2.0)
+// i18n.js — O-Freeze page labels and hover-help, English + French (v2.2.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -31,6 +31,76 @@
 // converting them to underscores, so a second file named i18n-fr.js would have
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
+//
+// ── v2.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ─────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 23 entries of 31, 26 field edits (8 terminology, 7 casing-only,
+// 11 typography, of which 2 also carry a meaning fix). sameAsEn: kept 3,
+// translated 0 — and one moved the OTHER way (Dosage -> Mix, because the
+// glossary settles `mix` on the English word). termNote exemptions: 1 (listed).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+// Lint: scripts/i18n-fr-lint.js --plugin O-Freeze went 38 findings -> 0,
+// --strict exit 0 (11 C1, 7 G1, 4 F1, 9 T5, 4 T7, 3 T3).
+//
+// DECISIONS THE NEXT READER NEEDS, each one MEASURED at the 550 x 530 frame
+// with Range.selectNodeContents on the real node, not inherited from the
+// v2.2.0 header:
+//
+//   CASING IS INVISIBLE ON THIS PAGE, AND THE TABLE STILL CHANGED. Every
+//   caption element here is `text-transform: uppercase` — #freeze-label,
+//   #reverse-toggle, .mode-option, .knob-label, #lfo-group-label,
+//   #lfo-shape-label, .settings-label AND .tooltip .tip-title. Measured on all
+//   eleven: GELER and Geler are both 69.72, DÉRIVE and Dérive both 44.14,
+//   PROF. and Prof. both 37.17 — byte-identical widths, byte-identical pixels.
+//   The lint (C1) and the accessible name read the TABLE, so the table follows
+//   the English caption's casing anyway. Zero geometry cost, by measurement.
+//
+//   THREE CAPTIONS STAY ABBREVIATED, AND THEIR TIPS CARRY THE ROOT TERM. The
+//   glossary's root word does not fit any of the three, measured:
+//     Inversion  71.05 text -> 109.05 border-box against #reverse-toggle's
+//                95.5 px pin; it moves #reverse-container too (2 boxes).
+//                Invers. is 51.11 and moves nothing.
+//     Désaccord  70.14 against the 60.00 px .knob budget; it widens
+//                #detune-knob and re-spaces all six knobs (6 boxes).
+//                Désacc. is 48.89. (Étalement 70.67 fails the same way.)
+//     Profondeur 87.30 against the same 60.00; Ampleur 61.16 is over by 1.16
+//                and is a forbidden word besides. Both move 6 boxes.
+//                Prof. is 37.17. The v2.2.0 header's numbers HELD here, to the
+//                hundredth — this is one of the defences that measured true.
+//   So the caption is the glossary's listed abbreviation and the tooltip
+//   TITLE spells the term out: Inversion, Désaccord, Profondeur. A caption
+//   that is the root word with letters missing is not a disagreement with it
+//   (M2 correction 9), and a 230 px tip has the room the 60 px cell does not.
+//
+//   Alé STAYS, over the glossary's root Aléatoire and its own alternate Aléa.
+//   Aléa is 22.59 text -> 38.59 border-box against the 37.5 px pin on
+//   .lfo-shape-option:last-child, and those 1.09 px re-centre #lfo-group and
+//   move 6 boxes. Aléatoire is 46.88 -> 62.88. The glossary lists `rnd` ->
+//   ['aléa', 'alé']; the abbreviation is load-bearing on this page.
+//
+//   DOSAGE -> Mix, and it is a SHRINK the clip check cannot see: 47.05 ->
+//   23.28, exactly the English width. Both are inside the 60.00 budget, so
+//   nothing moves either way — but the entry is now a straight copy and
+//   carries sameAsEn: true, which is what check-i18n assertion 4 demands.
+//
+//   LFO de dérive, not LFO Dérive. #lfo-group-label is position: absolute at
+//   left: 12px, so its width is free (111.61 border-box, group 283.73); the
+//   noun-noun juxtaposition is not French, and the page's own tip bodies
+//   already say "le LFO de dérive".
+//
+//   tip.threshold KEEPS ITS ENGLISH TITLE, under a termNote. #threshold-knob's
+//   .knob-label is static English in index.html — no data-i18n — because
+//   "Threshold" is a MODE AudioParameterChoice option string byte for byte and
+//   I18N_EXEMPT covers both occurrences. A French user therefore reads
+//   THRESHOLD on the knob, and a tip headed SEUIL over it would name one
+//   control twice. Geometry says the same thing independently: the caption
+//   sizes #threshold-knob to 71.63 px, and Seuil at 34.64 would SHRINK the
+//   cell to the 60 px floor and move all six knobs.
+//
+//   NOT CHANGED, and reported instead: the three shape buttons read Sin / Tri
+//   / Alé while tip.shape's body names Sine / Triangle / Random, because those
+//   are the host-visible option strings (N4 correction 34). English has the
+//   same abbreviation gap (Rnd / Random); French's is one glyph wider.
 //
 // ── v2.2.0: THIS PLUGIN NOW HAS HOVER-HELP ───────────────────────────
 //
@@ -53,9 +123,12 @@
 // and tests/ui_tip_render_check.js is the gate that actually sees it.
 //
 // THE BODIES ARE PROSE, AND PROSE TAKES FRENCH CONVENTION. The decimal comma
-// (0,01 à 10 Hz), a space before %, U+2212 for the minus. The READOUT keeps its
-// point — `0.50 Hz` renders identically in both languages — because D-03 exempts
-// the readout NODE, not the sentence describing it. They differ on purpose.
+// (0,01 à 10 Hz), and — since v2.2.1 — a NO-BREAK space (U+00A0) before % and
+// before ; and between a number and its unit, U+2212 for the minus. There are
+// seventeen of them and every one sits inside a t: or b: string value; none is
+// in a key, a selector or an English string. The READOUT keeps its point —
+// `0.50 Hz` renders identically in both languages — because D-03 exempts the
+// readout NODE, not the sentence describing it. They differ on purpose.
 //
 // COPY IS textContent ON EVERY PATH — never innerHTML. check-i18n assertion 9
 // rejects any innerHTML reference here and any string literal containing an
@@ -107,7 +180,7 @@ export const I18N = Object.freeze({
         en: { t: 'Freeze',
               b: 'Captures the incoming audio into a grain buffer and holds it as a sustained texture. Press again to release it and let the input through. Off or On; in Threshold mode the input level drives it instead.' },
         fr: { t: 'Geler',
-              b: 'Capture l’audio entrant dans une mémoire de grains et le maintient comme une texture soutenue. Appuyer de nouveau pour relâcher et laisser passer l’entrée. Désactivé ou activé ; en mode Threshold, c’est le niveau d’entrée qui commande.',
+              b: 'Capture l’audio entrant dans une mémoire de grains et le maintient comme une texture soutenue. Appuyer de nouveau pour relâcher et laisser passer l’entrée. Désactivé ou activé ; en mode Threshold, c’est le niveau d’entrée qui commande.',
               reviewed: false },
     },
 
@@ -117,7 +190,7 @@ export const I18N = Object.freeze({
     'tip.reverse': {
         en: { t: 'Reverse',
               b: 'Plays every grain backwards, which softens transients and turns the frozen texture inside out. It changes the character, not the pitch. Off or On.' },
-        fr: { t: 'Inverse',
+        fr: { t: 'Inversion',
               b: 'Joue chaque grain à l’envers, ce qui adoucit les transitoires et retourne la texture gelée. Cela change le caractère, pas la hauteur. Désactivé ou activé.',
               reviewed: false },
     },
@@ -132,7 +205,7 @@ export const I18N = Object.freeze({
         en: { t: 'Mode',
               b: 'Chooses what starts the freeze. Manual arms the button in the centre of the panel; Threshold hands the decision to the input level and the knob beside it. Manual or Threshold.' },
         fr: { t: 'Mode',
-              b: 'Choisit ce qui déclenche le gel. Manual arme le bouton au centre du panneau ; Threshold confie la décision au niveau d’entrée et au potentiomètre voisin. Manual ou Threshold.',
+              b: 'Choisit ce qui déclenche le gel. Manual arme le bouton au centre du panneau ; Threshold confie la décision au niveau d’entrée et au potentiomètre voisin. Manual ou Threshold.',
               reviewed: false },
     },
 
@@ -142,11 +215,17 @@ export const I18N = Object.freeze({
     // to a MODE option string, the knob and the mode button name the SAME
     // setting, and a tip headed SEUIL floating over a knob captioned THRESHOLD
     // would describe one control as two. Only the body is French.
+    //
+    // v2.2.1 states that reason to the lint as a `termNote`, which is the
+    // reasoned-exemption mechanism the Stage N glossary defines. It is not a
+    // width exemption: Seuil is 34.64 px against Threshold's 71.63, and it
+    // would shrink #threshold-knob to the 60 px floor and move all six knobs.
     'tip.threshold': {
         en: { t: 'Threshold',
               b: 'The input level at which the freeze engages by itself, read only in Threshold mode. Lower it to catch quieter material; raise it so only peaks trigger. −60 to 0 dB.' },
         fr: { t: 'Threshold',
-              b: 'Le niveau d’entrée à partir duquel le gel s’enclenche de lui-même, lu uniquement en mode Threshold. L’abaisser pour capter des passages plus discrets, le relever pour ne déclencher que sur les crêtes. De −60 à 0 dB.',
+              termNote: 'the knob\u2019s own .knob-label is static English in index.html and I18N_EXEMPT covers it \u2014 "Threshold" is a MODE AudioParameterChoice option string byte for byte, so a French user reads THRESHOLD on the control. A tip headed Seuil over a knob captioned THRESHOLD names one control twice',
+              b: 'Le niveau d’entrée à partir duquel le gel s’enclenche de lui-même, lu uniquement en mode Threshold. L’abaisser pour capter des passages plus discrets, le relever pour ne déclencher que sur les crêtes. De −60 à 0 dB.',
               reviewed: false },
     },
 
@@ -154,7 +233,7 @@ export const I18N = Object.freeze({
         en: { t: 'Drift',
               b: 'Spreads the grain read positions apart so the frozen texture wanders instead of looping in place. A little removes the static ringing; a lot smears it into a cloud. 0 to 100%.' },
         fr: { t: 'Dérive',
-              b: 'Écarte les positions de lecture des grains pour que la texture gelée se déplace au lieu de boucler sur place. Un peu suffit à supprimer la résonance statique ; beaucoup l’étale en nappe. De 0 à 100 %.',
+              b: 'Écarte les positions de lecture des grains pour que la texture gelée se déplace au lieu de boucler sur place. Un peu suffit à supprimer la résonance statique ; beaucoup l’étale en un nuage. De 0 à 100 %.',
               reviewed: false },
     },
 
@@ -162,7 +241,7 @@ export const I18N = Object.freeze({
         en: { t: 'Size',
               b: 'The length of each grain taken from the frozen buffer. Short grains give a granular, stuttering texture; long ones keep the source recognisable. 50 to 1000 ms.' },
         fr: { t: 'Taille',
-              b: 'La longueur de chaque grain prélevé dans la mémoire gelée. Des grains courts donnent une texture granuleuse et hachée ; des grains longs gardent la source reconnaissable. De 50 à 1000 ms.',
+              b: 'La longueur de chaque grain prélevé dans la mémoire gelée. Des grains courts donnent une texture granuleuse et hachée ; des grains longs gardent la source reconnaissable. De 50 à 1000 ms.',
               reviewed: false },
     },
 
@@ -173,23 +252,23 @@ export const I18N = Object.freeze({
         en: { t: 'Grains',
               b: 'How many grains play at once. A low count sounds sparse and rhythmic; a high count blends into a continuous pad and costs more CPU. 2 to 32 grains.' },
         fr: { t: 'Grains',
-              b: 'Le nombre de grains joués simultanément. Un faible nombre donne un rendu clairsemé et rythmique ; un nombre élevé se fond en nappe continue et coûte plus de CPU. De 2 à 32 grains.',
+              b: 'Le nombre de grains joués simultanément. Un faible nombre donne un rendu clairsemé et rythmique ; un nombre élevé se fond en nappe continue et coûte plus de CPU. De 2 à 32 grains.',
               reviewed: false },
     },
 
     'tip.detune': {
         en: { t: 'Detune',
               b: 'Spreads the pitch of individual grains across a range, thickening the freeze into a chorus. Small amounts add motion; large ones detune the texture audibly. 0 to 50 cents.' },
-        fr: { t: 'Écart',
-              b: 'Étale la hauteur des grains sur une plage, ce qui épaissit le gel en un effet de chœur. De faibles valeurs ajoutent du mouvement ; de fortes valeurs désaccordent la texture de façon audible. De 0 à 50 cents.',
+        fr: { t: 'Désaccord',
+              b: 'Étale la hauteur de chaque grain sur une plage, ce qui épaissit le gel en un effet de chorus. De faibles valeurs ajoutent du mouvement ; de fortes valeurs désaccordent la texture de façon audible. De 0 à 50 cents.',
               reviewed: false },
     },
 
     'tip.mix': {
         en: { t: 'Mix',
               b: 'Balances the frozen texture against the untreated input. At 100% only the freeze is heard; pull it back to keep the live signal underneath. 0 to 100%.' },
-        fr: { t: 'Dosage',
-              b: 'Équilibre la texture gelée et le signal d’entrée non traité. À 100 %, seul le gel est audible ; en réduire la valeur laisse passer le signal direct. De 0 à 100 %.',
+        fr: { t: 'Mix',
+              b: 'Équilibre la texture gelée et le signal d’entrée non traité. À 100 %, seul le gel est audible ; en réduire la valeur laisse passer le signal direct. De 0 à 100 %.',
               reviewed: false },
     },
 
@@ -198,18 +277,20 @@ export const I18N = Object.freeze({
         en: { t: 'Rate',
               b: 'The speed of the LFO that modulates Drift. Slow settings breathe under a pad; fast ones flutter the grain positions. 0.01 to 10 Hz.' },
         fr: { t: 'Vitesse',
-              b: 'La vitesse du LFO qui module la dérive. Les réglages lents font respirer une nappe ; les rapides font trembler la position des grains. De 0,01 à 10 Hz.',
+              b: 'La vitesse du LFO qui module la dérive. Les réglages lents font respirer une nappe ; les rapides font trembler la position des grains. De 0,01 à 10 Hz.',
               reviewed: false },
     },
 
-    // The title is PROF., the abbreviation the caption already carries: the
-    // knob has a hard 60.00 px budget and PROFONDEUR renders at 87.30. The tip
-    // has no such budget, so the BODY spells the idea out instead.
+    // The CAPTION is Prof. because the knob has a hard 60.00 px budget and
+    // Profondeur renders at 87.30 — re-measured at v2.2.1 and the v2.2.0
+    // number held to the hundredth. The TITLE is the root term in full: a tip
+    // is 230 px wide and an abbreviation there buys nothing, and a caption
+    // that is the root word with letters missing does not disagree with it.
     'tip.depth': {
         en: { t: 'Depth',
               b: 'How much of the Drift setting the LFO actually sweeps. At zero the LFO does nothing, however fast it runs. 0 to 100%.' },
-        fr: { t: 'Prof.',
-              b: 'La part de la dérive que le LFO balaie réellement. À zéro, le LFO n’a aucun effet, quelle que soit sa vitesse. De 0 à 100 %.',
+        fr: { t: 'Profondeur',
+              b: 'La part de la dérive que le LFO balaie réellement. À zéro, le LFO n’a aucun effet, quelle que soit sa vitesse. De 0 à 100 %.',
               reviewed: false },
     },
 
@@ -247,7 +328,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of these hover descriptions and of the labels on the page. English and French are available; the value readouts stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de ces descriptions au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
+              b: 'La langue de ces descriptions au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
               reviewed: false },
     },
 });
@@ -295,20 +376,28 @@ export const I18N = Object.freeze({
 // all six. That 60.00 px is a hard budget, not a guideline. Measured at
 // 550 x 530, rendered text width:
 //
-//     DRIFT      35.59 -> DÉRIVE  44.14    budget 60, spare 15.9
-//     SIZE       26.06 -> TAILLE  41.41    spare 18.6
-//     GRAINS     44.16 -> GRAINS  44.16    identical word — sameAsEn
-//     DETUNE     47.98 -> ÉCART   37.88    SHRANK, and see the note below
-//     MIX        23.28 -> DOSAGE  47.05    spare 13.0
+// RE-MEASURED AT v2.2.1 with the same method, at the same 550 x 530 frame.
+// Every number below held to the hundredth; the WORDS changed where the suite
+// glossary settles a different one. Casing is invisible here (the caption
+// elements are text-transform: uppercase, measured), so the table shows the
+// shipped casing and the rendered width is the same either way.
+//
+//     DRIFT      35.59 -> Dérive   44.14   budget 60, spare 15.9
+//     SIZE       26.06 -> Taille   41.41   spare 18.6
+//     GRAINS     44.16 -> Grains   44.16   identical word — sameAsEn
+//     DETUNE     47.98 -> Désacc.  48.89   Désaccord is 70.14 and moves 6 boxes
+//     MIX        23.28 -> Mix      23.28   identical word — sameAsEn (v2.2.1)
 //
 // The two LFO knobs are `.knob-small`: a 42 px visual, but `.knob-value` still
 // carries `min-width: 60px`, so the budget is the same 60.00 px.
 //
-//     RATE       33.09 -> VITESSE 52.14    spare 7.9
-//     DEPTH      42.91 -> PROF.   37.17    SHRANK, and see the note below
+//     RATE       33.09 -> Vitesse  52.14   spare 7.9
+//     DEPTH      42.91 -> Prof.    37.17   SHRANK, and see the note below
 //
-// Three of seven SHRINK rather than grow. That is the half a clip check is
-// blind to, and the half Stage J found four times in twelve.
+// Two of seven SHRINK rather than grow, and v2.2.1 made it three: Dosage 47.05
+// -> Mix 23.28 is a 23.77 px shrink inside a 60 px budget, so nothing moves
+// and no clip check could see it. That is the half a clip check is blind to,
+// and the half Stage J found four times in twelve.
 // ============================================================================
 
 export const LABELS = Object.freeze({
@@ -323,73 +412,93 @@ export const LABELS = Object.freeze({
     // buffer, and the parameter behind it is an AudioParameterBool named
     // "Freeze" (PluginProcessor.cpp:38-41) — a bool has no option strings, so
     // there is no automation-lane spelling for the caption to disagree with and
-    // D-01 arm 1 does not apply.
-    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'GELER', reviewed: false } },
+    // D-01 arm 1 does not apply. The glossary accepts both `gel` and `geler`
+    // for "freeze"; a control that PERFORMS the action takes the infinitive,
+    // a state readout would take the noun. Geler is 69.72 px, Gel 41.42 —
+    // width does not decide it here, and the choice is on meaning.
+    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Geler', reviewed: false } },
 
     // ── The reverse toggle ──────────────────────────────────────────────────
     // Also an AudioParameterBool ("Reverse", PluginProcessor.cpp:112-115), so
-    // arm 1 does not apply here either. INVERSE is 55.33 against REVERSE's
-    // 57.50 — a 2.17 px SHRINK, which would have pulled #reverse-container (a
-    // non-label element, centred by translateX(-50%)) in by 1.09 px and failed
-    // assertion 7. The `min-width` pin in index.html holds the pill at its
-    // English 95.5 px; see the comment there, and the negative control in the
-    // commit message.
-    'label.reverse': { en: { t: 'Reverse' }, fr: { t: 'INVERSE', reviewed: false } },
+    // arm 1 does not apply here either. The suite glossary settles "reverse"
+    // on Inversion (abbreviated Invers.); v2.2.0's Inverse is neither. The
+    // ROOT does not fit: Inversion is 71.05 px of text and pushes the pill's
+    // border-box to 109.05, past the 95.5 px pin, moving #reverse-toggle AND
+    // #reverse-container. Invers. is 51.11 and moves nothing. The tip title
+    // carries Inversion in full.
+    //
+    // The `min-width` pin in index.html holds the pill at its English 95.5 px
+    // and is what makes the French free at all: Invers. is 6.39 px NARROWER
+    // than REVERSE's 57.50, and without the pin that shrink would pull
+    // #reverse-container (a non-label element, centred by translateX(-50%))
+    // in by 3.20 px and fail assertion 7. See the comment there.
+    'label.reverse': { en: { t: 'Reverse' }, fr: { t: 'Invers.', reviewed: false } },
 
     // ── The six main knob captions ──────────────────────────────────────────
     // Each is the plugin's own caption for a FLOAT or INT parameter, not a
     // choice option, so all six are localizable under D-01 arm 1 and none is a
     // readout node under arm 3. THRESHOLD is the exception and is EXEMPT — see
     // I18N_EXEMPT, where the reason is the whole judgement call on this plugin.
-    'label.drift':  { en: { t: 'Drift' },  fr: { t: 'DÉRIVE', reviewed: false } },
-    'label.size':   { en: { t: 'Size' },   fr: { t: 'TAILLE', reviewed: false } },
+    'label.drift':  { en: { t: 'Drift' },  fr: { t: 'Dérive', reviewed: false } },
+    'label.size':   { en: { t: 'Size' },   fr: { t: 'Taille', reviewed: false } },
 
     // GRAINS is the same word in both languages — `grain` is French, and the
     // plural is spelled identically. sameAsEn is the explicit declaration that
     // this is a translation and not an untranslated leftover; without it,
     // check-i18n assertion 4 rejects the entry as a silent passthrough, which
     // is exactly the guard that should fire on a string nobody thought about.
-    'label.grains': { en: { t: 'Grains' }, fr: { t: 'GRAINS', sameAsEn: true, reviewed: false } },
+    'label.grains': { en: { t: 'Grains' }, fr: { t: 'Grains', sameAsEn: true, reviewed: false } },
 
-    // ÉCART rather than DÉSACCORD, and the reason is BOTH width and meaning.
-    // DÉSACCORD renders at 70.14 px against the 60.00 px budget: it would widen
-    // #detune-knob from 60 to 70.14, change the space-around row total, and move
-    // all six knobs and their eighteen children. ÉCART is 37.88. It is also the
-    // better word: DETUNE here sets a RANGE of per-grain pitch offsets in cents
-    // (`Per-grain pitch micro-detuning range in cents`, PluginProcessor.cpp:117),
-    // and `écart` names a spread where `désaccord` names a state of being out
-    // of tune. The budget forced the question; the answer stands on its own.
-    'label.detune': { en: { t: 'Detune' }, fr: { t: 'ÉCART', reviewed: false } },
+    // Désacc., the glossary's listed abbreviation for Désaccord. v2.2.0 shipped
+    // ÉCART, which the suite glossary now forbids outright ("Désaccord (detune)
+    // or Étalement (spread); Écart total stays for span") because `écart` was
+    // doing both jobs across the suite. The v2.2.0 header argued ÉCART on
+    // meaning as well as width — that DETUNE here sets a RANGE of per-grain
+    // pitch offsets in cents (`Per-grain pitch micro-detuning range in cents`,
+    // PluginProcessor.cpp:117) and `écart` names a spread. The glossary answers
+    // that with Étalement, not Écart, and Étalement is 70.67 px — it fails the
+    // same budget Désaccord's 70.14 does. So the caption is Désacc. (48.89,
+    // inside the 60.00 budget, nothing moves) and the tip title spells out
+    // Désaccord. The body already said `désaccordent`; caption and prose now
+    // name the control with one word family.
+    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désacc.', reviewed: false } },
 
-    // DOSAGE over MÉLANGE, which also fits (57.02) but with only 2.98 px of
-    // slack. Windows/WebView2 font metrics are this rollout's named
-    // hardware-blocked deferral, so a 13 px margin is worth more than a
-    // marginally more literal word. DOSAGE is the standard French label for a
-    // dry/wet blend amount.
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'DOSAGE', reviewed: false } },
+    // Mix. v2.2.0 weighed DOSAGE against MÉLANGE; the suite glossary forbids
+    // both — "Mixage is the mixing process; Dosage is elegant and nobody else
+    // uses it" — and settles on Mix, which is what every French DAW shows. It
+    // is also the only rendering with zero geometry risk anywhere in the suite:
+    // 23.28 px, byte-identical to the English, so Windows/WebView2 font metrics
+    // (this rollout's named hardware-blocked deferral) cannot separate them.
+    // Being byte-identical makes it a straight copy, which is what sameAsEn
+    // declares: a human looked and agreed the word is French too.
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: false } },
 
     // ── The LFO group ───────────────────────────────────────────────────────
     // #lfo-group-label is `position: absolute` inside #lfo-group, so its width
-    // is free: 89.03 against 79.22 pushes nothing, and 12 + 89.03 is still well
-    // inside the group's 283.67 px.
-    'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO DÉRIVE', reviewed: false } },
+    // is free: 111.61 against the English 79.22 pushes nothing, and
+    // left: 12px + 111.61 is still well inside the group's 283.73 px. v2.2.0
+    // shipped LFO DÉRIVE (89.03); a noun-noun juxtaposition is English syntax,
+    // and the page's own tip bodies already say "le LFO de dérive".
+    'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO de dérive', reviewed: false } },
 
-    'label.rate':  { en: { t: 'Rate' },  fr: { t: 'VITESSE', reviewed: false } },
+    'label.rate':  { en: { t: 'Rate' },  fr: { t: 'Vitesse', reviewed: false } },
 
-    // PROF., abbreviated, and this one is a genuine compromise rather than a
-    // better word found under pressure. PROFONDEUR is 87.30 px against a 60.00
-    // budget and AMPLEUR is 61.16 — over by 1.16, which is above the gate's
+    // Prof., abbreviated, and this one is a genuine compromise rather than a
+    // better word found under pressure. Re-measured at v2.2.1 and BOTH v2.2.0
+    // numbers held to the hundredth: Profondeur is 87.30 px against a 60.00
+    // budget and Ampleur is 61.16 — over by 1.16, which is above the gate's
     // 0.5 px tolerance and would re-centre the whole translateX(-50%) LFO group.
-    // No pin rescues it: pinning `.knob-small` wider moves the ENGLISH layout,
-    // and pinning it at 60 converts the overflow into a clip rather than
-    // preventing it. So the caption is abbreviated, the way a tight French UI
-    // abbreviates it, and flagged for a native speaker like every other string
-    // here.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'PROF.', reviewed: false } },
+    // (Ampleur is a forbidden rendering besides.) No pin rescues it: pinning
+    // `.knob-small` wider moves the ENGLISH layout, and pinning it at 60
+    // converts the overflow into a clip rather than preventing it. So the
+    // caption is abbreviated, the way a tight French UI abbreviates it, the
+    // TOOLTIP carries Profondeur in full, and both are flagged for a native
+    // speaker like every other string here.
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: false } },
 
     // #lfo-shape-label sits above a 105.67 px selector in a column that
     // shrink-wraps to the WIDER of the two, so FORME's 44.89 is free.
-    'label.shape': { en: { t: 'Shape' }, fr: { t: 'FORME', reviewed: false } },
+    'label.shape': { en: { t: 'Shape' }, fr: { t: 'Forme', reviewed: false } },
 
     // ── The three LFO shape captions ────────────────────────────────────────
     // NOT exempt under D-01 arm 1. The LFO_SHAPE AudioParameterChoice options
@@ -405,6 +514,12 @@ export const LABELS = Object.freeze({
     // #lfo-shape-selector, shrunk #lfo-shape-toggle, shrunk #lfo-group and
     // re-centred every one of its children. A French string getting SHORTER is
     // the failure mode a clip check cannot see.
+    //
+    // v2.2.1 checked the glossary's other renderings and kept Alé: `rnd` maps
+    // to ['aléa', 'alé'], and Aléa is 22.59 px of text -> a 38.59 border-box
+    // against the 37.5 px pin, which re-centres the group and moves 6 boxes.
+    // Aléatoire (46.88 -> 62.88) is further out still. This is one of the
+    // places the glossary's abbreviation list is load-bearing.
     'label.shape.sin': { en: { t: 'Sin' }, fr: { t: 'Sin', sameAsEn: true, reviewed: false } },
     'label.shape.tri': { en: { t: 'Tri' }, fr: { t: 'Tri', sameAsEn: true, reviewed: false } },
     'label.shape.rnd': { en: { t: 'Rnd' }, fr: { t: 'Alé', reviewed: false } },
