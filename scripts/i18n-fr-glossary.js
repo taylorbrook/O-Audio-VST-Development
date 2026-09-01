@@ -186,7 +186,10 @@ const TERMS = {
     'coarse':                   ['grossier', 'gross'],
     'fine':                     ['fin'],
     'spread':                   ['étalement', 'étal'],
-    'scatter':                  ['dispersion'],
+    'scatter':                  ['dispersion', 'disp'],
+    'scatter x':                ['dispersion x', 'disp. x'],   // O-TextureForge: Dispersion X 65.14 px wraps a 72 px box
+    'scatter y':                ['dispersion y', 'disp. y'],
+    'crossfade':                ['fondu enchaîné', 'fondu'],   // fondu alone is a fade; O-TextureForge 80.73 / 31.44 px
     'wow':                      ['pleurage', 'pleur'],
     'flutter':                  ['scintillement', 'scint'],
     'flutter tongue':           ['flatterzunge'],
