@@ -10,5 +10,9 @@
   {
     "name": "a concept preset picked (label.captionSp1200 — the tour caption is chosen by a click and is never the resting string)",
     "click": ".tour-btn[data-preset=\"SP-1200 Crunch\"]"
+  },
+  {
+    "name": "pitch mode STRETCH (label.pitchStretch — the readout face only setupPitchModeReadout writes, never the resting string; Stage O item 55)",
+    "eval": "window.__stubStates.combos.get('pitchMode').setChoiceIndex(1)"
   }
 ]

@@ -646,6 +646,23 @@ function setupTooltips() {
   // because — unlike pointerenter/pointerleave and focus/blur — they bubble.
   const anchorOf = (t) => (t && t.closest ? t.closest("[data-tip]") : null);
 
+  // FOCUS LATCH (v1.4.3, Stage O item 58 — the Stage M lastInputWasPointer
+  // latch, O-Comp v1.7.0 setupTooltips). A pointer click on a focusable anchor
+  // (#toggle-reverse, #btnLoad, the two combos, the knobs are tabindex=0 too)
+  // used to fire pointerdown -> hide, then focus -> focusin -> show: the tip
+  // came straight back under the pointer. Keyboard focus is the accessibility
+  // half and keeps its tip. :focus-visible is deliberately NOT the
+  // discriminator — Chromium reports it false for a programmatic .focus() that
+  // follows a click, so a gate driving focus directly would measure "no tip"
+  // and record the false pass. The latch is drivable with real events:
+  // pointerdown latches, ANY keydown releases, focusin opens only while
+  // released. The page's one programmatic .focus() — gearBtn.focus() in
+  // setupSettingsPopover's Escape handler, registered BEFORE this listener —
+  // is covered by construction: a popover opened by pointer closes on Escape
+  // while still latched (no tip), one opened by keyboard gets its tip hidden
+  // by this listener's own Escape branch a tick later.
+  let lastInputWasPointer = false;
+
   document.addEventListener("pointerover", (e) => {
     const el = anchorOf(e.target);
     if (!el || el === active) return;
@@ -662,9 +679,10 @@ function setupTooltips() {
     if (anchorOf(e.relatedTarget) === active) return;
     hide();
   });
-  document.addEventListener("pointerdown", hide);
+  document.addEventListener("pointerdown", () => { lastInputWasPointer = true; hide(); });
 
   document.addEventListener("focusin", (e) => {
+    if (lastInputWasPointer) return;
     const el = anchorOf(e.target);
     if (!el) return;
     active = el;
@@ -673,7 +691,12 @@ function setupTooltips() {
   });
   document.addEventListener("focusout", hide);
 
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+  // One keydown listener, two jobs: any key means the keyboard is driving
+  // again, which releases the latch; Escape additionally hides.
+  document.addEventListener("keydown", (e) => {
+    lastInputWasPointer = false;
+    if (e.key === "Escape") hide();
+  });
 
   hideTooltip = hide;   // the toggle needs to retract a tip that is already open
 }

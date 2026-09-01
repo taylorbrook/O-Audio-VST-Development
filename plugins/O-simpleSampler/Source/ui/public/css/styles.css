@@ -769,13 +769,25 @@ body {
 #toggle-reverse { min-width: 87px; }
 select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
 
-/* Repitch-vs-Stretch readout (UI-02) — bound to the pitchMode combo. */
+/* Repitch-vs-Stretch readout (UI-02) — bound to the pitchMode combo.
+   max-width 150 -> 200 px, v1.4.3 (Stage O item 55). The readout is the second
+   flex line of its wrapping .region-row: the 104 px select cell plus the 16 px
+   gap plus the narrowest face (en Repitch, 115.30 px) already exceeds the
+   215.50 px row, so the readout ALWAYS sits alone under the cell with the whole
+   row to itself. The 150 px cap was narrower than that line for nothing, and
+   the French Stretch face (189.59 px nowrap) wrapped to two lines — +11.88 px
+   of row height that moved 96 elements and pushed label.play / label.kbdHint
+   8.7 px past the 720 px frame, in a state no gate drove until
+   tests/i18n-states.json got the Stretch state. Measured nowrap: en 115.30 /
+   147.39, fr 124.80 / 189.59; 200 leaves 10.41 px over the widest and 15.50 px
+   inside the row. Not nowrap: a wider future face should wrap and fail [7]
+   loudly, not spill past the row. */
 .pitch-mode-readout {
   font-size: 9.5px;
   font-style: italic;
   line-height: 1.25;
   color: var(--green-mid);
-  max-width: 150px;
+  max-width: 200px;
   align-self: center;
   opacity: 0.9;
 }
