@@ -905,19 +905,16 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         partial.amplitude *= ampVariation;
         partial.targetAmplitude = partial.amplitude;
 
-        // Calculate decay rate (exponential decay) with material multiplier
-        float baseDecayTime = juce::jmap(currentDamping, 0.5f, 5.0f);  // 0.5s to 5s
-
-        // v2.0.0: Acoustic brightness - higher partials decay faster when acousticBrightness is low
-        // This simulates air absorption and natural bell physics where HF content fades first
-        // acousticBrightness=0: highest partial decays 4x faster (partialRatio * 0.75 = 0.75 reduction)
-        // acousticBrightness=1: no additional decay (normal behavior)
-        float partialRatio = static_cast<float>(p) / NUM_PARTIALS;
-        float acousticDecayMultiplier = 1.0f - (1.0f - currentAcousticBrightness) * partialRatio * 0.75f;
-
-        // v2.4.0: Apply per-note decay variation for humanization
-        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialProps.decayMultiplier * acousticDecayMultiplier * noteVariationDecay;
-        partial.decayRate = std::exp(-1.0f / (partialDecayTime * static_cast<float>(currentSampleRate)));
+        // v4.3.2: the per-partial decay coefficient that used to be computed
+        // here (ModalPartial::decayRate, from jmap(damping, 0.5 s, 5.0 s) x
+        // DECAY_MULTIPLIERS x material x acoustic brightness x noteVariationDecay)
+        // was never read. The live decay is the three-stage table in
+        // updateMultiStageCoefficients() / applyMultiStageDecay(), where damping
+        // reaches only the hum-stage coefficients of partials 0-1 and the
+        // release in stopNote(). Its damping mapping was also the inverse of
+        // both live paths (higher damping = LONGER decay), so it was removed
+        // rather than left as a trap. noteVariationDecay is still drawn in
+        // startNote() so the per-voice RNG sequence is unchanged.
 
         partial.active = partial.amplitude > 0.001f;
     }
