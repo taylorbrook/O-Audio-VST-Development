@@ -1,5 +1,41 @@
 # O-Octagon Changelog
 
+## v1.11.1 (2026-08-31)
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **40 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint: 29 terminology, 8 typography,
+  1 grammar/agreement, 2 meaning. The visible ones: the DBAP distance control is
+  now **Décroissance** everywhere (its caption said *Décroiss.* while its
+  accessible name said *Atténuation* — two French names for one control, and a
+  WCAG 2.5.3 label-in-name miss); the venue and preset buttons carry the root
+  terms **Enregistrer** and **Charger** instead of *Enreg.* and *Ouvrir*, both
+  re-measured as fitting; the verify tone is **Ping** rather than *Bip*, the
+  settled suite term; *Rapport* → **Ratio**; and the French tooltip bodies now
+  name the motion choices **Orbit / Figure-8 / Sweep / Drift / Pendulum /
+  Spiral** and **Free / 1 Bar** — the faces the dropdown actually shows in both
+  languages — instead of translations the user could not find on screen.
+  Four French bodies that still named an English caption (*Derive*, *Ear*,
+  *Delay*, *STORE*) now name its French one (*Calculer*, *Oreille*, *Retard*,
+  *MÉM.*). Typographic pass: no-break spaces before `:` `;` and between every
+  number and its unit.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Design notes
+
+- `Retard` for the loudspeaker **alignment** delay and `Décroissance` for the
+  DBAP distance law are the two contextual exemptions from the suite glossary
+  (`pente` names a filter slope, and this page has a real filter — Air). Both
+  carry a `termNote` with the reason.
+- `reviewed: false` is unchanged on all 187 entries: that flag records a native
+  speaker's reading, and this pass is a second machine reading against a
+  glossary and a lint.
+
 ## v1.11.0 (2026-08-27)
 
 **A stereo output bus now defaults to a binaural headphone fold of the rig.** Until v1.10.1 a
