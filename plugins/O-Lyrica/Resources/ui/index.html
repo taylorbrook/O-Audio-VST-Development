@@ -716,11 +716,19 @@
 
         /* v2.4.0 GEOMETRY RULE 10. Same auto-margin centring as rule 9, at the
            other end of the row. CHORUS 53.06 (identical in both) / DELAY 42.50
-           vs DÉLAI 39.84 / REVERB 51.84 vs RÉVERBE 60.19 / EQ 17.91 (identical).
+           vs DÉLAI 39.84 / REVERB 51.84 vs RÉVERB 51.84 / EQ 17.91 (identical).
            Two of the four differ, and each moved its whole knob row by half the
            delta. One min-width covers the widest of the eight faces, and it also
            lines the four section titles up with each other, which they were not
-           before. */
+           before.
+
+           v2.4.2 RE-MEASURED: the French Reverb face was RÉVERBE 60.19 when this
+           rule was written, and it was the widest of the eight — which is where
+           the 61px came from. Stage N's glossary pass replaced it with RÉVERB
+           51.84 (réverbe is not a French word), so the widest face is now CHORUS
+           53.06 and the pin is 7.94px larger than it needs to be. Left at 61px
+           deliberately: lowering it would move all four knob rows, and the
+           number now carries slack rather than a wrong claim. */
         .fx-title {
             min-width: 61px;
             font-size: 11px;
@@ -737,7 +745,18 @@
            half of any width change at either end. All four faces measured: On
            29.00 / Off 30.34 / Oui 31.50 / Non 33.50. One min-width covers them,
            which also stops the button resizing when the state changes — which it
-           did before, in English. */
+           did before, in English.
+
+           v2.4.2 RE-MEASURED, and the "covers them" claim no longer holds to the
+           hundredth. Stage N replaced Oui/Non with the glossary's Act./Dés.
+           (Oui/Non are answers, not states): Act. is 33.25 intrinsic, still
+           inside the 34px pin, but Dés. is 34.25 and overruns it by 0.25px. The
+           knob row is centred by the two auto margins, so it takes HALF of that:
+           0.12px, against check-ui-labels' 0.5px tolerance, and the gate reads
+           clean. The period-less Dés is 34.00 and would restore exact parity;
+           the period was kept because a bare "Dés" is not readable as an
+           abbreviation. Raising the pin to 35px is the other option and is a CSS
+           decision Stage N does not take. */
         .fx-bypass-btn {
             min-width: 34px;
             text-align: center;
@@ -1908,8 +1927,11 @@
         }
 
         /* min-width covers the widest of the four faces across both languages -
-           On / Off / Oui / Non - so switching either the state or the language
-           cannot resize the row. */
+           On 30.23 / Off 31.70 / Act. 34.95 / Dés. 36.06 intrinsic - so
+           switching either the state or the language cannot resize the row.
+           v2.4.2: the French pair was Oui 33.00 / Non 35.23 before Stage N's
+           glossary pass; the 40px pin covered both then and covers Act./Dés.
+           now, with 3.94px to spare. */
         .settings-toggle {
             min-width: 40px;
             padding: 2px 8px;
