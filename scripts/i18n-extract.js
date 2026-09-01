@@ -1250,6 +1250,12 @@ function renderSkeleton(name, rows, existing) {
         body.push(`    '${key}': {`);
         body.push(`        en: { t: ${JSON.stringify(r.text)}, b: '' },`);
         body.push(`        fr: { t: 'TODO', b: '', reviewed: false },`);
+        // The zh-Hans sibling is born at 'mt' — the machine-draft level, which is
+        // the honest starting state for a key nobody has translated yet. This is
+        // the ONLY reviewed: emit in the file: without it every key added after
+        // Stage 0 is born zh-less, silently, and the omission surfaces only when
+        // somebody notices a Chinese page still speaking English.
+        body.push(`        'zh-Hans': { t: 'TODO', b: '', reviewed: 'mt' },`);
         body.push('    },');
         body.push('');
     }

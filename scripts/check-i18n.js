@@ -40,7 +40,8 @@
          literals — the copy has fully left the markup.
       4  no French entry is a straight passthrough of the English unless it
          carries an explicit `sameAsEn: true`.
-      5  every fr entry carries an explicit boolean `reviewed`.
+      5  every fr entry carries an explicit boolean `reviewed`; every zh-Hans
+         entry carries `reviewed` at one of 'mt' | 'bt' | 'native'.
       6  DRIFT GATE — the applyI18n + initI18n region of app.js, comment-
          stripped and whitespace-normalised, equals scripts/i18n-canon.js.
       7  i18n.js has no top-level statement outside export declarations.
@@ -298,6 +299,34 @@ function loadI18nModule(src) {
     return sandbox.__i18nExports;
 }
 
+// ─────────────────────────────────────────────── the reviewed-flag contract ──
+// The reviewed flag does NOT mean the same thing in every language, so it
+// cannot be one typeof test.
+//
+// `fr` keeps its boolean, unchanged. `reviewed: false` is the only signal the
+// unreviewed-French worklist reads, and Taylor reads French — a human either
+// has or has not read the string, which is a boolean question.
+//
+// `zh-Hans` is an enum, 'mt' | 'bt' | 'native' — machine draft, back-translated,
+// native-reviewed — because nobody on this project reads Chinese. All three are
+// structurally VALID here and none is privileged: the ship bar is 'bt', and
+// 'native' is never a gate. Encoding the ship bar in this assertion instead
+// would make every machine draft a hard failure the moment translation starts,
+// which is the opposite of what a staged rollout needs.
+//
+// Any other language fails closed. Silently returning true for a code this
+// function has never heard of is exactly the vacuous pass the flag exists to
+// prevent: the language would be present in LANGUAGES, iterated by every loop,
+// and checked by nothing.
+const ZH_REVIEWED_LEVELS = ['mt', 'bt', 'native'];
+function reviewedValid(lang, entry) {
+    const v = (entry || {}).reviewed;
+    if (lang === 'en') return true;               // the source language is never "reviewed"
+    if (lang === 'fr') return typeof v === 'boolean';
+    if (lang === 'zh-Hans') return ZH_REVIEWED_LEVELS.includes(v);
+    return false;
+}
+
 // ──────────────────────────────────────────────────────── HTML comments ──
 const stripHtmlComments = src => src.replace(/<!--[\s\S]*?-->/g, '');
 
@@ -494,8 +523,23 @@ function checkPlugin(p) {
 
     const { LANGUAGES, I18N, TIP_BINDINGS } = mod;
 
-    check(Array.isArray(LANGUAGES) && LANGUAGES.join(',') === 'en,fr',
-        `[1] LANGUAGES is exactly ['en','fr'] — got ${JSON.stringify(LANGUAGES)}`);
+    // Two shapes, and only two: the current pair, or that pair plus zh-Hans in
+    // third position. Accepting BOTH rather than migrating to the three-language
+    // shape is the entire point — it is what lets the 43 plugins convert one at
+    // a time instead of in a big bang, with a half-converted suite green
+    // throughout. An arbitrary third code, a reordering, or a superset still
+    // fails: this is a widening, not a loosening.
+    const LANG_SHAPES = ['en,fr', 'en,fr,zh-Hans'];
+    check(Array.isArray(LANGUAGES) && LANG_SHAPES.includes(LANGUAGES.join(',')),
+        `[1] LANGUAGES is exactly en,fr or en,fr,zh-Hans — got ${JSON.stringify(LANGUAGES)}`);
+
+    // Every field-presence loop below iterates the plugin's OWN declared
+    // languages, so a two-language table iterates two and a three-language table
+    // iterates three with no further edit to this file, ever. The fallback fires
+    // only when LANGUAGES is unusable — assertion [1] has already failed loudly
+    // in that case, and iterating an empty list would stack a vacuous pass on
+    // top of a real failure.
+    const LANGS = Array.isArray(LANGUAGES) && LANGUAGES.length ? LANGUAGES : ['en'];
 
     const keys = I18N && typeof I18N === 'object' ? Object.keys(I18N) : [];
 
@@ -513,7 +557,7 @@ function checkPlugin(p) {
     const missingField = [];
     for (const k of keys) {
         const e = I18N[k] || {};
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             if (!e[lang]) { missingLang.push(`${k}.${lang}`); continue; }
             if (typeof e[lang].t !== 'string' || typeof e[lang].b !== 'string')
                 missingField.push(`${k}.${lang}`);
@@ -545,7 +589,7 @@ function checkPlugin(p) {
     // bound" is a line in the log rather than a silent pass.
     const tipBodied = keys.filter((k) => {
         const e = I18N[k] || {};
-        return ['en', 'fr'].some((l) => e[l] && typeof e[l].b === 'string' && e[l].b.trim() !== '');
+        return LANGS.some((l) => e[l] && typeof e[l].b === 'string' && e[l].b.trim() !== '');
     });
     check(bindings.length > 0 || tipBodied.length === 0,
         `[2] ${bindings.length} tip(s) bound`
@@ -573,10 +617,14 @@ function checkPlugin(p) {
         + (passthrough.length ? ` — ${passthrough.length}: ${passthrough.slice(0, 6).join(', ')}` : ''));
 
     // ── 5. explicit reviewed flag ────────────────────────────────────────
-    const unflagged = keys.filter(k => typeof (I18N[k] && I18N[k].fr || {}).reviewed !== 'boolean');
+    const unflagged = [];
+    for (const k of keys)
+        for (const lang of LANGS)
+            if (!reviewedValid(lang, I18N[k] && I18N[k][lang])) unflagged.push(`${k}.${lang}`);
     check(unflagged.length === 0,
-        `[5] every fr entry carries an explicit boolean reviewed`
-        + (unflagged.length ? ` — missing on ${unflagged.length}: ${unflagged.slice(0, 6).join(', ')}` : ''));
+        `[5] every I18N entry carries a valid reviewed flag — fr a 'boolean', `
+        + `zh-Hans one of 'mt' | 'bt' | 'native'`
+        + (unflagged.length ? ` — invalid on ${unflagged.length}: ${unflagged.slice(0, 6).join(', ')}` : ''));
 
     const unreviewed = keys.filter(k => (I18N[k] && I18N[k].fr || {}).reviewed === false).length;
 
@@ -602,7 +650,7 @@ function checkPlugin(p) {
         const lMissing = [];
         for (const k of lkeys) {
             const e = LABELS_EARLY[k] || {};
-            for (const lang of ['en', 'fr'])
+            for (const lang of LANGS)
                 if (!e[lang] || typeof e[lang].t !== 'string') lMissing.push(`${k}.${lang}`);
         }
         check(lMissing.length === 0,
@@ -619,11 +667,19 @@ function checkPlugin(p) {
             `[4] no LABELS fr entry is a straight copy of en without sameAsEn: true`
             + (lPass.length ? ` — ${lPass.length}: ${lPass.slice(0, 6).join(', ')}` : ''));
 
-        const lUnflagged = lkeys.filter((k) =>
-            typeof ((LABELS_EARLY[k] && LABELS_EARLY[k].fr) || {}).reviewed !== 'boolean');
+        // The SECOND reviewed site, and the one that bites. Patching only the
+        // tooltip site above leaves every zh-Hans LABEL entry unguarded — and
+        // labels outnumber tooltips across the suite, so the hole would open at
+        // the worst possible moment: the instant translation starts.
+        const lUnflagged = [];
+        for (const k of lkeys)
+            for (const lang of LANGS)
+                if (!reviewedValid(lang, LABELS_EARLY[k] && LABELS_EARLY[k][lang]))
+                    lUnflagged.push(`${k}.${lang}`);
         check(lUnflagged.length === 0,
-            `[5] every LABELS fr entry carries an explicit boolean reviewed`
-            + (lUnflagged.length ? ` — missing on ${lUnflagged.length}: ${lUnflagged.slice(0, 6).join(', ')}` : ''));
+            `[5] every LABELS entry carries a valid reviewed flag — fr a 'boolean', `
+            + `zh-Hans one of 'mt' | 'bt' | 'native'`
+            + (lUnflagged.length ? ` — invalid on ${lUnflagged.length}: ${lUnflagged.slice(0, 6).join(', ')}` : ''));
 
         labelsUnreviewed = lkeys.filter((k) =>
             ((LABELS_EARLY[k] && LABELS_EARLY[k].fr) || {}).reviewed === false).length;

@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    check-ui-labels.js — the both-language LABEL render gate. This is what
+    check-ui-labels.js — the every-language LABEL render gate. This is what
     retires D-04.
 
     It generalises the both-language sweep already committed in
@@ -28,6 +28,19 @@
     fresh: same shape, same vacuity guards, same exit-77 convention, same
     per-language failure labelling — an unlabelled French-only failure reads as a
     mysterious regression in a file that never mentions French.
+
+    ── IT DRIVES THE PLUGIN'S OWN LANGUAGES, NOT A FIXED PAIR ─────────────────
+
+    LANGUAGES is read from <uiRoot>/js/i18n.js on disk and every language loop
+    is driven from it, so a two-language plugin measures two and a three-language
+    plugin measures three with no edit here. Assertions 2, 5, 6, 7, 8 and 8b are
+    DELTAS against English, so each runs once per non-English language and names
+    that language in its own failure text.
+
+    That labelling stopped being a nicety the moment a second translated language
+    existed. With one, "French" in a message was merely redundant; with two, a
+    message that says French while measuring zh-Hans is actively false, and the
+    reader chases the wrong table.
 
     ── ONE FILE, REPO-LEVEL. Flag this at Checkpoint 3. ────────────────────────
 
@@ -488,6 +501,42 @@ const overlaps = (a, b) =>
     console.log(`   ui root ${built.uiRootLabel} (${built.uiRootFrom}), stub=${built.stubKind}, seed=${built.seedFrom}`);
     if (built.unplaced.length) console.log(`   WARNING unmapped embed: ${built.unplaced.join(', ')}`);
 
+    // ── which languages this plugin actually declares ──────────────────────
+    // Read from DISK, not from the page. The canon exposes window.__setLanguage,
+    // __setLabel and __reapplyI18n and nothing else — LANGUAGES is module-scoped
+    // inside i18n.js and there is no way to reach it from page.evaluate. Putting
+    // it on window would edit scripts/i18n-canon.js, and every edit to the canon
+    // is a 43-file re-sync because check-i18n.js assertion [6] byte-compares
+    // each plugin's copy against it. A one-line disk read is the cheaper truth.
+    //
+    // check-ui-labels.js:39 already names check-i18n.js as the precedent for a
+    // repo-level gate reading a plugin's table directly; this is the same move.
+    //
+    // It FAILS rather than falling back to a default pair. A silent fallback is
+    // indistinguishable from the vacuous pass this whole gate exists to prevent:
+    // the run would report a confident PASS having measured a language set that
+    // is not the one the plugin ships.
+    const langsFile = path.join(built.uiRoot, 'js', 'i18n.js');
+    let LANGS = null;
+    if (fs.existsSync(langsFile)) {
+        const m = fs.readFileSync(langsFile, 'utf8')
+            .match(/export\s+const\s+LANGUAGES\s*=\s*\[([^\]]*)\]/);
+        if (m) {
+            const parsed = m[1].split(',')
+                .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+                .filter((s) => s !== '');
+            if (parsed.length && parsed[0] === 'en') LANGS = parsed;
+        }
+    }
+    if (!LANGS) {
+        check(false, `[0] LANGUAGES parses from ${path.relative(repoRoot, langsFile)} `
+            + `and begins with 'en' — without it this gate cannot know which languages to drive, `
+            + `and every assertion below would pass vacuously`);
+        LANGS = ['en'];
+    }
+    const NON_EN = LANGS.filter((l) => l !== 'en');
+    console.log(`   languages ${LANGS.join(', ')} (from ${path.relative(repoRoot, langsFile)})`);
+
     const misses = [];
     const srv = await S.serve(built.root, (rel) => misses.push(rel));
 
@@ -595,7 +644,7 @@ const overlaps = (a, b) =>
         // moved nothing. The GENERIC stub does drive them, so every plugin
         // without a hand-written stub would have hit this.
         const snaps = {};
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
             await page.waitForTimeout(180);
             snaps[lang] = { before: await page.evaluate(PROBE) };
@@ -655,7 +704,7 @@ const overlaps = (a, b) =>
         }
 
         // ── 3. dataset.label === textContent, AFTER A STATE PASS ───────────
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
             await page.waitForTimeout(180);
             stateMechanism = await page.evaluate(STATE_PASS);
@@ -663,10 +712,12 @@ const overlaps = (a, b) =>
             snaps[lang].after = await page.evaluate(PROBE);
         }
 
-        const en = snaps.en.before, fr = snaps.fr.before;
+        // English is the baseline every other language is measured against, so
+        // it is bound once. The other languages are looped, never named.
+        const en = snaps.en.before;
 
         // ── 1. every label has text, no surviving {token} ──────────────────
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             const s = snaps[lang].before;
             const empty  = s.labels.filter((l) => l.visible && l.text.trim() === '');
             const tokens = s.labels.filter((l) => /\{\w+\}/.test(l.text));
@@ -678,29 +729,36 @@ const overlaps = (a, b) =>
                 + (tokens.length ? ` — ${tokens.length}: ${tokens.slice(0, 4).map((l) => `${l.key}="${l.text.slice(0, 24)}"`).join(', ')}` : ''));
         }
 
-        // ── 2. VACUITY GUARD — French actually rendered ────────────────────
-        // Without this, a run in which __setLanguage silently did nothing
-        // measures English twice and reports a confident, worthless pass.
-        // Stage D proved this catches a real no-op on all three plugins it was
-        // tried against.
-        const enByKey = new Map(en.labels.map((l) => [l.path, l.text]));
-        const differing = fr.labels.filter((l) => enByKey.get(l.path) !== l.text).length;
-        const fraction  = fr.labels.length ? differing / fr.labels.length : 0;
-        check(fraction >= MIN_LANG_DIFF_FRACTION,
-            `[2][vacuity] French actually rendered — ${differing}/${fr.labels.length} labels `
-            + `(${(fraction * 100).toFixed(0)}%) differ from English, need >= ${MIN_LANG_DIFF_FRACTION * 100}%`);
+        // The vacuity guard is per language for the reason the guard exists at all:
+        // a zh-Hans pass in which __setLanguage silently did nothing measures
+        // English twice and reports a confident, worthless pass. Checking only fr
+        // would leave exactly that hole open for every language added later.
+        for (const other of NON_EN) {
+            const fr = snaps[other].before;
+            // ── 2. VACUITY GUARD — French actually rendered ────────────────────
+            // Without this, a run in which __setLanguage silently did nothing
+            // measures English twice and reports a confident, worthless pass.
+            // Stage D proved this catches a real no-op on all three plugins it was
+            // tried against.
+            const enByKey = new Map(en.labels.map((l) => [l.path, l.text]));
+            const differing = fr.labels.filter((l) => enByKey.get(l.path) !== l.text).length;
+            const fraction  = fr.labels.length ? differing / fr.labels.length : 0;
+            check(fraction >= MIN_LANG_DIFF_FRACTION,
+                `[2][vacuity][${other}] the ${other} pass actually rendered — ${differing}/${fr.labels.length} labels `
+                + `(${(fraction * 100).toFixed(0)}%) differ from English, need >= ${MIN_LANG_DIFF_FRACTION * 100}%`);
 
-        // Attributes too: a keyed aria-label that never changes is a sweep that
-        // silently skipped the attribute pass.
-        if (en.attrKeyed.length) {
-            const enAttr = new Map(en.attrKeyed.map((a) => [a.path, JSON.stringify([a.aria, a.placeholder, a.alt])]));
-            const attrDiff = fr.attrKeyed.filter((a) => enAttr.get(a.path) !== JSON.stringify([a.aria, a.placeholder, a.alt])).length;
-            check(attrDiff > 0,
-                `[2][vacuity] keyed ATTRIBUTES actually changed language — ${attrDiff}/${fr.attrKeyed.length}`);
+            // Attributes too: a keyed aria-label that never changes is a sweep that
+            // silently skipped the attribute pass.
+            if (en.attrKeyed.length) {
+                const enAttr = new Map(en.attrKeyed.map((a) => [a.path, JSON.stringify([a.aria, a.placeholder, a.alt])]));
+                const attrDiff = fr.attrKeyed.filter((a) => enAttr.get(a.path) !== JSON.stringify([a.aria, a.placeholder, a.alt])).length;
+                check(attrDiff > 0,
+                    `[2][vacuity][${other}] keyed ATTRIBUTES actually changed language — ${attrDiff}/${fr.attrKeyed.length}`);
+            }
         }
 
         // ── 3. the ownership mirror, after init/switch AND a state pass ────
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             for (const [when, snap] of [['after switch', snaps[lang].before], ['after a state pass', snaps[lang].after]]) {
                 const broken = snap.labels.filter((l) => l.datasetLabel !== l.text);
                 check(broken.length === 0,
@@ -714,7 +772,7 @@ const overlaps = (a, b) =>
         // scrollHeight/scrollWidth lie about a container: they do not cross a
         // `flex: 1` stage and are clamped on a grid container. A gate built on
         // them for containers would certify a real overflow.
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             const clipped = snaps[lang].before.labels.filter((l) =>
                 l.visible && l.leaf && !/visible/.test(l.overflow) && l.scrollWidth > l.clientWidth + 1);
             check(clipped.length === 0,
@@ -768,87 +826,92 @@ const overlaps = (a, b) =>
                     `${l.key} "${l.text.slice(0, 14)}" ${l.textHeight.toFixed(1)}>${l.contentHeight.toFixed(1)}`).join(', ')}` : ''));
         }
 
-        // ── 5. no label spills its offsetParent MORE in French ─────────────
-        // Measured as a DELTA against English, not as an absolute.
-        //
-        // Stage F, on O-Tapestop: the absolute form of this assertion failed on
-        // three `.group-label` panel legends — IN ENGLISH. They are
-        // `position: absolute; top: -9px` and deliberately straddle the panel
-        // border, the fieldset-legend idiom, which is an authored layout the
-        // developer sees on screen every day. An i18n gate that fails on it is
-        // not reporting a French problem; it is arguing with the design, and it
-        // would do so on most plugins in the suite. A gate that is red for a
-        // whole rollout stops being read.
-        //
-        // The failure this assertion actually exists to catch is a label that
-        // GREW out of its cell in French. That is exactly `spill(fr) >
-        // spill(en)`. The English spill is reported so it is never silent.
-        const spillOf = (l) => {
-            if (!l.visible || !l.parentPad) return 0;
-            const p = l.parentPad, b = l.rect;
-            return Math.max(0, p.x - b.x, p.y - b.y,
-                               (b.x + b.w) - (p.x + p.w), (b.y + b.h) - (p.y + p.h));
-        };
-        const enSpill = new Map(en.labels.map((l) => [l.path, spillOf(l)]));
-        const grew = fr.labels.filter((l) => spillOf(l) > (enSpill.get(l.path) || 0) + TOL);
-        check(grew.length === 0,
-            `[5] no label spills its offsetParent's padding box MORE in French than in English`
-            + (grew.length ? ` — ${grew.length}: ${grew.slice(0, 4).map((l) =>
-                `${l.key} ${(enSpill.get(l.path) || 0).toFixed(1)}px -> ${spillOf(l).toFixed(1)}px`).join(', ')}` : ''));
+        // Assertions 5 and 6 are DELTAS against English rather than absolutes, so
+        // each one is a question about ONE non-English language at a time.
+        for (const other of NON_EN) {
+            const fr = snaps[other].before;
+            // ── 5. no label spills its offsetParent MORE in French ─────────────
+            // Measured as a DELTA against English, not as an absolute.
+            //
+            // Stage F, on O-Tapestop: the absolute form of this assertion failed on
+            // three `.group-label` panel legends — IN ENGLISH. They are
+            // `position: absolute; top: -9px` and deliberately straddle the panel
+            // border, the fieldset-legend idiom, which is an authored layout the
+            // developer sees on screen every day. An i18n gate that fails on it is
+            // not reporting a French problem; it is arguing with the design, and it
+            // would do so on most plugins in the suite. A gate that is red for a
+            // whole rollout stops being read.
+            //
+            // The failure this assertion actually exists to catch is a label that
+            // GREW out of its cell in French. That is exactly `spill(fr) >
+            // spill(en)`. The English spill is reported so it is never silent.
+            const spillOf = (l) => {
+                if (!l.visible || !l.parentPad) return 0;
+                const p = l.parentPad, b = l.rect;
+                return Math.max(0, p.x - b.x, p.y - b.y,
+                                   (b.x + b.w) - (p.x + p.w), (b.y + b.h) - (p.y + p.h));
+            };
+            const enSpill = new Map(en.labels.map((l) => [l.path, spillOf(l)]));
+            const grew = fr.labels.filter((l) => spillOf(l) > (enSpill.get(l.path) || 0) + TOL);
+            check(grew.length === 0,
+                `[5][${other}] no label spills its offsetParent's padding box MORE in ${other} than in English`
+                + (grew.length ? ` — ${grew.length}: ${grew.slice(0, 4).map((l) =>
+                    `${l.key} ${(enSpill.get(l.path) || 0).toFixed(1)}px -> ${spillOf(l).toFixed(1)}px`).join(', ')}` : ''));
 
-        const authored = en.labels.filter((l) => spillOf(l) > TOL);
-        if (authored.length)
-            console.log(`   NOTE: [5] ${authored.length} label(s) already overhang their offsetParent in ENGLISH `
-                + `— an authored layout, reported not asserted: `
-                + authored.slice(0, 4).map((l) => `${l.key} ${spillOf(l).toFixed(1)}px`).join(', '));
+            const authored = en.labels.filter((l) => spillOf(l) > TOL);
+            if (authored.length)
+                console.log(`   NOTE: [5] ${authored.length} label(s) already overhang their offsetParent in ENGLISH `
+                    + `— an authored layout, reported not asserted: `
+                    + authored.slice(0, 4).map((l) => `${l.key} ${spillOf(l).toFixed(1)}px`).join(', '));
 
-        // ── 6. nothing crosses the shipping frame MORE in French ───────────
-        //
-        // A DELTA against English, for the same reason assertion 5 is one, and
-        // discovered the same way — by meeting a plugin whose authored English
-        // layout already violates the absolute form.
-        //
-        // Stage I, on O-Orbit: its #controls-container is `flex: 1` with
-        // `overflow-y: auto` and its three parameter groups need 555px in a
-        // 226px pane, so eleven labels sit BELOW the 600px frame at rest. That
-        // is the plugin's D4 resizable design, it is byte-identical at the
-        // pre-retrofit commit, and the eleven are the SAME eleven with the SAME
-        // overshoot to the decimal in both languages — French contributes
-        // exactly zero. The absolute form reported 8 failures per run on a
-        // plugin whose French geometry is perfect, which is the gate arguing
-        // with the design rather than reporting a French problem.
-        //
-        // The failure this assertion exists to catch is a label pushed out of
-        // the frame BY French, and that is `overshoot(fr) > overshoot(en)`. It
-        // is not weakened by the change: the same run that produced the eleven
-        // also caught label.import leaving the right edge at 803px in French
-        // and 731+58 in English, and the delta form still fails on it (NC-9).
-        //
-        // The English overshoot is REPORTED so it can never be silent, and the
-        // per-language document scroll-extent checks below stay ABSOLUTE — a
-        // page whose own scroll extent exceeds its frame is a different and
-        // genuinely broken thing, and O-Orbit passes those in both languages.
-        const frameOver = (l) => {
-            if (!l.visible) return 0;
-            const b = l.rect;
-            return Math.max(0, -b.x, -b.y, (b.x + b.w) - size.w, (b.y + b.h) - size.h);
-        };
-        const enOver = new Map(en.labels.map((l) => [l.path, frameOver(l)]));
-        const pushedOut = fr.labels.filter((l) => frameOver(l) > (enOver.get(l.path) || 0) + TOL);
-        check(pushedOut.length === 0,
-            `[6] no label crosses the ${size.w} x ${size.h} frame MORE in French than in English`
-            + (pushedOut.length ? ` — ${pushedOut.length}: ${pushedOut.slice(0, 4).map((l) =>
-                `${l.key} ${(enOver.get(l.path) || 0).toFixed(1)}px -> ${frameOver(l).toFixed(1)}px `
-                + `@${l.rect.x.toFixed(0)},${l.rect.y.toFixed(0)} ${l.rect.w.toFixed(0)}x${l.rect.h.toFixed(0)}`).join(' | ')}` : ''));
+            // ── 6. nothing crosses the shipping frame MORE in French ───────────
+            //
+            // A DELTA against English, for the same reason assertion 5 is one, and
+            // discovered the same way — by meeting a plugin whose authored English
+            // layout already violates the absolute form.
+            //
+            // Stage I, on O-Orbit: its #controls-container is `flex: 1` with
+            // `overflow-y: auto` and its three parameter groups need 555px in a
+            // 226px pane, so eleven labels sit BELOW the 600px frame at rest. That
+            // is the plugin's D4 resizable design, it is byte-identical at the
+            // pre-retrofit commit, and the eleven are the SAME eleven with the SAME
+            // overshoot to the decimal in both languages — French contributes
+            // exactly zero. The absolute form reported 8 failures per run on a
+            // plugin whose French geometry is perfect, which is the gate arguing
+            // with the design rather than reporting a French problem.
+            //
+            // The failure this assertion exists to catch is a label pushed out of
+            // the frame BY French, and that is `overshoot(fr) > overshoot(en)`. It
+            // is not weakened by the change: the same run that produced the eleven
+            // also caught label.import leaving the right edge at 803px in French
+            // and 731+58 in English, and the delta form still fails on it (NC-9).
+            //
+            // The English overshoot is REPORTED so it can never be silent, and the
+            // per-language document scroll-extent checks below stay ABSOLUTE — a
+            // page whose own scroll extent exceeds its frame is a different and
+            // genuinely broken thing, and O-Orbit passes those in both languages.
+            const frameOver = (l) => {
+                if (!l.visible) return 0;
+                const b = l.rect;
+                return Math.max(0, -b.x, -b.y, (b.x + b.w) - size.w, (b.y + b.h) - size.h);
+            };
+            const enOver = new Map(en.labels.map((l) => [l.path, frameOver(l)]));
+            const pushedOut = fr.labels.filter((l) => frameOver(l) > (enOver.get(l.path) || 0) + TOL);
+            check(pushedOut.length === 0,
+                `[6][${other}] no label crosses the ${size.w} x ${size.h} frame MORE in ${other} than in English`
+                + (pushedOut.length ? ` — ${pushedOut.length}: ${pushedOut.slice(0, 4).map((l) =>
+                    `${l.key} ${(enOver.get(l.path) || 0).toFixed(1)}px -> ${frameOver(l).toFixed(1)}px `
+                    + `@${l.rect.x.toFixed(0)},${l.rect.y.toFixed(0)} ${l.rect.w.toFixed(0)}x${l.rect.h.toFixed(0)}`).join(' | ')}` : ''));
 
-        const authoredOut = en.labels.filter((l) => frameOver(l) > TOL);
-        if (authoredOut.length)
-            console.log(`   NOTE: [6] ${authoredOut.length} label(s) already fall outside the `
-                + `${size.w} x ${size.h} frame in ENGLISH — an authored layout (a scrolling pane, `
-                + `a collapsed panel), reported not asserted: `
-                + authoredOut.slice(0, 4).map((l) => `${l.key} ${frameOver(l).toFixed(1)}px`).join(', '));
+            const authoredOut = en.labels.filter((l) => frameOver(l) > TOL);
+            if (authoredOut.length)
+                console.log(`   NOTE: [6] ${authoredOut.length} label(s) already fall outside the `
+                    + `${size.w} x ${size.h} frame in ENGLISH — an authored layout (a scrolling pane, `
+                    + `a collapsed panel), reported not asserted: `
+                    + authoredOut.slice(0, 4).map((l) => `${l.key} ${frameOver(l).toFixed(1)}px`).join(', '));
+        }
 
-        for (const lang of ['en', 'fr']) {
+        for (const lang of LANGS) {
             const s = snaps[lang].before;
             // documentElement, NOT max(documentElement, body). body.scrollWidth
             // counts a child that the real scroll container clips: Stage F found
@@ -863,159 +926,171 @@ const overlaps = (a, b) =>
                 + `${s.docScroll.dw} x ${s.docScroll.dh} vs ${size.w} x ${size.h}`);
         }
 
-        check(fr.docScroll.dw <= en.docScroll.dw + TOL && fr.docScroll.dh <= en.docScroll.dh + TOL,
-            `[6] French does not enlarge the document's scroll extent — `
-            + `en ${en.docScroll.dw} x ${en.docScroll.dh}, fr ${fr.docScroll.dw} x ${fr.docScroll.dh}`);
-        if (en.docScroll.bw > en.docScroll.dw + 1 || en.docScroll.bh > en.docScroll.dh + 1)
-            console.log(`   NOTE: [6] body scrolls to ${en.docScroll.bw} x ${en.docScroll.bh} where documentElement `
-                + `reports ${en.docScroll.dw} x ${en.docScroll.dh} — a child overflows a clipped ancestor. `
-                + `Reported, not asserted: it is identical in both languages.`);
-
-        // ── 7. THE GEOMETRY DIFF — the primary detector ────────────────────
-        // The frame is fixed, so any element that is NOT a label and NOT inside
-        // one and MOVED between the two passes was pushed by a French string.
-        // getBoundingClientRect only, so it is immune to the scrollHeight traps
-        // assertion 4 has to work around — and it is the only assertion that
-        // sees a WRAP, which is what happens on the nine plugins that have
-        // neither `nowrap` nor `ellipsis`.
-        const enOthers = new Map(en.others.map((o) => [o.path, o.rect]));
-        const moved = [];
-        const movedButAnimated = [];    // excluded from the assertion, never silent
-        for (const o of fr.others) {
-            const e = enOthers.get(o.path);
-            if (!e) continue;               // appeared/disappeared with language: reported separately
-            const d = { dx: o.rect.x - e.x, dy: o.rect.y - e.y, dw: o.rect.w - e.w, dh: o.rect.h - e.h };
-            if (Math.abs(d.dx) > TOL || Math.abs(d.dy) > TOL || Math.abs(d.dw) > TOL || Math.abs(d.dh) > TOL)
-                (animated.has(o.path) ? movedButAnimated : moved).push({ path: o.path, ...d });
+        // The scroll-extent DELTA, per non-English language. The per-language
+        // ABSOLUTE form above stays absolute — a page whose own scroll extent
+        // exceeds its frame is broken in every language, not pushed by one.
+        for (const other of NON_EN) {
+            const fr = snaps[other].before;
+            check(fr.docScroll.dw <= en.docScroll.dw + TOL && fr.docScroll.dh <= en.docScroll.dh + TOL,
+                `[6][${other}] ${other} does not enlarge the document's scroll extent — `
+                + `en ${en.docScroll.dw} x ${en.docScroll.dh}, fr ${fr.docScroll.dw} x ${fr.docScroll.dh}`);
+            if (en.docScroll.bw > en.docScroll.dw + 1 || en.docScroll.bh > en.docScroll.dh + 1)
+                console.log(`   NOTE: [6] body scrolls to ${en.docScroll.bw} x ${en.docScroll.bh} where documentElement `
+                    + `reports ${en.docScroll.dw} x ${en.docScroll.dh} — a child overflows a clipped ancestor. `
+                    + `Reported, not asserted: it is identical in both languages.`);
         }
-        check(moved.length === 0,
-            `[7][GEOMETRY DIFF] no non-label element moved between English and French at a fixed frame`
-            + (animated.size ? ` (${animated.size} animated element(s) excluded — see NOTE)` : '')
-            + (moved.length ? ` — ${moved.length} moved:\n` + moved.slice(0, 12).map((m) =>
-                `        ${m.path}  dx=${m.dx.toFixed(1)} dy=${m.dy.toFixed(1)} dw=${m.dw.toFixed(1)} dh=${m.dh.toFixed(1)}`).join('\n') : ''));
 
-        if (animated.size)
-            console.log(`   NOTE: [7] ${animated.size} element(s) MOVE WITH THE LANGUAGE HELD CONSTANT — `
-                + `an animation this page drives itself, not a French push. Excluded from the diff and `
-                + `reported here with the EN -> EN spread: `
-                + [...animated.entries()].slice(0, 6).map(([p, d]) =>
-                    `${p} dx=${d.dx.toFixed(1)} dy=${d.dy.toFixed(1)} dw=${d.dw.toFixed(1)} dh=${d.dh.toFixed(1)}`).join(' | '));
-        for (const m of movedButAnimated)
-            console.log(`   NOTE: [7] ${m.path} is ANIMATED and also differs EN -> FR by `
-                + `dx=${m.dx.toFixed(1)} dy=${m.dy.toFixed(1)} dw=${m.dw.toFixed(1)} dh=${m.dh.toFixed(1)} — `
-                + `EN -> EN spread dx=${animated.get(m.path).dx.toFixed(1)} dy=${animated.get(m.path).dy.toFixed(1)} `
-                + `dw=${animated.get(m.path).dw.toFixed(1)} dh=${animated.get(m.path).dh.toFixed(1)}. A French push `
-                + `hiding inside an animation would show an EN -> FR delta well OUTSIDE that spread.`);
+        // Assertions 7, 8 and 8b are NEW-difference detectors: they ask what a
+        // translated string did that the English one did not. That question is per
+        // language, so it is asked once per non-English language.
+        for (const other of NON_EN) {
+            const fr = snaps[other].before;
+            // ── 7. THE GEOMETRY DIFF — the primary detector ────────────────────
+            // The frame is fixed, so any element that is NOT a label and NOT inside
+            // one and MOVED between the two passes was pushed by a French string.
+            // getBoundingClientRect only, so it is immune to the scrollHeight traps
+            // assertion 4 has to work around — and it is the only assertion that
+            // sees a WRAP, which is what happens on the nine plugins that have
+            // neither `nowrap` nor `ellipsis`.
+            const enOthers = new Map(en.others.map((o) => [o.path, o.rect]));
+            const moved = [];
+            const movedButAnimated = [];    // excluded from the assertion, never silent
+            for (const o of fr.others) {
+                const e = enOthers.get(o.path);
+                if (!e) continue;               // appeared/disappeared with language: reported separately
+                const d = { dx: o.rect.x - e.x, dy: o.rect.y - e.y, dw: o.rect.w - e.w, dh: o.rect.h - e.h };
+                if (Math.abs(d.dx) > TOL || Math.abs(d.dy) > TOL || Math.abs(d.dw) > TOL || Math.abs(d.dh) > TOL)
+                    (animated.has(o.path) ? movedButAnimated : moved).push({ path: o.path, ...d });
+            }
+            check(moved.length === 0,
+                `[7][GEOMETRY DIFF][${other}] no non-label element moved between English and ${other} at a fixed frame`
+                + (animated.size ? ` (${animated.size} animated element(s) excluded — see NOTE)` : '')
+                + (moved.length ? ` — ${moved.length} moved:\n` + moved.slice(0, 12).map((m) =>
+                    `        ${m.path}  dx=${m.dx.toFixed(1)} dy=${m.dy.toFixed(1)} dw=${m.dw.toFixed(1)} dh=${m.dh.toFixed(1)}`).join('\n') : ''));
 
-        const appeared = fr.others.filter((o) => !enOthers.has(o.path)).map((o) => o.path);
-        const frPaths  = new Set(fr.others.map((o) => o.path));
-        const vanished = en.others.filter((o) => !frPaths.has(o.path)).map((o) => o.path);
-        check(appeared.length === 0 && vanished.length === 0,
-            `[7][GEOMETRY DIFF] the visible element SET is identical in both languages`
-            + (appeared.length ? ` — ${appeared.length} appeared in fr: ${appeared.slice(0, 3).join(', ')}` : '')
-            + (vanished.length ? ` — ${vanished.length} vanished in fr: ${vanished.slice(0, 3).join(', ')}` : ''));
+            if (animated.size)
+                console.log(`   NOTE: [7] ${animated.size} element(s) MOVE WITH THE LANGUAGE HELD CONSTANT — `
+                    + `an animation this page drives itself, not a ${other} push. Excluded from the diff and `
+                    + `reported here with the EN -> EN spread: `
+                    + [...animated.entries()].slice(0, 6).map(([p, d]) =>
+                        `${p} dx=${d.dx.toFixed(1)} dy=${d.dy.toFixed(1)} dw=${d.dw.toFixed(1)} dh=${d.dh.toFixed(1)}`).join(' | '));
+            for (const m of movedButAnimated)
+                console.log(`   NOTE: [7] ${m.path} is ANIMATED and also differs en -> ${other} by `
+                    + `dx=${m.dx.toFixed(1)} dy=${m.dy.toFixed(1)} dw=${m.dw.toFixed(1)} dh=${m.dh.toFixed(1)} — `
+                    + `EN -> EN spread dx=${animated.get(m.path).dx.toFixed(1)} dy=${animated.get(m.path).dy.toFixed(1)} `
+                    + `dw=${animated.get(m.path).dw.toFixed(1)} dh=${animated.get(m.path).dh.toFixed(1)}. A ${other} push `
+                    + `hiding inside an animation would show an en -> ${other} delta well OUTSIDE that spread.`);
 
-        // ── 8. no NEW overlap ──────────────────────────────────────────────
-        const enVis = en.labels.filter((l) => l.visible);
-        const frByPath = new Map(fr.labels.map((l) => [l.path, l]));
-        const newOverlaps = [];
-        const crossLayer = [];
-        for (let i = 0; i < enVis.length; ++i) {
-            for (let j = i + 1; j < enVis.length; ++j) {
-                if (overlaps(enVis[i].rect, enVis[j].rect)) continue;
-                const a = frByPath.get(enVis[i].path), b = frByPath.get(enVis[j].path);
-                if (!a || !b || !a.visible || !b.visible) continue;
-                if (!overlaps(a.rect, b.rect)) continue;
-                // Different PAINT LAYERS — an opaque floating panel over the
-                // page. Reported, never silently dropped.
-                if ((enVis[i].overlay || null) !== (enVis[j].overlay || null)) {
-                    crossLayer.push(`${enVis[i].key} x ${enVis[j].key}`);
-                    continue;
+            const appeared = fr.others.filter((o) => !enOthers.has(o.path)).map((o) => o.path);
+            const frPaths  = new Set(fr.others.map((o) => o.path));
+            const vanished = en.others.filter((o) => !frPaths.has(o.path)).map((o) => o.path);
+            check(appeared.length === 0 && vanished.length === 0,
+                `[7][GEOMETRY DIFF][${other}] the visible element SET is identical in English and ${other}`
+                + (appeared.length ? ` — ${appeared.length} appeared in ${other}: ${appeared.slice(0, 3).join(', ')}` : '')
+                + (vanished.length ? ` — ${vanished.length} vanished in ${other}: ${vanished.slice(0, 3).join(', ')}` : ''));
+
+            // ── 8. no NEW overlap ──────────────────────────────────────────────
+            const enVis = en.labels.filter((l) => l.visible);
+            const frByPath = new Map(fr.labels.map((l) => [l.path, l]));
+            const newOverlaps = [];
+            const crossLayer = [];
+            for (let i = 0; i < enVis.length; ++i) {
+                for (let j = i + 1; j < enVis.length; ++j) {
+                    if (overlaps(enVis[i].rect, enVis[j].rect)) continue;
+                    const a = frByPath.get(enVis[i].path), b = frByPath.get(enVis[j].path);
+                    if (!a || !b || !a.visible || !b.visible) continue;
+                    if (!overlaps(a.rect, b.rect)) continue;
+                    // Different PAINT LAYERS — an opaque floating panel over the
+                    // page. Reported, never silently dropped.
+                    if ((enVis[i].overlay || null) !== (enVis[j].overlay || null)) {
+                        crossLayer.push(`${enVis[i].key} x ${enVis[j].key}`);
+                        continue;
+                    }
+                    newOverlaps.push(`${enVis[i].key} x ${enVis[j].key}`);
                 }
-                newOverlaps.push(`${enVis[i].key} x ${enVis[j].key}`);
             }
-        }
-        if (crossLayer.length)
-            console.log(`   NOTE: [8] ${crossLayer.length} pair(s) intersect in French but sit in DIFFERENT `
-                + `paint layers — an opaque floating panel over the page, which cannot visually collide with `
-                + `what it covers: ${crossLayer.slice(0, 4).join(', ')}`);
-        check(newOverlaps.length === 0,
-            `[8] two labels disjoint in English do not intersect in French`
-            + (newOverlaps.length ? ` — ${newOverlaps.length}: ${newOverlaps.slice(0, 4).join(', ')}` : ''));
+            if (crossLayer.length)
+                console.log(`   NOTE: [8] ${crossLayer.length} pair(s) intersect in ${other} but sit in DIFFERENT `
+                    + `paint layers — an opaque floating panel over the page, which cannot visually collide with `
+                    + `what it covers: ${crossLayer.slice(0, 4).join(', ')}`);
+            check(newOverlaps.length === 0,
+                `[8][${other}] two labels disjoint in English do not intersect in ${other}`
+                + (newOverlaps.length ? ` — ${newOverlaps.length}: ${newOverlaps.slice(0, 4).join(', ')}` : ''));
 
-        // ── 8b. a label must not grow into a NON-label element ─────────────
-        // THE THIRD CLIFF. Assertions 4/5 catch a caption that SPILLS its own
-        // box; assertion 7 catches one that PUSHES a sibling. A caption in a box
-        // that is absolutely positioned, width-pinned and height-free does
-        // NEITHER — it wraps, grows downward inside its own box, exceeds no
-        // width, exceeds no content height (the box grew with it), and pushes
-        // nothing because absolute positioning takes it out of flow. It simply
-        // lands ON TOP of whatever is beneath it.
-        //
-        // O-AnalogEQ is the proof. Its four .band-label captions are
-        // `position: absolute` with an inline `width: 85px` and no fixed
-        // height. Planting `PLATEAU BF` on label.band.lf with the caption's
-        // `nowrap` removed grows it dh=+13.00px, reaching y=86 into a knob ring
-        // that begins at y=75 — and the whole gate printed ALL CHECKS PASSED.
-        // Assertion 8 could not see it either, because a knob ring is not a
-        // label and 8 compares labels to labels.
-        //
-        // Same form as 8: only a NEW intersection counts. A label already over
-        // something in English is an authored layout, and a label growing into
-        // its own ANCESTOR is not a collision at all — hence the ancestor list.
-        // Elements inside a label are already excluded from `others`.
-        // The PAINT LAYER rule from assertion 8 applies here for the same reason
-        // and was found the same way — by a shipped plugin going red on a
-        // collision no user can see. O-Contrabass's `help-toggle` caption lives
-        // inside the settings popover; the knob-control it "intersects" is on
-        // the page UNDERNEATH an opaque panel doing exactly what a panel is for.
-        // Same rule, same reporting: only a pair spanning the boundary is
-        // skipped, and every skip is printed.
-        const frOthers = new Map(fr.others.map((o) => [o.path, o]));
-        const grewInto = [];
-        const grewCrossLayer = [];
-        const inertSkips = new Set();
-        for (const L of enVis) {
-            const fl = frByPath.get(L.path);
-            if (!fl || !fl.visible) continue;
-            // ONLY a label that GREW. This assertion exists for the caption that
-            // wraps and expands over its neighbour; a label that merely MOVED is
-            // a different phenomenon and not evidence of a collision.
+            // ── 8b. a label must not grow into a NON-label element ─────────────
+            // THE THIRD CLIFF. Assertions 4/5 catch a caption that SPILLS its own
+            // box; assertion 7 catches one that PUSHES a sibling. A caption in a box
+            // that is absolutely positioned, width-pinned and height-free does
+            // NEITHER — it wraps, grows downward inside its own box, exceeds no
+            // width, exceeds no content height (the box grew with it), and pushes
+            // nothing because absolute positioning takes it out of flow. It simply
+            // lands ON TOP of whatever is beneath it.
             //
-            // O-IntonationPad proves the distinction matters. Its `Tuning` tab
-            // becomes `Gamme` — French SHORTER by a character — the tab row
-            // re-centres, the button shifts, and it grazes two panel edges it
-            // previously cleared. Nothing grew, nothing overlapped anything a
-            // user can see, and a shipped green plugin went red. Contract §8
-            // says a gate is never red for a whole rollout.
-            if (fl.rect.w <= L.rect.w + TOL && fl.rect.h <= L.rect.h + TOL) continue;
-            for (const o of en.others) {
-                if (L.ancestors && L.ancestors.includes(o.path)) continue;
-                // `pointer-events: none` is DECORATION the user cannot reach:
-                // O-Bassoon's .botanical-overlay is a full-bleed <img> at
-                // opacity 0.18 behind the whole page, and a caption reaching it
-                // is not a collision with anything. Recorded as a skip below so
-                // the exemption can never be silent.
-                if (o.inert) { inertSkips.add(o.path); continue; }
-                if (overlaps(L.rect, o.rect)) continue;      // together in English already
-                const fo = frOthers.get(o.path);
-                // Compare what is PAINTED: the rects clipped by their overflow ancestors.
-                if (!fo || !overlaps(fl.vrect || fl.rect, fo.vrect || fo.rect)) continue;
-                ((L.overlay || null) !== (o.overlay || null) ? grewCrossLayer : grewInto)
-                    .push(`${L.key} x ${o.path}`);
+            // O-AnalogEQ is the proof. Its four .band-label captions are
+            // `position: absolute` with an inline `width: 85px` and no fixed
+            // height. Planting `PLATEAU BF` on label.band.lf with the caption's
+            // `nowrap` removed grows it dh=+13.00px, reaching y=86 into a knob ring
+            // that begins at y=75 — and the whole gate printed ALL CHECKS PASSED.
+            // Assertion 8 could not see it either, because a knob ring is not a
+            // label and 8 compares labels to labels.
+            //
+            // Same form as 8: only a NEW intersection counts. A label already over
+            // something in English is an authored layout, and a label growing into
+            // its own ANCESTOR is not a collision at all — hence the ancestor list.
+            // Elements inside a label are already excluded from `others`.
+            // The PAINT LAYER rule from assertion 8 applies here for the same reason
+            // and was found the same way — by a shipped plugin going red on a
+            // collision no user can see. O-Contrabass's `help-toggle` caption lives
+            // inside the settings popover; the knob-control it "intersects" is on
+            // the page UNDERNEATH an opaque panel doing exactly what a panel is for.
+            // Same rule, same reporting: only a pair spanning the boundary is
+            // skipped, and every skip is printed.
+            const frOthers = new Map(fr.others.map((o) => [o.path, o]));
+            const grewInto = [];
+            const grewCrossLayer = [];
+            const inertSkips = new Set();
+            for (const L of enVis) {
+                const fl = frByPath.get(L.path);
+                if (!fl || !fl.visible) continue;
+                // ONLY a label that GREW. This assertion exists for the caption that
+                // wraps and expands over its neighbour; a label that merely MOVED is
+                // a different phenomenon and not evidence of a collision.
+                //
+                // O-IntonationPad proves the distinction matters. Its `Tuning` tab
+                // becomes `Gamme` — French SHORTER by a character — the tab row
+                // re-centres, the button shifts, and it grazes two panel edges it
+                // previously cleared. Nothing grew, nothing overlapped anything a
+                // user can see, and a shipped green plugin went red. Contract §8
+                // says a gate is never red for a whole rollout.
+                if (fl.rect.w <= L.rect.w + TOL && fl.rect.h <= L.rect.h + TOL) continue;
+                for (const o of en.others) {
+                    if (L.ancestors && L.ancestors.includes(o.path)) continue;
+                    // `pointer-events: none` is DECORATION the user cannot reach:
+                    // O-Bassoon's .botanical-overlay is a full-bleed <img> at
+                    // opacity 0.18 behind the whole page, and a caption reaching it
+                    // is not a collision with anything. Recorded as a skip below so
+                    // the exemption can never be silent.
+                    if (o.inert) { inertSkips.add(o.path); continue; }
+                    if (overlaps(L.rect, o.rect)) continue;      // together in English already
+                    const fo = frOthers.get(o.path);
+                    // Compare what is PAINTED: the rects clipped by their overflow ancestors.
+                    if (!fo || !overlaps(fl.vrect || fl.rect, fo.vrect || fo.rect)) continue;
+                    ((L.overlay || null) !== (o.overlay || null) ? grewCrossLayer : grewInto)
+                        .push(`${L.key} x ${o.path}`);
+                }
             }
+            if (inertSkips.size)
+                console.log(`   NOTE: [8b] ${inertSkips.size} non-label element(s) skipped as DECORATION `
+                    + `(pointer-events: none), which a caption cannot collide with: `
+                    + `${[...inertSkips].slice(0, 3).join(', ')}`);
+            if (grewCrossLayer.length)
+                console.log(`   NOTE: [8b] ${grewCrossLayer.length} label/non-label pair(s) intersect in ${other} `
+                    + `across DIFFERENT paint layers — an opaque floating panel over the page, which cannot `
+                    + `visually collide with what it covers: ${grewCrossLayer.slice(0, 4).join(', ')}`);
+            check(grewInto.length === 0,
+                `[8b][${other}] no label intersects a NON-label element it cleared in English`
+                + (grewInto.length ? ` — ${grewInto.length}: ${grewInto.slice(0, 4).join(', ')}` : ''));
         }
-        if (inertSkips.size)
-            console.log(`   NOTE: [8b] ${inertSkips.size} non-label element(s) skipped as DECORATION `
-                + `(pointer-events: none), which a caption cannot collide with: `
-                + `${[...inertSkips].slice(0, 3).join(', ')}`);
-        if (grewCrossLayer.length)
-            console.log(`   NOTE: [8b] ${grewCrossLayer.length} label/non-label pair(s) intersect in French `
-                + `across DIFFERENT paint layers — an opaque floating panel over the page, which cannot `
-                + `visually collide with what it covers: ${grewCrossLayer.slice(0, 4).join(', ')}`);
-        check(grewInto.length === 0,
-            `[8b] no label intersects a NON-label element it cleared in English`
-            + (grewInto.length ? ` — ${grewInto.length}: ${grewInto.slice(0, 4).join(', ')}` : ''));
 
         console.log(`   state-update pass driven via: ${stateMechanism}`);
     }
