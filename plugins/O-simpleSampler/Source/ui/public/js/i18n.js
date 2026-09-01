@@ -486,9 +486,13 @@ export const LABELS = Object.freeze({
     'aria.settings':   { en: { t: 'Settings' },            fr: { t: 'Réglages', reviewed: false } },
     'aria.langSelect': { en: { t: 'Interface language' },  fr: { t: "Langue de l’interface", reviewed: false } },
     'aria.helpToggle': { en: { t: 'Toggle hover help' },   fr: { t: "Activer ou désactiver l’aide au survol", reviewed: false } },
-    // "Oui"/"Non" rather than "Activé"/"Désactivé": the same pair O-Orbit's
-    // help toggle already ships, and a two-face button in a 214px panel is the
-    // one place in this suite where the shorter French reads better AND fits.
+    // "Activée"/"Désactivée", the glossary's pair for a FEATURE, feminine to
+    // agree with "l'aide au survol". Through v1.4.1 this was "Oui"/"Non", and
+    // the header defended that pair on width. Measured at v1.4.2: the face is
+    // a FIXED 96.00 px box in the 192 px settings row — every candidate
+    // returns elW 96.00, so it never resizes between its own faces — and
+    // "Désactivée" measures 62.77 px inside it. The width defence was
+    // backwards; Oui/Non are answers, not states.
     'ui.on':           { en: { t: 'On' },                  fr: { t: 'Activée', reviewed: false } },
     'ui.off':          { en: { t: 'Off' },                 fr: { t: 'Désactivée', reviewed: false } },
 

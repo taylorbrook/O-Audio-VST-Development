@@ -295,7 +295,7 @@ body {
    `flex-direction: column; align-items: center` cell shrink-wraps to its text,
    so its own box is language-dependent — harmless, because the label is a
    [data-i18n] element the geometry diff excludes. What is NOT harmless is the
-   WRAP: "Note de réf." takes two lines where "Root Key" takes one, and the
+   WRAP: "Note de réf" takes two lines where "Root Key" takes one, and the
    readout under it drops 10.5 px, taking the whole Pitch group and the two
    rows below it with it. Five of this rack's cells already wrap in English
    ("Loop Start", "Loop End", "Loop Mode"), so reserving the second line
@@ -752,7 +752,20 @@ body {
    right edge and the fleuron pinned to it, and the geometry diff reports both.
    The button itself is not a [data-i18n] element (the caption inside it is), so
    its box is measured. min-width rather than width, so a platform with wider
-   metrics grows the button instead of clipping the word. */
+   metrics grows the button instead of clipping the word.
+
+   v1.4.2 — this pin is also why the French caption is the glossary
+   ABBREVIATION rather than its root. Caption TEXT, measured with
+   Range.selectNodeContents on the real node at the 980x720 frame:
+   "Reverse" 50.06, "Inverse" 47.83 (v1.4.0-1.4.1), "Invers" 40.92 (v1.4.2),
+   "Inversion" 61.09. The button renders at exactly 87.00 px for the first
+   three and at 97.09 px for the root — 10.09 px PAST the pin, at which point
+   the pin stops holding and the fleuron beside it moves. The tooltip title
+   carries the root "Inversion"; the caption is its stem.
+
+   (The two v1.4.0 figures above are not reproducible now that this rule
+   exists: with the pin in force every short caption returns 87.00, and an
+   inline min-width: 0 does not release it. They are recorded as authored.) */
 #toggle-reverse { min-width: 87px; }
 select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
 
@@ -885,7 +898,7 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 /* ── Pitch-group caption reservation (v1.4.0, geometry pin) ─────────────────
    The ONE caption in this rack that wraps in French and not in English is Root
-   Key -> "Note de réf.". The Pitch group is also the tallest of the three
+   Key -> "Note de réf". The Pitch group is also the tallest of the three
    groups on the rack's first row, so that single extra line took the whole row
    down 10.4 px and pushed the Output group and the keyboard further out of the
    980x720 frame — the frame scrolls, but the gate measures the DELTA between
