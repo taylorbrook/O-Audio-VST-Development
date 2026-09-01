@@ -300,7 +300,7 @@ const TERMS = {
     // ── physical modelling ──────────────────────────────────────────────────
     'material':                 ['matériau'],
     'hardness':                 ['dureté'],
-    'mallet':                   ['maillet', 'mailloche'],   // maillet for keyboard percussion; a mailloche beats a bass drum (O-Marimba N5)
+    'mallet':                   ['maillet'],   // a mailloche beats a bass drum, not a marimba (O-Marimba N5, O-simplePhysicalModelSynth N6)
     'strike':                   ['frappe'],
     'velocity':                 ['vélocité'],
     'rosin':                    ['colophane', 'coloph'],
@@ -402,6 +402,7 @@ const FORBIDDEN_IN_LABELS = {
 // Words that are wrong in tooltip PROSE too — the small, unambiguous set.
 const FORBIDDEN_IN_PROSE = {
     'plugiciel':     'plugin (masc.) - the suite was split 12 plugins to 3; French DAW documentation says plugin',
+    'mailloche':     'maillet - a mailloche is a bass-drum or tam-tam beater',
     'réverbe':       'réverbération / réverb',
     'genou':         'coude',
     'germe':         'graine',
