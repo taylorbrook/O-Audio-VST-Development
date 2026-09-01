@@ -3,6 +3,44 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout — the second reading of
+the machine-drafted French, against `scripts/i18n-fr-glossary.js` (the settled
+French for ~230 recurring terms) and `scripts/i18n-fr-lint.js` (ten mechanical
+typography and terminology checks). No English, key, binding, selector, exemption
+or CSS change; no parameter or audio change. `reviewed: false` stays `false` on all
+77 entries — that flag records a native speaker, and this pass is not one.
+
+### Changed
+- **33 French entries revised** of 77, against the suite glossary and lint: 9
+  terminology, 21 typography, 1 grammar, 2 meaning/register. The visible ones:
+  the DAMPING knob reads **AMORTISSEMENT** rather than the invented "Amortis.",
+  RELEASE reads **RELÂCHEMENT** rather than *Relâche* (a theatre closure), the
+  EXCITE diagram node reads **EXCITATION** rather than the bare verb *Exciter*
+  beside its noun siblings RÉSONATEUR and MATÉRIAU, the two Amp tooltips spell out
+  **d'amplitude** rather than the clipped *d'ampli*, *mailloche* becomes **maillet**
+  in two bodies (a mailloche beats a bass drum), Fine Tune is measured in **cents**
+  rather than *centièmes*, the keyboard hint says **cliquez sur les touches** (one
+  clicks *on* something in French), and the hover-help switch has one French name
+  instead of two. Typographically the whole file converts: straight apostrophes to
+  **U+2019**, and no-break spaces before `:` `;` and between a number and its unit.
+- **`<html lang>` now follows the language selector** (canon change, all plugins),
+  so assistive technology reads the page in the language it is displayed in.
+- The render-harness `JucePlugin_VersionCode` literal tracks the bump (`0x10201`);
+  its `JucePlugin_VersionString` already inherited the plugin version.
+
+### Not changed, and why
+- **Modèle corde** stays over the glossary root *Modèle de corde*: measured at the
+  shipping 1040x860 frame, the root is 92.00px and wraps to two lines in the 92px
+  `.select-label` box, adding 10.44px of cell height and moving the row. The short
+  form is 80.16px on one line and is the glossary's own second listed rendering.
+- Two **English** defects found by reading the French, and left for a separate fix:
+  the String Model tooltip promises the Waveguide "arrives in v1.1" while the plugin
+  ships 1.2.1 and `stringModel` is never `load()`ed anywhere in `Source/`; and the
+  hover-help switch's `aria-label` reads "Toggle tooltips" where its own tip title
+  reads "Hover help".
+
 ## [1.2.0] — 2026-08-28
 
 **The PAGE speaks French, not only the hover help.** Sixth of the seven `O-simple*`

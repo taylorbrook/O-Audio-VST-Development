@@ -18,7 +18,60 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simplePhysicalModelSynth interface copy, English + French (v1.2.0)
+// i18n.js — O-simplePhysicalModelSynth interface copy, English + French (v1.2.1)
+//
+// ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 33 entries of 77 (9 terminology, 21 typography, 1 grammar,
+// 2 meaning/register). sameAsEn: kept 3, translated 0. termNote exemptions: 0
+// (none needed — every glossary hit resolved to a listed rendering).
+// i18n-fr-lint: 49 findings → 0, --strict exit 0 (30 T1, 7 T4, 5 T5, 2 T7,
+// 4 G1, 1 F1). Left as drafted: the rest. reviewed: false throughout — no
+// native speaker yet.
+//
+// Decisions the next reader needs, each MEASURED at the shipping 1040x860 frame
+// with Range.selectNodeContents on the live node (this page's .knob-label is
+// shrink-to-fit inside a fixed 60px .knob-cell with overflow visible, so a long
+// caption does not wrap or clip — it OVERHANGS, and the only geometry question
+// is whether it reaches its neighbour):
+//
+//   - Amortis. → AMORTISSEMENT. The glossary root, and "Amortis." was an
+//     invented third form the list does not carry. 86.69px, 4.11px clear of
+//     MATÉRIAU. The page's own tightest authored pair is INHARMONICITY ↔ MODE
+//     BRIGHT at 1.95px in ENGLISH, so 4.11px is inside this page's own
+//     tolerance. The listed abbreviation Amort. measures 38.42px (28.23px
+//     clear) and is the fallback if a font change ever eats that margin.
+//   - Relâche → RELÂCHEMENT. Root, and Relâche was also the forbidden word
+//     (a theatre closure). 76.22px, 12.63px clear of ATTAQUE; the abbreviation
+//     Relâch. is 43.88px. The root also matches the tip title now that
+//     ampRelease reads "Relâchement d'amplitude".
+//   - Modèle corde KEPT over the root "Modèle de corde": the root measures
+//     92.00px and WRAPS TO TWO LINES in the 92px .select-label box, adding
+//     10.44px of cell height and moving the row. The short form is 80.16px on
+//     one line and is the glossary's second listed rendering, not an invention.
+//   - Pression kept for Bow Force (the v1.2.0 header measured it): "Pression
+//     d'archet" is 2 lines / 96.88px of cell against 86.44px. The glossary
+//     lists both, and the tip title carries the full term.
+//   - EXCITER → EXCITATION on the diagram node. EXCITER is the infinitive verb
+//     where the two sibling nodes are nouns (RÉSONATEUR, MATÉRIAU), and the
+//     page's own flow hint already names the stage "excitation". 86.19 SVG
+//     units centred in the 96-unit box-rect — inside it, 4.9 units each side.
+//   - mailloche → maillet in two bodies: a mailloche beats a bass drum; the
+//     glossary roots "mallet" on maillet.
+//   - centièmes → cents in the Fine Tune body. The cent is the unit; a
+//     centième is a hundredth of anything.
+//   - aria.helpToggle said "les infobulles" while the same control's tip title
+//     says "Aide au survol" — two French names for one control. Now one.
+//   - Label-in-name (WCAG 2.5.3) holds BY STEM on the two abbreviated preset
+//     verbs: Enreg. ⊂ "Enregistrer les réglages actuels…", Suppr. ⊂
+//     "Supprimer le préréglage utilisateur actuel". Not invented captions.
+//
+// Two ENGLISH defects were found by reading the French and deliberately NOT
+// fixed here (Stage N does not change English): the stringModel tip promises
+// the Waveguide "arrives in v1.1" while the plugin ships 1.2.1 and the
+// parameter is never load()ed anywhere in Source/ — the dropdown moves the
+// automation lane and nothing else; and aria.helpToggle's English reads
+// "Toggle tooltips" where the same control's tip title reads "Hover help".
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin. This
 // file is a SOURCES entry in juce_add_binary_data(O-simplePhysicalModelSynth_UIResources)
@@ -93,21 +146,21 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Choose the language of the interface, and whether the hover help appears at all. The language is remembered with the session; the hover-help switch is remembered on this computer." },
         fr: { t: "Réglages",
-              b: "Choisir la langue de l'interface et l'affichage de l'aide au survol. La langue est conservée avec la session ; l'état de l'aide est conservé sur cet ordinateur.",
+              b: "Choisissez la langue de l’interface, et si l’aide au survol s’affiche. La langue est conservée avec la session ; l’état de l’aide est conservé sur cet ordinateur.",
               reviewed: false },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the preset names and the three drop-down menus stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les trois menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les trois menus déroulants restent en anglais.",
               reviewed: false },
     },
     'help-toggle': {
         en: { t: "Hover help",
               b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
         fr: { t: "Aide au survol",
-              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d'un projet à l'autre.",
+              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: false },
     },
 
@@ -116,28 +169,28 @@ export const I18N = Object.freeze({
         en: { t: "Excitation",
               b: "How energy enters the model: Pluck (noise burst), Strike (mallet impulse), or Bow (sustained friction). Swap it to hear why the same string sounds different plucked vs struck vs bowed." },
         fr: { t: "Excitation",
-              b: "Comment l'énergie entre dans le modèle : Pluck (bouffée de bruit), Strike (impulsion de mailloche) ou Bow (frottement entretenu). Changez-la pour entendre pourquoi une même corde sonne autrement pincée, frappée ou frottée.",
+              b: "Comment l’énergie entre dans le modèle : Pluck (bouffée de bruit), Strike (impulsion de maillet) ou Bow (frottement entretenu). Changez-la pour entendre pourquoi une même corde sonne autrement pincée, frappée ou frottée.",
               reviewed: false },
     },
     excitationPosition: {
         en: { t: "Excite Position",
               b: "Where along the string the energy enters. Mid → rounder; near an end → thinner and brighter (a comb filter on the exciter)." },
-        fr: { t: "Position d'excitation",
-              b: "Où l'énergie entre le long de la corde. Au milieu → plus rond ; près d'une extrémité → plus mince et plus brillant (un filtre en peigne sur l'excitateur).",
+        fr: { t: "Position d’excitation",
+              b: "Où l’énergie entre le long de la corde. Au milieu → plus rond ; près d’une extrémité → plus mince et plus brillant (un filtre en peigne sur l’excitateur).",
               reviewed: false },
     },
     excitationColor: {
         en: { t: "Excite Color",
               b: "Brightness / hardness of the exciter. Low = a soft mallet; high = a hard, bright attack." },
-        fr: { t: "Couleur d'excitation",
-              b: "Brillance et dureté de l'excitateur. Bas = une mailloche douce ; haut = une attaque dure et brillante.",
+        fr: { t: "Couleur d’excitation",
+              b: "Brillance et dureté de l’excitateur. Bas = un maillet doux ; haut = une attaque dure et brillante.",
               reviewed: false },
     },
     bowForce: {
         en: { t: "Bow Force",
               b: "Bow only. Friction pressure on the stick-slip drive — more force gives a noisier, richer attack. Greyed unless Excitation = Bow." },
-        fr: { t: "Pression d'archet",
-              b: "Bow uniquement. Pression de frottement sur l'entraînement adhérence-glissement — plus de force donne une attaque plus bruitée et plus riche. Grisé sauf si Excitation = Bow.",
+        fr: { t: "Pression d’archet",
+              b: "Bow uniquement. Pression de frottement sur l’entraînement adhérence-glissement — plus de force donne une attaque plus bruitée et plus riche. Grisé sauf si Excitation = Bow.",
               reviewed: false },
     },
 
@@ -146,21 +199,21 @@ export const I18N = Object.freeze({
         en: { t: "Resonator",
               b: "The engine switch. String = Karplus-Strong (a harmonic comb). Modal = a bank of decaying sines (the inharmonic modes of bars & bells)." },
         fr: { t: "Résonateur",
-              b: "Le sélecteur de moteur. String = Karplus-Strong (un peigne harmonique). Modal = un banc de sinus qui s'éteignent (les modes inharmoniques des barres et des cloches).",
+              b: "Le sélecteur de moteur. String = Karplus-Strong (un peigne harmonique). Modal = un banc de sinus qui s’éteignent (les modes inharmoniques des barres et des cloches).",
               reviewed: false },
     },
     stringModel: {
         en: { t: "String Model",
               b: "Karplus-Strong is the v1.0 engine. The two-delay Waveguide (which makes excitation position physical) arrives in v1.1." },
         fr: { t: "Modèle de corde",
-              b: "Karplus-Strong est le moteur de la v1.0. Le Waveguide à deux lignes à retard (qui rend physique la position d'excitation) arrive en v1.1.",
+              b: "Karplus-Strong est le moteur de la v1.0. Le Waveguide à deux lignes à retard (qui rend physique la position d’excitation) arrive en v1.1.",
               reviewed: false },
     },
     inharmonicity: {
         en: { t: "Inharmonicity",
               b: "Modal only. Stretches the mode spacing from harmonic (bar-like) toward inharmonic (bell-like): fₖ = f₀·k·√(1+B·k²). The control that makes a bell sound like a bell, not a string." },
         fr: { t: "Inharmonicité",
-              b: "Modal uniquement. Étire l'espacement des modes de l'harmonique (proche d'une barre) vers l'inharmonique (proche d'une cloche) : fₖ = f₀·k·√(1+B·k²). La commande qui fait qu'une cloche sonne comme une cloche et non comme une corde.",
+              b: "Modal uniquement. Étire l’espacement des modes de l’harmonique (proche d’une barre) vers l’inharmonique (proche d’une cloche) : fₖ = f₀·k·√(1+B·k²). La commande qui fait qu’une cloche sonne comme une cloche et non comme une corde.",
               reviewed: false },
     },
     modeBrightness: {
@@ -176,21 +229,21 @@ export const I18N = Object.freeze({
         en: { t: "Damping",
               b: "The loop low-pass cutoff. It shaves a little high end on every pass, so the tone darkens as it decays — bright steel ↔ muted nylon." },
         fr: { t: "Amortissement",
-              b: "La fréquence de coupure du passe-bas de la boucle. Elle rogne un peu d'aigu à chaque passage : le timbre s'assombrit en s'éteignant — acier brillant ↔ nylon feutré.",
+              b: "La fréquence de coupure du passe-bas de la boucle. Elle rogne un peu d’aigu à chaque passage : le timbre s’assombrit en s’éteignant — acier brillant ↔ nylon feutré.",
               reviewed: false },
     },
     decay: {
         en: { t: "Decay",
               b: "The loop feedback / ring time. Near one = long sustain; lower = a short, damped pluck. Always clamped below 1 so the loop can't run away." },
         fr: { t: "Déclin",
-              b: "La réinjection de la boucle, donc la durée de résonance. Proche de un = tenue longue ; plus bas = un pincement court et étouffé. Toujours borné sous 1 pour que la boucle ne s'emballe pas.",
+              b: "La réinjection de la boucle, donc la durée de résonance. Proche de un = tenue longue ; plus bas = un pincement court et étouffé. Toujours borné sous 1 pour que la boucle ne s’emballe pas.",
               reviewed: false },
     },
     material: {
         en: { t: "Material",
               b: "One knob that co-moves Damping + Decay along the steel↔nylon axis — watch both knobs track as you turn it." },
         fr: { t: "Matériau",
-              b: "Un seul bouton qui déplace ensemble Amortissement et Déclin le long de l'axe acier↔nylon — regardez les deux boutons suivre quand vous le tournez.",
+              b: "Un seul bouton qui déplace ensemble Amortissement et Déclin le long de l’axe acier↔nylon — regardez les deux boutons suivre quand vous le tournez.",
               reviewed: false },
     },
 
@@ -206,7 +259,7 @@ export const I18N = Object.freeze({
         en: { t: "Fine Tune",
               b: "Fine pitch in cents (±100)." },
         fr: { t: "Accord fin",
-              b: "Hauteur fine en centièmes (±100).",
+              b: "Hauteur fine en cents (±100).",
               reviewed: false },
     },
 
@@ -214,14 +267,14 @@ export const I18N = Object.freeze({
     ampAttack: {
         en: { t: "Amp Attack",
               b: "Output amplitude fade-in. Matters most for the sustained Bow — the body's own decay is intrinsic to the model." },
-        fr: { t: "Attaque d'ampli",
-              b: "Montée de l'amplitude de sortie. Surtout utile pour le Bow entretenu — l'extinction propre du corps est intrinsèque au modèle.",
+        fr: { t: "Attaque d’amplitude",
+              b: "Montée de l’amplitude de sortie. Surtout utile pour le Bow entretenu — le déclin propre du corps est intrinsèque au modèle.",
               reviewed: false },
     },
     ampRelease: {
         en: { t: "Amp Release",
               b: "Output fade-out after note-off — how quickly the note is damped when you let go." },
-        fr: { t: "Relâchement d'ampli",
+        fr: { t: "Relâchement d’amplitude",
               b: "Descente de la sortie après le relâchement de la touche — la vitesse à laquelle la note est étouffée quand vous lâchez.",
               reviewed: false },
     },
@@ -229,14 +282,14 @@ export const I18N = Object.freeze({
         en: { t: "Velocity → Brightness",
               b: "How much harder playing brightens and strengthens the excitation. The model's dynamic response — play harder, hear brighter." },
         fr: { t: "Vélocité → brillance",
-              b: "À quel point jouer plus fort éclaircit et renforce l'excitation. La réponse dynamique du modèle : jouez plus fort, entendez plus brillant.",
+              b: "À quel point jouer plus fort éclaircit et renforce l’excitation. La réponse dynamique du modèle : jouez plus fort, entendez plus brillant.",
               reviewed: false },
     },
     outputLevel: {
         en: { t: "Output Level",
               b: "Master output gain (−60 … 0 dB)." },
         fr: { t: "Niveau de sortie",
-              b: "Gain de sortie général (−60 … 0 dB).",
+              b: "Gain de sortie général (−60 … 0 dB).",
               reviewed: false },
     },
 
@@ -247,28 +300,28 @@ export const I18N = Object.freeze({
         en: { t: "Excitation",
               b: "Energy is injected here — a pluck, strike, or bow. Its position and color shape the attack before it reaches the resonator." },
         fr: { t: "Excitation",
-              b: "L'énergie est injectée ici — un pincement, une frappe ou un coup d'archet. Sa position et sa couleur façonnent l'attaque avant qu'elle n'atteigne le résonateur.",
+              b: "L’énergie est injectée ici — un pincement, une frappe ou un coup d’archet. Sa position et sa couleur façonnent l’attaque avant qu’elle n’atteigne le résonateur.",
               reviewed: false },
     },
     diagResonator: {
         en: { t: "Resonator loop",
               b: "Pitch comes from the loop length (fundamental = sample rate ÷ delay length). The pulse circling here dims a little each pass — that fading is the note decaying. In Modal mode it becomes the ringing mode stems." },
         fr: { t: "Boucle du résonateur",
-              b: "La hauteur vient de la longueur de la boucle (fondamentale = fréquence d'échantillonnage ÷ longueur du retard). L'impulsion qui tourne ici pâlit un peu à chaque passage — cette extinction est la note qui s'éteint. En mode Modal, elle devient les tiges des modes qui résonnent.",
+              b: "La hauteur vient de la longueur de la boucle (fondamentale = fréquence d’échantillonnage ÷ longueur du retard). L’impulsion qui tourne ici pâlit un peu à chaque passage — cet affaiblissement est la note qui s’éteint. En mode Modal, elle devient les tiges des modes qui résonnent.",
               reviewed: false },
     },
     diagMaterial: {
         en: { t: "Material / damping",
               b: "Each pass loses a little energy: the low-pass (Damping) darkens it and the feedback (Decay) sets how long it rings. This is what turns steel into nylon." },
         fr: { t: "Matériau et amortissement",
-              b: "Chaque passage perd un peu d'énergie : le passe-bas (Amortissement) l'assombrit et la réinjection (Déclin) fixe la durée de résonance. C'est ce qui transforme l'acier en nylon.",
+              b: "Chaque passage perd un peu d’énergie : le passe-bas (Amortissement) l’assombrit et la réinjection (Déclin) fixe la durée de résonance. C’est ce qui transforme l’acier en nylon.",
               reviewed: false },
     },
     diagOut: {
         en: { t: "Output",
               b: "The summed 16-voice signal leaving the instrument, scaled by Output Level." },
         fr: { t: "Sortie",
-              b: "Le signal des 16 voix sommées qui quitte l'instrument, mis à l'échelle par le Niveau de sortie.",
+              b: "Le signal des 16 voix sommées qui quitte l’instrument, mis à l’échelle par le Niveau de sortie.",
               reviewed: false },
     },
 
@@ -336,7 +389,7 @@ export const LABELS = Object.freeze({
     },
     'label.vizWaveform': {
         en: { t: "Waveform ·" },
-        fr: { t: "Forme d'onde ·", reviewed: false },
+        fr: { t: "Forme d’onde ·", reviewed: false },
     },
     'label.vizWaveformHint': {
         en: { t: "the ringing string / body, decaying" },
@@ -347,7 +400,7 @@ export const LABELS = Object.freeze({
         // dropped and the participle folded into the verb. 135.5px, 41.8px of
         // clearance. The alternative — reserving the second line in BOTH
         // languages — costs 11px of canvas in English for nothing.
-        fr: { t: "la corde ou le corps qui s'éteint", reviewed: false },
+        fr: { t: "la corde ou le corps qui s’éteint", reviewed: false },
     },
 
     // ── Signal-flow diagram ─────────────────────────────────────────────────
@@ -356,7 +409,7 @@ export const LABELS = Object.freeze({
     // ("string · loop" / "modal · stems") are NOT here — see I18N_EXEMPT.
     'label.diagExcite': {
         en: { t: "EXCITE" },
-        fr: { t: "EXCITER", reviewed: false },
+        fr: { t: "EXCITATION", reviewed: false },
     },
     'label.diagResonator': {
         en: { t: "RESONATOR" },
@@ -446,7 +499,7 @@ export const LABELS = Object.freeze({
     },
     'label.knobDamping': {
         en: { t: "Damping" },
-        fr: { t: "Amortis.", reviewed: false },
+        fr: { t: "Amortissement", reviewed: false },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
@@ -466,7 +519,7 @@ export const LABELS = Object.freeze({
     },
     'label.knobRelease': {
         en: { t: "Release" },
-        fr: { t: "Relâche", reviewed: false },
+        fr: { t: "Relâchement", reviewed: false },
     },
     'label.knobVelBright': {
         en: { t: "Vel→Bright" },
@@ -487,7 +540,7 @@ export const LABELS = Object.freeze({
     },
     'label.keyboardHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
-        fr: { t: "cliquez les touches ou utilisez le clavier de l'ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: false },
+        fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: false },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -519,11 +572,11 @@ export const LABELS = Object.freeze({
     },
     'aria.loopDiagram': {
         en: { t: "Excitation to resonator to material to output signal-flow diagram" },
-        fr: { t: "Schéma du flux du signal : excitation, résonateur, matériau, sortie", reviewed: false },
+        fr: { t: "Schéma du flux du signal : excitation, résonateur, matériau, sortie", reviewed: false },
     },
     'aria.comboExcitation': {
         en: { t: "Excitation type" },
-        fr: { t: "Type d'excitation", reviewed: false },
+        fr: { t: "Type d’excitation", reviewed: false },
     },
     'aria.comboResonator': {
         en: { t: "Resonator type" },
@@ -535,15 +588,15 @@ export const LABELS = Object.freeze({
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
-        fr: { t: "Clavier à l'écran", reviewed: false },
+        fr: { t: "Clavier à l’écran", reviewed: false },
     },
     'aria.langSelect': {
         en: { t: "Interface language" },
-        fr: { t: "Langue de l'interface", reviewed: false },
+        fr: { t: "Langue de l’interface", reviewed: false },
     },
     'aria.helpToggle': {
         en: { t: "Toggle tooltips" },
-        fr: { t: "Activer ou désactiver les infobulles", reviewed: false },
+        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: false },
     },
 
     // ── The hover-help toggle's two faces ───────────────────────────────────
