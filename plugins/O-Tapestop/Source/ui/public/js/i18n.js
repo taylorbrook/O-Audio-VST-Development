@@ -18,7 +18,56 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Tapestop hover-help copy, English + French (v1.5.0)
+// i18n.js — O-Tapestop hover-help copy, English + French (v1.6.1)
+//
+// ── v1.6.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 21 of 109 rows (7 terminology, 14 typography, 5 grammar/register,
+// 2 meaning — 29 edits, several rows carrying more than one). sameAsEn: kept 8,
+// translated 0. termNote exemptions: 1 (label.timing, below).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+//
+// The decisions the next reader needs:
+//
+//  * label.toneTrack takes the glossary ROOT, "Suivi de timbre". The v1.6.0
+//    comment below defended "Suivi tonal" on width and was wrong on both
+//    numbers: the string measures 91.97 px, not 97, and the constraint is not
+//    the 88 px .knob-cell — .knob-label is shrink-to-fit with overflow visible,
+//    so the caption grows past its cell into a 148 px .group-body and lands at
+//    x=[699.02, 790.98] with 28.02 px of clearance on EACH side of the
+//    .group-output padding box [671, 819]. Fourth header width defence in this
+//    task proven backwards by measurement (after O-Comp, O-Chorus, O-AnalogEQ).
+//
+//  * label.timing keeps "Cadence" under a termNote. The glossary's "décalage"
+//    is the rhythmic-offset sense of Timing; this caption heads the SYNC/FREE
+//    pair and names a time BASE. There is no nudge control on this page.
+//
+//  * label.passLength keeps the short "Passage" while the two Pass Length tip
+//    titles keep the root "Durée du passage". Both are glossary-accepted for
+//    'pass length', so the two forms on one page are settled, not a split.
+//
+//  * knob-MIX's TITLE is now "Mix" (glossary root; "Dosage" was also an F1
+//    forbidden word), but its BODY keeps "mélange parallèle" for the English
+//    "parallel blend" — bodies are prose and are not matched against TERMS, and
+//    "un mix parallèle" is not what a French engineer writes (N2 correction 17).
+//    knob-OUTPUT_GAIN's body follows the new caption: "Comme le Mix".
+//
+//  * THREE tooltip TITLES are straight copies and stay UNFLAGGED: "Mix",
+//    "Glitch", "Chaos" — all three are French as they stand. `sameAsEn: true`
+//    is NOT added, because on an I18N entry check-i18n:568 reads it as "title
+//    AND body are both straight copies" and would disarm assertion 4 for those
+//    entries; all three have French bodies. The lint reports them as INFO only.
+//
+//  * The preset dropdown's theme headings are HARD-CODED ENGLISH in app.js
+//    (PRESET_THEMES, :597-605) and are not localized, so preset-name's French
+//    body now names them as the user will read them — "Tape Stops, Scratch,
+//    Wobble & Warp, et Glitch & Chaos". The draft translated them, which would
+//    have sent a French user looking for headings that are not on the page.
+//
+//  * Register: this page is INFINITIVE. Five sites already were (the footer,
+//    both envelope hints, settings, preset-name); the two imperative bodies
+//    (engage-btn, envCanvas) were converted, and envCanvas now opens on the
+//    same "Glisser les points" as label.envHint1 does.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -54,8 +103,10 @@
 // milliseconds — so a class-based key would collide. The id'd children
 // (#combo-STOP_SYNC_DIV, #knob-STOP_FREE_MS) do not.
 //
-// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
-// speaker has read it. `node scripts/check-i18n.js` prints the worklist.
+// ALL FRENCH WAS MACHINE-DRAFTED AND IS STILL FLAGGED `reviewed: false`.
+// v1.6.1 read every entry against its English and against the suite glossary;
+// that is a second machine reading, not a native speaker, so the flag stands.
+// `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
 export const LANGUAGES = ['en', 'fr'];
@@ -81,7 +132,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
               reviewed: false },
     },
 
@@ -113,7 +164,7 @@ export const I18N = Object.freeze({
         en: { t: 'Preset',
               b: 'The loaded preset. Click to open the list, grouped into Tape Stops, Scratch, Wobble & Warp, and Glitch & Chaos.' },
         fr: { t: 'Préréglage',
-              b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Arrêts de bande, Scratch, Pleurage et voile, et Glitch et chaos.',
+              b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Tape Stops, Scratch, Wobble & Warp, et Glitch & Chaos.',
               reviewed: false },
     },
 
@@ -145,7 +196,7 @@ export const I18N = Object.freeze({
         en: { t: 'Engage',
               b: 'The performance control. It latches: pressing it starts the gesture the current Mode describes, releasing it hands the transport back. Automate or MIDI-map this and leave the rest of the page alone.' },
         fr: { t: 'Enclencher',
-              b: 'La commande de jeu. Elle se maintient : l’enfoncer démarre le geste que décrit le Mode courant, la relâcher rend la main au transport. Automatisez ou assignez-la en MIDI et laissez le reste de la page tranquille.',
+              b: 'La commande de jeu. Elle se maintient : l’enfoncer démarre le geste que décrit le Mode courant, la relâcher rend la main au transport. L’automatiser ou l’assigner en MIDI, et laisser le reste de la page tranquille.',
               reviewed: false },
     },
 
@@ -153,7 +204,7 @@ export const I18N = Object.freeze({
         en: { t: 'Stop Mode',
               b: 'The reel losing power. Engage spins the tape down to a halt; releasing spins it back up to speed. Spin Down and Spin Up shape each half separately.' },
         fr: { t: 'Mode arrêt',
-              b: 'La bobine qui perd son alimentation. Enclencher fait ralentir la bande jusqu’à l’arrêt ; relâcher la fait remonter à sa vitesse. Ralentissement et Redémarrage façonnent chaque moitié séparément.',
+              b: 'La bobine qui perd son alimentation. Enclencher fait ralentir la bande jusqu’à l’arrêt ; relâcher la fait remonter à sa vitesse. Ralentissement et Redémarrage façonnent chaque moitié séparément.',
               reviewed: false },
     },
 
@@ -176,7 +227,7 @@ export const I18N = Object.freeze({
     'seg-sync-sync': {
         en: { t: 'Sync',
               b: 'Every duration on this page locks to the host\'s tempo grid and is chosen as a note division. Switches all three panels at once.' },
-        fr: { t: 'Synchronisé',
+        fr: { t: 'Synchro',
               b: 'Toutes les durées de cette page s’asservissent à la grille de tempo de l’hôte et se choisissent en divisions de note. Bascule les trois panneaux à la fois.',
               reviewed: false },
     },
@@ -201,7 +252,7 @@ export const I18N = Object.freeze({
         en: { t: 'Spin-Down Time',
               b: 'How long the reel takes to reach a standstill, as a note division of the host tempo. Latched the moment Engage is pressed — moving it mid-gesture is inert.' },
         fr: { t: 'Durée de ralentissement',
-              b: 'Le temps que met la bobine à atteindre l’arrêt complet, en division de note du tempo de l’hôte. Verrouillée à l’instant où Enclencher est pressé — la modifier en cours de geste est sans effet.',
+              b: 'Le temps que met la bobine à atteindre l’arrêt complet, en division de note du tempo de l’hôte. Verrouillé à l’instant où Enclencher est pressé — le modifier en cours de geste est sans effet.',
               reviewed: false },
     },
 
@@ -209,7 +260,7 @@ export const I18N = Object.freeze({
         en: { t: 'Spin-Down Time',
               b: 'How long the reel takes to reach a standstill, in milliseconds. Latched the moment Engage is pressed.' },
         fr: { t: 'Durée de ralentissement',
-              b: 'Le temps que met la bobine à atteindre l’arrêt complet, en millisecondes. Verrouillée à l’instant où Enclencher est pressé.',
+              b: 'Le temps que met la bobine à atteindre l’arrêt complet, en millisecondes. Verrouillé à l’instant où Enclencher est pressé.',
               reviewed: false },
     },
 
@@ -217,7 +268,7 @@ export const I18N = Object.freeze({
         en: { t: 'Spin-Down Curve',
               b: 'Shapes the fall. At 0 the speed drops in a straight line; at 100 it plunges away at once and then crawls the last stretch. 50 is turntable physics.' },
         fr: { t: 'Courbe de ralentissement',
-              b: 'Façonne la chute. À 0 la vitesse descend en ligne droite ; à 100 elle s’effondre d’un coup puis rampe sur la dernière portion. 50 correspond à la physique d’une platine.',
+              b: 'Façonne la chute. À 0 la vitesse descend en ligne droite ; à 100 elle s’effondre d’un coup puis rampe sur la dernière portion. 50 correspond à la physique d’une platine.',
               reviewed: false },
     },
 
@@ -241,7 +292,7 @@ export const I18N = Object.freeze({
         en: { t: 'Spin-Up Curve',
               b: 'Shapes the return. At 0 the speed rises in a straight line; at 100 it hangs near a standstill and then rushes back at the end. 50 is turntable physics.' },
         fr: { t: 'Courbe de redémarrage',
-              b: 'Façonne le retour. À 0 la vitesse monte en ligne droite ; à 100 elle traîne près de l’arrêt puis se précipite à la fin. 50 correspond à la physique d’une platine.',
+              b: 'Façonne le retour. À 0 la vitesse monte en ligne droite ; à 100 elle traîne près de l’arrêt puis se précipite à la fin. 50 correspond à la physique d’une platine.',
               reviewed: false },
     },
 
@@ -249,7 +300,7 @@ export const I18N = Object.freeze({
         en: { t: 'Scratch Envelope',
               b: 'Speed across one pass. The 1× line is normal speed, 0 is a standstill, and everything below the 0 line plays backwards — down to −2×. Drag the points to reshape it.' },
         fr: { t: 'Enveloppe de scratch',
-              b: 'La vitesse au long d’un passage. La ligne 1× est la vitesse normale, 0 l’immobilité, et tout ce qui passe sous la ligne 0 se lit à l’envers — jusqu’à −2×. Faites glisser les points pour la remodeler.',
+              b: 'La vitesse tout au long d’un passage. La ligne 1× est la vitesse normale, 0 l’immobilité, et tout ce qui passe sous la ligne 0 se lit à l’envers — jusqu’à −2×. Glisser les points pour la remodeler.',
               reviewed: false },
     },
 
@@ -297,7 +348,7 @@ export const I18N = Object.freeze({
         en: { t: 'Motion Rate',
               b: 'How fast the motion cycles, as a note division of the host tempo.' },
         fr: { t: 'Vitesse du mouvement',
-              b: 'À quelle cadence le mouvement se répète, en division de note du tempo de l’hôte.',
+              b: 'À quelle vitesse le mouvement se répète, en division de note du tempo de l’hôte.',
               reviewed: false },
     },
 
@@ -305,7 +356,7 @@ export const I18N = Object.freeze({
         en: { t: 'Motion Rate',
               b: 'How fast the motion cycles, in hertz. 0.05 Hz is one slow sweep every twenty seconds; 20 Hz is a buzz.' },
         fr: { t: 'Vitesse du mouvement',
-              b: 'À quelle cadence le mouvement se répète, en hertz. 0,05 Hz correspond à un balayage lent toutes les vingt secondes ; 20 Hz à un bourdonnement.',
+              b: 'À quelle vitesse le mouvement se répète, en hertz. 0,05 Hz correspond à un balayage lent toutes les vingt secondes ; 20 Hz à un bourdonnement.',
               reviewed: false },
     },
 
@@ -313,7 +364,7 @@ export const I18N = Object.freeze({
         en: { t: 'Motion Depth',
               b: 'Peak speed deviation, scaled by ear rather than linearly: 0 is barely two cents of drift, 50 is about one percent, 100 reaches roughly two semitones.' },
         fr: { t: 'Profondeur du mouvement',
-              b: 'Écart de vitesse maximal, dosé à l’oreille plutôt que linéairement : 0 représente à peine deux centièmes de dérive, 50 environ un pour cent, et 100 atteint près de deux demi-tons.',
+              b: 'Écart de vitesse maximal, dosé à l’oreille plutôt que linéairement : 0 représente à peine deux centièmes de demi-ton de dérive, 50 environ un pour cent, et 100 atteint près de deux demi-tons.',
               reviewed: false },
     },
 
@@ -321,7 +372,7 @@ export const I18N = Object.freeze({
         en: { t: 'Chaos',
               b: 'How irregular the motion is. At 0 each Character runs its tamest, most repeatable shape; raising it jitters Wobble, widens Random\'s drift, and unlocks faster, shorter Glitch events.' },
         fr: { t: 'Chaos',
-              b: 'À quel point le mouvement est irrégulier. À 0, chaque Caractère joue sa forme la plus sage et la plus reproductible ; en montant, le Pleurage se met à trembler, la dérive de l’Aléatoire s’élargit, et les événements de Glitch deviennent plus rapides et plus courts.',
+              b: 'À quel point le mouvement est irrégulier. À 0, chaque Caractère joue sa forme la plus sage et la plus reproductible ; en montant, le Pleurage se met à trembler, la dérive de l’Aléatoire s’élargit, et les événements de Glitch deviennent plus rapides et plus courts.',
               reviewed: false },
     },
 
@@ -329,15 +380,15 @@ export const I18N = Object.freeze({
         en: { t: 'Tone Track',
               b: 'Darkens the varispeed path as the tape slows, the way tape and vinyl lose their highs off-speed. At 0 nothing is filtered; at 100 a full standstill reaches down to 150 Hz. Full speed is always open.' },
         fr: { t: 'Suivi de timbre',
-              b: 'Assombrit le trajet en vitesse variable à mesure que la bande ralentit, comme la bande et le vinyle perdent leurs aigus hors vitesse. À 0 rien n’est filtré ; à 100 l’arrêt complet descend jusqu’à 150 Hz. À pleine vitesse le trajet reste toujours ouvert.',
+              b: 'Assombrit le trajet en vitesse variable à mesure que la bande ralentit, comme la bande et le vinyle perdent leurs aigus hors vitesse. À 0 rien n’est filtré ; à 100 l’arrêt complet descend jusqu’à 150 Hz. À pleine vitesse le trajet reste toujours ouvert.',
               reviewed: false },
     },
 
     'knob-MIX': {
         en: { t: 'Mix',
               b: 'Balance of the dry input against the varispeed path — a straight crossfade, so it doubles as a parallel blend. Applies to the engaged chain only; disengaged output is bit-for-bit dry.' },
-        fr: { t: 'Dosage',
-              b: 'Équilibre entre le signal direct et le trajet en vitesse variable — un simple fondu croisé, qui sert donc aussi de mélange parallèle. Ne s’applique qu’à la chaîne enclenchée ; hors enclenchement la sortie est le signal direct au bit près.',
+        fr: { t: 'Mix',
+              b: 'Équilibre entre le signal direct et le trajet en vitesse variable — un simple fondu croisé, qui sert donc aussi de mélange parallèle. Ne s’applique qu’à la chaîne enclenchée ; hors enclenchement la sortie est le signal direct au bit près.',
               reviewed: false },
     },
 
@@ -345,7 +396,7 @@ export const I18N = Object.freeze({
         en: { t: 'Output Gain',
               b: 'Final trim, −24 to +12 dB. Like Mix, it rides the engaged chain only and glides back to unity across the resync fade.' },
         fr: { t: 'Gain de sortie',
-              b: 'Ajustement final, de −24 à +12 dB. Comme le Dosage, il ne porte que sur la chaîne enclenchée et revient progressivement à l’unité pendant le fondu de resynchronisation.',
+              b: 'Ajustement final, de −24 à +12 dB. Comme le Mix, il ne porte que sur la chaîne enclenchée et revient progressivement à l’unité pendant le fondu de resynchronisation.',
               reviewed: false },
     },
 });
@@ -366,12 +417,18 @@ export const I18N = Object.freeze({
 // #preset-save, #engage-btn, the three CHARACTER segments, Mix, Chaos and the
 // gear's aria-label all reuse their I18N key and appear nowhere below.
 //
-// It is deliberately NOT used where only the English matches. #seg-sync-sync's
-// tip title is "Sync" / "Synchronisé"; the label needs "Sync" / "Synchro",
-// because "SYNCHRONISÉ" is 90 px of type in a 66 px segment. Reusing the key
+// It is deliberately NOT used where only the English matches. Reusing a key
 // there would make every future edit to a tooltip a silent geometry change to
 // a control. A label and a tip are the same string only when they are the same
 // string in both languages.
+//
+// v1.6.1 note: #seg-sync-sync used to be this rule's worked example — its tip
+// title was "Synchronisé" while its label was "Synchro", and "SYNCHRONISÉ"
+// measures 81.02 px against the segment's 62 px content box. Stage N settled
+// the title on the glossary's "Synchro", so the two strings now DO match in
+// both languages. The keys still stay separate: collapsing them would re-couple
+// a 62 px control to a 230 px tooltip, which is the coupling this rule exists
+// to prevent, and the reuse rule is an allowance, never an obligation.
 //
 // ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
 // Every en below is byte-for-byte what index.html carried through v1.5.0,
@@ -383,11 +440,13 @@ export const I18N = Object.freeze({
 // D-04 forbids an auto-shrink font and a short-variant fallback: there is
 // exactly ONE French string per key here and nothing chooses between variants
 // at runtime. Where French did not fit, the fix was the plugin's own CSS
-// (see CHANGELOG v1.6.0), except where a shorter phrasing was simply the
-// better French — "Suivi tonal" over "Suivi de timbre" for TONE TRACK.
+// (see CHANGELOG v1.6.0). v1.6.1 retired the one exception this paragraph used
+// to name: TONE TRACK's "Suivi tonal" was chosen over "Suivi de timbre" on a
+// width claim that did not survive measurement — see the key's own comment.
 //
-// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`. No native speaker has read
-// it. `node scripts/check-i18n.js` prints the worklist, LABELS included.
+// ALL FRENCH WAS MACHINE-DRAFTED, REVISED IN STAGE N (v1.6.1) AND IS STILL
+// `reviewed: false` — a glossary-and-lint pass is not a native speaker.
+// `node scripts/check-i18n.js` prints the worklist, LABELS included.
 // ============================================================================
 
 export const LABELS = Object.freeze({
@@ -410,7 +469,7 @@ export const LABELS = Object.freeze({
     // register the whole panel is written in.
     'ui.on':             { en: { t: 'On' },          fr: { t: 'Marche',        reviewed: false } },
     'ui.off':            { en: { t: 'Off' },         fr: { t: 'Arrêt',         reviewed: false } },
-    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: false } },
+    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: false } },
 
     // ── Header ──────────────────────────────────────────────────────────────
     'label.subtitle':    { en: { t: 'Varispeed Transport · A Field Guide' },
@@ -424,7 +483,11 @@ export const LABELS = Object.freeze({
     // Shared by the MODE segment, the CHARACTER pane's Motion caption and
     // #modeSegments' aria-label: one concept, one string, one key.
     'label.motion':      { en: { t: 'Motion' },      fr: { t: 'Mouvement',     reviewed: false } },
-    'label.timing':      { en: { t: 'Timing' },      fr: { t: 'Cadence',       reviewed: false } },
+    'label.timing':      { en: { t: 'Timing' },
+                           fr: { t: 'Cadence', reviewed: false,
+                                 termNote: 'the caption heads the SYNC/FREE pair — it names the time BASE, '
+                                         + 'not the rhythmic offset the glossary term "décalage" means; '
+                                         + 'this page carries no nudge control' } },
     'label.sync':        { en: { t: 'Sync' },        fr: { t: 'Synchro',       reviewed: false } },
     'label.playback':    { en: { t: 'Playback' },    fr: { t: 'Lecture',       reviewed: false } },
 
@@ -452,10 +515,16 @@ export const LABELS = Object.freeze({
 
     // ── OUTPUT panel ────────────────────────────────────────────────────────
     'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',        reviewed: false } },
-    // NOT the knob-TONE_TRACK tip title, whose French is "Suivi de timbre" —
-    // 15 characters of 9.5 px uppercase is 97 px in an 88 px knob cell. The
-    // shorter phrasing is also the better French for what the control does.
-    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi tonal',   reviewed: false } },
+    // v1.6.1: this key and the knob-TONE_TRACK tip title now carry the SAME
+    // French, the glossary root "Suivi de timbre". v1.6.0 shipped the shorter
+    // "Suivi tonal" here and defended it at "97 px in an 88 px knob cell";
+    // measured at the shipping frame it is 91.97 px, and .knob-label is
+    // shrink-to-fit with overflow:visible, so the cell is not the constraint —
+    // the caption centres at x=[699.02, 790.98] inside .group-output's padding
+    // box [671, 819], 28.02 px clear on each side. The keys still stay separate
+    // (the reuse rule is an allowance, not an obligation): one is a 9.5 px
+    // caption in a fixed column, the other is prose in a 230 px tip.
+    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi de timbre', reviewed: false } },
     // NOT knob-OUTPUT_GAIN, whose title is "Output Gain": this caption is the
     // bare word, under an OUTPUT group heading that already says the rest.
     'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: false, sameAsEn: true } },
@@ -475,7 +544,7 @@ export const LABELS = Object.freeze({
     'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: false } },
     'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: false } },
     'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: false } },
-    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchronisation', reviewed: false } },
+    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchro', reviewed: false } },
     'aria.stopTime':     { en: { t: 'Stop Time' },        fr: { t: 'Durée d’arrêt',        reviewed: false } },
     'aria.startTime':    { en: { t: 'Start Time' },       fr: { t: 'Durée de démarrage',   reviewed: false } },
     'aria.envCanvas':    { en: { t: 'Scratch speed envelope' },
