@@ -6226,3 +6226,65 @@ O-GrainScatter's Doppler body was a garden path (*qui passe monte*).
 No native speaker; no DAW; Chromium only; Standalone stale; O-Contrabass has no committed
 render gate (item 31: 17 of 38). Repo lint total **after N7: see the N8 log** — the remaining
 five plugins carry it all.
+
+# STAGE N — BATCH N8 COMPLETE, the tuning-panel family, 3 of 3 — 41 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-IntonationPad | 2.9.1 | `ac2a7323` (+`31b9ff1a`) | 67 → 0 | 52 of 199 | 0 → 0; 8b red on 4/20 states until the gate fix | probe 79/80 ×2; 17 late / 0 dead held |
+| O-Wind | 1.18.1 | `33adb342` | 65 → 0 | 59 of 119 | 0 → 0 | gate 0 failures, every tab |
+| O-Formant | 1.27.1 | `5c91939b` (+`9f48b062`) | 85 → 0 | 60 of 182 | 0 → 0 | 1360 byte-identical; canvas strings recorded en→fr→en |
+
+Installed plists verified ×3; `boot-all-uis` 43/43 / 0 DEAD; `auval` PASS ×3.
+
+## THE HEADLINE: a gate went red on the settled term, and the gate was wrong
+
+O-IntonationPad's *Accord* (51.84 px in a 52 px box) nudged its tab button 0.62 px into a
+`.tuning-controls-panel` rect that begins at x=542 — a panel scrolled inside an
+`overflow: auto` tab that clips it at y=96, forty-four pixels above the tab row. Assertion
+8b compares `getBoundingClientRect` boxes, which are unclipped; `elementFromPoint` at every
+point of the 1.09 × 29 px overlap returns the button. English itself sat 0.03 px from the
+same false verdict. The executor shipped the settled term, proved the overlap had no
+pixels, and stopped. **Fixed in the gate** (`vrect`, clipped by overflow ancestors; 8b uses
+it): O-IntonationPad 20/20 green, five other plugins byte-identical. Third gate defect this
+stage found by a plugin the gate had never been run against in that state.
+
+## O-Wind's Effects tab has never been measured — and the fix would be a states-file edit
+
+`tests/i18n-states.json` opens the settings popover first; it renders at 698,39 190×40 over
+the right 190 px of the 300 px Effects tab button, so the tab click lands in the popover
+and Playwright times out. 25 of 65 `[data-i18n]` elements on that page have no geometry
+history. The executor ran assertions 4/5/7/8 on the open tab by hand (0 moved, nothing
+clipped, four captions shrank) and left the states file alone — it is a gate. Item 62.
+
+## Header defences: O-Formant three backwards, O-Wind two held, O-IntonationPad one held
+
+O-Formant's *Sauver* was 64.02 px in a `min-width: 65px` button — the abbreviation was
+free; *Vib Vitesse* / *Vib Ampleur* / *Rétroaction* were each WIDER than the settled term
+that replaced them. *Formant du chanteur* held to 0.01 px. O-IntonationPad's
+*Bibliothèque* defence reproduced its own numbers to the tenth — and the executor's first
+measurement (56.50 px clear) was taken in the collapsed-library state and was wrong; the
+gate's state is the one that counts. Score: 18 of 41 headers wrong about the string.
+
+## Meaning column, N8
+
+*un plaqué naturel* (a block chord) for a timing offset; *La3* against a caption reading
+RÉF. A4; "affiche On" for a button that reads MARCHE; *en chantant* for humming; a word
+that is not French (*rugosifie*); *Mod Rd* (a caption) as a tip title that had lost
+"Depth"; *affichage d'angle* for a corner readout; *démarre juste* for "starts on pitch".
+
+## Defects found by reading French (items 62–65)
+
+62. **O-Wind's Effects tab has never been geometry-measured** (states-file ordering; above).
+63. **O-Formant `tip.formantSpread` misnames the pivot** — "around the first one"; the code
+    scales around the centre of mass of all five formants (`FormantFilterBank.h:100-107`).
+64. **O-Formant is the only plugin whose tuning-panel strings are keyed `tuning.*`** — the
+    other seven key them differently; *Touches réelles* fits (62.55 in 66.80 px) but was not
+    applied unilaterally. The eight copies converge on text, not on keys.
+65. O-IntonationPad has no committed render gate (its tips landed at v2.9.0 outside M1–M3);
+    O-Wind's `[Effects] Panel initialized (v1.14.0)` banner is four versions stale.
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; Standalone stale; O-Formant's installed bundle is
+one CSS comment behind HEAD. Repo lint total after N8: **the two N9 plugins carry it all.**
