@@ -84,6 +84,10 @@ const fs   = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const G = require(path.join(__dirname, 'i18n-fr-glossary.js'));
+// TERMS keys are looked up by norm(en), which strips a trailing period - so a
+// key that ends in one ('tuning panel failed to load.') could never match
+// (O-Contrabass N7, the only such key of ~240). Normalise the keys the same way.
+const TERMS = Object.fromEntries(Object.entries(G.TERMS).map(([k, v]) => [k.replace(/\.$/, '').trim().toLowerCase(), v]));
 
 const argv    = process.argv.slice(2);
 const val     = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : null; };
@@ -193,7 +197,7 @@ async function lintPlugin(name) {
         // run (O-simpleFM pilot, label.knobFixedHz "Fréq. fixe").
         const exempt = typeof r.frObj.termNote === 'string' && r.frObj.termNote.trim() !== '';
         if (exempt) info.termNote.push(r);
-        const allowed = G.TERMS[norm(r.en)];
+        const allowed = TERMS[norm(r.en)];
         const accepted = (allowed || []).map(norm).includes(norm(r.fr));
         if (!exempt && allowed && !accepted)
             findings.push({ code: 'G1', ...r, note: `"${r.en}" → ${allowed.join(' | ')}` });

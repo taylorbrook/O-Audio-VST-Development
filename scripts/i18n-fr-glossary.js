@@ -325,6 +325,7 @@ const TERMS = {
     'pluck position':           ['point de pincement', 'pincement'],
     'mode spread':              ['étalement des modes', 'étalement'],
     'tone':                     ['timbre'],
+    'body':                     ['corps', 'caisse'],   // O-Bowed ships Caisse, O-Contrabass Corps; both correct for a soundbox - a reader's call (item 60)
     'sound':                    ['son'],
     'effects':                  ['effets'],
     'tension':                  ['tension'],
