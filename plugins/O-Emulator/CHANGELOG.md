@@ -2,6 +2,42 @@
 
 All notable changes to O-Emulator are documented here.
 
+## [1.2.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **9 of 22 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, which went from 26 findings to
+  3. Terminology: **Dosage → Mix** on the Mix caption and its tooltip title —
+  the suite settles on *Mix*, which is what every French DAW shows and is the
+  same width as the English, so nothing moved; *fondu* → **fondu enchaîné** for
+  the console crossfade; *lit de bruit* → **bruit de fond**, a calque replaced
+  by the term. Typography: 14 straight apostrophes became **typographic ’**,
+  and **18 no-break spaces** went in before `%` and `:` and between every
+  number and its unit (`30 ms`, `15 cents`, `80 %`) so a French tooltip can no
+  longer break a value away from its unit. Grammar and idiom: the Mix tip said
+  the hiss disappeared *avec elle*, binding it to the input — which is the one
+  thing that does **not** disappear; the Crush tip's *pas de quantification*
+  read as a negation until its articles were restored. Meaning: the Console tip
+  had lost *d'échantillonnage* from "fixed internal sample rate", and the Reverb
+  tip had lost *de console* from "available in every console mode", which is the
+  whole point of that sentence.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Not changed, and why
+
+- **Broyage** stays for Crush. The glossary's *Écrasement* measures 82.45 px in
+  a 60.00 px knob column and slides all four knobs; the glossary lists no
+  abbreviation and Stage N does not invent one. **Sûr ?** stays for Confirm?
+  for the same reason — *Confirmer ?* is 58.59 px on one line in a 49.00 px
+  pinned button. Both are reported so the glossary can grow.
+- English copy, keys, tooltip bindings and CSS are untouched; `reviewed: false`
+  still stands on all 22 entries, because no native speaker has read them.
+
 ## [1.2.0] — 2026-08-30
 
 ### Added

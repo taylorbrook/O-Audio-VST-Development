@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Emulator page copy, English + French (v1.2.0)
+// i18n.js — O-Emulator page copy, English + French (v1.2.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,6 +32,55 @@
 // converting them to underscores, so a second file named i18n-fr.js would have
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
+//
+// ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+//
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 9 of 22 entries (5 terminology, 8 typography, 7 grammar/idiom,
+// 2 meaning — an entry can carry more than one). Lint 26 -> 3: T1 6, T3 4,
+// T4 6, T5 1, T7 2, F1 2 and 2 of 5 G1 closed. 14 straight apostrophes became
+// U+2019 and 18 U+00A0 went in before % : and between number and unit.
+// sameAsEn: kept 1 (aria.console), ADDED 1 (label.mix), translated 0.
+// termNote exemptions: 0. Left as drafted: the other 13 entries.
+// reviewed: false throughout — no native speaker has read this yet.
+//
+// THE THREE G1 FINDINGS LEFT OPEN ARE BOTH WIDTH, AND BOTH ARE MEASURED. The
+// glossary lists one rendering each and no abbreviation, and Stage N does not
+// invent a third form — so the drafted word stays and the number is reported:
+//
+//   Crush -> Écrasement (label.crush AND tip.crush's title) is 82.45 px in a
+//   60.00 px .ctl column. The column is max(60, caption) inside a
+//   space-evenly row, so it widens to 82.45 and slides all four knobs —
+//   crush 103.00 -> 109.72, age 221.00 -> 234.47, reverb 339.00 -> 347.97,
+//   mix 457.00 -> 461.48. That is check-ui-labels assertion 7, failed. The
+//   header's v1.2.0 defence of Broyage is the sixth in this task to be
+//   re-measured and the first three to hold. (Écrasem. 64.20 also moves;
+//   Écras. 46.70 would fit at zero movement, and is NOT shipped because it is
+//   not in the glossary.)
+//
+//   Confirm? -> Confirmer ? is 58.59 px on ONE line in the pinned 49.00 px
+//   content box, 9.59 px over, with overflow visible. See the corrected note
+//   at ui.confirm below.
+//
+// DECISIONS THE NEXT READER NEEDS:
+//   · Mix stays Mix (glossary root; Dosage and Mixage are both forbidden), so
+//     label.mix is now a straight copy and carries sameAsEn: true. That is
+//     why check-ui-labels' vacuity count reads 8/9 (89%) and not 9/9.
+//     tip.mix's TITLE is the same copy over a translated body and takes NO
+//     flag — the flag is entry-scoped in check-i18n and would disarm
+//     assertion 4 for the whole entry.
+//   · Enreg. / Ouvrir / Suppr. all stay: each is a glossary-accepted
+//     rendering, and the band's width is the pin that keeps .brand and
+//     .hdr-right still. Charger 41.06 does not fit the 37.00 px Load box;
+//     Enregistrer 58.08 does not fit the 36.00 px Save box; Supprimer 47.78
+//     WOULD fit the 49.00 px Delete box, and Suppr. is kept anyway because
+//     the three buttons are one set and the band total is what is pinned.
+//   · tip.reverb's French body gained one rendered line (131.0 -> 147.0 px)
+//     when "dans tous les modes" was corrected to "dans tous les modes de
+//     console". It grows upward against a fixed bottom edge, to exactly the
+//     147.0 px tip.crush already ships, with 120.0 px of top clearance.
+//   · Console names inside a French sentence are unchanged — the v1.2.0 note
+//     below still governs, and "Game Boy"/"Genesis" stay.
 //
 // ── v1.2.0 GIVES THIS PAGE HOVER-HELP, AND A RENDERER TO SHOW IT ───────────
 //
@@ -134,7 +183,7 @@ export const I18N = Object.freeze({
         en: { t: "Console",
               b: "Chooses which machine the sound is played through — codec, fixed internal sample rate and output stage all change together. Switching crossfades over 30 ms, so it is safe to change while audio is running. Five settings: SNES, PS1, NES, Game Boy, Genesis." },
         fr: { t: "Console",
-              b: "Choisit la machine par laquelle le son passe : codec, fréquence interne fixe et étage de sortie changent ensemble. Le changement se fait par un fondu de 30 ms, sans risque pendant la lecture. Cinq réglages : SNES, PS1, NES, Game Boy, Genesis.",
+              b: "Choisit la machine par laquelle le son passe : codec, fréquence d’échantillonnage interne fixe et étage de sortie changent ensemble. Le changement se fait par un fondu enchaîné de 30 ms, sans risque pendant la lecture. Cinq réglages : SNES, PS1, NES, Game Boy, Genesis.",
               reviewed: false },
     },
 
@@ -145,7 +194,7 @@ export const I18N = Object.freeze({
         en: { t: "Crush",
               b: "How hard the signal is driven through the console's codec: encoder gain, coarser quantisation steps, and past 80 % the anti-alias filter opening for deliberate aliasing. At 0 the signal still makes the full codec round trip, so this thins the colour rather than bypassing it. 0 to 100 %." },
         fr: { t: "Broyage",
-              b: "À quel point le signal est poussé dans le codec de la console : gain d'encodage, pas de quantification plus grossiers et, au-delà de 80 %, ouverture du filtre anti-repliement pour un repliement volontaire. À 0 le signal traverse quand même tout le codec : ce réglage atténue la couleur, il ne la contourne pas. 0 à 100 %.",
+              b: "À quel point le signal est poussé dans le codec de la console : le gain d’encodage, des pas de quantification plus grossiers et, au-delà de 80 %, l’ouverture du filtre anti-repliement pour un repliement volontaire. À 0 le signal traverse quand même tout le codec : ce réglage atténue la couleur, il ne la contourne pas. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -156,7 +205,7 @@ export const I18N = Object.freeze({
         en: { t: "Age",
               b: "The condition of the hardware: hiss, mains hum, a duller output filter, and a slow wander in the resampling ratio that detunes by up to 15 cents. The noise bed stays silent near the bottom of the range and only comes in above about 5 %. 0 to 100 %." },
         fr: { t: "Âge",
-              b: "L'état de la machine : souffle, ronflement secteur, filtre de sortie plus sourd et lente dérive du rapport de rééchantillonnage qui désaccorde jusqu'à 15 cents. Le lit de bruit reste silencieux en bas de la course et n'apparaît qu'au-delà d'environ 5 %. 0 à 100 %.",
+              b: "L’état de la machine : souffle, ronflement secteur, un filtre de sortie plus sourd et une lente dérive du rapport de rééchantillonnage qui désaccorde jusqu’à 15 cents. Le bruit de fond reste inaudible en bas de la course et n’apparaît qu’au-delà d’environ 5 %. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -166,7 +215,7 @@ export const I18N = Object.freeze({
         en: { t: "Reverb",
               b: "Send level into the PlayStation reverb — a Hall setting from that console's own register model, available in every console mode, not just PS1. The send is taken after the codec, so the reverb hears the degraded signal rather than the clean one. 0 to 100 %." },
         fr: { t: "Réverb",
-              b: "Niveau d'envoi vers la réverbération de la PlayStation : un réglage Hall issu du modèle de registres de cette console, disponible dans tous les modes, pas seulement en PS1. L'envoi est pris après le codec, donc la réverbération entend le signal dégradé et non le signal propre. 0 à 100 %.",
+              b: "Niveau d’envoi vers la réverbération de la PlayStation : un réglage Hall issu du modèle de registres de cette console, disponible dans tous les modes de console, pas seulement en PS1. L’envoi est pris après le codec, donc la réverbération entend le signal dégradé et non le signal intact. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -175,8 +224,8 @@ export const I18N = Object.freeze({
     'tip.mix': {
         en: { t: "Mix",
               b: "Blends the emulated signal against the untouched input. The dry path is delay-compensated, so at 0 % the input passes through unchanged — and the hiss and hum of the Age control go with it, because they live on the wet path only. 0 to 100 %." },
-        fr: { t: "Dosage",
-              b: "Dose le signal émulé face à l'entrée intacte. Le trajet direct est compensé en latence : à 0 % l'entrée ressort inchangée, et le souffle et le ronflement du réglage Âge disparaissent avec elle, car ils ne vivent que sur le trajet traité. 0 à 100 %.",
+        fr: { t: "Mix",
+              b: "Équilibre le signal émulé et l’entrée intacte. Le trajet direct est compensé en latence : à 0 % l’entrée ressort inchangée, et le souffle et le ronflement du réglage Âge disparaissent eux aussi, car ils n’existent que sur le trajet traité. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -191,14 +240,14 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d'autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue dans laquelle il a été enregistré.",
               reviewed: false },
     },
     'tip.langSelect': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available. Value readouts, the five console names and preset names stay in English so the page and the host agree." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles. Les valeurs affichées, les cinq noms de consoles et les noms de préréglages restent en anglais pour que la page et l'hôte s'accordent.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées, les cinq noms de consoles et les noms de préréglages restent en anglais pour que la page et l’hôte s’accordent.",
               reviewed: false },
     },
 });
@@ -238,7 +287,7 @@ export const I18N = Object.freeze({
 //     .ctl-label   Crush   42.69 -> Broyage 59.17   in a 60.00 column
 //                  Age     27.39 -> Âge     27.39   IDENTICAL
 //                  Reverb  50.17 -> Réverb  50.17   IDENTICAL
-//                  Mix     27.06 -> Dosage  51.39   in a 60.00 column
+//                  Mix     27.06 -> Mix     27.06   IDENTICAL (v1.2.1)
 //     .preset-btn  Save    22.25 -> Enreg.  32.47   in a 36.00 content box
 //                  Load    24.48 -> Ouvrir  33.81   in a 37.00 content box
 //                  Delete  33.41 -> Suppr.  30.38   in a 49.00 content box, and
@@ -259,10 +308,10 @@ export const I18N = Object.freeze({
 // pinned 49 px box it is one line in both languages, verified rather than
 // assumed.
 //
-// Two of the eight visible-text French strings render at EXACTLY the English
-// width (Âge, Réverb), which is the half a clip check is blind to in the other
-// direction — nothing to pin, nothing to fix, and worth stating rather than
-// leaving as an unexplained zero in the diff.
+// THREE of the eight visible-text French strings render at EXACTLY the
+// English width (Âge, Réverb, and Mix since v1.2.1), which is the half a clip
+// check is blind to in the other direction — nothing to pin, nothing to fix,
+// and worth stating rather than leaving as an unexplained zero in the diff.
 // ============================================================================
 
 export const LABELS = Object.freeze({
@@ -277,7 +326,7 @@ export const LABELS = Object.freeze({
     'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: false } },
     'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: false } },
     'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: false } },
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Dosage',  reviewed: false } },
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: false } },
 
     // ── The preset band ─────────────────────────────────────────────────────
     // The repo-standard trio, matching O-Bitrot v1.15.0, O-ReverseDelay and
@@ -297,11 +346,18 @@ export const LABELS = Object.freeze({
     // it has two languages: an attribute holds ONE string, so switching to
     // French mid-arm would have restored the English "Confirm?".
     //
-    // "Sûr ?" and not "Confirmer ?": the latter renders 50.05 px in a 48.00 px
-    // content box. Widening the button is not available — the band's total
-    // width is what keeps .brand and .hdr-right still (see the header note
-    // above) — and "Sûr ?" carries the same terse register as "Confirm?".
-    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: false } },
+    // "Sûr ?" and not "Confirmer ?". CORRECTED at v1.2.1, both numbers: the
+    // box is 49.00 px, as the table twelve lines above always said, and
+    // "Confirmer ?" is 58.59 px on ONE LINE, not 50.05. 50.05 was the widest
+    // line of the string after it WRAPPED — the same mis-measurement the
+    // "Sûr ?" note above already warns about, made a second time in the
+    // opposite box. Stage N's U+00A0 before the "?" removes the break
+    // opportunity entirely, so the wrapped reading is now unreachable and the
+    // one-line 58.59 is the only number: 9.59 px over, overflow visible.
+    // Widening the button is not available — the band's total width is what
+    // keeps .brand and .hdr-right still (see the header note above) — and
+    // "Sûr ?" carries the same terse register as "Confirm?".
+    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: false } },
 
     // ── The imprint line ────────────────────────────────────────────────────
     // The naturalist-plate conceit the whole page is built on. Its box is
