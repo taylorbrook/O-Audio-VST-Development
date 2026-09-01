@@ -113,7 +113,9 @@ const hasLower  = (s) => /[a-zà-ÿœ]/.test(letters(s));
 function typography(fr) {
     const out = [];
     if (/[A-Za-zÀ-ÿ]'[A-Za-zÀ-ÿŒœ]/.test(fr))            out.push('T1');
-    if (/\d\.\d/.test(fr))                                out.push('T2');
+    // A surround-format name is an identifier, not a number: "7,1" is not a
+    // channel format in any DAW (O-Octagon N4, quoting Logic's own menu entry).
+    if (/\d\.\d/.test(fr.replace(/\b(?:5\.1|7\.1|9\.1|5\.1\.2|5\.1\.4|7\.1\.2|7\.1\.4|9\.1\.4|9\.1\.6)\b/g, ''))) out.push('T2');
     if (/\d ?%/.test(fr))                                 out.push('T3');
     if (/(^|[^ ]):(?=\s|$)/.test(fr) && !/https?:/.test(fr)) out.push('T4');
     if (/(^|[^ ])[;!?]/.test(fr))                     out.push('T5');
